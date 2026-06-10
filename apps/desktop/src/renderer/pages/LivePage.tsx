@@ -38,6 +38,25 @@ function describeEvent(e: StudioEvent): string {
   }
 }
 
+// Avatar-/Gift-Bilder für Test-Events als Data-URLs — kein Netz nötig,
+// aber die Widgets zeigen echte Bilder wie im Live-Betrieb.
+function svgAvatar(initial: string, bg: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="${bg}"/><text x="32" y="42" font-family="Arial Black" font-size="30" fill="#fff" text-anchor="middle">${initial}</text></svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+function svgEmoji(emoji: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><text x="48" y="68" font-size="56" text-anchor="middle">${emoji}</text></svg>`;
+  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+}
+
+const AVATARS = {
+  test: svgAvatar('T', '#e8543f'),
+  spender: svgAvatar('B', '#7c3aed'),
+  fan: svgAvatar('F', '#21a179'),
+  chatter: svgAvatar('C', '#2563eb'),
+  liker: svgAvatar('L', '#db2777'),
+};
+
 export default function LivePage({ studio }: { studio: ReturnType<typeof useStudio> }) {
   const [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false);
@@ -151,11 +170,11 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
             Schickt echte Events durch die komplette Kette — Trigger, Overlay und Sounds reagieren wie im Stream.
           </p>
           {[
-            { label: '🌹 Test-Gift (1 Coin)', event: { type: 'gift', ts: 0, user: { id: 'test', nickname: 'TestUser' }, gift: { slug: 'Rose', count: 1, coinsPerUnit: 1, totalCoins: 1 } } },
-            { label: '🦁 Test-Gift (500 Coins)', event: { type: 'gift', ts: 0, user: { id: 'test', nickname: 'BigSpender' }, gift: { slug: 'Lion', count: 1, coinsPerUnit: 500, totalCoins: 500 } } },
-            { label: '➕ Test-Follow', event: { type: 'follow', ts: 0, user: { id: 'test2', nickname: 'NeuerFan' } } },
-            { label: '💬 Test-Chat', event: { type: 'chat', ts: 0, user: { id: 'test3', nickname: 'Chatter' }, text: 'Das Overlay sieht stark aus! 🔥' } },
-            { label: '❤️ Test-Likes (+50)', event: { type: 'like', ts: 0, user: { id: 'test4', nickname: 'Liker' }, likeCount: 50, totalLikes: 0 } },
+            { label: '🌹 Test-Gift (1 Coin)', event: { type: 'gift', ts: 0, user: { id: 'test', nickname: 'TestUser', profilePic: AVATARS.test }, gift: { slug: 'Rose', count: 1, coinsPerUnit: 1, totalCoins: 1, icon: svgEmoji('🌹') } } },
+            { label: '🦁 Test-Gift (500 Coins)', event: { type: 'gift', ts: 0, user: { id: 'spender', nickname: 'BigSpender', profilePic: AVATARS.spender }, gift: { slug: 'Lion', count: 1, coinsPerUnit: 500, totalCoins: 500, icon: svgEmoji('🦁') } } },
+            { label: '➕ Test-Follow', event: { type: 'follow', ts: 0, user: { id: 'fan', nickname: 'NeuerFan', profilePic: AVATARS.fan } } },
+            { label: '💬 Test-Chat', event: { type: 'chat', ts: 0, user: { id: 'chatter', nickname: 'Chatter', profilePic: AVATARS.chatter }, text: 'Das Overlay sieht stark aus! 🔥' } },
+            { label: '❤️ Test-Likes (+50)', event: { type: 'like', ts: 0, user: { id: 'liker', nickname: 'Liker', profilePic: AVATARS.liker }, likeCount: 50, totalLikes: 0 } },
           ].map((btn) => (
             <button
               key={btn.label}

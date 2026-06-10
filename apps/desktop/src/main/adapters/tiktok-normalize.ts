@@ -37,7 +37,14 @@ export function normalizeGift(
     giftId?: number;
     repeatCount?: number;
     repeatEnd?: number | boolean;
-    giftDetails?: { giftName?: string; describe?: string; giftType?: number; diamondCount?: number };
+    giftDetails?: {
+      giftName?: string;
+      describe?: string;
+      giftType?: number;
+      diamondCount?: number;
+      giftImage?: { url?: string[] };
+      icon?: { url?: string[] };
+    };
   },
   ts: number,
 ): StudioEvent | null {
@@ -48,6 +55,7 @@ export function normalizeGift(
 
   const count = data.repeatCount || 1;
   const coinsPerUnit = details?.diamondCount ?? 0;
+  const icon = details?.giftImage?.url?.[0] ?? details?.icon?.url?.[0];
   return {
     type: 'gift',
     ts,
@@ -58,6 +66,7 @@ export function normalizeGift(
       count,
       coinsPerUnit,
       totalCoins: coinsPerUnit * count,
+      ...(icon ? { icon } : {}),
     },
   };
 }

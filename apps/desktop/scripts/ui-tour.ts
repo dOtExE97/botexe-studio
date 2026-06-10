@@ -49,18 +49,27 @@ async function clickNav(ws: WebSocket, label: string): Promise<void> {
   await sleep(700);
 }
 
+// Hochformat-Layout (TikTok 1080x1920), Widgets in der Focus-Zone platziert.
+const avatar = (initial: string, bg: string) =>
+  'data:image/svg+xml;base64,' +
+  Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="${bg}"/><text x="32" y="42" font-family="Arial Black" font-size="30" fill="#fff" text-anchor="middle">${initial}</text></svg>`).toString('base64');
+const giftIcon = (emoji: string) =>
+  'data:image/svg+xml;base64,' +
+  Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><text x="48" y="68" font-size="56" text-anchor="middle">${emoji}</text></svg>`).toString('base64');
+
 const DEMO_LAYOUT = {
   schemaVersion: 1,
   id: 'demo-e2e',
   name: 'Mein Stream-Overlay',
-  canvas: { width: 1920, height: 1080, background: 'transparent' },
+  canvas: { width: 1080, height: 1920, background: 'transparent' },
   layers: [
-    { id: 'l-alert', widgetType: 'gift-alert', name: 'Gift-Alert', x: 560, y: 300, w: 800, h: 360, z: 10, visible: true, props: { minCoins: 0, durationMs: 30000 } },
-    { id: 'l-follow', widgetType: 'follow-alert', name: 'Follow-Alert', x: 40, y: 60, w: 460, h: 90, z: 5, visible: true, props: { durationMs: 30000 } },
-    { id: 'l-goal', widgetType: 'goal-bar', name: 'Goal', x: 560, y: 40, w: 760, h: 90, z: 4, visible: true, props: { metric: 'coins', target: 5000 } },
-    { id: 'l-board', widgetType: 'leaderboard', name: 'Leaderboard', x: 1520, y: 60, w: 360, h: 300, z: 3, visible: true, props: { limit: 5 } },
-    { id: 'l-feed', widgetType: 'gift-feed', name: 'Gift-Feed', x: 1520, y: 420, w: 380, h: 260, z: 2, visible: true, props: { max: 5, ttlMs: 120000 } },
-    { id: 'l-chat', widgetType: 'chat-box', name: 'Chat', x: 40, y: 620, w: 440, h: 420, z: 1, visible: true, props: { max: 8 } },
+    { id: 'l-goal', widgetType: 'goal-bar', name: 'Goal', x: 110, y: 240, w: 720, h: 90, z: 4, visible: true, props: { metric: 'coins', target: 5000 } },
+    { id: 'l-board', widgetType: 'leaderboard', name: 'Top Gifter', x: 110, y: 370, w: 350, h: 290, z: 3, visible: true, props: { source: 'gifts', limit: 5 } },
+    { id: 'l-likes', widgetType: 'leaderboard', name: 'Like-Liste', x: 490, y: 370, w: 340, h: 290, z: 3, visible: true, props: { source: 'likes', limit: 5 } },
+    { id: 'l-alert', widgetType: 'gift-alert', name: 'Gift-Alert', x: 110, y: 700, w: 720, h: 420, z: 10, visible: true, props: { minCoins: 0, durationMs: 30000 } },
+    { id: 'l-follow', widgetType: 'follow-alert', name: 'Follow-Alert', x: 110, y: 1150, w: 460, h: 90, z: 5, visible: true, props: { durationMs: 30000 } },
+    { id: 'l-feed', widgetType: 'gift-feed', name: 'Gift-Feed', x: 460, y: 1255, w: 370, h: 160, z: 2, visible: true, props: { max: 3, ttlMs: 120000 } },
+    { id: 'l-chat', widgetType: 'chat-box', name: 'Chat', x: 110, y: 1255, w: 340, h: 160, z: 1, visible: true, props: { max: 4 } },
   ],
   createdAt: '2026-06-11T00:00:00.000Z',
   updatedAt: '2026-06-11T00:00:00.000Z',
@@ -72,15 +81,25 @@ const DEMO_RULES = [
   { id: 'rule-hype-keyword', name: 'Hype im Chat', event: 'chat', conditions: [{ kind: 'chat_keyword', value: 'hype' }], actions: [{ kind: 'fire_alert', targetId: 'l-follow' }], cooldownMs: 10000, enabled: false },
 ];
 
+const USERS = {
+  mia: { id: 'mia', nickname: 'Mia', profilePic: avatar('M', '#db2777') },
+  leon: { id: 'leon', nickname: 'LeonGG', profilePic: avatar('L', '#2563eb') },
+  sara: { id: 'sara', nickname: 'Sara_99', profilePic: avatar('S', '#21a179') },
+  ben: { id: 'ben', nickname: 'BigBen', profilePic: avatar('B', '#7c3aed') },
+  neu: { id: 'neu', nickname: 'NeuerFan', profilePic: avatar('N', '#e8543f') },
+};
+
 const EVENTS = [
   { type: 'viewer_count', ts: 0, viewerCount: 187 },
-  { type: 'chat', ts: 0, user: { id: 'mia', nickname: 'Mia' }, text: 'Endlich wieder live! 🔥' },
-  { type: 'chat', ts: 0, user: { id: 'leon', nickname: 'LeonGG' }, text: 'Das neue Overlay ist krass' },
-  { type: 'follow', ts: 0, user: { id: 'neu', nickname: 'NeuerFan' } },
-  { type: 'gift', ts: 0, user: { id: 'mia', nickname: 'Mia' }, gift: { slug: 'Rose', count: 5, coinsPerUnit: 1, totalCoins: 5 } },
-  { type: 'like', ts: 0, user: { id: 'mia', nickname: 'Mia' }, likeCount: 50, totalLikes: 731 },
-  { type: 'chat', ts: 0, user: { id: 'sara', nickname: 'Sara_99' }, text: 'W Stream, bleib so!' },
-  { type: 'gift', ts: 0, user: { id: 'ben', nickname: 'BigBen' }, gift: { slug: 'Galaxy', count: 1, coinsPerUnit: 1000, totalCoins: 1000 } },
+  { type: 'chat', ts: 0, user: USERS.mia, text: 'Endlich wieder live! 🔥' },
+  { type: 'chat', ts: 0, user: USERS.leon, text: 'Das neue Overlay ist krass' },
+  { type: 'follow', ts: 0, user: USERS.neu },
+  { type: 'gift', ts: 0, user: USERS.mia, gift: { slug: 'Rose', count: 5, coinsPerUnit: 1, totalCoins: 5, icon: giftIcon('🌹') } },
+  { type: 'like', ts: 0, user: USERS.mia, likeCount: 320, totalLikes: 731 },
+  { type: 'like', ts: 0, user: USERS.leon, likeCount: 145, totalLikes: 876 },
+  { type: 'like', ts: 0, user: USERS.sara, likeCount: 89, totalLikes: 965 },
+  { type: 'chat', ts: 0, user: USERS.sara, text: 'W Stream, bleib so!' },
+  { type: 'gift', ts: 0, user: USERS.ben, gift: { slug: 'Galaxy', count: 1, coinsPerUnit: 1000, totalCoins: 1000, icon: giftIcon('🌌') } },
 ];
 
 async function main(): Promise<void> {

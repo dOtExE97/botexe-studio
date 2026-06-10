@@ -26,6 +26,7 @@ const CSS = `
 .bx-gf-text b { color: #fff; text-transform: uppercase; }
 .bx-gf-coins { margin-left: auto; font-family: Consolas, Menlo, monospace;
   font-weight: 700; font-size: 13px; color: #ffd23e; flex: none; }
+.bx-gf-icon { height: 26px; flex: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
 @keyframes bx-gf-in { to { transform: translateX(0); } }
 @keyframes bx-gf-out { to { transform: translateX(-110%); opacity: 0; } }
 `;
@@ -61,7 +62,9 @@ export default class GiftFeed {
     item.innerHTML = `
       <div class="bx-gf-pic"></div>
       <div class="bx-gf-text"><b></b> schickt <b></b></div>
+      ${event.gift.icon ? '<img class="bx-gf-icon" alt="" />' : ''}
       <div class="bx-gf-coins"></div>`;
+    if (event.gift.icon) item.querySelector('.bx-gf-icon').src = event.gift.icon;
     const [nameEl, giftEl] = item.querySelectorAll('.bx-gf-text b');
     nameEl.textContent = event.user?.nickname || 'Jemand';
     giftEl.textContent = `${event.gift.count > 1 ? `${event.gift.count}× ` : ''}${event.gift.slug}`;

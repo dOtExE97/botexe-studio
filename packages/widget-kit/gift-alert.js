@@ -37,6 +37,12 @@ const CSS = `
   text-shadow: 0 3px 0 rgba(0,0,0,.45), 0 8px 24px rgba(0,0,0,.6);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 560px;
 }
+.bx-ga-pic {
+  width: 64px; height: 64px; border-radius: 50%; margin: 0 auto;
+  background: #262a36 center/cover;
+  box-shadow: 0 0 0 3px #ff4d2e, 0 0 24px rgba(255,77,46,.6);
+}
+.bx-ga-icon { height: 84px; margin-top: 10px; filter: drop-shadow(0 6px 14px rgba(0,0,0,.6)); }
 .bx-ga-gift {
   display: inline-block; margin-top: 10px; padding: 6px 22px;
   font-size: 24px; color: #0c0d12; background: #ff4d2e;
@@ -97,6 +103,8 @@ export default class GiftAlert {
       name: event.user?.nickname || 'Jemand',
       gift: `${event.gift.count > 1 ? `${event.gift.count}× ` : ''}${event.gift.slug}`,
       coins: event.gift.totalCoins,
+      icon: event.gift.icon,
+      pic: event.user?.profilePic,
     });
   }
 
@@ -126,12 +134,16 @@ export default class GiftAlert {
     this.el.innerHTML = `
       <div class="bx-ga-card">
         <div class="bx-ga-kicker">Gift Alert</div>
+        ${alert.pic ? '<div class="bx-ga-pic"></div>' : ''}
         <div class="bx-ga-name"></div>
+        ${alert.icon ? '<img class="bx-ga-icon" alt="" />' : ''}
         <div class="bx-ga-gift"></div>
         ${alert.coins > 0 ? `<div class="bx-ga-coins">+${fmt(alert.coins)} Coins</div>` : ''}
       </div>`;
     this.el.querySelector('.bx-ga-name').textContent = alert.name;
     this.el.querySelector('.bx-ga-gift').textContent = alert.gift;
+    if (alert.pic) this.el.querySelector('.bx-ga-pic').style.backgroundImage = `url("${encodeURI(alert.pic)}")`;
+    if (alert.icon) this.el.querySelector('.bx-ga-icon').src = alert.icon;
     this.burst(alert.coins >= 100 ? 26 : 12);
     this.el.classList.remove('bx-ga-hide');
     this.el.classList.add('bx-ga-show');

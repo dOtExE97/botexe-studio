@@ -1,5 +1,6 @@
-// leaderboard.js — Top-Gifter der Session, live aus dem stats-Push.
-// props: { limit?: number, title?: string }
+// leaderboard.js — Top-Liste der Session, live aus dem stats-Push.
+// props: { source?: 'gifts'|'likes', limit?: number, title?: string }
+// source 'gifts' = Top-Gifter (Coins) · 'likes' = Like-Liste (TikFinity-Style)
 // Rang-Wechsel animieren per FLIP-light (transform-transition).
 
 const STYLE_ID = 'bx-lb-style';
@@ -44,6 +45,8 @@ const CSS = `
   font-family: Consolas, Menlo, monospace; font-weight: 700;
   font-size: 15px; color: #ffd23e;
 }
+.bx-lb-likes .bx-lb-coins { color: #ff5e8a; }
+.bx-lb-likes .bx-lb-title { color: #ff5e8a; border-bottom-color: #ff5e8a; }
 .bx-lb-empty {
   display: flex; align-items: center; justify-content: center; height: 100%;
   font-size: 13px; letter-spacing: .2em; color: #5a6072; text-transform: uppercase;
@@ -66,19 +69,23 @@ function fmt(n) {
 export default class Leaderboard {
   constructor(root, props) {
     ensureStyle();
+    this.source = props.source === 'likes' ? 'likes' : 'gifts';
     this.limit = Math.min(10, Math.max(1, Number(props.limit ?? 5)));
     this.el = document.createElement('div');
-    this.el.className = 'bx-lb';
+    this.el.className = `bx-lb${this.source === 'likes' ? ' bx-lb-likes' : ''}`;
+    const emptyText = this.source === 'likes' ? 'Noch keine Likes' : 'Noch keine Gifts';
     this.el.innerHTML = `
       <div class="bx-lb-title"></div>
-      <div class="bx-lb-list"><div class="bx-lb-empty">Noch keine Gifts</div></div>`;
-    this.el.querySelector('.bx-lb-title').textContent = props.title || 'Top Gifter';
+      <div class="bx-lb-list"><div class="bx-lb-empty">${emptyText}</div></div>`;
+    this.el.querySelector('.bx-lb-title').textContent =
+      props.title || (this.source === 'likes' ? 'Top Likes' : 'Top Gifter');
     root.appendChild(this.el);
     this.rows = new Map(); // userId → row-element
   }
 
   onStats(stats) {
-    const gifters = (stats?.topGifters ?? []).slice(0, this.limit);
+    const source = this.source === 'likes' ? stats?.topLikers : stats?.topGifters;
+    const gifters = (source ?? []).slice(0, this.limit);
     const list = this.el.querySelector('.bx-lb-list');
     const empty = list.querySelector('.bx-lb-empty');
     if (empty && gifters.length > 0) empty.remove();
@@ -106,7 +113,8 @@ export default class Leaderboard {
       row.style.transform = `translateY(${i * 42}px)`;
       row.querySelector('.bx-lb-rank').textContent = String(i + 1);
       row.querySelector('.bx-lb-name').textContent = g.nickname;
-      row.querySelector('.bx-lb-coins').textContent = fmt(g.coins);
+      row.querySelector('.bx-lb-coins').textContent =
+        this.source === 'likes' ? `${fmt(g.likes)} ❤` : fmt(g.coins);
       const pic = row.querySelector('.bx-lb-pic');
       if (g.profilePic) pic.style.backgroundImage = `url("${encodeURI(g.profilePic)}")`;
     });

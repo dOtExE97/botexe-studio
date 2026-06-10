@@ -22,6 +22,8 @@ export interface StudioGift {
   count: number;
   coinsPerUnit: number;
   totalCoins: number;
+  /** Offizielles TikTok-Gift-Bild (aus giftDetails), für Alerts/Feeds. */
+  icon?: string;
 }
 
 /** Normalisiertes Live-Event — vom TikTok-Adapter erzeugt, von Engine/Overlays konsumiert. */

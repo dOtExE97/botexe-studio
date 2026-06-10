@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateLayout, createDefaultLayout, type OverlayLayout } from './index';
+import { validateLayout, createDefaultLayout, getSafeZoneProfile, type OverlayLayout } from './index';
 
 function validLayout(): OverlayLayout {
   return {
@@ -74,12 +74,29 @@ test('non-object input (null, string) wird sauber abgelehnt statt zu werfen', ()
   assert.equal(validateLayout(undefined).ok, false);
 });
 
-test('createDefaultLayout erzeugt valides layout mit transparentem 1920x1080-canvas', () => {
+test('createDefaultLayout: default ist TikTok-HOCHFORMAT (1080x1920, transparent)', () => {
   const layout = createDefaultLayout('Test');
   const result = validateLayout(layout);
   assert.equal(result.ok, true);
   assert.equal(layout.name, 'Test');
+  assert.equal(layout.canvas.width, 1080);
+  assert.equal(layout.canvas.height, 1920);
+  assert.equal(layout.canvas.background, 'transparent');
+});
+
+test('createDefaultLayout: landscape-preset erzeugt 1920x1080', () => {
+  const layout = createDefaultLayout('Test', undefined, 'landscape');
   assert.equal(layout.canvas.width, 1920);
   assert.equal(layout.canvas.height, 1080);
-  assert.equal(layout.canvas.background, 'transparent');
+});
+
+test('safezone-profile: für beide canvas-formate vorhanden und konsistent', () => {
+  const portrait = getSafeZoneProfile(1080, 1920);
+  const landscape = getSafeZoneProfile(1920, 1080);
+  assert.ok(portrait && portrait.zones.length >= 3);
+  assert.ok(landscape && landscape.zones.length >= 3);
+  assert.equal(getSafeZoneProfile(640, 480), null);
+  for (const z of portrait.zones) {
+    assert.ok(z.x >= 0 && z.y >= 0 && z.x + z.w <= 1080 && z.y + z.h <= 1920, z.id);
+  }
 });

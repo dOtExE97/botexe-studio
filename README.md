@@ -62,6 +62,9 @@ E2E-Durchstich gegen die laufende App (Screenshots App + Overlay):
 | Overlay-Server (H8-Heartbeat, Backpressure H6) | ✅ 8 Tests |
 | Session-Stats (Leaderboard/Goals) | ✅ 7 Tests |
 | 6 Widgets (Neo-Arcade Broadcast) | ✅ E2E-Screenshot verifiziert |
+| Hochformat-Canvas (1080×1920, TikTok-Default) + TikTok-UI-SafeZones im Editor | ✅ |
+| Like-Liste mit Usernamen + Profilbildern (TikFinity-Style) | ✅ |
+| Echte TikTok-Gift-Bilder + Profilfotos in Alerts/Feeds | ✅ (live verifizieren) |
 | App-Shell (Live · Overlay-Editor · Trigger · Sounds) | ✅ E2E verifiziert |
 | Linux-Package (`npm run make`) | ✅ baut + startet |
 | Offen | echter Live-Connect, TTLS-Smoke-Test auf Stream-PC, Windows-Build/CI (braucht GitHub-Remote), Auto-Update aktivieren, Sub-Events live verifizieren (v2-lib hat kein subscribe-event mehr) |

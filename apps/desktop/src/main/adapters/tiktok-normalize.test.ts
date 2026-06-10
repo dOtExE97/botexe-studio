@@ -114,3 +114,22 @@ test('user-fallbacks: uniqueId fehlt → userId, nickname fehlt → uniqueId', (
   assert.equal(e.user?.id, '42');
   assert.equal(e.user?.nickname, '42');
 });
+
+test('gift: icon-url aus giftDetails.giftImage wird übernommen', () => {
+  const e = normalizeGift(
+    {
+      user,
+      giftId: 1,
+      repeatCount: 1,
+      repeatEnd: 0,
+      giftDetails: {
+        giftName: 'Lion',
+        giftType: 2,
+        diamondCount: 2999,
+        giftImage: { url: ['https://cdn.example/lion.webp'] },
+      },
+    },
+    1,
+  );
+  assert.equal(e?.gift?.icon, 'https://cdn.example/lion.webp');
+});

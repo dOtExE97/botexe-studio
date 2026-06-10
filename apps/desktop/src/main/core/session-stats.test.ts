@@ -82,3 +82,26 @@ test('reset leert alles', () => {
   assert.equal(s.snapshot().totals.coins, 0);
   assert.equal(s.snapshot().topGifters.length, 0);
 });
+
+// ── Like-Liste (TikFinity-Style): top-liker pro user ─────────────────────
+
+test('likes werden pro user aggregiert und als topLikers geliefert', () => {
+  const s = new SessionStats();
+  s.apply({ type: 'like', ts: 1, user: { id: 'mia', nickname: 'Mia', profilePic: 'pic.jpg' }, likeCount: 30, totalLikes: 30 });
+  s.apply({ type: 'like', ts: 2, user: { id: 'ben', nickname: 'Ben' }, likeCount: 100, totalLikes: 130 });
+  s.apply({ type: 'like', ts: 3, user: { id: 'mia', nickname: 'Mia' }, likeCount: 80, totalLikes: 210 });
+
+  const top = s.snapshot().topLikers;
+  assert.equal(top[0]?.id, 'mia');
+  assert.equal(top[0]?.likes, 110);
+  assert.equal(top[0]?.profilePic, 'pic.jpg');
+  assert.equal(top[1]?.id, 'ben');
+  assert.equal(top[1]?.likes, 100);
+});
+
+test('topLikers überlebt toJSON/fromJSON roundtrip', () => {
+  const s = new SessionStats();
+  s.apply({ type: 'like', ts: 1, user: { id: 'mia', nickname: 'Mia' }, likeCount: 5, totalLikes: 5 });
+  const restored = SessionStats.fromJSON(s.toJSON());
+  assert.deepEqual(restored?.snapshot().topLikers, s.snapshot().topLikers);
+});
