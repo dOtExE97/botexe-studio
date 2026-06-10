@@ -37,6 +37,35 @@ packages/
 └── trigger-engine/  ← Regel-Logik
 ```
 
+## Entwicklung
+
+```bash
+npm install              # einmalig (workspace-root)
+npm run dev:desktop      # app im dev-modus starten
+npm run lint             # eslint über alle workspaces
+npm run typecheck        # tsc --noEmit über alle workspaces
+npm test                 # alle unit-/integrationstests (node:test + tsx)
+npm run build:desktop    # distributable bauen (out/make/)
+```
+
+E2E-Durchstich gegen die laufende App (Screenshots App + Overlay):
+`npx electron-forge start -- --remote-debugging-port=9222`, dann
+`node --import tsx scripts/e2e-snapshot.ts /tmp` (in `apps/desktop/`).
+
+## Stand (2026-06-11)
+
+| Baustein | Status |
+|---|---|
+| trigger-engine (Regeln/Bedingungen/Cooldown) | ✅ 16 Tests |
+| overlay-engine (DSL + ajv-Validierung, K3) | ✅ 8 Tests |
+| Event-Bus, TikTok-Adapter v2 (K1/K2-Fix), Replay | ✅ 28 Tests |
+| Overlay-Server (H8-Heartbeat, Backpressure H6) | ✅ 8 Tests |
+| Session-Stats (Leaderboard/Goals) | ✅ 7 Tests |
+| 6 Widgets (Neo-Arcade Broadcast) | ✅ E2E-Screenshot verifiziert |
+| App-Shell (Live · Overlay-Editor · Trigger · Sounds) | ✅ E2E verifiziert |
+| Linux-Package (`npm run make`) | ✅ baut + startet |
+| Offen | echter Live-Connect, TTLS-Smoke-Test auf Stream-PC, Windows-Build/CI (braucht GitHub-Remote), Auto-Update aktivieren, Sub-Events live verifizieren (v2-lib hat kein subscribe-event mehr) |
+
 ## Referenzen
 
 - Design-Spec: [`docs/specs/2026-06-10-tikfinity-ersatz-mvp.md`](docs/specs/2026-06-10-tikfinity-ersatz-mvp.md)
