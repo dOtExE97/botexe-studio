@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "commonjs",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "outDir": "dist",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@shared/*": ["src/shared/*"],
+      "@main/*": ["src/main/*"],
+      "@renderer/*": ["src/renderer/*"],
+      "@botexe/trigger-engine": ["../../packages/trigger-engine/src"],
+      "@botexe/overlay-engine": ["../../packages/overlay-engine/src"]
+    }
+  },
+  "include": ["src/**/*", "forge.env.d.ts", "forge.config.ts", "vite.*.config.ts"]
+}

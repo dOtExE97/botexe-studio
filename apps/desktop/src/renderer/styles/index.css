@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-studio-bg: #0c0c10;
+  --color-studio-surface: #15151c;
+  --color-studio-border: #26262f;
+  --color-studio-text: #ececf1;
+  --color-studio-muted: #8b8b99;
+  --color-studio-accent: #e8543f;
+}
