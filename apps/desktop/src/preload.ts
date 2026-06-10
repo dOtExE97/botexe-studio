@@ -8,7 +8,9 @@ function listen<T>(channel: string) {
   return (cb: (payload: T) => void) => {
     const listener = (_e: Electron.IpcRendererEvent, payload: T) => cb(payload);
     ipcRenderer.on(channel, listener);
-    return () => ipcRenderer.off(channel, listener);
+    return () => {
+      ipcRenderer.off(channel, listener);
+    };
   };
 }
 

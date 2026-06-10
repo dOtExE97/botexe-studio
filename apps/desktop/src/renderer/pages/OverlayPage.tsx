@@ -1,0 +1,364 @@
+// OverlayPage — den EINEN Overlay-Screen zusammenbauen.
+// Canvas = 1920×1080 skaliert; Layer direkt am Objekt draggen/resizen,
+// Eigenschaften rechts im Panel. Speichern validiert (ajv) und pusht live.
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { OverlayLayout, OverlayLayer } from '@botexe/overlay-engine';
+
+interface PropField {
+  key: string;
+  label: string;
+  type: 'number' | 'text' | 'select';
+  options?: { value: string; label: string }[];
+  hint?: string;
+}
+
+const WIDGET_TYPES: {
+  type: string;
+  label: string;
+  desc: string;
+  w: number;
+  h: number;
+  props: Record<string, unknown>;
+  fields: PropField[];
+}[] = [
+  {
+    type: 'gift-alert', label: 'Gift-Alert', desc: 'Großer Alert mitten im Bild, wenn ein Gift kommt.',
+    w: 760, h: 320, props: { minCoins: 0, durationMs: 5000 },
+    fields: [
+      { key: 'minCoins', label: 'Ab Coins', type: 'number', hint: 'Alert erst ab diesem Gift-Wert' },
+      { key: 'durationMs', label: 'Anzeigedauer (ms)', type: 'number' },
+    ],
+  },
+  {
+    type: 'follow-alert', label: 'Follow-Alert', desc: 'Kompakte Einblendung für Follows, Subs und Shares.',
+    w: 460, h: 90, props: { durationMs: 3600 },
+    fields: [{ key: 'durationMs', label: 'Anzeigedauer (ms)', type: 'number' }],
+  },
+  {
+    type: 'goal-bar', label: 'Goal-Bar', desc: 'Fortschrittsbalken Richtung Session-Ziel.',
+    w: 560, h: 80, props: { metric: 'coins', target: 1000, label: '' },
+    fields: [
+      { key: 'metric', label: 'Metrik', type: 'select', options: [
+        { value: 'coins', label: 'Coins' }, { value: 'likes', label: 'Likes' },
+        { value: 'follows', label: 'Follower' }, { value: 'gifts', label: 'Gifts' },
+      ] },
+      { key: 'target', label: 'Ziel', type: 'number' },
+      { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'leer = automatisch' },
+    ],
+  },
+  {
+    type: 'leaderboard', label: 'Leaderboard', desc: 'Top-Gifter der Session, live sortiert.',
+    w: 360, h: 280, props: { limit: 5, title: 'Top Gifter' },
+    fields: [
+      { key: 'limit', label: 'Plätze', type: 'number' },
+      { key: 'title', label: 'Titel', type: 'text' },
+    ],
+  },
+  {
+    type: 'gift-feed', label: 'Gift-Feed', desc: 'Ticker der letzten Gifts.',
+    w: 380, h: 240, props: { max: 5, ttlMs: 25000 },
+    fields: [
+      { key: 'max', label: 'Max. Einträge', type: 'number' },
+      { key: 'ttlMs', label: 'Verschwinden nach (ms)', type: 'number' },
+    ],
+  },
+  {
+    type: 'chat-box', label: 'Chat-Box', desc: 'Der Live-Chat direkt im Overlay.',
+    w: 420, h: 360, props: { max: 8, hideAfterMs: 0 },
+    fields: [
+      { key: 'max', label: 'Max. Nachrichten', type: 'number' },
+      { key: 'hideAfterMs', label: 'Ausblenden nach (ms)', type: 'number', hint: '0 = nie' },
+    ],
+  },
+];
+
+const CANVAS_W = 1920;
+const CANVAS_H = 1080;
+
+function newLayerId(): string {
+  return `layer-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
+}
+
+export default function OverlayPage() {
+  const [layout, setLayout] = useState<OverlayLayout | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState('');
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.4);
+  const dragRef = useRef<{ id: string; mode: 'move' | 'resize'; startX: number; startY: number; orig: OverlayLayer } | null>(null);
+
+  // Aktives Layout laden oder frisches anlegen
+  useEffect(() => {
+    void (async () => {
+      const layouts = (await window.studio.listLayouts()) as OverlayLayout[];
+      if (layouts.length > 0) {
+        setLayout(layouts[0] ?? null);
+        await window.studio.setActiveLayout(layouts[0]?.id ?? null);
+      } else {
+        const fresh: OverlayLayout = {
+          schemaVersion: 1,
+          id: `layout-${Date.now().toString(36)}`,
+          name: 'Mein Overlay',
+          canvas: { width: CANVAS_W, height: CANVAS_H, background: 'transparent' },
+          layers: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setLayout(fresh);
+      }
+    })();
+  }, []);
+
+  // Canvas-Skalierung an Containerbreite anpassen
+  useEffect(() => {
+    const el = canvasRef.current?.parentElement;
+    if (!el) return;
+    const update = () => setScale(Math.min((el.clientWidth - 24) / CANVAS_W, (el.clientHeight - 24) / CANVAS_H));
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [layout === null]);
+
+  const persist = useCallback(
+    async (next: OverlayLayout) => {
+      setLayout(next);
+      const result = (await window.studio.saveLayout(next)) as { ok: boolean; errors?: string[] };
+      if (result.ok) {
+        setSaveState('saved');
+        setSaveError('');
+        await window.studio.setActiveLayout(next.id);
+        setTimeout(() => setSaveState('idle'), 1200);
+      } else {
+        setSaveState('error');
+        setSaveError((result.errors ?? []).join('; '));
+      }
+    },
+    [],
+  );
+
+  const updateLayer = (id: string, patch: Partial<OverlayLayer>, save = false) => {
+    if (!layout) return;
+    const next = {
+      ...layout,
+      layers: layout.layers.map((l) => (l.id === id ? { ...l, ...patch } : l)),
+    };
+    if (save) void persist(next);
+    else setLayout(next);
+  };
+
+  const addWidget = (typeDef: (typeof WIDGET_TYPES)[number]) => {
+    if (!layout) return;
+    const layer: OverlayLayer = {
+      id: newLayerId(),
+      widgetType: typeDef.type,
+      name: typeDef.label,
+      x: Math.round((CANVAS_W - typeDef.w) / 2),
+      y: Math.round((CANVAS_H - typeDef.h) / 2),
+      w: typeDef.w,
+      h: typeDef.h,
+      z: layout.layers.length + 1,
+      visible: true,
+      props: { ...typeDef.props },
+    };
+    setSelectedId(layer.id);
+    void persist({ ...layout, layers: [...layout.layers, layer] });
+  };
+
+  const removeLayer = (id: string) => {
+    if (!layout) return;
+    setSelectedId(null);
+    void persist({ ...layout, layers: layout.layers.filter((l) => l.id !== id) });
+  };
+
+  // Drag & Resize direkt am Canvas
+  const onPointerDown = (e: React.PointerEvent, layer: OverlayLayer, mode: 'move' | 'resize') => {
+    e.stopPropagation();
+    setSelectedId(layer.id);
+    dragRef.current = { id: layer.id, mode, startX: e.clientX, startY: e.clientY, orig: { ...layer } };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.startX) / scale;
+    const dy = (e.clientY - drag.startY) / scale;
+    if (drag.mode === 'move') {
+      updateLayer(drag.id, {
+        x: Math.round(Math.max(0, Math.min(CANVAS_W - drag.orig.w, drag.orig.x + dx))),
+        y: Math.round(Math.max(0, Math.min(CANVAS_H - drag.orig.h, drag.orig.y + dy))),
+      });
+    } else {
+      updateLayer(drag.id, {
+        w: Math.round(Math.max(60, drag.orig.w + dx)),
+        h: Math.round(Math.max(40, drag.orig.h + dy)),
+      });
+    }
+  };
+  const onPointerUp = () => {
+    if (dragRef.current && layout) void persist(layout);
+    dragRef.current = null;
+  };
+
+  if (!layout) return <div className="p-6 text-studio-muted">Lade…</div>;
+
+  const selected = layout.layers.find((l) => l.id === selectedId) ?? null;
+  const selectedDef = selected ? WIDGET_TYPES.find((w) => w.type === selected.widgetType) : null;
+
+  return (
+    <div className="grid h-full grid-cols-[200px_1fr_260px] gap-0">
+      {/* Widget-Palette */}
+      <aside className="overflow-y-auto border-r border-studio-border bg-studio-panel p-3">
+        <h2 className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Widgets</h2>
+        <div className="flex flex-col gap-2">
+          {WIDGET_TYPES.map((w) => (
+            <button
+              key={w.type}
+              onClick={() => addWidget(w)}
+              className="clip-slant group border border-studio-border bg-studio-raised p-3 text-left transition-colors hover:border-studio-accent/60"
+            >
+              <div className="text-xs font-bold group-hover:text-studio-accent">{w.label}</div>
+              <div className="mt-0.5 text-[10px] leading-snug text-studio-muted">{w.desc}</div>
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      {/* Canvas */}
+      <section className="relative flex items-center justify-center overflow-hidden bg-studio-bg p-3" onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
+        <div
+          ref={canvasRef}
+          onPointerDown={() => setSelectedId(null)}
+          className="relative flex-none"
+          style={{
+            width: CANVAS_W * scale,
+            height: CANVAS_H * scale,
+            backgroundImage:
+              'linear-gradient(45deg, #14161e 25%, transparent 25%, transparent 75%, #14161e 75%), linear-gradient(45deg, #14161e 25%, #101218 25%, #101218 75%, #14161e 75%)',
+            backgroundSize: '24px 24px',
+            backgroundPosition: '0 0, 12px 12px',
+            boxShadow: '0 0 0 1px #262a36',
+          }}
+        >
+          {layout.layers.map((layer) => {
+            const def = WIDGET_TYPES.find((w) => w.type === layer.widgetType);
+            const isSel = layer.id === selectedId;
+            return (
+              <div
+                key={layer.id}
+                onPointerDown={(e) => onPointerDown(e, layer, 'move')}
+                className={`absolute flex cursor-grab items-center justify-center select-none active:cursor-grabbing ${
+                  isSel ? 'z-50' : ''
+                }`}
+                style={{
+                  left: layer.x * scale,
+                  top: layer.y * scale,
+                  width: layer.w * scale,
+                  height: layer.h * scale,
+                  background: isSel ? 'rgba(255,77,46,.14)' : 'rgba(33,230,193,.07)',
+                  outline: isSel ? '2px solid #ff4d2e' : '1px dashed rgba(33,230,193,.45)',
+                  opacity: layer.visible ? 1 : 0.35,
+                }}
+              >
+                <span className="pointer-events-none px-1 text-center font-display text-[11px] uppercase tracking-wider text-white/80" style={{ textShadow: '0 1px 4px #000' }}>
+                  {def?.label ?? layer.widgetType}
+                </span>
+                {isSel && (
+                  <div
+                    onPointerDown={(e) => onPointerDown(e, layer, 'resize')}
+                    className="absolute -right-1.5 -bottom-1.5 h-3.5 w-3.5 cursor-nwse-resize bg-studio-accent"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="absolute bottom-2 left-3 text-[10px] text-studio-muted">
+          1920×1080 · transparent · {saveState === 'saved' ? '✓ gespeichert & live gepusht' : saveState === 'error' ? `⚠ ${saveError}` : 'Änderungen speichern automatisch'}
+        </div>
+      </section>
+
+      {/* Property-Panel */}
+      <aside className="overflow-y-auto border-l border-studio-border bg-studio-panel p-4">
+        {!selected && (
+          <p className="mt-4 text-xs leading-relaxed text-studio-muted">
+            Klick links ein Widget, um es auf den Screen zu legen — oder wähl eins auf dem Canvas aus, um es hier einzustellen.
+          </p>
+        )}
+        {selected && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-sm uppercase">{selectedDef?.label}</h2>
+              <button onClick={() => removeLayer(selected.id)} className="text-[11px] text-studio-muted hover:text-studio-accent">
+                Entfernen
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {(['x', 'y', 'w', 'h'] as const).map((k) => (
+                <label key={k} className="text-[10px] uppercase tracking-widest text-studio-muted">
+                  {k}
+                  <input
+                    type="number"
+                    value={selected[k]}
+                    onChange={(e) => updateLayer(selected.id, { [k]: Number(e.target.value) } as Partial<OverlayLayer>, true)}
+                    className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs text-studio-text outline-none focus:border-studio-accent"
+                  />
+                </label>
+              ))}
+            </div>
+
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={selected.visible}
+                onChange={(e) => updateLayer(selected.id, { visible: e.target.checked }, true)}
+                className="accent-[#ff4d2e]"
+              />
+              Sichtbar
+            </label>
+
+            {selectedDef && selectedDef.fields.length > 0 && (
+              <div className="mt-1 border-t border-studio-border pt-3">
+                <h3 className="mb-2 text-[10px] uppercase tracking-[0.3em] text-studio-muted">Widget-Einstellungen</h3>
+                <div className="flex flex-col gap-2.5">
+                  {selectedDef.fields.map((field) => {
+                    const value = selected.props?.[field.key] ?? '';
+                    const setProp = (v: unknown) =>
+                      updateLayer(selected.id, { props: { ...selected.props, [field.key]: v } }, true);
+                    return (
+                      <label key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
+                        {field.label}
+                        {field.type === 'select' ? (
+                          <select
+                            value={String(value)}
+                            onChange={(e) => setProp(e.target.value)}
+                            className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-1.5 text-xs text-studio-text outline-none focus:border-studio-accent"
+                          >
+                            {field.options?.map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type={field.type}
+                            value={field.type === 'number' ? Number(value) : String(value)}
+                            onChange={(e) => setProp(field.type === 'number' ? Number(e.target.value) : e.target.value)}
+                            className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs text-studio-text outline-none focus:border-studio-accent"
+                          />
+                        )}
+                        {field.hint && <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">{field.hint}</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <div className="text-[10px] text-studio-muted">Layer-ID: <code className="font-mono">{selected.id}</code></div>
+          </div>
+        )}
+      </aside>
+    </div>
+  );
+}

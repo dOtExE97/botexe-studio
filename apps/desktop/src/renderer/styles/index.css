@@ -1,10 +1,44 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-studio-bg: #0c0c10;
-  --color-studio-surface: #15151c;
-  --color-studio-border: #26262f;
+  /* Neo-Arcade Broadcast — gleiche Sprache wie die Overlay-Widgets */
+  --color-studio-bg: #0c0d12;
+  --color-studio-panel: #14161e;
+  --color-studio-raised: #1b1e29;
+  --color-studio-border: #262a36;
   --color-studio-text: #ececf1;
-  --color-studio-muted: #8b8b99;
-  --color-studio-accent: #e8543f;
+  --color-studio-muted: #8b8fa3;
+  --color-studio-accent: #ff4d2e;
+  --color-studio-accent-soft: #ff8a3d;
+  --color-studio-teal: #21e6c1;
+  --color-studio-gold: #ffd23e;
+  --font-display: 'Archivo Black', 'Arial Black', Impact, sans-serif;
+  --font-mono: Consolas, Menlo, monospace;
+}
+
+body {
+  background: var(--color-studio-bg);
+  color: var(--color-studio-text);
+  font-family: Verdana, 'Segoe UI', sans-serif;
+  font-size: 14px;
+}
+
+/* schräge kante als wiederkehrendes motiv */
+.clip-slant {
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+.clip-slant-r {
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #262a36;
+  border-radius: 0;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }

@@ -110,6 +110,9 @@ export class OverlayServer {
         token: this.token,
       })};</script>`;
       html = html.includes('</head>') ? html.replace('</head>', `${cfg}\n</head>`) : cfg + html;
+      // Relativer script-src würde auf /runtime.js zeigen (404, kein Token) —
+      // auf die tokenisierte Runtime-Route umschreiben.
+      html = html.replace('src="runtime.js"', `src="/runtime/runtime.js?token=${this.token}"`);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(html);
     });

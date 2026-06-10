@@ -53,9 +53,15 @@ function scaleStage() {
   stageWrap.style.alignItems = 'flex-start';
 }
 
+// Events, die während des (asynchronen) Widget-Mounts reinkommen, würden
+// sonst verpuffen — z.B. der Sticky-Replay direkt nach dem WS-Connect.
+let rendering = false;
+let pendingEvents = [];
+
 async function renderLayout(layout) {
   // Komplett-Rebuild: Layout-Wechsel ist selten (Editor-Save), Einfachheit
   // schlägt Diffing. Events laufen danach wieder in frische Widgets.
+  rendering = true;
   for (const { widget } of liveLayers.values()) {
     try {
       widget?.destroy?.();
@@ -100,6 +106,11 @@ async function renderLayout(layout) {
       }
     }
   }
+
+  rendering = false;
+  const queued = pendingEvents;
+  pendingEvents = [];
+  for (const e of queued) dispatchEvent(e);
 }
 
 // ── Nachrichten-Verteilung ────────────────────────────────────────────────
@@ -167,7 +178,10 @@ function connect() {
       return;
     }
     if (msg.kind === 'layout') void renderLayout(msg.layout);
-    else if (msg.kind === 'event') dispatchEvent(msg.event);
+    else if (msg.kind === 'event') {
+      if (rendering) pendingEvents.push(msg.event);
+      else dispatchEvent(msg.event);
+    }
     else if (msg.kind === 'action') dispatchAction(msg.ruleId, msg.action);
     else if (msg.kind === 'stats') dispatchStats(msg.stats);
   };
