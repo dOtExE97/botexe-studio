@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build-Artefakte
+dist/
+out/
+.vite/
+*.tsbuildinfo
+
+# Logs & Temp
+*.log
+.tmp/
+.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+*.swp
+
+# Lokale Daten (niemals committen)
+userData/
+*.local.json
+.env
+.env.*
