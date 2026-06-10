@@ -43,6 +43,11 @@ export class EventBus {
   getAllLastValues(): StudioEvent[] {
     return Array.from(this.lastValues.values());
   }
+
+  /** Diagnose: Anzahl aktiver Listener (Leak-Erkennung in Tests, Audit H8). */
+  listenerCount(): number {
+    return this.emitter.eventNames().reduce((sum, name) => sum + this.emitter.listenerCount(name), 0);
+  }
 }
 
 // Ein werfender Subscriber darf weder publish() noch die übrigen Subscriber
