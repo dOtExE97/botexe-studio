@@ -6,7 +6,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "test": "echo '(overlay-engine: tests folgen in schritt 3)'",
+    "test": "node --import tsx --test src/layout.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
