@@ -47,7 +47,6 @@
     "@botexe/trigger-engine": "*",
     "ajv": "^8.17.1",
     "electron-squirrel-startup": "^1.0.1",
-    "electron-store": "^11.0.2",
     "express": "^5.2.1",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",

@@ -1,6 +1,11 @@
-import { app, BrowserWindow, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, session } from 'electron';
 import path from 'node:path';
+import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
+import type { StudioEvent, TriggerRule } from '@botexe/trigger-engine';
+import { IPC } from './shared/constants';
+import { Studio } from './main/services/studio';
+import { log } from './main/core/logger';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
 // dann sofort beenden, sonst öffnen sich Geister-Fenster.
@@ -15,6 +20,13 @@ if (!gotLock) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let studio: Studio | null = null;
+
+function sendToRenderer(channel: string, payload: unknown): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload);
+  }
+}
 
 function createMainWindow(): void {
   mainWindow = new BrowserWindow({
@@ -47,6 +59,157 @@ function createMainWindow(): void {
   });
 }
 
+function setupStudio(): Studio {
+  const paths = Studio.resolvePaths(
+    app.getAppPath(),
+    process.resourcesPath,
+    app.isPackaged,
+    app.getPath('userData'),
+  );
+  return new Studio(paths, {
+    onSoundPlay: (cmd) => sendToRenderer(IPC.SOUND_PLAY, cmd),
+    onStatus: (info) => sendToRenderer(IPC.PLATFORM_STATUS, info),
+    onBusEvent: (e) => sendToRenderer(IPC.BUS_EVENT, e),
+    onStats: (stats) => sendToRenderer(IPC.STATS_UPDATE, stats),
+  });
+}
+
+// ── IPC — alle Kanäle explizit, Inputs validiert ──────────────────────────
+
+function isStudio(): Studio {
+  if (!studio) throw new Error('Studio nicht initialisiert');
+  return studio;
+}
+
+function registerIpc(): void {
+  ipcMain.handle(IPC.PLATFORM_CONNECT, async (_e, username: unknown) => {
+    if (typeof username !== 'string' || !/^@?[a-zA-Z0-9._]{2,40}$/.test(username)) {
+      return { ok: false, error: 'Ungültiger Username' };
+    }
+    try {
+      await isStudio().connect(username);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC.PLATFORM_DISCONNECT, async () => {
+    await isStudio().disconnect();
+    return { ok: true };
+  });
+
+  ipcMain.handle(IPC.OVERLAY_GET_INFO, () => isStudio().getOverlayInfo());
+
+  // Layouts
+  ipcMain.handle(IPC.LAYOUT_LIST, () => isStudio().layouts.list());
+  ipcMain.handle(IPC.LAYOUT_GET, (_e, id: unknown) =>
+    typeof id === 'string' ? isStudio().layouts.get(id) : null,
+  );
+  ipcMain.handle(IPC.LAYOUT_SAVE, (_e, layout: unknown) => {
+    const result = isStudio().layouts.save(layout);
+    if (result.ok) isStudio().notifyLayoutSaved(result.layout.id);
+    return result;
+  });
+  ipcMain.handle(IPC.LAYOUT_DELETE, (_e, id: unknown) =>
+    typeof id === 'string' ? isStudio().layouts.delete(id) : false,
+  );
+  ipcMain.handle(IPC.LAYOUT_SET_ACTIVE, (_e, id: unknown) => {
+    isStudio().setActiveLayout(typeof id === 'string' ? id : null);
+    return { ok: true };
+  });
+
+  // Trigger-Regeln
+  ipcMain.handle(IPC.RULES_GET, () => isStudio().getRules());
+  ipcMain.handle(IPC.RULES_SET, (_e, rules: unknown) => {
+    if (!Array.isArray(rules)) return { ok: false, error: 'rules muss ein Array sein' };
+    isStudio().setRules(rules as TriggerRule[]);
+    return { ok: true };
+  });
+
+  // Sounds
+  ipcMain.handle(IPC.SOUND_LIST, () => isStudio().sounds.list());
+  ipcMain.handle(IPC.SOUND_IMPORT, async () => {
+    if (!mainWindow) return { ok: false, error: 'Kein Fenster' };
+    const picked = await dialog.showOpenDialog(mainWindow, {
+      title: 'Sound importieren',
+      filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'm4a'] }],
+      properties: ['openFile', 'multiSelections'],
+    });
+    if (picked.canceled) return { ok: true, imported: [] };
+    const imported = [];
+    for (const file of picked.filePaths) {
+      const result = isStudio().sounds.import(file);
+      if (result.ok) imported.push(result.entry);
+    }
+    return { ok: true, imported };
+  });
+  ipcMain.handle(IPC.SOUND_DELETE, (_e, id: unknown) =>
+    typeof id === 'string' ? isStudio().sounds.delete(id) : false,
+  );
+  ipcMain.handle(IPC.SOUND_TEST, (_e, id: unknown) => {
+    if (typeof id === 'string') isStudio().playSound(id);
+    return { ok: true };
+  });
+
+  // Settings
+  ipcMain.handle(IPC.SETTINGS_GET, () => isStudio().settings.get());
+  ipcMain.handle(IPC.SETTINGS_UPDATE, (_e, patch: unknown) => {
+    if (typeof patch !== 'object' || patch === null) return { ok: false };
+    // Nur bekannte, harmlose Felder durchlassen.
+    const allowed: Record<string, unknown> = {};
+    const p = patch as Record<string, unknown>;
+    if (typeof p.soundVolume === 'number') allowed.soundVolume = Math.min(1, Math.max(0, p.soundVolume));
+    if (typeof p.lastUsername === 'string') allowed.lastUsername = p.lastUsername;
+    return { ok: true, settings: isStudio().settings.update(allowed) };
+  });
+
+  // Replay / Test-Events
+  ipcMain.handle(IPC.REPLAY_RECORD_START, () => {
+    isStudio().startRecording();
+    return { ok: true };
+  });
+  ipcMain.handle(IPC.REPLAY_RECORD_STOP, async () => {
+    const jsonl = isStudio().stopRecording();
+    if (!jsonl || !mainWindow) return { ok: true, saved: false };
+    const picked = await dialog.showSaveDialog(mainWindow, {
+      title: 'Aufnahme speichern',
+      defaultPath: `replay-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.jsonl`,
+      filters: [{ name: 'Replay', extensions: ['jsonl'] }],
+    });
+    if (picked.canceled || !picked.filePath) return { ok: true, saved: false };
+    fs.writeFileSync(picked.filePath, jsonl, 'utf-8');
+    return { ok: true, saved: true, path: picked.filePath };
+  });
+  ipcMain.handle(IPC.REPLAY_PLAY, async (_e, speed: unknown) => {
+    if (!mainWindow) return { ok: false, error: 'Kein Fenster' };
+    const picked = await dialog.showOpenDialog(mainWindow, {
+      title: 'Replay abspielen',
+      filters: [{ name: 'Replay', extensions: ['jsonl'] }],
+      properties: ['openFile'],
+    });
+    const file = picked.filePaths[0];
+    if (picked.canceled || !file) return { ok: true, played: 0 };
+    const jsonl = fs.readFileSync(file, 'utf-8');
+    const played = await isStudio().playReplayJsonl(jsonl, typeof speed === 'number' ? speed : 1);
+    return { ok: true, played };
+  });
+  ipcMain.handle(IPC.REPLAY_STOP, () => {
+    isStudio().stopReplay();
+    return { ok: true };
+  });
+  ipcMain.handle(IPC.TEST_EVENT, (_e, event: unknown) => {
+    const ev = event as StudioEvent;
+    if (typeof ev !== 'object' || ev === null || typeof ev.type !== 'string') {
+      return { ok: false, error: 'Ungültiges Event' };
+    }
+    isStudio().injectTestEvent(ev);
+    return { ok: true };
+  });
+}
+
+// ── App-Lifecycle ──────────────────────────────────────────────────────────
+
 app.on('second-instance', () => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
@@ -54,7 +217,7 @@ app.on('second-instance', () => {
   }
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Restriktive CSP für den Renderer in Production (dev braucht Vite-HMR).
   if (!MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -71,6 +234,14 @@ app.whenReady().then(() => {
     });
   }
 
+  studio = setupStudio();
+  registerIpc();
+  try {
+    await studio.start();
+  } catch (err) {
+    log.error('Main', 'Studio-Start fehlgeschlagen', (err as Error).message);
+  }
+
   createMainWindow();
 
   app.on('activate', () => {
@@ -80,4 +251,15 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  void studio?.stop();
+});
+
+process.on('uncaughtException', (err) => {
+  log.error('Main', 'uncaughtException', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  log.error('Main', 'unhandledRejection', String(reason));
 });

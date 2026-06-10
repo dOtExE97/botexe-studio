@@ -24,7 +24,8 @@ import { log } from '../core/logger';
 export type OverlayMessage =
   | { kind: 'layout'; layout: OverlayLayout }
   | { kind: 'event'; event: StudioEvent }
-  | { kind: 'action'; ruleId: string; action: TriggerAction };
+  | { kind: 'action'; ruleId: string; action: TriggerAction }
+  | { kind: 'stats'; stats: unknown };
 
 export interface OverlayServerOptions {
   /** 0 = freier Port (Tests); sonst Wunsch-Port mit Fallback +1…+10. */
@@ -37,6 +38,10 @@ export interface OverlayServerOptions {
   /** 0 = Heartbeat aus (Tests); Default 30s. */
   heartbeatMs?: number;
   getActiveLayout: () => OverlayLayout | null;
+  /** Initial-Stats für Late-Joiner (Leaderboard/Goal nicht leer nach Overlay-Reload). */
+  getStats?: () => unknown;
+  /** Sound-Files (mp3/wav/ogg/m4a) — NUR ausgeliefert, abgespielt wird im App-Renderer. */
+  soundsDir?: string;
 }
 
 const FILE_NAME_RE = /^[a-zA-Z0-9_.-]+\.(js|css|html|woff2?)$/;
@@ -116,6 +121,37 @@ export class OverlayServer {
     this.expressApp.get('/widgets/:filename', auth, (req, res) => {
       this.serveStatic(this.options.widgetDir, req, res);
     });
+
+    // Sound-Streaming für den App-Renderer (<audio src>). Bewusst NICHT vom
+    // Overlay genutzt — TTLS-Browser-Audio ist unzuverlässig (Spec §5).
+    this.expressApp.get('/sounds/:filename', auth, (req, res) => {
+      const dir = this.options.soundsDir;
+      if (!dir) {
+        res.status(404).send('Sounds nicht konfiguriert');
+        return;
+      }
+      const raw = req.params.filename;
+      const filename = path.basename(Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? ''));
+      const ext = path.extname(filename).toLowerCase();
+      const mime: Record<string, string> = {
+        '.mp3': 'audio/mpeg',
+        '.wav': 'audio/wav',
+        '.ogg': 'audio/ogg',
+        '.m4a': 'audio/mp4',
+      };
+      if (!mime[ext]) {
+        res.status(400).send('Invalid extension');
+        return;
+      }
+      const target = path.join(dir, filename);
+      if (!fs.existsSync(target)) {
+        res.status(404).send('Not found');
+        return;
+      }
+      res.setHeader('Content-Type', mime[ext]);
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      fs.createReadStream(target).pipe(res);
+    });
   }
 
   private serveStatic(dir: string, req: Request, res: Response): void {
@@ -170,6 +206,8 @@ export class OverlayServer {
       // Overlay-Canvas nicht leer startet (Late-Joiner).
       const layout = this.options.getActiveLayout();
       if (layout) this.sendTo(client, { kind: 'layout', layout }, true);
+      const stats = this.options.getStats?.();
+      if (stats) this.sendTo(client, { kind: 'stats', stats }, true);
       for (const e of this.bus.getAllLastValues()) {
         this.sendTo(client, { kind: 'event', event: e }, true);
       }

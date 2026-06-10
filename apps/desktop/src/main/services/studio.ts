@@ -1,0 +1,258 @@
+// studio.ts — die Komposition: Adapter → Bus → Trigger-Engine → Aktionen.
+// Hier steckt die Verdrahtung, die in der Alt-App über ein 1500-Zeilen-
+// main.ts verschmiert war — main.ts bleibt dünn (Fenster + IPC).
+import path from 'node:path';
+import { TriggerEngine, type StudioEvent, type TriggerRule } from '@botexe/trigger-engine';
+import type { StatsSnapshot } from '../core/session-stats';
+import { EventBus } from '../core/event-bus';
+import { SessionStats } from '../core/session-stats';
+import { EventRecorder, parseReplay, playReplay } from '../core/replay';
+import { TikTokAdapter, type AdapterStatusInfo } from '../adapters/tiktok-adapter';
+import { OverlayServer } from '../adapters/overlay-server';
+import { SettingsStore } from './settings-store';
+import { LayoutStore } from './layout-store';
+import { SoundLibrary } from './sound-library';
+import { log } from '../core/logger';
+
+export interface SoundCommand {
+  soundId: string;
+  url: string;
+  volume: number;
+}
+
+export interface StudioHooks {
+  /** Sound LOKAL abspielen — geht an den App-Renderer, nie ans Overlay. */
+  onSoundPlay: (cmd: SoundCommand) => void;
+  onStatus: (info: AdapterStatusInfo) => void;
+  /** Live-Feed für die App-Shell (gedeckelt im Renderer). */
+  onBusEvent: (e: StudioEvent) => void;
+  onStats: (stats: StatsSnapshot) => void;
+}
+
+export interface StudioPaths {
+  userDataDir: string;
+  runtimeDir: string;
+  widgetDir: string;
+}
+
+const STATS_BROADCAST_MIN_MS = 250;
+
+export class Studio {
+  readonly bus = new EventBus();
+  readonly settings: SettingsStore;
+  readonly layouts: LayoutStore;
+  readonly sounds: SoundLibrary;
+  readonly stats = new SessionStats();
+
+  private readonly engine = new TriggerEngine();
+  private readonly adapter: TikTokAdapter;
+  private readonly server: OverlayServer;
+  private readonly hooks: StudioHooks;
+
+  private recorder: EventRecorder | null = null;
+  private replayAbort: AbortController | null = null;
+  private statsTimer: ReturnType<typeof setTimeout> | null = null;
+  private statsDirty = false;
+
+  constructor(paths: StudioPaths, hooks: StudioHooks) {
+    this.hooks = hooks;
+    this.settings = new SettingsStore(paths.userDataDir);
+    this.layouts = new LayoutStore(paths.userDataDir);
+    this.sounds = new SoundLibrary(paths.userDataDir);
+
+    this.server = new OverlayServer(this.bus, {
+      port: 27415,
+      runtimeDir: paths.runtimeDir,
+      widgetDir: paths.widgetDir,
+      soundsDir: this.sounds.getDir(),
+      getActiveLayout: () => this.getActiveLayout(),
+      getStats: () => this.stats.snapshot(),
+    });
+
+    this.adapter = new TikTokAdapter(this.bus, {
+      onStatus: (info) => {
+        // K1-Lehre: bei JEDEM echten (Re-)Connect definierter Zustand.
+        // Session-Stats bleiben bewusst stehen (Leaderboard übersteht Drops),
+        // Trigger-Cooldowns ebenso — nur ein NEUER Stream (connect()-Aufruf
+        // des Users) setzt zurück, siehe connect().
+        this.hooks.onStatus(info);
+      },
+    });
+
+    this.engine.setRules(this.settings.get().triggerRules);
+    this.wireBus();
+  }
+
+  private wireBus(): void {
+    this.bus.subscribeAll((e) => {
+      // 1. Aufnahme (falls aktiv)
+      this.recorder?.record(e);
+
+      // 2. Session-Statistik + gedrosselter Broadcast
+      if (this.stats.apply(e)) this.scheduleStatsBroadcast();
+
+      // 3. Trigger-Engine: Regeln auswerten, Aktionen ausführen
+      for (const match of this.engine.evaluate(e)) {
+        if (match.action.kind === 'play_sound') {
+          this.playSound(match.action.soundId, match.action.volume);
+        } else {
+          this.server.broadcast({ kind: 'action', ruleId: match.ruleId, action: match.action });
+        }
+      }
+
+      // 4. Live-Feed an die App-Shell
+      this.hooks.onBusEvent(e);
+    });
+  }
+
+  private scheduleStatsBroadcast(): void {
+    // Throttle: Gift-Bombing erzeugt hunderte Updates/s — Overlay und UI
+    // brauchen maximal ~4/s (H6-Geist: nie ungebremst durchreichen).
+    if (this.statsTimer) {
+      this.statsDirty = true;
+      return;
+    }
+    const send = () => {
+      const snapshot = this.stats.snapshot();
+      this.server.broadcast({ kind: 'stats', stats: snapshot });
+      this.hooks.onStats(snapshot);
+    };
+    send();
+    this.statsTimer = setTimeout(() => {
+      this.statsTimer = null;
+      if (this.statsDirty) {
+        this.statsDirty = false;
+        this.scheduleStatsBroadcast();
+      }
+    }, STATS_BROADCAST_MIN_MS);
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────
+
+  async start(): Promise<void> {
+    await this.server.start();
+  }
+
+  async stop(): Promise<void> {
+    this.replayAbort?.abort();
+    if (this.statsTimer) clearTimeout(this.statsTimer);
+    await this.adapter.disconnect();
+    await this.server.stop();
+  }
+
+  // ── Plattform ─────────────────────────────────────────────────────────
+
+  async connect(username: string): Promise<void> {
+    // Neuer Stream = frische Session: Stats + Cooldowns zurück auf null.
+    this.stats.reset();
+    this.engine.resetCooldowns();
+    this.scheduleStatsBroadcast();
+    this.settings.update({ lastUsername: username });
+    await this.adapter.connect(username);
+  }
+
+  async disconnect(): Promise<void> {
+    await this.adapter.disconnect();
+  }
+
+  // ── Trigger-Regeln ────────────────────────────────────────────────────
+
+  getRules(): TriggerRule[] {
+    return this.settings.get().triggerRules;
+  }
+
+  setRules(rules: TriggerRule[]): void {
+    this.settings.update({ triggerRules: rules });
+    this.engine.setRules(rules);
+  }
+
+  // ── Layout ────────────────────────────────────────────────────────────
+
+  getActiveLayout() {
+    const id = this.settings.get().activeLayoutId;
+    return id ? this.layouts.get(id) : null;
+  }
+
+  setActiveLayout(id: string | null): void {
+    this.settings.update({ activeLayoutId: id });
+    const layout = this.getActiveLayout();
+    if (layout) this.server.broadcast({ kind: 'layout', layout });
+  }
+
+  /** Nach jedem Save des aktiven Layouts live ans Overlay pushen. */
+  notifyLayoutSaved(layoutId: string): void {
+    if (this.settings.get().activeLayoutId === layoutId) {
+      const layout = this.getActiveLayout();
+      if (layout) this.server.broadcast({ kind: 'layout', layout });
+    }
+  }
+
+  // ── Sound ─────────────────────────────────────────────────────────────
+
+  playSound(soundId: string, volume?: number): void {
+    const vol = volume ?? this.settings.get().soundVolume;
+    const url = `http://127.0.0.1:${this.server.getPort()}/sounds/${encodeURIComponent(soundId)}?token=${this.server.getToken()}`;
+    this.hooks.onSoundPlay({ soundId, url, volume: vol });
+  }
+
+  // ── Replay & Test-Events ──────────────────────────────────────────────
+
+  startRecording(): void {
+    this.recorder = new EventRecorder();
+    log.info('Replay', 'Aufnahme gestartet');
+  }
+
+  stopRecording(): string {
+    const jsonl = this.recorder?.toJsonl() ?? '';
+    const count = this.recorder?.count ?? 0;
+    this.recorder = null;
+    log.info('Replay', `Aufnahme beendet (${count} events)`);
+    return jsonl;
+  }
+
+  async playReplayJsonl(jsonl: string, speed: number): Promise<number> {
+    this.replayAbort?.abort();
+    this.replayAbort = new AbortController();
+    const entries = parseReplay(jsonl);
+    log.info('Replay', `Wiedergabe: ${entries.length} events, speed ${speed}`);
+    return playReplay(entries, (e) => this.bus.publish(e), {
+      speed,
+      signal: this.replayAbort.signal,
+    });
+  }
+
+  stopReplay(): void {
+    this.replayAbort?.abort();
+  }
+
+  /** Einzelnes Test-Event aus der UI (z.B. "Test-Gift 100 Coins"). */
+  injectTestEvent(event: StudioEvent): void {
+    this.bus.publish({ ...event, ts: Date.now() });
+  }
+
+  // ── Info ──────────────────────────────────────────────────────────────
+
+  getOverlayInfo(): { url: string; port: number; connected: boolean } {
+    return {
+      url: this.server.getOverlayUrl(),
+      port: this.server.getPort(),
+      connected: this.adapter.isConnected(),
+    };
+  }
+
+  static resolvePaths(appPath: string, resourcesPath: string | undefined, isPackaged: boolean, userDataDir: string): StudioPaths {
+    if (isPackaged && resourcesPath) {
+      return {
+        userDataDir,
+        runtimeDir: path.join(resourcesPath, 'runtime'),
+        widgetDir: path.join(resourcesPath, 'widget-kit'),
+      };
+    }
+    // Dev: Monorepo-Pfade relativ zu apps/desktop
+    return {
+      userDataDir,
+      runtimeDir: path.join(appPath, '../../packages/overlay-engine/runtime'),
+      widgetDir: path.join(appPath, '../../packages/widget-kit'),
+    };
+  }
+}
