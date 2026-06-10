@@ -17,9 +17,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import type { OverlayLayout } from '@botexe/overlay-engine';
-import type { TriggerAction } from '@botexe/trigger-engine';
+import type { StudioEvent, TriggerAction } from '@botexe/trigger-engine';
 import type { EventBus } from '../core/event-bus';
-import type { StudioEvent } from '@botexe/trigger-engine';
 import { log } from '../core/logger';
 
 export type OverlayMessage =
