@@ -1,4 +1,114 @@
-// @botexe/trigger-engine — reine Regel-Logik, keine Electron-/IO-Abhängigkeiten.
-// Implementierung folgt in Schritt 2 (TDD).
+// @botexe/trigger-engine — deterministische Regel-Logik, keine Electron-/IO-Abhängigkeiten.
+// Cooldowns rechnen mit event.ts (nicht Wanduhr) → Replay-Tests sind exakt reproduzierbar.
 
-export const TRIGGER_ENGINE_VERSION = '0.1.0';
+export type StudioEventType =
+  | 'chat'
+  | 'gift'
+  | 'follow'
+  | 'sub'
+  | 'like'
+  | 'share'
+  | 'viewer_count';
+
+export interface StudioUser {
+  id: string;
+  nickname: string;
+  profilePic?: string;
+}
+
+export interface StudioGift {
+  slug: string;
+  giftId?: number;
+  count: number;
+  coinsPerUnit: number;
+  totalCoins: number;
+}
+
+/** Normalisiertes Live-Event — vom TikTok-Adapter erzeugt, von Engine/Overlays konsumiert. */
+export interface StudioEvent {
+  type: StudioEventType;
+  ts: number;
+  user?: StudioUser;
+  text?: string;
+  gift?: StudioGift;
+  likeCount?: number;
+  totalLikes?: number;
+  viewerCount?: number;
+}
+
+export type TriggerCondition =
+  | { kind: 'gift_coins_gte'; value: number }
+  | { kind: 'gift_count_gte'; value: number }
+  | { kind: 'gift_slug_is'; value: string }
+  | { kind: 'chat_keyword'; value: string }
+  | { kind: 'viewer_count_gte'; value: number };
+
+export type TriggerAction =
+  | { kind: 'play_sound'; soundId: string; volume?: number }
+  | { kind: 'fire_alert'; targetId: string; params?: Record<string, unknown> }
+  | { kind: 'show_layer'; targetId: string; durationMs?: number }
+  | { kind: 'hide_layer'; targetId: string };
+
+export interface TriggerRule {
+  id: string;
+  name: string;
+  event: StudioEventType;
+  /** UND-verknüpft; keine/leere Liste = matcht jedes Event des Typs. */
+  conditions?: TriggerCondition[];
+  actions: TriggerAction[];
+  /** Mindestabstand zwischen zwei Auslösungen dieser Regel (über event.ts gemessen). */
+  cooldownMs?: number;
+  enabled: boolean;
+}
+
+export interface TriggerMatch {
+  ruleId: string;
+  action: TriggerAction;
+}
+
+export class TriggerEngine {
+  private rules: TriggerRule[] = [];
+  /** ruleId → event.ts der letzten Auslösung. Überlebt setRules() bewusst. */
+  private lastFired = new Map<string, number>();
+
+  setRules(rules: TriggerRule[]): void {
+    this.rules = rules;
+  }
+
+  resetCooldowns(): void {
+    this.lastFired.clear();
+  }
+
+  evaluate(event: StudioEvent): TriggerMatch[] {
+    const matches: TriggerMatch[] = [];
+    for (const rule of this.rules) {
+      if (!rule.enabled) continue;
+      if (rule.event !== event.type) continue;
+      if (!(rule.conditions ?? []).every((c) => conditionHolds(c, event))) continue;
+      if (rule.cooldownMs !== undefined) {
+        const last = this.lastFired.get(rule.id);
+        if (last !== undefined && event.ts - last < rule.cooldownMs) continue;
+        this.lastFired.set(rule.id, event.ts);
+      }
+      for (const action of rule.actions) {
+        matches.push({ ruleId: rule.id, action });
+      }
+    }
+    return matches;
+  }
+}
+
+function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolean {
+  switch (condition.kind) {
+    case 'gift_coins_gte':
+      return event.gift !== undefined && event.gift.totalCoins >= condition.value;
+    case 'gift_count_gte':
+      return event.gift !== undefined && event.gift.count >= condition.value;
+    case 'gift_slug_is':
+      return event.gift !== undefined && event.gift.slug.toLowerCase() === condition.value.toLowerCase();
+    case 'chat_keyword':
+      return (event.text ?? '').toLowerCase().includes(condition.value.toLowerCase()) && condition.value !== '';
+    case 'viewer_count_gte':
+      return event.viewerCount !== undefined && event.viewerCount >= condition.value;
+  }
+}
