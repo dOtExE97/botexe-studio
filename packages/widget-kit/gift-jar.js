@@ -56,16 +56,24 @@ export default class GiftJar {
     this.canvas.width = r.width * dpr; this.canvas.height = r.height * dpr;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.w = r.width; this.h = r.height;
-    const jw = Math.min(this.w * 0.82, this.h * 0.5);
-    this.jar = { cx: this.w/2, lidY: this.h*0.13, top: this.h*0.19, shoulderY: this.h*0.27, bottom: this.h*0.9,
-      topW: jw*0.82, midW: jw, botW: jw*0.9, lidW: jw*0.8 };
+    const jw = Math.min(this.w * 0.92, this.h * 0.72);
+    this.jar = { cx: this.w/2, lidY: this.h*0.06, top: this.h*0.165, midY: this.h*0.52, bottom: this.h*0.93,
+      neckW: jw*0.5, midW: jw, botW: jw*0.74, lidW: jw*0.56 };
     this.unit = jw; // basis für ball-größen
     this.draw();
   }
   halfW(y) {
     const J = this.jar; const yc = Math.max(J.top, Math.min(J.bottom, y));
-    if (yc < J.shoulderY) { const t = (yc-J.top)/(J.shoulderY-J.top); return (J.topW + (J.midW-J.topW)*t)/2; }
-    const t = (yc-J.shoulderY)/(J.bottom-J.shoulderY); return (J.midW + (J.botW-J.midW)*t)/2;
+    if (yc <= J.midY) {
+      // hals → bauch: weiche cosinus-kurve (gerundete schulter)
+      const t = (yc - J.top) / (J.midY - J.top);
+      const e = (1 - Math.cos(t * Math.PI)) / 2; // ease 0..1
+      return (J.neckW + (J.midW - J.neckW) * e) / 2;
+    }
+    // bauch → boden: leicht einziehend, gerundeter boden
+    const t = (yc - J.midY) / (J.bottom - J.midY);
+    const e = Math.sin(t * Math.PI / 2 * 0.9); // sanft
+    return (J.midW + (J.botW - J.midW) * e) / 2;
   }
   // Ball-Radius aus Coin-Wert (log-skaliert): kleines Gift = klein, großes = groß
   ballRadius(coins) {
@@ -73,7 +81,7 @@ export default class GiftJar {
     return this.unit * (0.035 + 0.06 * t); // ~3.5%..9.5% der jar-breite (viele bälle passen rein)
   }
   // Füllgrad aus kumulierter Ball-Fläche (von unten gefüllt)
-  jarArea() { return this.jar.midW * (this.jar.bottom - this.jar.top) * 0.78; }
+  jarArea() { return this.jar.midW * (this.jar.bottom - this.jar.top) * 0.7; }
   coinPos(rx, ry) {
     const y = this.jar.bottom - ry * (this.jar.bottom - this.jar.top);
     const hw = this.halfW(y);
@@ -112,28 +120,50 @@ export default class GiftJar {
     this.draw();
     if (this.falling.length > 0) requestAnimationFrame(this.frame); else { this.running = false; this.lastT = 0; }
   }
+  jarPath(ctx, inset) {
+    const J = this.jar; const k = inset || 0;
+    const lx = (y)=>J.cx-this.halfW(y)+k, rx=(y)=>J.cx+this.halfW(y)-k;
+    ctx.beginPath();
+    ctx.moveTo(lx(J.top), J.top);
+    // linke seite: hals → bauch → boden in feinen schritten (glatte kurve)
+    for (let y = J.top; y <= J.bottom-6; y += (J.bottom-J.top)/26) ctx.lineTo(lx(y), y);
+    // gerundeter boden
+    ctx.quadraticCurveTo(lx(J.bottom), J.bottom+6, J.cx, J.bottom+6);
+    ctx.quadraticCurveTo(rx(J.bottom), J.bottom+6, rx(J.bottom-6), J.bottom-6);
+    for (let y = J.bottom-6; y >= J.top; y -= (J.bottom-J.top)/26) ctx.lineTo(rx(y), y);
+    ctx.closePath();
+  }
   draw() {
     const ctx = this.ctx, J = this.jar;
     ctx.clearRect(0, 0, this.w, this.h);
+    // 1) getönte Glasfüllung (hinter den Bällen) → wirkt wie echtes Glas
+    ctx.save(); this.jarPath(ctx, 0);
+    const g = ctx.createLinearGradient(J.cx - J.midW/2, 0, J.cx + J.midW/2, 0);
+    g.addColorStop(0, 'rgba(120,150,190,.16)'); g.addColorStop(.5, 'rgba(150,180,220,.07)'); g.addColorStop(1, 'rgba(90,120,160,.18)');
+    ctx.fillStyle = g; ctx.fill();
+    // 2) Bälle (innerhalb des Glases geclippt)
+    ctx.clip();
     for (const b of this.resting) { const p = this.coinPos(b.rx, b.ry); this.drawBall(p.x, p.y, b.r, b); }
-    for (const b of this.falling) { const x = this.jar.cx + b.rx * (this.halfW(b.y) - 6); this.drawBall(x, b.y, b.r, b); }
-    // Glas (bauchiges Einmachglas) über den Bällen
-    const lx = (y)=>J.cx-this.halfW(y), rx=(y)=>J.cx+this.halfW(y);
-    ctx.lineWidth = 4.5; ctx.strokeStyle = 'rgba(214,232,255,.6)';
-    ctx.beginPath();
-    ctx.moveTo(lx(J.top), J.top);
-    ctx.quadraticCurveTo(lx(J.shoulderY)-4, J.shoulderY-8, lx(J.shoulderY), J.shoulderY);
-    ctx.lineTo(lx(J.bottom), J.bottom-14);
-    ctx.quadraticCurveTo(lx(J.bottom), J.bottom+4, lx(J.bottom)+16, J.bottom+4);
-    ctx.lineTo(rx(J.bottom)-16, J.bottom+4);
-    ctx.quadraticCurveTo(rx(J.bottom), J.bottom+4, rx(J.bottom), J.bottom-14);
-    ctx.lineTo(rx(J.shoulderY), J.shoulderY);
-    ctx.quadraticCurveTo(rx(J.shoulderY)+4, J.shoulderY-8, rx(J.top), J.top);
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(150,168,196,.9)'; roundRect(ctx, J.cx-J.lidW/2, J.lidY, J.lidW, (J.top-J.lidY)+8, 7); ctx.fill();
-    ctx.fillStyle = 'rgba(186,202,228,.95)'; roundRect(ctx, J.cx-J.lidW/2-3, J.lidY, J.lidW+6, 9, 5); ctx.fill();
-    ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(lx(J.shoulderY)+16, J.shoulderY+10); ctx.lineTo(lx(J.bottom)+18, J.bottom-30); ctx.stroke(); ctx.lineCap='butt';
+    for (const b of this.falling) { const x = J.cx + b.rx * (this.halfW(b.y) - 6); this.drawBall(x, b.y, b.r, b); }
+    ctx.restore();
+    // 3) Glas-Outline
+    this.jarPath(ctx, 0);
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(220,236,255,.66)'; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.22)'; this.jarPath(ctx, 3); ctx.stroke();
+    // 4) Deckel (gerundeter Schraubdeckel mit Glanz)
+    const lidH = (J.top - J.lidY) + 10;
+    const lg = ctx.createLinearGradient(0, J.lidY, 0, J.lidY + lidH);
+    lg.addColorStop(0, 'rgba(196,210,234,.96)'); lg.addColorStop(1, 'rgba(120,140,172,.95)');
+    ctx.fillStyle = lg; roundRect(ctx, J.cx-J.lidW/2, J.lidY, J.lidW, lidH, 10); ctx.fill();
+    ctx.fillStyle = 'rgba(230,240,255,.95)'; roundRect(ctx, J.cx-J.lidW/2-4, J.lidY, J.lidW+8, 11, 6); ctx.fill();
+    // 5) Reflexe (zwei glanz-streifen)
+    const lx = (y)=>J.cx-this.halfW(y);
+    ctx.lineCap='round';
+    ctx.lineWidth = 9; ctx.strokeStyle = 'rgba(255,255,255,.22)';
+    ctx.beginPath(); ctx.moveTo(lx(J.top+(J.midY-J.top)*0.5)+18, J.top+(J.midY-J.top)*0.5); ctx.lineTo(lx(J.bottom)+20, J.bottom-40); ctx.stroke();
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.14)';
+    ctx.beginPath(); ctx.moveTo(lx(J.midY)+36, J.midY); ctx.lineTo(lx(J.bottom)+38, J.bottom-50); ctx.stroke();
+    ctx.lineCap='butt';
   }
   drawBall(x, y, r, b) {
     const ctx = this.ctx;
