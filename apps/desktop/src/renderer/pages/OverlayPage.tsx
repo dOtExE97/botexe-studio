@@ -77,13 +77,14 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'leaderboard', label: 'Top Gifter', desc: 'Die größten Gift-Supporter der Session, live sortiert.',
-    w: 360, h: 280, props: { source: 'gifts', limit: 5, title: '', style: 'glas' },
+    type: 'leaderboard', label: 'Top Gifter', desc: 'Die größten Gift-Supporter — TikFinity-Look (Avatare + Kronen) oder Box.',
+    w: 760, h: 180, props: { source: 'gifts', limit: 5, title: '', style: 'arcade' },
     fields: [
       { key: 'source', label: 'Quelle', type: 'select', options: [
         { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
       ] },
       styleField([
+        { value: 'arcade', label: 'Arcade (TikFinity-Look)' },
         { value: 'glas', label: 'Glas (Panel)' },
         { value: 'neon', label: 'Neon (durchscheinend)' },
         { value: 'bars', label: 'Balken (minimal)' },
@@ -94,13 +95,14 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'leaderboard', label: 'Like-Liste', desc: 'Wer am fleißigsten liked — mit Namen und Profilbild, wie bei TikFinity.',
-    w: 360, h: 280, props: { source: 'likes', limit: 5, title: '', style: 'glas' },
+    type: 'leaderboard', label: 'Like-Liste', desc: 'Wer am fleißigsten liked — TikFinity-Look (Avatare + Kronen) oder Box.',
+    w: 760, h: 180, props: { source: 'likes', limit: 5, title: '', style: 'arcade' },
     fields: [
       { key: 'source', label: 'Quelle', type: 'select', options: [
         { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
       ] },
       styleField([
+        { value: 'arcade', label: 'Arcade (TikFinity-Look)' },
         { value: 'glas', label: 'Glas (Panel)' },
         { value: 'neon', label: 'Neon (durchscheinend)' },
         { value: 'bars', label: 'Balken (minimal)' },
@@ -166,7 +168,7 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'gift-jar', label: 'Geschenke-Glas', desc: 'Coins fallen ins Glas, der Füllstand wächst Richtung Ziel — der TikFinity-Klassiker.',
+    type: 'gift-jar', label: 'Coin-Glas', desc: 'Einmachglas, das sich mit hunderten bunten Münzen füllt — der TikFinity-Klassiker.',
     w: 320, h: 480, props: { target: 1000, label: '' },
     fields: [
       { key: 'target', label: 'Ziel (Coins)', type: 'number' },
