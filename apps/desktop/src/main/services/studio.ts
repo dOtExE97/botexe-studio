@@ -2,7 +2,7 @@
 // Hier steckt die Verdrahtung, die in der Alt-App über ein 1500-Zeilen-
 // main.ts verschmiert war — main.ts bleibt dünn (Fenster + IPC).
 import path from 'node:path';
-import { TriggerEngine, type StudioEvent, type TriggerRule } from '@botexe/trigger-engine';
+import { TriggerEngine, renderSpeakTemplate, type StudioEvent, type TriggerRule } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { SessionStats } from '../core/session-stats';
@@ -12,6 +12,7 @@ import { OverlayServer } from '../adapters/overlay-server';
 import { SettingsStore } from './settings-store';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
+import { TTSService } from './tts-service';
 import { log } from '../core/logger';
 
 export interface SoundCommand {
@@ -42,6 +43,7 @@ export class Studio {
   readonly settings: SettingsStore;
   readonly layouts: LayoutStore;
   readonly sounds: SoundLibrary;
+  readonly tts: TTSService;
   readonly stats = new SessionStats();
 
   private readonly engine = new TriggerEngine();
@@ -59,12 +61,18 @@ export class Studio {
     this.settings = new SettingsStore(paths.userDataDir);
     this.layouts = new LayoutStore(paths.userDataDir);
     this.sounds = new SoundLibrary(paths.userDataDir);
+    this.tts = new TTSService(paths.userDataDir, (playback) => {
+      const tts = this.settings.get().tts;
+      const url = `http://127.0.0.1:${this.server.getPort()}/tts/${playback.fileId}?token=${this.server.getToken()}`;
+      this.hooks.onSoundPlay({ soundId: playback.fileId, url, volume: tts.volume });
+    });
 
     this.server = new OverlayServer(this.bus, {
       port: 27415,
       runtimeDir: paths.runtimeDir,
       widgetDir: paths.widgetDir,
       soundsDir: this.sounds.getDir(),
+      ttsDir: this.tts.getCacheDir(),
       getActiveLayout: () => this.getActiveLayout(),
       getStats: () => this.stats.snapshot(),
     });
@@ -95,10 +103,15 @@ export class Studio {
       for (const match of this.engine.evaluate(e)) {
         if (match.action.kind === 'play_sound') {
           this.playSound(match.action.soundId, match.action.volume);
+        } else if (match.action.kind === 'speak') {
+          this.speakForEvent(match.action.template, e, match.action.voice);
         } else {
           this.server.broadcast({ kind: 'action', ruleId: match.ruleId, action: match.action });
         }
       }
+
+      // 3b. Chat vorlesen (TikFinity-Style), wenn aktiviert
+      if (e.type === 'chat') this.maybeReadChat(e);
 
       // 4. Live-Feed an die App-Shell
       this.hooks.onBusEvent(e);
@@ -185,6 +198,35 @@ export class Studio {
       const layout = this.getActiveLayout();
       if (layout) this.server.broadcast({ kind: 'layout', layout });
     }
+  }
+
+  // ── TTS ───────────────────────────────────────────────────────────────
+
+  private speakForEvent(template: string, event: StudioEvent, voiceOverride?: string): void {
+    const tts = this.settings.get().tts;
+    if (!tts.enabled) return;
+    const text = TTSService.sanitize(renderSpeakTemplate(template, event), tts.maxTextLen);
+    if (!text) return;
+    const voice =
+      voiceOverride ||
+      (tts.chatVoiceMode === 'perUser' && event.user ? this.tts.voiceForUser(event.user.id) : tts.voice);
+    this.tts.speak(text, voice);
+  }
+
+  private maybeReadChat(event: StudioEvent): void {
+    const tts = this.settings.get().tts;
+    if (!tts.enabled || !tts.readChat) return;
+    const raw = event.text ?? '';
+    if (!raw.trim()) return;
+    if (tts.skipCommands && raw.trimStart().startsWith('!')) return;
+    this.speakForEvent(tts.chatTemplate, event);
+  }
+
+  /** Test aus der UI: beliebigen Text mit gewählter Stimme sprechen. */
+  speakTest(text: string, voice?: string): void {
+    const tts = this.settings.get().tts;
+    const clean = TTSService.sanitize(text, tts.maxTextLen);
+    if (clean) this.tts.speak(clean, voice || tts.voice);
   }
 
   // ── Sound ─────────────────────────────────────────────────────────────

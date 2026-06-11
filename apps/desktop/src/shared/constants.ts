@@ -31,6 +31,9 @@ export const IPC = {
   SOUND_TEST: 'sound:test',
   SOUND_SEARCH_MYINSTANTS: 'sound:search-myinstants',
   SOUND_IMPORT_MYINSTANTS: 'sound:import-myinstants',
+  // TTS
+  TTS_VOICES: 'tts:voices',
+  TTS_TEST: 'tts:test',
   // Settings
   SETTINGS_GET: 'settings:get',
   SETTINGS_UPDATE: 'settings:update',

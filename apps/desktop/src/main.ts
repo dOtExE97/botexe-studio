@@ -7,6 +7,7 @@ import type { StudioEvent, TriggerRule } from '@botexe/trigger-engine';
 import { IPC } from './shared/constants';
 import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
+import { TTS_VOICES } from './main/services/tts-service';
 import { log } from './main/core/logger';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
@@ -191,6 +192,14 @@ function registerIpc(): void {
     }
   });
 
+  // TTS
+  ipcMain.handle(IPC.TTS_VOICES, () => TTS_VOICES);
+  ipcMain.handle(IPC.TTS_TEST, (_e, text: unknown, voice: unknown) => {
+    if (typeof text !== 'string' || !text.trim()) return { ok: false, error: 'Text fehlt' };
+    isStudio().speakTest(text, typeof voice === 'string' ? voice : undefined);
+    return { ok: true };
+  });
+
   // Settings
   ipcMain.handle(IPC.SETTINGS_GET, () => isStudio().settings.get());
   ipcMain.handle(IPC.SETTINGS_UPDATE, (_e, patch: unknown) => {
@@ -200,6 +209,21 @@ function registerIpc(): void {
     const p = patch as Record<string, unknown>;
     if (typeof p.soundVolume === 'number') allowed.soundVolume = Math.min(1, Math.max(0, p.soundVolume));
     if (typeof p.lastUsername === 'string') allowed.lastUsername = p.lastUsername;
+    if (typeof p.tts === 'object' && p.tts !== null) {
+      const t = p.tts as Record<string, unknown>;
+      const current = isStudio().settings.get().tts;
+      allowed.tts = {
+        ...current,
+        ...(typeof t.enabled === 'boolean' ? { enabled: t.enabled } : {}),
+        ...(typeof t.voice === 'string' ? { voice: t.voice } : {}),
+        ...(typeof t.volume === 'number' ? { volume: Math.min(1, Math.max(0, t.volume)) } : {}),
+        ...(typeof t.readChat === 'boolean' ? { readChat: t.readChat } : {}),
+        ...(t.chatVoiceMode === 'fixed' || t.chatVoiceMode === 'perUser' ? { chatVoiceMode: t.chatVoiceMode } : {}),
+        ...(typeof t.skipCommands === 'boolean' ? { skipCommands: t.skipCommands } : {}),
+        ...(typeof t.maxTextLen === 'number' ? { maxTextLen: Math.min(500, Math.max(20, t.maxTextLen)) } : {}),
+        ...(typeof t.chatTemplate === 'string' ? { chatTemplate: t.chatTemplate } : {}),
+      };
+    }
     return { ok: true, settings: isStudio().settings.update(allowed) };
   });
 

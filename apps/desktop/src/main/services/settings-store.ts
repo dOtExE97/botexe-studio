@@ -6,7 +6,21 @@ import path from 'node:path';
 import type { TriggerRule } from '@botexe/trigger-engine';
 import { log } from '../core/logger';
 
-export const SETTINGS_SCHEMA_VERSION = 1;
+export const SETTINGS_SCHEMA_VERSION = 2;
+
+export interface TTSSettings {
+  enabled: boolean;
+  voice: string;
+  volume: number;
+  readChat: boolean;
+  /** 'fixed' = eine Stimme für alle · 'perUser' = stabile Zufalls-Stimme pro User */
+  chatVoiceMode: 'fixed' | 'perUser';
+  /** Nachrichten, die mit ! beginnen, nicht vorlesen (Befehle). */
+  skipCommands: boolean;
+  maxTextLen: number;
+  /** Vorlese-Format, z.B. '{user} sagt: {text}' */
+  chatTemplate: string;
+}
 
 export interface StudioSettings {
   schemaVersion: number;
@@ -14,7 +28,19 @@ export interface StudioSettings {
   soundVolume: number;
   triggerRules: TriggerRule[];
   activeLayoutId: string | null;
+  tts: TTSSettings;
 }
+
+const TTS_DEFAULTS: TTSSettings = {
+  enabled: true,
+  voice: 'de-DE-KatjaNeural',
+  volume: 0.8,
+  readChat: false,
+  chatVoiceMode: 'perUser',
+  skipCommands: true,
+  maxTextLen: 200,
+  chatTemplate: '{user} sagt: {text}',
+};
 
 const DEFAULTS: StudioSettings = {
   schemaVersion: SETTINGS_SCHEMA_VERSION,
@@ -22,6 +48,7 @@ const DEFAULTS: StudioSettings = {
   soundVolume: 0.7,
   triggerRules: [],
   activeLayoutId: null,
+  tts: TTS_DEFAULTS,
 };
 
 function isValidRule(rule: unknown): rule is TriggerRule {
@@ -56,6 +83,8 @@ export class SettingsStore {
         log.warn('Settings', `Settings-Version ${raw.schemaVersion} ist neuer als ${SETTINGS_SCHEMA_VERSION}`);
       }
       const merged: StudioSettings = { ...DEFAULTS, ...raw, schemaVersion: SETTINGS_SCHEMA_VERSION };
+      // Migration v1→v2: tts-block ergänzen; defensiv mergen falls teilweise da.
+      merged.tts = { ...TTS_DEFAULTS, ...(typeof raw.tts === 'object' && raw.tts !== null ? raw.tts : {}) };
       merged.triggerRules = (Array.isArray(raw.triggerRules) ? raw.triggerRules : []).filter(
         (r: unknown): r is TriggerRule => {
           const ok = isValidRule(r);

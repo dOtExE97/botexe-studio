@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TriggerEngine, type StudioEvent, type TriggerRule } from './index';
+import { TriggerEngine, renderSpeakTemplate, type StudioEvent, type TriggerRule } from './index';
 
 function giftEvent(overrides: Partial<StudioEvent> = {}): StudioEvent {
   return {
@@ -213,4 +213,42 @@ test('setRules behält cooldown-stand bestehender regeln (config-update mitten i
 
   engine.setRules([rule({ cooldownMs: 60_000 })]); // gleiche regel-id neu gesetzt
   assert.equal(engine.evaluate(giftEvent({ ts: 2_000 })).length, 0, 'cooldown überlebt setRules');
+});
+
+// ── Zyklus 4: speak-action (TTS) ─────────────────────────────────────────
+
+test('speak-action wird wie jede andere action geliefert', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([
+    rule({
+      actions: [{ kind: 'speak', template: '{user} hat {gift} geschickt, danke!' }],
+    }),
+  ]);
+
+  const matches = engine.evaluate(giftEvent());
+  assert.equal(matches.length, 1);
+  assert.deepEqual(matches[0]?.action, {
+    kind: 'speak',
+    template: '{user} hat {gift} geschickt, danke!',
+  });
+});
+
+test('renderSpeakTemplate füllt platzhalter aus dem event', () => {
+  const e = giftEvent({
+    user: { id: 'mia', nickname: 'Mia' },
+    gift: { slug: 'Rose', count: 3, coinsPerUnit: 1, totalCoins: 3 },
+  });
+  assert.equal(
+    renderSpeakTemplate('{user} schickt {count}x {gift} für {coins} Coins!', e),
+    'Mia schickt 3x Rose für 3 Coins!',
+  );
+  assert.equal(
+    renderSpeakTemplate('{user} sagt: {text}', { type: 'chat', ts: 1, user: { id: 'a', nickname: 'Anna' }, text: 'hi!' }),
+    'Anna sagt: hi!',
+  );
+  assert.equal(
+    renderSpeakTemplate('{user} folgt!', { type: 'follow', ts: 1 }),
+    'Jemand folgt!',
+    'fehlender user → "Jemand"',
+  );
 });
