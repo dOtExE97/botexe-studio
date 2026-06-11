@@ -8,12 +8,14 @@ const CDP = 'http://127.0.0.1:9222';
 const OUT = process.argv[2] ?? '/tmp';
 
 let msgId = 0;
-function send(ws: WebSocket, method: string, params: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+function send(ws: WebSocket, method: string, params: Record<string, unknown> = {}, timeoutMs = 15_000): Promise<Record<string, unknown>> {
   const id = ++msgId;
   return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`TIMEOUT: ${method}`)), timeoutMs);
     const onMessage = (data: unknown) => {
       const msg = JSON.parse(String(data));
       if (msg.id === id) {
+        clearTimeout(timer);
         ws.off('message', onMessage);
         if (msg.error) reject(new Error(`${method}: ${msg.error.message}`));
         else resolve(msg.result);
@@ -34,9 +36,20 @@ async function evalJs(ws: WebSocket, expression: string): Promise<unknown> {
 }
 
 async function shot(ws: WebSocket, file: string): Promise<void> {
-  const s = (await send(ws, 'Page.captureScreenshot', { format: 'png' })) as { data: string };
-  fs.writeFileSync(file, Buffer.from(s.data, 'base64'));
-  console.log(`📸 ${file}`);
+  // Verdecktes/minimiertes Fenster produziert keine frames → capture hängt.
+  // bringToFront + retry macht den capture zuverlässig.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await send(ws, 'Page.bringToFront', {}, 3000).catch(() => undefined);
+      const s = (await send(ws, 'Page.captureScreenshot', { format: 'png', fromSurface: false }, 8000)) as { data: string };
+      fs.writeFileSync(file, Buffer.from(s.data, 'base64'));
+      console.log(`📸 ${file}`);
+      return;
+    } catch (err) {
+      if (attempt === 1) throw err;
+      console.log(`shot retry (${(err as Error).message})`);
+    }
+  }
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -63,11 +76,13 @@ const DEMO_LAYOUT = {
   name: 'Mein Stream-Overlay',
   canvas: { width: 1080, height: 1920, background: 'transparent' },
   layers: [
+    { id: 'l-fireworks', widgetType: 'gift-fireworks', name: 'Feuerwerk', x: 40, y: 230, w: 1000, h: 1200, z: 1, visible: true, props: { minCoins: 0, maxRockets: 3 } },
     { id: 'l-goal', widgetType: 'goal-bar', name: 'Goal', x: 110, y: 240, w: 720, h: 90, z: 4, visible: true, props: { metric: 'coins', target: 5000 } },
     { id: 'l-board', widgetType: 'leaderboard', name: 'Top Gifter', x: 110, y: 370, w: 350, h: 290, z: 3, visible: true, props: { source: 'gifts', limit: 5 } },
     { id: 'l-likes', widgetType: 'leaderboard', name: 'Like-Liste', x: 490, y: 370, w: 340, h: 290, z: 3, visible: true, props: { source: 'likes', limit: 5 } },
-    { id: 'l-alert', widgetType: 'gift-alert', name: 'Gift-Alert', x: 110, y: 700, w: 720, h: 420, z: 10, visible: true, props: { minCoins: 0, durationMs: 30000 } },
-    { id: 'l-follow', widgetType: 'follow-alert', name: 'Follow-Alert', x: 110, y: 1150, w: 460, h: 90, z: 5, visible: true, props: { durationMs: 30000 } },
+    { id: 'l-alert', widgetType: 'gift-alert', name: 'Gift-Alert', x: 110, y: 700, w: 400, h: 420, z: 10, visible: true, props: { minCoins: 0, durationMs: 30000 } },
+    { id: 'l-jar', widgetType: 'gift-jar', name: 'Geschenke-Glas', x: 540, y: 690, w: 290, h: 480, z: 6, visible: true, props: { target: 5000 } },
+    { id: 'l-follow', widgetType: 'follow-alert', name: 'Follow-Alert', x: 110, y: 1150, w: 420, h: 90, z: 5, visible: true, props: { durationMs: 30000 } },
     { id: 'l-feed', widgetType: 'gift-feed', name: 'Gift-Feed', x: 460, y: 1255, w: 370, h: 160, z: 2, visible: true, props: { max: 3, ttlMs: 120000 } },
     { id: 'l-chat', widgetType: 'chat-box', name: 'Chat', x: 110, y: 1255, w: 340, h: 160, z: 1, visible: true, props: { max: 4 } },
   ],
@@ -146,10 +161,13 @@ async function main(): Promise<void> {
   // Overlay selbst: frisches Event reinschieben, damit der Alert "live" ist
   const info = (await evalJs(ws, 'window.studio.getOverlayInfo()')) as { url: string };
   await send(ws, 'Page.navigate', { url: info.url });
-  await sleep(2800);
   await send(ws, 'Emulation.setDefaultBackgroundColorOverride', { color: { r: 22, g: 24, b: 32, a: 255 } });
-  await sleep(400);
-  await shot(ws, `${OUT}/tour-5-overlay.png`);
+  // shot-serie: die feuerwerk-explosion (sticky-gift) irgendwo erwischen
+  await sleep(1700);
+  for (let i = 0; i < 5; i++) {
+    await shot(ws, `${OUT}/tour-5-overlay-${i}.png`);
+    await sleep(420);
+  }
 
   await send(ws, 'Emulation.setDefaultBackgroundColorOverride', {});
   await send(ws, 'Page.navigate', { url: target.url });

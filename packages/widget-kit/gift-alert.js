@@ -19,9 +19,18 @@ const CSS = `
   background: linear-gradient(165deg, rgba(16,18,26,.92), rgba(10,11,16,.88));
   clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
   border-top: 3px solid #ff4d2e;
-  box-shadow: 0 18px 50px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08) inset;
+  box-shadow: 0 18px 50px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08) inset,
+    0 0 42px rgba(255,77,46,.28);
   text-align: center;
+  overflow: hidden;
 }
+.bx-ga-card::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 38%;
+  left: -50%; transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.14), transparent);
+  animation: bx-ga-shine 1.4s ease-out 200ms 2;
+}
+@keyframes bx-ga-shine { to { left: 130%; } }
 .bx-ga-card::before {
   content: ''; position: absolute; left: -2%; top: 0; bottom: 0; width: 10px;
   background: #ff4d2e; transform: skewX(-8deg);

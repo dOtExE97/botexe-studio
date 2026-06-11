@@ -41,6 +41,9 @@ function createMainWindow(): void {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      // Stream-Tool: auch wenn das Fenster verdeckt ist, nicht drosseln
+      // (Events/Sounds laufen weiter, CDP-Captures hängen nicht).
+      backgroundThrottling: false,
     },
   });
 

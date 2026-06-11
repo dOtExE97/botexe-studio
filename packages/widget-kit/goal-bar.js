@@ -28,6 +28,11 @@ const CSS = `
   position: absolute; inset: 0; width: 0%;
   background: linear-gradient(90deg, #ff4d2e, #ff8a3d 60%, #ffd23e);
   transition: width 600ms cubic-bezier(.25,1,.35,1);
+  box-shadow: 2px 0 14px rgba(255,210,62,.85);
+}
+.bx-gb-tick {
+  position: absolute; top: 0; bottom: 0; width: 1.5px;
+  background: rgba(255,255,255,.22);
 }
 .bx-gb-fill::after {
   content: ''; position: absolute; inset: 0;
@@ -77,6 +82,9 @@ export default class GoalBar {
       </div>
       <div class="bx-gb-track">
         <div class="bx-gb-fill"></div>
+        <div class="bx-gb-tick" style="left:25%"></div>
+        <div class="bx-gb-tick" style="left:50%"></div>
+        <div class="bx-gb-tick" style="left:75%"></div>
         <div class="bx-gb-pct">0%</div>
       </div>`;
     this.el.querySelector('.bx-gb-label').textContent = this.label;

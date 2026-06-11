@@ -15,10 +15,18 @@ const CSS = `
   overflow: hidden;
 }
 .bx-lb-title {
+  position: relative; overflow: hidden;
   font-size: 14px; letter-spacing: .34em; text-transform: uppercase;
   color: #ffd23e; text-shadow: 0 2px 8px rgba(0,0,0,.8);
   border-bottom: 2px solid #ff4d2e; padding-bottom: 8px; margin-bottom: 8px;
 }
+.bx-lb-title::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 50%; left: -60%;
+  transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.16), transparent);
+  animation: bx-lb-shine 3.2s ease-in-out infinite;
+}
+@keyframes bx-lb-shine { 0%, 60% { left: -60%; } 100% { left: 130%; } }
 .bx-lb-list { position: relative; flex: 1; }
 .bx-lb-row {
   position: absolute; left: 0; right: 0; height: 40px;
@@ -32,6 +40,12 @@ const CSS = `
   clip-path: polygon(15% 0, 100% 0, 85% 100%, 0 100%);
 }
 .bx-lb-row[data-rank="1"] .bx-lb-rank { background: #ffd23e; box-shadow: 0 0 14px rgba(255,210,62,.7); }
+.bx-lb-row[data-rank="1"] .bx-lb-pic { box-shadow: 0 0 0 2px #ffd23e, 0 0 16px rgba(255,210,62,.55); }
+.bx-lb-row[data-rank="1"]::before {
+  content: '👑'; position: absolute; left: 30px; top: -7px; font-size: 13px;
+  transform: rotate(-18deg); filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); z-index: 1;
+}
+.bx-lb-row[data-rank="1"] .bx-lb-name { color: #ffd23e; }
 .bx-lb-row[data-rank="2"] .bx-lb-rank { background: #cfd6e4; }
 .bx-lb-row[data-rank="3"] .bx-lb-rank { background: #d98a4a; }
 .bx-lb-pic { width: 28px; height: 28px; border-radius: 50%; flex: none;

@@ -77,6 +77,22 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'gift-jar', label: 'Geschenke-Glas', desc: 'Coins fallen ins Glas, der Füllstand wächst Richtung Ziel — der TikFinity-Klassiker.',
+    w: 320, h: 480, props: { target: 1000, label: '' },
+    fields: [
+      { key: 'target', label: 'Ziel (Coins)', type: 'number' },
+      { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'leer = "Gift-Glas"' },
+    ],
+  },
+  {
+    type: 'gift-fireworks', label: 'Gift-Feuerwerk', desc: 'Jedes Gift steigt als Rakete auf und explodiert — je mehr Coins, desto fetter der Burst.',
+    w: 900, h: 1200, props: { minCoins: 0, maxRockets: 3 },
+    fields: [
+      { key: 'minCoins', label: 'Ab Coins', type: 'number', hint: 'Feuerwerk erst ab diesem Gift-Wert' },
+      { key: 'maxRockets', label: 'Max. Raketen gleichzeitig', type: 'number' },
+    ],
+  },
+  {
     type: 'gift-feed', label: 'Gift-Feed', desc: 'Ticker der letzten Gifts mit Gift-Bildern.',
     w: 380, h: 240, props: { max: 5, ttlMs: 25000 },
     fields: [

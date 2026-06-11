@@ -14,7 +14,8 @@ const CSS = `
   background: linear-gradient(165deg, rgba(16,18,26,.92), rgba(10,11,16,.88));
   clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
   border-left: 4px solid #21e6c1;
-  box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.08) inset;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.08) inset,
+    -4px 0 22px rgba(33,230,193,.25);
   transform: translateX(-120%);
   animation: bx-fa-in 380ms cubic-bezier(.2,1.4,.4,1) forwards,
              bx-fa-out 300ms ease-in forwards var(--bx-fa-stay, 3600ms);
