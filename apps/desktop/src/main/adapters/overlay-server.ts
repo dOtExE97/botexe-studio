@@ -37,7 +37,10 @@ export interface OverlayServerOptions {
   widgetDir: string;
   /** 0 = Heartbeat aus (Tests); Default 30s. */
   heartbeatMs?: number;
-  getActiveLayout: () => OverlayLayout | null;
+  /** Layout zu einer Profil-ID (undefined = Default-Profil). */
+  getLayout: (id?: string) => OverlayLayout | null;
+  /** ID des Default-Profils (für den Link ohne profile-Param). */
+  getDefaultLayoutId: () => string | null;
   /** Initial-Stats für Late-Joiner (Leaderboard/Goal nicht leer nach Overlay-Reload). */
   getStats?: () => unknown;
   /** Sound-Files (mp3/wav/ogg/m4a) — NUR ausgeliefert, abgespielt wird im App-Renderer. */
@@ -53,6 +56,8 @@ const BACKPRESSURE_BYTES = 512 * 1024;
 interface TrackedClient {
   ws: WebSocket;
   isAlive: boolean;
+  /** Welches Profil dieser Client anzeigt — Layout-Broadcasts sind profil-gefiltert. */
+  profileId: string;
 }
 
 export class OverlayServer {
@@ -98,17 +103,19 @@ export class OverlayServer {
       res.json({ status: 'ok' });
     });
 
-    this.expressApp.get('/overlay', auth, (_req, res) => {
+    this.expressApp.get('/overlay', auth, (req, res) => {
       const htmlPath = path.join(this.options.runtimeDir, 'overlay.html');
       if (!fs.existsSync(htmlPath)) {
         res.status(500).send('overlay.html nicht gefunden');
         return;
       }
+      const profileRaw = req.query.profile;
+      const profileId = typeof profileRaw === 'string' ? profileRaw : '';
       let html = fs.readFileSync(htmlPath, 'utf-8');
-      // Runtime-Config injizieren: WS-URL inkl. Token, damit die Runtime
-      // ohne Hardcoding verbinden kann.
+      // Runtime-Config injizieren: WS-URL inkl. Token + Profil, damit die
+      // Runtime ohne Hardcoding genau dieses Profil-Layout zieht.
       const cfg = `<script>window.BOTEXE_OVERLAY = ${JSON.stringify({
-        wsUrl: this.getWsUrl(),
+        wsUrl: profileId ? `${this.getWsUrl()}&profile=${encodeURIComponent(profileId)}` : this.getWsUrl(),
         baseUrl: `http://${this.host}:${this.port}`,
         token: this.token,
       })};</script>`;
@@ -116,6 +123,7 @@ export class OverlayServer {
       // Relativer script-src würde auf /runtime.js zeigen (404, kein Token) —
       // auf die tokenisierte Runtime-Route umschreiben.
       html = html.replace('src="runtime.js"', `src="/runtime/runtime.js?token=${this.token}"`);
+      html = html.replace('href="widget-base.css"', `href="/widgets/widget-base.css?token=${this.token}"`);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(html);
     });
@@ -230,9 +238,10 @@ export class OverlayServer {
         return;
       }
 
-      const client: TrackedClient = { ws, isAlive: true };
+      const profileId = url.searchParams.get('profile') || this.options.getDefaultLayoutId() || '';
+      const client: TrackedClient = { ws, isAlive: true, profileId };
       this.clients.add(client);
-      log.info('Overlay', `Client verbunden (${this.clients.size} aktiv)`);
+      log.info('Overlay', `Client verbunden, Profil "${profileId}" (${this.clients.size} aktiv)`);
 
       ws.on('pong', () => {
         client.isAlive = true;
@@ -247,7 +256,7 @@ export class OverlayServer {
 
       // Initial-Zustand: aktives Layout + sticky last-values, damit der
       // Overlay-Canvas nicht leer startet (Late-Joiner).
-      const layout = this.options.getActiveLayout();
+      const layout = this.options.getLayout(profileId || undefined);
       if (layout) this.sendTo(client, { kind: 'layout', layout }, true);
       const stats = this.options.getStats?.();
       if (stats) this.sendTo(client, { kind: 'stats', stats }, true);
@@ -341,6 +350,15 @@ export class OverlayServer {
     }
   }
 
+  /** Aktuelles Layout eines Profils an genau dessen Clients pushen (nach Save). */
+  broadcastLayout(profileId: string): void {
+    const layout = this.options.getLayout(profileId);
+    if (!layout) return;
+    for (const client of this.clients) {
+      if (client.profileId === profileId) this.sendTo(client, { kind: 'layout', layout }, true);
+    }
+  }
+
   private sendTo(client: TrackedClient, message: OverlayMessage, critical = false): void {
     if (client.ws.readyState !== 1) return;
     // H6: Event-Spam (gift-bombing) darf den Buffer toter/langsamer Clients
@@ -369,8 +387,9 @@ export class OverlayServer {
     return this.clients.size;
   }
 
-  getOverlayUrl(): string {
-    return `http://${this.host}:${this.port}/overlay?token=${this.token}`;
+  getOverlayUrl(profileId?: string): string {
+    const base = `http://${this.host}:${this.port}/overlay?token=${this.token}`;
+    return profileId ? `${base}&profile=${encodeURIComponent(profileId)}` : base;
   }
 
   getWsUrl(): string {

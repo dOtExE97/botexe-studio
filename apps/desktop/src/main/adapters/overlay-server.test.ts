@@ -23,14 +23,16 @@ function makeDirs(): { runtimeDir: string; widgetDir: string } {
 async function setup(heartbeatMs = 0) {
   const bus = new EventBus();
   const layout = createDefaultLayout('Test-Layout', 'test-layout');
+  const profileB = createDefaultLayout('Profil-B', 'profile-b');
   const server = new OverlayServer(bus, {
     port: 0,
     ...makeDirs(),
     heartbeatMs,
-    getActiveLayout: () => layout,
+    getLayout: (id) => (id === 'profile-b' ? profileB : id === 'test-layout' || !id ? layout : null),
+    getDefaultLayoutId: () => 'test-layout',
   });
   await server.start();
-  return { bus, server, layout };
+  return { bus, server, layout, profileB };
 }
 
 interface WsClient {
@@ -185,6 +187,54 @@ test('broadcast: action-nachrichten erreichen clients', async () => {
     const msg = await client.next();
     assert.equal(msg.kind, 'action');
     client.close();
+  } finally {
+    await server.stop();
+  }
+});
+
+test('profile: WS-client mit ?profile=… bekommt genau dieses layout', async () => {
+  const { server } = await setup();
+  try {
+    const client = await wsConnect(`${server.getWsUrl()}&profile=profile-b`);
+    const msg = await client.next();
+    assert.equal(msg.kind, 'layout');
+    assert.equal((msg.layout as { id: string }).id, 'profile-b');
+    client.close();
+  } finally {
+    await server.stop();
+  }
+});
+
+test('profile: layout-broadcast erreicht nur clients desselben profils', async () => {
+  const { bus, server } = await setup();
+  try {
+    const a = await wsConnect(`${server.getWsUrl()}&profile=test-layout`);
+    const b = await wsConnect(`${server.getWsUrl()}&profile=profile-b`);
+    await a.next(); // initial layout
+    await b.next();
+
+    // Layout für profile-b neu broadcasten — nur b darf es kriegen.
+    server.broadcastLayout('profile-b');
+    const bMsg = await b.next();
+    assert.equal((bMsg.layout as { id: string }).id, 'profile-b');
+
+    // a bekam KEIN layout: als nächstes erreicht a ein event (Kanal offen),
+    // wäre fälschlich ein layout an a gegangen, käme das hier statt 'event'.
+    bus.publish({ type: 'follow', ts: 1 });
+    const aMsg = await a.next();
+    assert.equal(aMsg.kind, 'event', 'a bekam event, kein b-layout');
+    a.close();
+    b.close();
+  } finally {
+    await server.stop();
+  }
+});
+
+test('profile: getOverlayUrl(id) hängt profile-param an', async () => {
+  const { server } = await setup();
+  try {
+    assert.match(server.getOverlayUrl('profile-b'), /profile=profile-b/);
+    assert.match(server.getOverlayUrl('profile-b'), /token=/);
   } finally {
     await server.stop();
   }

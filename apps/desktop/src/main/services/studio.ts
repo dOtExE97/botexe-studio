@@ -78,7 +78,9 @@ export class Studio {
       widgetDir: paths.widgetDir,
       soundsDir: this.sounds.getDir(),
       ttsDir: this.tts.getCacheDir(),
-      getActiveLayout: () => this.getActiveLayout(),
+      // Profile = einzelne Layouts; jedes hat seinen eigenen Overlay-Link.
+      getLayout: (id) => (id ? this.layouts.get(id) : this.getActiveLayout()),
+      getDefaultLayoutId: () => this.settings.get().activeLayoutId,
       getStats: () => this.stats.snapshot(),
     });
 
@@ -206,18 +208,20 @@ export class Studio {
     return id ? this.layouts.get(id) : null;
   }
 
+  /** Setzt das Default-Profil (für den Link ohne profile-Param). */
   setActiveLayout(id: string | null): void {
     this.settings.update({ activeLayoutId: id });
-    const layout = this.getActiveLayout();
-    if (layout) this.server.broadcast({ kind: 'layout', layout });
+    if (id) this.server.broadcastLayout(id);
   }
 
-  /** Nach jedem Save des aktiven Layouts live ans Overlay pushen. */
+  /** Nach jedem Save eines Profils dessen Clients live aktualisieren. */
   notifyLayoutSaved(layoutId: string): void {
-    if (this.settings.get().activeLayoutId === layoutId) {
-      const layout = this.getActiveLayout();
-      if (layout) this.server.broadcast({ kind: 'layout', layout });
-    }
+    this.server.broadcastLayout(layoutId);
+  }
+
+  /** Overlay-Link eines bestimmten Profils (für „Link kopieren" pro Profil). */
+  getProfileLink(layoutId: string): string {
+    return this.server.getOverlayUrl(layoutId);
   }
 
   // ── TTS ───────────────────────────────────────────────────────────────

@@ -137,6 +137,9 @@ function registerIpc(): void {
     isStudio().setActiveLayout(typeof id === 'string' ? id : null);
     return { ok: true };
   });
+  ipcMain.handle(IPC.LAYOUT_PROFILE_LINK, (_e, id: unknown) =>
+    typeof id === 'string' ? isStudio().getProfileLink(id) : '',
+  );
 
   // Trigger-Regeln
   ipcMain.handle(IPC.RULES_GET, () => isStudio().getRules());

@@ -145,12 +145,27 @@ function newLayerId(): string {
   return `layer-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
 }
 
+function freshLayout(name: string, preset: CanvasPreset): OverlayLayout {
+  return {
+    schemaVersion: 1,
+    id: `layout-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    name,
+    canvas: { ...CANVAS_PRESETS[preset], background: 'transparent' },
+    layers: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export default function OverlayPage() {
+  const [profiles, setProfiles] = useState<OverlayLayout[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [layout, setLayout] = useState<OverlayLayout | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showZones, setShowZones] = useState(true);
   const [saveState, setSaveState] = useState<'idle' | 'saved' | 'error'>('idle');
   const [saveError, setSaveError] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.3);
   const dragRef = useRef<{ id: string; mode: 'move' | 'resize'; startX: number; startY: number; orig: OverlayLayer } | null>(null);
@@ -159,26 +174,88 @@ export default function OverlayPage() {
   const canvasH = layout?.canvas.height ?? CANVAS_PRESETS.portrait.height;
   const safeZones = getSafeZoneProfile(canvasW, canvasH);
 
-  // Aktives Layout laden oder frisches anlegen (Hochformat-Default)
+  // Profile laden — oder das erste Profil anlegen (Hochformat-Default)
   useEffect(() => {
     void (async () => {
-      const layouts = (await window.studio.listLayouts()) as OverlayLayout[];
-      if (layouts.length > 0) {
-        setLayout(layouts[0] ?? null);
-        await window.studio.setActiveLayout(layouts[0]?.id ?? null);
-      } else {
-        setLayout({
-          schemaVersion: 1,
-          id: `layout-${Date.now().toString(36)}`,
-          name: 'Mein Overlay',
-          canvas: { ...CANVAS_PRESETS.portrait, background: 'transparent' },
-          layers: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
+      let list = (await window.studio.listLayouts()) as OverlayLayout[];
+      if (list.length === 0) {
+        const first = freshLayout('Hochformat', 'portrait');
+        await window.studio.saveLayout(first);
+        await window.studio.setActiveLayout(first.id);
+        list = [first];
       }
+      const settings = (await window.studio.getSettings()) as { activeLayoutId: string | null };
+      const active = settings.activeLayoutId ?? list[0]?.id ?? null;
+      setProfiles(list);
+      setActiveId(active);
+      const cur = list.find((l) => l.id === active) ?? list[0] ?? null;
+      setLayout(cur);
     })();
   }, []);
+
+  const refreshProfiles = async () => {
+    setProfiles((await window.studio.listLayouts()) as OverlayLayout[]);
+  };
+
+  const selectProfile = (id: string) => {
+    const p = profiles.find((l) => l.id === id);
+    if (p) {
+      setLayout(p);
+      setSelectedId(null);
+    }
+  };
+
+  const createProfile = async (preset: CanvasPreset) => {
+    const fresh = freshLayout(preset === 'portrait' ? 'Hochformat' : 'Querformat', preset);
+    await window.studio.saveLayout(fresh);
+    await refreshProfiles();
+    setLayout(fresh);
+    setSelectedId(null);
+  };
+
+  const renameProfile = async (name: string) => {
+    if (!layout) return;
+    await persist({ ...layout, name });
+    await refreshProfiles();
+  };
+
+  const deleteProfile = async (id: string) => {
+    if (profiles.length <= 1) return; // mindestens ein Profil behalten
+    await window.studio.deleteLayout(id);
+    const rest = profiles.filter((l) => l.id !== id);
+    await refreshProfiles();
+    if (layout?.id === id) setLayout(rest[0] ?? null);
+    if (activeId === id && rest[0]) {
+      await window.studio.setActiveLayout(rest[0].id);
+      setActiveId(rest[0].id);
+    }
+  };
+
+  const duplicateProfile = async () => {
+    if (!layout) return;
+    const copy: OverlayLayout = {
+      ...layout,
+      id: `layout-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+      name: `${layout.name} Kopie`,
+      layers: layout.layers.map((l) => ({ ...l })),
+    };
+    await window.studio.saveLayout(copy);
+    await refreshProfiles();
+    setLayout(copy);
+  };
+
+  const makeDefault = async () => {
+    if (!layout) return;
+    await window.studio.setActiveLayout(layout.id);
+    setActiveId(layout.id);
+  };
+
+  const copyProfileLink = async (id: string) => {
+    const link = (await window.studio.getProfileLink(id)) as string;
+    await navigator.clipboard.writeText(link);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1800);
+  };
 
   // Canvas-Skalierung an Containergröße anpassen
   useEffect(() => {
@@ -198,7 +275,7 @@ export default function OverlayPage() {
     if (result.ok) {
       setSaveState('saved');
       setSaveError('');
-      await window.studio.setActiveLayout(next.id);
+      setProfiles((prev) => prev.map((p) => (p.id === next.id ? next : p)));
       setTimeout(() => setSaveState('idle'), 1200);
     } else {
       setSaveState('error');
@@ -319,6 +396,61 @@ export default function OverlayPage() {
 
       {/* Canvas */}
       <section className="relative flex flex-col overflow-hidden bg-studio-bg">
+        {/* Profil-Leiste — jedes Profil ist ein eigener Overlay-Screen mit eigenem Link */}
+        <div className="flex flex-none flex-wrap items-center gap-2 border-b border-studio-border bg-studio-panel px-3 py-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-studio-muted">Profile</span>
+          {profiles.map((p) => {
+            const isPortraitP = p.canvas.height > p.canvas.width;
+            const isCurrent = p.id === layout?.id;
+            return (
+              <div
+                key={p.id}
+                className={`clip-slant flex items-center gap-1.5 border px-2.5 py-1.5 text-xs ${
+                  isCurrent ? 'border-studio-accent bg-studio-accent/15 text-studio-text' : 'border-studio-border bg-studio-raised text-studio-muted'
+                }`}
+              >
+                <button onClick={() => selectProfile(p.id)} className="flex items-center gap-1.5">
+                  <span>{isPortraitP ? '📱' : '🖥'}</span>
+                  <span className="font-bold">{p.name}</span>
+                  {p.id === activeId && <span className="text-[9px] text-studio-teal" title="Standard-Link">★</span>}
+                </button>
+                <button
+                  onClick={() => void copyProfileLink(p.id)}
+                  title="Overlay-Link dieses Profils kopieren"
+                  className="text-studio-muted hover:text-studio-teal"
+                >
+                  {copiedId === p.id ? '✓' : '🔗'}
+                </button>
+              </div>
+            );
+          })}
+          <button onClick={() => void createProfile('portrait')} className="clip-slant border border-studio-border bg-studio-raised px-2.5 py-1.5 text-xs text-studio-muted hover:text-studio-accent" title="Neues Hochformat-Profil">
+            + 📱
+          </button>
+          <button onClick={() => void createProfile('landscape')} className="clip-slant border border-studio-border bg-studio-raised px-2.5 py-1.5 text-xs text-studio-muted hover:text-studio-accent" title="Neues Querformat-Profil">
+            + 🖥
+          </button>
+          <div className="flex-1" />
+          {layout && (
+            <>
+              <input
+                value={layout.name}
+                onChange={(e) => setLayout({ ...layout, name: e.target.value })}
+                onBlur={(e) => void renameProfile(e.target.value)}
+                className="w-40 border border-studio-border bg-studio-raised px-2 py-1.5 text-xs outline-none focus:border-studio-accent"
+                title="Profil umbenennen"
+              />
+              <button onClick={() => void duplicateProfile()} className="text-[11px] text-studio-muted hover:text-studio-text" title="Profil duplizieren">⎘ Kopie</button>
+              {layout.id !== activeId && (
+                <button onClick={() => void makeDefault()} className="text-[11px] text-studio-teal hover:text-studio-text" title="Als Standard-Link setzen">★ Standard</button>
+              )}
+              {profiles.length > 1 && (
+                <button onClick={() => void deleteProfile(layout.id)} className="text-[11px] text-studio-muted hover:text-studio-accent">Löschen</button>
+              )}
+            </>
+          )}
+        </div>
+
         {/* Canvas-Toolbar */}
         <div className="flex flex-none items-center gap-2 border-b border-studio-border bg-studio-panel/60 px-3 py-2">
           {(Object.keys(CANVAS_PRESETS) as CanvasPreset[]).map((preset) => {
