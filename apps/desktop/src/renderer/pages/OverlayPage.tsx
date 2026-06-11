@@ -88,6 +88,34 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'points-board', label: 'Punkte-Bestenliste', desc: 'All-Time Top-Supporter nach gesammelten Loyalty-Punkten (über alle Streams).',
+    w: 360, h: 300, props: { source: 'points', limit: 5, title: '', accent: '#7c5cff' },
+    fields: [
+      { key: 'limit', label: 'Plätze', type: 'number' },
+      { key: 'title', label: 'Titel', type: 'text', hint: 'leer = automatisch' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
+    type: 'countdown', label: 'Countdown', desc: 'Zähler nach unten — z.B. „Stream startet in" oder Pausen-Timer.',
+    w: 460, h: 200, props: { minutes: 5, label: 'Countdown', doneText: 'LOS!' },
+    fields: [
+      { key: 'minutes', label: 'Minuten', type: 'number' },
+      { key: 'label', label: 'Beschriftung', type: 'text' },
+      { key: 'doneText', label: 'Text bei 0', type: 'text' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
+    type: 'activity-feed', label: 'Activity-Feed', desc: 'Alle Events gemischt (Follow, Sub, Share, Gift) als Live-Ticker.',
+    w: 420, h: 320, props: { max: 6, ttlMs: 60000 },
+    fields: [
+      { key: 'max', label: 'Max. Einträge', type: 'number' },
+      { key: 'ttlMs', label: 'Verschwinden nach (ms)', type: 'number' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
     type: 'gift-jar', label: 'Geschenke-Glas', desc: 'Coins fallen ins Glas, der Füllstand wächst Richtung Ziel — der TikFinity-Klassiker.',
     w: 320, h: 480, props: { target: 1000, label: '' },
     fields: [

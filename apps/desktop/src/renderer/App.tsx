@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Radio, LayoutPanelTop, Zap, Volume2, Mic } from 'lucide-react';
+import { Radio, LayoutPanelTop, Zap, Volume2, Mic, Settings } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
 import LivePage from './pages/LivePage';
@@ -7,8 +7,9 @@ import OverlayPage from './pages/OverlayPage';
 import TriggersPage from './pages/TriggersPage';
 import SoundsPage from './pages/SoundsPage';
 import TtsPage from './pages/TtsPage';
+import SettingsPage from './pages/SettingsPage';
 
-type Page = 'live' | 'overlay' | 'triggers' | 'sounds' | 'tts';
+type Page = 'live' | 'overlay' | 'triggers' | 'sounds' | 'tts' | 'settings';
 
 const NAV: { id: Page; label: string; icon: typeof Radio }[] = [
   { id: 'live', label: 'Live', icon: Radio },
@@ -16,6 +17,7 @@ const NAV: { id: Page; label: string; icon: typeof Radio }[] = [
   { id: 'triggers', label: 'Trigger', icon: Zap },
   { id: 'sounds', label: 'Sounds', icon: Volume2 },
   { id: 'tts', label: 'Stimme', icon: Mic },
+  { id: 'settings', label: 'Einstellungen', icon: Settings },
 ];
 
 interface StatusStyle {
@@ -114,6 +116,7 @@ export default function App() {
           {page === 'triggers' && <TriggersPage />}
           {page === 'sounds' && <SoundsPage />}
           {page === 'tts' && <TtsPage />}
+          {page === 'settings' && <SettingsPage />}
         </main>
       </div>
     </div>

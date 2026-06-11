@@ -12,6 +12,7 @@ import { OverlayServer } from '../adapters/overlay-server';
 import { SettingsStore } from './settings-store';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
+import { PointsStore } from './points-store';
 import { TTSService } from './tts-service';
 import { log } from '../core/logger';
 
@@ -44,6 +45,7 @@ export class Studio {
   readonly layouts: LayoutStore;
   readonly sounds: SoundLibrary;
   readonly tts: TTSService;
+  readonly points: PointsStore;
   readonly stats = new SessionStats();
 
   private readonly engine = new TriggerEngine();
@@ -62,6 +64,7 @@ export class Studio {
     this.settings = new SettingsStore(paths.userDataDir);
     this.layouts = new LayoutStore(paths.userDataDir);
     this.sounds = new SoundLibrary(paths.userDataDir);
+    this.points = new PointsStore(paths.userDataDir);
     this.tts = new TTSService(
       paths.userDataDir,
       (playback) => {
@@ -81,7 +84,11 @@ export class Studio {
       // Profile = einzelne Layouts; jedes hat seinen eigenen Overlay-Link.
       getLayout: (id) => (id ? this.layouts.get(id) : this.getActiveLayout()),
       getDefaultLayoutId: () => this.settings.get().activeLayoutId,
-      getStats: () => this.stats.snapshot(),
+      getStats: () => ({
+        ...this.stats.snapshot(),
+        topPoints: this.points.top(10),
+        currencyName: this.settings.get().points.currencyName,
+      }),
     });
 
     this.adapter = new TikTokAdapter(this.bus, {
@@ -103,7 +110,8 @@ export class Studio {
       // 1. Aufnahme (falls aktiv)
       this.recorder?.record(e);
 
-      // 2. Session-Statistik + gedrosselter Broadcast
+      // 2. Loyalty-Punkte (persistent über Streams) + Session-Statistik
+      this.points.recordEvent(e, this.settings.get().points);
       if (this.stats.apply(e)) this.scheduleStatsBroadcast();
 
       // 3. Trigger-Engine: Regeln auswerten, Aktionen ausführen
@@ -138,7 +146,12 @@ export class Studio {
       return;
     }
     const send = () => {
-      const snapshot = this.stats.snapshot();
+      const cfg = this.settings.get().points;
+      const snapshot = {
+        ...this.stats.snapshot(),
+        topPoints: this.points.top(10),
+        currencyName: cfg.currencyName,
+      };
       this.server.broadcast({ kind: 'stats', stats: snapshot });
       this.hooks.onStats(snapshot);
     };
@@ -171,6 +184,7 @@ export class Studio {
     this.replayAbort?.abort();
     if (this.statsTimer) clearTimeout(this.statsTimer);
     if (this.timerTicker) clearInterval(this.timerTicker);
+    this.points.save();
     await this.adapter.disconnect();
     await this.server.stop();
   }
@@ -217,6 +231,12 @@ export class Studio {
   /** Nach jedem Save eines Profils dessen Clients live aktualisieren. */
   notifyLayoutSaved(layoutId: string): void {
     this.server.broadcastLayout(layoutId);
+  }
+
+  resetPoints(): void {
+    // Punkte komplett leeren: Store neu mit leerem Stand überschreiben.
+    for (const e of this.points.top(100000)) this.points.spend(e.id, e.points);
+    this.points.save();
   }
 
   /** Overlay-Link eines bestimmten Profils (für „Link kopieren" pro Profil). */
