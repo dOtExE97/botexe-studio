@@ -138,7 +138,7 @@ export class OverlayServer {
       }
       const raw = req.params.filename;
       const filename = path.basename(Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? ''));
-      if (!/^tts-[a-f0-9]+\.mp3$/.test(filename)) {
+      if (!/^tts-[a-f0-9]+\.(mp3|wav)$/.test(filename)) {
         res.status(400).send('Invalid filename');
         return;
       }
@@ -147,7 +147,7 @@ export class OverlayServer {
         res.status(404).send('Not found');
         return;
       }
-      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Content-Type', filename.endsWith('.wav') ? 'audio/wav' : 'audio/mpeg');
       fs.createReadStream(target).pipe(res);
     });
 

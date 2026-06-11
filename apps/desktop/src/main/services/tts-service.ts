@@ -7,41 +7,21 @@
 // • Queue mit Cap (Chat-Spam → älteste fliegen raus, H6-Prinzip)
 // • Serielle Wiedergabe über Dauer-Schätzung (~60ms/Zeichen, Muster Alt-App)
 // • Text-Hygiene: Längen-Cap, Links raus, Emoji-Fluten eingedampft
-import { EdgeTTS } from 'node-edge-tts';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { log } from '../core/logger';
+import {
+  PiperRuntime,
+  getVoiceGroups,
+  normalizeVoiceId,
+  extForVoice,
+  synthesizeWith,
+  type VoiceGroup,
+} from './tts-providers';
 
-export interface TTSVoice {
-  id: string;
-  name: string;
-  language: 'de' | 'en';
-  gender: 'female' | 'male';
-}
-
-// Kuratierte Edge-TTS-Stimmen (aus botexe-app übernommen).
-export const TTS_VOICES: TTSVoice[] = [
-  { id: 'de-DE-KatjaNeural', name: 'Katja (DE, Frau)', language: 'de', gender: 'female' },
-  { id: 'de-DE-AmalaNeural', name: 'Amala (DE, Frau)', language: 'de', gender: 'female' },
-  { id: 'de-DE-ElkeNeural', name: 'Elke (DE, Frau)', language: 'de', gender: 'female' },
-  { id: 'de-DE-LouisaNeural', name: 'Louisa (DE, Frau)', language: 'de', gender: 'female' },
-  { id: 'de-DE-MajaNeural', name: 'Maja (DE, Frau)', language: 'de', gender: 'female' },
-  { id: 'de-DE-SeraphinaMultilingualNeural', name: 'Seraphina (DE, multilingual)', language: 'de', gender: 'female' },
-  { id: 'de-DE-ConradNeural', name: 'Conrad (DE, Mann)', language: 'de', gender: 'male' },
-  { id: 'de-DE-FlorianMultilingualNeural', name: 'Florian (DE, multilingual)', language: 'de', gender: 'male' },
-  { id: 'de-DE-KillianNeural', name: 'Killian (DE, Mann)', language: 'de', gender: 'male' },
-  { id: 'de-DE-KlausNeural', name: 'Klaus (DE, Mann)', language: 'de', gender: 'male' },
-  { id: 'de-AT-IngridNeural', name: 'Ingrid (AT, Frau)', language: 'de', gender: 'female' },
-  { id: 'de-AT-JonasNeural', name: 'Jonas (AT, Mann)', language: 'de', gender: 'male' },
-  { id: 'en-US-JennyNeural', name: 'Jenny (EN-US, Frau)', language: 'en', gender: 'female' },
-  { id: 'en-US-AriaNeural', name: 'Aria (EN-US, Frau)', language: 'en', gender: 'female' },
-  { id: 'en-US-GuyNeural', name: 'Guy (EN-US, Mann)', language: 'en', gender: 'male' },
-  { id: 'en-GB-SoniaNeural', name: 'Sonia (EN-GB, Frau)', language: 'en', gender: 'female' },
-];
-
-export const DEFAULT_VOICE = 'de-DE-KatjaNeural';
+export const DEFAULT_VOICE = 'edge:de-DE-KatjaNeural';
 const QUEUE_CAP = 8;
 const MAX_CACHE_FILES = 60;
 const SYNTH_TIMEOUT_MS = 12_000;
@@ -58,6 +38,7 @@ export interface TTSPlayback {
 }
 
 export class TTSService {
+  readonly piper: PiperRuntime;
   private readonly cacheDir: string;
   private readonly onAudio: (playback: TTSPlayback) => void;
   private queue: QueueItem[] = [];
@@ -67,6 +48,7 @@ export class TTSService {
   constructor(userDataDir: string, onAudio: (playback: TTSPlayback) => void) {
     this.cacheDir = path.join(userDataDir, 'tts-cache');
     fs.mkdirSync(this.cacheDir, { recursive: true });
+    this.piper = new PiperRuntime(userDataDir);
     this.onAudio = onAudio;
     // Alte Cache-Files vom letzten Lauf wegräumen
     for (const f of fs.readdirSync(this.cacheDir)) {
@@ -78,12 +60,30 @@ export class TTSService {
     return this.cacheDir;
   }
 
-  /** Stabile Stimme pro User (Hash über die User-ID → Stimmen-Pool). */
-  voiceForUser(userId: string, language: 'de' | 'en' = 'de'): string {
-    const pool = TTS_VOICES.filter((v) => v.language === language);
+  getVoiceGroups(): VoiceGroup[] {
+    return getVoiceGroups(this.piper);
+  }
+
+  /** Piper-Binary + Stimme herunterladen (einmalig, danach offline). */
+  async setupPiper(voiceId: string): Promise<void> {
+    const id = normalizeVoiceId(voiceId).replace(/^piper:/, '');
+    await this.piper.setup(id);
+  }
+
+  /**
+   * Stabile Stimme pro User (Hash über die User-ID). Pool = bereite Stimmen
+   * desselben Providers + derselben Sprache wie die Default-Stimme — bei
+   * Piper also nur heruntergeladene Stimmen.
+   */
+  voiceForUser(userId: string, defaultVoice: string, language: 'de' | 'en' = 'de'): string {
+    const normalized = normalizeVoiceId(defaultVoice);
+    const provider = normalized.split(':', 1)[0];
+    const group = this.getVoiceGroups().find((g) => g.provider === provider);
+    const pool = (group?.voices ?? []).filter((v) => v.ready && v.language === language);
+    if (pool.length === 0) return normalized;
     let hash = 0;
     for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) | 0;
-    return pool[Math.abs(hash) % pool.length]?.id ?? DEFAULT_VOICE;
+    return pool[Math.abs(hash) % pool.length]?.id ?? normalized;
   }
 
   /** Text-Hygiene gegen TTS-Trolling: Links raus, Emoji-Fluten kürzen, Cap. */
@@ -135,13 +135,12 @@ export class TTSService {
   }
 
   async synthesize(text: string, voice: string): Promise<TTSPlayback> {
-    const fileId = `tts-${crypto.randomBytes(6).toString('hex')}.mp3`;
+    const ext = extForVoice(voice);
+    const fileId = `tts-${crypto.randomBytes(6).toString('hex')}.${ext}`;
     const target = path.join(this.cacheDir, fileId);
-    const lang = voice.split('-').slice(0, 2).join('-');
-    const engine = new EdgeTTS({ voice, lang, volume: '+0%' });
 
     await Promise.race([
-      engine.ttsPromise(text, target),
+      synthesizeWith(this.piper, text, voice, target),
       new Promise((_r, reject) => setTimeout(() => reject(new Error('TTS-Timeout')), SYNTH_TIMEOUT_MS)),
     ]);
     if (!fs.existsSync(target)) throw new Error('Keine Audio-Datei erzeugt');

@@ -209,7 +209,9 @@ export class Studio {
     if (!text) return;
     const voice =
       voiceOverride ||
-      (tts.chatVoiceMode === 'perUser' && event.user ? this.tts.voiceForUser(event.user.id) : tts.voice);
+      (tts.chatVoiceMode === 'perUser' && event.user
+        ? this.tts.voiceForUser(event.user.id, tts.voice)
+        : tts.voice);
     this.tts.speak(text, voice);
   }
 

@@ -45,6 +45,7 @@ const api = {
   // TTS
   getTtsVoices: () => ipcRenderer.invoke(IPC.TTS_VOICES),
   testTts: (text: string, voice?: string) => ipcRenderer.invoke(IPC.TTS_TEST, text, voice),
+  setupPiper: (voiceId: string) => ipcRenderer.invoke(IPC.TTS_PIPER_SETUP, voiceId),
 
   // Settings
   getSettings: () => ipcRenderer.invoke(IPC.SETTINGS_GET),

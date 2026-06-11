@@ -7,7 +7,6 @@ import type { StudioEvent, TriggerRule } from '@botexe/trigger-engine';
 import { IPC } from './shared/constants';
 import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
-import { TTS_VOICES } from './main/services/tts-service';
 import { log } from './main/core/logger';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
@@ -193,7 +192,16 @@ function registerIpc(): void {
   });
 
   // TTS
-  ipcMain.handle(IPC.TTS_VOICES, () => TTS_VOICES);
+  ipcMain.handle(IPC.TTS_VOICES, () => isStudio().tts.getVoiceGroups());
+  ipcMain.handle(IPC.TTS_PIPER_SETUP, async (_e, voiceId: unknown) => {
+    if (typeof voiceId !== 'string') return { ok: false, error: 'voiceId fehlt' };
+    try {
+      await isStudio().tts.setupPiper(voiceId);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
   ipcMain.handle(IPC.TTS_TEST, (_e, text: unknown, voice: unknown) => {
     if (typeof text !== 'string' || !text.trim()) return { ok: false, error: 'Text fehlt' };
     isStudio().speakTest(text, typeof voice === 'string' ? voice : undefined);

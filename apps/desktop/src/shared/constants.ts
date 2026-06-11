@@ -34,6 +34,7 @@ export const IPC = {
   // TTS
   TTS_VOICES: 'tts:voices',
   TTS_TEST: 'tts:test',
+  TTS_PIPER_SETUP: 'tts:piper-setup',
   // Settings
   SETTINGS_GET: 'settings:get',
   SETTINGS_UPDATE: 'settings:update',

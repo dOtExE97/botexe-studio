@@ -6,7 +6,13 @@ interface TtsVoice {
   id: string;
   name: string;
   language: string;
-  gender: string;
+  ready: boolean;
+}
+
+interface VoiceGroup {
+  provider: string;
+  label: string;
+  voices: TtsVoice[];
 }
 
 interface TtsSettings {
@@ -21,12 +27,17 @@ interface TtsSettings {
 }
 
 export default function TtsPage() {
-  const [voices, setVoices] = useState<TtsVoice[]>([]);
+  const [groups, setGroups] = useState<VoiceGroup[]>([]);
   const [tts, setTts] = useState<TtsSettings | null>(null);
   const [testText, setTestText] = useState('bOtExE Studio ist bereit — danke für die Rose, Mia!');
+  const [piperBusy, setPiperBusy] = useState(false);
+  const [piperError, setPiperError] = useState('');
+
+  const refreshVoices = () =>
+    window.studio.getTtsVoices().then((v: VoiceGroup[]) => setGroups(v));
 
   useEffect(() => {
-    void window.studio.getTtsVoices().then((v: TtsVoice[]) => setVoices(v));
+    void refreshVoices();
     void window.studio.getSettings().then((s: { tts: TtsSettings }) => setTts(s.tts));
   }, []);
 
@@ -38,6 +49,24 @@ export default function TtsPage() {
   };
 
   if (!tts) return <div className="p-6 text-studio-muted">Lade…</div>;
+
+  // Legacy-Stimmen (v2-Settings) ohne Namespace → edge:
+  const currentVoice = tts.voice.includes(':') ? tts.voice : `edge:${tts.voice}`;
+  const allVoices = groups.flatMap((g) => g.voices);
+  const selectedVoice = allVoices.find((v) => v.id === currentVoice);
+  const needsPiperSetup = currentVoice.startsWith('piper:') && selectedVoice && !selectedVoice.ready;
+
+  const runPiperSetup = async () => {
+    setPiperBusy(true);
+    setPiperError('');
+    try {
+      const r = (await window.studio.setupPiper(currentVoice)) as { ok: boolean; error?: string };
+      if (!r.ok) setPiperError(r.error ?? 'Setup fehlgeschlagen');
+      await refreshVoices();
+    } finally {
+      setPiperBusy(false);
+    }
+  };
 
   return (
     <div className="flex max-w-3xl flex-col gap-5 p-6">
@@ -63,14 +92,30 @@ export default function TtsPage() {
         <h2 className="mb-3 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Standard-Stimme</h2>
         <div className="flex flex-wrap items-center gap-2">
           <select
-            value={tts.voice}
+            value={currentVoice}
             onChange={(e) => update({ voice: e.target.value })}
             className="border border-studio-border bg-studio-raised px-3 py-2 text-sm outline-none focus:border-studio-accent"
           >
-            {voices.map((v) => (
-              <option key={v.id} value={v.id}>{v.name}</option>
+            {groups.map((g) => (
+              <optgroup key={g.provider} label={g.label}>
+                {g.voices.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}{!v.ready ? ' (noch nicht geladen)' : ''}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
+          {needsPiperSetup && (
+            <button
+              onClick={() => void runPiperSetup()}
+              disabled={piperBusy}
+              className="clip-slant bg-studio-gold/15 px-4 py-2 text-xs font-bold text-studio-gold hover:bg-studio-gold hover:text-black disabled:opacity-50"
+            >
+              {piperBusy ? '⬇ Lädt… (einmalig, ~25–80 MB)' : '⬇ STIMME VORBEREITEN'}
+            </button>
+          )}
+          {piperError && <span className="text-xs text-studio-accent">{piperError}</span>}
           <label className="flex w-56 items-center gap-2 text-xs text-studio-muted">
             Lautstärke
             <input
