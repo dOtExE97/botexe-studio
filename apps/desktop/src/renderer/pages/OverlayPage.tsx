@@ -113,6 +113,16 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'top-rotator', label: 'Bestenliste (Wechsel)', desc: 'Zeigt abwechselnd Top Gifter, Top Likes, Top Punkte — smooth übergeblendet, untereinander. Ideal fürs Hochformat.',
+    w: 460, h: 360, props: { sources: 'gifts,likes', interval: 5, limit: 5, accent: '' },
+    fields: [
+      { key: 'sources', label: 'Listen (Reihenfolge)', type: 'text', hint: 'kommagetrennt: gifts, likes, points' },
+      { key: 'interval', label: 'Sekunden pro Liste', type: 'number' },
+      { key: 'limit', label: 'Plätze', type: 'number' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
     type: 'points-board', label: 'Punkte-Bestenliste', desc: 'All-Time Top-Supporter nach gesammelten Loyalty-Punkten (über alle Streams).',
     w: 360, h: 300, props: { source: 'points', limit: 5, title: '', accent: '#7c5cff' },
     fields: [
@@ -168,8 +178,8 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'gift-jar', label: 'Coin-Glas', desc: 'Einmachglas, das sich mit hunderten bunten Münzen füllt — der TikFinity-Klassiker.',
-    w: 320, h: 480, props: { target: 1000, label: '' },
+    type: 'gift-jar', label: 'Coin-Glas', desc: 'Bonbon-Glas, das sich mit den Geschenken füllt — jedes Gift ein Ball mit Bild, größer bei mehr Coins.',
+    w: 440, h: 520, props: { target: 2000, label: '' },
     fields: [
       { key: 'target', label: 'Ziel (Coins)', type: 'number' },
       { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'leer = "Gift-Glas"' },

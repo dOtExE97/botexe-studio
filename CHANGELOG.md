@@ -45,5 +45,8 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 - **Coin-Glas = echte Geschenke:** jedes Gift fällt als weißer Ball mit dem echten Gift-Bild darin ins Einmachglas; je mehr Coins, desto größer der Ball; füllt sich dicht von unten (framerate-unabhängige Delta-Time-Physik, robust gegen Fenster-Drosselung)
 - **Arcade-Leaderboard verfeinert:** größere Avatare, Kronen pro Rang (Gold/Silber/Bronze), runde fette Konturschrift, ▲-Werte — sehr nah am TikFinity-Original
 
+- **Wechsel-Bestenliste (Rotator):** ein Widget, das untereinander Top Gifter → Top Likes → Top Punkte zeigt und smooth durchrotiert (Sekunden + Reihenfolge einstellbar) — Hochformat-tauglich, mit Medaillen, Kronen, Konturschrift, ▲-Werten
+- **Coin-Glas runder & realistischer:** bauchiges Bonbon-Glas (gerundete Schultern + Boden) mit getöntem Glas-Look, Reflexen und Schraubdeckel statt schmalem Becher
+
 ### Security
 - Schmale Preload-API (kein generisches `invoke`, Audit H2), CSP, sandbox, gehärtete Fuses (RunAsNode aus)
