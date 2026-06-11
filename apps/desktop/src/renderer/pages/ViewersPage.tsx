@@ -1,6 +1,7 @@
 // ViewersPage — Zuschauer-Verwaltung: Punkte, VIP, TTS-Sperre, eigene Stimme.
 // Basis fürs Glücksrad und das spätere Kartenspiel.
 import { useEffect, useState } from 'react';
+import { Users, Search, Star, VolumeX, Minus, Plus } from 'lucide-react';
 
 interface Viewer {
   id: string;
@@ -57,20 +58,26 @@ export default function ViewersPage() {
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-lg uppercase">Zuschauer</h1>
+          <h1 className="flex items-center gap-2 font-display text-lg uppercase">
+            <Users size={20} className="text-studio-accent" /> Zuschauer
+          </h1>
           <p className="mt-1 text-xs text-studio-muted">
             Punkte ({currency}) verwalten, VIPs markieren, Trolle vom Vorlesen sperren, eigene Stimme zuweisen.
             Die Basis fürs Glücksrad und das Kartenspiel.
           </p>
         </div>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="🔍 Zuschauer suchen…"
-          className="clip-slant w-64 border border-studio-border bg-studio-raised px-4 py-2 text-sm outline-none placeholder:text-studio-muted/50 focus:border-studio-accent"
-        />
+        <div className="relative w-64 flex-none">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-studio-muted" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Zuschauer suchen…"
+            className="bx-input"
+            style={{ paddingLeft: '2.1rem' }}
+          />
+        </div>
       </div>
 
       {viewers.length === 0 && (
@@ -82,7 +89,10 @@ export default function ViewersPage() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-col gap-2">
           {viewers.map((v) => (
-            <div key={v.id} className="flex items-center gap-3 border border-studio-border bg-studio-panel px-4 py-2.5">
+            <div
+              key={v.id}
+              className="flex items-center gap-3 rounded-lg border border-studio-border bg-studio-raised/40 px-4 py-2.5 transition-colors hover:border-studio-accent/30"
+            >
               <div
                 className="h-10 w-10 flex-none rounded-full bg-studio-raised bg-cover bg-center"
                 style={v.profilePic ? { backgroundImage: `url("${v.profilePic}")` } : undefined}
@@ -90,8 +100,8 @@ export default function ViewersPage() {
               <div className="w-40 min-w-0">
                 <div className="flex items-center gap-1.5 truncate text-sm font-bold">
                   {v.nickname}
-                  {v.vip && <span className="text-[9px] text-studio-gold" title="VIP">★</span>}
-                  {v.muted && <span className="text-[9px] text-studio-accent" title="Vom Vorlesen gesperrt">🔇</span>}
+                  {v.vip && <Star size={11} className="flex-none fill-studio-gold text-studio-gold" aria-label="VIP" />}
+                  {v.muted && <VolumeX size={11} className="flex-none text-studio-accent" aria-label="Vom Vorlesen gesperrt" />}
                 </div>
                 <div className="font-mono text-[10px] text-studio-muted">
                   {v.gifts ?? 0} Gifts · {(v.coins ?? 0).toLocaleString('de-DE')} Coins · {(v.likes ?? 0).toLocaleString('de-DE')} Likes
@@ -100,10 +110,16 @@ export default function ViewersPage() {
 
               {/* Punkte */}
               <div className="flex items-center gap-1">
-                <button onClick={() => grant(v, -10)} className="clip-slant bg-studio-raised px-2 py-1 text-xs hover:text-studio-accent">−10</button>
+                <button onClick={() => grant(v, -10)} className="bx-pill px-2 py-1 hover:text-studio-accent" title="−10">
+                  <Minus size={12} />10
+                </button>
                 <span className="w-20 text-center font-mono text-sm text-studio-gold">{v.points.toLocaleString('de-DE')}</span>
-                <button onClick={() => grant(v, 10)} className="clip-slant bg-studio-raised px-2 py-1 text-xs hover:text-studio-teal">+10</button>
-                <button onClick={() => grant(v, 100)} className="clip-slant bg-studio-raised px-2 py-1 text-xs hover:text-studio-teal">+100</button>
+                <button onClick={() => grant(v, 10)} className="bx-pill px-2 py-1 hover:text-studio-teal" title="+10">
+                  <Plus size={12} />10
+                </button>
+                <button onClick={() => grant(v, 100)} className="bx-pill px-2 py-1 hover:text-studio-teal" title="+100">
+                  <Plus size={12} />100
+                </button>
               </div>
 
               <div className="flex-1" />
@@ -113,7 +129,7 @@ export default function ViewersPage() {
                 value={v.voice ?? ''}
                 onChange={(e) => setVoice(v, e.target.value)}
                 title="Eigene TTS-Stimme für diesen Zuschauer"
-                className="max-w-40 border border-studio-border bg-studio-raised px-2 py-1.5 text-[11px] outline-none focus:border-studio-accent"
+                className="bx-select max-w-40 py-1.5 text-[11px]"
               >
                 <option value="">Stimme: Standard</option>
                 {voices.map((g) => (
@@ -128,16 +144,16 @@ export default function ViewersPage() {
               {/* Flags */}
               <button
                 onClick={() => toggleFlag(v, 'vip')}
-                className={`clip-slant px-3 py-1.5 text-[11px] font-bold ${v.vip ? 'bg-studio-gold/20 text-studio-gold' : 'bg-studio-raised text-studio-muted'}`}
+                className={`bx-pill px-3 py-1.5 font-bold ${v.vip ? 'border-studio-gold/40 bg-studio-gold/20 text-studio-gold' : ''}`}
               >
-                ★ VIP
+                <Star size={12} className={v.vip ? 'fill-studio-gold' : ''} /> VIP
               </button>
               <button
                 onClick={() => toggleFlag(v, 'muted')}
-                className={`clip-slant px-3 py-1.5 text-[11px] font-bold ${v.muted ? 'bg-studio-accent/20 text-studio-accent' : 'bg-studio-raised text-studio-muted'}`}
+                className={`bx-pill px-3 py-1.5 font-bold ${v.muted ? 'border-studio-accent/40 bg-studio-accent/20 text-studio-accent' : ''}`}
                 title="Vom Chat-Vorlesen ausschließen"
               >
-                🔇 Stumm
+                <VolumeX size={12} /> Stumm
               </button>
             </div>
           ))}

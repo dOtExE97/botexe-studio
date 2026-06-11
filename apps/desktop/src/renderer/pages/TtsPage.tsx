@@ -1,6 +1,18 @@
 // TtsPage — Stimme von bOtExE Studio: Chat vorlesen (wie TikFinity),
 // Stimmen testen, Verhalten einstellen. Gesprochen wird lokal über die App.
 import { useEffect, useState } from 'react';
+import {
+  Mic,
+  Volume2,
+  Play,
+  Download,
+  MessageSquare,
+  Sparkles,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Lightbulb,
+} from 'lucide-react';
 
 interface TtsVoice {
   id: string;
@@ -112,7 +124,9 @@ export default function TtsPage() {
     <div className="flex max-w-3xl flex-col gap-5 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-lg uppercase">Stimme (TTS)</h1>
+          <h1 className="flex items-center gap-2 font-display text-xl uppercase">
+            <Mic size={20} className="text-studio-teal" /> Stimme (TTS)
+          </h1>
           <p className="mt-1 text-xs text-studio-muted">
             bOtExE liest Chat-Nachrichten vor und spricht Trigger-Ansagen — kostenlos über Edge-TTS, Wiedergabe lokal über dein System-Audio.
           </p>
@@ -128,13 +142,15 @@ export default function TtsPage() {
       </div>
 
       {/* Stimme + Test */}
-      <section className="border border-studio-border bg-studio-panel p-4">
-        <h2 className="mb-3 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Standard-Stimme</h2>
+      <section className="bx-card p-5">
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <Volume2 size={15} /> Standard-Stimme
+        </h2>
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={currentVoice}
             onChange={(e) => update({ voice: e.target.value })}
-            className="border border-studio-border bg-studio-raised px-3 py-2 text-sm outline-none focus:border-studio-accent"
+            className="bx-select w-auto"
           >
             {groups.map((g) => (
               <optgroup key={g.provider} label={g.label}>
@@ -150,9 +166,10 @@ export default function TtsPage() {
             <button
               onClick={() => void runPiperSetup()}
               disabled={piperBusy}
-              className="clip-slant bg-studio-gold/15 px-4 py-2 text-xs font-bold text-studio-gold hover:bg-studio-gold hover:text-black disabled:opacity-50"
+              className="bx-pill border-studio-gold/40 text-studio-gold hover:border-studio-gold hover:text-studio-gold disabled:opacity-50"
             >
-              {piperBusy ? '⬇ Lädt… (einmalig, ~25–80 MB)' : '⬇ STIMME VORBEREITEN'}
+              <Download size={13} />
+              {piperBusy ? 'Lädt… (einmalig, ~25–80 MB)' : 'STIMME VORBEREITEN'}
             </button>
           )}
           {piperError && <span className="text-xs text-studio-accent">{piperError}</span>}
@@ -170,26 +187,27 @@ export default function TtsPage() {
           <input
             value={testText}
             onChange={(e) => setTestText(e.target.value)}
-            className="clip-slant flex-1 border border-studio-border bg-studio-raised px-4 py-2 text-sm outline-none focus:border-studio-teal"
+            className="bx-input flex-1"
           />
           <button
             onClick={() => void window.studio.testTts(testText, tts.voice)}
-            className="clip-slant bg-studio-teal/15 px-5 py-2 text-sm font-bold text-studio-teal hover:bg-studio-teal hover:text-black"
+            className="bx-btn-accent shrink-0"
           >
-            ▶ VORLESEN
+            <Play size={14} /> VORLESEN
           </button>
         </div>
       </section>
 
       {/* Chat vorlesen */}
-      <section className="border border-studio-border bg-studio-panel p-4">
+      <section className="bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Chat vorlesen</h2>
-          <label className="flex items-center gap-2 text-xs">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+            <MessageSquare size={15} /> Chat vorlesen
+          </h2>
+          <label className="flex cursor-pointer items-center gap-2 text-xs">
             <input
               type="checkbox" checked={tts.readChat}
               onChange={(e) => update({ readChat: e.target.checked })}
-              className="accent-[#21e6c1]"
             />
             Jede Chat-Nachricht vorlesen
           </label>
@@ -200,7 +218,7 @@ export default function TtsPage() {
             <select
               value={tts.chatVoiceMode}
               onChange={(e) => update({ chatVoiceMode: e.target.value as 'fixed' | 'perUser' })}
-              className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-2 text-xs text-studio-text outline-none"
+              className="bx-select mt-1 text-xs"
             >
               <option value="perUser">Eigene Stimme pro Zuschauer (stabil zugelost)</option>
               <option value="fixed">Eine Stimme für alle</option>
@@ -211,7 +229,7 @@ export default function TtsPage() {
             <input
               value={tts.chatTemplate}
               onChange={(e) => update({ chatTemplate: e.target.value })}
-              className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-2 font-mono text-xs text-studio-text outline-none"
+              className="bx-input mt-1 font-mono text-xs"
             />
             <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">
               Platzhalter: {'{user}'} und {'{text}'}
@@ -221,7 +239,6 @@ export default function TtsPage() {
             <input
               type="checkbox" checked={tts.skipCommands}
               onChange={(e) => update({ skipCommands: e.target.checked })}
-              className="accent-[#21e6c1]"
             />
             Befehle (!…) überspringen
           </label>
@@ -230,7 +247,7 @@ export default function TtsPage() {
             <input
               type="number" value={tts.maxTextLen}
               onChange={(e) => update({ maxTextLen: Number(e.target.value) })}
-              className="mt-1 w-28 border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs outline-none"
+              className="bx-input mt-1 w-28 font-mono text-xs"
             />
           </label>
         </div>
@@ -241,9 +258,9 @@ export default function TtsPage() {
       </section>
 
       {/* Premium- / KI-Stimmen (BYOK) */}
-      <section className="border border-studio-border bg-studio-panel p-4">
-        <h2 className="mb-1 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-gold">
-          Premium- & KI-Stimmen (eigene Keys)
+      <section className="bx-card p-5">
+        <h2 className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
+          <Sparkles size={15} /> Premium- & KI-Stimmen (eigene Keys)
         </h2>
         <p className="mb-3 text-[11px] leading-relaxed text-studio-muted">
           Trag deinen eigenen Zugang ein — die Stimmen erscheinen dann oben im Dropdown. Jeder Dienst rechnet über
@@ -255,18 +272,24 @@ export default function TtsPage() {
             const open = openProvider === p.id;
             const draft = byokDrafts[p.id] ?? {};
             return (
-              <div key={p.id} className="border border-studio-border bg-studio-raised">
+              <div
+                key={p.id}
+                className="overflow-hidden rounded-xl border border-studio-border bg-studio-raised/60"
+              >
                 <button
                   onClick={() => setOpenProvider(open ? null : p.id)}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-left"
                 >
-                  <span className={`clip-slant px-2 py-0.5 text-[9px] font-bold tracking-widest ${
+                  <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold tracking-widest ${
                     configured ? 'bg-studio-teal/15 text-studio-teal' : 'bg-studio-bg text-studio-muted'
                   }`}>
-                    {configured ? '✓ AKTIV' : 'AUS'}
+                    {configured ? <Check size={11} /> : null}
+                    {configured ? 'AKTIV' : 'AUS'}
                   </span>
                   <span className="flex-1 text-sm font-bold">{p.label}</span>
-                  <span className="text-studio-muted">{open ? '▲' : '▼'}</span>
+                  <span className="text-studio-muted">
+                    {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </span>
                 </button>
                 {open && (
                   <div className="border-t border-studio-border p-4">
@@ -282,17 +305,17 @@ export default function TtsPage() {
                             onChange={(e) =>
                               setByokDrafts((d) => ({ ...d, [p.id]: { ...d[p.id], [f.key]: e.target.value } }))
                             }
-                            className="mt-1 w-full border border-studio-border bg-studio-bg px-2 py-1.5 font-mono text-xs outline-none focus:border-studio-gold"
+                            className="bx-input mt-1 font-mono text-xs"
                           />
                         </label>
                       ))}
                     </div>
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-3 flex items-center gap-2">
                       <button
                         onClick={() => void saveByok(p.id)}
-                        className="clip-slant bg-studio-gold/15 px-4 py-1.5 text-xs font-bold text-studio-gold hover:bg-studio-gold hover:text-black"
+                        className="bx-pill border-studio-gold/40 text-studio-gold hover:border-studio-gold hover:text-studio-gold"
                       >
-                        SPEICHERN
+                        <Check size={13} /> SPEICHERN
                       </button>
                       {configured && (
                         <button
@@ -311,9 +334,12 @@ export default function TtsPage() {
         </div>
       </section>
 
-      <p className="text-[11px] text-studio-muted">
-        💡 In den <b>Trigger-Regeln</b> gibt es jetzt auch die Aktion „Ansage sprechen" — z.B.
-        „Gift ≥ 100 → <i>{'{user}'} hat {'{count}'}x {'{gift}'} geschickt, vielen Dank!</i>"
+      <p className="flex items-start gap-2 text-[11px] text-studio-muted">
+        <Lightbulb size={14} className="mt-0.5 shrink-0 text-studio-gold" />
+        <span>
+          In den <b>Trigger-Regeln</b> gibt es jetzt auch die Aktion „Ansage sprechen" — z.B.
+          „Gift ≥ 100 → <i>{'{user}'} hat {'{count}'}x {'{gift}'} geschickt, vielen Dank!</i>"
+        </span>
       </p>
     </div>
   );

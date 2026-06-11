@@ -1,6 +1,7 @@
 // TriggersPage — „Wenn X passiert → mach Y". Regeln werden als Karten
 // editiert; jede Änderung speichert sofort (Single-User-Tool).
 import { useEffect, useState } from 'react';
+import { Zap, Filter, Play, Plus, Trash2, Power } from 'lucide-react';
 import type { TriggerRule, TriggerCondition, TriggerAction, StudioEventType } from '@botexe/trigger-engine';
 import type { OverlayLayout } from '@botexe/overlay-engine';
 
@@ -12,7 +13,7 @@ const EVENT_OPTIONS: { value: StudioEventType; label: string }[] = [
   { value: 'chat', label: 'Chat-Nachricht' },
   { value: 'like', label: 'Likes' },
   { value: 'viewer_count', label: 'Zuschauerzahl' },
-  { value: 'timer', label: '⏱ Timer (wiederkehrend)' },
+  { value: 'timer', label: 'Timer (wiederkehrend)' },
 ];
 
 const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label: string; valueType: 'number' | 'text' }[]> = {
@@ -110,16 +111,16 @@ export default function TriggersPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-lg uppercase">Trigger-Regeln</h1>
+          <h1 className="font-display text-xl uppercase">Trigger-Regeln</h1>
           <p className="mt-1 text-xs text-studio-muted">
             Wenn ein Event reinkommt und die Bedingung passt, feuert die Aktion — Alert im Overlay und/oder Sound über deine Anlage.
           </p>
         </div>
         <button
           onClick={() => save([...rules, newRule()])}
-          className="clip-slant bg-studio-accent px-5 py-2.5 font-display text-sm text-black hover:bg-studio-accent-soft"
+          className="bx-btn-accent"
         >
-          + NEUE REGEL
+          <Plus size={15} /> Neue Regel
         </button>
       </div>
 
@@ -143,35 +144,40 @@ export default function TriggersPage() {
         return (
           <div
             key={rule.id}
-            className={`border bg-studio-panel transition-colors ${rule.enabled ? 'border-studio-border' : 'border-studio-border/50 opacity-60'}`}
+            className={`bx-card p-0 transition-opacity ${rule.enabled ? '' : 'opacity-60'}`}
           >
             <div className="flex items-center gap-3 border-b border-studio-border px-4 py-2.5">
               <button
                 onClick={() => patchRule(rule.id, { enabled: !rule.enabled })}
-                className={`clip-slant px-2.5 py-1 text-[10px] font-bold tracking-widest ${
+                className={`clip-slant flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold tracking-widest ${
                   rule.enabled ? 'bg-studio-teal/15 text-studio-teal' : 'bg-studio-raised text-studio-muted'
                 }`}
               >
-                {rule.enabled ? 'AKTIV' : 'AUS'}
+                <Power size={11} /> {rule.enabled ? 'AKTIV' : 'AUS'}
               </button>
               <input
                 value={rule.name}
                 onChange={(e) => patchRule(rule.id, { name: e.target.value })}
                 className="flex-1 bg-transparent font-display text-sm uppercase outline-none"
               />
-              <button onClick={() => save(rules.filter((r) => r.id !== rule.id))} className="text-[11px] text-studio-muted hover:text-studio-accent">
-                Löschen
+              <button
+                onClick={() => save(rules.filter((r) => r.id !== rule.id))}
+                className="flex items-center gap-1 text-[11px] text-studio-muted transition-colors hover:text-studio-accent"
+              >
+                <Trash2 size={13} /> Löschen
               </button>
             </div>
 
             <div className="grid grid-cols-[1fr_1fr_1fr] gap-4 p-4">
               {/* WENN */}
               <div>
-                <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-studio-accent">Wenn</div>
+                <div className="mb-1.5 flex items-center gap-1.5 font-display text-[11px] uppercase tracking-[0.3em] text-studio-accent">
+                  <Zap size={12} /> Wenn
+                </div>
                 <select
                   value={rule.event}
                   onChange={(e) => patchRule(rule.id, { event: e.target.value as StudioEventType, conditions: [] })}
-                  className="w-full border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none focus:border-studio-accent"
+                  className="bx-select"
                 >
                   {EVENT_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -181,8 +187,8 @@ export default function TriggersPage() {
 
               {/* BEDINGUNG (bzw. INTERVALL bei Timer) */}
               <div>
-                <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-studio-gold">
-                  {rule.event === 'timer' ? 'Intervall' : 'Bedingung'}
+                <div className="mb-1.5 flex items-center gap-1.5 font-display text-[11px] uppercase tracking-[0.3em] text-studio-gold">
+                  <Filter size={12} /> {rule.event === 'timer' ? 'Intervall' : 'Bedingung'}
                 </div>
                 {rule.event === 'timer' ? (
                   <label className="flex items-center gap-2 py-1 text-xs text-studio-muted">
@@ -192,7 +198,7 @@ export default function TriggersPage() {
                       min={5}
                       value={Math.round((rule.cooldownMs ?? 600_000) / 1000)}
                       onChange={(e) => patchRule(rule.id, { cooldownMs: Math.max(5, Number(e.target.value)) * 1000 })}
-                      className="w-24 border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs outline-none focus:border-studio-gold"
+                      className="bx-input font-mono w-24"
                     />
                     Sekunden
                   </label>
@@ -210,7 +216,7 @@ export default function TriggersPage() {
                             : [],
                         });
                       }}
-                      className="w-full border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none focus:border-studio-accent"
+                      className="bx-select"
                     >
                       <option value="">Immer</option>
                       {condOptions.map((c) => (
@@ -226,7 +232,7 @@ export default function TriggersPage() {
                             conditions: [{ ...cond, value: condDef.valueType === 'number' ? Number(e.target.value) : e.target.value } as TriggerCondition],
                           })
                         }
-                        className="w-full border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs outline-none focus:border-studio-gold"
+                        className={`bx-input${condDef.valueType === 'number' ? ' font-mono' : ''}`}
                       />
                     )}
                   </div>
@@ -235,12 +241,14 @@ export default function TriggersPage() {
 
               {/* DANN */}
               <div>
-                <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-studio-teal">Dann</div>
+                <div className="mb-1.5 flex items-center gap-1.5 font-display text-[11px] uppercase tracking-[0.3em] text-studio-teal">
+                  <Play size={12} /> Dann
+                </div>
                 <div className="flex flex-col gap-1.5">
                   <select
                     value={alertAction?.targetId ?? ''}
                     onChange={(e) => setAlertAction(rule, e.target.value)}
-                    className="w-full border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none focus:border-studio-teal"
+                    className="bx-select"
                   >
                     <option value="">Kein Overlay-Alert</option>
                     {layers.map((l) => (
@@ -250,27 +258,27 @@ export default function TriggersPage() {
                   <select
                     value={soundAction?.soundId ?? ''}
                     onChange={(e) => setSoundAction(rule, e.target.value)}
-                    className="w-full border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none focus:border-studio-teal"
+                    className="bx-select"
                   >
                     <option value="">Kein Sound</option>
                     {sounds.map((s) => (
-                      <option key={s.id} value={s.id}>🔊 {s.filename}</option>
+                      <option key={s.id} value={s.id}>{s.filename}</option>
                     ))}
                   </select>
                   <input
                     value={speakAction?.template ?? ''}
                     onChange={(e) => setSpeakAction(rule, e.target.value)}
-                    placeholder='🎤 Ansage, z.B. "{user} schickt {gift}, danke!" (leer = keine)'
-                    className="w-full border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none placeholder:text-studio-muted/50 focus:border-studio-teal"
+                    placeholder='Ansage, z.B. "{user} schickt {gift}, danke!" (leer = keine)'
+                    className="bx-input"
                   />
                   {wheels.length > 0 && (
                     <div className="flex gap-1.5">
                       <select
                         value={spinAction?.targetId ?? ''}
                         onChange={(e) => setSpinAction(rule, e.target.value, spinAction?.cost ?? 0)}
-                        className="flex-1 border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none focus:border-studio-teal"
+                        className="bx-select flex-1"
                       >
-                        <option value="">🎰 Kein Glücksrad</option>
+                        <option value="">Kein Glücksrad</option>
                         {wheels.map((l) => (<option key={l.id} value={l.id}>Rad drehen: {l.name}</option>))}
                       </select>
                       {spinAction?.targetId && (
@@ -278,7 +286,7 @@ export default function TriggersPage() {
                           type="number" min={0} value={spinAction.cost ?? 0}
                           onChange={(e) => setSpinAction(rule, spinAction.targetId ?? '', Math.max(0, Number(e.target.value)))}
                           title="Punkte-Kosten pro Spin (0 = gratis)"
-                          className="w-20 border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs outline-none"
+                          className="bx-input font-mono w-20"
                         />
                       )}
                     </div>
@@ -287,9 +295,9 @@ export default function TriggersPage() {
                     <select
                       value={mediaAction?.targetId ?? ''}
                       onChange={(e) => setMediaAction(rule, e.target.value)}
-                      className="w-full border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none focus:border-studio-teal"
+                      className="bx-select"
                     >
-                      <option value="">🎬 Kein Medium</option>
+                      <option value="">Kein Medium</option>
                       {mediaLayers.map((l) => (<option key={l.id} value={l.id}>Medium abspielen: {l.name}</option>))}
                     </select>
                   )}
@@ -300,7 +308,7 @@ export default function TriggersPage() {
                         type="number"
                         value={(rule.cooldownMs ?? 0) / 1000}
                         onChange={(e) => patchRule(rule.id, { cooldownMs: Math.max(0, Number(e.target.value)) * 1000 })}
-                        className="w-20 border border-studio-border bg-studio-raised px-2 py-1 font-mono text-xs outline-none"
+                        className="bx-input font-mono w-20"
                       />
                     </label>
                   )}

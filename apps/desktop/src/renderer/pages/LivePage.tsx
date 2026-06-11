@@ -1,6 +1,7 @@
 // LivePage — verbinden, zuschauen, testen. Test-Werkzeuge sind bewusst
 // immer sichtbar (Single-User-Tool, keine versteckten Dev-Gates).
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
+import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play } from 'lucide-react';
 import type { useStudio } from '../hooks/useStudio';
 import type { StudioEvent } from '@botexe/trigger-engine';
 
@@ -89,31 +90,37 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
 
   return (
     <div className="flex h-full flex-col gap-5 p-6">
-      {/* Connect-Zeile */}
-      <div className="flex items-center gap-3">
-        <div className="clip-slant flex items-center border border-studio-border bg-studio-panel">
-          <span className="pl-4 pr-1 font-display text-studio-muted">@</span>
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !busy && username && void toggleConnect()}
-            placeholder="dein TikTok-Name"
-            disabled={connected}
-            className="w-56 bg-transparent py-2.5 pr-4 text-sm outline-none placeholder:text-studio-muted/50 disabled:opacity-60"
-          />
+      {/* Kopfzeile + Connect */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="flex items-center gap-2 font-display text-xl uppercase">
+          <Radio size={20} className="text-studio-accent" /> Live-Cockpit
+        </h1>
+        <div className="flex flex-wrap items-center gap-3">
+          {error && <span className="text-xs text-studio-accent">{error}</span>}
+          <div className="bx-input flex w-auto items-center gap-1 !py-0 !pr-0">
+            <span className="pl-1 font-display text-studio-muted">@</span>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !busy && username && void toggleConnect()}
+              placeholder="dein TikTok-Name"
+              disabled={connected}
+              className="w-52 bg-transparent py-2.5 pr-3 text-sm outline-none placeholder:text-studio-muted/50 disabled:opacity-60"
+            />
+          </div>
+          <button
+            onClick={() => void toggleConnect()}
+            disabled={busy || (!connected && !username.trim())}
+            className={
+              connected
+                ? 'bx-pill border-studio-border px-5 py-2.5 font-display text-sm tracking-wide hover:text-studio-text disabled:opacity-40'
+                : 'bx-btn-accent px-5 py-2.5 font-display text-sm tracking-wide disabled:opacity-40'
+            }
+          >
+            {connected ? <WifiOff size={15} /> : <Wifi size={15} />}
+            {busy ? '…' : connected ? 'TRENNEN' : 'GO LIVE'}
+          </button>
         </div>
-        <button
-          onClick={() => void toggleConnect()}
-          disabled={busy || (!connected && !username.trim())}
-          className={`clip-slant px-6 py-2.5 font-display text-sm tracking-wide transition-colors disabled:opacity-40 ${
-            connected
-              ? 'bg-studio-raised text-studio-muted hover:text-studio-text'
-              : 'bg-studio-accent text-black hover:bg-studio-accent-soft'
-          }`}
-        >
-          {busy ? '…' : connected ? 'TRENNEN' : 'GO LIVE'}
-        </button>
-        {error && <span className="text-xs text-studio-accent">{error}</span>}
       </div>
 
       {/* Stats-Karten */}
@@ -125,11 +132,20 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
           { label: 'Follower', value: t?.follows ?? 0 },
           { label: 'Likes', value: t?.likes ?? 0 },
         ].map((card) => (
-          <div key={card.label} className="clip-slant border-t-2 border-studio-accent bg-studio-panel p-4">
+          <div key={card.label} className="bx-card overflow-hidden p-4">
+            <div
+              className="pointer-events-none absolute -right-6 -top-8 h-20 w-20 rounded-full bg-studio-accent/15 blur-2xl"
+              aria-hidden
+            />
             <div className="text-[10px] uppercase tracking-[0.3em] text-studio-muted">{card.label}</div>
-            <div className="mt-1 font-display text-2xl">{card.value.toLocaleString('de-DE')}</div>
+            <div
+              className="mt-1 text-3xl leading-none text-studio-text"
+              style={{ fontFamily: 'var(--font-chunky)' }}
+            >
+              {card.value.toLocaleString('de-DE')}
+            </div>
             {card.peak !== undefined && card.peak > 0 && (
-              <div className="font-mono text-[10px] text-studio-muted">Peak {card.peak}</div>
+              <div className="mt-1 font-mono text-[10px] text-studio-muted">Peak {card.peak}</div>
             )}
           </div>
         ))}
@@ -137,7 +153,7 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
 
       {/* Event-Feed + Test-Panel */}
       <div className="grid min-h-0 flex-1 grid-cols-[1fr_280px] gap-4">
-        <section className="flex min-h-0 flex-col border border-studio-border bg-studio-panel">
+        <section className="bx-card flex min-h-0 flex-col overflow-hidden">
           <h2 className="border-b border-studio-border px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">
             Live-Feed
           </h2>
@@ -164,32 +180,42 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
         </section>
 
         {/* Test-Werkzeuge */}
-        <section className="flex flex-col gap-2 border border-studio-border bg-studio-panel p-4">
+        <section className="bx-card flex flex-col gap-2 p-4">
           <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Testen ohne Live</h2>
           <p className="mb-1 text-[11px] leading-relaxed text-studio-muted">
             Schickt echte Events durch die komplette Kette — Trigger, Overlay und Sounds reagieren wie im Stream.
           </p>
           {[
-            { label: '🌹 Test-Gift (1 Coin)', event: { type: 'gift', ts: 0, user: { id: 'test', nickname: 'TestUser', profilePic: AVATARS.test }, gift: { slug: 'Rose', count: 1, coinsPerUnit: 1, totalCoins: 1, icon: svgEmoji('🌹') } } },
-            { label: '🦁 Test-Gift (500 Coins)', event: { type: 'gift', ts: 0, user: { id: 'spender', nickname: 'BigSpender', profilePic: AVATARS.spender }, gift: { slug: 'Lion', count: 1, coinsPerUnit: 500, totalCoins: 500, icon: svgEmoji('🦁') } } },
-            { label: '➕ Test-Follow', event: { type: 'follow', ts: 0, user: { id: 'fan', nickname: 'NeuerFan', profilePic: AVATARS.fan } } },
-            { label: '💬 Test-Chat', event: { type: 'chat', ts: 0, user: { id: 'chatter', nickname: 'Chatter', profilePic: AVATARS.chatter }, text: 'Das Overlay sieht stark aus! 🔥' } },
-            { label: '❤️ Test-Likes (+50)', event: { type: 'like', ts: 0, user: { id: 'liker', nickname: 'Liker', profilePic: AVATARS.liker }, likeCount: 50, totalLikes: 0 } },
-          ].map((btn) => (
-            <button
-              key={btn.label}
-              onClick={() => void window.studio.sendTestEvent(btn.event as unknown as Record<string, unknown>)}
-              className="clip-slant border border-studio-border bg-studio-raised px-3 py-2 text-left text-xs transition-colors hover:border-studio-accent/50 hover:text-studio-accent"
-            >
-              {btn.label}
-            </button>
-          ))}
+            { label: 'Test-Gift (1 Coin)', icon: Gift, event: { type: 'gift', ts: 0, user: { id: 'test', nickname: 'TestUser', profilePic: AVATARS.test }, gift: { slug: 'Rose', count: 1, coinsPerUnit: 1, totalCoins: 1, icon: svgEmoji('🌹') } } },
+            { label: 'Test-Gift (500 Coins)', icon: Gift, event: { type: 'gift', ts: 0, user: { id: 'spender', nickname: 'BigSpender', profilePic: AVATARS.spender }, gift: { slug: 'Lion', count: 1, coinsPerUnit: 500, totalCoins: 500, icon: svgEmoji('🦁') } } },
+            { label: 'Test-Follow', icon: UserPlus, event: { type: 'follow', ts: 0, user: { id: 'fan', nickname: 'NeuerFan', profilePic: AVATARS.fan } } },
+            { label: 'Test-Chat', icon: MessageSquare, event: { type: 'chat', ts: 0, user: { id: 'chatter', nickname: 'Chatter', profilePic: AVATARS.chatter }, text: 'Das Overlay sieht stark aus! 🔥' } },
+            { label: 'Test-Likes (+50)', icon: Heart, event: { type: 'like', ts: 0, user: { id: 'liker', nickname: 'Liker', profilePic: AVATARS.liker }, likeCount: 50, totalLikes: 0 } },
+          ].map((btn) => {
+            const BtnIcon = btn.icon as ComponentType<{ size?: number; className?: string }>;
+            return (
+              <button
+                key={btn.label}
+                onClick={() => void window.studio.sendTestEvent(btn.event as unknown as Record<string, unknown>)}
+                className="flex items-center gap-2 rounded-lg border border-studio-border bg-studio-raised px-3 py-2 text-left text-xs text-studio-text transition-colors hover:border-studio-accent/50 hover:text-studio-accent"
+              >
+                <BtnIcon size={14} className="flex-none text-studio-accent" />
+                {btn.label}
+              </button>
+            );
+          })}
           <div className="mt-2 border-t border-studio-border pt-3">
             <h3 className="mb-2 text-[10px] uppercase tracking-[0.3em] text-studio-muted">Replay</h3>
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => void window.studio.replayRecordStart()} className="clip-slant bg-studio-raised px-3 py-1.5 text-[11px] hover:text-studio-accent">● Aufnahme</button>
-              <button onClick={() => void window.studio.replayRecordStop()} className="clip-slant bg-studio-raised px-3 py-1.5 text-[11px] hover:text-studio-accent">■ Stop+Save</button>
-              <button onClick={() => void window.studio.replayPlay(1)} className="clip-slant bg-studio-raised px-3 py-1.5 text-[11px] hover:text-studio-teal">▶ Abspielen</button>
+              <button onClick={() => void window.studio.replayRecordStart()} className="bx-pill text-[11px] hover:text-studio-accent">
+                <CircleDot size={13} /> Aufnahme
+              </button>
+              <button onClick={() => void window.studio.replayRecordStop()} className="bx-pill text-[11px] hover:text-studio-accent">
+                <Square size={13} /> Stop+Save
+              </button>
+              <button onClick={() => void window.studio.replayPlay(1)} className="bx-pill text-[11px] hover:text-studio-teal">
+                <Play size={13} /> Abspielen
+              </button>
             </div>
           </div>
         </section>

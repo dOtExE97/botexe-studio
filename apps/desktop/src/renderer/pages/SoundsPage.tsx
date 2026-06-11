@@ -1,6 +1,7 @@
 // SoundsPage — lokale Sound-Bibliothek: importieren, probehören, löschen.
 // Wiedergabe läuft immer über den App-SoundPlayer (wie im echten Trigger-Fall).
 import { useEffect, useState } from 'react';
+import { Volume2, Play, Trash2, Music, Search, Upload, Download } from 'lucide-react';
 
 interface SoundEntry {
   id: string;
@@ -66,19 +67,21 @@ export default function SoundsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-6">
+    <div className="flex flex-col gap-5 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-lg uppercase">Sounds</h1>
+          <h1 className="flex items-center gap-2 font-display text-xl uppercase">
+            <Volume2 size={20} className="text-studio-accent" /> Sounds
+          </h1>
           <p className="mt-1 text-xs text-studio-muted">
             Die App spielt Alert-Sounds lokal ab — sie laufen über dein System-Audio in den Rodecaster, nicht über das Overlay.
           </p>
         </div>
         <button
           onClick={() => void window.studio.importSounds().then(refresh)}
-          className="clip-slant bg-studio-accent px-5 py-2.5 font-display text-sm text-black hover:bg-studio-accent-soft"
+          className="bx-btn-accent"
         >
-          + SOUNDS IMPORTIEREN
+          <Upload size={15} /> Sounds importieren
         </button>
       </div>
 
@@ -101,11 +104,11 @@ export default function SoundsPage() {
       </label>
 
       {/* MyInstants-Suche */}
-      <section className="border border-studio-border bg-studio-panel p-4">
-        <h2 className="mb-1 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-teal">
-          MyInstants durchsuchen
+      <section className="bx-card p-5">
+        <h2 className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-teal">
+          <Search size={15} /> MyInstants durchsuchen
         </h2>
-        <p className="mb-3 text-[11px] text-studio-muted">
+        <p className="mb-3 text-[12px] leading-relaxed text-studio-muted">
           Sound suchen, Klick auf „Importieren" — landet direkt in deiner Bibliothek und wird einmal angespielt.
         </p>
         <div className="flex gap-2">
@@ -114,23 +117,26 @@ export default function SoundsPage() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && query.trim().length >= 2 && void search()}
             placeholder="z.B. airhorn, bruh, anime wow…"
-            className="clip-slant w-80 border border-studio-border bg-studio-raised px-4 py-2 text-sm outline-none placeholder:text-studio-muted/50 focus:border-studio-teal"
+            className="bx-input w-80"
           />
           <button
             onClick={() => void search()}
             disabled={searching || query.trim().length < 2}
-            className="clip-slant bg-studio-teal/15 px-5 py-2 text-sm font-bold text-studio-teal transition-colors hover:bg-studio-teal hover:text-black disabled:opacity-40"
+            className="bx-pill border-studio-teal/40 text-studio-teal hover:border-studio-teal hover:text-studio-teal disabled:opacity-40"
           >
-            {searching ? 'Suche…' : 'SUCHEN'}
+            <Search size={13} /> {searching ? 'Suche…' : 'Suchen'}
           </button>
           {searchError && <span className="self-center text-xs text-studio-accent">{searchError}</span>}
         </div>
         {results.length > 0 && (
           <div className="mt-3 grid max-h-72 grid-cols-3 gap-2 overflow-y-auto pr-1">
             {results.map((r) => (
-              <div key={r.mp3Url} className="flex items-center gap-2.5 border border-studio-border bg-studio-raised px-3 py-2">
+              <div
+                key={r.mp3Url}
+                className="flex items-center gap-2.5 rounded-lg border border-studio-border bg-studio-raised/40 px-3 py-2 transition-colors hover:border-studio-accent/30"
+              >
                 <div
-                  className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-studio-bg bg-cover bg-center text-sm"
+                  className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-studio-bg bg-cover bg-center text-studio-muted"
                   style={
                     r.thumbnail
                       ? { backgroundImage: `url("${r.thumbnail}")` }
@@ -139,15 +145,15 @@ export default function SoundsPage() {
                         : undefined
                   }
                 >
-                  {!r.thumbnail && '🔊'}
+                  {!r.thumbnail && <Music size={15} />}
                 </div>
                 <div className="min-w-0 flex-1 truncate text-xs" title={r.title}>{r.title}</div>
                 <button
                   onClick={() => void importResult(r)}
                   disabled={importing !== null}
-                  className="clip-slant flex-none bg-studio-teal/15 px-2.5 py-1 text-[10px] font-bold text-studio-teal hover:bg-studio-teal hover:text-black disabled:opacity-40"
+                  className="bx-pill flex-none border-studio-teal/40 px-2.5 py-1 text-[10px] text-studio-teal hover:border-studio-teal hover:text-studio-teal disabled:opacity-40"
                 >
-                  {importing === r.mp3Url ? '…' : '+ IMPORT'}
+                  {importing === r.mp3Url ? '…' : <><Download size={12} /> Import</>}
                 </button>
               </div>
             ))}
@@ -156,20 +162,23 @@ export default function SoundsPage() {
       </section>
 
       {sounds.length === 0 && (
-        <div className="border border-dashed border-studio-border p-10 text-center text-sm text-studio-muted">
+        <div className="rounded-lg border border-dashed border-studio-border p-10 text-center text-sm text-studio-muted">
           Noch keine Sounds. Importiere MP3/WAV/OGG/M4A — z.B. deine TikFinity-Sounds — oder such oben bei MyInstants.
         </div>
       )}
 
       <div className="grid grid-cols-3 gap-3">
         {sounds.map((s) => (
-          <div key={s.id} className="clip-slant flex items-center gap-3 border border-studio-border bg-studio-panel px-4 py-3">
+          <div
+            key={s.id}
+            className="flex items-center gap-3 rounded-lg border border-studio-border bg-studio-raised/40 px-4 py-3 transition-colors hover:border-studio-accent/30"
+          >
             <button
               onClick={() => void window.studio.testSound(s.id)}
-              className="clip-slant flex h-9 w-9 flex-none items-center justify-center bg-studio-teal/15 text-studio-teal transition-colors hover:bg-studio-teal hover:text-black"
+              className="flex h-9 w-9 flex-none items-center justify-center rounded-md bg-studio-teal/15 text-studio-teal transition-colors hover:bg-studio-teal hover:text-black"
               title="Probehören (läuft über den echten Sound-Player)"
             >
-              ▶
+              <Play size={15} />
             </button>
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs font-bold">{s.filename}</div>
@@ -177,9 +186,10 @@ export default function SoundsPage() {
             </div>
             <button
               onClick={() => void window.studio.deleteSound(s.id).then(refresh)}
-              className="text-[11px] text-studio-muted hover:text-studio-accent"
+              className="text-studio-muted transition-colors hover:text-studio-accent"
+              title="Löschen"
             >
-              ✕
+              <Trash2 size={15} />
             </button>
           </div>
         ))}
