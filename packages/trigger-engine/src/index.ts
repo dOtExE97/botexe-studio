@@ -56,7 +56,9 @@ export type TriggerAction =
   | { kind: 'hide_layer'; targetId: string }
   /** TTS-Ansage; template mit {user} {text} {gift} {count} {coins} platzhaltern. */
   | { kind: 'speak'; template: string; voice?: string }
-  | { kind: 'spin_wheel'; targetId: string; cost?: number };
+  | { kind: 'spin_wheel'; targetId: string; cost?: number }
+  /** Media-Widget abspielen (Bild einblenden / Video starten) — z.B. Begrüßungsclip. */
+  | { kind: 'play_media'; targetId: string };
 
 export interface TriggerRule {
   id: string;

@@ -97,6 +97,13 @@ export default function TriggersPage() {
     });
   };
 
+  const setMediaAction = (rule: TriggerRule, targetId: string) => {
+    const others = rule.actions.filter((a) => a.kind !== 'play_media');
+    patchRule(rule.id, {
+      actions: targetId ? [...others, { kind: 'play_media', targetId }] : others,
+    });
+  };
+
   if (!loaded) return <div className="p-6 text-studio-muted">Lade…</div>;
 
   return (
@@ -130,7 +137,9 @@ export default function TriggersPage() {
         const alertAction = getAction(rule, 'fire_alert') as { targetId?: string } | undefined;
         const speakAction = getAction(rule, 'speak') as { template?: string } | undefined;
         const spinAction = getAction(rule, 'spin_wheel') as { targetId?: string; cost?: number } | undefined;
+        const mediaAction = getAction(rule, 'play_media') as { targetId?: string } | undefined;
         const wheels = layers.filter((l) => l.widgetType === 'wheel');
+        const mediaLayers = layers.filter((l) => l.widgetType === 'media');
         return (
           <div
             key={rule.id}
@@ -273,6 +282,16 @@ export default function TriggersPage() {
                         />
                       )}
                     </div>
+                  )}
+                  {mediaLayers.length > 0 && (
+                    <select
+                      value={mediaAction?.targetId ?? ''}
+                      onChange={(e) => setMediaAction(rule, e.target.value)}
+                      className="w-full border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none focus:border-studio-teal"
+                    >
+                      <option value="">🎬 Kein Medium</option>
+                      {mediaLayers.map((l) => (<option key={l.id} value={l.id}>Medium abspielen: {l.name}</option>))}
+                    </select>
                   )}
                   {rule.event !== 'timer' && (
                     <label className="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-studio-muted">

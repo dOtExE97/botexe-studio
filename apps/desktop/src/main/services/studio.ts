@@ -12,6 +12,7 @@ import { OverlayServer } from '../adapters/overlay-server';
 import { SettingsStore } from './settings-store';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
+import { MediaLibrary } from './media-library';
 import { PointsStore } from './points-store';
 import { TTSService } from './tts-service';
 import { log } from '../core/logger';
@@ -44,6 +45,7 @@ export class Studio {
   readonly settings: SettingsStore;
   readonly layouts: LayoutStore;
   readonly sounds: SoundLibrary;
+  readonly media: MediaLibrary;
   readonly tts: TTSService;
   readonly points: PointsStore;
   readonly stats = new SessionStats();
@@ -64,6 +66,7 @@ export class Studio {
     this.settings = new SettingsStore(paths.userDataDir);
     this.layouts = new LayoutStore(paths.userDataDir);
     this.sounds = new SoundLibrary(paths.userDataDir);
+    this.media = new MediaLibrary(paths.userDataDir);
     this.points = new PointsStore(paths.userDataDir);
     this.tts = new TTSService(
       paths.userDataDir,
@@ -80,6 +83,7 @@ export class Studio {
       runtimeDir: paths.runtimeDir,
       widgetDir: paths.widgetDir,
       soundsDir: this.sounds.getDir(),
+      mediaDir: this.media.getDir(),
       ttsDir: this.tts.getCacheDir(),
       // Profile = einzelne Layouts; jedes hat seinen eigenen Overlay-Link.
       getLayout: (id) => (id ? this.layouts.get(id) : this.getActiveLayout()),
@@ -321,6 +325,18 @@ export class Studio {
     const vol = volume ?? this.settings.get().soundVolume;
     const url = `http://127.0.0.1:${this.server.getPort()}/sounds/${encodeURIComponent(soundId)}?token=${this.server.getToken()}`;
     this.hooks.onSoundPlay({ soundId, url, volume: vol });
+  }
+
+  // ── Medien ────────────────────────────────────────────────────────────
+
+  /** Token-authentifizierte URL eines Mediums (fürs Overlay & Editor-Vorschau). */
+  mediaUrl(id: string): string {
+    return `http://127.0.0.1:${this.server.getPort()}/media/${encodeURIComponent(id)}?token=${this.server.getToken()}`;
+  }
+
+  /** Medienliste fürs UI — inkl. fertiger URL für Thumbnails/Vorschau. */
+  listMedia(): Array<{ id: string; filename: string; kind: string; sizeBytes: number; url: string }> {
+    return this.media.list().map((e) => ({ ...e, url: this.mediaUrl(e.id) }));
   }
 
   // ── Replay & Test-Events ──────────────────────────────────────────────

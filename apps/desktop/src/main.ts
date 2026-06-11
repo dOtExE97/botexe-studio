@@ -239,6 +239,27 @@ function registerIpc(): void {
     }
   });
 
+  // Medien (Bilder/Videos)
+  ipcMain.handle(IPC.MEDIA_LIST, () => isStudio().listMedia());
+  ipcMain.handle(IPC.MEDIA_IMPORT, async () => {
+    if (!mainWindow) return { ok: false, error: 'Kein Fenster' };
+    const picked = await dialog.showOpenDialog(mainWindow, {
+      title: 'Bild oder Video importieren',
+      filters: [{ name: 'Medien', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'webm'] }],
+      properties: ['openFile', 'multiSelections'],
+    });
+    if (picked.canceled) return { ok: true, imported: [] };
+    const imported = [];
+    for (const file of picked.filePaths) {
+      const result = isStudio().media.import(file);
+      if (result.ok) imported.push({ ...result.entry, url: isStudio().mediaUrl(result.entry.id) });
+    }
+    return { ok: true, imported };
+  });
+  ipcMain.handle(IPC.MEDIA_DELETE, (_e, id: unknown) =>
+    typeof id === 'string' ? isStudio().media.delete(id) : false,
+  );
+
   // TTS
   ipcMain.handle(IPC.TTS_VOICES, () => isStudio().tts.getVoiceGroups());
   ipcMain.handle(IPC.TTS_PIPER_SETUP, async (_e, voiceId: unknown) => {
@@ -371,7 +392,7 @@ app.whenReady().then(async () => {
           ...details.responseHeaders,
           'Content-Security-Policy': [
             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-              "img-src 'self' data: https:; media-src 'self' http://127.0.0.1:*; " +
+              "img-src 'self' data: https: http://127.0.0.1:*; media-src 'self' http://127.0.0.1:*; " +
               "frame-src http://127.0.0.1:*; " +
               "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*",
           ],

@@ -15,8 +15,9 @@ import {
 interface PropField {
   key: string;
   label: string;
-  /** seconds = im UI in Sekunden, gespeichert als ms · boolean = Schalter */
-  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds';
+  /** seconds = im UI in Sekunden, gespeichert als ms · boolean = Schalter
+   *  media = visueller Bild/Video-Picker mit Import */
+  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media';
   options?: { value: string; label: string }[];
   hint?: string;
 }
@@ -172,6 +173,26 @@ const WIDGET_TYPES: {
     fields: [{ key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Größtes Gift".' }, ACCENT_FIELD],
   },
   {
+    type: 'media', label: 'Bild / Video', desc: 'Eigenes Bild oder Video einblenden — dauerhaft (Logo/Banner) oder per Trigger (z.B. Begrüßungsvideo bei einem Superfan).',
+    w: 600, h: 400, props: { mediaId: '', mode: 'trigger', fit: 'contain', durationMs: 6000, frame: false, loop: true, muted: true },
+    fields: [
+      { key: 'mediaId', label: 'Medium', type: 'media', hint: 'Bild/Video wählen oder neues importieren (PNG, JPG, GIF, WEBP, MP4, WEBM).' },
+      { key: 'mode', label: 'Modus', type: 'select', options: [
+        { value: 'trigger', label: 'Per Trigger (blendet sich ein/aus)' },
+        { value: 'static', label: 'Dauerhaft sichtbar' },
+      ], hint: 'Trigger: erscheint nur wenn eine Regel „Medium abspielen" auslöst (z.B. Superfan-Begrüßung). Dauerhaft: immer sichtbar (Logo/Banner).' },
+      { key: 'fit', label: 'Anpassung', type: 'select', options: [
+        { value: 'contain', label: 'Ganz zeigen (Letterbox)' },
+        { value: 'cover', label: 'Fläche füllen (Zuschnitt)' },
+      ], hint: 'Ganz zeigen = nichts abgeschnitten. Füllen = randlos, schneidet ggf. zu.' },
+      { key: 'durationMs', label: 'Bild-Anzeigedauer', type: 'seconds', hint: 'Nur für Bilder im Trigger-Modus (Videos enden von selbst).' },
+      { key: 'frame', label: 'Rahmen & Schatten', type: 'boolean', hint: 'Abgerundeter Glas-Rahmen mit Akzent-Glow um das Medium.' },
+      { key: 'muted', label: 'Video stumm', type: 'boolean', hint: 'An lassen — Overlay-Ton ist im TikTok-Studio unzuverlässig, Sound besser als Sound-Trigger.' },
+      { key: 'loop', label: 'Video looped (dauerhaft)', type: 'boolean', hint: 'Nur im Dauerhaft-Modus: Video endlos wiederholen.' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
     type: 'heart-rain', label: 'Herzregen', desc: 'Likes steigen als Emojis auf (TikTok-Style) — transparent, deckt nichts zu.',
     w: 1080, h: 900, props: { emojis: '❤️,💖,💕,✨,🔥', maxPerBurst: 5 },
     fields: [
@@ -249,16 +270,21 @@ const ZONE_STYLE: Record<string, ZoneStyle> = {
   focus: { fill: 'transparent', stroke: 'rgba(33,230,193,.55)' },
 };
 
+interface MediaItem { id: string; filename: string; kind: 'image' | 'video'; url: string }
+
 function newLayerId(): string {
   return `layer-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
 }
 
 function freshLayout(name: string, preset: CanvasPreset): OverlayLayout {
+  // NUR width/height/background ins Canvas — CANVAS_PRESETS enthält auch `label`,
+  // das Canvas-Schema ist aber strikt (additionalProperties:false).
+  const { width, height } = CANVAS_PRESETS[preset];
   return {
     schemaVersion: 1,
     id: `layout-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
     name,
-    canvas: { ...CANVAS_PRESETS[preset], background: 'transparent' },
+    canvas: { width, height, background: 'transparent' },
     layers: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -276,6 +302,7 @@ export default function OverlayPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.3);
   const dragRef = useRef<{ id: string; mode: 'move' | 'resize'; startX: number; startY: number; orig: OverlayLayer } | null>(null);
@@ -306,6 +333,11 @@ export default function OverlayPage() {
   const refreshProfiles = async () => {
     setProfiles((await window.studio.listLayouts()) as OverlayLayout[]);
   };
+
+  const refreshMedia = useCallback(async () => {
+    setMediaList((await window.studio.listMedia()) as MediaItem[]);
+  }, []);
+  useEffect(() => { void refreshMedia(); }, [refreshMedia]);
 
   const selectProfile = (id: string) => {
     const p = profiles.find((l) => l.id === id);
@@ -768,6 +800,54 @@ export default function OverlayPage() {
                     const value = selected.props?.[field.key] ?? '';
                     const setProp = (v: unknown) =>
                       updateLayer(selected.id, { props: { ...selected.props, [field.key]: v } }, true);
+
+                    // Media = visueller Bild/Video-Picker mit Import
+                    if (field.type === 'media') {
+                      return (
+                        <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
+                          {field.label}
+                          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+                            {mediaList.map((m) => {
+                              const sel = m.id === value;
+                              return (
+                                <button
+                                  key={m.id}
+                                  onClick={() => setProp(m.id)}
+                                  title={m.filename}
+                                  className={`group relative aspect-square overflow-hidden border bg-black/40 ${sel ? 'border-studio-accent ring-1 ring-studio-accent' : 'border-studio-border hover:border-studio-accent/50'}`}
+                                >
+                                  {m.kind === 'video' ? (
+                                    <>
+                                      <video src={m.url} muted className="h-full w-full object-cover" />
+                                      <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-[8px] text-white">▶ Video</span>
+                                    </>
+                                  ) : (
+                                    <img src={m.url} alt="" className="h-full w-full object-cover" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                            <button
+                              onClick={async () => {
+                                const res = (await window.studio.importMedia()) as { ok: boolean; imported?: MediaItem[] };
+                                await refreshMedia();
+                                if (res?.imported?.[0]) setProp(res.imported[0].id);
+                              }}
+                              className="flex aspect-square flex-col items-center justify-center gap-0.5 border border-dashed border-studio-border text-studio-muted hover:border-studio-teal hover:text-studio-teal"
+                            >
+                              <span className="text-lg leading-none">＋</span>
+                              <span className="text-[8px] normal-case tracking-normal">Importieren</span>
+                            </button>
+                          </div>
+                          {value ? (
+                            <button onClick={() => setProp('')} className="mt-1 text-[9px] normal-case tracking-normal text-studio-muted hover:text-studio-accent">
+                              Auswahl entfernen
+                            </button>
+                          ) : null}
+                          {field.hint && <span className="mt-1 block text-[9px] normal-case tracking-normal text-studio-muted/70">{field.hint}</span>}
+                        </div>
+                      );
+                    }
 
                     // Boolean = Schalter in eigener Zeile
                     if (field.type === 'boolean') {

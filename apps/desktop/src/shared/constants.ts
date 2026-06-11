@@ -32,6 +32,10 @@ export const IPC = {
   SOUND_TEST: 'sound:test',
   SOUND_SEARCH_MYINSTANTS: 'sound:search-myinstants',
   SOUND_IMPORT_MYINSTANTS: 'sound:import-myinstants',
+  // Medien (eigene Bilder/Videos fürs Overlay)
+  MEDIA_LIST: 'media:list',
+  MEDIA_IMPORT: 'media:import',
+  MEDIA_DELETE: 'media:delete',
   // TTS
   TTS_VOICES: 'tts:voices',
   TTS_TEST: 'tts:test',

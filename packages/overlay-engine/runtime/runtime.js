@@ -255,20 +255,21 @@ function demoTick() {
   dispatchStats(demoStats);
 }
 
-// Glücksrad/auto-show-Widgets brauchen eine Aktion, um sichtbar zu werden —
-// in der Vorschau lösen wir sie regelmäßig aus, damit man das Rad drehen sieht.
-function demoSpinWheels() {
+// Aktions-getriggerte Widgets (Rad, Media-Trigger) brauchen eine Aktion, um
+// sichtbar zu werden — in der Vorschau lösen wir sie regelmäßig aus, damit man
+// das Rad drehen und das Video/Bild abspielen sieht.
+function demoTriggerWidgets() {
   for (const [layerId, entry] of liveLayers) {
-    if (entry.el?.dataset.widgetType === 'wheel') {
-      dispatchAction('preview-spin', { kind: 'spin_wheel', targetId: layerId });
-    }
+    const type = entry.el?.dataset.widgetType;
+    if (type === 'wheel') dispatchAction('preview-spin', { kind: 'spin_wheel', targetId: layerId });
+    else if (type === 'media') dispatchAction('preview-media', { kind: 'play_media', targetId: layerId });
   }
 }
 
 function startPreview() {
   seedDemoStats();
   setInterval(demoTick, 1700);
-  setTimeout(() => { demoSpinWheels(); setInterval(demoSpinWheels, 13000); }, 2500);
+  setTimeout(() => { demoTriggerWidgets(); setInterval(demoTriggerWidgets, 13000); }, 2500);
 }
 
 // ── WebSocket mit Selbstheilung ───────────────────────────────────────────

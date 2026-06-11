@@ -14,7 +14,7 @@
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx src",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/main/core/*.test.ts src/main/adapters/*.test.ts"
+    "test": "node --import tsx --test src/main/core/*.test.ts src/main/adapters/*.test.ts src/main/services/*.test.ts"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.1",

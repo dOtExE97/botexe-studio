@@ -8,16 +8,19 @@ import { createDefaultLayout } from '@botexe/overlay-engine';
 import { EventBus } from '../core/event-bus';
 import { OverlayServer } from './overlay-server';
 
-function makeDirs(): { runtimeDir: string; widgetDir: string } {
+function makeDirs(): { runtimeDir: string; widgetDir: string; mediaDir: string } {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'botexe-overlay-test-'));
   const runtimeDir = path.join(base, 'runtime');
   const widgetDir = path.join(base, 'widgets');
+  const mediaDir = path.join(base, 'media');
   fs.mkdirSync(runtimeDir);
   fs.mkdirSync(widgetDir);
+  fs.mkdirSync(mediaDir);
   fs.writeFileSync(path.join(runtimeDir, 'overlay.html'), '<!doctype html><html><head></head><body>RUNTIME</body></html>');
   fs.writeFileSync(path.join(runtimeDir, 'runtime.js'), '// runtime');
   fs.writeFileSync(path.join(widgetDir, 'gift-alert.js'), '// widget');
-  return { runtimeDir, widgetDir };
+  fs.writeFileSync(path.join(mediaDir, 'logo.png'), Buffer.from('PNGDATA-0123456789'));
+  return { runtimeDir, widgetDir, mediaDir };
 }
 
 async function setup(heartbeatMs = 0) {
@@ -100,6 +103,31 @@ test('http: /overlay?preview=1 injiziert preview:true, ohne param preview:false'
 
     const prev = await (await fetch(`${base}/overlay?token=${token}&preview=1`)).text();
     assert.match(prev, /"preview":true/);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('http: /media liefert Bild aus + unterstützt Range, lehnt Fremd-Endung ab', async () => {
+  const { server } = await setup();
+  try {
+    const base = `http://127.0.0.1:${server.getPort()}`;
+    const token = server.getToken();
+
+    const ok = await fetch(`${base}/media/logo.png?token=${token}`);
+    assert.equal(ok.status, 200);
+    assert.equal(ok.headers.get('content-type'), 'image/png');
+    assert.equal(ok.headers.get('accept-ranges'), 'bytes');
+
+    const ranged = await fetch(`${base}/media/logo.png?token=${token}`, { headers: { Range: 'bytes=0-3' } });
+    assert.equal(ranged.status, 206);
+    assert.match(ranged.headers.get('content-range') ?? '', /bytes 0-3\//);
+
+    const bad = await fetch(`${base}/media/logo.txt?token=${token}`);
+    assert.equal(bad.status, 400);
+
+    const traversal = await fetch(`${base}/media/..%2F..%2Fetc%2Fpasswd?token=${token}`);
+    assert.notEqual(traversal.status, 200);
   } finally {
     await server.stop();
   }

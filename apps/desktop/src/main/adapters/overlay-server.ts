@@ -47,6 +47,8 @@ export interface OverlayServerOptions {
   soundsDir?: string;
   /** TTS-Cache (mp3) — gleiche Schiene wie Sounds, Wiedergabe im App-Renderer. */
   ttsDir?: string;
+  /** Eigene Medien (Bilder/Videos) — fürs Media-Widget im Overlay. */
+  mediaDir?: string;
 }
 
 const FILE_NAME_RE = /^[a-zA-Z0-9_.-]+\.(js|css|html|woff2?)$/;
@@ -190,6 +192,58 @@ export class OverlayServer {
       }
       res.setHeader('Content-Type', mime[ext]);
       res.setHeader('Cache-Control', 'public, max-age=300');
+      fs.createReadStream(target).pipe(res);
+    });
+
+    // Eigene Medien (Bilder/Videos) fürs Media-Widget. Videos brauchen
+    // HTTP-Range, damit der <video>-Tag seeken/streamen kann.
+    this.expressApp.get('/media/:filename', auth, (req, res) => {
+      const dir = this.options.mediaDir;
+      if (!dir) {
+        res.status(404).send('Medien nicht konfiguriert');
+        return;
+      }
+      const raw = req.params.filename;
+      const filename = path.basename(Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? ''));
+      const ext = path.extname(filename).toLowerCase();
+      const mime: Record<string, string> = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+      };
+      if (!mime[ext]) {
+        res.status(400).send('Invalid extension');
+        return;
+      }
+      const target = path.join(dir, filename);
+      if (!target.startsWith(dir) || !fs.existsSync(target)) {
+        res.status(404).send('Not found');
+        return;
+      }
+      const size = fs.statSync(target).size;
+      res.setHeader('Content-Type', mime[ext]);
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.setHeader('Accept-Ranges', 'bytes');
+      const range = req.headers.range;
+      if (range) {
+        const m = /bytes=(\d*)-(\d*)/.exec(range);
+        const start = m && m[1] ? parseInt(m[1], 10) : 0;
+        const end = m && m[2] ? parseInt(m[2], 10) : size - 1;
+        if (start >= size || end >= size) {
+          res.status(416).setHeader('Content-Range', `bytes */${size}`).end();
+          return;
+        }
+        res.status(206);
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${size}`);
+        res.setHeader('Content-Length', end - start + 1);
+        fs.createReadStream(target, { start, end }).pipe(res);
+        return;
+      }
+      res.setHeader('Content-Length', size);
       fs.createReadStream(target).pipe(res);
     });
   }
