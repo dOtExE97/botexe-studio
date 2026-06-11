@@ -48,10 +48,35 @@ const CSS = `
   transition: width 600ms cubic-bezier(.25,1,.35,1); z-index:0; }
 .bx-st-bars .bx-lb-row > * { position: relative; z-index: 1; }
 .bx-st-bars.bx-lb-likes .bx-lb-row::before { background: linear-gradient(90deg, color-mix(in srgb, var(--bx-pink) 55%, transparent), color-mix(in srgb, var(--bx-pink) 12%, transparent)); }
+
+/* — ARCADE (TikFinity-Look) — keine box, avatare in reihe, kronen, konturschrift */
+.bx-st-arcade { background: none; box-shadow: none; padding: 4px; }
+.bx-st-arcade::before { display: none; }
+.bx-st-arcade .bx-lb-title { border: none; margin: 0 0 4px; text-align: center;
+  -webkit-text-stroke: 2px #08090d; paint-order: stroke fill; }
+.bx-st-arcade .bx-lb-title::after { display: none; }
+.bx-st-arcade .bx-lb-list { display: flex; align-items: flex-start; justify-content: center; gap: 4%; flex-wrap: nowrap; }
+.bx-st-arcade .bx-lb-row { position: static; height: auto; flex-direction: column; align-items: center; gap: 3px; padding: 0; transform: none !important; flex: 1 1 0; min-width: 0; max-width: 22%; }
+.bx-st-arcade .bx-lb-rank { display: none; }
+.bx-st-arcade .bx-lb-pic { width: 64px; height: 64px; box-shadow: 0 0 0 3px #5c9dff, 0 4px 10px rgba(0,0,0,.5); }
+.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-pic { box-shadow: 0 0 0 3px #ffd23e, 0 0 18px -2px #ffd23e, 0 4px 10px rgba(0,0,0,.5); }
+.bx-st-arcade .bx-lb-row[data-rank="2"] .bx-lb-pic { box-shadow: 0 0 0 3px #cfd6e4, 0 4px 10px rgba(0,0,0,.5); }
+.bx-st-arcade .bx-lb-row[data-rank="3"] .bx-lb-pic { box-shadow: 0 0 0 3px #f0a35a, 0 4px 10px rgba(0,0,0,.5); }
+.bx-st-arcade .bx-lb-row::after { content: '👑'; position: static; order: -1; font-size: 20px; margin-bottom: -4px; transform: rotate(0); filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); opacity: .55; left: auto; top: auto; }
+.bx-st-arcade .bx-lb-row[data-rank="1"]::after { opacity: 1; font-size: 26px; }
+.bx-st-arcade .bx-lb-row[data-rank="2"]::after { opacity: .85; }
+.bx-st-arcade .bx-lb-name { flex: none; max-width: 100%; font-size: 15px; text-align: center; color: #7dff8a;
+  -webkit-text-stroke: 2px #08090d; paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.6); }
+.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-name { color: #ffd23e; }
+.bx-st-arcade .bx-lb-row[data-rank="2"] .bx-lb-name { color: #eaf0ff; }
+.bx-st-arcade .bx-lb-row[data-rank="3"] .bx-lb-name { color: #ffb05a; }
+.bx-st-arcade .bx-lb-val { font-family: var(--bx-font-display); font-size: 16px; color: #fff;
+  -webkit-text-stroke: 2px #08090d; paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.6); }
+.bx-st-arcade.bx-lb-likes .bx-lb-val { color: var(--bx-pink); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
-const STYLES = new Set(['glas', 'neon', 'bars']);
+const STYLES = new Set(['glas', 'neon', 'bars', 'arcade']);
 
 export default class Leaderboard {
   constructor(root, props) {
@@ -88,15 +113,20 @@ export default class Leaderboard {
       }
       const val = this.source === 'likes' ? g.likes : g.coins;
       row.dataset.rank = String(i + 1);
-      row.style.transform = `translateY(${i * 48}px)`;
+      if (this.style !== 'arcade') row.style.transform = `translateY(${i * 48}px)`;
       if (this.style === 'bars') row.style.setProperty('--bar', `${Math.max(8, (val / maxVal) * 100)}%`);
       row.querySelector('.bx-lb-rank').textContent = String(i + 1);
       row.querySelector('.bx-lb-name').textContent = g.nickname;
-      row.querySelector('.bx-lb-val').textContent = this.source === 'likes' ? `${fmt(val)} ❤` : fmt(val);
+      const arrow = this.style === 'arcade' ? '▲ ' : '';
+      row.querySelector('.bx-lb-val').textContent = this.source === 'likes' ? `${arrow}${fmt(val)} ❤` : `${arrow}${fmt(val)}`;
       const pic = row.querySelector('.bx-lb-pic');
       if (pic && g.profilePic) pic.style.backgroundImage = `url("${encodeURI(g.profilePic)}")`;
     });
     for (const [id, row] of this.rows) { if (!seen.has(id)) { row.remove(); this.rows.delete(id); } }
+    if (this.style === 'arcade') {
+      // DOM-reihenfolge = rang-reihenfolge (flexbox legt nebeneinander)
+      items.forEach((g) => { const r = this.rows.get(g.id); if (r) list.appendChild(r); });
+    }
   }
   destroy() { this.el.remove(); }
 }

@@ -119,3 +119,11 @@
   border: 1px solid color-mix(in srgb, var(--bx-accent) 45%, transparent);
   border-radius: 999px;
 }
+
+/* Dicke Konturschrift (TikFinity-Signatur) — bunte Füllung, schwarzer Rand. */
+.bx-outline {
+  -webkit-text-stroke: 3px #08090d;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.55);
+}
+.bx-outline-thin { -webkit-text-stroke: 2px #08090d; paint-order: stroke fill; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); }
