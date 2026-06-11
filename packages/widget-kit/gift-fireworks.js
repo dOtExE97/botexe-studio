@@ -25,6 +25,19 @@ const CSS = `
 }
 `;
 
+// Bild-Cache: pro URL ein Image, geteilt über Instanzen.
+const imageCache = new Map();
+function loadImage(url) {
+  if (!url) return null;
+  let img = imageCache.get(url);
+  if (!img) {
+    img = new Image();
+    img.src = url;
+    imageCache.set(url, img);
+  }
+  return img;
+}
+
 const PALETTES = [
   ['#ffd23e', '#ff9d2e', '#fff3c4'],
   ['#21e6c1', '#6dffe3', '#d2fff5'],
@@ -101,6 +114,8 @@ export default class GiftFireworks {
       palette: PALETTES[Math.floor(Math.random() * PALETTES.length)],
       power,
       icon: gift.icon,
+      img: loadImage(gift.icon),
+      wobble: Math.random() * Math.PI * 2,
       trail: 0,
     });
     this.kick();
@@ -165,10 +180,23 @@ export default class GiftFireworks {
           r: 1.2,
         });
       }
-      ctx.beginPath();
-      ctx.arc(r.x, r.y, 2.6, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff';
-      ctx.fill();
+      // Die Rakete IST das Geschenk: bild mit glow steigt auf
+      r.wobble += 0.18;
+      const size = 22 + 14 * r.power;
+      ctx.save();
+      ctx.translate(r.x + Math.sin(r.wobble) * 2, r.y);
+      ctx.rotate(Math.sin(r.wobble) * 0.12);
+      ctx.shadowColor = r.palette[0];
+      ctx.shadowBlur = 18;
+      if (r.img && r.img.complete && r.img.naturalWidth > 0) {
+        ctx.drawImage(r.img, -size / 2, -size / 2, size, size);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 0.3, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+      }
+      ctx.restore();
       if (r.y <= r.targetY || r.vy >= -0.5) {
         this.explode(r);
         r.dead = true;

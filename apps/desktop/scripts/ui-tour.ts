@@ -162,11 +162,35 @@ async function main(): Promise<void> {
   const info = (await evalJs(ws, 'window.studio.getOverlayInfo()')) as { url: string };
   await send(ws, 'Page.navigate', { url: info.url });
   await send(ws, 'Emulation.setDefaultBackgroundColorOverride', { color: { r: 22, g: 24, b: 32, a: 255 } });
-  // shot-serie: die feuerwerk-explosion (sticky-gift) irgendwo erwischen
-  await sleep(1700);
-  for (let i = 0; i < 5; i++) {
+  // Während das Overlay offen ist: gift-regen über den test-event-endpoint —
+  // das glas füllt sich mit bild-kugeln, raketen steigen mit gift-bildern.
+  await sleep(1500);
+  const base = info.url.split('/overlay')[0];
+  const token = new URL(info.url).searchParams.get('token');
+  const fireGift = (user: Record<string, unknown>, slug: string, coins: number, count: number, emoji: string) =>
+    fetch(`${base}/api/test-event?token=${token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'gift', ts: 0, user,
+        gift: { slug, count, coinsPerUnit: coins / count, totalCoins: coins, icon: giftIcon(emoji) },
+      }),
+    });
+  const gifts: Array<[Record<string, unknown>, string, number, number, string]> = [
+    [USERS.mia, 'Rose', 5, 5, '🌹'],
+    [USERS.leon, 'Donut', 30, 2, '🍩'],
+    [USERS.sara, 'Herz', 10, 3, '💖'],
+    [USERS.ben, 'Lion', 400, 1, '🦁'],
+    [USERS.mia, 'Krone', 200, 2, '👑'],
+    [USERS.neu, 'Galaxy', 1000, 1, '🌌'],
+  ];
+  for (const [user, slug, coins, count, emoji] of gifts) {
+    await fireGift(user, slug, coins, count, emoji).catch(() => undefined);
+    await sleep(350);
+  }
+  for (let i = 0; i < 6; i++) {
     await shot(ws, `${OUT}/tour-5-overlay-${i}.png`);
-    await sleep(420);
+    await sleep(450);
   }
 
   await send(ws, 'Emulation.setDefaultBackgroundColorOverride', {});

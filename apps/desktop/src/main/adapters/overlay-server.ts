@@ -74,6 +74,7 @@ export class OverlayServer {
     this.port = options.port;
     this.token = crypto.randomBytes(32).toString('hex');
     this.expressApp = express();
+    this.expressApp.use(express.json({ limit: '256kb' }));
     this.server = createServer(this.expressApp);
     this.wss = new WebSocketServer({ server: this.server, path: '/ws' });
     this.setupRoutes();
@@ -125,6 +126,8 @@ export class OverlayServer {
       this.serveStatic(this.options.widgetDir, req, res);
     });
 
+    this.setupTestEventRoute(auth);
+
     // Sound-Streaming für den App-Renderer (<audio src>). Bewusst NICHT vom
     // Overlay genutzt — TTLS-Browser-Audio ist unzuverlässig (Spec §5).
     this.expressApp.get('/sounds/:filename', auth, (req, res) => {
@@ -154,6 +157,20 @@ export class OverlayServer {
       res.setHeader('Content-Type', mime[ext]);
       res.setHeader('Cache-Control', 'public, max-age=300');
       fs.createReadStream(target).pipe(res);
+    });
+  }
+
+  /** Test-Event von außen einspeisen (curl/Tools) — gleiche Token-Auth,
+   *  läuft durch die komplette Kette (Trigger, Stats, Overlay, Sounds). */
+  private setupTestEventRoute(auth: (req: Request, res: Response, next: NextFunction) => void): void {
+    this.expressApp.post('/api/test-event', auth, (req, res) => {
+      const e = req.body as Partial<StudioEvent> | undefined;
+      if (!e || typeof e.type !== 'string') {
+        res.status(400).json({ ok: false, error: 'StudioEvent erwartet ({type, …})' });
+        return;
+      }
+      this.bus.publish({ ...e, ts: Date.now() } as StudioEvent);
+      res.json({ ok: true });
     });
   }
 

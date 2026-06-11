@@ -1,22 +1,24 @@
-// gift-jar.js — das Geschenke-Glas: Coins fallen physikalisch ins Glas,
-// der Füllstand wächst Richtung Ziel (wie bei TikFinity's Coin Jar).
+// gift-jar.js — das Geschenke-Glas: jedes Gift fällt als KUGEL MIT DEM
+// ECHTEN GESCHENK-BILD ins Glas und stapelt sich dort (TikFinity-Style).
 // props: { target?: number, label?: string }
 //
-// Performance (TTLS!): ein Canvas, rAF läuft NUR solange Coins fliegen;
-// gelandete Coins werden in eine statische Ebene gebacken. Max 40 aktive.
+// Stapel-Trick: das Glas ist in Kugel-Slots aufgeteilt (Reihen von unten
+// nach oben). Jede neue Kugel fällt physikalisch auf ihren Slot und bleibt
+// liegen. Volles Glas → älteste Kugeln unten verschwinden (Cap).
+// Performance (TTLS!): rAF läuft NUR solange Kugeln fliegen.
 
 const STYLE_ID = 'bx-jar-style';
 const CSS = `
 .bx-jar { position: absolute; inset: 0; font-family: 'Arial Black', Impact, sans-serif; }
 .bx-jar canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .bx-jar-label {
-  position: absolute; left: 0; right: 0; top: 2%;
+  position: absolute; left: 0; right: 0; top: 1%;
   text-align: center; font-size: 15px; letter-spacing: .32em;
   color: #ffd23e; text-transform: uppercase;
   text-shadow: 0 0 14px rgba(255,210,62,.5), 0 2px 4px rgba(0,0,0,.8);
 }
 .bx-jar-count {
-  position: absolute; left: 0; right: 0; bottom: 3%;
+  position: absolute; left: 0; right: 0; bottom: 1%;
   text-align: center; font-family: Consolas, Menlo, monospace; font-weight: 700;
   font-size: 20px; color: #fff; text-shadow: 0 0 12px rgba(255,210,62,.6), 0 2px 4px rgba(0,0,0,.9);
 }
@@ -34,15 +36,29 @@ function ensureStyle() {
 }
 
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
-const COIN_COLORS = ['#ffd23e', '#ffb52e', '#ff9d2e'];
+const FALLBACK_COLORS = ['#ffd23e', '#ff8a3d', '#21e6c1', '#ff5e8a'];
+const MAX_BALLS = 80;
+
+// Bild-Cache: pro URL ein Image, geteilt über alle Widget-Instanzen.
+const imageCache = new Map();
+function loadImage(url) {
+  if (!url) return null;
+  let img = imageCache.get(url);
+  if (!img) {
+    img = new Image();
+    img.src = url;
+    imageCache.set(url, img);
+  }
+  return img;
+}
 
 export default class GiftJar {
   constructor(root, props) {
     ensureStyle();
     this.target = Math.max(1, Number(props.target ?? 1000));
     this.coins = 0;
-    this.fill = 0; // animierter füllstand 0..1
-    this.active = []; // fliegende coins
+    this.falling = [];
+    this.resting = [];
     this.running = false;
 
     this.el = document.createElement('div');
@@ -69,41 +85,82 @@ export default class GiftJar {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.w = r.width;
     this.h = r.height;
-    // Glas-Geometrie: zentriert, leicht konisch
-    const jw = Math.min(this.w * 0.72, this.h * 0.62);
-    this.jar = {
-      topW: jw,
-      botW: jw * 0.82,
-      top: this.h * 0.16,
-      bottom: this.h * 0.88,
-      cx: this.w / 2,
-    };
+    const jw = Math.min(this.w * 0.74, this.h * 0.6);
+    this.jar = { topW: jw, botW: jw * 0.84, top: this.h * 0.14, bottom: this.h * 0.9, cx: this.w / 2 };
+    this.ballR = Math.max(9, Math.min(17, this.jar.botW / 9));
+    this.layoutSlots();
     this.draw();
   }
 
-  onStats(stats) {
-    const total = Number(stats?.totals?.coins ?? 0);
-    if (total > this.coins) this.spawn(Math.min(14, Math.max(1, Math.round((total - this.coins) / 25))));
-    this.coins = total;
-    this.el.querySelector('.bx-jar-count').textContent = `${fmt(this.coins)} / ${fmt(this.target)}`;
-    this.el.classList.remove('bx-jar-burst');
-    void this.el.offsetWidth; // animation neu triggern
-    this.el.classList.add('bx-jar-burst');
-    this.kick();
+  /** Kugel-Slots reihenweise von unten nach oben, der Glasform folgend. */
+  layoutSlots() {
+    this.slots = [];
+    const r = this.ballR;
+    const rowH = r * 1.74; // leicht versetzt gestapelt
+    for (let y = this.jar.bottom - r - 2; y > this.jar.top + r * 2; y -= rowH) {
+      const half = this.jarHalfW(y) - r - 3;
+      if (half < r) continue;
+      const count = Math.max(1, Math.floor((half * 2) / (r * 2.02)));
+      const offset = (this.slots.length === 0 ? 0 : (this.slots.at(-1)?.row ?? 0) + 1) % 2 ? r * 0.5 : 0;
+      for (let i = 0; i < count; i++) {
+        const x = this.jar.cx - half + r + i * ((half * 2 - r * 2) / Math.max(1, count - 1) || 0) + offset * 0;
+        this.slots.push({ x: count === 1 ? this.jar.cx : x, y, row: this.slots.length });
+      }
+      if (this.slots.length >= MAX_BALLS) break;
+    }
   }
 
-  spawn(count) {
-    for (let i = 0; i < count && this.active.length < 40; i++) {
-      this.active.push({
-        x: this.jar.cx + (Math.random() - 0.5) * this.jar.topW * 0.6,
-        y: -10 - Math.random() * 40,
-        vy: 1 + Math.random() * 2,
-        vx: (Math.random() - 0.5) * 1.2,
-        r: 5 + Math.random() * 4,
-        color: COIN_COLORS[Math.floor(Math.random() * COIN_COLORS.length)],
-        spin: Math.random() * Math.PI,
+  jarHalfW(y) {
+    const { top, bottom, topW, botW } = this.jar;
+    const t = (y - top) / (bottom - top);
+    return (topW + (botW - topW) * t) / 2;
+  }
+
+  onEvent(event) {
+    if (event.type !== 'gift' || !event.gift) return;
+    const drops = Math.min(6, Math.max(1, event.gift.count));
+    for (let i = 0; i < drops; i++) {
+      setTimeout(() => this.drop(event.gift.icon), i * 130);
+    }
+  }
+
+  onStats(stats) {
+    this.coins = Number(stats?.totals?.coins ?? 0);
+    this.el.querySelector('.bx-jar-count').textContent = `${fmt(this.coins)} / ${fmt(this.target)}`;
+    this.el.classList.remove('bx-jar-burst');
+    void this.el.offsetWidth;
+    this.el.classList.add('bx-jar-burst');
+  }
+
+  drop(iconUrl) {
+    // Volles Glas: älteste Kugel raus, alle rücken im Slot-Raster nach unten.
+    if (this.resting.length + this.falling.length >= Math.min(MAX_BALLS, this.slots.length)) {
+      this.resting.shift();
+      this.resting.forEach((b, i) => {
+        const slot = this.slots[i];
+        if (slot) {
+          b.x = slot.x + b.jx;
+          b.y = slot.y;
+        }
       });
     }
+    const slotIndex = this.resting.length + this.falling.length;
+    const slot = this.slots[Math.min(slotIndex, this.slots.length - 1)];
+    if (!slot) return;
+    const jx = (Math.random() - 0.5) * this.ballR * 0.5;
+    this.falling.push({
+      x: this.jar.cx + (Math.random() - 0.5) * this.jar.topW * 0.4,
+      y: -this.ballR - Math.random() * 30,
+      vy: 1.5 + Math.random() * 1.5,
+      vx: 0,
+      targetX: slot.x + jx,
+      targetY: slot.y,
+      jx,
+      rot: (Math.random() - 0.5) * 0.8,
+      img: loadImage(iconUrl),
+      color: FALLBACK_COLORS[Math.floor(Math.random() * FALLBACK_COLORS.length)],
+    });
+    this.kick();
   }
 
   kick() {
@@ -114,44 +171,72 @@ export default class GiftJar {
   }
 
   frame() {
-    const targetFill = Math.min(1, this.coins / this.target);
-    const fillMoves = Math.abs(targetFill - this.fill) > 0.0005;
-    if (fillMoves) this.fill += (targetFill - this.fill) * 0.06;
-
-    const floorY = this.surfaceY();
-    for (const c of this.active) {
-      c.vy += 0.18; // gravity
-      c.y += c.vy;
-      c.x += c.vx;
-      c.spin += 0.1;
-      if (c.y >= floorY - c.r) {
-        c.y = floorY - c.r;
-        if (Math.abs(c.vy) > 1.2) c.vy = -c.vy * 0.35; // kleiner bounce
-        else c.dead = true;
+    for (const b of this.falling) {
+      b.vy += 0.22;
+      b.y += b.vy;
+      // sanft zum ziel-slot steuern
+      b.x += (b.targetX - b.x) * 0.08;
+      if (b.y >= b.targetY) {
+        b.y = b.targetY;
+        if (Math.abs(b.vy) > 1.6) {
+          b.vy = -b.vy * 0.3; // settle-bounce
+        } else {
+          b.landed = true;
+          b.x = b.targetX;
+        }
       }
     }
-    this.active = this.active.filter((c) => !c.dead);
+    const landed = this.falling.filter((b) => b.landed);
+    if (landed.length > 0) {
+      this.resting.push(...landed);
+      this.falling = this.falling.filter((b) => !b.landed);
+    }
 
     this.draw();
 
-    if (this.active.length > 0 || fillMoves) {
+    if (this.falling.length > 0) {
       requestAnimationFrame(this.frame);
     } else {
-      this.running = false; // idle: kein rAF, keine CPU
+      this.running = false; // idle: keine CPU
     }
   }
 
-  surfaceY() {
-    const { top, bottom } = this.jar;
-    return bottom - (bottom - top) * this.fill * 0.92;
-  }
-
-  jarX(y, side) {
-    // Glaswand-x an höhe y (konisch)
-    const { top, bottom, topW, botW, cx } = this.jar;
-    const t = (y - top) / (bottom - top);
-    const halfW = (topW + (botW - topW) * t) / 2;
-    return cx + side * halfW;
+  drawBall(b) {
+    const ctx = this.ctx;
+    const r = this.ballR;
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.rotate(b.rot);
+    // Kugel-Grund (leichter Schatten + Rand)
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(12,13,18,.85)';
+    ctx.fill();
+    // Gift-Bild kreisförmig geclippt — die "Kugel"
+    if (b.img && b.img.complete && b.img.naturalWidth > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, r - 1, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(b.img, -r, -r, r * 2, r * 2);
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      ctx.arc(0, 0, r - 1, 0, Math.PI * 2);
+      ctx.fillStyle = b.color;
+      ctx.fill();
+    }
+    // Glanzpunkt + dünner Rand → "Glaskugel"-Look
+    ctx.beginPath();
+    ctx.arc(-r * 0.32, -r * 0.32, r * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 0, r - 0.5, 0, Math.PI * 2);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(255,255,255,.4)';
+    ctx.stroke();
+    ctx.restore();
   }
 
   draw() {
@@ -159,68 +244,33 @@ export default class GiftJar {
     const { top, bottom, cx } = this.jar;
     ctx.clearRect(0, 0, this.w, this.h);
 
-    // Füllung (Coin-Gold mit Schimmer)
-    const surf = this.surfaceY();
-    if (this.fill > 0.005) {
-      ctx.beginPath();
-      ctx.moveTo(this.jarX(surf, -1), surf);
-      ctx.lineTo(this.jarX(bottom, -1), bottom);
-      ctx.lineTo(this.jarX(bottom, 1), bottom);
-      ctx.lineTo(this.jarX(surf, 1), surf);
-      ctx.closePath();
-      const grad = ctx.createLinearGradient(0, surf, 0, bottom);
-      grad.addColorStop(0, 'rgba(255,210,62,.95)');
-      grad.addColorStop(1, 'rgba(255,140,40,.9)');
-      ctx.fillStyle = grad;
-      ctx.fill();
-      // Oberfläche
-      ctx.beginPath();
-      ctx.ellipse(cx, surf, this.jarX(surf, 1) - cx, 5, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,236,150,.95)';
-      ctx.fill();
-    }
+    for (const b of this.resting) this.drawBall(b);
+    for (const b of this.falling) this.drawBall(b);
 
-    // fliegende Coins
-    for (const c of this.active) {
-      ctx.save();
-      ctx.translate(c.x, c.y);
-      ctx.rotate(c.spin);
-      ctx.scale(1, Math.abs(Math.cos(c.spin)) * 0.5 + 0.5);
-      ctx.beginPath();
-      ctx.arc(0, 0, c.r, 0, Math.PI * 2);
-      ctx.fillStyle = c.color;
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(-c.r * 0.3, -c.r * 0.3, c.r * 0.35, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,.7)';
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // Glas (Wände + Boden + Glanz) — über der Füllung, wirkt wie davor
+    // Glas davor: Wände, Boden, Glanz
     ctx.lineWidth = 3;
     ctx.strokeStyle = 'rgba(220,235,255,.55)';
     ctx.beginPath();
-    ctx.moveTo(this.jarX(top, -1) - 6, top - 8);
-    ctx.lineTo(this.jarX(top, -1), top);
-    ctx.lineTo(this.jarX(bottom, -1), bottom - 8);
+    ctx.moveTo(cx - this.jarHalfW(top) - 6, top - 8);
+    ctx.lineTo(cx - this.jarHalfW(top), top);
+    ctx.lineTo(cx - this.jarHalfW(bottom), bottom - 8);
     ctx.quadraticCurveTo(cx - 10, bottom + 6, cx, bottom + 6);
-    ctx.quadraticCurveTo(cx + 10, bottom + 6, this.jarX(bottom, 1), bottom - 8);
-    ctx.lineTo(this.jarX(top, 1), top);
-    ctx.lineTo(this.jarX(top, 1) + 6, top - 8);
+    ctx.quadraticCurveTo(cx + 10, bottom + 6, cx + this.jarHalfW(bottom), bottom - 8);
+    ctx.lineTo(cx + this.jarHalfW(top), top);
+    ctx.lineTo(cx + this.jarHalfW(top) + 6, top - 8);
     ctx.stroke();
-    // Glanz-Streifen links
     ctx.lineWidth = 5;
-    ctx.strokeStyle = 'rgba(255,255,255,.18)';
+    ctx.strokeStyle = 'rgba(255,255,255,.16)';
     ctx.beginPath();
-    ctx.moveTo(this.jarX(top, -1) + 12, top + 14);
-    ctx.lineTo(this.jarX(bottom, -1) + 12, bottom - 20);
+    ctx.moveTo(cx - this.jarHalfW(top) + 12, top + 14);
+    ctx.lineTo(cx - this.jarHalfW(bottom) + 12, bottom - 20);
     ctx.stroke();
   }
 
   destroy() {
     this.observer.disconnect();
-    this.active = [];
+    this.falling = [];
+    this.resting = [];
     this.el.remove();
   }
 }
