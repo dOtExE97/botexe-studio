@@ -15,10 +15,17 @@ import {
 interface PropField {
   key: string;
   label: string;
-  type: 'number' | 'text' | 'select';
+  type: 'number' | 'text' | 'select' | 'color';
   options?: { value: string; label: string }[];
   hint?: string;
 }
+
+const ACCENT_FIELD: PropField = {
+  key: 'accent',
+  label: 'Akzentfarbe',
+  type: 'color',
+  hint: 'färbt Kanten, Balken und Badges dieses Widgets',
+};
 
 const WIDGET_TYPES: {
   type: string;
@@ -35,6 +42,7 @@ const WIDGET_TYPES: {
     fields: [
       { key: 'minCoins', label: 'Ab Coins', type: 'number', hint: 'Alert erst ab diesem Gift-Wert' },
       { key: 'durationMs', label: 'Anzeigedauer (ms)', type: 'number' },
+      ACCENT_FIELD,
     ],
   },
   {
@@ -52,6 +60,7 @@ const WIDGET_TYPES: {
       ] },
       { key: 'target', label: 'Ziel', type: 'number' },
       { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'leer = automatisch' },
+      ACCENT_FIELD,
     ],
   },
   {
@@ -63,6 +72,7 @@ const WIDGET_TYPES: {
       ] },
       { key: 'limit', label: 'Plätze', type: 'number' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'leer = automatisch' },
+      ACCENT_FIELD,
     ],
   },
   {
@@ -74,6 +84,7 @@ const WIDGET_TYPES: {
       ] },
       { key: 'limit', label: 'Plätze', type: 'number' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'leer = automatisch' },
+      ACCENT_FIELD,
     ],
   },
   {
@@ -98,6 +109,15 @@ const WIDGET_TYPES: {
     fields: [
       { key: 'max', label: 'Max. Einträge', type: 'number' },
       { key: 'ttlMs', label: 'Verschwinden nach (ms)', type: 'number' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
+    type: 'stat-chips', label: 'Live-Zähler', desc: 'Kompakte Chips für Viewer, Likes, Follower & Co. — mit Puls bei jeder Änderung.',
+    w: 540, h: 60, props: { metrics: 'viewers,likes,follows' },
+    fields: [
+      { key: 'metrics', label: 'Metriken', type: 'text', hint: 'kommagetrennt: viewers, likes, follows, coins, gifts, shares' },
+      ACCENT_FIELD,
     ],
   },
   {
@@ -468,7 +488,14 @@ export default function OverlayPage() {
                     return (
                       <label key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
                         {field.label}
-                        {field.type === 'select' ? (
+                        {field.type === 'color' ? (
+                          <input
+                            type="color"
+                            value={typeof value === 'string' && value ? value : '#ff4d2e'}
+                            onChange={(e) => setProp(e.target.value)}
+                            className="mt-1 h-8 w-full cursor-pointer border border-studio-border bg-studio-raised"
+                          />
+                        ) : field.type === 'select' ? (
                           <select
                             value={String(value)}
                             onChange={(e) => setProp(e.target.value)}

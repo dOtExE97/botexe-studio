@@ -29,6 +29,8 @@ export const IPC = {
   SOUND_IMPORT: 'sound:import',
   SOUND_DELETE: 'sound:delete',
   SOUND_TEST: 'sound:test',
+  SOUND_SEARCH_MYINSTANTS: 'sound:search-myinstants',
+  SOUND_IMPORT_MYINSTANTS: 'sound:import-myinstants',
   // Settings
   SETTINGS_GET: 'settings:get',
   SETTINGS_UPDATE: 'settings:update',

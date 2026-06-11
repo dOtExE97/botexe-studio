@@ -2,9 +2,11 @@ import { app, BrowserWindow, dialog, ipcMain, session } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
+import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
 import type { StudioEvent, TriggerRule } from '@botexe/trigger-engine';
 import { IPC } from './shared/constants';
 import { Studio } from './main/services/studio';
+import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { log } from './main/core/logger';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
@@ -17,6 +19,19 @@ if (started) {
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
+}
+
+// Auto-Update über GitHub Releases — wird scharf, sobald das Repo existiert.
+const UPDATE_REPO = ''; // TODO nach Remote-Anlage: 'dOtExE97/botexe-studio'
+if (app.isPackaged && UPDATE_REPO) {
+  try {
+    updateElectronApp({
+      updateSource: { type: UpdateSourceType.ElectronPublicUpdateService, repo: UPDATE_REPO },
+      updateInterval: '1 hour',
+    });
+  } catch (err) {
+    log.warn('Update', 'Auto-Update nicht verfügbar', (err as Error).message);
+  }
 }
 
 let mainWindow: BrowserWindow | null = null;
@@ -153,6 +168,27 @@ function registerIpc(): void {
   ipcMain.handle(IPC.SOUND_TEST, (_e, id: unknown) => {
     if (typeof id === 'string') isStudio().playSound(id);
     return { ok: true };
+  });
+  ipcMain.handle(IPC.SOUND_SEARCH_MYINSTANTS, async (_e, query: unknown) => {
+    if (typeof query !== 'string' || query.trim().length < 2) {
+      return { ok: false, error: 'Suchbegriff zu kurz', results: [] };
+    }
+    try {
+      return { ok: true, results: await searchMyInstants(query) };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message, results: [] };
+    }
+  });
+  ipcMain.handle(IPC.SOUND_IMPORT_MYINSTANTS, async (_e, mp3Url: unknown, title: unknown) => {
+    if (typeof mp3Url !== 'string' || typeof title !== 'string') {
+      return { ok: false, error: 'mp3Url + title erwartet' };
+    }
+    try {
+      const id = await downloadMyInstants(mp3Url, title, isStudio().sounds.getDir());
+      return { ok: true, id };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
   });
 
   // Settings

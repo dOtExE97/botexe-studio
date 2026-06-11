@@ -13,7 +13,7 @@ const CSS = `
   padding: 7px 14px 7px 10px;
   background: linear-gradient(165deg, rgba(16,18,26,.88), rgba(10,11,16,.82));
   clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
-  border-left: 3px solid #ff4d2e;
+  border-left: 3px solid var(--bx-accent, #ff4d2e);
   box-shadow: 0 6px 18px rgba(0,0,0,.4);
   transform: translateX(-110%);
   animation: bx-gf-in 320ms cubic-bezier(.2,1.3,.4,1) forwards;
@@ -51,6 +51,7 @@ export default class GiftFeed {
     this.ttlMs = Number(props.ttlMs ?? 25000);
     this.el = document.createElement('div');
     this.el.className = 'bx-gf';
+    if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     root.appendChild(this.el);
     this.timers = new Set();
   }

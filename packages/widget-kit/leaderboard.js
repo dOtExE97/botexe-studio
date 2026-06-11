@@ -18,7 +18,7 @@ const CSS = `
   position: relative; overflow: hidden;
   font-size: 14px; letter-spacing: .34em; text-transform: uppercase;
   color: #ffd23e; text-shadow: 0 2px 8px rgba(0,0,0,.8);
-  border-bottom: 2px solid #ff4d2e; padding-bottom: 8px; margin-bottom: 8px;
+  border-bottom: 2px solid var(--bx-accent, #ff4d2e); padding-bottom: 8px; margin-bottom: 8px;
 }
 .bx-lb-title::after {
   content: ''; position: absolute; top: 0; bottom: 0; width: 50%; left: -60%;
@@ -84,6 +84,7 @@ export default class Leaderboard {
   constructor(root, props) {
     ensureStyle();
     this.source = props.source === 'likes' ? 'likes' : 'gifts';
+    if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.limit = Math.min(10, Math.max(1, Number(props.limit ?? 5)));
     this.el = document.createElement('div');
     this.el.className = `bx-lb${this.source === 'likes' ? ' bx-lb-likes' : ''}`;

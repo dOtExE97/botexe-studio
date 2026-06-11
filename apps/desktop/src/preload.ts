@@ -38,6 +38,9 @@ const api = {
   importSounds: () => ipcRenderer.invoke(IPC.SOUND_IMPORT),
   deleteSound: (id: string) => ipcRenderer.invoke(IPC.SOUND_DELETE, id),
   testSound: (id: string) => ipcRenderer.invoke(IPC.SOUND_TEST, id),
+  searchMyInstants: (query: string) => ipcRenderer.invoke(IPC.SOUND_SEARCH_MYINSTANTS, query),
+  importMyInstants: (mp3Url: string, title: string) =>
+    ipcRenderer.invoke(IPC.SOUND_IMPORT_MYINSTANTS, mp3Url, title),
 
   // Settings
   getSettings: () => ipcRenderer.invoke(IPC.SETTINGS_GET),

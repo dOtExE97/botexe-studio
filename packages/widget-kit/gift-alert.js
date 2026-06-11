@@ -18,7 +18,7 @@ const CSS = `
   padding: 26px 44px 28px;
   background: linear-gradient(165deg, rgba(16,18,26,.92), rgba(10,11,16,.88));
   clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 100%);
-  border-top: 3px solid #ff4d2e;
+  border-top: 3px solid var(--bx-accent, #ff4d2e);
   box-shadow: 0 18px 50px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08) inset,
     0 0 42px rgba(255,77,46,.28);
   text-align: center;
@@ -33,8 +33,8 @@ const CSS = `
 @keyframes bx-ga-shine { to { left: 130%; } }
 .bx-ga-card::before {
   content: ''; position: absolute; left: -2%; top: 0; bottom: 0; width: 10px;
-  background: #ff4d2e; transform: skewX(-8deg);
-  box-shadow: 0 0 22px rgba(255,77,46,.9);
+  background: var(--bx-accent, #ff4d2e); transform: skewX(-8deg);
+  box-shadow: 0 0 22px var(--bx-accent, rgba(255,77,46,.9));
 }
 .bx-ga-kicker {
   font-size: 15px; letter-spacing: .42em; color: #21e6c1;
@@ -54,7 +54,7 @@ const CSS = `
 .bx-ga-icon { height: 84px; margin-top: 10px; filter: drop-shadow(0 6px 14px rgba(0,0,0,.6)); }
 .bx-ga-gift {
   display: inline-block; margin-top: 10px; padding: 6px 22px;
-  font-size: 24px; color: #0c0d12; background: #ff4d2e;
+  font-size: 24px; color: #0c0d12; background: var(--bx-accent, #ff4d2e);
   clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%);
   text-transform: uppercase; letter-spacing: .06em;
 }
@@ -102,6 +102,7 @@ export default class GiftAlert {
     this.busy = false;
     this.el = document.createElement('div');
     this.el.className = 'bx-ga';
+    if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     root.appendChild(this.el);
   }
 

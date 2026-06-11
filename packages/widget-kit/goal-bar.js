@@ -26,7 +26,7 @@ const CSS = `
 }
 .bx-gb-fill {
   position: absolute; inset: 0; width: 0%;
-  background: linear-gradient(90deg, #ff4d2e, #ff8a3d 60%, #ffd23e);
+  background: linear-gradient(90deg, var(--bx-accent, #ff4d2e), #ff8a3d 60%, #ffd23e);
   transition: width 600ms cubic-bezier(.25,1,.35,1);
   box-shadow: 2px 0 14px rgba(255,210,62,.85);
 }
@@ -75,6 +75,7 @@ export default class GoalBar {
     this.label = props.label || METRIC_LABELS[this.metric];
     this.el = document.createElement('div');
     this.el.className = 'bx-gb';
+    if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.el.innerHTML = `
       <div class="bx-gb-head">
         <div class="bx-gb-label"></div>

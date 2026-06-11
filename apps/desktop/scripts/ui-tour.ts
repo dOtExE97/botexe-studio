@@ -77,7 +77,8 @@ const DEMO_LAYOUT = {
   canvas: { width: 1080, height: 1920, background: 'transparent' },
   layers: [
     { id: 'l-fireworks', widgetType: 'gift-fireworks', name: 'Feuerwerk', x: 40, y: 230, w: 1000, h: 1200, z: 1, visible: true, props: { minCoins: 0, maxRockets: 3 } },
-    { id: 'l-goal', widgetType: 'goal-bar', name: 'Goal', x: 110, y: 240, w: 720, h: 90, z: 4, visible: true, props: { metric: 'coins', target: 5000 } },
+    { id: 'l-chips', widgetType: 'stat-chips', name: 'Zähler', x: 110, y: 130, w: 720, h: 70, z: 4, visible: true, props: { metrics: 'viewers,likes,follows,coins' } },
+    { id: 'l-goal', widgetType: 'goal-bar', name: 'Goal', x: 110, y: 240, w: 720, h: 90, z: 4, visible: true, props: { metric: 'coins', target: 5000, accent: '#21e6c1' } },
     { id: 'l-board', widgetType: 'leaderboard', name: 'Top Gifter', x: 110, y: 370, w: 350, h: 290, z: 3, visible: true, props: { source: 'gifts', limit: 5 } },
     { id: 'l-likes', widgetType: 'leaderboard', name: 'Like-Liste', x: 490, y: 370, w: 340, h: 290, z: 3, visible: true, props: { source: 'likes', limit: 5 } },
     { id: 'l-alert', widgetType: 'gift-alert', name: 'Gift-Alert', x: 110, y: 700, w: 400, h: 420, z: 10, visible: true, props: { minCoins: 0, durationMs: 30000 } },
@@ -156,6 +157,17 @@ async function main(): Promise<void> {
   await shot(ws, `${OUT}/tour-3-trigger.png`);
 
   await clickNav(ws, 'Sounds');
+  // MyInstants-suche live demonstrieren (echter scrape)
+  await evalJs(ws, `(() => {
+    const input = [...document.querySelectorAll('input')].find(i => (i.placeholder||'').includes('airhorn'));
+    if (!input) return 'kein input';
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setter.call(input, 'airhorn');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    setTimeout(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'SUCHEN')?.click(), 100);
+    return 'suche läuft';
+  })()`).catch(() => undefined);
+  await sleep(5000);
   await shot(ws, `${OUT}/tour-4-sounds.png`);
 
   // Overlay selbst: frisches Event reinschieben, damit der Alert "live" ist
