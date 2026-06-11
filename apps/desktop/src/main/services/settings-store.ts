@@ -6,7 +6,7 @@ import path from 'node:path';
 import type { TriggerRule } from '@botexe/trigger-engine';
 import { log } from '../core/logger';
 
-export const SETTINGS_SCHEMA_VERSION = 2;
+export const SETTINGS_SCHEMA_VERSION = 3;
 
 export interface TTSSettings {
   enabled: boolean;
@@ -29,6 +29,8 @@ export interface StudioSettings {
   triggerRules: TriggerRule[];
   activeLayoutId: string | null;
   tts: TTSSettings;
+  /** BYOK-Zugangsdaten pro Provider (lokal, klartext — single-user-tool). */
+  ttsCredentials: Record<string, Record<string, string>>;
 }
 
 const TTS_DEFAULTS: TTSSettings = {
@@ -49,6 +51,7 @@ const DEFAULTS: StudioSettings = {
   triggerRules: [],
   activeLayoutId: null,
   tts: TTS_DEFAULTS,
+  ttsCredentials: {},
 };
 
 function isValidRule(rule: unknown): rule is TriggerRule {
@@ -85,6 +88,9 @@ export class SettingsStore {
       const merged: StudioSettings = { ...DEFAULTS, ...raw, schemaVersion: SETTINGS_SCHEMA_VERSION };
       // Migration v1→v2: tts-block ergänzen; defensiv mergen falls teilweise da.
       merged.tts = { ...TTS_DEFAULTS, ...(typeof raw.tts === 'object' && raw.tts !== null ? raw.tts : {}) };
+      // Migration v2→v3: credentials-block ergänzen.
+      merged.ttsCredentials =
+        typeof raw.ttsCredentials === 'object' && raw.ttsCredentials !== null ? raw.ttsCredentials : {};
       merged.triggerRules = (Array.isArray(raw.triggerRules) ? raw.triggerRules : []).filter(
         (r: unknown): r is TriggerRule => {
           const ok = isValidRule(r);

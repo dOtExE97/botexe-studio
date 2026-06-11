@@ -20,6 +20,13 @@ import {
   synthesizeWith,
   type VoiceGroup,
 } from './tts-providers';
+import {
+  BYOK_PROVIDERS,
+  byokSynthesize,
+  isConfigured,
+  type ByokCredentials,
+  type ByokProviderId,
+} from './tts-byok';
 
 export const DEFAULT_VOICE = 'edge:de-DE-KatjaNeural';
 const QUEUE_CAP = 8;
@@ -45,10 +52,17 @@ export class TTSService {
   private processing = false;
   private dropped = 0;
 
-  constructor(userDataDir: string, onAudio: (playback: TTSPlayback) => void) {
+  private getCredentials: () => Record<string, ByokCredentials>;
+
+  constructor(
+    userDataDir: string,
+    onAudio: (playback: TTSPlayback) => void,
+    getCredentials: () => Record<string, ByokCredentials> = () => ({}),
+  ) {
     this.cacheDir = path.join(userDataDir, 'tts-cache');
     fs.mkdirSync(this.cacheDir, { recursive: true });
     this.piper = new PiperRuntime(userDataDir);
+    this.getCredentials = getCredentials;
     this.onAudio = onAudio;
     // Alte Cache-Files vom letzten Lauf wegräumen
     for (const f of fs.readdirSync(this.cacheDir)) {
@@ -61,7 +75,23 @@ export class TTSService {
   }
 
   getVoiceGroups(): VoiceGroup[] {
-    return getVoiceGroups(this.piper);
+    const base = getVoiceGroups(this.piper);
+    const creds = this.getCredentials();
+    const byok: VoiceGroup[] = [];
+    for (const def of BYOK_PROVIDERS) {
+      if (!isConfigured(def.id, creds[def.id])) continue;
+      byok.push({
+        provider: def.id as unknown as VoiceGroup['provider'],
+        label: def.label,
+        voices: def.voices.map((v) => ({
+          id: `${def.id}:${v.id}`,
+          name: v.name,
+          language: v.language,
+          ready: true,
+        })),
+      });
+    }
+    return [...base, ...byok];
   }
 
   /** Piper-Binary + Stimme herunterladen (einmalig, danach offline). */
@@ -135,12 +165,24 @@ export class TTSService {
   }
 
   async synthesize(text: string, voice: string): Promise<TTSPlayback> {
-    const ext = extForVoice(voice);
-    const fileId = `tts-${crypto.randomBytes(6).toString('hex')}.${ext}`;
+    const normalized = normalizeVoiceId(voice);
+    const ns = normalized.split(':', 1)[0] as string;
+    const byokDef = BYOK_PROVIDERS.find((p) => p.id === ns);
+    const fileId = `tts-${crypto.randomBytes(6).toString('hex')}.${extForVoice(voice)}`;
     const target = path.join(this.cacheDir, fileId);
 
+    const work = byokDef
+      ? byokSynthesize(
+          ns as ByokProviderId,
+          text,
+          normalized.slice(ns.length + 1),
+          this.getCredentials()[ns] ?? {},
+          target,
+        )
+      : synthesizeWith(this.piper, text, voice, target);
+
     await Promise.race([
-      synthesizeWith(this.piper, text, voice, target),
+      work,
       new Promise((_r, reject) => setTimeout(() => reject(new Error('TTS-Timeout')), SYNTH_TIMEOUT_MS)),
     ]);
     if (!fs.existsSync(target)) throw new Error('Keine Audio-Datei erzeugt');

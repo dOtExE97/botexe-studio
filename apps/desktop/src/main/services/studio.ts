@@ -61,11 +61,15 @@ export class Studio {
     this.settings = new SettingsStore(paths.userDataDir);
     this.layouts = new LayoutStore(paths.userDataDir);
     this.sounds = new SoundLibrary(paths.userDataDir);
-    this.tts = new TTSService(paths.userDataDir, (playback) => {
-      const tts = this.settings.get().tts;
-      const url = `http://127.0.0.1:${this.server.getPort()}/tts/${playback.fileId}?token=${this.server.getToken()}`;
-      this.hooks.onSoundPlay({ soundId: playback.fileId, url, volume: tts.volume });
-    });
+    this.tts = new TTSService(
+      paths.userDataDir,
+      (playback) => {
+        const tts = this.settings.get().tts;
+        const url = `http://127.0.0.1:${this.server.getPort()}/tts/${playback.fileId}?token=${this.server.getToken()}`;
+        this.hooks.onSoundPlay({ soundId: playback.fileId, url, volume: tts.volume });
+      },
+      () => this.settings.get().ttsCredentials,
+    );
 
     this.server = new OverlayServer(this.bus, {
       port: 27415,
@@ -222,6 +226,28 @@ export class Studio {
     if (!raw.trim()) return;
     if (tts.skipCommands && raw.trimStart().startsWith('!')) return;
     this.speakForEvent(tts.chatTemplate, event);
+  }
+
+  /** BYOK-Zugangsdaten setzen (leeres feld = löschen). Keys verlassen den Main nie zurück. */
+  setTtsCredentials(provider: string, fields: Record<string, string>): void {
+    const all = { ...this.settings.get().ttsCredentials };
+    const clean: Record<string, string> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      if (typeof v === 'string' && v.trim()) clean[k] = v.trim();
+    }
+    if (Object.keys(clean).length === 0) delete all[provider];
+    else all[provider] = clean;
+    this.settings.update({ ttsCredentials: all });
+  }
+
+  /** Nur Status (welche provider konfiguriert) — NIE die keys selbst. */
+  ttsCredentialStatus(): Record<string, boolean> {
+    const creds = this.settings.get().ttsCredentials;
+    const out: Record<string, boolean> = {};
+    for (const [k, v] of Object.entries(creds)) {
+      out[k] = Object.values(v).some((x) => x.trim().length > 0);
+    }
+    return out;
   }
 
   /** Test aus der UI: beliebigen Text mit gewählter Stimme sprechen. */

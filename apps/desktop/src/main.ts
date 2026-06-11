@@ -7,6 +7,7 @@ import type { StudioEvent, TriggerRule } from '@botexe/trigger-engine';
 import { IPC } from './shared/constants';
 import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
+import { BYOK_PROVIDERS } from './main/services/tts-byok';
 import { log } from './main/core/logger';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
@@ -201,6 +202,19 @@ function registerIpc(): void {
     } catch (err) {
       return { ok: false, error: (err as Error).message };
     }
+  });
+  ipcMain.handle(IPC.TTS_BYOK_PROVIDERS, () => BYOK_PROVIDERS);
+  ipcMain.handle(IPC.TTS_BYOK_STATUS, () => isStudio().ttsCredentialStatus());
+  ipcMain.handle(IPC.TTS_BYOK_SET, (_e, provider: unknown, fields: unknown) => {
+    if (typeof provider !== 'string' || typeof fields !== 'object' || fields === null) {
+      return { ok: false, error: 'provider + fields erwartet' };
+    }
+    const sane: Record<string, string> = {};
+    for (const [k, v] of Object.entries(fields as Record<string, unknown>)) {
+      if (typeof v === 'string') sane[k] = v;
+    }
+    isStudio().setTtsCredentials(provider, sane);
+    return { ok: true };
   });
   ipcMain.handle(IPC.TTS_TEST, (_e, text: unknown, voice: unknown) => {
     if (typeof text !== 'string' || !text.trim()) return { ok: false, error: 'Text fehlt' };
