@@ -133,6 +133,14 @@ export class Studio {
       this.playSound(action.soundId, action.volume);
     } else if (action.kind === 'speak') {
       this.speakForEvent(action.template, event, action.voice);
+    } else if (action.kind === 'spin_wheel') {
+      // Punkte-Economy: kostet der Spin etwas, vom Zuschauer abziehen.
+      const cost = action.cost ?? 0;
+      if (cost > 0 && event.user) {
+        if (!this.points.spend(event.user.id, cost)) return; // nicht genug Punkte → kein Spin
+        this.scheduleStatsBroadcast();
+      }
+      this.server.broadcast({ kind: 'action', ruleId, action });
     } else {
       this.server.broadcast({ kind: 'action', ruleId, action });
     }
@@ -233,6 +241,13 @@ export class Studio {
     this.server.broadcastLayout(layoutId);
   }
 
+  // ── Zuschauer-Verwaltung ──────────────────────────────────────────────
+  listViewers(query: string, limit = 100) { return this.points.search(query, limit); }
+  viewerCount() { return this.points.count(); }
+  setViewerFlag(userId: string, flag: 'vip' | 'muted', value: boolean) { this.points.setFlag(userId, flag, value); }
+  grantPoints(userId: string, delta: number) { this.points.grant(userId, delta); }
+  setViewerVoice(userId: string, voice: string | undefined) { this.points.setVoice(userId, voice); }
+
   resetPoints(): void {
     // Punkte komplett leeren: Store neu mit leerem Stand überschreiben.
     for (const e of this.points.top(100000)) this.points.spend(e.id, e.points);
@@ -251,8 +266,10 @@ export class Studio {
     if (!tts.enabled) return;
     const text = TTSService.sanitize(renderSpeakTemplate(template, event), tts.maxTextLen);
     if (!text) return;
+    const ownVoice = event.user ? this.points.voiceFor(event.user.id) : undefined;
     const voice =
       voiceOverride ||
+      ownVoice ||
       (tts.chatVoiceMode === 'perUser' && event.user
         ? this.tts.voiceForUser(event.user.id, tts.voice)
         : tts.voice);
@@ -265,6 +282,7 @@ export class Studio {
     const raw = event.text ?? '';
     if (!raw.trim()) return;
     if (tts.skipCommands && raw.trimStart().startsWith('!')) return;
+    if (event.user && this.points.isMuted(event.user.id)) return; // Troll-Sperre
     this.speakForEvent(tts.chatTemplate, event);
   }
 

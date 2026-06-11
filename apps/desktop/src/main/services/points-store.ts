@@ -7,7 +7,7 @@ import path from 'node:path';
 import type { StudioEvent } from '@botexe/trigger-engine';
 import { log } from '../core/logger';
 
-export const POINTS_SCHEMA_VERSION = 1;
+export const POINTS_SCHEMA_VERSION = 2;
 
 export interface PointsConfig {
   enabled: boolean;
@@ -34,7 +34,19 @@ export interface PointsEntry {
   nickname: string;
   profilePic?: string;
   points: number;
+  // Zuschauer-Verwaltung
+  vip?: boolean;
+  muted?: boolean; // von TTS ausgeschlossen
+  gifts?: number;
+  coins?: number;
+  likes?: number;
+  firstSeen?: number;
+  lastSeen?: number;
+  /** Eigene TTS-Stimme für diesen Zuschauer (überschreibt Default). */
+  voice?: string;
 }
+
+export type ViewerFlag = 'vip' | 'muted';
 
 interface Serialized {
   schemaVersion: number;
@@ -56,7 +68,8 @@ export class PointsStore {
     if (!fs.existsSync(this.file)) return;
     try {
       const data = JSON.parse(fs.readFileSync(this.file, 'utf-8')) as Partial<Serialized>;
-      if (data.schemaVersion !== POINTS_SCHEMA_VERSION || !Array.isArray(data.viewers)) return;
+      // v1 und v2 lesbar (v1-einträge haben einfach keine flags/stats)
+      if ((data.schemaVersion !== 1 && data.schemaVersion !== POINTS_SCHEMA_VERSION) || !Array.isArray(data.viewers)) return;
       for (const v of data.viewers) {
         if (v && typeof v.id === 'string') this.viewers.set(v.id, { ...v });
       }
@@ -99,10 +112,67 @@ export class PointsStore {
       default:
         return 0;
     }
+    this.touchStats(event);
     if (pts <= 0) return 0;
     this.award(event.user.id, event.user.nickname, pts, event.user.profilePic);
     return pts;
   }
+
+  /** Aktivitäts-Statistik pro Zuschauer fortschreiben (auch ohne Punkte). */
+  private touchStats(event: StudioEvent): void {
+    const user = event.user;
+    if (!user) return;
+    const e = this.viewers.get(user.id) ?? { id: user.id, nickname: user.nickname, points: 0 };
+    e.nickname = user.nickname || e.nickname;
+    if (user.profilePic) e.profilePic = user.profilePic;
+    e.firstSeen = e.firstSeen ?? event.ts;
+    e.lastSeen = event.ts;
+    if (event.type === 'gift' && event.gift) {
+      e.gifts = (e.gifts ?? 0) + 1;
+      e.coins = (e.coins ?? 0) + event.gift.totalCoins;
+    } else if (event.type === 'like') {
+      e.likes = (event.totalLikes && event.totalLikes > (e.likes ?? 0)) ? event.totalLikes : (e.likes ?? 0) + (event.likeCount ?? 0);
+    }
+    this.viewers.set(user.id, e);
+    this.scheduleSave();
+  }
+
+  setFlag(userId: string, flag: ViewerFlag, value: boolean): void {
+    const e = this.viewers.get(userId) ?? { id: userId, nickname: userId, points: 0 };
+    e[flag] = value;
+    this.viewers.set(userId, e);
+    this.scheduleSave();
+  }
+
+  setVoice(userId: string, voice: string | undefined): void {
+    const e = this.viewers.get(userId);
+    if (!e) return;
+    e.voice = voice;
+    this.scheduleSave();
+  }
+
+  isMuted(userId: string): boolean { return this.viewers.get(userId)?.muted === true; }
+  isVip(userId: string): boolean { return this.viewers.get(userId)?.vip === true; }
+  voiceFor(userId: string): string | undefined { return this.viewers.get(userId)?.voice; }
+
+  /** Punkte manuell ändern (auch negativ); legt Eintrag an falls nötig. */
+  grant(userId: string, delta: number): void {
+    const e = this.viewers.get(userId) ?? { id: userId, nickname: userId, points: 0 };
+    e.points = Math.max(0, e.points + delta);
+    this.viewers.set(userId, e);
+    this.scheduleSave();
+  }
+
+  search(query: string, limit: number): PointsEntry[] {
+    const q = query.trim().toLowerCase();
+    return Array.from(this.viewers.values())
+      .filter((e) => !q || e.nickname.toLowerCase().includes(q))
+      .sort((a, b) => b.points - a.points)
+      .slice(0, limit)
+      .map((e) => ({ ...e }));
+  }
+
+  count(): number { return this.viewers.size; }
 
   /** Punkte abziehen (für künftige Einlösungen); false wenn zu wenig. */
   spend(userId: string, points: number): boolean {

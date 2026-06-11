@@ -72,3 +72,55 @@ test('addPoints/redeem: manuelles abziehen für künftige einlösungen', () => {
   assert.equal(s.spend('mia', 1000), false, 'nicht genug punkte');
   assert.equal(s.get('mia')?.points, 70);
 });
+
+// ── Zuschauer-Verwaltung (Erweiterung) ───────────────────────────────────
+
+test('recordEvent trackt zuschauer-statistik (gifts, likes, lastSeen)', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordEvent({ type: 'gift', ts: 100, user: { id: 'mia', nickname: 'Mia' }, gift: { slug: 'r', count: 1, coinsPerUnit: 50, totalCoins: 50 } }, DEFAULT_POINTS_CONFIG);
+  s.recordEvent({ type: 'like', ts: 200, user: { id: 'mia', nickname: 'Mia' }, likeCount: 30, totalLikes: 30 }, DEFAULT_POINTS_CONFIG);
+  const v = s.get('mia');
+  assert.equal(v?.gifts, 1);
+  assert.equal(v?.coins, 50);
+  assert.equal(v?.likes, 30);
+  assert.equal(v?.lastSeen, 200);
+  assert.ok(v?.firstSeen && v.firstSeen <= 100);
+});
+
+test('setFlag/isMuted/isVip: zuschauer markieren', () => {
+  const s = new PointsStore(tmpDir());
+  s.award('troll', 'Troll', 5);
+  assert.equal(s.isMuted('troll'), false);
+  s.setFlag('troll', 'muted', true);
+  assert.equal(s.isMuted('troll'), true);
+  s.setFlag('mia', 'vip', true); // legt eintrag an falls neu
+  assert.equal(s.isVip('mia'), true);
+  s.setFlag('troll', 'muted', false);
+  assert.equal(s.isMuted('troll'), false);
+});
+
+test('grant: punkte manuell vergeben/abziehen', () => {
+  const s = new PointsStore(tmpDir());
+  s.award('mia', 'Mia', 100);
+  s.grant('mia', -30);
+  assert.equal(s.get('mia')?.points, 70);
+  s.grant('mia', 1000);
+  assert.equal(s.get('mia')?.points, 1070);
+});
+
+test('search: findet zuschauer nach name (case-insensitive)', () => {
+  const s = new PointsStore(tmpDir());
+  s.award('u1', 'MiaGaming', 10);
+  s.award('u2', 'BenBot', 20);
+  s.award('u3', 'miamia', 5);
+  const r = s.search('mia', 10);
+  assert.deepEqual(r.map((e) => e.nickname).sort(), ['MiaGaming', 'miamia']);
+});
+
+test('migration v1→v2: alte einträge ohne flags bleiben lesbar', () => {
+  const dir = tmpDir();
+  fs.writeFileSync(path.join(dir, 'points.json'), JSON.stringify({ schemaVersion: 1, viewers: [{ id: 'mia', nickname: 'Mia', points: 42 }] }));
+  const s = new PointsStore(dir);
+  assert.equal(s.get('mia')?.points, 42);
+  assert.equal(s.isVip('mia'), false);
+});

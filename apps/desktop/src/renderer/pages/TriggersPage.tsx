@@ -45,7 +45,7 @@ function newRule(): TriggerRule {
 export default function TriggersPage() {
   const [rules, setRules] = useState<TriggerRule[]>([]);
   const [sounds, setSounds] = useState<SoundEntry[]>([]);
-  const [layers, setLayers] = useState<{ id: string; name: string }[]>([]);
+  const [layers, setLayers] = useState<{ id: string; name: string; widgetType: string }[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function TriggersPage() {
       setRules((await window.studio.getRules()) as TriggerRule[]);
       setSounds((await window.studio.listSounds()) as SoundEntry[]);
       const layouts = (await window.studio.listLayouts()) as OverlayLayout[];
-      setLayers((layouts[0]?.layers ?? []).map((l) => ({ id: l.id, name: `${l.name} (${l.widgetType})` })));
+      setLayers((layouts[0]?.layers ?? []).map((l) => ({ id: l.id, name: `${l.name} (${l.widgetType})`, widgetType: l.widgetType })));
       setLoaded(true);
     })();
   }, []);
@@ -90,6 +90,13 @@ export default function TriggersPage() {
     });
   };
 
+  const setSpinAction = (rule: TriggerRule, targetId: string, cost: number) => {
+    const others = rule.actions.filter((a) => a.kind !== 'spin_wheel');
+    patchRule(rule.id, {
+      actions: targetId ? [...others, { kind: 'spin_wheel', targetId, cost }] : others,
+    });
+  };
+
   if (!loaded) return <div className="p-6 text-studio-muted">Lade…</div>;
 
   return (
@@ -122,6 +129,8 @@ export default function TriggersPage() {
         const soundAction = getAction(rule, 'play_sound') as { soundId?: string } | undefined;
         const alertAction = getAction(rule, 'fire_alert') as { targetId?: string } | undefined;
         const speakAction = getAction(rule, 'speak') as { template?: string } | undefined;
+        const spinAction = getAction(rule, 'spin_wheel') as { targetId?: string; cost?: number } | undefined;
+        const wheels = layers.filter((l) => l.widgetType === 'wheel');
         return (
           <div
             key={rule.id}
@@ -245,6 +254,26 @@ export default function TriggersPage() {
                     placeholder='🎤 Ansage, z.B. "{user} schickt {gift}, danke!" (leer = keine)'
                     className="w-full border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none placeholder:text-studio-muted/50 focus:border-studio-teal"
                   />
+                  {wheels.length > 0 && (
+                    <div className="flex gap-1.5">
+                      <select
+                        value={spinAction?.targetId ?? ''}
+                        onChange={(e) => setSpinAction(rule, e.target.value, spinAction?.cost ?? 0)}
+                        className="flex-1 border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none focus:border-studio-teal"
+                      >
+                        <option value="">🎰 Kein Glücksrad</option>
+                        {wheels.map((l) => (<option key={l.id} value={l.id}>Rad drehen: {l.name}</option>))}
+                      </select>
+                      {spinAction?.targetId && (
+                        <input
+                          type="number" min={0} value={spinAction.cost ?? 0}
+                          onChange={(e) => setSpinAction(rule, spinAction.targetId ?? '', Math.max(0, Number(e.target.value)))}
+                          title="Punkte-Kosten pro Spin (0 = gratis)"
+                          className="w-20 border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs outline-none"
+                        />
+                      )}
+                    </div>
+                  )}
                   {rule.event !== 'timer' && (
                     <label className="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-studio-muted">
                       Cooldown (s)
