@@ -15,7 +15,8 @@ import {
 interface PropField {
   key: string;
   label: string;
-  type: 'number' | 'text' | 'select' | 'color';
+  /** seconds = im UI in Sekunden, gespeichert als ms · boolean = Schalter */
+  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds';
   options?: { value: string; label: string }[];
   hint?: string;
 }
@@ -44,14 +45,14 @@ const WIDGET_TYPES: {
     type: 'gift-alert', label: 'Gift-Alert', desc: 'Großer Alert mitten im Bild, wenn ein Gift kommt — mit Gift-Bild und Profilfoto.',
     w: 760, h: 380, props: { minCoins: 0, durationMs: 5000 },
     fields: [
-      { key: 'minCoins', label: 'Ab Coins', type: 'number', hint: 'Alert erst ab diesem Gift-Wert' },
-      { key: 'durationMs', label: 'Anzeigedauer (ms)', type: 'number' },
+      { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Kleinere Gifts lösen keinen großen Alert aus. 0 = jedes Gift.' },
+      { key: 'durationMs', label: 'Anzeigedauer', type: 'seconds', hint: 'Wie lange der Alert sichtbar bleibt.' },
       ACCENT_FIELD,
     ],
   },
   {
     type: 'follow-alert', label: 'Follow-Alert', desc: 'Einblendung für Follows, Subs und Shares — in 4 Stilen.',
-    w: 460, h: 90, props: { durationMs: 3600, style: 'glas' },
+    w: 460, h: 90, props: { durationMs: 3600, style: 'glas', colorByType: true },
     fields: [
       styleField([
         { value: 'glas', label: 'Glas (edel)' },
@@ -59,7 +60,8 @@ const WIDGET_TYPES: {
         { value: 'minimal', label: 'Minimal (schlank, deckt wenig)' },
         { value: 'hype', label: 'Hype (fett, gefüllt)' },
       ]),
-      { key: 'durationMs', label: 'Anzeigedauer (ms)', type: 'number' },
+      { key: 'durationMs', label: 'Anzeigedauer', type: 'seconds', hint: 'Wie lange jede Einblendung sichtbar bleibt.' },
+      { key: 'colorByType', label: 'Eigene Farbe pro Typ', type: 'boolean', hint: 'An: Follow türkis, Sub gold, Share rot. Aus: überall deine Akzentfarbe.' },
       ACCENT_FIELD,
     ],
   },
@@ -71,8 +73,8 @@ const WIDGET_TYPES: {
         { value: 'coins', label: 'Coins' }, { value: 'likes', label: 'Likes' },
         { value: 'follows', label: 'Follower' }, { value: 'gifts', label: 'Gifts' },
       ] },
-      { key: 'target', label: 'Ziel', type: 'number' },
-      { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'leer = automatisch' },
+      { key: 'target', label: 'Ziel', type: 'number', hint: 'Bei diesem Wert ist der Balken voll.' },
+      { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Leer = automatisch (z.B. „Coin-Goal").' },
       ACCENT_FIELD,
     ],
   },
@@ -89,8 +91,9 @@ const WIDGET_TYPES: {
         { value: 'neon', label: 'Neon (durchscheinend)' },
         { value: 'bars', label: 'Balken (minimal)' },
       ]),
-      { key: 'limit', label: 'Plätze', type: 'number' },
-      { key: 'title', label: 'Titel', type: 'text', hint: 'leer = automatisch' },
+      { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Zuschauer angezeigt werden (1–10).' },
+      { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Gifter").' },
+      { key: 'showPic', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Avatare der Zuschauer anzeigen.' },
       ACCENT_FIELD,
     ],
   },
@@ -107,18 +110,20 @@ const WIDGET_TYPES: {
         { value: 'neon', label: 'Neon (durchscheinend)' },
         { value: 'bars', label: 'Balken (minimal)' },
       ]),
-      { key: 'limit', label: 'Plätze', type: 'number' },
-      { key: 'title', label: 'Titel', type: 'text', hint: 'leer = automatisch' },
+      { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Zuschauer angezeigt werden (1–10).' },
+      { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Likes").' },
+      { key: 'showPic', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Avatare der Zuschauer anzeigen.' },
       ACCENT_FIELD,
     ],
   },
   {
     type: 'top-rotator', label: 'Bestenliste (Wechsel)', desc: 'Zeigt abwechselnd Top Gifter, Top Likes, Top Punkte — smooth übergeblendet, untereinander. Ideal fürs Hochformat.',
-    w: 460, h: 360, props: { sources: 'gifts,likes', interval: 5, limit: 5, accent: '' },
+    w: 460, h: 360, props: { sources: 'gifts,likes', interval: 5, limit: 5, accent: '', showPic: true },
     fields: [
-      { key: 'sources', label: 'Listen (Reihenfolge)', type: 'text', hint: 'kommagetrennt: gifts, likes, points' },
-      { key: 'interval', label: 'Sekunden pro Liste', type: 'number' },
-      { key: 'limit', label: 'Plätze', type: 'number' },
+      { key: 'sources', label: 'Welche Listen', type: 'text', hint: 'Reihenfolge, kommagetrennt: gifts, likes, points.' },
+      { key: 'interval', label: 'Sekunden pro Liste', type: 'number', hint: 'Wie lange jede Liste gezeigt wird, bevor gewechselt wird.' },
+      { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Zuschauer pro Liste (1–8).' },
+      { key: 'showPic', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Avatare der Zuschauer anzeigen.' },
       ACCENT_FIELD,
     ],
   },
@@ -126,8 +131,8 @@ const WIDGET_TYPES: {
     type: 'points-board', label: 'Punkte-Bestenliste', desc: 'All-Time Top-Supporter nach gesammelten Loyalty-Punkten (über alle Streams).',
     w: 360, h: 300, props: { source: 'points', limit: 5, title: '', accent: '#7c5cff' },
     fields: [
-      { key: 'limit', label: 'Plätze', type: 'number' },
-      { key: 'title', label: 'Titel', type: 'text', hint: 'leer = automatisch' },
+      { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Top-Supporter (1–10).' },
+      { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Punkte").' },
       ACCENT_FIELD,
     ],
   },
@@ -135,9 +140,9 @@ const WIDGET_TYPES: {
     type: 'countdown', label: 'Countdown', desc: 'Zähler nach unten — z.B. „Stream startet in" oder Pausen-Timer.',
     w: 460, h: 200, props: { minutes: 5, label: 'Countdown', doneText: 'LOS!' },
     fields: [
-      { key: 'minutes', label: 'Minuten', type: 'number' },
-      { key: 'label', label: 'Beschriftung', type: 'text' },
-      { key: 'doneText', label: 'Text bei 0', type: 'text' },
+      { key: 'minutes', label: 'Startzeit (Minuten)', type: 'number', hint: 'Von hier zählt der Timer runter (beim Laden der Quelle).' },
+      { key: 'label', label: 'Beschriftung', type: 'text', hint: 'Text über dem Timer, z.B. „Stream-Start in".' },
+      { key: 'doneText', label: 'Text bei 0', type: 'text', hint: 'Was angezeigt wird, wenn der Timer abläuft.' },
       ACCENT_FIELD,
     ],
   },
@@ -145,60 +150,61 @@ const WIDGET_TYPES: {
     type: 'activity-feed', label: 'Activity-Feed', desc: 'Alle Events gemischt (Follow, Sub, Share, Gift) als Live-Ticker.',
     w: 420, h: 320, props: { max: 6, ttlMs: 60000 },
     fields: [
-      { key: 'max', label: 'Max. Einträge', type: 'number' },
-      { key: 'ttlMs', label: 'Verschwinden nach (ms)', type: 'number' },
+      { key: 'max', label: 'Max. Einträge', type: 'number', hint: 'So viele Events bleiben gleichzeitig sichtbar.' },
+      { key: 'ttlMs', label: 'Verschwinden nach', type: 'seconds', hint: 'Wie lange ein Eintrag stehen bleibt (0 = nie).' },
       ACCENT_FIELD,
     ],
   },
   {
     type: 'top-gift', label: 'Top-Gift', desc: 'Highlight des größten Einzel-Gifts der Session — Bild, Spender, Bounce bei Rekord.',
     w: 320, h: 320, props: { title: '', accent: '#ffd23e' },
-    fields: [{ key: 'title', label: 'Titel', type: 'text', hint: 'leer = „Größtes Gift"' }, ACCENT_FIELD],
+    fields: [{ key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Größtes Gift".' }, ACCENT_FIELD],
   },
   {
     type: 'heart-rain', label: 'Herzregen', desc: 'Likes steigen als Emojis auf (TikTok-Style) — transparent, deckt nichts zu.',
     w: 1080, h: 900, props: { emojis: '❤️,💖,💕,✨,🔥', maxPerBurst: 5 },
     fields: [
-      { key: 'emojis', label: 'Emojis', type: 'text', hint: 'kommagetrennt' },
-      { key: 'maxPerBurst', label: 'Max. pro Like-Schub', type: 'number' },
+      { key: 'emojis', label: 'Emojis', type: 'text', hint: 'Welche Symbole aufsteigen, kommagetrennt (z.B. ❤️,💖,🔥).' },
+      { key: 'maxPerBurst', label: 'Max. pro Like-Schub', type: 'number', hint: 'Begrenzt, wie viele bei einer Like-Welle gleichzeitig kommen.' },
     ],
   },
   {
     type: 'text-ticker', label: 'Lauftext-Banner', desc: 'Scrollender Streifen für Socials/Ansagen — dünn, deckt kaum zu. 3 Stile.',
     w: 760, h: 56, props: { messages: 'Folge mir! | Discord in der Bio | Danke fürs Zuschauen ❤️', speed: 18, style: 'glas' },
     fields: [
-      { key: 'messages', label: 'Nachrichten', type: 'text', hint: 'mit | trennen' },
+      { key: 'messages', label: 'Nachrichten', type: 'text', hint: 'Mehrere mit | trennen, z.B. „Folge mir! | Discord in der Bio".' },
       styleField([
         { value: 'glas', label: 'Glas' },
         { value: 'solid', label: 'Gefüllt' },
         { value: 'neon', label: 'Neon' },
       ]),
-      { key: 'speed', label: 'Tempo (Sek/Runde)', type: 'number' },
+      { key: 'speed', label: 'Tempo (Sek/Runde)', type: 'number', hint: 'Kleiner = schneller. Sekunden für einen Durchlauf.' },
       ACCENT_FIELD,
     ],
   },
   {
     type: 'gift-jar', label: 'Coin-Glas', desc: 'Bonbon-Glas, das sich mit den Geschenken füllt — jedes Gift ein Ball mit Bild, größer bei mehr Coins.',
-    w: 440, h: 520, props: { target: 2000, label: '' },
+    w: 440, h: 520, props: { target: 2000, label: '', accent: '#ffd23e' },
     fields: [
-      { key: 'target', label: 'Ziel (Coins)', type: 'number' },
-      { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'leer = "Gift-Glas"' },
+      { key: 'target', label: 'Ziel (Coins)', type: 'number', hint: 'Bei diesem Wert ist das Glas voll.' },
+      { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Text über dem Glas, leer = „Coin-Glas".' },
+      ACCENT_FIELD,
     ],
   },
   {
     type: 'gift-fireworks', label: 'Gift-Feuerwerk', desc: 'Jedes Gift steigt als Rakete auf und explodiert — je mehr Coins, desto fetter der Burst.',
     w: 900, h: 1200, props: { minCoins: 0, maxRockets: 3 },
     fields: [
-      { key: 'minCoins', label: 'Ab Coins', type: 'number', hint: 'Feuerwerk erst ab diesem Gift-Wert' },
-      { key: 'maxRockets', label: 'Max. Raketen gleichzeitig', type: 'number' },
+      { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Feuerwerk nur für Gifts ab diesem Wert. 0 = jedes.' },
+      { key: 'maxRockets', label: 'Max. Raketen gleichzeitig', type: 'number', hint: 'Begrenzt die Show bei vielen Gifts auf einmal.' },
     ],
   },
   {
     type: 'gift-feed', label: 'Gift-Feed', desc: 'Ticker der letzten Gifts mit Gift-Bildern.',
     w: 380, h: 240, props: { max: 5, ttlMs: 25000 },
     fields: [
-      { key: 'max', label: 'Max. Einträge', type: 'number' },
-      { key: 'ttlMs', label: 'Verschwinden nach (ms)', type: 'number' },
+      { key: 'max', label: 'Max. Einträge', type: 'number', hint: 'So viele letzte Gifts bleiben sichtbar.' },
+      { key: 'ttlMs', label: 'Verschwinden nach', type: 'seconds', hint: 'Wie lange ein Gift im Ticker bleibt.' },
       ACCENT_FIELD,
     ],
   },
@@ -206,16 +212,17 @@ const WIDGET_TYPES: {
     type: 'stat-chips', label: 'Live-Zähler', desc: 'Kompakte Chips für Viewer, Likes, Follower & Co. — mit Puls bei jeder Änderung.',
     w: 540, h: 60, props: { metrics: 'viewers,likes,follows' },
     fields: [
-      { key: 'metrics', label: 'Metriken', type: 'text', hint: 'kommagetrennt: viewers, likes, follows, coins, gifts, shares' },
+      { key: 'metrics', label: 'Welche Zähler', type: 'text', hint: 'Kommagetrennt, Reihenfolge zählt: viewers, likes, follows, coins, gifts, shares.' },
       ACCENT_FIELD,
     ],
   },
   {
     type: 'chat-box', label: 'Chat-Box', desc: 'Der Live-Chat direkt im Overlay.',
-    w: 420, h: 360, props: { max: 8, hideAfterMs: 0 },
+    w: 420, h: 360, props: { max: 8, hideAfterMs: 0, accent: '#ff5436' },
     fields: [
-      { key: 'max', label: 'Max. Nachrichten', type: 'number' },
-      { key: 'hideAfterMs', label: 'Ausblenden nach (ms)', type: 'number', hint: '0 = nie' },
+      { key: 'max', label: 'Max. Nachrichten', type: 'number', hint: 'So viele Chat-Zeilen bleiben gleichzeitig sichtbar.' },
+      { key: 'hideAfterMs', label: 'Ausblenden nach', type: 'seconds', hint: 'Einzelne Nachrichten verschwinden danach. 0 = bleiben.' },
+      ACCENT_FIELD,
     ],
   },
 ];
@@ -707,6 +714,24 @@ export default function OverlayPage() {
                     const value = selected.props?.[field.key] ?? '';
                     const setProp = (v: unknown) =>
                       updateLayer(selected.id, { props: { ...selected.props, [field.key]: v } }, true);
+
+                    // Boolean = Schalter in eigener Zeile
+                    if (field.type === 'boolean') {
+                      return (
+                        <label key={field.key} className="flex cursor-pointer items-start gap-2 text-xs text-studio-text">
+                          <input
+                            type="checkbox"
+                            checked={value !== false}
+                            onChange={(e) => setProp(e.target.checked)}
+                            className="mt-0.5 accent-[#ff4d2e]"
+                          />
+                          <span>
+                            {field.label}
+                            {field.hint && <span className="mt-0.5 block text-[10px] text-studio-muted/80">{field.hint}</span>}
+                          </span>
+                        </label>
+                      );
+                    }
                     return (
                       <label key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
                         {field.label}
@@ -727,6 +752,15 @@ export default function OverlayPage() {
                               <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
                           </select>
+                        ) : field.type === 'seconds' ? (
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.5}
+                            value={Math.round((Number(value) || 0) / 100) / 10}
+                            onChange={(e) => setProp(Math.max(0, Number(e.target.value)) * 1000)}
+                            className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs text-studio-text outline-none focus:border-studio-accent"
+                          />
                         ) : (
                           <input
                             type={field.type}
