@@ -43,6 +43,10 @@ export const IPC = {
   APP_INFO: 'app:info',
   APP_OPEN_DATA_DIR: 'app:open-data-dir',
   POINTS_RESET: 'points:reset',
+  VIEWERS_LIST: 'viewers:list',
+  VIEWER_FLAG: 'viewers:flag',
+  VIEWER_GRANT: 'viewers:grant',
+  VIEWER_VOICE: 'viewers:voice',
   // Settings
   SETTINGS_GET: 'settings:get',
   SETTINGS_UPDATE: 'settings:update',

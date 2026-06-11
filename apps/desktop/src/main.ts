@@ -132,6 +132,23 @@ function registerIpc(): void {
     void shell.openPath(app.getPath('userData'));
     return { ok: true };
   });
+  ipcMain.handle(IPC.VIEWERS_LIST, (_e, query: unknown) =>
+    isStudio().listViewers(typeof query === 'string' ? query : '', 200),
+  );
+  ipcMain.handle(IPC.VIEWER_FLAG, (_e, userId: unknown, flag: unknown, value: unknown) => {
+    if (typeof userId === 'string' && (flag === 'vip' || flag === 'muted') && typeof value === 'boolean') {
+      isStudio().setViewerFlag(userId, flag, value);
+    }
+    return { ok: true };
+  });
+  ipcMain.handle(IPC.VIEWER_GRANT, (_e, userId: unknown, delta: unknown) => {
+    if (typeof userId === 'string' && typeof delta === 'number') isStudio().grantPoints(userId, delta);
+    return { ok: true };
+  });
+  ipcMain.handle(IPC.VIEWER_VOICE, (_e, userId: unknown, voice: unknown) => {
+    if (typeof userId === 'string') isStudio().setViewerVoice(userId, typeof voice === 'string' && voice ? voice : undefined);
+    return { ok: true };
+  });
   ipcMain.handle(IPC.POINTS_RESET, async () => {
     if (!mainWindow) return { ok: false };
     const res = await dialog.showMessageBox(mainWindow, {

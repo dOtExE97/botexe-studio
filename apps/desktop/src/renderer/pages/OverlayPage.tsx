@@ -156,6 +156,15 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'wheel', label: 'Glücksrad', desc: 'Dreht bei einer Trigger-Aktion (z.B. !spin gegen Punkte) und zeigt den Gewinn. Preise frei wählbar.',
+    w: 460, h: 460, props: { segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', spinMs: 4500, accent: '#ff5436' },
+    fields: [
+      { key: 'segments', label: 'Preise', type: 'text', hint: 'Mit | trennen — jeder Eintrag ein Segment, z.B. „100 Coins|Nichts|VIP".' },
+      { key: 'spinMs', label: 'Drehdauer', type: 'seconds', hint: 'Wie lange das Rad dreht, bis es stoppt.' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
     type: 'top-gift', label: 'Top-Gift', desc: 'Highlight des größten Einzel-Gifts der Session — Bild, Spender, Bounce bei Rekord.',
     w: 320, h: 320, props: { title: '', accent: '#ffd23e' },
     fields: [{ key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Größtes Gift".' }, ACCENT_FIELD],

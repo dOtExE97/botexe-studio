@@ -56,6 +56,10 @@ const api = {
   getAppInfo: () => ipcRenderer.invoke(IPC.APP_INFO),
   openDataDir: () => ipcRenderer.invoke(IPC.APP_OPEN_DATA_DIR),
   resetPoints: () => ipcRenderer.invoke(IPC.POINTS_RESET),
+  listViewers: (query: string) => ipcRenderer.invoke(IPC.VIEWERS_LIST, query),
+  setViewerFlag: (userId: string, flag: string, value: boolean) => ipcRenderer.invoke(IPC.VIEWER_FLAG, userId, flag, value),
+  grantPoints: (userId: string, delta: number) => ipcRenderer.invoke(IPC.VIEWER_GRANT, userId, delta),
+  setViewerVoice: (userId: string, voice: string) => ipcRenderer.invoke(IPC.VIEWER_VOICE, userId, voice),
 
   // Settings
   getSettings: () => ipcRenderer.invoke(IPC.SETTINGS_GET),

@@ -305,3 +305,12 @@ test('evaluateTimer: ohne cooldownMs feuert die timer-regel bei jedem tick', () 
   assert.equal(engine.evaluateTimer(0).length, 1);
   assert.equal(engine.evaluateTimer(1).length, 1);
 });
+
+test('spin_wheel-action wird mit targetId + cost geliefert', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ event: 'chat', conditions: [{ kind: 'chat_command', value: '!spin' }],
+    actions: [{ kind: 'spin_wheel', targetId: 'wheel-1', cost: 100 }] })]);
+  const m = engine.evaluate({ type: 'chat', ts: 1, user: { id: 'mia', nickname: 'Mia' }, text: '!spin' });
+  assert.equal(m.length, 1);
+  assert.deepEqual(m[0]?.action, { kind: 'spin_wheel', targetId: 'wheel-1', cost: 100 });
+});

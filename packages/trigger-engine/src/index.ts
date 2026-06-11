@@ -55,7 +55,8 @@ export type TriggerAction =
   | { kind: 'show_layer'; targetId: string; durationMs?: number }
   | { kind: 'hide_layer'; targetId: string }
   /** TTS-Ansage; template mit {user} {text} {gift} {count} {coins} platzhaltern. */
-  | { kind: 'speak'; template: string; voice?: string };
+  | { kind: 'speak'; template: string; voice?: string }
+  | { kind: 'spin_wheel'; targetId: string; cost?: number };
 
 export interface TriggerRule {
   id: string;
