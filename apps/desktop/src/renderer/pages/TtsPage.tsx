@@ -26,20 +26,60 @@ interface TtsSettings {
   chatTemplate: string;
 }
 
+interface ByokField {
+  key: string;
+  label: string;
+  type: 'text' | 'password';
+  placeholder?: string;
+  optional?: boolean;
+}
+
+interface ByokProvider {
+  id: string;
+  label: string;
+  howto: string;
+  fields: ByokField[];
+}
+
 export default function TtsPage() {
   const [groups, setGroups] = useState<VoiceGroup[]>([]);
   const [tts, setTts] = useState<TtsSettings | null>(null);
   const [testText, setTestText] = useState('bOtExE Studio ist bereit — danke für die Rose, Mia!');
   const [piperBusy, setPiperBusy] = useState(false);
   const [piperError, setPiperError] = useState('');
+  const [byokProviders, setByokProviders] = useState<ByokProvider[]>([]);
+  const [byokStatus, setByokStatus] = useState<Record<string, boolean>>({});
+  const [byokDrafts, setByokDrafts] = useState<Record<string, Record<string, string>>>({});
+  const [openProvider, setOpenProvider] = useState<string | null>(null);
 
   const refreshVoices = () =>
     window.studio.getTtsVoices().then((v: VoiceGroup[]) => setGroups(v));
+  const refreshByok = () =>
+    window.studio.getByokStatus().then((s: Record<string, boolean>) => setByokStatus(s));
 
   useEffect(() => {
     void refreshVoices();
+    void refreshByok();
+    void window.studio.getByokProviders().then((p: ByokProvider[]) => setByokProviders(p));
     void window.studio.getSettings().then((s: { tts: TtsSettings }) => setTts(s.tts));
   }, []);
+
+  const saveByok = async (provider: string) => {
+    const fields = byokDrafts[provider] ?? {};
+    await window.studio.setByokCredentials(provider, fields);
+    setByokDrafts((d) => ({ ...d, [provider]: {} }));
+    await refreshByok();
+    await refreshVoices();
+    setOpenProvider(null);
+  };
+
+  const clearByok = async (provider: string, fields: ByokField[]) => {
+    const empty: Record<string, string> = {};
+    for (const f of fields) empty[f.key] = '';
+    await window.studio.setByokCredentials(provider, empty);
+    await refreshByok();
+    await refreshVoices();
+  };
 
   const update = (patch: Partial<TtsSettings>) => {
     if (!tts) return;
@@ -198,6 +238,77 @@ export default function TtsPage() {
           Troll-Schutz ist immer aktiv: Links fliegen raus, Emoji- und Zeichen-Spam wird eingedampft,
           lange Texte werden gekürzt, und bei Nachrichten-Fluten liest bOtExE nur die neuesten vor.
         </p>
+      </section>
+
+      {/* Premium- / KI-Stimmen (BYOK) */}
+      <section className="border border-studio-border bg-studio-panel p-4">
+        <h2 className="mb-1 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-gold">
+          Premium- & KI-Stimmen (eigene Keys)
+        </h2>
+        <p className="mb-3 text-[11px] leading-relaxed text-studio-muted">
+          Trag deinen eigenen Zugang ein — die Stimmen erscheinen dann oben im Dropdown. Jeder Dienst rechnet über
+          deinen eigenen Account ab, du entscheidest selbst, was du nutzt. Keys bleiben lokal auf diesem Rechner.
+        </p>
+        <div className="flex flex-col gap-2">
+          {byokProviders.map((p) => {
+            const configured = byokStatus[p.id];
+            const open = openProvider === p.id;
+            const draft = byokDrafts[p.id] ?? {};
+            return (
+              <div key={p.id} className="border border-studio-border bg-studio-raised">
+                <button
+                  onClick={() => setOpenProvider(open ? null : p.id)}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left"
+                >
+                  <span className={`clip-slant px-2 py-0.5 text-[9px] font-bold tracking-widest ${
+                    configured ? 'bg-studio-teal/15 text-studio-teal' : 'bg-studio-bg text-studio-muted'
+                  }`}>
+                    {configured ? '✓ AKTIV' : 'AUS'}
+                  </span>
+                  <span className="flex-1 text-sm font-bold">{p.label}</span>
+                  <span className="text-studio-muted">{open ? '▲' : '▼'}</span>
+                </button>
+                {open && (
+                  <div className="border-t border-studio-border p-4">
+                    <p className="mb-3 text-[11px] leading-relaxed text-studio-muted">{p.howto}</p>
+                    <div className="flex flex-col gap-2">
+                      {p.fields.map((f) => (
+                        <label key={f.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
+                          {f.label}{f.optional ? ' (optional)' : ''}
+                          <input
+                            type={f.type}
+                            placeholder={f.placeholder}
+                            value={draft[f.key] ?? ''}
+                            onChange={(e) =>
+                              setByokDrafts((d) => ({ ...d, [p.id]: { ...d[p.id], [f.key]: e.target.value } }))
+                            }
+                            className="mt-1 w-full border border-studio-border bg-studio-bg px-2 py-1.5 font-mono text-xs outline-none focus:border-studio-gold"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => void saveByok(p.id)}
+                        className="clip-slant bg-studio-gold/15 px-4 py-1.5 text-xs font-bold text-studio-gold hover:bg-studio-gold hover:text-black"
+                      >
+                        SPEICHERN
+                      </button>
+                      {configured && (
+                        <button
+                          onClick={() => void clearByok(p.id, p.fields)}
+                          className="text-xs text-studio-muted hover:text-studio-accent"
+                        >
+                          Entfernen
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       <p className="text-[11px] text-studio-muted">

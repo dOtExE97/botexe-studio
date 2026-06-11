@@ -46,6 +46,10 @@ const api = {
   getTtsVoices: () => ipcRenderer.invoke(IPC.TTS_VOICES),
   testTts: (text: string, voice?: string) => ipcRenderer.invoke(IPC.TTS_TEST, text, voice),
   setupPiper: (voiceId: string) => ipcRenderer.invoke(IPC.TTS_PIPER_SETUP, voiceId),
+  getByokProviders: () => ipcRenderer.invoke(IPC.TTS_BYOK_PROVIDERS),
+  getByokStatus: () => ipcRenderer.invoke(IPC.TTS_BYOK_STATUS),
+  setByokCredentials: (provider: string, fields: Record<string, string>) =>
+    ipcRenderer.invoke(IPC.TTS_BYOK_SET, provider, fields),
 
   // Settings
   getSettings: () => ipcRenderer.invoke(IPC.SETTINGS_GET),
