@@ -274,6 +274,8 @@ export default function OverlayPage() {
   const [saveState, setSaveState] = useState<'idle' | 'saved' | 'error'>('idle');
   const [saveError, setSaveError] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(true);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.3);
   const dragRef = useRef<{ id: string; mode: 'move' | 'resize'; startX: number; startY: number; orig: OverlayLayer } | null>(null);
@@ -364,6 +366,16 @@ export default function OverlayPage() {
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1800);
   };
+
+  // Live-Vorschau-Link für das aktive Profil (echtes Overlay als iframe, mit
+  // Demo-Daten via &preview=1). Neu laden nur bei Profilwechsel — Layout-Edits
+  // landen über den WS-Broadcast im iframe.
+  useEffect(() => {
+    if (!layout) { setPreviewUrl(null); return; }
+    void window.studio.getProfileLink(layout.id).then((link: string) => {
+      setPreviewUrl(link ? `${link}&preview=1` : null);
+    });
+  }, [layout?.id]);
 
   // Canvas-Skalierung an Containergröße anpassen
   useEffect(() => {
@@ -579,6 +591,10 @@ export default function OverlayPage() {
           })}
           <div className="flex-1" />
           <label className="flex items-center gap-2 text-[11px] text-studio-muted">
+            <input type="checkbox" checked={showPreview} onChange={(e) => setShowPreview(e.target.checked)} className="accent-[#21e6c1]" />
+            Live-Vorschau
+          </label>
+          <label className="flex items-center gap-2 text-[11px] text-studio-muted">
             <input type="checkbox" checked={showZones} onChange={(e) => setShowZones(e.target.checked)} className="accent-[#ff4d2e]" />
             TikTok-UI-Zonen
           </label>
@@ -599,6 +615,18 @@ export default function OverlayPage() {
               boxShadow: '0 0 0 1px #262a36',
             }}
           >
+            {/* Live-Vorschau: das ECHTE Overlay als skaliertes iframe (Demo-Daten).
+                pointer-events aus → Klicks/Drags gehen an die Handles darüber. */}
+            {showPreview && previewUrl && (
+              <iframe
+                key={layout.id}
+                src={previewUrl}
+                title="Live-Vorschau"
+                className="pointer-events-none absolute left-0 top-0 origin-top-left border-0"
+                style={{ width: canvasW, height: canvasH, transform: `scale(${scale})` }}
+              />
+            )}
+
             {/* TikTok-UI SafeZones als Guides */}
             {showZones &&
               safeZones?.zones.map((zone) => {
@@ -646,14 +674,29 @@ export default function OverlayPage() {
                     top: layer.y * scale,
                     width: layer.w * scale,
                     height: layer.h * scale,
-                    background: isSel ? 'rgba(255,77,46,.14)' : 'rgba(33,230,193,.07)',
-                    outline: isSel ? '2px solid #ff4d2e' : '1px dashed rgba(33,230,193,.45)',
+                    // Vorschau an: Kästchen transparent, nur Rahmen — das Widget
+                    // im iframe bleibt sichtbar. Aus: gefülltes Platzhalter-Feld.
+                    background: showPreview
+                      ? isSel ? 'rgba(255,77,46,.08)' : 'transparent'
+                      : isSel ? 'rgba(255,77,46,.14)' : 'rgba(33,230,193,.07)',
+                    outline: isSel
+                      ? '2px solid #ff4d2e'
+                      : showPreview ? '1px dashed rgba(255,255,255,.18)' : '1px dashed rgba(33,230,193,.45)',
                     opacity: layer.visible ? 1 : 0.35,
                   }}
                 >
-                  <span className="pointer-events-none px-1 text-center font-display text-[11px] uppercase tracking-wider text-white/80" style={{ textShadow: '0 1px 4px #000' }}>
-                    {label}
-                  </span>
+                  {showPreview ? (
+                    <span
+                      className="pointer-events-none absolute left-0 top-0 max-w-full truncate bg-black/55 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider text-white/85"
+                      style={{ opacity: isSel ? 1 : 0.65 }}
+                    >
+                      {label}
+                    </span>
+                  ) : (
+                    <span className="pointer-events-none px-1 text-center font-display text-[11px] uppercase tracking-wider text-white/80" style={{ textShadow: '0 1px 4px #000' }}>
+                      {label}
+                    </span>
+                  )}
                   {isSel && (
                     <div
                       onPointerDown={(e) => onPointerDown(e, layer, 'resize')}

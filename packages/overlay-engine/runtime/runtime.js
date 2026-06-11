@@ -159,6 +159,118 @@ function dispatchAction(ruleId, action) {
   }
 }
 
+// ── Vorschau-Modus ─────────────────────────────────────────────────────────
+// Im Editor läuft das Overlay als iframe mit ?preview=1. Dann gibt es keinen
+// echten Stream — also erzeugen wir LOKAL Demo-Stats + Demo-Events, damit der
+// Streamer sieht, wie die Widgets wirklich aussehen und sich bewegen. Layouts
+// kommen weiter per WS (Editor-Edits live), echte Events/Stats werden ignoriert.
+const PREVIEW = !!cfg.preview;
+
+function demoAvatar(name, color) {
+  const initial = (name[0] || '?').toUpperCase();
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96">` +
+    `<defs><radialGradient id="g" cx="35%" cy="30%"><stop offset="0%" stop-color="#fff" stop-opacity=".35"/>` +
+    `<stop offset="100%" stop-color="${color}"/></radialGradient></defs>` +
+    `<rect width="96" height="96" rx="48" fill="url(#g)"/>` +
+    `<text x="48" y="64" font-size="48" font-family="Arial,sans-serif" font-weight="bold" fill="#fff" text-anchor="middle">${initial}</text></svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+function demoGiftIcon(color, glyph) {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72">` +
+    `<rect width="72" height="72" rx="18" fill="${color}"/>` +
+    `<text x="36" y="50" font-size="40" text-anchor="middle">${glyph}</text></svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+const DEMO_USERS = [
+  { id: 'd1', nickname: 'Mia', color: '#ff5ea8' },
+  { id: 'd2', nickname: 'Leon', color: '#21e6c1' },
+  { id: 'd3', nickname: 'Skyler', color: '#7c5cff' },
+  { id: 'd4', nickname: 'Nova', color: '#ffd23e' },
+  { id: 'd5', nickname: 'Ben', color: '#ff7847' },
+  { id: 'd6', nickname: 'Luna', color: '#4ea8ff' },
+].map((u) => ({ ...u, profilePic: demoAvatar(u.nickname, u.color) }));
+
+const DEMO_GIFTS = [
+  { slug: 'Rose', coins: 1, icon: demoGiftIcon('#ff5ea8', '🌹') },
+  { slug: 'Heart', coins: 5, icon: demoGiftIcon('#ff4d6d', '❤️') },
+  { slug: 'Finger Heart', coins: 5, icon: demoGiftIcon('#ff7847', '🫰') },
+  { slug: 'Galaxy', coins: 1000, icon: demoGiftIcon('#7c5cff', '🌌') },
+  { slug: 'Lion', coins: 29999, icon: demoGiftIcon('#ffd23e', '🦁') },
+  { slug: 'Rocket', coins: 20000, icon: demoGiftIcon('#21e6c1', '🚀') },
+];
+
+const DEMO_CHATS = [
+  'Hey! 🔥', 'Lass gehen!', 'GG 😎', 'Erster!', 'Was ein Stream 💜',
+  'Gönnung 🙌', '!spin', 'Folg dir schon ewig', 'Brudi 😂', 'Mega Vibes ❤️',
+];
+
+let demoStats = null;
+
+function seedDemoStats() {
+  const topGifters = DEMO_USERS.slice(0, 5).map((u, i) => ({
+    id: u.id, nickname: u.nickname, profilePic: u.profilePic,
+    coins: (5 - i) * 1200 + 300, gifts: (5 - i) * 3 + 1,
+  }));
+  const topLikers = [...DEMO_USERS].reverse().slice(0, 5).map((u, i) => ({
+    id: u.id, nickname: u.nickname, profilePic: u.profilePic,
+    likes: (5 - i) * 450 + 120,
+  }));
+  demoStats = {
+    totals: { coins: 8400, gifts: 42, follows: 17, likes: 12900, shares: 9, chats: 230, viewers: 342, peakViewers: 410 },
+    topGifters, topLikers,
+  };
+  dispatchStats(demoStats);
+}
+
+function demoPickUser() {
+  return DEMO_USERS[Math.floor(Math.random() * DEMO_USERS.length)];
+}
+
+function demoTick() {
+  if (!demoStats) return;
+  const u = demoPickUser();
+  const user = { id: u.id, nickname: u.nickname, profilePic: u.profilePic };
+  const roll = Math.random();
+  if (roll < 0.4) {
+    const g = DEMO_GIFTS[Math.floor(Math.random() * DEMO_GIFTS.length)];
+    demoStats.totals.coins += g.coins;
+    demoStats.totals.gifts += 1;
+    dispatchEvent({ type: 'gift', ts: Date.now(), user, gift: { slug: g.slug, count: 1, coinsPerUnit: g.coins, totalCoins: g.coins, icon: g.icon } });
+  } else if (roll < 0.68) {
+    demoStats.totals.chats += 1;
+    dispatchEvent({ type: 'chat', ts: Date.now(), user, text: DEMO_CHATS[Math.floor(Math.random() * DEMO_CHATS.length)] });
+  } else if (roll < 0.9) {
+    demoStats.totals.likes += 18;
+    dispatchEvent({ type: 'like', ts: Date.now(), user, likeCount: 18, totalLikes: demoStats.totals.likes });
+  } else {
+    demoStats.totals.follows += 1;
+    dispatchEvent({ type: 'follow', ts: Date.now(), user });
+  }
+  // Viewer leicht schwanken lassen, damit der Live-Zähler pulsiert
+  demoStats.totals.viewers = Math.max(1, demoStats.totals.viewers + Math.floor(Math.random() * 9) - 4);
+  dispatchStats(demoStats);
+}
+
+// Glücksrad/auto-show-Widgets brauchen eine Aktion, um sichtbar zu werden —
+// in der Vorschau lösen wir sie regelmäßig aus, damit man das Rad drehen sieht.
+function demoSpinWheels() {
+  for (const [layerId, entry] of liveLayers) {
+    if (entry.el?.dataset.widgetType === 'wheel') {
+      dispatchAction('preview-spin', { kind: 'spin_wheel', targetId: layerId });
+    }
+  }
+}
+
+function startPreview() {
+  seedDemoStats();
+  setInterval(demoTick, 1700);
+  setTimeout(() => { demoSpinWheels(); setInterval(demoSpinWheels, 13000); }, 2500);
+}
+
 // ── WebSocket mit Selbstheilung ───────────────────────────────────────────
 let reconnectDelay = 1000;
 
@@ -178,6 +290,9 @@ function connect() {
       return;
     }
     if (msg.kind === 'layout') void renderLayout(msg.layout);
+    // In der Vorschau treiben Demo-Daten die Widgets — echte Events/Stats/
+    // Aktionen vom Server (i.d.R. leer, kein Live-Stream) ignorieren wir.
+    else if (PREVIEW) return;
     else if (msg.kind === 'event') {
       if (rendering) pendingEvents.push(msg.event);
       else dispatchEvent(msg.event);
@@ -201,6 +316,7 @@ window.addEventListener('resize', scaleStage);
 
 if (cfg.wsUrl) {
   connect();
+  if (PREVIEW) startPreview();
 } else {
   console.error('[overlay] window.BOTEXE_OVERLAY fehlt — Seite direkt geöffnet statt über /overlay?');
 }

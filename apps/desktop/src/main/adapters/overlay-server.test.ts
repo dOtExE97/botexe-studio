@@ -89,6 +89,22 @@ test('http: /overlay ohne token → 403, mit token → 200 + html', async () => 
   }
 });
 
+test('http: /overlay?preview=1 injiziert preview:true, ohne param preview:false', async () => {
+  const { server } = await setup();
+  try {
+    const token = server.getToken();
+    const base = `http://127.0.0.1:${server.getPort()}`;
+
+    const normal = await (await fetch(`${base}/overlay?token=${token}`)).text();
+    assert.match(normal, /"preview":false/);
+
+    const prev = await (await fetch(`${base}/overlay?token=${token}&preview=1`)).text();
+    assert.match(prev, /"preview":true/);
+  } finally {
+    await server.stop();
+  }
+});
+
 test('http: widget-files werden ausgeliefert, path-traversal abgewehrt', async () => {
   const { server } = await setup();
   try {

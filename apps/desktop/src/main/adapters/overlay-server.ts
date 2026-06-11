@@ -111,6 +111,8 @@ export class OverlayServer {
       }
       const profileRaw = req.query.profile;
       const profileId = typeof profileRaw === 'string' ? profileRaw : '';
+      // Vorschau-Modus (Editor-iframe): Runtime erzeugt lokal Demo-Daten.
+      const preview = req.query.preview === '1';
       let html = fs.readFileSync(htmlPath, 'utf-8');
       // Runtime-Config injizieren: WS-URL inkl. Token + Profil, damit die
       // Runtime ohne Hardcoding genau dieses Profil-Layout zieht.
@@ -118,6 +120,7 @@ export class OverlayServer {
         wsUrl: profileId ? `${this.getWsUrl()}&profile=${encodeURIComponent(profileId)}` : this.getWsUrl(),
         baseUrl: `http://${this.host}:${this.port}`,
         token: this.token,
+        preview,
       })};</script>`;
       html = html.includes('</head>') ? html.replace('</head>', `${cfg}\n</head>`) : cfg + html;
       // Relativer script-src würde auf /runtime.js zeigen (404, kein Token) —

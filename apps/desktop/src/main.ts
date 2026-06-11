@@ -372,6 +372,7 @@ app.whenReady().then(async () => {
           'Content-Security-Policy': [
             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
               "img-src 'self' data: https:; media-src 'self' http://127.0.0.1:*; " +
+              "frame-src http://127.0.0.1:*; " +
               "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*",
           ],
         },
