@@ -1,0 +1,16 @@
+{
+  "name": "@botexe/trigger-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministische Trigger-Regeln: wenn Event X (+ Bedingung) → Aktion Y",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "node --import tsx --test src/engine.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.22.4",
+    "typescript": "^5.9.3"
+  }
+}

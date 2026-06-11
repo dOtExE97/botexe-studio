@@ -1,0 +1,7 @@
+{
+  "name": "@botexe/widget-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pro-Widgets für den Overlay-Canvas (Vanilla ES-Module, self-contained, kein CDN)"
+}
