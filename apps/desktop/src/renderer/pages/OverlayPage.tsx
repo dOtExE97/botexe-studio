@@ -27,6 +27,10 @@ const ACCENT_FIELD: PropField = {
   hint: 'färbt Kanten, Balken und Badges dieses Widgets',
 };
 
+function styleField(options: { value: string; label: string }[]): PropField {
+  return { key: 'style', label: 'Stil', type: 'select', options };
+}
+
 const WIDGET_TYPES: {
   type: string;
   label: string;
@@ -46,9 +50,18 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'follow-alert', label: 'Follow-Alert', desc: 'Kompakte Einblendung für Follows, Subs und Shares.',
-    w: 460, h: 90, props: { durationMs: 3600 },
-    fields: [{ key: 'durationMs', label: 'Anzeigedauer (ms)', type: 'number' }],
+    type: 'follow-alert', label: 'Follow-Alert', desc: 'Einblendung für Follows, Subs und Shares — in 4 Stilen.',
+    w: 460, h: 90, props: { durationMs: 3600, style: 'glas' },
+    fields: [
+      styleField([
+        { value: 'glas', label: 'Glas (edel)' },
+        { value: 'neon', label: 'Neon (leuchtende Outline)' },
+        { value: 'minimal', label: 'Minimal (schlank, deckt wenig)' },
+        { value: 'hype', label: 'Hype (fett, gefüllt)' },
+      ]),
+      { key: 'durationMs', label: 'Anzeigedauer (ms)', type: 'number' },
+      ACCENT_FIELD,
+    ],
   },
   {
     type: 'goal-bar', label: 'Goal-Bar', desc: 'Fortschrittsbalken Richtung Session-Ziel.',
@@ -65,11 +78,16 @@ const WIDGET_TYPES: {
   },
   {
     type: 'leaderboard', label: 'Top Gifter', desc: 'Die größten Gift-Supporter der Session, live sortiert.',
-    w: 360, h: 280, props: { source: 'gifts', limit: 5, title: '' },
+    w: 360, h: 280, props: { source: 'gifts', limit: 5, title: '', style: 'glas' },
     fields: [
       { key: 'source', label: 'Quelle', type: 'select', options: [
         { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
       ] },
+      styleField([
+        { value: 'glas', label: 'Glas (Panel)' },
+        { value: 'neon', label: 'Neon (durchscheinend)' },
+        { value: 'bars', label: 'Balken (minimal)' },
+      ]),
       { key: 'limit', label: 'Plätze', type: 'number' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'leer = automatisch' },
       ACCENT_FIELD,
@@ -77,11 +95,16 @@ const WIDGET_TYPES: {
   },
   {
     type: 'leaderboard', label: 'Like-Liste', desc: 'Wer am fleißigsten liked — mit Namen und Profilbild, wie bei TikFinity.',
-    w: 360, h: 280, props: { source: 'likes', limit: 5, title: '' },
+    w: 360, h: 280, props: { source: 'likes', limit: 5, title: '', style: 'glas' },
     fields: [
       { key: 'source', label: 'Quelle', type: 'select', options: [
         { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
       ] },
+      styleField([
+        { value: 'glas', label: 'Glas (Panel)' },
+        { value: 'neon', label: 'Neon (durchscheinend)' },
+        { value: 'bars', label: 'Balken (minimal)' },
+      ]),
       { key: 'limit', label: 'Plätze', type: 'number' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'leer = automatisch' },
       ACCENT_FIELD,
@@ -112,6 +135,33 @@ const WIDGET_TYPES: {
     fields: [
       { key: 'max', label: 'Max. Einträge', type: 'number' },
       { key: 'ttlMs', label: 'Verschwinden nach (ms)', type: 'number' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
+    type: 'top-gift', label: 'Top-Gift', desc: 'Highlight des größten Einzel-Gifts der Session — Bild, Spender, Bounce bei Rekord.',
+    w: 320, h: 320, props: { title: '', accent: '#ffd23e' },
+    fields: [{ key: 'title', label: 'Titel', type: 'text', hint: 'leer = „Größtes Gift"' }, ACCENT_FIELD],
+  },
+  {
+    type: 'heart-rain', label: 'Herzregen', desc: 'Likes steigen als Emojis auf (TikTok-Style) — transparent, deckt nichts zu.',
+    w: 1080, h: 900, props: { emojis: '❤️,💖,💕,✨,🔥', maxPerBurst: 5 },
+    fields: [
+      { key: 'emojis', label: 'Emojis', type: 'text', hint: 'kommagetrennt' },
+      { key: 'maxPerBurst', label: 'Max. pro Like-Schub', type: 'number' },
+    ],
+  },
+  {
+    type: 'text-ticker', label: 'Lauftext-Banner', desc: 'Scrollender Streifen für Socials/Ansagen — dünn, deckt kaum zu. 3 Stile.',
+    w: 760, h: 56, props: { messages: 'Folge mir! | Discord in der Bio | Danke fürs Zuschauen ❤️', speed: 18, style: 'glas' },
+    fields: [
+      { key: 'messages', label: 'Nachrichten', type: 'text', hint: 'mit | trennen' },
+      styleField([
+        { value: 'glas', label: 'Glas' },
+        { value: 'solid', label: 'Gefüllt' },
+        { value: 'neon', label: 'Neon' },
+      ]),
+      { key: 'speed', label: 'Tempo (Sek/Runde)', type: 'number' },
       ACCENT_FIELD,
     ],
   },
