@@ -39,6 +39,10 @@ export const IPC = {
   TTS_BYOK_PROVIDERS: 'tts:byok-providers',
   TTS_BYOK_STATUS: 'tts:byok-status',
   TTS_BYOK_SET: 'tts:byok-set',
+  // App-Info / Einstellungen
+  APP_INFO: 'app:info',
+  APP_OPEN_DATA_DIR: 'app:open-data-dir',
+  POINTS_RESET: 'points:reset',
   // Settings
   SETTINGS_GET: 'settings:get',
   SETTINGS_UPDATE: 'settings:update',

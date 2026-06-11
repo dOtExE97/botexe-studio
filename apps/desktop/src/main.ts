@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, session } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
@@ -120,6 +120,33 @@ function registerIpc(): void {
 
   ipcMain.handle(IPC.OVERLAY_GET_INFO, () => isStudio().getOverlayInfo());
 
+  ipcMain.handle(IPC.APP_INFO, () => ({
+    version: app.getVersion(),
+    electron: process.versions.electron,
+    node: process.versions.node,
+    platform: process.platform,
+    dataDir: app.getPath('userData'),
+    overlayPort: isStudio().getOverlayInfo().port,
+  }));
+  ipcMain.handle(IPC.APP_OPEN_DATA_DIR, () => {
+    void shell.openPath(app.getPath('userData'));
+    return { ok: true };
+  });
+  ipcMain.handle(IPC.POINTS_RESET, async () => {
+    if (!mainWindow) return { ok: false };
+    const res = await dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      buttons: ['Abbrechen', 'Punkte zurücksetzen'],
+      defaultId: 0,
+      cancelId: 0,
+      message: 'Alle Loyalty-Punkte aller Zuschauer löschen?',
+      detail: 'Das kann nicht rückgängig gemacht werden.',
+    });
+    if (res.response !== 1) return { ok: false };
+    isStudio().resetPoints();
+    return { ok: true };
+  });
+
   // Layouts
   ipcMain.handle(IPC.LAYOUT_LIST, () => isStudio().layouts.list());
   ipcMain.handle(IPC.LAYOUT_GET, (_e, id: unknown) =>
@@ -234,6 +261,19 @@ function registerIpc(): void {
     const p = patch as Record<string, unknown>;
     if (typeof p.soundVolume === 'number') allowed.soundVolume = Math.min(1, Math.max(0, p.soundVolume));
     if (typeof p.lastUsername === 'string') allowed.lastUsername = p.lastUsername;
+    if (typeof p.points === 'object' && p.points !== null) {
+      const pc = p.points as Record<string, unknown>;
+      const cur = isStudio().settings.get().points;
+      allowed.points = {
+        ...cur,
+        ...(typeof pc.enabled === 'boolean' ? { enabled: pc.enabled } : {}),
+        ...(typeof pc.perChat === 'number' ? { perChat: Math.max(0, pc.perChat) } : {}),
+        ...(typeof pc.perFollow === 'number' ? { perFollow: Math.max(0, pc.perFollow) } : {}),
+        ...(typeof pc.perLike === 'number' ? { perLike: Math.max(0, pc.perLike) } : {}),
+        ...(typeof pc.perCoin === 'number' ? { perCoin: Math.max(0, pc.perCoin) } : {}),
+        ...(typeof pc.currencyName === 'string' ? { currencyName: pc.currencyName.slice(0, 24) } : {}),
+      };
+    }
     if (typeof p.tts === 'object' && p.tts !== null) {
       const t = p.tts as Record<string, unknown>;
       const current = isStudio().settings.get().tts;

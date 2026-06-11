@@ -52,6 +52,11 @@ const api = {
   setByokCredentials: (provider: string, fields: Record<string, string>) =>
     ipcRenderer.invoke(IPC.TTS_BYOK_SET, provider, fields),
 
+  // App-Info
+  getAppInfo: () => ipcRenderer.invoke(IPC.APP_INFO),
+  openDataDir: () => ipcRenderer.invoke(IPC.APP_OPEN_DATA_DIR),
+  resetPoints: () => ipcRenderer.invoke(IPC.POINTS_RESET),
+
   // Settings
   getSettings: () => ipcRenderer.invoke(IPC.SETTINGS_GET),
   updateSettings: (patch: Record<string, unknown>) => ipcRenderer.invoke(IPC.SETTINGS_UPDATE, patch),

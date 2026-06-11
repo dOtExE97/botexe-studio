@@ -4,9 +4,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { TriggerRule } from '@botexe/trigger-engine';
+import { DEFAULT_POINTS_CONFIG, type PointsConfig } from './points-store';
 import { log } from '../core/logger';
 
-export const SETTINGS_SCHEMA_VERSION = 3;
+export const SETTINGS_SCHEMA_VERSION = 4;
 
 export interface TTSSettings {
   enabled: boolean;
@@ -31,6 +32,7 @@ export interface StudioSettings {
   tts: TTSSettings;
   /** BYOK-Zugangsdaten pro Provider (lokal, klartext — single-user-tool). */
   ttsCredentials: Record<string, Record<string, string>>;
+  points: PointsConfig;
 }
 
 const TTS_DEFAULTS: TTSSettings = {
@@ -52,6 +54,7 @@ const DEFAULTS: StudioSettings = {
   activeLayoutId: null,
   tts: TTS_DEFAULTS,
   ttsCredentials: {},
+  points: DEFAULT_POINTS_CONFIG,
 };
 
 function isValidRule(rule: unknown): rule is TriggerRule {
@@ -91,6 +94,8 @@ export class SettingsStore {
       // Migration v2→v3: credentials-block ergänzen.
       merged.ttsCredentials =
         typeof raw.ttsCredentials === 'object' && raw.ttsCredentials !== null ? raw.ttsCredentials : {};
+      // Migration v3→v4: points-config ergänzen.
+      merged.points = { ...DEFAULT_POINTS_CONFIG, ...(typeof raw.points === 'object' && raw.points !== null ? raw.points : {}) };
       merged.triggerRules = (Array.isArray(raw.triggerRules) ? raw.triggerRules : []).filter(
         (r: unknown): r is TriggerRule => {
           const ok = isValidRule(r);
