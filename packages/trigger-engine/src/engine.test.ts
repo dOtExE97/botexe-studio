@@ -252,3 +252,56 @@ test('renderSpeakTemplate füllt platzhalter aus dem event', () => {
     'fehlender user → "Jemand"',
   );
 });
+
+// ── Zyklus 5: chat_command-bedingung ─────────────────────────────────────
+
+test('chat_command: matcht "!hype" am anfang, case-insensitive, mit/ohne args', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ event: 'chat', conditions: [{ kind: 'chat_command', value: '!hype' }] })]);
+  const chat = (text: string): StudioEvent => ({ type: 'chat', ts: 1, text });
+
+  assert.equal(engine.evaluate(chat('!hype')).length, 1);
+  assert.equal(engine.evaluate(chat('!HYPE jetzt geht ab')).length, 1, 'mit args + caps');
+  assert.equal(engine.evaluate(chat('  !hype  ')).length, 1, 'mit whitespace');
+  assert.equal(engine.evaluate(chat('!hypen')).length, 0, 'kein präfix-teilmatch');
+  assert.equal(engine.evaluate(chat('mega !hype')).length, 0, 'nur am anfang');
+  assert.equal(engine.evaluate(chat('hype')).length, 0, 'ohne !');
+});
+
+test('chat_command: value ohne ! wird trotzdem als befehl erkannt', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ event: 'chat', conditions: [{ kind: 'chat_command', value: 'discord' }] })]);
+  assert.equal(engine.evaluate({ type: 'chat', ts: 1, text: '!discord' }).length, 1);
+});
+
+// ── Zyklus 6: timer-trigger ──────────────────────────────────────────────
+
+test('evaluateTimer: timer-regel feuert erst nach ablauf des intervalls', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([
+    rule({ id: 't1', event: 'timer', cooldownMs: 600_000, actions: [{ kind: 'play_sound', soundId: 's.mp3' }] }),
+  ]);
+
+  // erster tick: feuert sofort (noch nie gefeuert)
+  assert.equal(engine.evaluateTimer(0).length, 1);
+  assert.equal(engine.evaluateTimer(300_000).length, 0, 'noch im intervall');
+  assert.equal(engine.evaluateTimer(600_000).length, 1, 'intervall abgelaufen');
+});
+
+test('evaluateTimer: ignoriert nicht-timer-regeln und deaktivierte', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([
+    rule({ id: 'gift', event: 'gift' }),
+    rule({ id: 'off', event: 'timer', cooldownMs: 1000, enabled: false }),
+    rule({ id: 'on', event: 'timer', cooldownMs: 1000 }),
+  ]);
+  const matches = engine.evaluateTimer(0);
+  assert.deepEqual(matches.map((m) => m.ruleId), ['on']);
+});
+
+test('evaluateTimer: ohne cooldownMs feuert die timer-regel bei jedem tick', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ event: 'timer' })]);
+  assert.equal(engine.evaluateTimer(0).length, 1);
+  assert.equal(engine.evaluateTimer(1).length, 1);
+});
