@@ -157,10 +157,12 @@ const WIDGET_TYPES: {
   },
   {
     type: 'wheel', label: 'Glücksrad', desc: 'Dreht bei einer Trigger-Aktion (z.B. !spin gegen Punkte) und zeigt den Gewinn. Preise frei wählbar.',
-    w: 460, h: 460, props: { segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', spinMs: 4500, accent: '#ff5436' },
+    w: 480, h: 560, props: { segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', spinMs: 5000, accent: '#ff5436', autoShow: true, title: 'Glücksrad' },
     fields: [
       { key: 'segments', label: 'Preise', type: 'text', hint: 'Mit | trennen — jeder Eintrag ein Segment, z.B. „100 Coins|Nichts|VIP".' },
+      { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift über dem Rad.' },
       { key: 'spinMs', label: 'Drehdauer', type: 'seconds', hint: 'Wie lange das Rad dreht, bis es stoppt.' },
+      { key: 'autoShow', label: 'Auto ein-/ausblenden', type: 'boolean', hint: 'An: Rad erscheint beim Spin und verschwindet nach dem Ergebnis (deckt sonst nichts zu). Aus: dauerhaft sichtbar.' },
       ACCENT_FIELD,
     ],
   },
