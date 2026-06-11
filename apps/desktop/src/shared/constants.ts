@@ -20,6 +20,7 @@ export const IPC = {
   LAYOUT_SAVE: 'layout:save',
   LAYOUT_DELETE: 'layout:delete',
   LAYOUT_SET_ACTIVE: 'layout:set-active',
+  LAYOUT_PROFILE_LINK: 'layout:profile-link',
   // Trigger-Regeln
   RULES_GET: 'rules:get',
   RULES_SET: 'rules:set',

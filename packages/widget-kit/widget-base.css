@@ -1,0 +1,121 @@
+/* widget-base.css — gemeinsame Premium-Design-Basis aller Widgets.
+   Einmal vom Overlay-Runtime geladen. Glasmorphismus, Tiefe, Neon-Akzente,
+   edle Motion-Primitives. Lokal-first: keine externen Fonts/CDNs. */
+
+:root {
+  /* Akzent kann pro Widget via --bx-accent überschrieben werden */
+  --bx-accent: #ff5436;
+  --bx-accent-2: #ff9d3d;
+  --bx-gold: #ffd23e;
+  --bx-teal: #28e0c4;
+  --bx-pink: #ff5e8a;
+  --bx-ink: #0a0b10;
+  --bx-text: #f4f5fa;
+  --bx-muted: #aab0c4;
+
+  --bx-font-display: 'Bahnschrift', 'DIN Condensed', 'Oswald', 'Arial Narrow Bold', 'Arial Black', sans-serif;
+  --bx-font-body: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  --bx-font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+
+  /* Glas-Panel: dunkel, leicht durchscheinend, mit Tiefe */
+  --bx-glass: linear-gradient(150deg, rgba(28, 30, 42, 0.82), rgba(13, 14, 20, 0.78));
+  --bx-shadow: 0 22px 48px -12px rgba(0, 0, 0, 0.7), 0 2px 0 rgba(255, 255, 255, 0.04) inset;
+  --bx-radius: 18px;
+}
+
+/* Glas-Panel mit Gradient-Rand (1px Hairline aus Akzent → transparent). */
+.bx-glass {
+  position: relative;
+  background: var(--bx-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  backdrop-filter: blur(14px) saturate(1.3);
+  border-radius: var(--bx-radius);
+  box-shadow: var(--bx-shadow);
+}
+.bx-glass::before {
+  /* Gradient-Border via mask — schärfer als border-image */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bx-accent) 70%, white) 0%, transparent 38%, transparent 62%, color-mix(in srgb, var(--bx-accent) 40%, transparent) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Top-Glanzkante */
+.bx-sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 60% at 50% -10%, rgba(255, 255, 255, 0.12), transparent 60%);
+  pointer-events: none;
+}
+
+.bx-display {
+  font-family: var(--bx-font-display);
+  letter-spacing: 0.01em;
+  font-weight: 700;
+}
+.bx-mono { font-family: var(--bx-font-mono); }
+
+/* Neon-Text in Akzentfarbe */
+.bx-neon {
+  color: var(--bx-accent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+/* Animierter Shimmer-Sweep (für Header/Karten) */
+.bx-shimmer { position: relative; overflow: hidden; }
+.bx-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 45%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  animation: bx-shimmer 3.6s ease-in-out infinite;
+}
+@keyframes bx-shimmer {
+  0%, 55% { left: -60%; }
+  100% { left: 130%; }
+}
+
+/* Sanftes Schweben für Hero-Elemente */
+@keyframes bx-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Spring-Pop beim Erscheinen */
+@keyframes bx-pop-in {
+  0% { opacity: 0; transform: scale(0.82) translateY(10px); }
+  60% { opacity: 1; transform: scale(1.04) translateY(0); }
+  100% { transform: scale(1); }
+}
+
+/* Avatar-Ring mit Akzent-Glow */
+.bx-avatar {
+  border-radius: 50%;
+  background: #1a1c28 center / cover no-repeat;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bx-accent) 80%, transparent), 0 0 16px -2px var(--bx-accent), 0 3px 8px rgba(0, 0, 0, 0.6);
+}
+
+/* Rang-Medaillen */
+.bx-medal-1 { background: linear-gradient(160deg, #ffe88a, #f5b914); color: #3a2a00; box-shadow: 0 0 16px -2px #ffd23e; }
+.bx-medal-2 { background: linear-gradient(160deg, #eef2fb, #b9c2d8); color: #2a3142; }
+.bx-medal-3 { background: linear-gradient(160deg, #f0b487, #c9763c); color: #3a1d05; }
+
+/* Coin-/Akzent-Chip */
+.bx-chip {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--bx-accent) 30%, #14161f), #14161f);
+  border: 1px solid color-mix(in srgb, var(--bx-accent) 45%, transparent);
+  border-radius: 999px;
+}

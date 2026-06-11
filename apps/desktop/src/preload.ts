@@ -28,6 +28,7 @@ const api = {
   saveLayout: (layout: unknown) => ipcRenderer.invoke(IPC.LAYOUT_SAVE, layout),
   deleteLayout: (id: string) => ipcRenderer.invoke(IPC.LAYOUT_DELETE, id),
   setActiveLayout: (id: string | null) => ipcRenderer.invoke(IPC.LAYOUT_SET_ACTIVE, id),
+  getProfileLink: (id: string) => ipcRenderer.invoke(IPC.LAYOUT_PROFILE_LINK, id),
 
   // Trigger-Regeln
   getRules: () => ipcRenderer.invoke(IPC.RULES_GET),
