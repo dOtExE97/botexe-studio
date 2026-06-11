@@ -12,6 +12,7 @@ const EVENT_OPTIONS: { value: StudioEventType; label: string }[] = [
   { value: 'chat', label: 'Chat-Nachricht' },
   { value: 'like', label: 'Likes' },
   { value: 'viewer_count', label: 'Zuschauerzahl' },
+  { value: 'timer', label: '⏱ Timer (wiederkehrend)' },
 ];
 
 const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label: string; valueType: 'number' | 'text' }[]> = {
@@ -20,7 +21,10 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
     { value: 'gift_count_gte', label: 'Combo mindestens … Stück', valueType: 'number' },
     { value: 'gift_slug_is', label: 'Gift heißt genau …', valueType: 'text' },
   ],
-  chat: [{ value: 'chat_keyword', label: 'Nachricht enthält …', valueType: 'text' }],
+  chat: [
+    { value: 'chat_command', label: 'Nachricht ist Befehl (z.B. !hype) …', valueType: 'text' },
+    { value: 'chat_keyword', label: 'Nachricht enthält …', valueType: 'text' },
+  ],
   viewer_count: [{ value: 'viewer_count_gte', label: 'Mindestens … Zuschauer', valueType: 'number' }],
 };
 
@@ -157,10 +161,24 @@ export default function TriggersPage() {
                 </select>
               </div>
 
-              {/* BEDINGUNG */}
+              {/* BEDINGUNG (bzw. INTERVALL bei Timer) */}
               <div>
-                <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-studio-gold">Bedingung</div>
-                {condOptions.length === 0 ? (
+                <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-studio-gold">
+                  {rule.event === 'timer' ? 'Intervall' : 'Bedingung'}
+                </div>
+                {rule.event === 'timer' ? (
+                  <label className="flex items-center gap-2 py-1 text-xs text-studio-muted">
+                    alle
+                    <input
+                      type="number"
+                      min={5}
+                      value={Math.round((rule.cooldownMs ?? 600_000) / 1000)}
+                      onChange={(e) => patchRule(rule.id, { cooldownMs: Math.max(5, Number(e.target.value)) * 1000 })}
+                      className="w-24 border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs outline-none focus:border-studio-gold"
+                    />
+                    Sekunden
+                  </label>
+                ) : condOptions.length === 0 ? (
                   <div className="py-2 text-xs text-studio-muted">— keine nötig —</div>
                 ) : (
                   <div className="flex flex-col gap-1.5">
@@ -227,15 +245,17 @@ export default function TriggersPage() {
                     placeholder='🎤 Ansage, z.B. "{user} schickt {gift}, danke!" (leer = keine)'
                     className="w-full border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none placeholder:text-studio-muted/50 focus:border-studio-teal"
                   />
-                  <label className="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-studio-muted">
-                    Cooldown (s)
-                    <input
-                      type="number"
-                      value={(rule.cooldownMs ?? 0) / 1000}
-                      onChange={(e) => patchRule(rule.id, { cooldownMs: Math.max(0, Number(e.target.value)) * 1000 })}
-                      className="w-20 border border-studio-border bg-studio-raised px-2 py-1 font-mono text-xs outline-none"
-                    />
-                  </label>
+                  {rule.event !== 'timer' && (
+                    <label className="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-studio-muted">
+                      Cooldown (s)
+                      <input
+                        type="number"
+                        value={(rule.cooldownMs ?? 0) / 1000}
+                        onChange={(e) => patchRule(rule.id, { cooldownMs: Math.max(0, Number(e.target.value)) * 1000 })}
+                        className="w-20 border border-studio-border bg-studio-raised px-2 py-1 font-mono text-xs outline-none"
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
             </div>

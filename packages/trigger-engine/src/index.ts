@@ -8,7 +8,9 @@ export type StudioEventType =
   | 'sub'
   | 'like'
   | 'share'
-  | 'viewer_count';
+  | 'viewer_count'
+  /** Periodischer Tick — Timer-Regeln (z.B. alle 10 Min. Socials einblenden). */
+  | 'timer';
 
 export interface StudioUser {
   id: string;
@@ -43,6 +45,8 @@ export type TriggerCondition =
   | { kind: 'gift_count_gte'; value: number }
   | { kind: 'gift_slug_is'; value: string }
   | { kind: 'chat_keyword'; value: string }
+  /** Nachricht beginnt mit dem Befehl (z.B. '!hype'), optional mit Argumenten. */
+  | { kind: 'chat_command'; value: string }
   | { kind: 'viewer_count_gte'; value: number };
 
 export type TriggerAction =
@@ -88,11 +92,32 @@ export class TriggerEngine {
     for (const rule of this.rules) {
       if (!rule.enabled) continue;
       if (rule.event !== event.type) continue;
+      if (rule.event === 'timer') continue; // Timer laufen über evaluateTimer
       if (!(rule.conditions ?? []).every((c) => conditionHolds(c, event))) continue;
       if (rule.cooldownMs !== undefined) {
         const last = this.lastFired.get(rule.id);
         if (last !== undefined && event.ts - last < rule.cooldownMs) continue;
         this.lastFired.set(rule.id, event.ts);
+      }
+      for (const action of rule.actions) {
+        matches.push({ ruleId: rule.id, action });
+      }
+    }
+    return matches;
+  }
+
+  /**
+   * Timer-Regeln auswerten — pro Tick aufgerufen (z.B. jede Sekunde).
+   * cooldownMs ist das Intervall; ohne cooldownMs feuert die Regel jeden Tick.
+   */
+  evaluateTimer(ts: number): TriggerMatch[] {
+    const matches: TriggerMatch[] = [];
+    for (const rule of this.rules) {
+      if (!rule.enabled || rule.event !== 'timer') continue;
+      if (rule.cooldownMs !== undefined) {
+        const last = this.lastFired.get(rule.id);
+        if (last !== undefined && ts - last < rule.cooldownMs) continue;
+        this.lastFired.set(rule.id, ts);
       }
       for (const action of rule.actions) {
         matches.push({ ruleId: rule.id, action });
@@ -122,6 +147,13 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return event.gift !== undefined && event.gift.slug.toLowerCase() === condition.value.toLowerCase();
     case 'chat_keyword':
       return (event.text ?? '').toLowerCase().includes(condition.value.toLowerCase()) && condition.value !== '';
+    case 'chat_command': {
+      const cmd = condition.value.trim().toLowerCase().replace(/^!*/, '');
+      if (!cmd) return false;
+      const msg = (event.text ?? '').trim().toLowerCase();
+      // Befehl muss am Anfang stehen, gefolgt von Ende oder Leerzeichen.
+      return msg === `!${cmd}` || msg.startsWith(`!${cmd} `);
+    }
     case 'viewer_count_gte':
       return event.viewerCount !== undefined && event.viewerCount >= condition.value;
   }

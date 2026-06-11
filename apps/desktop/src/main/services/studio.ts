@@ -55,6 +55,7 @@ export class Studio {
   private replayAbort: AbortController | null = null;
   private statsTimer: ReturnType<typeof setTimeout> | null = null;
   private statsDirty = false;
+  private timerTicker: ReturnType<typeof setInterval> | null = null;
 
   constructor(paths: StudioPaths, hooks: StudioHooks) {
     this.hooks = hooks;
@@ -105,13 +106,7 @@ export class Studio {
 
       // 3. Trigger-Engine: Regeln auswerten, Aktionen ausführen
       for (const match of this.engine.evaluate(e)) {
-        if (match.action.kind === 'play_sound') {
-          this.playSound(match.action.soundId, match.action.volume);
-        } else if (match.action.kind === 'speak') {
-          this.speakForEvent(match.action.template, e, match.action.voice);
-        } else {
-          this.server.broadcast({ kind: 'action', ruleId: match.ruleId, action: match.action });
-        }
+        this.runAction(match.ruleId, match.action, e);
       }
 
       // 3b. Chat vorlesen (TikFinity-Style), wenn aktiviert
@@ -120,6 +115,17 @@ export class Studio {
       // 4. Live-Feed an die App-Shell
       this.hooks.onBusEvent(e);
     });
+  }
+
+  /** Eine Trigger-Aktion ausführen — gemeinsamer Pfad für Events und Timer. */
+  private runAction(ruleId: string, action: import('@botexe/trigger-engine').TriggerAction, event: StudioEvent): void {
+    if (action.kind === 'play_sound') {
+      this.playSound(action.soundId, action.volume);
+    } else if (action.kind === 'speak') {
+      this.speakForEvent(action.template, event, action.voice);
+    } else {
+      this.server.broadcast({ kind: 'action', ruleId, action });
+    }
   }
 
   private scheduleStatsBroadcast(): void {
@@ -148,11 +154,21 @@ export class Studio {
 
   async start(): Promise<void> {
     await this.server.start();
+    // Timer-Regeln: jede Sekunde prüfen, ob ein Intervall abgelaufen ist.
+    // Synthetisches timer-Event als Kontext (für speak-Templates ohne user).
+    this.timerTicker = setInterval(() => {
+      const ts = Date.now();
+      const tickEvent: StudioEvent = { type: 'timer', ts };
+      for (const match of this.engine.evaluateTimer(ts)) {
+        this.runAction(match.ruleId, match.action, tickEvent);
+      }
+    }, 1000);
   }
 
   async stop(): Promise<void> {
     this.replayAbort?.abort();
     if (this.statsTimer) clearTimeout(this.statsTimer);
+    if (this.timerTicker) clearInterval(this.timerTicker);
     await this.adapter.disconnect();
     await this.server.stop();
   }
