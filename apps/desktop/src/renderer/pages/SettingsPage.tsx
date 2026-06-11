@@ -1,6 +1,7 @@
 // SettingsPage — App-Einstellungen: Loyalty-Punkte-Regeln, App-Infos,
 // Datenordner, Punkte-Reset.
 import { useEffect, useState } from 'react';
+import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift } from 'lucide-react';
 
 interface PointsConfig {
   enabled: boolean;
@@ -20,6 +21,13 @@ interface AppInfo {
   overlayPort: number;
 }
 
+const RULE_ICON: Record<string, typeof Coins> = {
+  perChat: MessageSquare,
+  perFollow: UserPlus,
+  perCoin: Gift,
+  perLike: Heart,
+};
+
 export default function SettingsPage() {
   const [points, setPoints] = useState<PointsConfig | null>(null);
   const [info, setInfo] = useState<AppInfo | null>(null);
@@ -36,53 +44,59 @@ export default function SettingsPage() {
     void window.studio.updateSettings({ points: patch });
   };
 
-  const numField = (key: keyof PointsConfig, label: string, hint?: string) => (
-    <label className="text-[10px] uppercase tracking-widest text-studio-muted">
-      {label}
-      <input
-        type="number"
-        min={0}
-        value={points ? (points[key] as number) : 0}
-        onChange={(e) => updatePoints({ [key]: Math.max(0, Number(e.target.value)) } as Partial<PointsConfig>)}
-        className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs outline-none focus:border-studio-accent"
-      />
-      {hint && <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">{hint}</span>}
-    </label>
-  );
+  const numField = (key: keyof PointsConfig, label: string, hint?: string) => {
+    const RIcon = RULE_ICON[key] ?? Coins;
+    return (
+      <label className="flex flex-col gap-1">
+        <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-studio-muted">
+          <RIcon size={12} className="text-studio-accent" /> {label}
+        </span>
+        <input
+          type="number"
+          min={0}
+          value={points ? (points[key] as number) : 0}
+          onChange={(e) => updatePoints({ [key]: Math.max(0, Number(e.target.value)) } as Partial<PointsConfig>)}
+          className="bx-input font-mono"
+        />
+        {hint && <span className="text-[10px] text-studio-muted/70">{hint}</span>}
+      </label>
+    );
+  };
 
   return (
     <div className="flex max-w-3xl flex-col gap-5 p-6">
       <div>
-        <h1 className="font-display text-lg uppercase">Einstellungen</h1>
+        <h1 className="font-display text-xl uppercase">Einstellungen</h1>
         <p className="mt-1 text-xs text-studio-muted">Loyalty-Punkte, App-Infos und Daten.</p>
       </div>
 
       {/* Loyalty-Punkte */}
-      <section className="border border-studio-border bg-studio-panel p-4">
+      <section className="bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-gold">Loyalty-Punkte</h2>
-          <label className="flex items-center gap-2 text-xs">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
+            <Coins size={15} /> Loyalty-Punkte
+          </h2>
+          <label className="flex cursor-pointer items-center gap-2 text-xs">
             <input
               type="checkbox"
               checked={points?.enabled ?? false}
               onChange={(e) => updatePoints({ enabled: e.target.checked })}
-              className="accent-[#ffd23e]"
             />
             Punkte sammeln aktiv
           </label>
         </div>
-        <p className="mb-3 text-[11px] leading-relaxed text-studio-muted">
+        <p className="mb-4 text-[12px] leading-relaxed text-studio-muted">
           Zuschauer sammeln über alle Streams hinweg Punkte für Aktivität. Anzeigen via Widget „Punkte-Bestenliste".
-          Das ist die Währungs-Basis für das spätere Stream-Kartenspiel.
+          Das ist die Währungs-Basis fürs Glücksrad und das spätere Stream-Kartenspiel.
         </p>
         {points && (
           <div className="grid grid-cols-3 gap-3">
-            <label className="text-[10px] uppercase tracking-widest text-studio-muted">
-              Name der Währung
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] uppercase tracking-widest text-studio-muted">Name der Währung</span>
               <input
                 value={points.currencyName}
                 onChange={(e) => updatePoints({ currencyName: e.target.value })}
-                className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-1.5 text-xs outline-none focus:border-studio-accent"
+                className="bx-input"
               />
             </label>
             {numField('perChat', 'pro Chat-Nachricht')}
@@ -93,15 +107,17 @@ export default function SettingsPage() {
         )}
         <button
           onClick={() => void window.studio.resetPoints()}
-          className="clip-slant mt-4 border border-studio-accent/40 bg-studio-accent/10 px-4 py-2 text-xs font-bold text-studio-accent hover:bg-studio-accent hover:text-black"
+          className="bx-pill mt-4 border-studio-accent/40 text-studio-accent hover:border-studio-accent hover:text-studio-accent"
         >
-          Alle Punkte zurücksetzen
+          <RotateCcw size={13} /> Alle Punkte zurücksetzen
         </button>
       </section>
 
       {/* App-Info */}
-      <section className="border border-studio-border bg-studio-panel p-4">
-        <h2 className="mb-3 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Über bOtExE Studio</h2>
+      <section className="bx-card p-5">
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <Info size={15} /> Über bOtExE Studio
+        </h2>
         {info && (
           <div className="grid grid-cols-2 gap-y-2 font-mono text-xs text-studio-text/90">
             <span className="text-studio-muted">Version</span><span>{info.version}</span>
@@ -113,11 +129,8 @@ export default function SettingsPage() {
             <span className="truncate" title={info.dataDir}>{info.dataDir}</span>
           </div>
         )}
-        <button
-          onClick={() => void window.studio.openDataDir()}
-          className="clip-slant mt-4 border border-studio-border bg-studio-raised px-4 py-2 text-xs hover:border-studio-teal hover:text-studio-teal"
-        >
-          📂 Datenordner öffnen
+        <button onClick={() => void window.studio.openDataDir()} className="bx-pill mt-4 hover:text-studio-teal">
+          <FolderOpen size={13} /> Datenordner öffnen
         </button>
       </section>
     </div>

@@ -1,5 +1,19 @@
 @import 'tailwindcss';
 
+/* Gebündelte Fonts (offline, kein CDN) — gleiche Familie wie die Overlay-Widgets */
+@font-face {
+  font-family: 'Lilita One';
+  src: url('./lilita-one.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Baloo 2';
+  src: url('./baloo2-extrabold.woff2') format('woff2');
+  font-weight: 800;
+  font-display: swap;
+}
+
 @theme {
   /* Neo-Arcade Broadcast — gleiche Sprache wie die Overlay-Widgets */
   --color-studio-bg: #0c0d12;
@@ -12,15 +26,21 @@
   --color-studio-accent-soft: #ff8a3d;
   --color-studio-teal: #21e6c1;
   --color-studio-gold: #ffd23e;
-  --font-display: 'Archivo Black', 'Arial Black', Impact, sans-serif;
-  --font-mono: Consolas, Menlo, monospace;
+  --font-display: 'Lilita One', 'Arial Black', Impact, sans-serif;
+  --font-chunky: 'Baloo 2', 'Lilita One', sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, Menlo, monospace;
 }
 
 body {
-  background: var(--color-studio-bg);
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(255, 77, 46, 0.08), transparent 60%),
+    radial-gradient(1000px 700px at -10% 110%, rgba(33, 230, 193, 0.06), transparent 55%),
+    var(--color-studio-bg);
+  background-attachment: fixed;
   color: var(--color-studio-text);
-  font-family: Verdana, 'Segoe UI', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* schräge kante als wiederkehrendes motiv */
@@ -31,13 +51,129 @@ body {
   clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%);
 }
 
+/* ── Premium-Bausteine ─────────────────────────────────────────────────── */
+
+/* Glas-Sektionskarte mit Hairline-Gradient-Rand + Tiefe (wie die Widgets) */
+.bx-card {
+  position: relative;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(27, 30, 41, 0.72), rgba(20, 22, 30, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 18px 40px -24px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+/* dünner Akzent-Schimmer an der Oberkante */
+.bx-card::before {
+  content: '';
+  position: absolute;
+  inset-inline: 14px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-studio-accent) 55%, transparent), transparent);
+  pointer-events: none;
+}
+
+/* Sektions-Überschrift */
+.bx-kicker {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--color-studio-muted);
+}
+
+/* Eingabefelder — einheitlich, mit Fokus-Glow statt OS-Look */
+.bx-input,
+.bx-select {
+  width: 100%;
+  border-radius: 9px;
+  border: 1px solid var(--color-studio-border);
+  background: rgba(12, 13, 18, 0.7);
+  color: var(--color-studio-text);
+  padding: 8px 11px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.bx-input::placeholder {
+  color: color-mix(in srgb, var(--color-studio-muted) 60%, transparent);
+}
+.bx-input:focus,
+.bx-select:focus {
+  border-color: var(--color-studio-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-studio-accent) 18%, transparent);
+  background: rgba(12, 13, 18, 0.9);
+}
+
+/* Native Select-Pfeil ersetzen — kein graues OS-Dropdown mehr */
+.bx-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%238b8fa3' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+}
+.bx-select option {
+  background: #14161e;
+  color: var(--color-studio-text);
+}
+
+/* Pill-Button (Sekundär) mit Glas */
+.bx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9px;
+  border: 1px solid var(--color-studio-border);
+  background: rgba(27, 30, 41, 0.6);
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--color-studio-muted);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.bx-pill:hover {
+  color: var(--color-studio-text);
+  border-color: color-mix(in srgb, var(--color-studio-accent) 50%, var(--color-studio-border));
+}
+
+/* Akzent-Hauptbutton */
+.bx-btn-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--color-studio-accent), var(--color-studio-accent-soft));
+  color: #1a0a05;
+  font-weight: 700;
+  padding: 8px 15px;
+  font-size: 13px;
+  box-shadow: 0 8px 22px -10px var(--color-studio-accent);
+  transition: filter 0.15s, transform 0.05s;
+}
+.bx-btn-accent:hover { filter: brightness(1.08); }
+.bx-btn-accent:active { transform: translateY(1px); }
+
+/* Checkbox/Radio in Akzent */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--color-studio-accent);
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #262a36;
-  border-radius: 0;
+  background: linear-gradient(180deg, #2c3140, #21242f);
+  border-radius: 6px;
+  border: 2px solid var(--color-studio-bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4052;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
