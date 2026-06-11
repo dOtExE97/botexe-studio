@@ -170,6 +170,12 @@ async function main(): Promise<void> {
   await sleep(5000);
   await shot(ws, `${OUT}/tour-4-sounds.png`);
 
+  await clickNav(ws, 'Stimme');
+  await shot(ws, `${OUT}/tour-7-tts.png`);
+  // einmal durch die echte kette sprechen (synthese → /tts route → renderer-audio)
+  await evalJs(ws, `window.studio.testTts('bOtExE Studio kann jetzt sprechen — danke für die Rose, Mia!')`);
+  await sleep(2500);
+
   // Overlay selbst: frisches Event reinschieben, damit der Alert "live" ist
   const info = (await evalJs(ws, 'window.studio.getOverlayInfo()')) as { url: string };
   await send(ws, 'Page.navigate', { url: info.url });

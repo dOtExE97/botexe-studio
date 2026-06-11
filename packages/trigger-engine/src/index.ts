@@ -49,7 +49,9 @@ export type TriggerAction =
   | { kind: 'play_sound'; soundId: string; volume?: number }
   | { kind: 'fire_alert'; targetId: string; params?: Record<string, unknown> }
   | { kind: 'show_layer'; targetId: string; durationMs?: number }
-  | { kind: 'hide_layer'; targetId: string };
+  | { kind: 'hide_layer'; targetId: string }
+  /** TTS-Ansage; template mit {user} {text} {gift} {count} {coins} platzhaltern. */
+  | { kind: 'speak'; template: string; voice?: string };
 
 export interface TriggerRule {
   id: string;
@@ -98,6 +100,16 @@ export class TriggerEngine {
     }
     return matches;
   }
+}
+
+/** Füllt ein speak-Template mit Werten aus dem Event ({user} → Nickname usw.). */
+export function renderSpeakTemplate(template: string, event: StudioEvent): string {
+  return template
+    .replace(/\{user\}/g, event.user?.nickname ?? 'Jemand')
+    .replace(/\{text\}/g, event.text ?? '')
+    .replace(/\{gift\}/g, event.gift?.slug ?? '')
+    .replace(/\{count\}/g, String(event.gift?.count ?? ''))
+    .replace(/\{coins\}/g, String(event.gift?.totalCoins ?? ''));
 }
 
 function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolean {

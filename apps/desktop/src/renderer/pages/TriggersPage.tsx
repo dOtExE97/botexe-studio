@@ -79,6 +79,13 @@ export default function TriggersPage() {
     });
   };
 
+  const setSpeakAction = (rule: TriggerRule, template: string) => {
+    const others = rule.actions.filter((a) => a.kind !== 'speak');
+    patchRule(rule.id, {
+      actions: template.trim() ? [...others, { kind: 'speak', template }] : others,
+    });
+  };
+
   if (!loaded) return <div className="p-6 text-studio-muted">Lade…</div>;
 
   return (
@@ -110,6 +117,7 @@ export default function TriggersPage() {
         const condDef = condOptions.find((c) => c.value === cond?.kind);
         const soundAction = getAction(rule, 'play_sound') as { soundId?: string } | undefined;
         const alertAction = getAction(rule, 'fire_alert') as { targetId?: string } | undefined;
+        const speakAction = getAction(rule, 'speak') as { template?: string } | undefined;
         return (
           <div
             key={rule.id}
@@ -213,6 +221,12 @@ export default function TriggersPage() {
                       <option key={s.id} value={s.id}>🔊 {s.filename}</option>
                     ))}
                   </select>
+                  <input
+                    value={speakAction?.template ?? ''}
+                    onChange={(e) => setSpeakAction(rule, e.target.value)}
+                    placeholder='🎤 Ansage, z.B. "{user} schickt {gift}, danke!" (leer = keine)'
+                    className="w-full border border-studio-border bg-studio-raised px-2 py-2 text-xs outline-none placeholder:text-studio-muted/50 focus:border-studio-teal"
+                  />
                   <label className="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-studio-muted">
                     Cooldown (s)
                     <input

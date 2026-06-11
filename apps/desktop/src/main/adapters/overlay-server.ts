@@ -42,6 +42,8 @@ export interface OverlayServerOptions {
   getStats?: () => unknown;
   /** Sound-Files (mp3/wav/ogg/m4a) — NUR ausgeliefert, abgespielt wird im App-Renderer. */
   soundsDir?: string;
+  /** TTS-Cache (mp3) — gleiche Schiene wie Sounds, Wiedergabe im App-Renderer. */
+  ttsDir?: string;
 }
 
 const FILE_NAME_RE = /^[a-zA-Z0-9_.-]+\.(js|css|html|woff2?)$/;
@@ -127,6 +129,27 @@ export class OverlayServer {
     });
 
     this.setupTestEventRoute(auth);
+
+    this.expressApp.get('/tts/:filename', auth, (req, res) => {
+      const dir = this.options.ttsDir;
+      if (!dir) {
+        res.status(404).send('TTS nicht konfiguriert');
+        return;
+      }
+      const raw = req.params.filename;
+      const filename = path.basename(Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? ''));
+      if (!/^tts-[a-f0-9]+\.mp3$/.test(filename)) {
+        res.status(400).send('Invalid filename');
+        return;
+      }
+      const target = path.join(dir, filename);
+      if (!fs.existsSync(target)) {
+        res.status(404).send('Not found');
+        return;
+      }
+      res.setHeader('Content-Type', 'audio/mpeg');
+      fs.createReadStream(target).pipe(res);
+    });
 
     // Sound-Streaming für den App-Renderer (<audio src>). Bewusst NICHT vom
     // Overlay genutzt — TTLS-Browser-Audio ist unzuverlässig (Spec §5).

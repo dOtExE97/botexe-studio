@@ -42,6 +42,10 @@ const api = {
   importMyInstants: (mp3Url: string, title: string) =>
     ipcRenderer.invoke(IPC.SOUND_IMPORT_MYINSTANTS, mp3Url, title),
 
+  // TTS
+  getTtsVoices: () => ipcRenderer.invoke(IPC.TTS_VOICES),
+  testTts: (text: string, voice?: string) => ipcRenderer.invoke(IPC.TTS_TEST, text, voice),
+
   // Settings
   getSettings: () => ipcRenderer.invoke(IPC.SETTINGS_GET),
   updateSettings: (patch: Record<string, unknown>) => ipcRenderer.invoke(IPC.SETTINGS_UPDATE, patch),

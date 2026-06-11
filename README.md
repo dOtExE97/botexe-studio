@@ -67,6 +67,7 @@ E2E-Durchstich gegen die laufende App (Screenshots App + Overlay):
 | Echte TikTok-Gift-Bilder + Profilfotos in Alerts/Feeds | ✅ (live verifizieren) |
 | App-Shell (Live · Overlay-Editor · Trigger · Sounds) | ✅ E2E verifiziert |
 | Linux-Package (`npm run make`) | ✅ baut + startet |
+| TTS: Chat-Vorlesen + Trigger-Ansagen (Edge-TTS, 16 Stimmen, Troll-Schutz) | ✅ Synthese live verifiziert |
 | Offen | echter Live-Connect, TTLS-Smoke-Test auf Stream-PC, Windows-Build/CI (braucht GitHub-Remote), Auto-Update aktivieren, Sub-Events live verifizieren (v2-lib hat kein subscribe-event mehr) |
 
 ## Referenzen
