@@ -224,7 +224,15 @@ export class OverlayServer {
       '.woff': 'font/woff',
       '.woff2': 'font/woff2',
     };
-    res.setHeader('Content-Type', `${types[path.extname(filename)] ?? 'application/octet-stream'}; charset=utf-8`);
+    const ext = path.extname(filename);
+    res.setHeader('Content-Type', `${types[ext] ?? 'application/octet-stream'}; charset=utf-8`);
+    if (ext === '.css') {
+      // Relative Font-URLs (url('x.woff2')) brauchen den Token — sonst 403.
+      let css = fs.readFileSync(target, 'utf-8');
+      css = css.replace(/url\((['"]?)([\w.-]+\.woff2?)\1\)/g, (_m, q, name) => `url(${q}${name}?token=${this.token}${q})`);
+      res.send(css);
+      return;
+    }
     res.send(fs.readFileSync(target));
   }
 

@@ -49,30 +49,32 @@ const CSS = `
 .bx-st-bars .bx-lb-row > * { position: relative; z-index: 1; }
 .bx-st-bars.bx-lb-likes .bx-lb-row::before { background: linear-gradient(90deg, color-mix(in srgb, var(--bx-pink) 55%, transparent), color-mix(in srgb, var(--bx-pink) 12%, transparent)); }
 
-/* — ARCADE (TikFinity-Look) — keine box, avatare in reihe, kronen, konturschrift */
-.bx-st-arcade { background: none; box-shadow: none; padding: 4px; }
+/* — ARCADE (TikFinity-Look) — keine box, große avatare in reihe, kronen, runde fette schrift */
+.bx-st-arcade { background: none; box-shadow: none; padding: 2px; }
 .bx-st-arcade::before { display: none; }
-.bx-st-arcade .bx-lb-title { border: none; margin: 0 0 4px; text-align: center;
-  -webkit-text-stroke: 2px #08090d; paint-order: stroke fill; }
+.bx-st-arcade .bx-lb-title { border: none; margin: 0 0 6px; text-align: center; font-size: 17px; color: #fff;
+  -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 3px 5px rgba(0,0,0,.5); }
 .bx-st-arcade .bx-lb-title::after { display: none; }
-.bx-st-arcade .bx-lb-list { display: flex; align-items: flex-start; justify-content: center; gap: 4%; flex-wrap: nowrap; }
-.bx-st-arcade .bx-lb-row { position: static; height: auto; flex-direction: column; align-items: center; gap: 3px; padding: 0; transform: none !important; flex: 1 1 0; min-width: 0; max-width: 22%; }
+.bx-st-arcade .bx-lb-list { display: flex; align-items: flex-start; justify-content: center; gap: 3%; flex-wrap: nowrap; }
+.bx-st-arcade .bx-lb-row { position: static; height: auto; flex-direction: column; align-items: center; gap: 4px; padding: 0; transform: none !important; flex: 1 1 0; min-width: 0; max-width: 20%; }
 .bx-st-arcade .bx-lb-rank { display: none; }
-.bx-st-arcade .bx-lb-pic { width: 64px; height: 64px; box-shadow: 0 0 0 3px #5c9dff, 0 4px 10px rgba(0,0,0,.5); }
-.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-pic { box-shadow: 0 0 0 3px #ffd23e, 0 0 18px -2px #ffd23e, 0 4px 10px rgba(0,0,0,.5); }
-.bx-st-arcade .bx-lb-row[data-rank="2"] .bx-lb-pic { box-shadow: 0 0 0 3px #cfd6e4, 0 4px 10px rgba(0,0,0,.5); }
-.bx-st-arcade .bx-lb-row[data-rank="3"] .bx-lb-pic { box-shadow: 0 0 0 3px #f0a35a, 0 4px 10px rgba(0,0,0,.5); }
-.bx-st-arcade .bx-lb-row::after { content: '👑'; position: static; order: -1; font-size: 20px; margin-bottom: -4px; transform: rotate(0); filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); opacity: .55; left: auto; top: auto; }
-.bx-st-arcade .bx-lb-row[data-rank="1"]::after { opacity: 1; font-size: 26px; }
-.bx-st-arcade .bx-lb-row[data-rank="2"]::after { opacity: .85; }
-.bx-st-arcade .bx-lb-name { flex: none; max-width: 100%; font-size: 15px; text-align: center; color: #7dff8a;
-  -webkit-text-stroke: 2px #08090d; paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.6); }
-.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-name { color: #ffd23e; }
-.bx-st-arcade .bx-lb-row[data-rank="2"] .bx-lb-name { color: #eaf0ff; }
+.bx-st-arcade .bx-lb-pic { width: 78px; height: 78px; box-shadow: 0 0 0 4px #5c9dff, 0 6px 14px rgba(0,0,0,.55); }
+.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-pic { width: 92px; height: 92px; box-shadow: 0 0 0 5px #ffd23e, 0 0 26px -2px #ffd23e, 0 6px 14px rgba(0,0,0,.55); }
+.bx-st-arcade .bx-lb-row[data-rank="2"] .bx-lb-pic { box-shadow: 0 0 0 4px #d7deec, 0 6px 14px rgba(0,0,0,.55); }
+.bx-st-arcade .bx-lb-row[data-rank="3"] .bx-lb-pic { box-shadow: 0 0 0 4px #f0a35a, 0 6px 14px rgba(0,0,0,.55); }
+.bx-st-arcade .bx-lb-row::after { content: '👑'; position: static; order: -1; font-size: 24px; margin-bottom: -8px; z-index: 2;
+  transform: rotate(-8deg); filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
+.bx-st-arcade .bx-lb-row[data-rank="1"]::after { font-size: 36px; margin-bottom: -10px; transform: rotate(0); }
+.bx-st-arcade .bx-lb-row[data-rank="4"]::after, .bx-st-arcade .bx-lb-row[data-rank="5"]::after { content: ''; }
+.bx-st-arcade .bx-lb-name { flex: none; max-width: 100%; font-size: 17px; text-align: center; line-height: 1.05; color: #8dffa0;
+  -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
+.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-name { font-size: 20px; color: #ffd23e; }
+.bx-st-arcade .bx-lb-row[data-rank="2"] .bx-lb-name { color: #f0f4ff; }
 .bx-st-arcade .bx-lb-row[data-rank="3"] .bx-lb-name { color: #ffb05a; }
-.bx-st-arcade .bx-lb-val { font-family: var(--bx-font-display); font-size: 16px; color: #fff;
-  -webkit-text-stroke: 2px #08090d; paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.6); }
-.bx-st-arcade.bx-lb-likes .bx-lb-val { color: var(--bx-pink); }
+.bx-st-arcade .bx-lb-val { font-family: var(--bx-font-display); font-size: 19px; color: #fff;
+  -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
+.bx-st-arcade .bx-lb-val .arr { color: #59f08a; -webkit-text-stroke: 2px #0a0b12; }
+.bx-st-arcade.bx-lb-likes .bx-lb-val { color: #ff8ab0; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -117,8 +119,12 @@ export default class Leaderboard {
       if (this.style === 'bars') row.style.setProperty('--bar', `${Math.max(8, (val / maxVal) * 100)}%`);
       row.querySelector('.bx-lb-rank').textContent = String(i + 1);
       row.querySelector('.bx-lb-name').textContent = g.nickname;
-      const arrow = this.style === 'arcade' ? '▲ ' : '';
-      row.querySelector('.bx-lb-val').textContent = this.source === 'likes' ? `${arrow}${fmt(val)} ❤` : `${arrow}${fmt(val)}`;
+      const valEl = row.querySelector('.bx-lb-val');
+      if (this.style === 'arcade') {
+        valEl.innerHTML = `<span class="arr">▲</span> ${fmt(val)}${this.source === 'likes' ? ' ❤' : ''}`;
+      } else {
+        valEl.textContent = this.source === 'likes' ? `${fmt(val)} ❤` : fmt(val);
+      }
       const pic = row.querySelector('.bx-lb-pic');
       if (pic && g.profilePic) pic.style.backgroundImage = `url("${encodeURI(g.profilePic)}")`;
     });

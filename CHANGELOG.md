@@ -41,5 +41,9 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 - **TikFinity-Look nachgebaut (nach Referenzbildern):** Coin-Glas als echtes Einmachglas mit Deckel, das sich von unten mit hunderten kleiner bunter Münzen füllt (statt großer gestapelter Bilder); Leaderboard/Like-Liste neuer Stil „Arcade" — keine Box, runde Avatare in der Reihe, Kronen pro Rang, dicke bunte Konturschrift (Gold/Silber/Bronze/Grün), ▲-Werte, frei schwebend auf Transparenz
 - **Konturschrift-Helfer** (`widget-base.css`): dicke schwarze Textkontur (TikFinity-Signatur) für alle Widgets nutzbar
 
+- **Premium-Font lokal gebündelt:** Lilita One (chunky rounded) + Baloo 2 als Widget-Display-/Body-Font — der TikFinity-typische fette Comic-Look, komplett offline (kein CDN)
+- **Coin-Glas = echte Geschenke:** jedes Gift fällt als weißer Ball mit dem echten Gift-Bild darin ins Einmachglas; je mehr Coins, desto größer der Ball; füllt sich dicht von unten (framerate-unabhängige Delta-Time-Physik, robust gegen Fenster-Drosselung)
+- **Arcade-Leaderboard verfeinert:** größere Avatare, Kronen pro Rang (Gold/Silber/Bronze), runde fette Konturschrift, ▲-Werte — sehr nah am TikFinity-Original
+
 ### Security
 - Schmale Preload-API (kein generisches `invoke`, Audit H2), CSP, sandbox, gehärtete Fuses (RunAsNode aus)

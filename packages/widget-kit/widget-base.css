@@ -1,3 +1,14 @@
+@font-face {
+  font-family: 'Lilita One';
+  src: url('lilita-one.woff2') format('woff2');
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: 'Baloo 2';
+  src: url('baloo2-extrabold.woff2') format('woff2');
+  font-weight: 800; font-display: swap;
+}
+
 /* widget-base.css — gemeinsame Premium-Design-Basis aller Widgets.
    Einmal vom Overlay-Runtime geladen. Glasmorphismus, Tiefe, Neon-Akzente,
    edle Motion-Primitives. Lokal-first: keine externen Fonts/CDNs. */
@@ -13,9 +24,10 @@
   --bx-text: #f4f5fa;
   --bx-muted: #aab0c4;
 
-  --bx-font-display: 'Bahnschrift', 'DIN Condensed', 'Oswald', 'Arial Narrow Bold', 'Arial Black', sans-serif;
-  --bx-font-body: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
-  --bx-font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  --bx-font-display: 'Lilita One', 'Arial Black', sans-serif;
+  --bx-font-body: 'Baloo 2', 'Segoe UI', system-ui, sans-serif;
+  --bx-font-num: 'Baloo 2', 'Arial Black', sans-serif;
+  --bx-font-mono: 'Baloo 2', 'JetBrains Mono', Consolas, monospace;
 
   /* Glas-Panel: dunkel, leicht durchscheinend, mit Tiefe */
   --bx-glass: linear-gradient(150deg, rgba(28, 30, 42, 0.82), rgba(13, 14, 20, 0.78));
@@ -122,8 +134,8 @@
 
 /* Dicke Konturschrift (TikFinity-Signatur) — bunte Füllung, schwarzer Rand. */
 .bx-outline {
-  -webkit-text-stroke: 3px #08090d;
+  -webkit-text-stroke: 4px #0a0b12;
   paint-order: stroke fill;
-  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 3px 5px rgba(0, 0, 0, 0.5);
 }
-.bx-outline-thin { -webkit-text-stroke: 2px #08090d; paint-order: stroke fill; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); }
+.bx-outline-thin { -webkit-text-stroke: 2.5px #0a0b12; paint-order: stroke fill; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.45); }
