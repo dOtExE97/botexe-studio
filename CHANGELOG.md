@@ -50,6 +50,7 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 - **Zuschauer-Verwaltung:** eigene Seite — pro Zuschauer Punkte vergeben/abziehen (−10/+10/+100), VIP markieren, vom Chat-Vorlesen sperren (Troll-Schutz), eigene TTS-Stimme zuweisen; Aktivitäts-Stats (Gifts/Coins/Likes), Suche. Punkte-System um Flags/Stats erweitert (schemaVersion 2 mit Migration)
 - **Glücksrad-Widget:** animiertes Preis-Rad mit frei wählbaren Segmenten; dreht bei einer Trigger-Aktion (z.B. „!spin") und zeigt den Gewinn — mit **Punkte-Economy** (Kosten pro Spin werden dem Zuschauer abgezogen, kein Spin bei zu wenig Punkten). Trigger-Aktion „Glücksrad drehen" im Editor
+- **Profi-Glücksrad:** Standfuß (Pfosten + Sockel) im Canvas gezeichnet, **blendet sich beim Spin automatisch ein und nach dem Ergebnis wieder aus**, echte Spin-Animation (Anlauf rückwärts → Ease-out-Auslauf, klickender Zeiger an den Segmentkanten), Pins am Rand, Ergebnis-Popup mit Gewinner-Name. Im Editor: Auto-Ein-/Ausblenden-Schalter + eigener Titel
 - **Editor-UX auf Profi-Niveau:** alle Widget-Einstellungen wählbar (5 Lücken geschlossen), Sekunden statt ms, Schalter, Erklärung bei jeder Einstellung
 - **TTS respektiert Zuschauer:** gesperrte (gemutete) Zuschauer werden nicht vorgelesen; eigene Stimme pro Zuschauer hat Vorrang
 
