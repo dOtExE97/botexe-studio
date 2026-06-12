@@ -2,7 +2,7 @@
 // Hier steckt die Verdrahtung, die in der Alt-App über ein 1500-Zeilen-
 // main.ts verschmiert war — main.ts bleibt dünn (Fenster + IPC).
 import path from 'node:path';
-import { TriggerEngine, renderSpeakTemplate, matchRedemption, type StudioEvent, type TriggerRule, type Redemption } from '@botexe/trigger-engine';
+import { TriggerEngine, renderSpeakTemplate, matchRedemption, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { SessionStats } from '../core/session-stats';
@@ -275,6 +275,21 @@ export class Studio {
 
   setRedemptions(redemptions: Redemption[]): void {
     this.settings.update({ redemptions });
+  }
+
+  // ── Manuelles Auslöse-Panel ───────────────────────────────────────────
+
+  getPanelButtons(): PanelButton[] {
+    return this.settings.get().panelButtons ?? [];
+  }
+
+  setPanelButtons(buttons: PanelButton[]): void {
+    this.settings.update({ panelButtons: buttons });
+  }
+
+  /** Aktion manuell auslösen (Panel-Klick oder Hotkey) — ohne Zuschauer-Kontext. */
+  fireManual(action: TriggerAction): void {
+    this.dispatchAction('manual', action, { type: 'timer', ts: Date.now() });
   }
 
   // ── Layout ────────────────────────────────────────────────────────────

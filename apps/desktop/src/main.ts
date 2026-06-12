@@ -1,9 +1,9 @@
-import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, session, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
-import type { StudioEvent, TriggerRule, Redemption } from '@botexe/trigger-engine';
+import type { StudioEvent, TriggerRule, Redemption, PanelButton } from '@botexe/trigger-engine';
 import { IPC } from './shared/constants';
 import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
@@ -201,6 +201,19 @@ function registerIpc(): void {
     return { ok: true };
   });
 
+  // Manuelles Auslöse-Panel + Hotkeys
+  ipcMain.handle(IPC.PANEL_GET, () => isStudio().getPanelButtons());
+  ipcMain.handle(IPC.PANEL_SET, (_e, buttons: unknown) => {
+    if (!Array.isArray(buttons)) return { ok: false, error: 'buttons muss ein Array sein' };
+    isStudio().setPanelButtons(buttons as PanelButton[]);
+    registerPanelHotkeys();
+    return { ok: true };
+  });
+  ipcMain.handle(IPC.PANEL_FIRE, (_e, action: unknown) => {
+    if (action && typeof action === 'object') isStudio().fireManual(action as Parameters<Studio['fireManual']>[0]);
+    return { ok: true };
+  });
+
   // Sounds
   ipcMain.handle(IPC.SOUND_LIST, () => isStudio().sounds.list());
   ipcMain.handle(IPC.SOUND_IMPORT, async () => {
@@ -382,6 +395,20 @@ function registerIpc(): void {
   });
 }
 
+/** Globale Hotkeys aus den Panel-Buttons (neu) registrieren. */
+function registerPanelHotkeys(): void {
+  globalShortcut.unregisterAll();
+  if (!studio) return;
+  for (const btn of studio.getPanelButtons()) {
+    if (!btn.accelerator) continue;
+    try {
+      globalShortcut.register(btn.accelerator, () => studio?.fireManual(btn.action));
+    } catch (err) {
+      log.warn('Hotkeys', `Accelerator "${btn.accelerator}" ungültig`, (err as Error).message);
+    }
+  }
+}
+
 // ── App-Lifecycle ──────────────────────────────────────────────────────────
 
 app.on('second-instance', () => {
@@ -413,6 +440,7 @@ app.whenReady().then(async () => {
   registerIpc();
   try {
     await studio.start();
+    registerPanelHotkeys();
   } catch (err) {
     log.error('Main', 'Studio-Start fehlgeschlagen', (err as Error).message);
   }
@@ -429,6 +457,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  globalShortcut.unregisterAll();
   void studio?.stop();
 });
 

@@ -78,6 +78,15 @@ export interface Redemption {
   cooldownMs?: number;
 }
 
+/** Manuell auslösbarer Knopf (Soundboard/Schnell-Aktion) mit optionalem Hotkey. */
+export interface PanelButton {
+  id: string;
+  label: string;
+  action: TriggerAction;
+  /** Electron-Accelerator, z.B. 'CommandOrControl+Shift+1' (leer = kein Hotkey). */
+  accelerator?: string;
+}
+
 export interface TriggerRule {
   id: string;
   name: string;

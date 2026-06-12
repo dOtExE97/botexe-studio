@@ -3,7 +3,7 @@
 // beim Laden gefiltert — eine kaputte Regel macht nicht alle Regeln kaputt.
 import fs from 'node:fs';
 import path from 'node:path';
-import type { TriggerRule, Redemption } from '@botexe/trigger-engine';
+import type { TriggerRule, Redemption, PanelButton } from '@botexe/trigger-engine';
 import { DEFAULT_POINTS_CONFIG, type PointsConfig } from './points-store';
 import { log } from '../core/logger';
 
@@ -32,6 +32,8 @@ export interface StudioSettings {
   triggerRules: TriggerRule[];
   /** Punkte-Einlöse-Store: Chat-Befehl → Punkte ausgeben → Aktion. */
   redemptions: Redemption[];
+  /** Manuelles Auslöse-Panel (Soundboard/Schnell-Aktionen) mit Hotkeys. */
+  panelButtons: PanelButton[];
   activeLayoutId: string | null;
   tts: TTSSettings;
   /** BYOK-Zugangsdaten pro Provider (lokal, klartext — single-user-tool). */
@@ -57,6 +59,7 @@ const DEFAULTS: StudioSettings = {
   audioOutputId: '',
   triggerRules: [],
   redemptions: [],
+  panelButtons: [],
   activeLayoutId: null,
   tts: TTS_DEFAULTS,
   ttsCredentials: {},
@@ -131,6 +134,10 @@ export class SettingsStore {
         },
       );
       merged.audioOutputId = typeof raw.audioOutputId === 'string' ? raw.audioOutputId : '';
+      merged.panelButtons = (Array.isArray(raw.panelButtons) ? raw.panelButtons : []).filter(
+        (b: unknown): b is PanelButton =>
+          typeof b === 'object' && b !== null && typeof (b as Record<string, unknown>).id === 'string' && typeof (b as Record<string, unknown>).action === 'object',
+      );
       return merged;
     } catch (err) {
       log.error('Settings', 'settings.json nicht lesbar — Defaults', (err as Error).message);

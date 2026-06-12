@@ -35,6 +35,9 @@ const api = {
   setRules: (rules: unknown[]) => ipcRenderer.invoke(IPC.RULES_SET, rules),
   getRedemptions: () => ipcRenderer.invoke(IPC.REDEMPTIONS_GET),
   setRedemptions: (reds: unknown[]) => ipcRenderer.invoke(IPC.REDEMPTIONS_SET, reds),
+  getPanelButtons: () => ipcRenderer.invoke(IPC.PANEL_GET),
+  setPanelButtons: (buttons: unknown[]) => ipcRenderer.invoke(IPC.PANEL_SET, buttons),
+  firePanel: (action: unknown) => ipcRenderer.invoke(IPC.PANEL_FIRE, action),
 
   // Sounds
   listSounds: () => ipcRenderer.invoke(IPC.SOUND_LIST),

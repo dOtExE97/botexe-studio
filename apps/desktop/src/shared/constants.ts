@@ -27,6 +27,10 @@ export const IPC = {
   // Punkte-Einlöse-Store
   REDEMPTIONS_GET: 'redemptions:get',
   REDEMPTIONS_SET: 'redemptions:set',
+  // Manuelles Auslöse-Panel + Hotkeys
+  PANEL_GET: 'panel:get',
+  PANEL_SET: 'panel:set',
+  PANEL_FIRE: 'panel:fire',
   // Sounds (lokale Wiedergabe passiert im Renderer — Main schickt Play-Befehle)
   SOUND_PLAY: 'sound:play',
   SOUND_LIST: 'sound:list',
