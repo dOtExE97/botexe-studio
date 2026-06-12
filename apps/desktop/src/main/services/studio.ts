@@ -14,6 +14,7 @@ import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
 import { MediaLibrary } from './media-library';
 import { shouldReadChat } from './tts-filter';
+import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { PointsStore } from './points-store';
 import { TTSService } from './tts-service';
 import { log } from '../core/logger';
@@ -144,6 +145,14 @@ export class Studio {
         this.maybeReadChat(e);
       }
 
+      // 3c. Widget-Sounds: Feuerwerk-Knall / Alert-Sound direkt am Widget
+      // konfiguriert — gespielt LOKAL über die App (nie im Overlay).
+      if (e.type === 'gift' && e.gift) {
+        for (const soundId of collectGiftSounds(this.layouts.list(), e.gift.totalCoins)) {
+          this.playSound(soundId);
+        }
+      }
+
       // 4. Live-Feed an die App-Shell
       this.hooks.onBusEvent(e);
     });
@@ -200,6 +209,18 @@ export class Studio {
         this.scheduleStatsBroadcast();
       }
       this.server.broadcast({ kind: 'action', ruleId, action });
+      // Rad-Sounds (am Widget konfiguriert): Drehen sofort, Gewinn nach spinMs.
+      const ws = findWheelSounds(this.layouts.list(), action.targetId);
+      if (ws) {
+        if (ws.spin) this.playSound(ws.spin);
+        if (ws.result) {
+          const timer = setTimeout(() => {
+            this.actionTimers.delete(timer);
+            this.playSound(ws.result);
+          }, ws.spinMs);
+          this.actionTimers.add(timer);
+        }
+      }
     } else {
       this.server.broadcast({ kind: 'action', ruleId, action });
     }

@@ -31,8 +31,9 @@ interface PropField {
   key: string;
   label: string;
   /** seconds = im UI in Sekunden, gespeichert als ms · boolean = Schalter
-   *  media = visueller Bild/Video-Picker mit Import */
-  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media';
+   *  media = visueller Bild/Video-Picker mit Import · sound = Sound-Dropdown
+   *  (abgespielt über die App, nie im Overlay) */
+  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound';
   options?: { value: string; label: string }[];
   hint?: string;
 }
@@ -59,10 +60,11 @@ const WIDGET_TYPES: {
 }[] = [
   {
     type: 'gift-alert', label: 'Gift-Alert', desc: 'Großer Alert mitten im Bild, wenn ein Gift kommt — mit Gift-Bild und Profilfoto.',
-    w: 760, h: 380, props: { minCoins: 0, durationMs: 5000 },
+    w: 760, h: 380, props: { minCoins: 0, durationMs: 5000, soundId: '' },
     fields: [
       { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Kleinere Gifts lösen keinen großen Alert aus. 0 = jedes Gift.' },
       { key: 'durationMs', label: 'Anzeigedauer', type: 'seconds', hint: 'Wie lange der Alert sichtbar bleibt.' },
+      { key: 'soundId', label: 'Alert-Sound', type: 'sound', hint: 'Spielt beim Alert über die App (läuft über dein Desktop-Audio in den Stream).' },
       ACCENT_FIELD,
     ],
   },
@@ -188,6 +190,8 @@ const WIDGET_TYPES: {
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift über dem Rad.' },
       { key: 'spinMs', label: 'Drehdauer', type: 'seconds', hint: 'Wie lange das Rad dreht, bis es stoppt.' },
       { key: 'autoShow', label: 'Auto ein-/ausblenden', type: 'boolean', hint: 'An: Rad erscheint beim Spin und verschwindet nach dem Ergebnis (deckt sonst nichts zu). Aus: dauerhaft sichtbar.' },
+      { key: 'spinSoundId', label: 'Dreh-Sound', type: 'sound', hint: 'Spielt beim Start des Spins über die App.' },
+      { key: 'resultSoundId', label: 'Gewinn-Sound', type: 'sound', hint: 'Spielt, wenn das Rad stehen bleibt.' },
       ACCENT_FIELD,
     ],
   },
@@ -249,10 +253,11 @@ const WIDGET_TYPES: {
   },
   {
     type: 'gift-fireworks', label: 'Gift-Feuerwerk', desc: 'Jedes Gift steigt als Rakete auf und explodiert — je mehr Coins, desto fetter der Burst.',
-    w: 900, h: 1200, props: { minCoins: 0, maxRockets: 3 },
+    w: 900, h: 1200, props: { minCoins: 0, maxRockets: 3, soundId: '' },
     fields: [
       { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Feuerwerk nur für Gifts ab diesem Wert. 0 = jedes.' },
       { key: 'maxRockets', label: 'Max. Raketen gleichzeitig', type: 'number', hint: 'Begrenzt die Show bei vielen Gifts auf einmal.' },
+      { key: 'soundId', label: 'Knall-Sound', type: 'sound', hint: 'Spielt bei jedem Feuerwerk über die App (Tipp: MyInstants → „firework").' },
     ],
   },
   {
@@ -327,6 +332,7 @@ export default function OverlayPage() {
   const [showPreview, setShowPreview] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
+  const [soundList, setSoundList] = useState<{ id: string; filename: string }[]>([]);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.3);
   const dragRef = useRef<{ id: string; mode: 'move' | 'resize'; startX: number; startY: number; orig: OverlayLayer } | null>(null);
@@ -362,6 +368,9 @@ export default function OverlayPage() {
     setMediaList((await window.studio.listMedia()) as MediaItem[]);
   }, []);
   useEffect(() => { void refreshMedia(); }, [refreshMedia]);
+  useEffect(() => {
+    void window.studio.listSounds().then((s: { id: string; filename: string }[]) => setSoundList(s));
+  }, []);
 
   const selectProfile = (id: string) => {
     const p = profiles.find((l) => l.id === id);
@@ -897,6 +906,31 @@ export default function OverlayPage() {
                           ) : null}
                           {field.hint && <span className="mt-1 block text-[9px] normal-case tracking-normal text-studio-muted/70">{field.hint}</span>}
                         </div>
+                      );
+                    }
+
+                    // Sound = Dropdown der App-Sounds (Wiedergabe über die App)
+                    if (field.type === 'sound') {
+                      return (
+                        <label key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
+                          {field.label}
+                          <select
+                            value={String(value)}
+                            onChange={(e) => setProp(e.target.value)}
+                            className="bx-select mt-1 text-xs"
+                          >
+                            <option value="">Kein Sound</option>
+                            {soundList.map((s) => (
+                              <option key={s.id} value={s.id}>{s.filename}</option>
+                            ))}
+                          </select>
+                          {field.hint && <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">{field.hint}</span>}
+                          {soundList.length === 0 && (
+                            <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-gold">
+                              Noch keine Sounds — unter „Sounds" importieren (MyInstants-Suche!).
+                            </span>
+                          )}
+                        </label>
                       );
                     }
 
