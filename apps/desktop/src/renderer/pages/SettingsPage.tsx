@@ -1,7 +1,7 @@
 // SettingsPage — App-Einstellungen: Loyalty-Punkte-Regeln, App-Infos,
 // Datenordner, Punkte-Reset.
 import { useEffect, useState } from 'react';
-import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift } from 'lucide-react';
+import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker } from 'lucide-react';
 
 interface PointsConfig {
   enabled: boolean;
@@ -31,11 +31,31 @@ const RULE_ICON: Record<string, typeof Coins> = {
 export default function SettingsPage() {
   const [points, setPoints] = useState<PointsConfig | null>(null);
   const [info, setInfo] = useState<AppInfo | null>(null);
+  const [outputs, setOutputs] = useState<{ deviceId: string; label: string }[]>([]);
+  const [audioOut, setAudioOut] = useState('');
 
   useEffect(() => {
-    void window.studio.getSettings().then((s: { points: PointsConfig }) => setPoints(s.points));
+    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string }) => {
+      setPoints(s.points);
+      setAudioOut(s.audioOutputId ?? '');
+    });
     void window.studio.getAppInfo().then((i: AppInfo) => setInfo(i));
+    // Audio-Ausgabegeräte auflisten (für den Output-Picker)
+    void navigator.mediaDevices
+      ?.enumerateDevices()
+      .then((ds) =>
+        setOutputs(
+          ds.filter((d) => d.kind === 'audiooutput').map((d) => ({ deviceId: d.deviceId, label: d.label || 'Gerät' })),
+        ),
+      )
+      .catch(() => setOutputs([]));
   }, []);
+
+  const setAudioOutput = (id: string) => {
+    setAudioOut(id);
+    void window.studio.updateSettings({ audioOutputId: id });
+    window.dispatchEvent(new CustomEvent('bx-audio-output', { detail: id }));
+  };
 
   const updatePoints = (patch: Partial<PointsConfig>) => {
     if (!points) return;
@@ -111,6 +131,29 @@ export default function SettingsPage() {
         >
           <RotateCcw size={13} /> Alle Punkte zurücksetzen
         </button>
+      </section>
+
+      {/* Audio-Ausgabe */}
+      <section className="bx-card p-5">
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-teal">
+          <Speaker size={15} /> Audio-Ausgabe
+        </h2>
+        <p className="mb-3 text-[12px] leading-relaxed text-studio-muted">
+          Wohin Sounds & TTS abgespielt werden. <b>Standard</b> reicht für die meisten — OBS nimmt den Desktop-Ton mit.
+          Wer ein Mischpult (z.B. Rodecaster) oder ein virtuelles Audiokabel (VB-Audio Cable / VoiceMeeter) nutzt, wählt es hier.
+        </p>
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase tracking-widest text-studio-muted">Ausgabegerät</span>
+          <select value={audioOut} onChange={(e) => setAudioOutput(e.target.value)} className="bx-select">
+            <option value="">Standard (System)</option>
+            {outputs.map((o) => (
+              <option key={o.deviceId} value={o.deviceId}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+        {outputs.length === 0 && (
+          <p className="mt-2 text-[10px] text-studio-muted/70">Keine Geräte gefunden — Standard wird genutzt.</p>
+        )}
       </section>
 
       {/* App-Info */}
