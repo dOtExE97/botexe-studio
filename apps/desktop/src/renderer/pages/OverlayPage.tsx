@@ -165,6 +165,38 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'bingo', label: 'Stream-Bingo', desc: 'Bingo-Brett (3×3 bis 5×5) mit Auto-Zielen — Zellen haken sich live ab (Gifts, Like-/Coin-Meilensteine), Reihen geben BINGO mit Animation + Sound. Volles Brett = neue Runde.',
+    w: 480, h: 540, props: { size: 3, gifts: 'Rose,Finger Heart,GG', likeStep: 2000, coinStep: 200, followStep: 5, autoNewRound: true, cellSoundId: 'botexe-alert.wav', bingoSoundId: 'botexe-gewinn.wav', title: 'Stream-Bingo' },
+    fields: [
+      { key: 'size', label: 'Rastergröße', type: 'select', options: [
+        { value: '3', label: '3×3 (9 Ziele)' }, { value: '4', label: '4×4 (16 Ziele)' }, { value: '5', label: '5×5 (25 Ziele)' },
+      ], hint: 'Wie groß das Bingo-Brett ist.' },
+      { key: 'gifts', label: 'Gift-Ziele', type: 'text', hint: 'Gift-Namen, kommagetrennt (genau wie sie bei TikTok heißen, z.B. Rose,GG). Leer = nur Meilensteine.' },
+      { key: 'likeStep', label: 'Like-Schritt', type: 'number', hint: 'Meilenstein-Abstand, z.B. 2000 = Zellen für +2K/+4K/+6K Likes (ab Rundenstart). 0 = keine Like-Ziele.' },
+      { key: 'coinStep', label: 'Coin-Schritt', type: 'number', hint: 'Wie Like-Schritt, für Coins. 0 = aus.' },
+      { key: 'followStep', label: 'Follower-Schritt', type: 'number', hint: 'Wie Like-Schritt, für neue Follower. 0 = aus.' },
+      { key: 'autoNewRound', label: 'Auto neue Runde', type: 'boolean', hint: 'Volles Brett → nach kurzer Pause automatisch ein frisches Brett würfeln.' },
+      { key: 'cellSoundId', label: 'Treffer-Sound', type: 'sound', hint: 'Spielt, wenn eine Zelle abgehakt wird.' },
+      { key: 'bingoSoundId', label: 'Bingo-Sound', type: 'sound', hint: 'Spielt bei einer kompletten Reihe/Spalte/Diagonale.' },
+      { key: 'title', label: 'Titel', type: 'text' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
+    type: 'guess-number', label: 'Zahlen-Raten', desc: 'Die App denkt sich eine Zahl aus — Zuschauer raten im Chat. Treffer: Kacheln flippen auf, Gewinner mit Avatar + Konfetti + Sound, dann automatisch neue Runde.',
+    w: 420, h: 280, props: { min: 1, max: 10, hints: true, autoNewRound: true, roundDelayMs: 6000, winSoundId: 'botexe-gewinn.wav', title: 'Zahl erraten!' },
+    fields: [
+      { key: 'min', label: 'Von', type: 'number', hint: 'Kleinste mögliche Zahl.' },
+      { key: 'max', label: 'Bis', type: 'number', hint: 'Größte mögliche Zahl — z.B. 9 (einstellig), 10 oder 100.' },
+      { key: 'hints', label: 'Höher/Niedriger-Tipps', type: 'boolean', hint: 'An: falsche Versuche zeigen ▲ höher / ▼ niedriger — macht es interaktiver.' },
+      { key: 'autoNewRound', label: 'Auto neue Runde', type: 'boolean', hint: 'Nach einem Gewinner startet automatisch die nächste Runde.' },
+      { key: 'roundDelayMs', label: 'Pause zwischen Runden', type: 'seconds', hint: 'Wie lange der Gewinner gefeiert wird, bevor es weitergeht.' },
+      { key: 'winSoundId', label: 'Gewinn-Sound', type: 'sound', hint: 'Spielt, wenn jemand die Zahl trifft.' },
+      { key: 'title', label: 'Titel', type: 'text' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
     type: 'counter', label: 'Counter', desc: 'Manueller Zähler („Tode: 7") — hoch/runter per Panel-Klick, Hotkey oder Chat-Befehl. Wert überlebt Overlay-Reloads.',
     w: 320, h: 160, props: { label: 'Tode', start: 0, accent: '#ff5436' },
     fields: [

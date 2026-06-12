@@ -49,6 +49,8 @@ export interface OverlayServerOptions {
   ttsDir?: string;
   /** Eigene Medien (Bilder/Videos) — fürs Media-Widget im Overlay. */
   mediaDir?: string;
+  /** Spiel-Widgets (Bingo/Zahlenraten) lösen Sounds über die App aus. */
+  onWidgetSound?: (soundId: string) => void;
 }
 
 const FILE_NAME_RE = /^[a-zA-Z0-9_.-]+\.(js|css|html|woff2?)$/;
@@ -72,6 +74,8 @@ export class OverlayServer {
   private readonly host: string;
   private port: number;
   private clients = new Set<TrackedClient>();
+  /** soundId → letzter Abspiel-Zeitpunkt (Dedup über mehrere Overlay-Clients). */
+  private soundDedup = new Map<string, number>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private unsubBus: (() => void) | null = null;
   private droppedMessages = 0;
@@ -333,9 +337,19 @@ export class OverlayServer {
         const str = String(raw);
         if (str.length > 4096) return;
         try {
-          const msg = JSON.parse(str) as { kind?: string; scope?: string; message?: string };
-          if (msg.kind !== 'clientlog' || !msg.message) return;
+          const msg = JSON.parse(str) as { kind?: string; scope?: string; message?: string; soundId?: string };
           const now = Date.now();
+          // Spiel-Widget-Sound (Bingo-Treffer, Zahlenraten-Gewinn): über die
+          // App abspielen — Dedup, weil OBS+TTLS dasselbe Widget zeigen können.
+          if (msg.kind === 'sound' && typeof msg.soundId === 'string' && msg.soundId.length < 120) {
+            const last = this.soundDedup.get(msg.soundId) ?? 0;
+            if (now - last > 600) {
+              this.soundDedup.set(msg.soundId, now);
+              this.options.onWidgetSound?.(msg.soundId);
+            }
+            return;
+          }
+          if (msg.kind !== 'clientlog' || !msg.message) return;
           if (now - logWindowStart > 1000) { logWindowStart = now; logCount = 0; }
           if (++logCount > 5) return; // max 5 Client-Logs/s pro Client → kein Flooding
           log.warn('Overlay-Widget', `[${profileId || 'default'}] ${clean(msg.scope, 60)} ${clean(msg.message, 300)}`.trim());

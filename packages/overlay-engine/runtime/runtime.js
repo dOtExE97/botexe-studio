@@ -104,6 +104,14 @@ async function renderLayout(layout) {
           baseUrl: cfg.baseUrl,
           token: cfg.token,
           layerId: layer.id,
+          // Spiel-Widgets: Sound über die App auslösen (Server dedupliziert).
+          playSound: (soundId) => {
+            try {
+              if (activeWs && activeWs.readyState === 1 && soundId) {
+                activeWs.send(JSON.stringify({ kind: 'sound', soundId: String(soundId) }));
+              }
+            } catch { /* nie eskalieren */ }
+          },
         });
         if (lastStats) entry.widget?.onStats?.(lastStats);
       } catch (err) {
@@ -215,6 +223,7 @@ const DEMO_GIFTS = [
 const DEMO_CHATS = [
   'Hey! 🔥', 'Lass gehen!', 'GG 😎', 'Erster!', 'Was ein Stream 💜',
   'Gönnung 🙌', '!spin', 'Folg dir schon ewig', 'Brudi 😂', 'Mega Vibes ❤️',
+  '7', '3', '5', '9', '2', // Zahlen-Raten-Vorschau: gelegentliche Treffer
 ];
 
 let demoStats = null;

@@ -104,6 +104,7 @@ export class Studio {
         topPoints: this.points.top(10),
         currencyName: this.settings.get().points.currencyName,
       }),
+      onWidgetSound: (soundId) => this.playSound(soundId),
     });
 
     this.adapter = new TikTokAdapter(this.bus, {
