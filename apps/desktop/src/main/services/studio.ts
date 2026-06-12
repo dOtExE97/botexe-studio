@@ -1,6 +1,7 @@
 // studio.ts — die Komposition: Adapter → Bus → Trigger-Engine → Aktionen.
 // Hier steckt die Verdrahtung, die in der Alt-App über ein 1500-Zeilen-
 // main.ts verschmiert war — main.ts bleibt dünn (Fenster + IPC).
+import fs from 'node:fs';
 import path from 'node:path';
 import { TriggerEngine, renderSpeakTemplate, matchRedemption, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
@@ -74,6 +75,7 @@ export class Studio {
     this.settings = new SettingsStore(paths.userDataDir);
     this.layouts = new LayoutStore(paths.userDataDir);
     this.sounds = new SoundLibrary(paths.userDataDir);
+    this.seedBundledSounds(paths.widgetDir);
     this.media = new MediaLibrary(paths.userDataDir);
     this.points = new PointsStore(paths.userDataDir);
     this.tts = new TTSService(
@@ -437,6 +439,22 @@ export class Studio {
     const vol = volume ?? this.settings.get().soundVolume;
     const url = `http://127.0.0.1:${this.server.getPort()}/sounds/${encodeURIComponent(soundId)}?token=${this.server.getToken()}`;
     this.hooks.onSoundPlay({ soundId, url, volume: vol });
+  }
+
+  /** Mitgelieferte Widget-Sounds (Feuerwerk/Rad/Gewinn/Alert) einmalig in die
+   *  Sound-Bibliothek kopieren — danach ganz normale, austauschbare Sounds. */
+  private seedBundledSounds(widgetDir: string): void {
+    try {
+      const src = path.join(widgetDir, 'sounds');
+      if (!fs.existsSync(src)) return;
+      for (const f of fs.readdirSync(src)) {
+        if (!f.endsWith('.wav') && !f.endsWith('.mp3')) continue;
+        const target = path.join(this.sounds.getDir(), f);
+        if (!fs.existsSync(target)) fs.copyFileSync(path.join(src, f), target);
+      }
+    } catch (err) {
+      log.warn('Sounds', 'Mitgelieferte Sounds nicht kopierbar', (err as Error).message);
+    }
   }
 
   // ── Medien ────────────────────────────────────────────────────────────

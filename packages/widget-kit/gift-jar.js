@@ -30,6 +30,16 @@ function loadImage(url) {
   return img;
 }
 
+
+// Anti-Throttle: der TTLS-Browser drosselt requestAnimationFrame auf ~1/s
+// (Offscreen-Rendering). Fallback-Timer springt ein, wenn rAF nicht feuert —
+// gesunder Browser läuft mit vollen FPS (Timer wird jedes Frame gecancelt).
+function scheduleFrame(cb) {
+  const raf = requestAnimationFrame(cb);
+  const timer = setTimeout(() => { cancelAnimationFrame(raf); cb(performance.now()); }, 55);
+  return () => clearTimeout(timer);
+}
+
 export default class GiftJar {
   constructor(root, props) {
     ensureStyle();
@@ -104,7 +114,7 @@ export default class GiftJar {
       img: loadImage(gift.icon), color: FALLBACK[Math.floor(Math.random()*FALLBACK.length)] });
     this.kick();
   }
-  kick() { if (!this.running) { this.running = true; this.lastT = 0; requestAnimationFrame(this.frame); } }
+  kick() { if (!this.running) { this.running = true; this.lastT = 0; this.cancelFrame = scheduleFrame(this.frame); } }
   frame(now) {
     now = now || performance.now();
     // Delta-Time in 60fps-Frames (gedeckelt) → framerate-unabhängig, robust
@@ -118,7 +128,8 @@ export default class GiftJar {
     }
     this.falling = this.falling.filter((b) => !b.dead);
     this.draw();
-    if (this.falling.length > 0) requestAnimationFrame(this.frame); else { this.running = false; this.lastT = 0; }
+    if (this.cancelFrame) this.cancelFrame();
+    if (this.falling.length > 0) this.cancelFrame = scheduleFrame(this.frame); else { this.running = false; this.lastT = 0; }
   }
   jarPath(ctx, inset) {
     const J = this.jar; const k = inset || 0;

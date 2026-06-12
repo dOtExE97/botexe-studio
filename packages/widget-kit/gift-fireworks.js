@@ -55,6 +55,16 @@ function ensureStyle() {
   }
 }
 
+
+// Anti-Throttle: der TTLS-Browser drosselt requestAnimationFrame auf ~1/s
+// (Offscreen-Rendering). Fallback-Timer springt ein, wenn rAF nicht feuert —
+// gesunder Browser läuft mit vollen FPS (Timer wird jedes Frame gecancelt).
+function scheduleFrame(cb) {
+  const raf = requestAnimationFrame(cb);
+  const timer = setTimeout(() => { cancelAnimationFrame(raf); cb(performance.now()); }, 55);
+  return () => clearTimeout(timer);
+}
+
 export default class GiftFireworks {
   constructor(root, props) {
     ensureStyle();
@@ -179,11 +189,12 @@ export default class GiftFireworks {
     if (!this.running) {
       this.running = true;
       this.lastT = 0;
-      requestAnimationFrame(this.frame);
+      this.cancelFrame = scheduleFrame(this.frame);
     }
   }
 
   frame(now) {
+    if (this.cancelFrame) this.cancelFrame();
     // Delta-Time: bei niedriger FPS (TTLS!) bewegt sich alles gleich schnell,
     // nur mit weniger Zwischenbildern — statt in Zeitlupe zu ruckeln.
     const dt = Math.min(4, this.lastT ? (now - this.lastT) / 16.67 : 1);
@@ -265,7 +276,7 @@ export default class GiftFireworks {
     this.particles = this.particles.filter((p) => p.life > 0);
 
     if (this.rockets.length > 0 || this.particles.length > 0) {
-      requestAnimationFrame(this.frame);
+      this.cancelFrame = scheduleFrame(this.frame);
     } else {
       ctx.clearRect(0, 0, this.w, this.h);
       this.running = false; // idle: keine CPU
@@ -273,6 +284,7 @@ export default class GiftFireworks {
   }
 
   destroy() {
+    if (this.cancelFrame) this.cancelFrame();
     this.observer.disconnect();
     this.rockets = [];
     this.particles = [];

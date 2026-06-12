@@ -72,7 +72,7 @@ export default class Wheel {
     this.startT = 0; this.spinning = true;
     const res = this.el.querySelector('.bx-wh-result'); res.classList.remove('show');
     if (this.autoShow) this.el.classList.remove('hidden'); // einblenden
-    requestAnimationFrame(this.frame);
+    this.cancelFrame = scheduleFrame(this.frame);
   }
   frame(now) {
     now = now || performance.now();
@@ -90,7 +90,8 @@ export default class Wheel {
     const nearEdge = Math.min(phase, 1-phase);
     this.pointerDefl = nearEdge < 0.12 ? Math.min(0.5, speed*6) * (phase < 0.5 ? -1 : 1) : this.pointerDefl*0.7;
     this.draw();
-    if (t < 1) requestAnimationFrame(this.frame);
+    if (this.cancelFrame) this.cancelFrame();
+    if (t < 1) this.cancelFrame = scheduleFrame(this.frame);
     else { this.spinning = false; this.pointerDefl = 0; this.draw(); this.showResult(); }
   }
   showResult() {

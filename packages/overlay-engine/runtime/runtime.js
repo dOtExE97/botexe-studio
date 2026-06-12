@@ -345,6 +345,23 @@ function connect() {
 
 window.addEventListener('resize', scaleStage);
 
+// FPS-Diagnose: einmalig nach dem Start die echte rAF-Rate messen und ins
+// App-Log melden (Einstellungen → Logs öffnen) — zeigt sofort, ob der
+// TTLS-Browser drosselt und der Anti-Throttle-Fallback der Widgets greift.
+setTimeout(() => {
+  let frames = 0;
+  const t0 = performance.now();
+  const count = () => {
+    frames++;
+    if (performance.now() - t0 < 2000) requestAnimationFrame(count);
+    else {
+      const fps = Math.round(frames / 2);
+      reportClientError('fps', `~${fps} fps (rAF)${fps < 12 ? ' — Browser drosselt, Widgets nutzen Fallback (~18fps)' : ''}`);
+    }
+  };
+  requestAnimationFrame(count);
+}, 6000);
+
 if (cfg.wsUrl) {
   connect();
   if (PREVIEW) startPreview();

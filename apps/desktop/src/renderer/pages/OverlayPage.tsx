@@ -60,7 +60,7 @@ const WIDGET_TYPES: {
 }[] = [
   {
     type: 'gift-alert', label: 'Gift-Alert', desc: 'Großer Alert mitten im Bild, wenn ein Gift kommt — mit Gift-Bild und Profilfoto.',
-    w: 760, h: 380, props: { minCoins: 0, durationMs: 5000, soundId: '' },
+    w: 760, h: 380, props: { minCoins: 0, durationMs: 5000, soundId: 'botexe-alert.wav' },
     fields: [
       { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Kleinere Gifts lösen keinen großen Alert aus. 0 = jedes Gift.' },
       { key: 'durationMs', label: 'Anzeigedauer', type: 'seconds', hint: 'Wie lange der Alert sichtbar bleibt.' },
@@ -184,7 +184,7 @@ const WIDGET_TYPES: {
   },
   {
     type: 'wheel', label: 'Glücksrad', desc: 'Dreht bei einer Trigger-Aktion (z.B. !spin gegen Punkte) und zeigt den Gewinn. Preise frei wählbar.',
-    w: 480, h: 560, props: { segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', spinMs: 5000, accent: '#ff5436', autoShow: true, title: 'Glücksrad' },
+    w: 480, h: 560, props: { segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', spinMs: 5000, accent: '#ff5436', autoShow: true, title: 'Glücksrad', spinSoundId: 'botexe-rad.wav', resultSoundId: 'botexe-gewinn.wav' },
     fields: [
       { key: 'segments', label: 'Preise', type: 'text', hint: 'Mit | trennen — jeder Eintrag ein Segment, z.B. „100 Coins|Nichts|VIP".' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift über dem Rad.' },
@@ -253,7 +253,7 @@ const WIDGET_TYPES: {
   },
   {
     type: 'gift-fireworks', label: 'Gift-Feuerwerk', desc: 'Jedes Gift steigt als Rakete auf und explodiert — je mehr Coins, desto fetter der Burst.',
-    w: 900, h: 1200, props: { minCoins: 0, maxRockets: 3, soundId: '' },
+    w: 900, h: 1200, props: { minCoins: 0, maxRockets: 3, soundId: 'botexe-feuerwerk.wav' },
     fields: [
       { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Feuerwerk nur für Gifts ab diesem Wert. 0 = jedes.' },
       { key: 'maxRockets', label: 'Max. Raketen gleichzeitig', type: 'number', hint: 'Begrenzt die Show bei vielen Gifts auf einmal.' },
