@@ -15,7 +15,7 @@ const CSS = `
 .bx-lb-row[data-rank="1"] .bx-lb-rank { background: linear-gradient(160deg,#ffe88a,#f5b914); box-shadow: 0 0 16px -2px var(--bx-gold); }
 .bx-lb-row[data-rank="2"] .bx-lb-rank { background: linear-gradient(160deg,#eef2fb,#b9c2d8); }
 .bx-lb-row[data-rank="3"] .bx-lb-rank { background: linear-gradient(160deg,#f0b487,#c9763c); }
-.bx-lb-row[data-rank="1"]::after { content:'👑'; position:absolute; left:24px; top:-6px; font-size:15px; transform:rotate(-18deg); filter:drop-shadow(0 1px 2px rgba(0,0,0,.8)); z-index:2; }
+.bx-lb-row[data-rank="1"]::after { content:url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2018%22%3E%3Cpath%20d%3D%22M2%206.2l3.6%203.1L9.4%203l2.6%204.2L14.6%203l3.8%206.3L22%206.2l-1.7%209.3a1%201%200%200%201-1%20.8H4.7a1%201%200%200%201-1-.8L2%206.2Z%22%20fill%3D%22%23ffd23e%22%20stroke%3D%22rgba%280%2C0%2C0%2C.55%29%22%20stroke-width%3D%22.8%22%20stroke-linejoin%3D%22round%22%2F%3E%3Ccircle%20cx%3D%222%22%20cy%3D%226.2%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%222.4%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%226.2%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3C%2Fsvg%3E'); position:absolute; left:24px; top:-6px; transform:rotate(-18deg); filter:drop-shadow(0 1px 2px rgba(0,0,0,.8)); z-index:2; }
 .bx-lb-pic { width:32px; height:32px; border-radius:50%; flex:none; background:#1a1c28 center/cover; box-shadow:0 0 0 2px rgba(255,255,255,.12); }
 .bx-lb-name { flex:1; font-family: var(--bx-font-display); font-size:18px; color:#fff; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 2px 4px rgba(0,0,0,.5); }
 .bx-lb-val { font-family: var(--bx-font-mono); font-weight:700; font-size:16px; color: var(--bx-gold); text-shadow: 0 0 10px color-mix(in srgb, var(--bx-gold) 40%, transparent); }
@@ -62,7 +62,7 @@ const CSS = `
 .bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-pic { width: 92px; height: 92px; box-shadow: 0 0 0 5px #ffd23e, 0 0 26px -2px #ffd23e, 0 6px 14px rgba(0,0,0,.55); }
 .bx-st-arcade .bx-lb-row[data-rank="2"] .bx-lb-pic { box-shadow: 0 0 0 4px #d7deec, 0 6px 14px rgba(0,0,0,.55); }
 .bx-st-arcade .bx-lb-row[data-rank="3"] .bx-lb-pic { box-shadow: 0 0 0 4px #f0a35a, 0 6px 14px rgba(0,0,0,.55); }
-.bx-st-arcade .bx-lb-row::after { content: '👑'; position: static; order: -1; font-size: 24px; margin-bottom: -8px; z-index: 2;
+.bx-st-arcade .bx-lb-row::after { content: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2226%22%20height%3D%2220%22%20viewBox%3D%220%200%2024%2018%22%3E%3Cpath%20d%3D%22M2%206.2l3.6%203.1L9.4%203l2.6%204.2L14.6%203l3.8%206.3L22%206.2l-1.7%209.3a1%201%200%200%201-1%20.8H4.7a1%201%200%200%201-1-.8L2%206.2Z%22%20fill%3D%22%23ffd23e%22%20stroke%3D%22rgba%280%2C0%2C0%2C.55%29%22%20stroke-width%3D%22.8%22%20stroke-linejoin%3D%22round%22%2F%3E%3Ccircle%20cx%3D%222%22%20cy%3D%226.2%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%222.4%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%226.2%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3C%2Fsvg%3E'); position: static; order: -1; margin-bottom: -8px; z-index: 2;
   transform: rotate(-8deg); filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
 .bx-st-arcade .bx-lb-row[data-rank="1"]::after { font-size: 36px; margin-bottom: -10px; transform: rotate(0); }
 .bx-st-arcade .bx-lb-row[data-rank="4"]::after, .bx-st-arcade .bx-lb-row[data-rank="5"]::after { content: ''; }
@@ -80,6 +80,9 @@ function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=docum
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
 const STYLES = new Set(['glas', 'neon', 'bars', 'arcade']);
 
+/** URL sicher in CSS url("…") einbetten — NUR Quotes escapen, nie
+ *  (nach-)encodieren: data-URIs und vor-encodierte CDN-URLs blieben sonst kaputt. */
+function cssUrl(u) { return String(u).replace(/[\\"']/g, '\\$&').replace(/[\n\r]/g, ''); }
 export default class Leaderboard {
   constructor(root, props) {
     ensureStyle();
@@ -126,7 +129,7 @@ export default class Leaderboard {
         valEl.textContent = this.source === 'likes' ? `${fmt(val)} ❤` : fmt(val);
       }
       const pic = row.querySelector('.bx-lb-pic');
-      if (pic && g.profilePic) pic.style.backgroundImage = `url("${encodeURI(g.profilePic)}")`;
+      if (pic && g.profilePic) pic.style.backgroundImage = `url("${cssUrl(g.profilePic)}")`;
     });
     for (const [id, row] of this.rows) { if (!seen.has(id)) { row.remove(); this.rows.delete(id); } }
     if (this.style === 'arcade') {

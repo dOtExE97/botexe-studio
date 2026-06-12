@@ -117,7 +117,8 @@ export default class HeartRain {
     if (this.live > 40) return; // harte obergrenze (TTLS-schonend)
     const e = document.createElement('div');
     e.className = 'bx-hr-e';
-    const size = 24 + Math.random() * 22;
+    // Groß genug für 1080×1920-Streams (wird am Handy stark verkleinert).
+    const size = 38 + Math.random() * 34;
     if (this.useEmojis) {
       e.textContent = this.emojis[Math.floor(Math.random() * this.emojis.length)] || '❤️';
       e.style.fontSize = `${size}px`;

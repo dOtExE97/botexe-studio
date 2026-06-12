@@ -27,7 +27,7 @@ const CSS = `
 .bx-tr-row[data-rank="1"] .bx-tr-pic { box-shadow: 0 0 0 3px var(--bx-gold), 0 0 18px -2px var(--bx-gold), 0 4px 10px rgba(0,0,0,.5); }
 .bx-tr-row[data-rank="2"] .bx-tr-pic { box-shadow: 0 0 0 3px #d7deec, 0 4px 10px rgba(0,0,0,.5); }
 .bx-tr-row[data-rank="3"] .bx-tr-pic { box-shadow: 0 0 0 3px #f0a35a, 0 4px 10px rgba(0,0,0,.5); }
-.bx-tr-crown { position: absolute; margin-top: -34px; margin-left: 26px; font-size: 22px; transform: rotate(-12deg);
+.bx-tr-crown { position: absolute; margin-top: -34px; margin-left: 26px; transform: rotate(-12deg);
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
 .bx-tr-name { flex: 1; min-width: 0; font-family: var(--bx-font-display); font-size: 21px; color: #fff; text-transform: uppercase;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -90,7 +90,7 @@ export default class TopRotator {
     this.listEl.innerHTML = items.map((e, i) => `
       <div class="bx-tr-row" data-rank="${i+1}" style="animation-delay:${i*60}ms">
         <div class="bx-tr-rank">${i+1}</div>
-        ${this.showPic ? `<div class="bx-tr-pic" style="${e.profilePic?`background-image:url('${encodeURI(e.profilePic)}')`:''}"></div>${i===0?'<div class="bx-tr-crown">👑</div>':''}` : ''}
+        ${this.showPic ? `<div class="bx-tr-pic" style="${e.profilePic?`background-image:url('${attrUrl(e.profilePic)}')`:''}"></div>${i===0?'<div class="bx-tr-crown"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="17" viewBox="0 0 24 18"><path d="M2 6.2l3.6 3.1L9.4 3l2.6 4.2L14.6 3l3.8 6.3L22 6.2l-1.7 9.3a1 1 0 0 1-1 .8H4.7a1 1 0 0 1-1-.8L2 6.2Z" fill="#ffd23e" stroke="rgba(0,0,0,.55)" stroke-width=".8" stroke-linejoin="round"/><circle cx="2" cy="6.2" r="1.4" fill="#ffd23e"/><circle cx="12" cy="2.4" r="1.4" fill="#ffd23e"/><circle cx="22" cy="6.2" r="1.4" fill="#ffd23e"/></svg></div>':''}` : ''}
         <div class="bx-tr-name">${escapeHtml(e.nickname)}</div>
         <div class="bx-tr-val" style="color:${i===0&&key!=='points'?def.valColor:'#fff'}"><span class="arr">${def.arr}</span> ${def.val(e)}</div>
       </div>`).join('');
@@ -98,3 +98,6 @@ export default class TopRotator {
   destroy() { clearInterval(this.timer); this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+/** URL für HTML-Attribut + CSS url('…') — NUR Sonderzeichen ersetzen, nie
+ *  (nach-)encodieren: data-URIs / vor-encodierte CDN-URLs blieben sonst kaputt. */
+function attrUrl(u) { return String(u).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '%27').replace(/[<>\n\r]/g, ''); }

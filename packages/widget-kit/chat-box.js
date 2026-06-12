@@ -24,6 +24,9 @@ const CSS = `
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 function nameColor(name) { let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0; return `hsl(${Math.abs(h) % 360} 88% 70%)`; }
 
+/** URL sicher in CSS url("…") einbetten — NUR Quotes escapen, nie
+ *  (nach-)encodieren: data-URIs und vor-encodierte CDN-URLs blieben sonst kaputt. */
+function cssUrl(u) { return String(u).replace(/[\\"']/g, '\\$&').replace(/[\n\r]/g, ''); }
 export default class ChatBox {
   constructor(root, props) {
     ensureStyle();
@@ -45,7 +48,7 @@ export default class ChatBox {
     nameEl.textContent = name;
     nameEl.style.color = nameColor(name);
     msg.querySelector('.bx-cb-text').textContent = event.text;
-    if (event.user?.profilePic) msg.querySelector('.bx-cb-pic').style.backgroundImage = `url("${encodeURI(event.user.profilePic)}")`;
+    if (event.user?.profilePic) msg.querySelector('.bx-cb-pic').style.backgroundImage = `url("${cssUrl(event.user.profilePic)}")`;
     this.el.appendChild(msg);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();
     if (this.hideAfterMs > 0) {

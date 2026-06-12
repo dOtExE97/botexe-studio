@@ -23,6 +23,9 @@ const CSS = `
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
 
+/** URL sicher in CSS url("…") einbetten — NUR Quotes escapen, nie
+ *  (nach-)encodieren: data-URIs und vor-encodierte CDN-URLs blieben sonst kaputt. */
+function cssUrl(u) { return String(u).replace(/[\\"']/g, '\\$&').replace(/[\n\r]/g, ''); }
 export default class GiftFeed {
   constructor(root, props) {
     ensureStyle();
@@ -44,7 +47,7 @@ export default class GiftFeed {
     nameEl.textContent = event.user?.nickname || 'Jemand';
     giftEl.textContent = `${event.gift.count > 1 ? `${event.gift.count}× ` : ''}${event.gift.slug}`;
     item.querySelector('.bx-gf-coins').textContent = `+${fmt(event.gift.totalCoins)}`;
-    if (event.user?.profilePic) item.querySelector('.bx-gf-pic').style.backgroundImage = `url("${encodeURI(event.user.profilePic)}")`;
+    if (event.user?.profilePic) item.querySelector('.bx-gf-pic').style.backgroundImage = `url("${cssUrl(event.user.profilePic)}")`;
     this.el.appendChild(item);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();
     const t = setTimeout(() => { this.timers.delete(t); item.classList.add('old'); setTimeout(() => item.remove(), 320); }, this.ttlMs);

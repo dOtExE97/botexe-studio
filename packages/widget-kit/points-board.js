@@ -54,6 +54,9 @@ const CSS = `
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
 
+/** URL sicher in CSS url("…") einbetten — NUR Quotes escapen, nie
+ *  (nach-)encodieren: data-URIs und vor-encodierte CDN-URLs blieben sonst kaputt. */
+function cssUrl(u) { return String(u).replace(/[\\"']/g, '\\$&').replace(/[\n\r]/g, ''); }
 export default class PointsBoard {
   constructor(root, props) {
     ensureStyle();
@@ -92,7 +95,7 @@ export default class PointsBoard {
       row.querySelector('.bx-pb-name').textContent = g.nickname;
       row.querySelector('.bx-pb-val').textContent = fmt(g.points);
       const pic = row.querySelector('.bx-pb-pic');
-      if (g.profilePic) pic.style.backgroundImage = `url("${encodeURI(g.profilePic)}")`;
+      if (g.profilePic) pic.style.backgroundImage = `url("${cssUrl(g.profilePic)}")`;
     });
     for (const [id, row] of this.rows) { if (!seen.has(id)) { row.remove(); this.rows.delete(id); } }
   }

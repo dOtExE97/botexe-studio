@@ -56,6 +56,9 @@ function ensureStyle() {
 }
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
 
+/** URL sicher in CSS url("…") einbetten — NUR Quotes escapen, nie
+ *  (nach-)encodieren: data-URIs und vor-encodierte CDN-URLs blieben sonst kaputt. */
+function cssUrl(u) { return String(u).replace(/[\\"']/g, '\\$&').replace(/[\n\r]/g, ''); }
 export default class GiftAlert {
   constructor(root, props) {
     ensureStyle();
@@ -112,7 +115,7 @@ export default class GiftAlert {
     this.el.querySelector('.bx-ga-name').textContent = alert.name;
     const giftEl = this.el.querySelector('.bx-ga-gift');
     if (giftEl) giftEl.textContent = alert.gift;
-    if (alert.pic) this.el.querySelector('.bx-ga-pic').style.backgroundImage = `url("${encodeURI(alert.pic)}")`;
+    if (alert.pic) this.el.querySelector('.bx-ga-pic').style.backgroundImage = `url("${cssUrl(alert.pic)}")`;
     if (alert.icon) this.el.querySelector('.bx-ga-img').src = alert.icon;
     this.burst(alert.coins >= 100 ? 28 : 14);
     this.el.classList.remove('hide');

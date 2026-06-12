@@ -224,9 +224,13 @@ function seedDemoStats() {
     id: u.id, nickname: u.nickname, profilePic: u.profilePic,
     likes: (5 - i) * 450 + 120,
   }));
+  const topPoints = DEMO_USERS.slice(1, 6).map((u, i) => ({
+    id: u.id, nickname: u.nickname, profilePic: u.profilePic,
+    points: (5 - i) * 800 + 150,
+  }));
   demoStats = {
     totals: { coins: 8400, gifts: 42, follows: 17, likes: 12900, shares: 9, chats: 230, viewers: 342, peakViewers: 410 },
-    topGifters, topLikers,
+    topGifters, topLikers, topPoints, currencyName: 'Punkte',
   };
   dispatchStats(demoStats);
 }
@@ -275,6 +279,8 @@ function startPreview() {
   seedDemoStats();
   setInterval(demoTick, 1700);
   setTimeout(() => { demoTriggerWidgets(); setInterval(demoTriggerWidgets, 13000); }, 2500);
+  // Debug-Hook NUR im Preview: gezielt Events einspeisen (Design-Checks/Tests).
+  window.__bxPreviewEvent = (e) => dispatchEvent({ ts: Date.now(), ...e });
 }
 
 // ── WebSocket mit Selbstheilung ───────────────────────────────────────────
