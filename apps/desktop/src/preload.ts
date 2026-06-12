@@ -65,6 +65,9 @@ const api = {
   // App-Info
   getAppInfo: () => ipcRenderer.invoke(IPC.APP_INFO),
   openDataDir: () => ipcRenderer.invoke(IPC.APP_OPEN_DATA_DIR),
+  openLogs: () => ipcRenderer.invoke(IPC.LOGS_OPEN),
+  logRenderer: (level: 'info' | 'warn' | 'error', scope: string, message: string) =>
+    ipcRenderer.send(IPC.LOG_RENDERER, level, scope, message),
   resetPoints: () => ipcRenderer.invoke(IPC.POINTS_RESET),
   listViewers: (query: string) => ipcRenderer.invoke(IPC.VIEWERS_LIST, query),
   setViewerFlag: (userId: string, flag: string, value: boolean) => ipcRenderer.invoke(IPC.VIEWER_FLAG, userId, flag, value),

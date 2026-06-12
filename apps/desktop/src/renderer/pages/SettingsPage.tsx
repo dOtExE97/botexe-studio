@@ -1,7 +1,7 @@
 // SettingsPage — App-Einstellungen: Loyalty-Punkte-Regeln, App-Infos,
 // Datenordner, Punkte-Reset.
 import { useEffect, useState } from 'react';
-import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker } from 'lucide-react';
+import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText } from 'lucide-react';
 
 interface PointsConfig {
   enabled: boolean;
@@ -172,9 +172,17 @@ export default function SettingsPage() {
             <span className="truncate" title={info.dataDir}>{info.dataDir}</span>
           </div>
         )}
-        <button onClick={() => void window.studio.openDataDir()} className="bx-pill mt-4 hover:text-studio-teal">
-          <FolderOpen size={13} /> Datenordner öffnen
-        </button>
+        <div className="mt-4 flex gap-2">
+          <button onClick={() => void window.studio.openDataDir()} className="bx-pill hover:text-studio-teal">
+            <FolderOpen size={13} /> Datenordner öffnen
+          </button>
+          <button onClick={() => void window.studio.openLogs()} className="bx-pill hover:text-studio-teal">
+            <FileText size={13} /> Logs öffnen
+          </button>
+        </div>
+        <p className="mt-2 text-[10px] text-studio-muted/70">
+          Bei Problemen: „Logs öffnen" — dort liegt für jeden App-Start eine Datei mit allem, was passiert/failt.
+        </p>
       </section>
     </div>
   );

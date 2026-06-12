@@ -53,6 +53,9 @@ export const IPC = {
   // App-Info / Einstellungen
   APP_INFO: 'app:info',
   APP_OPEN_DATA_DIR: 'app:open-data-dir',
+  // Logs / Diagnose
+  LOGS_OPEN: 'logs:open',
+  LOG_RENDERER: 'log:renderer',
   POINTS_RESET: 'points:reset',
   VIEWERS_LIST: 'viewers:list',
   VIEWER_FLAG: 'viewers:flag',

@@ -8,7 +8,7 @@ import { IPC } from './shared/constants';
 import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
-import { log } from './main/core/logger';
+import { log, initFileLogging, getLogDir } from './main/core/logger';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
 // dann sofort beenden, sonst öffnen sich Geister-Fenster.
@@ -131,6 +131,18 @@ function registerIpc(): void {
   ipcMain.handle(IPC.APP_OPEN_DATA_DIR, () => {
     void shell.openPath(app.getPath('userData'));
     return { ok: true };
+  });
+  ipcMain.handle(IPC.LOGS_OPEN, () => {
+    void shell.openPath(getLogDir() || app.getPath('userData'));
+    return { ok: true };
+  });
+  // Renderer-Fehler (Widget-/UI-Crashes) ins zentrale Datei-Log spiegeln.
+  ipcMain.on(IPC.LOG_RENDERER, (_e, level: unknown, scope: unknown, message: unknown) => {
+    const s = typeof scope === 'string' ? scope : 'Renderer';
+    const m = typeof message === 'string' ? message : String(message);
+    if (level === 'error') log.error(s, m);
+    else if (level === 'warn') log.warn(s, m);
+    else log.info(s, m);
   });
   ipcMain.handle(IPC.VIEWERS_LIST, (_e, query: unknown) =>
     isStudio().listViewers(typeof query === 'string' ? query : '', 200),
@@ -419,6 +431,9 @@ app.on('second-instance', () => {
 });
 
 app.whenReady().then(async () => {
+  // Datei-Logging zuerst — damit ALLE Start-Logs/Fehler in die Datei wandern.
+  initFileLogging(app.getPath('userData'), new Date().toISOString());
+
   // Restriktive CSP für den Renderer in Production (dev braucht Vite-HMR).
   if (!MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
