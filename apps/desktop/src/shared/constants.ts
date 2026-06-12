@@ -24,6 +24,9 @@ export const IPC = {
   // Trigger-Regeln
   RULES_GET: 'rules:get',
   RULES_SET: 'rules:set',
+  // Punkte-Einlöse-Store
+  REDEMPTIONS_GET: 'redemptions:get',
+  REDEMPTIONS_SET: 'redemptions:set',
   // Sounds (lokale Wiedergabe passiert im Renderer — Main schickt Play-Befehle)
   SOUND_PLAY: 'sound:play',
   SOUND_LIST: 'sound:list',

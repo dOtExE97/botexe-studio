@@ -2,7 +2,7 @@
 // Hier steckt die Verdrahtung, die in der Alt-App über ein 1500-Zeilen-
 // main.ts verschmiert war — main.ts bleibt dünn (Fenster + IPC).
 import path from 'node:path';
-import { TriggerEngine, renderSpeakTemplate, type StudioEvent, type TriggerRule } from '@botexe/trigger-engine';
+import { TriggerEngine, renderSpeakTemplate, matchRedemption, type StudioEvent, type TriggerRule, type Redemption } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { SessionStats } from '../core/session-stats';
@@ -62,6 +62,8 @@ export class Studio {
   private timerTicker: ReturnType<typeof setInterval> | null = null;
   /** Laufende verzögerte Aktionen (Combo-Sequenzen) — beim Stop aufräumen. */
   private actionTimers = new Set<ReturnType<typeof setTimeout>>();
+  /** redemptionId → event.ts der letzten Einlösung (globaler Cooldown). */
+  private redemptionCooldowns = new Map<string, number>();
 
   constructor(paths: StudioPaths, hooks: StudioHooks) {
     this.hooks = hooks;
@@ -125,8 +127,11 @@ export class Studio {
         this.dispatchAction(match.ruleId, match.action, e);
       }
 
-      // 3b. Chat vorlesen (TikFinity-Style), wenn aktiviert
-      if (e.type === 'chat') this.maybeReadChat(e);
+      // 3b. Chat: Punkte-Einlösungen + Vorlesen (TikFinity-Style)
+      if (e.type === 'chat') {
+        this.maybeRedeem(e);
+        this.maybeReadChat(e);
+      }
 
       // 4. Live-Feed an die App-Shell
       this.hooks.onBusEvent(e);
@@ -145,6 +150,23 @@ export class Studio {
     } else {
       this.runAction(ruleId, action, event);
     }
+  }
+
+  /** Punkte-Einlösung prüfen: Chat-Befehl → Punkte abziehen → Aktion(en). */
+  private maybeRedeem(event: StudioEvent): void {
+    if (event.type !== 'chat' || !event.user) return;
+    const red = matchRedemption(this.settings.get().redemptions ?? [], event.text ?? '');
+    if (!red) return;
+    // Globaler Cooldown
+    if (red.cooldownMs) {
+      const last = this.redemptionCooldowns.get(red.id);
+      if (last !== undefined && event.ts - last < red.cooldownMs) return;
+    }
+    // Punkte abziehen — nicht genug → leise abbrechen (kein Spam)
+    if (red.cost > 0 && !this.points.spend(event.user.id, red.cost)) return;
+    if (red.cooldownMs) this.redemptionCooldowns.set(red.id, event.ts);
+    if (red.cost > 0) this.scheduleStatsBroadcast();
+    for (const action of red.actions) this.dispatchAction(red.id, action, event);
   }
 
   /** Eine Trigger-Aktion ausführen — gemeinsamer Pfad für Events und Timer. */
@@ -243,6 +265,16 @@ export class Studio {
   setRules(rules: TriggerRule[]): void {
     this.settings.update({ triggerRules: rules });
     this.engine.setRules(rules);
+  }
+
+  // ── Einlöse-Store ─────────────────────────────────────────────────────
+
+  getRedemptions(): Redemption[] {
+    return this.settings.get().redemptions ?? [];
+  }
+
+  setRedemptions(redemptions: Redemption[]): void {
+    this.settings.update({ redemptions });
   }
 
   // ── Layout ────────────────────────────────────────────────────────────

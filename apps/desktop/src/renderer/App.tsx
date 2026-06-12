@@ -1,21 +1,23 @@
 import { useState } from 'react';
-import { Radio, LayoutPanelTop, Zap, Volume2, Mic, Settings, Users } from 'lucide-react';
+import { Radio, LayoutPanelTop, Zap, Gift, Volume2, Mic, Settings, Users } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
 import LivePage from './pages/LivePage';
 import OverlayPage from './pages/OverlayPage';
 import TriggersPage from './pages/TriggersPage';
+import StorePage from './pages/StorePage';
 import SoundsPage from './pages/SoundsPage';
 import TtsPage from './pages/TtsPage';
 import SettingsPage from './pages/SettingsPage';
 import ViewersPage from './pages/ViewersPage';
 
-type Page = 'live' | 'overlay' | 'triggers' | 'sounds' | 'tts' | 'viewers' | 'settings';
+type Page = 'live' | 'overlay' | 'triggers' | 'store' | 'sounds' | 'tts' | 'viewers' | 'settings';
 
 const NAV: { id: Page; label: string; icon: typeof Radio }[] = [
   { id: 'live', label: 'Live', icon: Radio },
   { id: 'overlay', label: 'Overlay', icon: LayoutPanelTop },
   { id: 'triggers', label: 'Trigger', icon: Zap },
+  { id: 'store', label: 'Store', icon: Gift },
   { id: 'sounds', label: 'Sounds', icon: Volume2 },
   { id: 'tts', label: 'Stimme', icon: Mic },
   { id: 'viewers', label: 'Zuschauer', icon: Users },
@@ -116,6 +118,7 @@ export default function App() {
           {page === 'live' && <LivePage studio={studio} />}
           {page === 'overlay' && <OverlayPage />}
           {page === 'triggers' && <TriggersPage />}
+          {page === 'store' && <StorePage />}
           {page === 'sounds' && <SoundsPage />}
           {page === 'tts' && <TtsPage />}
           {page === 'viewers' && <ViewersPage />}

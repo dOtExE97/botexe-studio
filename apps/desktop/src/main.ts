@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
-import type { StudioEvent, TriggerRule } from '@botexe/trigger-engine';
+import type { StudioEvent, TriggerRule, Redemption } from '@botexe/trigger-engine';
 import { IPC } from './shared/constants';
 import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
@@ -190,6 +190,14 @@ function registerIpc(): void {
   ipcMain.handle(IPC.RULES_SET, (_e, rules: unknown) => {
     if (!Array.isArray(rules)) return { ok: false, error: 'rules muss ein Array sein' };
     isStudio().setRules(rules as TriggerRule[]);
+    return { ok: true };
+  });
+
+  // Einlöse-Store
+  ipcMain.handle(IPC.REDEMPTIONS_GET, () => isStudio().getRedemptions());
+  ipcMain.handle(IPC.REDEMPTIONS_SET, (_e, reds: unknown) => {
+    if (!Array.isArray(reds)) return { ok: false, error: 'redemptions muss ein Array sein' };
+    isStudio().setRedemptions(reds as Redemption[]);
     return { ok: true };
   });
 

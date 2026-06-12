@@ -64,6 +64,20 @@ export type TriggerActionKind =
  *  Sound +0,5s, Ansage +2s …). delayMs = Versatz ab Auslösung der Regel. */
 export type TriggerAction = TriggerActionKind & { delayMs?: number };
 
+/** Punkte-Einlösung: Zuschauer gibt per Chat-Befehl Punkte aus → Aktion(en). */
+export interface Redemption {
+  id: string;
+  name: string;
+  /** Chat-Befehl, z.B. '!airhorn' (mit oder ohne führendes !). */
+  command: string;
+  /** Punkte-Kosten pro Einlösung. */
+  cost: number;
+  actions: TriggerAction[];
+  enabled: boolean;
+  /** Globaler Mindestabstand zwischen zwei Einlösungen (ms). */
+  cooldownMs?: number;
+}
+
 export interface TriggerRule {
   id: string;
   name: string;
@@ -134,6 +148,23 @@ export class TriggerEngine {
   }
 }
 
+/** Prüft, ob eine Nachricht mit dem Befehl beginnt (am Anfang, dann Ende oder
+ *  Leerzeichen) — case-insensitive, führende ! egal. */
+export function commandMatches(message: string, command: string): boolean {
+  const cmd = command.trim().toLowerCase().replace(/^!*/, '');
+  if (!cmd) return false;
+  const msg = (message ?? '').trim().toLowerCase();
+  return msg === `!${cmd}` || msg.startsWith(`!${cmd} `);
+}
+
+/** Erste aktivierte Einlösung, deren Befehl auf die Nachricht passt. */
+export function matchRedemption(redemptions: Redemption[], message: string): Redemption | null {
+  for (const r of redemptions) {
+    if (r.enabled && commandMatches(message, r.command)) return r;
+  }
+  return null;
+}
+
 /** Füllt ein speak-Template mit Werten aus dem Event ({user} → Nickname usw.). */
 export function renderSpeakTemplate(template: string, event: StudioEvent): string {
   return template
@@ -154,13 +185,8 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return event.gift !== undefined && event.gift.slug.toLowerCase() === condition.value.toLowerCase();
     case 'chat_keyword':
       return (event.text ?? '').toLowerCase().includes(condition.value.toLowerCase()) && condition.value !== '';
-    case 'chat_command': {
-      const cmd = condition.value.trim().toLowerCase().replace(/^!*/, '');
-      if (!cmd) return false;
-      const msg = (event.text ?? '').trim().toLowerCase();
-      // Befehl muss am Anfang stehen, gefolgt von Ende oder Leerzeichen.
-      return msg === `!${cmd}` || msg.startsWith(`!${cmd} `);
-    }
+    case 'chat_command':
+      return commandMatches(event.text ?? '', condition.value);
     case 'viewer_count_gte':
       return event.viewerCount !== undefined && event.viewerCount >= condition.value;
   }

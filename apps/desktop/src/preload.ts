@@ -33,6 +33,8 @@ const api = {
   // Trigger-Regeln
   getRules: () => ipcRenderer.invoke(IPC.RULES_GET),
   setRules: (rules: unknown[]) => ipcRenderer.invoke(IPC.RULES_SET, rules),
+  getRedemptions: () => ipcRenderer.invoke(IPC.REDEMPTIONS_GET),
+  setRedemptions: (reds: unknown[]) => ipcRenderer.invoke(IPC.REDEMPTIONS_SET, reds),
 
   // Sounds
   listSounds: () => ipcRenderer.invoke(IPC.SOUND_LIST),

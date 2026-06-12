@@ -3,11 +3,11 @@
 // beim Laden gefiltert — eine kaputte Regel macht nicht alle Regeln kaputt.
 import fs from 'node:fs';
 import path from 'node:path';
-import type { TriggerRule } from '@botexe/trigger-engine';
+import type { TriggerRule, Redemption } from '@botexe/trigger-engine';
 import { DEFAULT_POINTS_CONFIG, type PointsConfig } from './points-store';
 import { log } from '../core/logger';
 
-export const SETTINGS_SCHEMA_VERSION = 4;
+export const SETTINGS_SCHEMA_VERSION = 5;
 
 export interface TTSSettings {
   enabled: boolean;
@@ -27,7 +27,11 @@ export interface StudioSettings {
   schemaVersion: number;
   lastUsername: string;
   soundVolume: number;
+  /** Audio-Ausgabegerät für lokale Sounds/TTS (deviceId), '' = Standard. */
+  audioOutputId: string;
   triggerRules: TriggerRule[];
+  /** Punkte-Einlöse-Store: Chat-Befehl → Punkte ausgeben → Aktion. */
+  redemptions: Redemption[];
   activeLayoutId: string | null;
   tts: TTSSettings;
   /** BYOK-Zugangsdaten pro Provider (lokal, klartext — single-user-tool). */
@@ -50,7 +54,9 @@ const DEFAULTS: StudioSettings = {
   schemaVersion: SETTINGS_SCHEMA_VERSION,
   lastUsername: '',
   soundVolume: 0.7,
+  audioOutputId: '',
   triggerRules: [],
+  redemptions: [],
   activeLayoutId: null,
   tts: TTS_DEFAULTS,
   ttsCredentials: {},
@@ -64,6 +70,19 @@ function isValidRule(rule: unknown): rule is TriggerRule {
     typeof r.id === 'string' &&
     typeof r.name === 'string' &&
     typeof r.event === 'string' &&
+    Array.isArray(r.actions) &&
+    typeof r.enabled === 'boolean'
+  );
+}
+
+function isValidRedemption(red: unknown): red is Redemption {
+  if (typeof red !== 'object' || red === null) return false;
+  const r = red as Record<string, unknown>;
+  return (
+    typeof r.id === 'string' &&
+    typeof r.name === 'string' &&
+    typeof r.command === 'string' &&
+    typeof r.cost === 'number' &&
     Array.isArray(r.actions) &&
     typeof r.enabled === 'boolean'
   );
@@ -103,6 +122,15 @@ export class SettingsStore {
           return ok;
         },
       );
+      // Migration v4→v5: Einlöse-Store + Audio-Output ergänzen.
+      merged.redemptions = (Array.isArray(raw.redemptions) ? raw.redemptions : []).filter(
+        (r: unknown): r is Redemption => {
+          const ok = isValidRedemption(r);
+          if (!ok) log.warn('Settings', 'Ungültige Einlösung beim Laden verworfen');
+          return ok;
+        },
+      );
+      merged.audioOutputId = typeof raw.audioOutputId === 'string' ? raw.audioOutputId : '';
       return merged;
     } catch (err) {
       log.error('Settings', 'settings.json nicht lesbar — Defaults', (err as Error).message);
