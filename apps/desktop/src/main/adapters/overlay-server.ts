@@ -85,7 +85,8 @@ export class OverlayServer {
     this.expressApp = express();
     this.expressApp.use(express.json({ limit: '256kb' }));
     this.server = createServer(this.expressApp);
-    this.wss = new WebSocketServer({ server: this.server, path: '/ws' });
+    // maxPayload deckelt eingehende WS-Frames (Default 100 MB → Memory-DoS).
+    this.wss = new WebSocketServer({ server: this.server, path: '/ws', maxPayload: 64 * 1024 });
     this.setupRoutes();
     this.setupWebSocket();
   }
@@ -233,7 +234,7 @@ export class OverlayServer {
         const m = /bytes=(\d*)-(\d*)/.exec(range);
         const start = m && m[1] ? parseInt(m[1], 10) : 0;
         const end = m && m[2] ? parseInt(m[2], 10) : size - 1;
-        if (start >= size || end >= size) {
+        if (start >= size || end >= size || start > end) {
           res.status(416).setHeader('Content-Range', `bytes */${size}`).end();
           return;
         }
@@ -312,12 +313,20 @@ export class OverlayServer {
         client.isAlive = true;
       });
       // Rückkanal: Widget-/Runtime-Fehler aus dem TTLS-Browser ins zentrale Log.
+      // Gehärtet: Längen-Cap, Newline-Strip (Log-Injection), simples Rate-Limit.
+      let logWindowStart = 0;
+      let logCount = 0;
+      const clean = (s: unknown, max: number) => String(s ?? '').replace(/[\r\n\t]+/g, ' ').slice(0, max);
       ws.on('message', (raw) => {
+        const str = String(raw);
+        if (str.length > 4096) return;
         try {
-          const msg = JSON.parse(String(raw)) as { kind?: string; scope?: string; message?: string };
-          if (msg.kind === 'clientlog' && msg.message) {
-            log.warn('Overlay-Widget', `[${profileId || 'default'}] ${msg.scope ?? ''} ${msg.message}`.trim());
-          }
+          const msg = JSON.parse(str) as { kind?: string; scope?: string; message?: string };
+          if (msg.kind !== 'clientlog' || !msg.message) return;
+          const now = Date.now();
+          if (now - logWindowStart > 1000) { logWindowStart = now; logCount = 0; }
+          if (++logCount > 5) return; // max 5 Client-Logs/s pro Client → kein Flooding
+          log.warn('Overlay-Widget', `[${profileId || 'default'}] ${clean(msg.scope, 60)} ${clean(msg.message, 300)}`.trim());
         } catch {
           /* nicht-JSON ignorieren */
         }

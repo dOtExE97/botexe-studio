@@ -325,7 +325,14 @@ function registerIpc(): void {
   });
 
   // Settings
-  ipcMain.handle(IPC.SETTINGS_GET, () => isStudio().settings.get());
+  ipcMain.handle(IPC.SETTINGS_GET, () => {
+    // BYOK-Keys NIE an den Renderer — Status reicht (sonst landen Keys in
+    // Screenshots/Crash-Dumps). Der Renderer nutzt dafür ttsCredentialStatus().
+    // get() liefert eine tiefe Kopie, das delete trifft also nur die Antwort.
+    const safe = isStudio().settings.get() as unknown as Record<string, unknown>;
+    delete safe.ttsCredentials;
+    return safe;
+  });
   ipcMain.handle(IPC.SETTINGS_UPDATE, (_e, patch: unknown) => {
     if (typeof patch !== 'object' || patch === null) return { ok: false };
     // Nur bekannte, harmlose Felder durchlassen.

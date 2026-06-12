@@ -135,8 +135,16 @@ export class SettingsStore {
       );
       merged.audioOutputId = typeof raw.audioOutputId === 'string' ? raw.audioOutputId : '';
       merged.panelButtons = (Array.isArray(raw.panelButtons) ? raw.panelButtons : []).filter(
-        (b: unknown): b is PanelButton =>
-          typeof b === 'object' && b !== null && typeof (b as Record<string, unknown>).id === 'string' && typeof (b as Record<string, unknown>).action === 'object',
+        (b: unknown): b is PanelButton => {
+          if (typeof b !== 'object' || b === null) return false;
+          const r = b as Record<string, unknown>;
+          return (
+            typeof r.id === 'string' &&
+            typeof r.label === 'string' &&
+            typeof r.action === 'object' && r.action !== null &&
+            (r.accelerator === undefined || typeof r.accelerator === 'string')
+          );
+        },
       );
       return merged;
     } catch (err) {
@@ -146,7 +154,9 @@ export class SettingsStore {
   }
 
   get(): StudioSettings {
-    return { ...this.cache, triggerRules: [...this.cache.triggerRules] };
+    // Tiefe Kopie — sonst leakt der persistierte Cache als mutable Referenz
+    // (eine In-Place-Mutation im Renderer/Engine würde still überleben).
+    return structuredClone(this.cache);
   }
 
   update(patch: Partial<Omit<StudioSettings, 'schemaVersion'>>): StudioSettings {

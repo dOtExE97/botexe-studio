@@ -146,7 +146,8 @@ export class Studio {
 
   /** Aktion einplanen — mit Verzögerung (Combo-Sequenz) oder sofort. */
   private dispatchAction(ruleId: string, action: import('@botexe/trigger-engine').TriggerAction, event: StudioEvent): void {
-    const delay = action.delayMs ?? 0;
+    // Clamp: schützt vor setTimeout-Overflow (>2^31 ms feuert sofort statt nie).
+    const delay = Math.min(Math.max(0, action.delayMs ?? 0), 600_000);
     if (delay > 0) {
       const timer = setTimeout(() => {
         this.actionTimers.delete(timer);
@@ -172,7 +173,12 @@ export class Studio {
     if (red.cost > 0 && !this.points.spend(event.user.id, red.cost)) return;
     if (red.cooldownMs) this.redemptionCooldowns.set(red.id, event.ts);
     if (red.cost > 0) this.scheduleStatsBroadcast();
-    for (const action of red.actions) this.dispatchAction(red.id, action, event);
+    for (const action of red.actions) {
+      // Die Einlösung hat schon kassiert — ein Spin-Rad als Belohnung darf NICHT
+      // ein zweites Mal Punkte abziehen (sonst doppelter Abzug).
+      const a = action.kind === 'spin_wheel' ? { ...action, cost: 0 } : action;
+      this.dispatchAction(red.id, a, event);
+    }
   }
 
   /** Eine Trigger-Aktion ausführen — gemeinsamer Pfad für Events und Timer. */
@@ -253,6 +259,7 @@ export class Studio {
     // Neuer Stream = frische Session: Stats + Cooldowns zurück auf null.
     this.stats.reset();
     this.engine.resetCooldowns();
+    this.redemptionCooldowns.clear();
     this.scheduleStatsBroadcast();
     this.settings.update({ lastUsername: username });
     await this.adapter.connect(username);
