@@ -83,14 +83,22 @@ const layoutJsonSchema = {
   },
 } as const;
 
-const ajv = new Ajv({ allErrors: true });
-const validateFn: ValidateFunction = ajv.compile(layoutJsonSchema);
+// LAZY kompilieren — ajv erzeugt Code via `new Function()` (eval-artig).
+// Der Renderer importiert dieses Modul nur für Presets/SafeZones/Typen;
+// ein Top-Level-Compile würde dort an der CSP (kein unsafe-eval) sterben
+// und die ganze App schwarz lassen. Nur der Main-Prozess validiert wirklich.
+let validateFnCache: ValidateFunction | null = null;
+function getValidateFn(): ValidateFunction {
+  if (!validateFnCache) validateFnCache = new Ajv({ allErrors: true }).compile(layoutJsonSchema);
+  return validateFnCache;
+}
 
 export type LayoutValidationResult =
   | { ok: true; layout: OverlayLayout }
   | { ok: false; errors: string[] };
 
 export function validateLayout(data: unknown): LayoutValidationResult {
+  const validateFn = getValidateFn();
   if (!validateFn(data)) {
     const errors = (validateFn.errors ?? []).map(
       (e) => `${e.instancePath || '/'} ${e.message ?? 'ungültig'}`,
