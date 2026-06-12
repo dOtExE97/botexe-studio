@@ -22,8 +22,24 @@ function toUser(raw: RawUser | undefined): StudioUser | undefined {
   };
 }
 
-export function normalizeChat(data: { user?: RawUser; comment?: string }, ts: number): StudioEvent {
-  return { type: 'chat', ts, user: toUser(data.user), text: data.comment ?? '' };
+interface RawUserIdentity {
+  isSubscriberOfAnchor?: boolean;
+  isModeratorOfAnchor?: boolean;
+  isFollowerOfAnchor?: boolean;
+}
+
+export function normalizeChat(
+  data: { user?: RawUser; comment?: string; userIdentity?: RawUserIdentity },
+  ts: number,
+): StudioEvent {
+  const user = toUser(data.user);
+  // Rollen (Teamherz/Mod/Follower) fürs TTS-Vorlese-Filter und künftige Trigger.
+  if (user && data.userIdentity) {
+    if (data.userIdentity.isSubscriberOfAnchor) user.isSub = true;
+    if (data.userIdentity.isModeratorOfAnchor) user.isMod = true;
+    if (data.userIdentity.isFollowerOfAnchor) user.isFollower = true;
+  }
+  return { type: 'chat', ts, user, text: data.comment ?? '' };
 }
 
 /**

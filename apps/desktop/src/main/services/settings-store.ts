@@ -21,6 +21,10 @@ export interface TTSSettings {
   maxTextLen: number;
   /** Vorlese-Format, z.B. '{user} sagt: {text}' */
   chatTemplate: string;
+  /** Wer vorgelesen wird: alle / Follower+ / Teamherz+ / Mods / nur App-VIPs. */
+  readWho: 'all' | 'followers' | 'subs' | 'mods' | 'vips';
+  /** Nur Nachrichten mit diesem Start-Zeichen vorlesen ('' = aus), z.B. '.'. */
+  readPrefix: string;
 }
 
 export interface StudioSettings {
@@ -50,6 +54,8 @@ const TTS_DEFAULTS: TTSSettings = {
   skipCommands: true,
   maxTextLen: 200,
   chatTemplate: '{user} sagt: {text}',
+  readWho: 'all',
+  readPrefix: '',
 };
 
 const DEFAULTS: StudioSettings = {

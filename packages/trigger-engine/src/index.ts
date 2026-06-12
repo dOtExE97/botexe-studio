@@ -16,6 +16,12 @@ export interface StudioUser {
   id: string;
   nickname: string;
   profilePic?: string;
+  /** TikTok-Rollen (bei Chat-Events mitgeliefert): Teamherz-Mitglied. */
+  isSub?: boolean;
+  /** Moderator dieses Streams. */
+  isMod?: boolean;
+  /** Folgt dem Streamer. */
+  isFollower?: boolean;
 }
 
 export interface StudioGift {

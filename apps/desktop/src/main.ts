@@ -390,6 +390,10 @@ function registerIpc(): void {
         ...(typeof t.skipCommands === 'boolean' ? { skipCommands: t.skipCommands } : {}),
         ...(typeof t.maxTextLen === 'number' ? { maxTextLen: Math.min(500, Math.max(20, t.maxTextLen)) } : {}),
         ...(typeof t.chatTemplate === 'string' ? { chatTemplate: t.chatTemplate } : {}),
+        ...(['all', 'followers', 'subs', 'mods', 'vips'].includes(t.readWho as string)
+          ? { readWho: t.readWho as 'all' | 'followers' | 'subs' | 'mods' | 'vips' }
+          : {}),
+        ...(typeof t.readPrefix === 'string' ? { readPrefix: t.readPrefix.slice(0, 3) } : {}),
       };
     }
     return { ok: true, settings: isStudio().settings.update(allowed) };

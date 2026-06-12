@@ -36,6 +36,8 @@ interface TtsSettings {
   skipCommands: boolean;
   maxTextLen: number;
   chatTemplate: string;
+  readWho?: 'all' | 'followers' | 'subs' | 'mods' | 'vips';
+  readPrefix?: string;
 }
 
 interface ByokField {
@@ -233,6 +235,35 @@ export default function TtsPage() {
             />
             <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">
               Platzhalter: {'{user}'} und {'{text}'}
+            </span>
+          </label>
+          <label className="text-[10px] uppercase tracking-widest text-studio-muted">
+            Wer wird vorgelesen
+            <select
+              value={tts.readWho ?? 'all'}
+              onChange={(e) => update({ readWho: e.target.value as TtsSettings['readWho'] })}
+              className="bx-select mt-1 text-xs"
+            >
+              <option value="all">Alle Zuschauer</option>
+              <option value="followers">Nur Follower (und höher)</option>
+              <option value="subs">Nur Team-Mitglieder (Teamherz) & Mods</option>
+              <option value="mods">Nur Moderatoren</option>
+              <option value="vips">Nur meine VIPs (Zuschauer-Tab)</option>
+            </select>
+            <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">
+              Deine ★VIPs werden bei jeder Stufe vorgelesen. Stumm-geschaltete nie.
+            </span>
+          </label>
+          <label className="text-[10px] uppercase tracking-widest text-studio-muted">
+            Nur mit Start-Zeichen
+            <input
+              value={tts.readPrefix ?? ''}
+              onChange={(e) => update({ readPrefix: e.target.value.slice(0, 3) })}
+              placeholder="z.B. ."
+              className="bx-input mt-1 w-28 font-mono text-xs"
+            />
+            <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">
+              Leer = alle Nachrichten. Mit „." liest bOtExE nur „.hallo" vor (Punkt wird entfernt).
             </span>
           </label>
           <label className="flex items-center gap-2 text-xs normal-case">

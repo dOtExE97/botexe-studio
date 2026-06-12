@@ -13,6 +13,7 @@ import { SettingsStore } from './settings-store';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
 import { MediaLibrary } from './media-library';
+import { shouldReadChat } from './tts-filter';
 import { PointsStore } from './points-store';
 import { TTSService } from './tts-service';
 import { log } from '../core/logger';
@@ -369,7 +370,15 @@ export class Studio {
     if (!raw.trim()) return;
     if (tts.skipCommands && raw.trimStart().startsWith('!')) return;
     if (event.user && this.points.isMuted(event.user.id)) return; // Troll-Sperre
-    this.speakForEvent(tts.chatTemplate, event);
+
+    // Wer-Filter (Teamherz/Mod/Follower/VIP) + optionaler Prefix-Modus.
+    const isVip = event.user ? this.points.isVip(event.user.id) : false;
+    const decision = shouldReadChat(event, tts.readWho ?? 'all', tts.readPrefix ?? '', isVip);
+    if (!decision.read) return;
+
+    // Prefix-bereinigten Text fürs Template nutzen (Original-Event unangetastet).
+    const speakEvent = decision.text === raw ? event : { ...event, text: decision.text };
+    this.speakForEvent(tts.chatTemplate, speakEvent);
   }
 
   /** BYOK-Zugangsdaten setzen (leeres feld = löschen). Keys verlassen den Main nie zurück. */
