@@ -60,6 +60,7 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 - **Punkte-Einlöse-Store:** Zuschauer geben per Chat-Befehl gesammelte Punkte aus → Belohnung (Sound/Ansage/Alert/Medium), wie Twitch-Kanalpunkte; reicht das Guthaben nicht, passiert nichts. Globaler Cooldown pro Einlösung. Eigene Store-Seite
 - **Manuelles Panel + globale Hotkeys:** Software-Stream-Deck — Soundboard (Klick = Sound) + Schnell-Aktionen, auslösbar per Klick oder globalem Tastenkürzel (auch wenn die App im Hintergrund läuft), Hotkey-Aufnahme im UI
 - **Audio-Ausgabegerät wählbar:** Sounds & TTS auf ein beliebiges Ausgabegerät routen (`setSinkId`) — Standard reicht für jeden, Mischpult/virtuelles Kabel optional
+- **Diagnose/Robustheit fürs Ausliefern:** Datei-Logging pro App-Start (`userData/logs/`, letzte 15), Renderer-Fehler (uncaught/Promise/React-ErrorBoundary) + Overlay-Widget-Fehler (WS-Rückkanal) landen alle im zentralen Log; ErrorBoundary mit Crash-Screen statt weißem Bildschirm; sichtbares Toast-Fehler-Feedback (TTS-/Verbindungs-/Sound-Fehler); „Logs öffnen"-Button in den Einstellungen
 - **Editor-UX auf Profi-Niveau:** alle Widget-Einstellungen wählbar (5 Lücken geschlossen), Sekunden statt ms, Schalter, Erklärung bei jeder Einstellung
 - **TTS respektiert Zuschauer:** gesperrte (gemutete) Zuschauer werden nicht vorgelesen; eigene Stimme pro Zuschauer hat Vorrang
 
