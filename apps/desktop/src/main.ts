@@ -146,7 +146,9 @@ function registerIpc(): void {
       : isStudio().getOverlayInfo().url;
     const resolves = await ttlsHostResolves();
     return {
-      url: toTtlsUrl(base),
+      // &perf=1: der TTLS-Browser rendert oft ohne GPU — Schnell-Modus
+      // (ohne Echtzeit-Blur) hält die Animationen dort smooth.
+      url: `${toTtlsUrl(base)}&perf=1`,
       host: TTLS_HOST,
       ready: resolves,
       hostsEntry: hostsEntryInstalled(),

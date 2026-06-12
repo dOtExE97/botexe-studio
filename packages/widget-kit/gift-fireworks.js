@@ -63,6 +63,10 @@ export default class GiftFireworks {
     this.rockets = [];
     this.particles = [];
     this.running = false;
+    this.lastT = 0;
+    // Schnell-Modus (TTLS ohne GPU): weniger Partikel, gleicher Look.
+    this.perf = document.documentElement.classList.contains('bx-perf');
+    this.particleCap = this.perf ? 240 : 460;
 
     this.el = document.createElement('div');
     this.el.className = 'bx-fw';
@@ -122,20 +126,40 @@ export default class GiftFireworks {
   }
 
   explode(r) {
-    const count = Math.round(36 + 90 * r.power);
-    const free = 320 - this.particles.length; // hartes partikel-cap
-    for (let i = 0; i < Math.min(count, free); i++) {
-      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.2;
-      const speed = (2 + Math.random() * 4) * (0.7 + r.power);
+    // Doppel-Burst: farbiger Außenring (gleichmäßig, schnell) + heller Kern
+    // (chaotisch, langsamer) — deutlich größer und satter als vorher.
+    const scale = this.perf ? 0.6 : 1;
+    const ring = Math.round((44 + 110 * r.power) * scale);
+    const core = Math.round((18 + 40 * r.power) * scale);
+    let free = this.particleCap - this.particles.length; // hartes partikel-cap
+
+    for (let i = 0; i < Math.min(ring, free); i++) {
+      const angle = (Math.PI * 2 * i) / ring + Math.random() * 0.12;
+      const speed = (3.2 + Math.random() * 5.5) * (0.9 + r.power * 1.5);
       this.particles.push({
         x: r.x,
         y: r.y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         life: 1,
-        decay: 0.012 + Math.random() * 0.012,
+        decay: 0.008 + Math.random() * 0.009,
         color: r.palette[i % r.palette.length],
-        r: 1.6 + Math.random() * 2.2 + r.power * 1.4,
+        r: 1.8 + Math.random() * 2.4 + r.power * 1.8,
+      });
+    }
+    free = this.particleCap - this.particles.length;
+    for (let i = 0; i < Math.min(core, free); i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = (1 + Math.random() * 2.4) * (0.8 + r.power);
+      this.particles.push({
+        x: r.x,
+        y: r.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1,
+        decay: 0.014 + Math.random() * 0.012,
+        color: r.palette[2], // hellster Palettenton = leuchtender Kern
+        r: 2.4 + Math.random() * 2.6 + r.power * 2,
       });
     }
     if (r.icon) {
@@ -154,40 +178,47 @@ export default class GiftFireworks {
   kick() {
     if (!this.running) {
       this.running = true;
+      this.lastT = 0;
       requestAnimationFrame(this.frame);
     }
   }
 
-  frame() {
+  frame(now) {
+    // Delta-Time: bei niedriger FPS (TTLS!) bewegt sich alles gleich schnell,
+    // nur mit weniger Zwischenbildern — statt in Zeitlupe zu ruckeln.
+    const dt = Math.min(4, this.lastT ? (now - this.lastT) / 16.67 : 1);
+    this.lastT = now;
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.w, this.h);
 
     // Raketen
     for (const r of this.rockets) {
-      r.x += r.vx;
-      r.y += r.vy;
-      r.vy += 0.06;
+      r.x += r.vx * dt;
+      r.y += r.vy * dt;
+      r.vy += 0.06 * dt;
       // Funken-Schweif
-      if (this.particles.length < 320) {
+      if (this.particles.length < this.particleCap) {
         this.particles.push({
           x: r.x + (Math.random() - 0.5) * 3,
           y: r.y + 6,
           vx: (Math.random() - 0.5) * 0.6,
           vy: 1 + Math.random(),
-          life: 0.5,
+          life: 0.55,
           decay: 0.04,
           color: r.palette[2],
-          r: 1.2,
+          r: 1.4,
         });
       }
       // Die Rakete IST das Geschenk: bild mit glow steigt auf
-      r.wobble += 0.18;
-      const size = 22 + 14 * r.power;
+      r.wobble += 0.18 * dt;
+      const size = 24 + 16 * r.power;
       ctx.save();
       ctx.translate(r.x + Math.sin(r.wobble) * 2, r.y);
       ctx.rotate(Math.sin(r.wobble) * 0.12);
-      ctx.shadowColor = r.palette[0];
-      ctx.shadowBlur = 18;
+      if (!this.perf) {
+        ctx.shadowColor = r.palette[0];
+        ctx.shadowBlur = 18;
+      }
       if (r.img && r.img.complete && r.img.naturalWidth > 0) {
         ctx.drawImage(r.img, -size / 2, -size / 2, size, size);
       } else {
@@ -204,21 +235,33 @@ export default class GiftFireworks {
     }
     this.rockets = this.rockets.filter((r) => !r.dead);
 
-    // Partikel
+    // Partikel — additiv gezeichnet ('lighter'): überlappende Funken LEUCHTEN
+    // statt sich zu überdecken. Glow als zweiter, großer transparenter Kreis
+    // (deutlich billiger als shadowBlur pro Partikel).
+    ctx.globalCompositeOperation = 'lighter';
     for (const p of this.particles) {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.05; // gravity
-      p.vx *= 0.985;
-      p.life -= p.decay;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 0.05 * dt; // gravity
+      p.vx *= Math.pow(0.985, dt);
+      p.life -= p.decay * dt;
       if (p.life <= 0) continue;
-      ctx.globalAlpha = Math.max(0, p.life);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r * (0.4 + p.life * 0.6), 0, Math.PI * 2);
+      const alpha = Math.max(0, p.life);
+      const radius = p.r * (0.4 + p.life * 0.6);
       ctx.fillStyle = p.color;
+      // Außen-Glow
+      ctx.globalAlpha = alpha * 0.22;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      // Kern
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
     this.particles = this.particles.filter((p) => p.life > 0);
 
     if (this.rockets.length > 0 || this.particles.length > 0) {

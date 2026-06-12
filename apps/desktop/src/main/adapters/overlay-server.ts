@@ -116,6 +116,8 @@ export class OverlayServer {
       const profileId = typeof profileRaw === 'string' ? profileRaw : '';
       // Vorschau-Modus (Editor-iframe): Runtime erzeugt lokal Demo-Daten.
       const preview = req.query.preview === '1';
+      // Schnell-Modus (TTLS-Browser ohne GPU): Blur/Effekte reduziert.
+      const perf = req.query.perf === '1';
       let html = fs.readFileSync(htmlPath, 'utf-8');
       // WS-/Asset-URLs über DENSELBEN Host ausliefern, über den die Seite
       // geladen wurde (z.B. localtest.me für TikTok Live Studio) — sonst lädt
@@ -133,6 +135,7 @@ export class OverlayServer {
         baseUrl: `http://${origin}`,
         token: this.token,
         preview,
+        perf,
       })};</script>`;
       html = html.includes('</head>') ? html.replace('</head>', `${cfg}\n</head>`) : cfg + html;
       // Relativer script-src würde auf /runtime.js zeigen (404, kein Token) —

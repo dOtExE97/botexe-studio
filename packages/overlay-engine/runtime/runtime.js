@@ -15,6 +15,10 @@ const cfg = window.BOTEXE_OVERLAY || {};
 const stage = document.getElementById('stage');
 const stageWrap = document.getElementById('stage-wrap');
 
+// Schnell-Modus (?perf=1): Blur & teure Effekte aus — für den schwachen
+// TTLS-Browser. Widgets können die Klasse selbst abfragen (Partikel-Budget).
+if (cfg.perf) document.documentElement.classList.add('bx-perf');
+
 // ── Widget-Registry ────────────────────────────────────────────────────────
 // widgetType → Modul-URL. Module werden lazy geladen und gecacht; ein Layout
 // mit unbekanntem widgetType rendert einen leeren Layer statt zu crashen.
