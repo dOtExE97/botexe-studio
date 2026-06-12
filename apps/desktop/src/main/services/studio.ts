@@ -60,6 +60,8 @@ export class Studio {
   private statsTimer: ReturnType<typeof setTimeout> | null = null;
   private statsDirty = false;
   private timerTicker: ReturnType<typeof setInterval> | null = null;
+  /** Laufende verzögerte Aktionen (Combo-Sequenzen) — beim Stop aufräumen. */
+  private actionTimers = new Set<ReturnType<typeof setTimeout>>();
 
   constructor(paths: StudioPaths, hooks: StudioHooks) {
     this.hooks = hooks;
@@ -118,9 +120,9 @@ export class Studio {
       this.points.recordEvent(e, this.settings.get().points);
       if (this.stats.apply(e)) this.scheduleStatsBroadcast();
 
-      // 3. Trigger-Engine: Regeln auswerten, Aktionen ausführen
+      // 3. Trigger-Engine: Regeln auswerten, Aktionen ausführen (mit Sequenz-Delay)
       for (const match of this.engine.evaluate(e)) {
-        this.runAction(match.ruleId, match.action, e);
+        this.dispatchAction(match.ruleId, match.action, e);
       }
 
       // 3b. Chat vorlesen (TikFinity-Style), wenn aktiviert
@@ -129,6 +131,20 @@ export class Studio {
       // 4. Live-Feed an die App-Shell
       this.hooks.onBusEvent(e);
     });
+  }
+
+  /** Aktion einplanen — mit Verzögerung (Combo-Sequenz) oder sofort. */
+  private dispatchAction(ruleId: string, action: import('@botexe/trigger-engine').TriggerAction, event: StudioEvent): void {
+    const delay = action.delayMs ?? 0;
+    if (delay > 0) {
+      const timer = setTimeout(() => {
+        this.actionTimers.delete(timer);
+        this.runAction(ruleId, action, event);
+      }, delay);
+      this.actionTimers.add(timer);
+    } else {
+      this.runAction(ruleId, action, event);
+    }
   }
 
   /** Eine Trigger-Aktion ausführen — gemeinsamer Pfad für Events und Timer. */
@@ -187,7 +203,7 @@ export class Studio {
       const ts = Date.now();
       const tickEvent: StudioEvent = { type: 'timer', ts };
       for (const match of this.engine.evaluateTimer(ts)) {
-        this.runAction(match.ruleId, match.action, tickEvent);
+        this.dispatchAction(match.ruleId, match.action, tickEvent);
       }
     }, 1000);
   }
@@ -196,6 +212,8 @@ export class Studio {
     this.replayAbort?.abort();
     if (this.statsTimer) clearTimeout(this.statsTimer);
     if (this.timerTicker) clearInterval(this.timerTicker);
+    for (const t of this.actionTimers) clearTimeout(t);
+    this.actionTimers.clear();
     this.points.save();
     await this.adapter.disconnect();
     await this.server.stop();

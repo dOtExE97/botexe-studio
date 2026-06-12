@@ -1,7 +1,7 @@
 // TriggersPage — „Wenn X passiert → mach Y". Regeln werden als Karten
 // editiert; jede Änderung speichert sofort (Single-User-Tool).
 import { useEffect, useState } from 'react';
-import { Zap, Filter, Play, Plus, Trash2, Power } from 'lucide-react';
+import { Zap, Filter, Play, Plus, Trash2, Power, Clock } from 'lucide-react';
 import type { TriggerRule, TriggerCondition, TriggerAction, StudioEventType } from '@botexe/trigger-engine';
 import type { OverlayLayout } from '@botexe/overlay-engine';
 
@@ -30,6 +30,25 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
 };
 
 interface SoundEntry { id: string; filename: string }
+
+/** Kompaktes Verzögerungs-Feld für Combo-Sequenzen (Versatz ab Auslösung). */
+function ActionDelay({ value, onChange }: { value: number; onChange: (ms: number) => void }) {
+  return (
+    <label className="flex items-center gap-1 self-end text-[9px] uppercase tracking-wider text-studio-muted/70" title="Verzögerung ab Auslösung (Sekunden) — für Combos">
+      <Clock size={10} /> +
+      <input
+        type="number"
+        min={0}
+        step={0.5}
+        value={Math.round(value / 100) / 10}
+        onChange={(e) => onChange(Math.max(0, Number(e.target.value)) * 1000)}
+        className="bx-input font-mono"
+        style={{ width: '3.4rem', padding: '3px 6px' }}
+      />
+      s
+    </label>
+  );
+}
 
 function newRule(): TriggerRule {
   return {
@@ -105,6 +124,13 @@ export default function TriggersPage() {
     });
   };
 
+  // Verzögerung einer bestehenden Aktion setzen (Combo-Sequenz).
+  const setActionDelay = (rule: TriggerRule, kind: TriggerAction['kind'], delayMs: number) => {
+    patchRule(rule.id, {
+      actions: rule.actions.map((a) => (a.kind === kind ? { ...a, delayMs: delayMs || undefined } : a)),
+    });
+  };
+
   if (!loaded) return <div className="p-6 text-studio-muted">Lade…</div>;
 
   return (
@@ -134,11 +160,12 @@ export default function TriggersPage() {
         const condOptions = CONDITION_OPTIONS[rule.event] ?? [];
         const cond = rule.conditions?.[0];
         const condDef = condOptions.find((c) => c.value === cond?.kind);
-        const soundAction = getAction(rule, 'play_sound') as { soundId?: string } | undefined;
-        const alertAction = getAction(rule, 'fire_alert') as { targetId?: string } | undefined;
-        const speakAction = getAction(rule, 'speak') as { template?: string } | undefined;
+        const soundAction = getAction(rule, 'play_sound') as { soundId?: string; delayMs?: number } | undefined;
+        const alertAction = getAction(rule, 'fire_alert') as { targetId?: string; delayMs?: number } | undefined;
+        const speakAction = getAction(rule, 'speak') as { template?: string; delayMs?: number } | undefined;
         const spinAction = getAction(rule, 'spin_wheel') as { targetId?: string; cost?: number } | undefined;
-        const mediaAction = getAction(rule, 'play_media') as { targetId?: string } | undefined;
+        const mediaAction = getAction(rule, 'play_media') as { targetId?: string; delayMs?: number } | undefined;
+        const comboCount = rule.actions.length;
         const wheels = layers.filter((l) => l.widgetType === 'wheel');
         const mediaLayers = layers.filter((l) => l.widgetType === 'media');
         return (
@@ -255,6 +282,9 @@ export default function TriggersPage() {
                       <option key={l.id} value={l.id}>Alert auf: {l.name}</option>
                     ))}
                   </select>
+                  {alertAction?.targetId && (
+                    <ActionDelay value={alertAction.delayMs ?? 0} onChange={(ms) => setActionDelay(rule, 'fire_alert', ms)} />
+                  )}
                   <select
                     value={soundAction?.soundId ?? ''}
                     onChange={(e) => setSoundAction(rule, e.target.value)}
@@ -265,12 +295,18 @@ export default function TriggersPage() {
                       <option key={s.id} value={s.id}>{s.filename}</option>
                     ))}
                   </select>
+                  {soundAction?.soundId && (
+                    <ActionDelay value={soundAction.delayMs ?? 0} onChange={(ms) => setActionDelay(rule, 'play_sound', ms)} />
+                  )}
                   <input
                     value={speakAction?.template ?? ''}
                     onChange={(e) => setSpeakAction(rule, e.target.value)}
                     placeholder='Ansage, z.B. "{user} schickt {gift}, danke!" (leer = keine)'
                     className="bx-input"
                   />
+                  {speakAction?.template && (
+                    <ActionDelay value={speakAction.delayMs ?? 0} onChange={(ms) => setActionDelay(rule, 'speak', ms)} />
+                  )}
                   {wheels.length > 0 && (
                     <div className="flex gap-1.5">
                       <select
@@ -300,6 +336,14 @@ export default function TriggersPage() {
                       <option value="">Kein Medium</option>
                       {mediaLayers.map((l) => (<option key={l.id} value={l.id}>Medium abspielen: {l.name}</option>))}
                     </select>
+                  )}
+                  {mediaAction?.targetId && (
+                    <ActionDelay value={mediaAction.delayMs ?? 0} onChange={(ms) => setActionDelay(rule, 'play_media', ms)} />
+                  )}
+                  {comboCount > 1 && (
+                    <p className="flex items-center gap-1 text-[9px] text-studio-muted/70">
+                      <Clock size={9} /> Combo: {comboCount} Aktionen feuern zusammen — mit „+Sek." zeitversetzt.
+                    </p>
                   )}
                   {rule.event !== 'timer' && (
                     <label className="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-studio-muted">

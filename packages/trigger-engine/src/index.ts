@@ -49,7 +49,7 @@ export type TriggerCondition =
   | { kind: 'chat_command'; value: string }
   | { kind: 'viewer_count_gte'; value: number };
 
-export type TriggerAction =
+export type TriggerActionKind =
   | { kind: 'play_sound'; soundId: string; volume?: number }
   | { kind: 'fire_alert'; targetId: string; params?: Record<string, unknown> }
   | { kind: 'show_layer'; targetId: string; durationMs?: number }
@@ -59,6 +59,10 @@ export type TriggerAction =
   | { kind: 'spin_wheel'; targetId: string; cost?: number }
   /** Media-Widget abspielen (Bild einblenden / Video starten) — z.B. Begrüßungsclip. */
   | { kind: 'play_media'; targetId: string };
+
+/** Eine Aktion mit optionaler Verzögerung (Combo-Sequenz: Alert jetzt,
+ *  Sound +0,5s, Ansage +2s …). delayMs = Versatz ab Auslösung der Regel. */
+export type TriggerAction = TriggerActionKind & { delayMs?: number };
 
 export interface TriggerRule {
   id: string;

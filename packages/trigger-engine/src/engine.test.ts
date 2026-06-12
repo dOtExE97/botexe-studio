@@ -67,6 +67,26 @@ test('mehrere actions einer regel werden alle geliefert, in reihenfolge', () => 
   );
 });
 
+test('actions behalten ihr delayMs (Sequenzierung) durch die Engine', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([
+    rule({
+      actions: [
+        { kind: 'fire_alert', targetId: 'alert-layer' },
+        { kind: 'play_sound', soundId: 'tada.mp3', delayMs: 500 },
+        { kind: 'speak', template: 'Danke {user}!', delayMs: 2000 },
+      ],
+    }),
+  ]);
+
+  const matches = engine.evaluate(giftEvent());
+
+  assert.deepEqual(
+    matches.map((m) => m.action.delayMs ?? 0),
+    [0, 500, 2000],
+  );
+});
+
 // ── Zyklus 2: Bedingungen ────────────────────────────────────────────────
 
 test('gift_coins_gte: matcht nur ab schwellwert', () => {
