@@ -5,6 +5,7 @@
 // Speichern validiert (ajv) und pusht live.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Clapperboard,
   Smartphone,
   Monitor,
   Link,
@@ -24,6 +25,7 @@ import {
   type OverlayLayer,
 } from '@botexe/overlay-engine';
 import ConfirmButton from '../components/ConfirmButton';
+import { toast } from '../components/ToastHost';
 
 interface PropField {
   key: string;
@@ -421,6 +423,19 @@ export default function OverlayPage() {
     setTimeout(() => setCopiedId(null), 1800);
   };
 
+  // TikTok-Live-Studio-Link: Domain-Form (TTLS lehnt IP-Links ab). Wenn die
+  // Domain lokal noch nicht auflöst (Router-DNS-Schutz), auf das einmalige
+  // Setup in den Einstellungen hinweisen.
+  const copyTtlsLink = async (id: string) => {
+    const info = (await window.studio.getTtlsLink(id)) as { url: string; ready: boolean };
+    await navigator.clipboard.writeText(info.url);
+    if (info.ready) {
+      toast('success', 'TikTok-Studio-Link kopiert — als Link-Quelle einfügen.');
+    } else {
+      toast('warn', 'Link kopiert — aber einmalige Einrichtung nötig: Einstellungen → TikTok Live Studio.');
+    }
+  };
+
   // Live-Vorschau-Link für das aktive Profil (echtes Overlay als iframe, mit
   // Demo-Daten via &preview=1). Neu laden nur bei Profilwechsel — Layout-Edits
   // landen über den WS-Broadcast im iframe.
@@ -590,10 +605,17 @@ export default function OverlayPage() {
                 </button>
                 <button
                   onClick={() => void copyProfileLink(p.id)}
-                  title="Overlay-Link dieses Profils kopieren"
+                  title="Overlay-Link kopieren (OBS / Browser)"
                   className="text-studio-muted hover:text-studio-teal"
                 >
                   {copiedId === p.id ? <Check size={13} className="text-studio-teal" /> : <Link size={13} />}
+                </button>
+                <button
+                  onClick={() => void copyTtlsLink(p.id)}
+                  title="Link für TikTok Live Studio kopieren (Domain-Form — TTLS akzeptiert keine IP-Links)"
+                  className="text-studio-muted hover:text-studio-accent"
+                >
+                  <Clapperboard size={13} />
                 </button>
               </div>
             );

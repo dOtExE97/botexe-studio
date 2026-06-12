@@ -1,7 +1,7 @@
 // SettingsPage — App-Einstellungen: Loyalty-Punkte-Regeln, App-Infos,
 // Datenordner, Punkte-Reset.
 import { useEffect, useState } from 'react';
-import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText } from 'lucide-react';
+import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
 import { toast } from '../components/ToastHost';
 
@@ -35,6 +35,8 @@ export default function SettingsPage() {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [outputs, setOutputs] = useState<{ deviceId: string; label: string }[]>([]);
   const [audioOut, setAudioOut] = useState('');
+  const [ttls, setTtls] = useState<{ ready: boolean; host: string } | null>(null);
+  const [ttlsBusy, setTtlsBusy] = useState(false);
 
   useEffect(() => {
     void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string }) => {
@@ -42,6 +44,7 @@ export default function SettingsPage() {
       setAudioOut(s.audioOutputId ?? '');
     });
     void window.studio.getAppInfo().then((i: AppInfo) => setInfo(i));
+    void window.studio.getTtlsLink().then((t: { ready: boolean; host: string }) => setTtls(t));
     // Audio-Ausgabegeräte auflisten (für den Output-Picker)
     void navigator.mediaDevices
       ?.enumerateDevices()
@@ -136,6 +139,46 @@ export default function SettingsPage() {
             <RotateCcw size={13} /> Alle Punkte zurücksetzen
           </ConfirmButton>
         </div>
+      </section>
+
+      {/* TikTok Live Studio */}
+      <section className="bx-card p-5">
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-accent">
+          <Clapperboard size={15} /> TikTok Live Studio
+        </h2>
+        <p className="mb-3 text-[12px] leading-relaxed text-studio-muted">
+          TikTok Live Studio akzeptiert keine IP-Links — darum gibt es im Overlay-Editor den extra
+          „TikTok-Studio-Link" (<Clapperboard size={11} className="inline" />) in Domain-Form ({ttls?.host ?? 'localtest.me'}).
+          Die Domain zeigt auf deinen eigenen PC; manche Router (z.B. FritzBox) blocken das aber.
+          Die Einrichtung trägt dafür <b>eine Zeile ins lokale „Telefonbuch"</b> deines PCs ein (hosts-Datei) —
+          einmalig, mit Windows-Admin-Bestätigung. Es wird nichts geöffnet oder freigegeben.
+        </p>
+        {ttls?.ready ? (
+          <p className="flex items-center gap-2 text-xs text-studio-teal">
+            <Check size={14} /> Bereit — der TikTok-Studio-Link funktioniert auf diesem PC.
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="flex items-center gap-2 text-xs text-studio-gold">
+              <AlertTriangle size={14} /> Noch nicht eingerichtet — Link würde in TikTok Live Studio nicht laden.
+            </p>
+            <button
+              disabled={ttlsBusy}
+              onClick={() => {
+                setTtlsBusy(true);
+                void window.studio.setupTtls().then((r: { ok: boolean; ready: boolean; error?: string }) => {
+                  setTtlsBusy(false);
+                  setTtls((t) => (t ? { ...t, ready: r.ready } : t));
+                  if (r.ready) toast('success', 'TikTok-Studio-Link eingerichtet!');
+                  else toast('error', `Einrichtung fehlgeschlagen: ${r.error ?? 'unbekannt'}`);
+                });
+              }}
+              className="bx-btn-accent disabled:opacity-60"
+            >
+              <ShieldCheck size={15} /> {ttlsBusy ? 'Warte auf Admin-Bestätigung…' : 'Automatisch einrichten (Admin)'}
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Audio-Ausgabe */}

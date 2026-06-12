@@ -9,9 +9,15 @@ import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
 import { log, initFileLogging, getLogDir } from './main/core/logger';
+import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, uninstallHostsEntry, TTLS_HOST } from './main/services/ttls-link';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
 // dann sofort beenden, sonst öffnen sich Geister-Fenster.
+// Beim Uninstall: unseren hosts-Eintrag mit aufräumen (fire-and-forget,
+// PowerShell läuft detached weiter, auch wenn die App gleich beendet).
+if (process.argv.some((a) => a === '--squirrel-uninstall')) {
+  void uninstallHostsEntry();
+}
 if (started) {
   app.quit();
 }
@@ -133,6 +139,24 @@ function registerIpc(): void {
     void shell.openPath(app.getPath('userData'));
     return { ok: true };
   });
+  // TikTok-Live-Studio-Link: Domain-Form + Status der lokalen Auflösung
+  ipcMain.handle(IPC.TTLS_LINK_GET, async (_e, layoutId: unknown) => {
+    const base = typeof layoutId === 'string' && layoutId
+      ? isStudio().getProfileLink(layoutId)
+      : isStudio().getOverlayInfo().url;
+    const resolves = await ttlsHostResolves();
+    return {
+      url: toTtlsUrl(base),
+      host: TTLS_HOST,
+      ready: resolves,
+      hostsEntry: hostsEntryInstalled(),
+    };
+  });
+  ipcMain.handle(IPC.TTLS_SETUP, async () => {
+    const result = await installHostsEntry();
+    return { ...result, ready: await ttlsHostResolves() };
+  });
+
   ipcMain.handle(IPC.LOGS_OPEN, () => {
     void shell.openPath(getLogDir() || app.getPath('userData'));
     return { ok: true };

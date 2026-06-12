@@ -53,6 +53,9 @@ export const IPC = {
   // App-Info / Einstellungen
   APP_INFO: 'app:info',
   APP_OPEN_DATA_DIR: 'app:open-data-dir',
+  // TikTok-Live-Studio-Link (Domain-Form + hosts-Setup)
+  TTLS_LINK_GET: 'ttls:link-get',
+  TTLS_SETUP: 'ttls:setup',
   // Logs / Diagnose
   LOGS_OPEN: 'logs:open',
   LOG_RENDERER: 'log:renderer',
