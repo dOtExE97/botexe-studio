@@ -2,6 +2,8 @@
 // editiert; jede Änderung speichert sofort (Single-User-Tool).
 import { useEffect, useState } from 'react';
 import { Zap, Filter, Play, Plus, Trash2, Power, Clock } from 'lucide-react';
+import ConfirmButton from '../components/ConfirmButton';
+import { toast } from '../components/ToastHost';
 import type { TriggerRule, TriggerCondition, TriggerAction, StudioEventType } from '@botexe/trigger-engine';
 import type { OverlayLayout } from '@botexe/overlay-engine';
 
@@ -88,6 +90,14 @@ export default function TriggersPage() {
 
   const getAction = (rule: TriggerRule, kind: TriggerAction['kind']) =>
     rule.actions.find((a) => a.kind === kind);
+
+  // Regel testen: alle Aktionen einmal durch dieselbe Auslöse-Kette schicken
+  // (wie ein echtes Event), ohne dass ein Zuschauer/Event nötig ist.
+  const testRule = (rule: TriggerRule) => {
+    if (rule.actions.length === 0) { toast('warn', 'Diese Regel hat noch keine Aktion.'); return; }
+    for (const a of rule.actions) void window.studio.firePanel(a);
+    toast('success', `„${rule.name}" getestet — ${rule.actions.length} Aktion(en) ausgelöst.`);
+  };
 
   const setSoundAction = (rule: TriggerRule, soundId: string) => {
     const others = rule.actions.filter((a) => a.kind !== 'play_sound');
@@ -188,11 +198,18 @@ export default function TriggersPage() {
                 className="flex-1 bg-transparent font-display text-sm uppercase outline-none"
               />
               <button
-                onClick={() => save(rules.filter((r) => r.id !== rule.id))}
+                onClick={() => testRule(rule)}
+                title="Aktionen dieser Regel jetzt testen (ohne echtes Event)"
+                className="flex items-center gap-1 text-[11px] text-studio-muted transition-colors hover:text-studio-teal"
+              >
+                <Play size={13} /> Test
+              </button>
+              <ConfirmButton
+                onConfirm={() => save(rules.filter((r) => r.id !== rule.id))}
                 className="flex items-center gap-1 text-[11px] text-studio-muted transition-colors hover:text-studio-accent"
               >
                 <Trash2 size={13} /> Löschen
-              </button>
+              </ConfirmButton>
             </div>
 
             <div className="grid grid-cols-[1fr_1fr_1fr] gap-4 p-4">

@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Gamepad2, Plus, Trash2, Play, Volume2, Mic, Sparkles, Film, Keyboard, X } from 'lucide-react';
 import type { PanelButton, TriggerAction } from '@botexe/trigger-engine';
+import ConfirmButton from '../components/ConfirmButton';
 
 interface SoundEntry { id: string; filename: string }
 interface LayerRef { id: string; name: string; widgetType: string }
@@ -147,7 +148,7 @@ export default function PanelPage() {
                     <Play size={14} />
                   </button>
                   <input value={b.label} onChange={(e) => patch(b.id, { label: e.target.value })} className="flex-1 bg-transparent font-display text-sm uppercase outline-none" />
-                  <button onClick={() => save(buttons.filter((x) => x.id !== b.id))} className="text-studio-muted hover:text-studio-accent"><Trash2 size={14} /></button>
+                  <ConfirmButton onConfirm={() => save(buttons.filter((x) => x.id !== b.id))} className="text-studio-muted hover:text-studio-accent" title="Knopf löschen"><Trash2 size={14} /></ConfirmButton>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">

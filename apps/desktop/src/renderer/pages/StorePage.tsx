@@ -2,8 +2,10 @@
 // und lösen damit eine Belohnung aus (Sound, Ansage, Overlay-Alert, Medium).
 // Wie Twitch-Kanalpunkte — die Brücke zwischen Punkte-System und Engagement.
 import { useEffect, useState } from 'react';
-import { Gift, Plus, Trash2, Power, Coins, Volume2, Mic, Sparkles, Film } from 'lucide-react';
+import { Gift, Plus, Trash2, Power, Coins, Volume2, Mic, Sparkles, Film, Play } from 'lucide-react';
 import type { Redemption, TriggerAction } from '@botexe/trigger-engine';
+import ConfirmButton from '../components/ConfirmButton';
+import { toast } from '../components/ToastHost';
 
 interface SoundEntry { id: string; filename: string }
 interface LayerRef { id: string; name: string; widgetType: string }
@@ -53,6 +55,13 @@ export default function StorePage() {
     void window.studio.setRedemptions(next as unknown as unknown[]);
   };
   const patch = (id: string, p: Partial<Redemption>) => save(reds.map((r) => (r.id === id ? { ...r, ...p } : r)));
+
+  // Belohnung testen: Aktion direkt auslösen (ohne Punkte-Abzug/Befehl).
+  const testRedemption = (r: Redemption) => {
+    if (r.actions.length === 0) { toast('warn', 'Diese Einlösung hat noch keine Belohnung.'); return; }
+    for (const a of r.actions) void window.studio.firePanel(a);
+    toast('success', `„${r.name}" getestet.`);
+  };
 
   const reward = (r: Redemption): TriggerAction => r.actions[0] ?? { kind: 'play_sound', soundId: '' };
   const setRewardKind = (r: Redemption, kind: RewardKind) => {
@@ -119,9 +128,19 @@ export default function StorePage() {
                   onChange={(e) => patch(r.id, { name: e.target.value })}
                   className="flex-1 bg-transparent font-display text-sm uppercase outline-none"
                 />
-                <button onClick={() => save(reds.filter((x) => x.id !== r.id))} className="flex items-center gap-1 text-[11px] text-studio-muted hover:text-studio-accent">
-                  <Trash2 size={13} /> Löschen
+                <button
+                  onClick={() => testRedemption(r)}
+                  title="Belohnung jetzt testen (ohne Punkte-Abzug)"
+                  className="flex items-center gap-1 text-[11px] text-studio-muted hover:text-studio-teal"
+                >
+                  <Play size={13} /> Test
                 </button>
+                <ConfirmButton
+                  onConfirm={() => save(reds.filter((x) => x.id !== r.id))}
+                  className="flex items-center gap-1 text-[11px] text-studio-muted hover:text-studio-accent"
+                >
+                  <Trash2 size={13} /> Löschen
+                </ConfirmButton>
               </div>
 
               <div className="grid grid-cols-[1fr_auto] gap-2">

@@ -5,12 +5,25 @@
 // Speichern validiert (ajv) und pusht live.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Smartphone,
+  Monitor,
+  Link,
+  Check,
+  Copy,
+  Star,
+  Trash2,
+  Plus,
+  Play,
+  AlertTriangle,
+} from 'lucide-react';
+import {
   CANVAS_PRESETS,
   getSafeZoneProfile,
   type CanvasPreset,
   type OverlayLayout,
   type OverlayLayer,
 } from '@botexe/overlay-engine';
+import ConfirmButton from '../components/ConfirmButton';
 
 interface PropField {
   key: string;
@@ -537,7 +550,7 @@ export default function OverlayPage() {
             <button
               key={w.label}
               onClick={() => addWidget(w)}
-              className="clip-slant group border border-studio-border bg-studio-raised p-3 text-left transition-colors hover:border-studio-accent/60"
+              className="clip-slant group rounded-lg border border-studio-border bg-studio-raised p-3 text-left transition-colors hover:border-studio-accent/60"
             >
               <div className="text-xs font-bold group-hover:text-studio-accent">{w.label}</div>
               <div className="mt-0.5 text-[10px] leading-snug text-studio-muted">{w.desc}</div>
@@ -562,25 +575,25 @@ export default function OverlayPage() {
                 }`}
               >
                 <button onClick={() => selectProfile(p.id)} className="flex items-center gap-1.5">
-                  <span>{isPortraitP ? '📱' : '🖥'}</span>
+                  {isPortraitP ? <Smartphone size={13} /> : <Monitor size={13} />}
                   <span className="font-bold">{p.name}</span>
-                  {p.id === activeId && <span className="text-[9px] text-studio-teal" title="Standard-Link">★</span>}
+                  {p.id === activeId && <Star size={11} className="text-studio-teal" fill="currentColor" aria-label="Standard-Link" />}
                 </button>
                 <button
                   onClick={() => void copyProfileLink(p.id)}
                   title="Overlay-Link dieses Profils kopieren"
                   className="text-studio-muted hover:text-studio-teal"
                 >
-                  {copiedId === p.id ? '✓' : '🔗'}
+                  {copiedId === p.id ? <Check size={13} className="text-studio-teal" /> : <Link size={13} />}
                 </button>
               </div>
             );
           })}
-          <button onClick={() => void createProfile('portrait')} className="clip-slant border border-studio-border bg-studio-raised px-2.5 py-1.5 text-xs text-studio-muted hover:text-studio-accent" title="Neues Hochformat-Profil">
-            + 📱
+          <button onClick={() => void createProfile('portrait')} className="clip-slant flex items-center gap-1 border border-studio-border bg-studio-raised px-2.5 py-1.5 text-xs text-studio-muted hover:text-studio-accent" title="Neues Hochformat-Profil">
+            <Plus size={12} /> <Smartphone size={13} />
           </button>
-          <button onClick={() => void createProfile('landscape')} className="clip-slant border border-studio-border bg-studio-raised px-2.5 py-1.5 text-xs text-studio-muted hover:text-studio-accent" title="Neues Querformat-Profil">
-            + 🖥
+          <button onClick={() => void createProfile('landscape')} className="clip-slant flex items-center gap-1 border border-studio-border bg-studio-raised px-2.5 py-1.5 text-xs text-studio-muted hover:text-studio-accent" title="Neues Querformat-Profil">
+            <Plus size={12} /> <Monitor size={13} />
           </button>
           <div className="flex-1" />
           {layout && (
@@ -589,15 +602,16 @@ export default function OverlayPage() {
                 value={layout.name}
                 onChange={(e) => setLayout({ ...layout, name: e.target.value })}
                 onBlur={(e) => void renameProfile(e.target.value)}
-                className="w-40 border border-studio-border bg-studio-raised px-2 py-1.5 text-xs outline-none focus:border-studio-accent"
+                className="bx-input w-40"
+                style={{ padding: '6px 10px', fontSize: '12px' }}
                 title="Profil umbenennen"
               />
-              <button onClick={() => void duplicateProfile()} className="text-[11px] text-studio-muted hover:text-studio-text" title="Profil duplizieren">⎘ Kopie</button>
+              <button onClick={() => void duplicateProfile()} className="flex items-center gap-1 text-[11px] text-studio-muted hover:text-studio-text" title="Profil duplizieren"><Copy size={12} /> Kopie</button>
               {layout.id !== activeId && (
-                <button onClick={() => void makeDefault()} className="text-[11px] text-studio-teal hover:text-studio-text" title="Als Standard-Link setzen">★ Standard</button>
+                <button onClick={() => void makeDefault()} className="flex items-center gap-1 text-[11px] text-studio-teal hover:text-studio-text" title="Als Standard-Link setzen"><Star size={12} /> Standard</button>
               )}
               {profiles.length > 1 && (
-                <button onClick={() => void deleteProfile(layout.id)} className="text-[11px] text-studio-muted hover:text-studio-accent">Löschen</button>
+                <ConfirmButton onConfirm={() => void deleteProfile(layout.id)} className="flex items-center gap-1 text-[11px] text-studio-muted hover:text-studio-accent"><Trash2 size={12} /> Löschen</ConfirmButton>
               )}
             </>
           )}
@@ -612,11 +626,11 @@ export default function OverlayPage() {
               <button
                 key={preset}
                 onClick={() => switchPreset(preset)}
-                className={`clip-slant px-3 py-1.5 text-[11px] font-bold tracking-wider ${
+                className={`clip-slant flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold tracking-wider ${
                   active ? 'bg-studio-accent text-black' : 'bg-studio-raised text-studio-muted hover:text-studio-text'
                 }`}
               >
-                {preset === 'portrait' ? '📱 ' : '🖥 '}
+                {preset === 'portrait' ? <Smartphone size={13} /> : <Monitor size={13} />}
                 {dims.label} · {dims.width}×{dims.height}
               </button>
             );
@@ -739,9 +753,15 @@ export default function OverlayPage() {
               );
             })}
           </div>
-          <div className="absolute bottom-2 left-3 text-[10px] text-studio-muted">
-            {canvasW}×{canvasH} · {isPortrait ? 'Hochformat' : 'Querformat'} · transparent ·{' '}
-            {saveState === 'saved' ? '✓ gespeichert & live gepusht' : saveState === 'error' ? `⚠ ${saveError}` : 'Änderungen speichern automatisch'}
+          <div className="absolute bottom-2 left-3 flex items-center gap-1 text-[10px] text-studio-muted">
+            <span>{canvasW}×{canvasH} · {isPortrait ? 'Hochformat' : 'Querformat'} · transparent ·</span>
+            {saveState === 'saved' ? (
+              <span className="flex items-center gap-1 text-studio-teal"><Check size={11} /> gespeichert & live gepusht</span>
+            ) : saveState === 'error' ? (
+              <span className="flex items-center gap-1 text-studio-accent"><AlertTriangle size={11} /> {saveError}</span>
+            ) : (
+              <span>Änderungen speichern automatisch</span>
+            )}
           </div>
         </div>
       </section>
@@ -776,7 +796,7 @@ export default function OverlayPage() {
                     type="number"
                     value={selected[k]}
                     onChange={(e) => updateLayer(selected.id, { [k]: Number(e.target.value) } as Partial<OverlayLayer>, true)}
-                    className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs text-studio-text outline-none focus:border-studio-accent"
+                    className="bx-input mt-1 font-mono"
                   />
                 </label>
               ))}
@@ -819,7 +839,7 @@ export default function OverlayPage() {
                                   {m.kind === 'video' ? (
                                     <>
                                       <video src={m.url} muted className="h-full w-full object-cover" />
-                                      <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-[8px] text-white">▶ Video</span>
+                                      <span className="absolute bottom-0.5 right-0.5 flex items-center gap-0.5 rounded bg-black/70 px-1 text-[8px] text-white"><Play size={8} fill="currentColor" /> Video</span>
                                     </>
                                   ) : (
                                     <img src={m.url} alt="" className="h-full w-full object-cover" />
@@ -833,9 +853,9 @@ export default function OverlayPage() {
                                 await refreshMedia();
                                 if (res?.imported?.[0]) setProp(res.imported[0].id);
                               }}
-                              className="flex aspect-square flex-col items-center justify-center gap-0.5 border border-dashed border-studio-border text-studio-muted hover:border-studio-teal hover:text-studio-teal"
+                              className="flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-studio-border text-studio-muted hover:border-studio-teal hover:text-studio-teal"
                             >
-                              <span className="text-lg leading-none">＋</span>
+                              <Plus size={18} />
                               <span className="text-[8px] normal-case tracking-normal">Importieren</span>
                             </button>
                           </div>
@@ -874,13 +894,13 @@ export default function OverlayPage() {
                             type="color"
                             value={typeof value === 'string' && value ? value : '#ff4d2e'}
                             onChange={(e) => setProp(e.target.value)}
-                            className="mt-1 h-8 w-full cursor-pointer border border-studio-border bg-studio-raised"
+                            className="mt-1 h-8 w-full cursor-pointer rounded-lg border border-studio-border bg-studio-raised"
                           />
                         ) : field.type === 'select' ? (
                           <select
                             value={String(value)}
                             onChange={(e) => setProp(e.target.value)}
-                            className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-1.5 text-xs text-studio-text outline-none focus:border-studio-accent"
+                            className="bx-select mt-1"
                           >
                             {field.options?.map((o) => (
                               <option key={o.value} value={o.value}>{o.label}</option>
@@ -893,14 +913,14 @@ export default function OverlayPage() {
                             step={0.5}
                             value={Math.round((Number(value) || 0) / 100) / 10}
                             onChange={(e) => setProp(Math.max(0, Number(e.target.value)) * 1000)}
-                            className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs text-studio-text outline-none focus:border-studio-accent"
+                            className="bx-input mt-1 font-mono"
                           />
                         ) : (
                           <input
                             type={field.type}
                             value={field.type === 'number' ? Number(value) : String(value)}
                             onChange={(e) => setProp(field.type === 'number' ? Number(e.target.value) : e.target.value)}
-                            className="mt-1 w-full border border-studio-border bg-studio-raised px-2 py-1.5 font-mono text-xs text-studio-text outline-none focus:border-studio-accent"
+                            className={`bx-input mt-1${field.type === 'number' ? ' font-mono' : ''}`}
                           />
                         )}
                         {field.hint && <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">{field.hint}</span>}

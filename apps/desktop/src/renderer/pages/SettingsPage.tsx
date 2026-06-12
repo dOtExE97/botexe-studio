@@ -2,6 +2,8 @@
 // Datenordner, Punkte-Reset.
 import { useEffect, useState } from 'react';
 import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText } from 'lucide-react';
+import ConfirmButton from '../components/ConfirmButton';
+import { toast } from '../components/ToastHost';
 
 interface PointsConfig {
   enabled: boolean;
@@ -125,12 +127,15 @@ export default function SettingsPage() {
             {numField('perLike', 'pro Like', '0 = Likes geben nichts')}
           </div>
         )}
-        <button
-          onClick={() => void window.studio.resetPoints()}
-          className="bx-pill mt-4 border-studio-accent/40 text-studio-accent hover:border-studio-accent hover:text-studio-accent"
-        >
-          <RotateCcw size={13} /> Alle Punkte zurücksetzen
-        </button>
+        <div className="mt-4">
+          <ConfirmButton
+            onConfirm={() => { void window.studio.resetPoints(); toast('info', 'Alle Punkte zurückgesetzt.'); }}
+            confirmLabel="Alle Punkte für IMMER löschen?"
+            className="bx-pill border-studio-accent/40 text-studio-accent hover:border-studio-accent hover:text-studio-accent"
+          >
+            <RotateCcw size={13} /> Alle Punkte zurücksetzen
+          </ConfirmButton>
+        </div>
       </section>
 
       {/* Audio-Ausgabe */}
