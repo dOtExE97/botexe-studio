@@ -51,6 +51,11 @@ body {
   clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%);
 }
 
+@keyframes bx-toast-in {
+  0% { opacity: 0; transform: translateY(12px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* ── Premium-Bausteine ─────────────────────────────────────────────────── */
 
 /* Glas-Sektionskarte mit Hairline-Gradient-Rand + Tiefe (wie die Widgets) */

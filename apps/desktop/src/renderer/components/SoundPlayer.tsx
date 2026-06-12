@@ -3,6 +3,7 @@
 // wird per setSinkId gewählt. Bewusst NICHT im Overlay: der TTLS-Browser
 // spielt Audio unzuverlässig (Spec §5).
 import { useEffect, useRef } from 'react';
+import { toast } from './ToastHost';
 
 const MAX_PARALLEL = 4;
 
@@ -34,7 +35,7 @@ export default function SoundPlayer() {
         playing.current = Math.max(0, playing.current - 1);
       };
       audio.addEventListener('ended', done, { once: true });
-      audio.addEventListener('error', done, { once: true });
+      audio.addEventListener('error', () => { done(); toast('error', 'Sound konnte nicht abgespielt werden.'); }, { once: true });
       const start = () => void audio.play().catch(done);
       // Gewähltes Ausgabegerät anwenden (leer = Standard)
       if (sinkId.current && audio.setSinkId) {

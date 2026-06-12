@@ -56,6 +56,8 @@ export const IPC = {
   // Logs / Diagnose
   LOGS_OPEN: 'logs:open',
   LOG_RENDERER: 'log:renderer',
+  // Nutzer-Toasts (Fehler/Hinweise)
+  TOAST_SHOW: 'toast:show',
   POINTS_RESET: 'points:reset',
   VIEWERS_LIST: 'viewers:list',
   VIEWER_FLAG: 'viewers:flag',

@@ -311,6 +311,17 @@ export class OverlayServer {
       ws.on('pong', () => {
         client.isAlive = true;
       });
+      // Rückkanal: Widget-/Runtime-Fehler aus dem TTLS-Browser ins zentrale Log.
+      ws.on('message', (raw) => {
+        try {
+          const msg = JSON.parse(String(raw)) as { kind?: string; scope?: string; message?: string };
+          if (msg.kind === 'clientlog' && msg.message) {
+            log.warn('Overlay-Widget', `[${profileId || 'default'}] ${msg.scope ?? ''} ${msg.message}`.trim());
+          }
+        } catch {
+          /* nicht-JSON ignorieren */
+        }
+      });
       ws.on('close', () => {
         this.clients.delete(client);
         log.info('Overlay', `Client getrennt (${this.clients.size} aktiv)`);

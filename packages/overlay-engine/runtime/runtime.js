@@ -27,6 +27,7 @@ async function loadWidgetClass(widgetType) {
     .then((m) => m.default || null)
     .catch((err) => {
       console.warn(`[overlay] Widget "${widgetType}" nicht ladbar:`, err);
+      reportClientError(widgetType, `nicht ladbar: ${err && err.message ? err.message : err}`);
       return null;
     });
   moduleCache.set(widgetType, promise);
@@ -103,6 +104,7 @@ async function renderLayout(layout) {
         if (lastStats) entry.widget?.onStats?.(lastStats);
       } catch (err) {
         console.warn(`[overlay] Widget "${layer.widgetType}" crash beim mount:`, err);
+        reportClientError(layer.widgetType, `Crash beim Mount: ${err && err.message ? err.message : err}`);
       }
     }
   }
@@ -120,6 +122,7 @@ function dispatchEvent(event) {
       widget?.onEvent?.(event);
     } catch (err) {
       console.warn('[overlay] Widget-Fehler bei onEvent:', err);
+      reportClientError('onEvent', err && err.message ? err.message : String(err));
     }
   }
 }
@@ -133,6 +136,7 @@ function dispatchStats(stats) {
       widget?.onStats?.(stats);
     } catch (err) {
       console.warn('[overlay] Widget-Fehler bei onStats:', err);
+      reportClientError('onStats', err && err.message ? err.message : String(err));
     }
   }
 }
@@ -156,6 +160,7 @@ function dispatchAction(ruleId, action) {
     entry?.widget?.onAction?.(action, ruleId);
   } catch (err) {
     console.warn('[overlay] Widget-Fehler bei onAction:', err);
+    reportClientError('onAction', err && err.message ? err.message : String(err));
   }
 }
 
@@ -274,12 +279,26 @@ function startPreview() {
 
 // ── WebSocket mit Selbstheilung ───────────────────────────────────────────
 let reconnectDelay = 1000;
+let activeWs = null;
+
+// Widget-/Runtime-Fehler an die App melden (zentrales Datei-Log), nicht nur
+// in die TTLS-Browser-Console (die sieht niemand).
+function reportClientError(scope, message) {
+  try {
+    if (activeWs && activeWs.readyState === 1) {
+      activeWs.send(JSON.stringify({ kind: 'clientlog', level: 'error', scope, message: String(message).slice(0, 500) }));
+    }
+  } catch {
+    /* Melde-Fehler nie eskalieren */
+  }
+}
 
 function connect() {
   const ws = new WebSocket(cfg.wsUrl);
 
   ws.onopen = () => {
     reconnectDelay = 1000;
+    activeWs = ws;
     console.log('[overlay] verbunden');
   };
 
@@ -303,6 +322,7 @@ function connect() {
   };
 
   ws.onclose = () => {
+    if (activeWs === ws) activeWs = null;
     console.warn(`[overlay] getrennt — reconnect in ${reconnectDelay}ms`);
     setTimeout(connect, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 2, 15_000);

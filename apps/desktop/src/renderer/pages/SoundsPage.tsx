@@ -2,6 +2,7 @@
 // Wiedergabe läuft immer über den App-SoundPlayer (wie im echten Trigger-Fall).
 import { useEffect, useState } from 'react';
 import { Volume2, Play, Trash2, Music, Search, Upload, Download } from 'lucide-react';
+import { toast } from '../components/ToastHost';
 
 interface SoundEntry {
   id: string;
@@ -78,7 +79,14 @@ export default function SoundsPage() {
           </p>
         </div>
         <button
-          onClick={() => void window.studio.importSounds().then(refresh)}
+          onClick={() =>
+            void window.studio.importSounds().then((r: { ok: boolean; imported?: unknown[]; error?: string }) => {
+              void refresh();
+              const n = r?.imported?.length ?? 0;
+              if (!r?.ok) toast('error', `Import fehlgeschlagen: ${r?.error ?? 'unbekannt'}`);
+              else if (n > 0) toast('success', `${n} Sound${n === 1 ? '' : 's'} importiert.`);
+            })
+          }
           className="bx-btn-accent"
         >
           <Upload size={15} /> Sounds importieren

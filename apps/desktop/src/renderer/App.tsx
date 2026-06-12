@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
+import ToastHost from './components/ToastHost';
 import LivePage from './pages/LivePage';
 import OverlayPage from './pages/OverlayPage';
 import TriggersPage from './pages/TriggersPage';
@@ -63,6 +64,7 @@ export default function App() {
   return (
     <div className="flex h-screen overflow-hidden">
       <SoundPlayer />
+      <ToastHost />
 
       {/* Sidebar */}
       <aside className="flex w-52 flex-none flex-col border-r border-studio-border bg-studio-panel">

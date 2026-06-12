@@ -53,17 +53,20 @@ export class TTSService {
   private dropped = 0;
 
   private getCredentials: () => Record<string, ByokCredentials>;
+  private readonly onError?: (message: string) => void;
 
   constructor(
     userDataDir: string,
     onAudio: (playback: TTSPlayback) => void,
     getCredentials: () => Record<string, ByokCredentials> = () => ({}),
+    onError?: (message: string) => void,
   ) {
     this.cacheDir = path.join(userDataDir, 'tts-cache');
     fs.mkdirSync(this.cacheDir, { recursive: true });
     this.piper = new PiperRuntime(userDataDir);
     this.getCredentials = getCredentials;
     this.onAudio = onAudio;
+    this.onError = onError;
     // Alte Cache-Files vom letzten Lauf wegräumen
     for (const f of fs.readdirSync(this.cacheDir)) {
       fsp.unlink(path.join(this.cacheDir, f)).catch(() => undefined);
@@ -158,7 +161,9 @@ export class TTSService {
       // Seriell bleiben: ungefähre Sprechdauer abwarten, dann nächste Ansage.
       await new Promise((r) => setTimeout(r, playback.durationMs + 250));
     } catch (err) {
-      log.error('TTS', 'Synthese fehlgeschlagen', (err as Error).message);
+      const msg = (err as Error).message;
+      log.error('TTS', 'Synthese fehlgeschlagen', msg);
+      this.onError?.(`Sprachausgabe fehlgeschlagen: ${msg}`);
     }
 
     void this.processNext();

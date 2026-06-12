@@ -90,6 +90,7 @@ const api = {
   onBusEvent: listen<Record<string, unknown>>(IPC.BUS_EVENT),
   onStats: listen<Record<string, unknown>>(IPC.STATS_UPDATE),
   onSoundPlay: listen<{ soundId: string; url: string; volume: number }>(IPC.SOUND_PLAY),
+  onToast: listen<{ type: 'error' | 'warn' | 'info'; message: string }>(IPC.TOAST_SHOW),
 };
 
 export type StudioApi = typeof api;

@@ -90,6 +90,7 @@ function setupStudio(): Studio {
     onStatus: (info) => sendToRenderer(IPC.PLATFORM_STATUS, info),
     onBusEvent: (e) => sendToRenderer(IPC.BUS_EVENT, e),
     onStats: (stats) => sendToRenderer(IPC.STATS_UPDATE, stats),
+    onToast: (toast) => sendToRenderer(IPC.TOAST_SHOW, toast),
   });
 }
 

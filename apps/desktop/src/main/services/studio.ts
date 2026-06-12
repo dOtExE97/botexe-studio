@@ -30,6 +30,8 @@ export interface StudioHooks {
   /** Live-Feed für die App-Shell (gedeckelt im Renderer). */
   onBusEvent: (e: StudioEvent) => void;
   onStats: (stats: StatsSnapshot) => void;
+  /** Nutzer-sichtbare Meldung (Fehler/Hinweis) → Toast im Renderer. */
+  onToast?: (toast: { type: 'error' | 'warn' | 'info'; message: string }) => void;
 }
 
 export interface StudioPaths {
@@ -80,6 +82,7 @@ export class Studio {
         this.hooks.onSoundPlay({ soundId: playback.fileId, url, volume: tts.volume });
       },
       () => this.settings.get().ttsCredentials,
+      (message) => this.hooks.onToast?.({ type: 'error', message }),
     );
 
     this.server = new OverlayServer(this.bus, {
@@ -106,6 +109,9 @@ export class Studio {
         // Trigger-Cooldowns ebenso — nur ein NEUER Stream (connect()-Aufruf
         // des Users) setzt zurück, siehe connect().
         this.hooks.onStatus(info);
+        if (info.status === 'error') {
+          this.hooks.onToast?.({ type: 'error', message: `Verbindung fehlgeschlagen${info.detail ? `: ${info.detail}` : ''}` });
+        }
       },
     });
 
