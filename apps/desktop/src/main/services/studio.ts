@@ -112,6 +112,9 @@ export class Studio {
     });
 
     this.adapter = new TikTokAdapter(this.bus, {
+      // Komplette Gift-Liste (mit Bildern) nach dem Connect in den Katalog —
+      // so kennt z.B. das Bingo ALLE Gift-Bilder, bevor das erste Gift kommt.
+      onAvailableGifts: (gifts) => this.importAvailableGifts(gifts),
       onStatus: (info) => {
         // K1-Lehre: bei JEDEM echten (Re-)Connect definierter Zustand.
         // Session-Stats bleiben bewusst stehen (Leaderboard übersteht Drops),
@@ -459,6 +462,26 @@ export class Studio {
     const vol = volume ?? this.settings.get().soundVolume;
     const url = `http://127.0.0.1:${this.server.getPort()}/sounds/${encodeURIComponent(soundId)}?token=${this.server.getToken()}`;
     this.hooks.onSoundPlay({ soundId, url, volume: vol });
+  }
+
+  /** Gift-Liste der Lib (untypisiert/variabel) defensiv in den Katalog laden. */
+  private importAvailableGifts(gifts: unknown): void {
+    const list: unknown[] = Array.isArray(gifts)
+      ? gifts
+      : typeof gifts === 'object' && gifts !== null
+        ? Object.values(gifts as Record<string, unknown>).filter((v) => typeof v === 'object')
+        : [];
+    let imported = 0;
+    for (const raw of list) {
+      const g = raw as { name?: string; describe?: string; diamondCount?: number; diamond_count?: number; image?: { url_list?: string[]; urlList?: string[] }; icon?: { url_list?: string[]; urlList?: string[] } };
+      const name = g.name || g.describe;
+      if (!name) continue;
+      const img = g.image ?? g.icon;
+      const icon = img?.url_list?.[0] ?? img?.urlList?.[0];
+      this.giftCatalog.record({ slug: name, icon, coinsPerUnit: g.diamondCount ?? g.diamond_count ?? 0, count: 0 });
+      imported++;
+    }
+    if (imported > 0) log.info('GiftCatalog', `${imported} Gifts (mit Bildern) aus der Room-Liste übernommen`);
   }
 
   /** Mitgelieferte Widget-Sounds (Feuerwerk/Rad/Gewinn/Alert) einmalig in die

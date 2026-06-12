@@ -43,6 +43,8 @@ export type ConnectionFactory = (username: string) => LiveConnectionLike;
 export interface TikTokAdapterOptions {
   factory?: ConnectionFactory;
   onStatus?: (info: AdapterStatusInfo) => void;
+  /** Komplette Gift-Liste des Rooms (mit Bildern) nach dem Connect. */
+  onAvailableGifts?: (gifts: unknown) => void;
   maxReconnect?: number;
   baseReconnectDelayMs?: number;
   jitterMs?: number;
@@ -70,6 +72,7 @@ export class TikTokAdapter {
   private readonly bus: EventBus;
   private readonly factory: ConnectionFactory;
   private readonly onStatus: (info: AdapterStatusInfo) => void;
+  private readonly onAvailableGifts?: (gifts: unknown) => void;
   private readonly maxReconnect: number;
   private readonly baseReconnectDelayMs: number;
   private readonly jitterMs: number;
@@ -89,6 +92,7 @@ export class TikTokAdapter {
     this.bus = bus;
     this.factory = options.factory ?? defaultFactory;
     this.onStatus = options.onStatus ?? (() => undefined);
+    this.onAvailableGifts = options.onAvailableGifts;
     this.maxReconnect = options.maxReconnect ?? DEFAULTS.maxReconnect;
     this.baseReconnectDelayMs = options.baseReconnectDelayMs ?? DEFAULTS.baseReconnectDelayMs;
     this.jitterMs = options.jitterMs ?? DEFAULTS.jitterMs;
@@ -142,6 +146,17 @@ export class TikTokAdapter {
       this.hasConnectedOnce = true;
       this.emitStatus({ status: 'connected', isReconnect });
       log.info('TikTok', `Verbunden! Room: ${String(state.roomId ?? '?')}`);
+
+      // Gift-Katalog: komplette Gift-Liste (mit Bildern) abrufen — best-effort.
+      if (this.onAvailableGifts) {
+        const cb = this.onAvailableGifts;
+        void (conn as unknown as { fetchAvailableGifts?: () => Promise<unknown> })
+          .fetchAvailableGifts?.()
+          ?.then((gifts) => {
+            if (epoch === this.epoch && gifts) cb(gifts);
+          })
+          .catch((err: Error) => log.warn('TikTok', 'Gift-Liste nicht abrufbar', err.message));
+      }
 
       const viewers = typeof state.viewerCount === 'number' ? state.viewerCount : 0;
       if (viewers > 0) {
