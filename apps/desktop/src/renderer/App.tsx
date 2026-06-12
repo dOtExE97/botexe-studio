@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users } from 'lucide-react';
+import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
-import ToastHost from './components/ToastHost';
+import ToastHost, { toast } from './components/ToastHost';
 import LivePage from './pages/LivePage';
 import OverlayPage from './pages/OverlayPage';
 import TriggersPage from './pages/TriggersPage';
@@ -61,6 +61,18 @@ export default function App() {
     });
   };
 
+  // TikTok-Studio-Link (Domain-Form) für das Standard-Profil — prominent in
+  // der Topbar, weil TTLS-Nutzer ihn am häufigsten brauchen.
+  const copyTtls = async () => {
+    const info = (await window.studio.getTtlsLink()) as { url: string; ready: boolean };
+    await navigator.clipboard.writeText(info.url);
+    if (info.ready) {
+      toast('success', 'TikTok-Studio-Link kopiert — in TTLS als Link-Quelle einfügen.');
+    } else {
+      toast('warn', 'Link kopiert — einmalige Einrichtung fehlt noch: Einstellungen → TikTok Live Studio.');
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden">
       <SoundPlayer />
@@ -112,9 +124,17 @@ export default function App() {
             onClick={copyLink}
             disabled={!studio.overlayUrl}
             className="clip-slant-r border border-studio-teal/40 bg-studio-teal/10 px-4 py-1.5 text-[11px] font-bold tracking-widest text-studio-teal transition-colors hover:bg-studio-teal hover:text-black"
-            title="Diesen Link in TikTok Live Studio als Browser-Quelle einfügen"
+            title="Overlay-Link für OBS / normalen Browser kopieren"
           >
-            {copied ? '✓ KOPIERT' : 'OVERLAY-LINK KOPIEREN'}
+            {copied ? '✓ KOPIERT' : 'OBS-LINK'}
+          </button>
+          <button
+            onClick={() => void copyTtls()}
+            disabled={!studio.overlayUrl}
+            className="clip-slant-r flex items-center gap-1.5 border border-studio-accent/50 bg-studio-accent/15 px-4 py-1.5 text-[11px] font-bold tracking-widest text-studio-accent transition-colors hover:bg-studio-accent hover:text-black"
+            title="Link für TikTok Live Studio kopieren (Domain-Form — TTLS akzeptiert keine IP-Links)"
+          >
+            <Clapperboard size={13} /> TIKTOK-STUDIO-LINK
           </button>
         </header>
 

@@ -117,11 +117,20 @@ export class OverlayServer {
       // Vorschau-Modus (Editor-iframe): Runtime erzeugt lokal Demo-Daten.
       const preview = req.query.preview === '1';
       let html = fs.readFileSync(htmlPath, 'utf-8');
+      // WS-/Asset-URLs über DENSELBEN Host ausliefern, über den die Seite
+      // geladen wurde (z.B. localtest.me für TikTok Live Studio) — sonst lädt
+      // die Seite, aber WS/Widgets zeigen auf 127.0.0.1 und werden vom
+      // TTLS-Browser geblockt → unsichtbares Overlay. Whitelist gegen
+      // Host-Header-Spoofing.
+      const reqHost = String(req.headers.host ?? '');
+      const hostOk = /^(127\.0\.0\.1|localhost|localtest\.me)(:\d+)?$/.test(reqHost);
+      const origin = hostOk ? reqHost : `${this.host}:${this.port}`;
+      const wsBase = `ws://${origin}/ws?token=${this.token}`;
       // Runtime-Config injizieren: WS-URL inkl. Token + Profil, damit die
       // Runtime ohne Hardcoding genau dieses Profil-Layout zieht.
       const cfg = `<script>window.BOTEXE_OVERLAY = ${JSON.stringify({
-        wsUrl: profileId ? `${this.getWsUrl()}&profile=${encodeURIComponent(profileId)}` : this.getWsUrl(),
-        baseUrl: `http://${this.host}:${this.port}`,
+        wsUrl: profileId ? `${wsBase}&profile=${encodeURIComponent(profileId)}` : wsBase,
+        baseUrl: `http://${origin}`,
         token: this.token,
         preview,
       })};</script>`;

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import WebSocket from 'ws';
@@ -87,6 +88,39 @@ test('http: /overlay ohne token → 403, mit token → 200 + html', async () => 
     assert.equal(ok.status, 200);
     const html = await ok.text();
     assert.match(html, /RUNTIME/);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('http: /overlay nutzt den Request-Host für wsUrl/baseUrl (TTLS via localtest.me)', async () => {
+  const { server } = await setup();
+  // fetch() erlaubt kein eigenes Host-Header-Override → roher http-Request.
+  const get = (hostHeader: string): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const req = http.request(
+        { host: '127.0.0.1', port: server.getPort(), path: `/overlay?token=${server.getToken()}`, headers: { Host: hostHeader } },
+        (res) => {
+          let body = '';
+          res.on('data', (d) => { body += String(d); });
+          res.on('end', () => resolve(body));
+        },
+      );
+      req.on('error', reject);
+      req.end();
+    });
+  try {
+    const port = server.getPort();
+
+    // Whitelisted Host (localtest.me) wird durchgereicht — Seite, WS und
+    // Widgets laufen dann über denselben Hostnamen.
+    const viaDomain = await get(`localtest.me:${port}`);
+    assert.match(viaDomain, new RegExp(`ws://localtest\\.me:${port}/ws`));
+    assert.match(viaDomain, new RegExp(`"baseUrl":"http://localtest\\.me:${port}"`));
+
+    // Fremder/gespoofter Host fällt auf 127.0.0.1 zurück.
+    const spoofed = await get('evil.example.com');
+    assert.match(spoofed, new RegExp(`ws://127\\.0\\.0\\.1:${port}/ws`));
   } finally {
     await server.stop();
   }
