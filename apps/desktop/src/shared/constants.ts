@@ -62,6 +62,7 @@ export const IPC = {
   // Nutzer-Toasts (Fehler/Hinweise)
   TOAST_SHOW: 'toast:show',
   POINTS_RESET: 'points:reset',
+  SESSION_RESET: 'session:reset',
   VIEWERS_LIST: 'viewers:list',
   VIEWER_FLAG: 'viewers:flag',
   VIEWER_GRANT: 'viewers:grant',

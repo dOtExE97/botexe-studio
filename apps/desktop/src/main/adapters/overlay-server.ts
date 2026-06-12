@@ -363,6 +363,15 @@ export class OverlayServer {
     });
   }
 
+  /** Session-Reset: jedem Client sein Layout neu senden — die Runtime baut
+   *  alle Widgets neu auf (Feeds/Alerts/Glas starten leer). */
+  rebroadcastLayouts(): void {
+    for (const client of this.clients) {
+      const layout = this.options.getLayout(client.profileId || undefined);
+      if (layout) this.sendTo(client, { kind: 'layout', layout }, true);
+    }
+  }
+
   // ── Lifecycle ───────────────────────────────────────────────────────────
 
   async start(): Promise<void> {

@@ -40,6 +40,11 @@ export class EventBus {
     return this.lastValues.get(type);
   }
 
+  /** Sticky-Werte verwerfen (Session-Reset) — Late-Joiner starten leer. */
+  clearLastValues(): void {
+    this.lastValues.clear();
+  }
+
   getAllLastValues(): StudioEvent[] {
     return Array.from(this.lastValues.values());
   }

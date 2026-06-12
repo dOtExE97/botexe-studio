@@ -188,6 +188,10 @@ function registerIpc(): void {
     if (typeof userId === 'string') isStudio().setViewerVoice(userId, typeof voice === 'string' && voice ? voice : undefined);
     return { ok: true };
   });
+  ipcMain.handle(IPC.SESSION_RESET, () => {
+    isStudio().resetSession();
+    return { ok: true };
+  });
   ipcMain.handle(IPC.POINTS_RESET, async () => {
     if (!mainWindow) return { ok: false };
     const res = await dialog.showMessageBox(mainWindow, {

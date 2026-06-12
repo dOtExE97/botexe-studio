@@ -358,6 +358,18 @@ export class Studio {
   grantPoints(userId: string, delta: number) { this.points.grant(userId, delta); }
   setViewerVoice(userId: string, voice: string | undefined) { this.points.setVoice(userId, voice); }
 
+  /** Session-Reset: Stats/Zähler/Widget-Inhalte auf null — räumt z.B.
+   *  Test-Events weg. Loyalty-PUNKTE bleiben (das ist resetPoints). */
+  resetSession(): void {
+    this.stats.reset();
+    this.engine.resetCooldowns();
+    this.redemptionCooldowns.clear();
+    this.bus.clearLastValues();
+    this.scheduleStatsBroadcast();
+    this.server.rebroadcastLayouts();
+    log.info('Studio', 'Session zurückgesetzt (Stats, Cooldowns, Overlay-Inhalte)');
+  }
+
   resetPoints(): void {
     // Punkte komplett leeren: Store neu mit leerem Stand überschreiben.
     for (const e of this.points.top(100000)) this.points.spend(e.id, e.points);

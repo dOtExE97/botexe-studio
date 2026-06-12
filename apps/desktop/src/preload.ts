@@ -66,6 +66,7 @@ const api = {
   getAppInfo: () => ipcRenderer.invoke(IPC.APP_INFO),
   openDataDir: () => ipcRenderer.invoke(IPC.APP_OPEN_DATA_DIR),
   openLogs: () => ipcRenderer.invoke(IPC.LOGS_OPEN),
+  resetSession: () => ipcRenderer.invoke(IPC.SESSION_RESET),
   getTtlsLink: (layoutId?: string) => ipcRenderer.invoke(IPC.TTLS_LINK_GET, layoutId),
   setupTtls: () => ipcRenderer.invoke(IPC.TTLS_SETUP),
   logRenderer: (level: 'info' | 'warn' | 'error', scope: string, message: string) =>

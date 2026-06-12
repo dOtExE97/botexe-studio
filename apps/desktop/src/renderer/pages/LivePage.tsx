@@ -1,8 +1,10 @@
 // LivePage — verbinden, zuschauen, testen. Test-Werkzeuge sind bewusst
 // immer sichtbar (Single-User-Tool, keine versteckten Dev-Gates).
 import { useEffect, useState, type ComponentType } from 'react';
-import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, X, LayoutPanelTop, Zap } from 'lucide-react';
+import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, X, LayoutPanelTop, Zap, RotateCcw } from 'lucide-react';
 import type { useStudio } from '../hooks/useStudio';
+import ConfirmButton from '../components/ConfirmButton';
+import { toast } from '../components/ToastHost';
 import type { StudioEvent } from '@botexe/trigger-engine';
 
 const BADGE_FALLBACK = { label: 'EVENT', cls: 'bg-studio-raised text-studio-muted' };
@@ -253,6 +255,14 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
             </button>
           </form>
           <div className="mt-2 border-t border-studio-border pt-3">
+            <ConfirmButton
+              onConfirm={() => { void window.studio.resetSession(); toast('success', 'Session zurückgesetzt — Zähler & Overlay sind wieder leer.'); }}
+              confirmLabel="Zähler & Overlay leeren?"
+              className="bx-pill mb-3 w-full justify-center text-[11px] hover:text-studio-accent"
+              title="Session-Stats, Bestenlisten und Overlay-Inhalte auf null (z.B. nach Test-Events). Loyalty-Punkte bleiben."
+            >
+              <RotateCcw size={13} /> Session zurücksetzen
+            </ConfirmButton>
             <h3 className="mb-2 text-[10px] uppercase tracking-[0.3em] text-studio-muted">Replay</h3>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => void window.studio.replayRecordStart()} className="bx-pill text-[11px] hover:text-studio-accent">
