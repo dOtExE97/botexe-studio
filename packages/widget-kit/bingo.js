@@ -87,7 +87,38 @@ export default class BingoWidget {
     this.el.querySelector('.bx-bg-title').textContent = props.title || 'Stream-Bingo';
     this.gridEl = this.el.querySelector('.bx-bg-grid');
     root.appendChild(this.el);
+    this.icons = {}; // slug(lowercase) → Bild-URL aus dem Gift-Katalog
     this.newRound(false);
+    this.loadCatalog();
+  }
+
+  /** Echte Gift-Bilder aus dem App-Katalog (alles, was je gesehen wurde). */
+  async loadCatalog() {
+    try {
+      const res = await fetch(`${this.ctx.baseUrl}/gift-catalog?token=${this.ctx.token}`);
+      const cat = await res.json();
+      for (const [slug, entry] of Object.entries(cat)) {
+        if (entry && entry.icon) this.icons[slug] = entry.icon;
+      }
+      this.applyIcons();
+    } catch { /* offline/alt — Namen reichen als Fallback */ }
+  }
+
+  applyIcons() {
+    for (const cell of this.cells) {
+      if (cell.kind !== 'gift' || cell.icon) continue;
+      const url = this.icons[cell.slug.toLowerCase()];
+      if (url) { cell.icon = url; this.injectIcon(cell); }
+    }
+  }
+
+  /** Bild live in eine bereits gerenderte Zelle einsetzen. */
+  injectIcon(cell) {
+    if (!cell.el || cell.el.querySelector('img')) return;
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = cell.icon;
+    cell.el.insertBefore(img, cell.el.firstChild);
   }
 
   /** Brett würfeln — deterministisch aus layerId + Runde. */
@@ -96,7 +127,7 @@ export default class BingoWidget {
     const rand = rng(`${this.ctx.layerId || 'bingo'}-${this.round}`);
     const base = this.baseStats ?? { likes: 0, coins: 0, follows: 0 };
     const pool = [];
-    for (const g of this.gifts) pool.push({ kind: 'gift', slug: g, label: g });
+    for (const g of this.gifts) pool.push({ kind: 'gift', slug: g, label: g, icon: (this.icons || {})[g.toLowerCase()] });
     for (let i = 1; i <= 4; i++) {
       if (this.likeStep) pool.push({ kind: 'likes', target: base.likes + i * this.likeStep, label: `+${fmt(i * this.likeStep)} Likes` });
       if (this.coinStep) pool.push({ kind: 'coins', target: base.coins + i * this.coinStep, label: `+${fmt(i * this.coinStep)} Coins` });
@@ -214,6 +245,8 @@ export default class BingoWidget {
       if (cell.kind === 'gift' && !cell.done && cell.slug.toLowerCase() === slug) {
         if (!cell.icon && event.gift.icon) {
           cell.icon = event.gift.icon; // echtes Gift-Bild nachrüsten
+          this.icons[slug] = event.gift.icon;
+          this.injectIcon(cell);
         }
         this.markDone(cell);
       }

@@ -51,6 +51,8 @@ export interface OverlayServerOptions {
   mediaDir?: string;
   /** Spiel-Widgets (Bingo/Zahlenraten) lösen Sounds über die App aus. */
   onWidgetSound?: (soundId: string) => void;
+  /** Gift-Katalog (slug → Bild/Coins) — fürs Bingo & die Galerie. */
+  getGiftCatalog?: () => Record<string, unknown>;
 }
 
 const FILE_NAME_RE = /^[a-zA-Z0-9_.-]+\.(js|css|html|woff2?)$/;
@@ -156,6 +158,11 @@ export class OverlayServer {
 
     this.expressApp.get('/widgets/:filename', auth, (req, res) => {
       this.serveStatic(this.options.widgetDir, req, res);
+    });
+
+    // Gift-Katalog: echte Gift-Bilder für Bingo-Zellen & Galerie.
+    this.expressApp.get('/gift-catalog', auth, (_req, res) => {
+      res.json(this.options.getGiftCatalog?.() ?? {});
     });
 
     this.setupTestEventRoute(auth);

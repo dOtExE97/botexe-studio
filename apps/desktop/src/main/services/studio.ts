@@ -17,6 +17,7 @@ import { MediaLibrary } from './media-library';
 import { shouldReadChat } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { PointsStore } from './points-store';
+import { GiftCatalog } from './gift-catalog';
 import { TTSService } from './tts-service';
 import { log } from '../core/logger';
 
@@ -53,6 +54,7 @@ export class Studio {
   readonly media: MediaLibrary;
   readonly tts: TTSService;
   readonly points: PointsStore;
+  readonly giftCatalog: GiftCatalog;
   readonly stats = new SessionStats();
 
   private readonly engine = new TriggerEngine();
@@ -78,6 +80,7 @@ export class Studio {
     this.seedBundledSounds(paths.widgetDir);
     this.media = new MediaLibrary(paths.userDataDir);
     this.points = new PointsStore(paths.userDataDir);
+    this.giftCatalog = new GiftCatalog(paths.userDataDir);
     this.tts = new TTSService(
       paths.userDataDir,
       (playback) => {
@@ -105,6 +108,7 @@ export class Studio {
         currencyName: this.settings.get().points.currencyName,
       }),
       onWidgetSound: (soundId) => this.playSound(soundId),
+      getGiftCatalog: () => this.giftCatalog.all(),
     });
 
     this.adapter = new TikTokAdapter(this.bus, {
@@ -151,6 +155,8 @@ export class Studio {
       // 3c. Widget-Sounds: Feuerwerk-Knall / Alert-Sound direkt am Widget
       // konfiguriert — gespielt LOKAL über die App (nie im Overlay).
       if (e.type === 'gift' && e.gift) {
+        // Gift-Katalog: Bild + Coins jedes Gifts dauerhaft merken (Bingo/Galerie).
+        this.giftCatalog.record({ slug: e.gift.slug, icon: e.gift.icon, coinsPerUnit: e.gift.coinsPerUnit, count: e.gift.count });
         for (const soundId of collectGiftSounds(this.layouts.list(), e.gift.totalCoins)) {
           this.playSound(soundId);
         }
@@ -278,6 +284,7 @@ export class Studio {
     for (const t of this.actionTimers) clearTimeout(t);
     this.actionTimers.clear();
     this.points.save();
+    this.giftCatalog.save();
     await this.adapter.disconnect();
     await this.server.stop();
   }
