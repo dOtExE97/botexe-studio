@@ -161,8 +161,8 @@ export class TTSService {
       // Seriell bleiben: ungefähre Sprechdauer abwarten, dann nächste Ansage.
       await new Promise((r) => setTimeout(r, playback.durationMs + 250));
     } catch (err) {
-      const msg = (err as Error).message;
-      log.error('TTS', 'Synthese fehlgeschlagen', msg);
+      const msg = (err as Error)?.message || String(err) || 'unbekannter Fehler';
+      log.error('TTS', `Synthese fehlgeschlagen (voice=${item.voice})`, msg);
       this.onError?.(`Sprachausgabe fehlgeschlagen: ${msg}`);
     }
 

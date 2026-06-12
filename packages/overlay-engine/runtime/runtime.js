@@ -356,7 +356,8 @@ setTimeout(() => {
     if (performance.now() - t0 < 2000) requestAnimationFrame(count);
     else {
       const fps = Math.round(frames / 2);
-      reportClientError('fps', `~${fps} fps (rAF)${fps < 12 ? ' — Browser drosselt, Widgets nutzen Fallback (~18fps)' : ''}`);
+      const ctx = cfg.perf ? 'ttls-link' : cfg.preview ? 'editor-vorschau' : 'obs/browser';
+      reportClientError('fps', `~${fps} fps (rAF) [${ctx}]${fps < 12 ? ' — Browser drosselt, Widgets nutzen Fallback (~18fps)' : ''}`);
     }
   };
   requestAnimationFrame(count);

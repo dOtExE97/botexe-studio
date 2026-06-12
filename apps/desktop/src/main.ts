@@ -469,6 +469,9 @@ app.on('second-instance', () => {
 });
 
 app.whenReady().then(async () => {
+  // Zweitinstanz (Single-Instance-Lock verloren): nichts starten — sonst
+  // loggt/bindet ein Geister-Studio kurz mit, bevor quit() greift.
+  if (!gotLock) return;
   // Datei-Logging zuerst — damit ALLE Start-Logs/Fehler in die Datei wandern.
   initFileLogging(app.getPath('userData'), new Date().toISOString());
 
