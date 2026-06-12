@@ -2,19 +2,20 @@
 // Klick ODER globalem Hotkey (auch wenn die App im Hintergrund ist) feuern.
 // Wie ein Software-Stream-Deck.
 import { useEffect, useRef, useState } from 'react';
-import { Gamepad2, Plus, Trash2, Play, Volume2, Mic, Sparkles, Film, Keyboard, X } from 'lucide-react';
+import { Gamepad2, Plus, Trash2, Play, Volume2, Mic, Sparkles, Film, Keyboard, X, Hash } from 'lucide-react';
 import type { PanelButton, TriggerAction } from '@botexe/trigger-engine';
 import ConfirmButton from '../components/ConfirmButton';
 
 interface SoundEntry { id: string; filename: string }
 interface LayerRef { id: string; name: string; widgetType: string }
-type ActKind = 'play_sound' | 'speak' | 'fire_alert' | 'play_media';
+type ActKind = 'play_sound' | 'speak' | 'fire_alert' | 'play_media' | 'counter_add';
 
 const ACT_META: { kind: ActKind; label: string; icon: typeof Play }[] = [
   { kind: 'play_sound', label: 'Sound', icon: Volume2 },
   { kind: 'speak', label: 'Ansage (TTS)', icon: Mic },
   { kind: 'fire_alert', label: 'Overlay-Alert', icon: Sparkles },
   { kind: 'play_media', label: 'Medium', icon: Film },
+  { kind: 'counter_add', label: 'Counter ±', icon: Hash },
 ];
 
 /** Electron-Accelerator aus einem Tastendruck bauen (null = ungültig). */
@@ -68,7 +69,11 @@ export default function PanelPage() {
   const patch = (id: string, p: Partial<PanelButton>) => save(buttons.map((b) => (b.id === id ? { ...b, ...p } : b)));
 
   const setActKind = (b: PanelButton, kind: ActKind) => {
-    const a: TriggerAction = kind === 'play_sound' ? { kind, soundId: '' } : kind === 'speak' ? { kind, template: '' } : { kind, targetId: '' };
+    const a: TriggerAction =
+      kind === 'play_sound' ? { kind, soundId: '' }
+      : kind === 'speak' ? { kind, template: '' }
+      : kind === 'counter_add' ? { kind, targetId: '', delta: 1 }
+      : { kind, targetId: '' };
     patch(b.id, { action: a });
   };
   const setActValue = (b: PanelButton, value: string) => {
@@ -77,8 +82,13 @@ export default function PanelPage() {
       k === 'play_sound' ? { kind: 'play_sound', soundId: value }
       : k === 'speak' ? { kind: 'speak', template: value }
       : k === 'fire_alert' ? { kind: 'fire_alert', targetId: value }
+      : k === 'counter_add' ? { kind: 'counter_add', targetId: value, delta: b.action.kind === 'counter_add' ? b.action.delta : 1 }
       : { kind: 'play_media', targetId: value };
     patch(b.id, { action: a });
+  };
+  const setActDelta = (b: PanelButton, delta: number) => {
+    if (b.action.kind !== 'counter_add') return;
+    patch(b.id, { action: { ...b.action, delta } });
   };
 
   const onRecordKey = (b: PanelButton, e: React.KeyboardEvent) => {
@@ -90,6 +100,7 @@ export default function PanelPage() {
 
   if (!loaded) return <div className="p-6 text-studio-muted">Lade…</div>;
   const mediaLayers = layers.filter((l) => l.widgetType === 'media');
+  const counterLayers = layers.filter((l) => l.widgetType === 'counter');
 
   return (
     <div className="flex flex-col gap-5 p-6">
@@ -167,6 +178,21 @@ export default function PanelPage() {
                       <option value="">Layer…</option>
                       {layers.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.widgetType})</option>)}
                     </select>
+                  ) : k === 'counter_add' ? (
+                    <div className="flex gap-1.5">
+                      <select value={val} onChange={(e) => setActValue(b, e.target.value)} className="bx-select flex-1">
+                        <option value="">Counter…</option>
+                        {counterLayers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                      </select>
+                      <input
+                        type="number"
+                        value={b.action.kind === 'counter_add' ? b.action.delta : 1}
+                        onChange={(e) => setActDelta(b, Number(e.target.value) || 0)}
+                        title="±Schritt, z.B. 1 oder -1"
+                        className="bx-input font-mono"
+                        style={{ width: '4.2rem' }}
+                      />
+                    </div>
                   ) : (
                     <select value={val} onChange={(e) => setActValue(b, e.target.value)} className="bx-select">
                       <option value="">Medium-Layer…</option>

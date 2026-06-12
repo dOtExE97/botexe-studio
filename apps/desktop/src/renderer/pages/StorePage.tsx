@@ -2,7 +2,7 @@
 // und lösen damit eine Belohnung aus (Sound, Ansage, Overlay-Alert, Medium).
 // Wie Twitch-Kanalpunkte — die Brücke zwischen Punkte-System und Engagement.
 import { useEffect, useState } from 'react';
-import { Gift, Plus, Trash2, Power, Coins, Volume2, Mic, Sparkles, Film, Play } from 'lucide-react';
+import { Gift, Plus, Trash2, Power, Coins, Volume2, Mic, Sparkles, Film, Play, Disc3, AlertTriangle } from 'lucide-react';
 import type { Redemption, TriggerAction } from '@botexe/trigger-engine';
 import ConfirmButton from '../components/ConfirmButton';
 import { toast } from '../components/ToastHost';
@@ -10,13 +10,14 @@ import { toast } from '../components/ToastHost';
 interface SoundEntry { id: string; filename: string }
 interface LayerRef { id: string; name: string; widgetType: string }
 
-type RewardKind = 'play_sound' | 'speak' | 'fire_alert' | 'play_media';
+type RewardKind = 'play_sound' | 'speak' | 'fire_alert' | 'play_media' | 'spin_wheel';
 
 const REWARD_META: { kind: RewardKind; label: string; icon: typeof Gift }[] = [
   { kind: 'play_sound', label: 'Sound abspielen', icon: Volume2 },
   { kind: 'speak', label: 'Ansage (TTS)', icon: Mic },
   { kind: 'fire_alert', label: 'Overlay-Alert', icon: Sparkles },
   { kind: 'play_media', label: 'Medium abspielen', icon: Film },
+  { kind: 'spin_wheel', label: 'Glücksrad drehen', icon: Disc3 },
 ];
 
 function newRedemption(): Redemption {
@@ -77,6 +78,7 @@ export default function StorePage() {
     if (cur.kind === 'play_sound') a = { kind: 'play_sound', soundId: value };
     else if (cur.kind === 'speak') a = { kind: 'speak', template: value };
     else if (cur.kind === 'fire_alert') a = { kind: 'fire_alert', targetId: value };
+    else if (cur.kind === 'spin_wheel') a = { kind: 'spin_wheel', targetId: value }; // Kosten = red.cost (kein Doppel-Abzug)
     else a = { kind: 'play_media', targetId: value };
     patch(r.id, { actions: [a] });
   };
@@ -84,6 +86,7 @@ export default function StorePage() {
   if (!loaded) return <div className="p-6 text-studio-muted">Lade…</div>;
 
   const mediaLayers = layers.filter((l) => l.widgetType === 'media');
+  const wheelLayers = layers.filter((l) => l.widgetType === 'wheel');
 
   return (
     <div className="flex flex-col gap-4 p-6">
@@ -163,7 +166,7 @@ export default function StorePage() {
                 </label>
                 <label className="flex flex-col gap-1">
                   <span className="text-[10px] uppercase tracking-widest text-studio-muted">
-                    {rewardKind === 'play_sound' ? 'Sound' : rewardKind === 'speak' ? 'Text' : rewardKind === 'fire_alert' ? 'Overlay-Layer' : 'Medium-Layer'}
+                    {rewardKind === 'play_sound' ? 'Sound' : rewardKind === 'speak' ? 'Text' : rewardKind === 'fire_alert' ? 'Overlay-Layer' : rewardKind === 'spin_wheel' ? 'Glücksrad' : 'Medium-Layer'}
                   </span>
                   {rewardKind === 'play_sound' ? (
                     <select value={rewardValue} onChange={(e) => setRewardValue(r, e.target.value)} className="bx-select">
@@ -177,6 +180,11 @@ export default function StorePage() {
                       <option value="">Layer wählen…</option>
                       {layers.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.widgetType})</option>)}
                     </select>
+                  ) : rewardKind === 'spin_wheel' ? (
+                    <select value={rewardValue} onChange={(e) => setRewardValue(r, e.target.value)} className="bx-select">
+                      <option value="">Rad wählen…</option>
+                      {wheelLayers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
                   ) : (
                     <select value={rewardValue} onChange={(e) => setRewardValue(r, e.target.value)} className="bx-select">
                       <option value="">Medium-Layer wählen…</option>
@@ -185,6 +193,11 @@ export default function StorePage() {
                   )}
                 </label>
               </div>
+              {'targetId' in rw && rw.targetId && !layers.some((l) => l.id === rw.targetId) && (
+                <p className="mt-1.5 flex items-center gap-1 text-[10px] text-studio-accent">
+                  <AlertTriangle size={11} /> Ziel-Widget wurde gelöscht — Belohnung feuert nicht. Bitte neu zuweisen.
+                </p>
+              )}
 
               <label className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-widest text-studio-muted">
                 Cooldown (s)

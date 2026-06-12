@@ -121,6 +121,10 @@ export class Studio {
 
   private wireBus(): void {
     this.bus.subscribeAll((e) => {
+      // 0. Anreichern: allererster Auftritt dieses Zuschauers? (für die
+      // „Erste Nachricht"-Begrüßung — VOR recordEvent, das legt den Eintrag an.)
+      if (e.user && !this.points.get(e.user.id)) e.firstOfUser = true;
+
       // 1. Aufnahme (falls aktiv)
       this.recorder?.record(e);
 

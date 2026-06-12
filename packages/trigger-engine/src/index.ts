@@ -38,6 +38,8 @@ export interface StudioEvent {
   likeCount?: number;
   totalLikes?: number;
   viewerCount?: number;
+  /** true = dieser Zuschauer ist zum allerersten Mal aktiv (Studio reichert an). */
+  firstOfUser?: boolean;
 }
 
 export type TriggerCondition =
@@ -47,6 +49,8 @@ export type TriggerCondition =
   | { kind: 'chat_keyword'; value: string }
   /** Nachricht beginnt mit dem Befehl (z.B. '!hype'), optional mit Argumenten. */
   | { kind: 'chat_command'; value: string }
+  /** Allererste Nachricht dieses Zuschauers (über alle Streams) — Begrüßung. */
+  | { kind: 'chat_first_time' }
   | { kind: 'viewer_count_gte'; value: number };
 
 export type TriggerActionKind =
@@ -58,7 +62,9 @@ export type TriggerActionKind =
   | { kind: 'speak'; template: string; voice?: string }
   | { kind: 'spin_wheel'; targetId: string; cost?: number }
   /** Media-Widget abspielen (Bild einblenden / Video starten) — z.B. Begrüßungsclip. */
-  | { kind: 'play_media'; targetId: string };
+  | { kind: 'play_media'; targetId: string }
+  /** Counter-Widget verändern (delta ±N, z.B. „Tode +1" per Hotkey/Befehl). */
+  | { kind: 'counter_add'; targetId: string; delta: number };
 
 /** Eine Aktion mit optionaler Verzögerung (Combo-Sequenz: Alert jetzt,
  *  Sound +0,5s, Ansage +2s …). delayMs = Versatz ab Auslösung der Regel. */
@@ -196,6 +202,8 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return (event.text ?? '').toLowerCase().includes(condition.value.toLowerCase()) && condition.value !== '';
     case 'chat_command':
       return commandMatches(event.text ?? '', condition.value);
+    case 'chat_first_time':
+      return event.firstOfUser === true;
     case 'viewer_count_gte':
       return event.viewerCount !== undefined && event.viewerCount >= condition.value;
   }

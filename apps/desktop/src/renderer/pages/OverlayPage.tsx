@@ -161,6 +161,15 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'counter', label: 'Counter', desc: 'Manueller Zähler („Tode: 7") — hoch/runter per Panel-Klick, Hotkey oder Chat-Befehl. Wert überlebt Overlay-Reloads.',
+    w: 320, h: 160, props: { label: 'Tode', start: 0, accent: '#ff5436' },
+    fields: [
+      { key: 'label', label: 'Beschriftung', type: 'text', hint: 'Was gezählt wird, z.B. „Tode", „Wins", „Schreie".' },
+      { key: 'start', label: 'Startwert', type: 'number', hint: 'Nur beim allerersten Laden — danach merkt sich der Counter seinen Stand.' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
     type: 'activity-feed', label: 'Activity-Feed', desc: 'Alle Events gemischt (Follow, Sub, Share, Gift) als Live-Ticker.',
     w: 420, h: 320, props: { max: 6, ttlMs: 60000 },
     fields: [

@@ -1,7 +1,7 @@
 // TriggersPage — „Wenn X passiert → mach Y". Regeln werden als Karten
 // editiert; jede Änderung speichert sofort (Single-User-Tool).
 import { useEffect, useState } from 'react';
-import { Zap, Filter, Play, Plus, Trash2, Power, Clock } from 'lucide-react';
+import { Zap, Filter, Play, Plus, Trash2, Power, Clock, AlertTriangle } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
 import { toast } from '../components/ToastHost';
 import type { TriggerRule, TriggerCondition, TriggerAction, StudioEventType } from '@botexe/trigger-engine';
@@ -18,7 +18,7 @@ const EVENT_OPTIONS: { value: StudioEventType; label: string }[] = [
   { value: 'timer', label: 'Timer (wiederkehrend)' },
 ];
 
-const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label: string; valueType: 'number' | 'text' }[]> = {
+const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label: string; valueType?: 'number' | 'text' }[]> = {
   gift: [
     { value: 'gift_coins_gte', label: 'Gift-Wert mindestens … Coins', valueType: 'number' },
     { value: 'gift_count_gte', label: 'Combo mindestens … Stück', valueType: 'number' },
@@ -27,6 +27,7 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
   chat: [
     { value: 'chat_command', label: 'Nachricht ist Befehl (z.B. !hype) …', valueType: 'text' },
     { value: 'chat_keyword', label: 'Nachricht enthält …', valueType: 'text' },
+    { value: 'chat_first_time', label: 'Allererste Nachricht (neuer Zuschauer)' },
   ],
   viewer_count: [{ value: 'viewer_count_gte', label: 'Mindestens … Zuschauer', valueType: 'number' }],
 };
@@ -134,6 +135,13 @@ export default function TriggersPage() {
     });
   };
 
+  const setCounterAction = (rule: TriggerRule, targetId: string, delta: number) => {
+    const others = rule.actions.filter((a) => a.kind !== 'counter_add');
+    patchRule(rule.id, {
+      actions: targetId ? [...others, { kind: 'counter_add', targetId, delta }] : others,
+    });
+  };
+
   // Verzögerung einer bestehenden Aktion setzen (Combo-Sequenz).
   const setActionDelay = (rule: TriggerRule, kind: TriggerAction['kind'], delayMs: number) => {
     patchRule(rule.id, {
@@ -175,9 +183,15 @@ export default function TriggersPage() {
         const speakAction = getAction(rule, 'speak') as { template?: string; delayMs?: number } | undefined;
         const spinAction = getAction(rule, 'spin_wheel') as { targetId?: string; cost?: number } | undefined;
         const mediaAction = getAction(rule, 'play_media') as { targetId?: string; delayMs?: number } | undefined;
+        const counterAction = getAction(rule, 'counter_add') as { targetId?: string; delta?: number } | undefined;
         const comboCount = rule.actions.length;
         const wheels = layers.filter((l) => l.widgetType === 'wheel');
         const mediaLayers = layers.filter((l) => l.widgetType === 'media');
+        const counterLayers = layers.filter((l) => l.widgetType === 'counter');
+        // Tote Ziel-Referenzen: Aktion zeigt auf ein Layer, das nicht mehr existiert.
+        const deadTargets = rule.actions.filter(
+          (a) => 'targetId' in a && a.targetId && !layers.some((l) => l.id === a.targetId),
+        );
         return (
           <div
             key={rule.id}
@@ -256,7 +270,9 @@ export default function TriggersPage() {
                         const def = condOptions.find((c) => c.value === e.target.value);
                         patchRule(rule.id, {
                           conditions: def
-                            ? [{ kind: def.value, value: def.valueType === 'number' ? 0 : '' } as TriggerCondition]
+                            ? [(def.valueType
+                                ? { kind: def.value, value: def.valueType === 'number' ? 0 : '' }
+                                : { kind: def.value }) as TriggerCondition]
                             : [],
                         });
                       }}
@@ -267,10 +283,10 @@ export default function TriggersPage() {
                         <option key={c.value} value={c.value}>{c.label}</option>
                       ))}
                     </select>
-                    {cond && condDef && (
+                    {cond && condDef && condDef.valueType && (
                       <input
                         type={condDef.valueType}
-                        value={cond.value as string | number}
+                        value={('value' in cond ? cond.value : '') as string | number}
                         onChange={(e) =>
                           patchRule(rule.id, {
                             conditions: [{ ...cond, value: condDef.valueType === 'number' ? Number(e.target.value) : e.target.value } as TriggerCondition],
@@ -356,6 +372,31 @@ export default function TriggersPage() {
                   )}
                   {mediaAction?.targetId && (
                     <ActionDelay value={mediaAction.delayMs ?? 0} onChange={(ms) => setActionDelay(rule, 'play_media', ms)} />
+                  )}
+                  {counterLayers.length > 0 && (
+                    <div className="flex gap-1.5">
+                      <select
+                        value={counterAction?.targetId ?? ''}
+                        onChange={(e) => setCounterAction(rule, e.target.value, counterAction?.delta ?? 1)}
+                        className="bx-select flex-1"
+                      >
+                        <option value="">Kein Counter</option>
+                        {counterLayers.map((l) => (<option key={l.id} value={l.id}>Counter ändern: {l.name}</option>))}
+                      </select>
+                      {counterAction?.targetId && (
+                        <input
+                          type="number" value={counterAction.delta ?? 1}
+                          onChange={(e) => setCounterAction(rule, counterAction.targetId ?? '', Number(e.target.value) || 0)}
+                          title="±Schritt, z.B. 1 oder -1"
+                          className="bx-input font-mono w-20"
+                        />
+                      )}
+                    </div>
+                  )}
+                  {deadTargets.length > 0 && (
+                    <p className="flex items-center gap-1 text-[10px] text-studio-accent">
+                      <AlertTriangle size={11} /> {deadTargets.length} Aktion(en) zeigen auf ein gelöschtes Widget — bitte neu zuweisen.
+                    </p>
                   )}
                   {comboCount > 1 && (
                     <p className="flex items-center gap-1 text-[9px] text-studio-muted/70">

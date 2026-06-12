@@ -1,7 +1,7 @@
 // LivePage — verbinden, zuschauen, testen. Test-Werkzeuge sind bewusst
 // immer sichtbar (Single-User-Tool, keine versteckten Dev-Gates).
 import { useEffect, useState, type ComponentType } from 'react';
-import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play } from 'lucide-react';
+import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, X, LayoutPanelTop, Zap } from 'lucide-react';
 import type { useStudio } from '../hooks/useStudio';
 import type { StudioEvent } from '@botexe/trigger-engine';
 
@@ -62,6 +62,8 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
   const [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [testChat, setTestChat] = useState('');
+  const [showIntro, setShowIntro] = useState(() => localStorage.getItem('bx-intro-dismissed') !== '1');
 
   useEffect(() => {
     void window.studio.getSettings().then((s: { lastUsername: string }) => {
@@ -90,6 +92,25 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
 
   return (
     <div className="flex h-full flex-col gap-5 p-6">
+      {/* First-Run: die 3 Schritte zum laufenden Overlay (dismissbar) */}
+      {showIntro && (
+        <div className="bx-card flex items-center gap-4 px-5 py-3.5">
+          <div className="flex flex-1 flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+            <span className="font-display text-[11px] uppercase tracking-[0.25em] text-studio-gold">So geht's los</span>
+            <span className="flex items-center gap-1.5"><LayoutPanelTop size={14} className="text-studio-accent" /> <b>1.</b> Unter „Overlay" Widgets platzieren & Link kopieren</span>
+            <span className="flex items-center gap-1.5"><Radio size={14} className="text-studio-accent" /> <b>2.</b> Link als Browser-Quelle in OBS / TikTok Live Studio einfügen</span>
+            <span className="flex items-center gap-1.5"><Zap size={14} className="text-studio-accent" /> <b>3.</b> Oben mit TikTok verbinden & unter „Trigger" Reaktionen bauen</span>
+          </div>
+          <button
+            onClick={() => { setShowIntro(false); localStorage.setItem('bx-intro-dismissed', '1'); }}
+            title="Hinweis ausblenden"
+            className="flex-none text-studio-muted hover:text-studio-text"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Kopfzeile + Connect */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 font-display text-xl uppercase">
@@ -191,6 +212,8 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
             { label: 'Test-Follow', icon: UserPlus, event: { type: 'follow', ts: 0, user: { id: 'fan', nickname: 'NeuerFan', profilePic: AVATARS.fan } } },
             { label: 'Test-Chat', icon: MessageSquare, event: { type: 'chat', ts: 0, user: { id: 'chatter', nickname: 'Chatter', profilePic: AVATARS.chatter }, text: 'Das Overlay sieht stark aus! 🔥' } },
             { label: 'Test-Likes (+50)', icon: Heart, event: { type: 'like', ts: 0, user: { id: 'liker', nickname: 'Liker', profilePic: AVATARS.liker }, likeCount: 50, totalLikes: 0 } },
+            { label: 'Test-Sub', icon: Star, event: { type: 'sub', ts: 0, user: { id: 'subber', nickname: 'SuperSub', profilePic: AVATARS.fan } } },
+            { label: 'Test-Share', icon: Share2, event: { type: 'share', ts: 0, user: { id: 'sharer', nickname: 'Teiler', profilePic: AVATARS.chatter } } },
           ].map((btn) => {
             const BtnIcon = btn.icon as ComponentType<{ size?: number; className?: string }>;
             return (
@@ -204,6 +227,31 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
               </button>
             );
           })}
+          {/* Freitext-Chat: damit lassen sich !Befehle (Trigger & Einlösungen) testen */}
+          <form
+            className="flex gap-1.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const text = testChat.trim();
+              if (!text) return;
+              void window.studio.sendTestEvent({
+                type: 'chat', ts: 0,
+                user: { id: 'chatter', nickname: 'Chatter', profilePic: AVATARS.chatter },
+                text,
+              } as unknown as Record<string, unknown>);
+              setTestChat('');
+            }}
+          >
+            <input
+              value={testChat}
+              onChange={(e) => setTestChat(e.target.value)}
+              placeholder="Eigene Test-Nachricht, z.B. !spin"
+              className="bx-input flex-1"
+            />
+            <button type="submit" className="bx-pill text-[11px] hover:text-studio-teal">
+              <MessageSquare size={13} /> Senden
+            </button>
+          </form>
           <div className="mt-2 border-t border-studio-border pt-3">
             <h3 className="mb-2 text-[10px] uppercase tracking-[0.3em] text-studio-muted">Replay</h3>
             <div className="flex flex-wrap gap-2">

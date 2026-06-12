@@ -137,6 +137,19 @@ test('chat_keyword: case-insensitive substring im text', () => {
   assert.equal(engine.evaluate(chat('')).length, 0);
 });
 
+test('chat_first_time: matcht nur die allererste nachricht eines zuschauers', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([
+    rule({ event: 'chat', conditions: [{ kind: 'chat_first_time' }] }),
+  ]);
+
+  const first: StudioEvent = { type: 'chat', ts: 1000, user: { id: 'u9', nickname: 'Neu' }, text: 'hi', firstOfUser: true };
+  const again: StudioEvent = { type: 'chat', ts: 2000, user: { id: 'u9', nickname: 'Neu' }, text: 'nochmal' };
+
+  assert.equal(engine.evaluate(first).length, 1);
+  assert.equal(engine.evaluate(again).length, 0);
+});
+
 test('viewer_count_gte: matcht ab schwellwert', () => {
   const engine = new TriggerEngine();
   engine.setRules([
