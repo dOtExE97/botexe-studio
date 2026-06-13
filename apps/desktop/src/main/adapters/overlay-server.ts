@@ -31,6 +31,8 @@ export interface OverlayServerOptions {
   /** 0 = freier Port (Tests); sonst Wunsch-Port mit Fallback +1…+10. */
   port: number;
   host?: string;
+  /** Fester Auth-Token (persistent über Neustarts). Leer = zufällig generiert. */
+  token?: string;
   /** Verzeichnis mit overlay.html + runtime.js (overlay-engine/runtime). */
   runtimeDir: string;
   /** Verzeichnis mit Widget-JS/CSS (widget-kit). */
@@ -51,8 +53,15 @@ export interface OverlayServerOptions {
   mediaDir?: string;
   /** Spiel-Widgets (Bingo/Zahlenraten) lösen Sounds über die App aus. */
   onWidgetSound?: (soundId: string) => void;
+  /** Spiel-Sieg (z.B. Zahlen-Raten) — winId dedupliziert über OBS+TTLS+Vorschau. */
+  onGameWin?: (winId: string, user: { id: string; nickname: string; profilePic?: string }) => void;
   /** Gift-Katalog (slug → Bild/Coins) — fürs Bingo & die Galerie. */
   getGiftCatalog?: () => Record<string, unknown>;
+  /** Sport-Liveticker: Spiele eines Wettbewerbs (gecacht im Main). */
+  getSportMatches?: (provider: string, competition: string) => Promise<unknown>;
+  /** Stream-Deck/Fernsteuerung: Panel-Knöpfe auflisten + per ID auslösen. */
+  listPanelButtons?: () => Array<{ id: string; label: string }>;
+  firePanelButton?: (id: string) => boolean;
 }
 
 const FILE_NAME_RE = /^[a-zA-Z0-9_.-]+\.(js|css|html|woff2?)$/;
@@ -78,6 +87,7 @@ export class OverlayServer {
   private clients = new Set<TrackedClient>();
   /** soundId → letzter Abspiel-Zeitpunkt (Dedup über mehrere Overlay-Clients). */
   private soundDedup = new Map<string, number>();
+  private gameWinDedup = new Map<string, number>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private unsubBus: (() => void) | null = null;
   private droppedMessages = 0;
@@ -87,7 +97,9 @@ export class OverlayServer {
     this.options = options;
     this.host = options.host ?? '127.0.0.1';
     this.port = options.port;
-    this.token = crypto.randomBytes(32).toString('hex');
+    // Persistenter Token (über Neustarts stabil → OBS-Links/Stream-Deck bleiben
+    // gültig). Fällt auf einen zufälligen zurück, wenn keiner übergeben wurde.
+    this.token = options.token || crypto.randomBytes(32).toString('hex');
     this.expressApp = express();
     this.expressApp.use(express.json({ limit: '256kb' }));
     this.server = createServer(this.expressApp);
@@ -163,6 +175,31 @@ export class OverlayServer {
     // Gift-Katalog: echte Gift-Bilder für Bingo-Zellen & Galerie.
     this.expressApp.get('/gift-catalog', auth, (_req, res) => {
       res.json(this.options.getGiftCatalog?.() ?? {});
+    });
+
+    // Sport-Liveticker: das Widget pollt hier, der Main holt+cacht von der API.
+    this.expressApp.get('/sport', auth, (req, res) => {
+      const provider = String(req.query.provider ?? 'football-data');
+      const competition = String(req.query.competition ?? '');
+      if (!this.options.getSportMatches || !competition) {
+        res.json({ matches: [] });
+        return;
+      }
+      this.options
+        .getSportMatches(provider, competition)
+        .then((matches) => res.json({ matches: matches ?? [] }))
+        .catch(() => res.json({ matches: [] }));
+    });
+
+    // Fernsteuerung (Stream-Deck-Plugin & Web-Requests): Panel-Knöpfe auflisten
+    // + per ID auslösen. Token-geschützt wie alles andere.
+    this.expressApp.get('/api/panel', auth, (_req, res) => {
+      res.json({ buttons: this.options.listPanelButtons?.() ?? [] });
+    });
+    this.expressApp.post('/api/panel/fire', auth, (req, res) => {
+      const id = String((req.body as { id?: unknown })?.id ?? '');
+      const ok = id ? (this.options.firePanelButton?.(id) ?? false) : false;
+      res.status(ok ? 200 : 404).json({ ok });
     });
 
     this.setupTestEventRoute(auth);
@@ -314,6 +351,17 @@ export class OverlayServer {
       res.send(css);
       return;
     }
+    if (ext === '.js') {
+      // Relative ES-Modul-Imports (import … from './combo.js') verlieren den
+      // Token bei der Browser-Auflösung → sonst 403. Token anhängen (wie bei CSS).
+      let js = fs.readFileSync(target, 'utf-8');
+      js = js.replace(
+        /(\bfrom\s*['"]|\bimport\s*\(\s*['"])(\.\/[\w.-]+\.js)(['"])/g,
+        (_m, pre, spec, q) => `${pre}${spec}?token=${this.token}${q}`,
+      );
+      res.send(js);
+      return;
+    }
     res.send(fs.readFileSync(target));
   }
 
@@ -344,14 +392,37 @@ export class OverlayServer {
         const str = String(raw);
         if (str.length > 4096) return;
         try {
-          const msg = JSON.parse(str) as { kind?: string; scope?: string; message?: string; soundId?: string };
+          const msg = JSON.parse(str) as {
+            kind?: string; scope?: string; message?: string; soundId?: string;
+            winId?: string; user?: { id?: string; nickname?: string; profilePic?: string };
+          };
           const now = Date.now();
+          // Spiel-Sieg: winId (layerId+Runde) ist auf allen Clients gleich →
+          // genau EINMAL zählen, egal wie viele Overlays offen sind.
+          if (msg.kind === 'gamewin' && typeof msg.winId === 'string' && msg.winId.length < 120 && msg.user?.id) {
+            const last = this.gameWinDedup.get(msg.winId) ?? 0;
+            if (now - last > 30_000) {
+              this.gameWinDedup.set(msg.winId, now);
+              if (this.gameWinDedup.size > 200) {
+                for (const [k, t] of this.gameWinDedup) if (now - t > 60_000) this.gameWinDedup.delete(k);
+              }
+              this.options.onGameWin?.(msg.winId, {
+                id: String(msg.user.id),
+                nickname: String(msg.user.nickname ?? '?'),
+                profilePic: msg.user.profilePic ? String(msg.user.profilePic) : undefined,
+              });
+            }
+            return;
+          }
           // Spiel-Widget-Sound (Bingo-Treffer, Zahlenraten-Gewinn): über die
           // App abspielen — Dedup, weil OBS+TTLS dasselbe Widget zeigen können.
           if (msg.kind === 'sound' && typeof msg.soundId === 'string' && msg.soundId.length < 120) {
             const last = this.soundDedup.get(msg.soundId) ?? 0;
             if (now - last > 600) {
               this.soundDedup.set(msg.soundId, now);
+              if (this.soundDedup.size > 200) {
+                for (const [k, t] of this.soundDedup) if (now - t > 5_000) this.soundDedup.delete(k);
+              }
               this.options.onWidgetSound?.(msg.soundId);
             }
             return;

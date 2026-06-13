@@ -14,15 +14,19 @@ interface Viewer {
   coins?: number;
   likes?: number;
   voice?: string;
+  gameWins?: number;
+  welcomeMediaId?: string;
 }
 
 interface TtsVoice { id: string; name: string }
 interface VoiceGroup { provider: string; label: string; voices: TtsVoice[] }
+interface MediaItem { id: string; filename: string; kind: 'image' | 'video' }
 
 export default function ViewersPage() {
   const [query, setQuery] = useState('');
   const [viewers, setViewers] = useState<Viewer[]>([]);
   const [voices, setVoices] = useState<VoiceGroup[]>([]);
+  const [media, setMedia] = useState<MediaItem[]>([]);
   const [currency, setCurrency] = useState('Punkte');
 
   const refresh = async () => {
@@ -32,6 +36,7 @@ export default function ViewersPage() {
   useEffect(() => {
     void refresh();
     void window.studio.getTtsVoices().then((v: VoiceGroup[]) => setVoices(v));
+    void window.studio.listMedia().then((m: MediaItem[]) => setMedia(m));
     void window.studio.getSettings().then((s: { points: { currencyName: string } }) => setCurrency(s.points.currencyName));
   }, []);
   useEffect(() => {
@@ -54,6 +59,10 @@ export default function ViewersPage() {
   const setVoice = (v: Viewer, voice: string) => {
     patchLocal(v.id, { voice: voice || undefined });
     void window.studio.setViewerVoice(v.id, voice);
+  };
+  const setWelcomeMedia = (v: Viewer, mediaId: string) => {
+    patchLocal(v.id, { welcomeMediaId: mediaId || undefined });
+    void window.studio.setViewerWelcomeMedia(v.id, mediaId);
   };
 
   return (
@@ -113,7 +122,16 @@ export default function ViewersPage() {
                 <button onClick={() => grant(v, -10)} className="bx-pill px-2 py-1 hover:text-studio-accent" title="−10">
                   <Minus size={12} />10
                 </button>
-                <span className="w-20 text-center font-mono text-sm text-studio-gold">{v.points.toLocaleString('de-DE')}</span>
+                <input
+                  type="number"
+                  defaultValue={v.points}
+                  key={v.points}
+                  onBlur={(e) => { const target = Math.max(0, Math.round(Number(e.target.value))); if (target !== v.points) grant(v, target - v.points); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  title="Punkte direkt setzen (Enter)"
+                  className="bx-input w-20 text-center font-mono text-sm text-studio-gold"
+                  style={{ padding: '3px 4px' }}
+                />
                 <button onClick={() => grant(v, 10)} className="bx-pill px-2 py-1 hover:text-studio-teal" title="+10">
                   <Plus size={12} />10
                 </button>
@@ -138,6 +156,19 @@ export default function ViewersPage() {
                       <option key={vo.id} value={vo.id}>{vo.name}</option>
                     ))}
                   </optgroup>
+                ))}
+              </select>
+
+              {/* Begrüßungs-Medium (spielt bei Teamherz) */}
+              <select
+                value={v.welcomeMediaId ?? ''}
+                onChange={(e) => setWelcomeMedia(v, e.target.value)}
+                title="Begrüßungs-Bild/Video — spielt automatisch bei einem Teamherz dieses Zuschauers (braucht ein Media-Widget im Overlay)"
+                className="bx-select max-w-40 py-1.5 text-[11px]"
+              >
+                <option value="">Begrüßung: keine</option>
+                {media.map((m) => (
+                  <option key={m.id} value={m.id}>{m.kind === 'video' ? '🎬' : '🖼️'} {m.filename}</option>
                 ))}
               </select>
 

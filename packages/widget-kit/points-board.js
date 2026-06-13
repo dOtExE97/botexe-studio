@@ -42,7 +42,7 @@ const CSS = `
 .bx-pb-row[data-rank="2"] .bx-pb-pic { box-shadow: 0 0 0 2px #d7deec; }
 .bx-pb-row[data-rank="3"] .bx-pb-pic { box-shadow: 0 0 0 2px #f0a35a; }
 
-.bx-pb-name { flex:1; font-family: var(--bx-font-display); font-size:18px; color:#fff; text-transform:uppercase;
+.bx-pb-name { flex:1; font-family: var(--bx-font-display); font-size:18px; color:var(--bx-text,#fff); text-transform:uppercase;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 2px 4px rgba(0,0,0,.5); }
 .bx-pb-row[data-rank="1"] .bx-pb-name { color: var(--bx-gold); }
 .bx-pb-val { font-family: var(--bx-font-mono); font-weight:700; font-size:16px; color: var(--bx-accent);

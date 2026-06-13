@@ -30,7 +30,7 @@ const CSS = `
 .bx-ga-pic { width: 76px; height: 76px; margin: 12px auto 0; border-radius: 50%;
   background: #1a1c28 center/cover; box-shadow: 0 0 0 3px var(--bx-accent), 0 0 22px -2px var(--bx-accent); }
 .bx-ga-name { font-family: var(--bx-font-display); font-size: 46px; line-height: 1.04; margin-top: 10px;
-  text-transform: uppercase; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.6);
+  text-transform: uppercase; color: var(--bx-text,#fff); text-shadow: 0 2px 0 rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.6);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 600px; }
 .bx-ga-img { height: 92px; margin-top: 12px; filter: drop-shadow(0 8px 18px rgba(0,0,0,.6));
   animation: bx-float 2.6s ease-in-out infinite; }

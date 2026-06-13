@@ -8,7 +8,7 @@ const CSS = `
 .bx-fa-icon { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; flex: none; }
 .bx-fa-icon svg { width: 56%; height: 56%; display: block; }
 .bx-fa-label { font-family: var(--bx-font-display); font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: var(--bx-accent); }
-.bx-fa-name { font-family: var(--bx-font-display); font-size: 23px; color: #fff; text-transform: uppercase;
+.bx-fa-name { font-family: var(--bx-font-display); font-size: 23px; color: var(--bx-text,#fff); text-transform: uppercase;
   text-shadow: 0 2px 6px rgba(0,0,0,.6); max-width: 340px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @keyframes bx-fa-in { to { transform: translateX(0); } }
 @keyframes bx-fa-out { to { transform: translateX(-130%); opacity: 0; } }

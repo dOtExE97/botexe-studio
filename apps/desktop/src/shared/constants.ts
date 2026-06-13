@@ -12,6 +12,8 @@ export const IPC = {
   // Event-Bus → Renderer (Live-Feed in der App-Shell)
   BUS_EVENT: 'bus:event',
   STATS_UPDATE: 'stats:update',
+  STATS_HISTORY_GET: 'stats:history-get',
+  STATS_CSV_EXPORT: 'stats:csv-export',
   // Overlay
   OVERLAY_GET_INFO: 'overlay:get-info',
   // Layouts
@@ -24,15 +26,21 @@ export const IPC = {
   // Trigger-Regeln
   RULES_GET: 'rules:get',
   RULES_SET: 'rules:set',
+  // Geschenke-Galerie (kompletter Gift-Katalog mit Bildern)
+  GIFT_CATALOG_GET: 'gift-catalog:get',
   // Punkte-Einlöse-Store
   REDEMPTIONS_GET: 'redemptions:get',
   REDEMPTIONS_SET: 'redemptions:set',
+  // Chat-Befehle (Bot)
+  COMMANDS_GET: 'commands:get',
+  COMMANDS_SET: 'commands:set',
   // Manuelles Auslöse-Panel + Hotkeys
   PANEL_GET: 'panel:get',
   PANEL_SET: 'panel:set',
   PANEL_FIRE: 'panel:fire',
   // Sounds (lokale Wiedergabe passiert im Renderer — Main schickt Play-Befehle)
   SOUND_PLAY: 'sound:play',
+  SOUND_ENDED: 'sound:ended',
   SOUND_LIST: 'sound:list',
   SOUND_IMPORT: 'sound:import',
   SOUND_DELETE: 'sound:delete',
@@ -53,6 +61,24 @@ export const IPC = {
   // App-Info / Einstellungen
   APP_INFO: 'app:info',
   APP_OPEN_DATA_DIR: 'app:open-data-dir',
+  CONFIG_EXPORT: 'config:export',
+  CONFIG_IMPORT: 'config:import',
+  // OBS-Studio-Steuerung
+  OBS_SET_CONFIG: 'obs:set-config',
+  OBS_GET_SCENES: 'obs:get-scenes',
+  OBS_STATUS: 'obs:status',
+  // TikTok-Login (Chat-Senden) + Chat senden
+  TIKTOK_LOGIN: 'tiktok:login',
+  TIKTOK_LOGOUT: 'tiktok:logout',
+  CHAT_SEND: 'chat:send',
+  // Streamer.bot-Brücke
+  SB_SET_CONFIG: 'sb:set-config',
+  SB_GET_ACTIONS: 'sb:get-actions',
+  SB_STATUS: 'sb:status',
+  // Auto-Update (GitHub Releases, Squirrel-Delta)
+  UPDATE_CHECK: 'update:check',
+  UPDATE_INSTALL: 'update:install',
+  UPDATE_STATUS: 'update:status',
   // TikTok-Live-Studio-Link (Domain-Form + hosts-Setup)
   TTLS_LINK_GET: 'ttls:link-get',
   TTLS_SETUP: 'ttls:setup',
@@ -67,6 +93,7 @@ export const IPC = {
   VIEWER_FLAG: 'viewers:flag',
   VIEWER_GRANT: 'viewers:grant',
   VIEWER_VOICE: 'viewers:voice',
+  VIEWER_WELCOME_MEDIA: 'viewers:welcome-media',
   // Settings
   SETTINGS_GET: 'settings:get',
   SETTINGS_UPDATE: 'settings:update',

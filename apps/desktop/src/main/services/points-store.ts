@@ -44,6 +44,10 @@ export interface PointsEntry {
   lastSeen?: number;
   /** Eigene TTS-Stimme für diesen Zuschauer (überschreibt Default). */
   voice?: string;
+  /** Gewonnene Spiel-Runden (z.B. Zahlen-Raten) — fürs Spiel-Leaderboard. */
+  gameWins?: number;
+  /** Eigenes Begrüßungs-Medium (Media-ID) — spielt z.B. beim Teamherz. */
+  welcomeMediaId?: string;
 }
 
 export type ViewerFlag = 'vip' | 'muted';
@@ -193,6 +197,52 @@ export class PointsStore {
       .sort((a, b) => b.points - a.points)
       .slice(0, limit)
       .map((e) => ({ ...e }));
+  }
+
+  /** Einen Spiel-Sieg für diesen Zuschauer verbuchen (Zahlen-Raten etc.). */
+  recordWin(user: { id: string; nickname: string; profilePic?: string }): void {
+    if (!user?.id) return;
+    const e = this.viewers.get(user.id) ?? { id: user.id, nickname: user.nickname, points: 0 };
+    e.gameWins = (e.gameWins ?? 0) + 1;
+    e.nickname = user.nickname || e.nickname;
+    if (user.profilePic) e.profilePic = user.profilePic;
+    this.viewers.set(user.id, e);
+    this.scheduleSave();
+  }
+
+  /** Spiel-Leaderboard: meiste Siege zuerst (nur User mit ≥1 Sieg). */
+  topWinners(limit: number): PointsEntry[] {
+    return Array.from(this.viewers.values())
+      .filter((e) => (e.gameWins ?? 0) > 0)
+      .sort((a, b) => (b.gameWins ?? 0) - (a.gameWins ?? 0))
+      .slice(0, limit)
+      .map((e) => ({ ...e }));
+  }
+
+  /** Begrüßungs-Medium eines Zuschauers setzen/entfernen. */
+  setWelcomeMedia(userId: string, mediaId: string | undefined): void {
+    const e = this.viewers.get(userId) ?? { id: userId, nickname: userId, points: 0 };
+    e.welcomeMediaId = mediaId || undefined;
+    this.viewers.set(userId, e);
+    this.scheduleSave();
+  }
+
+  welcomeMediaFor(userId: string): string | undefined {
+    return this.viewers.get(userId)?.welcomeMediaId;
+  }
+
+  /** Alle Einträge fürs Backup-Export. */
+  exportEntries(): PointsEntry[] {
+    return Array.from(this.viewers.values()).map((e) => ({ ...e }));
+  }
+
+  /** Einträge aus einem Backup laden (überschreibt gleiche IDs). */
+  importEntries(entries: PointsEntry[]): void {
+    if (!Array.isArray(entries)) return;
+    for (const e of entries) {
+      if (e && typeof e.id === 'string') this.viewers.set(e.id, { ...e });
+    }
+    this.scheduleSave();
   }
 
   private scheduleSave(): void {

@@ -13,6 +13,16 @@ export interface ReadDecision {
   text: string;
 }
 
+/** Enthält der Text ein gesperrtes Wort? (case-insensitiv, Teilwort-Match). */
+export function containsBlockedWord(text: string, blockedWords: string[]): boolean {
+  if (!text || !blockedWords?.length) return false;
+  const lower = text.toLowerCase();
+  return blockedWords.some((w) => {
+    const t = w.trim().toLowerCase();
+    return t.length > 0 && lower.includes(t);
+  });
+}
+
 export function shouldReadChat(
   event: StudioEvent,
   who: ReadWho,

@@ -32,10 +32,25 @@ export interface StatsTotals {
   peakViewers: number;
 }
 
+/** Highlight eines einzelnen Gift-Events (für Top-Gift / Top-Streak-Widgets). */
+export interface GiftHighlight {
+  userId: string;
+  nickname: string;
+  profilePic?: string;
+  giftSlug: string;
+  giftIcon?: string;
+  count: number;
+  coins: number;
+}
+
 export interface StatsSnapshot {
   totals: StatsTotals;
   topGifters: GifterEntry[];
   topLikers: LikerEntry[];
+  /** Wertvollstes Einzel-Gift der Session (nach Coins). */
+  topGift?: GiftHighlight;
+  /** Höchste Combo der Session (nach count). */
+  topStreak?: GiftHighlight;
 }
 
 interface SerializedStats {
@@ -43,16 +58,34 @@ interface SerializedStats {
   totals: StatsTotals;
   gifters: GifterEntry[];
   likers?: LikerEntry[];
+  topGift?: GiftHighlight;
+  topStreak?: GiftHighlight;
 }
 
 function emptyTotals(): StatsTotals {
   return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0 };
 }
 
+/** Klon ohne undefined-Felder — damit In-Memory- und JSON-Roundtrip-Snapshot gleich sind. */
+function cleanHighlight(h: GiftHighlight): GiftHighlight {
+  const out: GiftHighlight = {
+    userId: h.userId,
+    nickname: h.nickname,
+    giftSlug: h.giftSlug,
+    count: h.count,
+    coins: h.coins,
+  };
+  if (h.profilePic) out.profilePic = h.profilePic;
+  if (h.giftIcon) out.giftIcon = h.giftIcon;
+  return out;
+}
+
 export class SessionStats {
   private totals = emptyTotals();
   private gifters = new Map<string, GifterEntry>();
   private likers = new Map<string, LikerEntry>();
+  private topGift?: GiftHighlight;
+  private topStreak?: GiftHighlight;
 
   /** Verarbeitet ein Event; liefert true, wenn sich der Zustand geändert hat. */
   apply(event: StudioEvent): boolean {
@@ -75,6 +108,18 @@ export class SessionStats {
           if (user.profilePic) entry.profilePic = user.profilePic;
           this.gifters.set(user.id, entry);
         }
+        // Top-Gift (wertvollstes Einzel-Gift) & Top-Streak (höchste Combo).
+        const highlight: GiftHighlight = {
+          userId: user?.id ?? '',
+          nickname: user?.nickname ?? '?',
+          profilePic: user?.profilePic,
+          giftSlug: event.gift.slug,
+          giftIcon: event.gift.icon,
+          count: event.gift.count,
+          coins: event.gift.totalCoins,
+        };
+        if (!this.topGift || highlight.coins > this.topGift.coins) this.topGift = highlight;
+        if (!this.topStreak || highlight.count > this.topStreak.count) this.topStreak = highlight;
         return true;
       }
       case 'follow':
@@ -126,13 +171,21 @@ export class SessionStats {
       .sort((a, b) => b.likes - a.likes)
       .slice(0, TOP_GIFTERS_LIMIT)
       .map((l) => ({ ...l }));
-    return { totals: { ...this.totals }, topGifters, topLikers };
+    return {
+      totals: { ...this.totals },
+      topGifters,
+      topLikers,
+      ...(this.topGift ? { topGift: cleanHighlight(this.topGift) } : {}),
+      ...(this.topStreak ? { topStreak: cleanHighlight(this.topStreak) } : {}),
+    };
   }
 
   reset(): void {
     this.totals = emptyTotals();
     this.gifters.clear();
     this.likers.clear();
+    this.topGift = undefined;
+    this.topStreak = undefined;
   }
 
   toJSON(): string {
@@ -141,6 +194,8 @@ export class SessionStats {
       totals: { ...this.totals },
       gifters: Array.from(this.gifters.values()),
       likers: Array.from(this.likers.values()),
+      topGift: this.topGift,
+      topStreak: this.topStreak,
     };
     return JSON.stringify(data);
   }
@@ -154,6 +209,8 @@ export class SessionStats {
       stats.totals = { ...emptyTotals(), ...data.totals };
       for (const g of data.gifters) stats.gifters.set(g.id, { ...g });
       for (const l of data.likers ?? []) stats.likers.set(l.id, { ...l });
+      if (data.topGift) stats.topGift = { ...data.topGift };
+      if (data.topStreak) stats.topStreak = { ...data.topStreak };
       return stats;
     } catch {
       return null;

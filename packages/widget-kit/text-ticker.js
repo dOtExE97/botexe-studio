@@ -4,7 +4,7 @@ const STYLE_ID = 'bx-tt-style';
 const CSS = `
 .bx-tt { position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; font-family: var(--bx-font-body); }
 .bx-tt-track { display: inline-flex; align-items: center; white-space: nowrap; will-change: transform; animation: bx-tt-scroll var(--dur,18s) linear infinite; }
-.bx-tt-item { font-family: var(--bx-font-display); font-size: 22px; text-transform: uppercase; letter-spacing: .06em; color: #fff;
+.bx-tt-item { font-family: var(--bx-font-display); font-size: 22px; text-transform: uppercase; letter-spacing: .06em; color: var(--bx-text,#fff);
   padding: 0 32px; text-shadow: 0 2px 6px rgba(0,0,0,.7); }
 .bx-tt-sep { color: var(--bx-accent); font-size: 14px; }
 @keyframes bx-tt-scroll { to { transform: translateX(-50%); } }

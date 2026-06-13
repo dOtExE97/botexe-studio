@@ -11,6 +11,39 @@ const KEEP_LOGS = 15;
 let stream: fs.WriteStream | null = null;
 let logDir = '';
 
+// Original-Console VOR dem Patchen sichern — write() nutzt diese (sonst Doppel-
+// Schreiben), und der Patch unten leitet ALLE Fremd-Logs (Libs!) in die Datei.
+const orig = {
+  log: console.log.bind(console),
+  info: console.info.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+};
+
+/** Beliebige Argumente robust zu einer Zeile machen (Error → message+stack). */
+function fmtArgs(args: unknown[]): string {
+  return args
+    .map((a) => {
+      if (a instanceof Error) return `${a.message}${a.stack ? `\n${a.stack}` : ''}`;
+      if (typeof a === 'object') { try { return JSON.stringify(a); } catch { return String(a); } }
+      return String(a);
+    })
+    .join(' ');
+}
+
+function appendFile(line: string): void {
+  if (stream) { try { stream.write(line + '\n'); } catch { /* Schreibfehler nicht eskalieren */ } }
+}
+
+/** console.* so umbiegen, dass Fremd-Ausgaben (TikTok-Lib, OBS, ws, Electron …)
+ *  ebenfalls in der Log-Datei landen — nicht nur unsere log.*-Aufrufe. */
+function patchConsole(): void {
+  console.log = (...a: unknown[]) => { orig.log(...a); appendFile(`[${new Date().toISOString()}] [LOG] [console] ${fmtArgs(a)}`); };
+  console.info = (...a: unknown[]) => { orig.info(...a); appendFile(`[${new Date().toISOString()}] [INFO] [console] ${fmtArgs(a)}`); };
+  console.warn = (...a: unknown[]) => { orig.warn(...a); appendFile(`[${new Date().toISOString()}] [WARN] [console] ${fmtArgs(a)}`); };
+  console.error = (...a: unknown[]) => { orig.error(...a); appendFile(`[${new Date().toISOString()}] [ERROR] [console] ${fmtArgs(a)}`); };
+}
+
 /** Datei-Logging initialisieren (im Main nach app-ready aufrufen). */
 export function initFileLogging(userDataDir: string, stamp: string): string {
   try {
@@ -24,10 +57,11 @@ export function initFileLogging(userDataDir: string, stamp: string): string {
     const safe = stamp.replace(/[:.]/g, '-');
     const file = path.join(logDir, `studio-${safe}.log`);
     stream = fs.createWriteStream(file, { flags: 'a' });
+    patchConsole(); // ab jetzt landen auch Fremd-Console-Ausgaben in der Datei
     write('info', 'Logger', `Datei-Log gestartet: ${file}`);
     return file;
   } catch (err) {
-    console.error('Datei-Logging konnte nicht starten:', (err as Error).message);
+    orig.error('Datei-Logging konnte nicht starten:', (err as Error).message);
     return '';
   }
 }
@@ -38,19 +72,12 @@ export function getLogDir(): string {
 
 function write(level: Level, scope: string, message: string, detail?: string): void {
   const line = `[${new Date().toISOString()}] [${level.toUpperCase()}] [${scope}] ${message}${detail ? ` — ${detail}` : ''}`;
-  switch (level) {
-    case 'error':
-      console.error(line);
-      break;
-    case 'warn':
-      console.warn(line);
-      break;
-    default:
-      console.log(line);
-  }
-  if (stream) {
-    try { stream.write(line + '\n'); } catch { /* Schreibfehler nicht eskalieren */ }
-  }
+  // Anzeige über die ORIGINAL-Console (der Patch oben würde sonst doppelt in die
+  // Datei schreiben). Die Datei wird hier genau einmal beschrieben.
+  if (level === 'error') orig.error(line);
+  else if (level === 'warn') orig.warn(line);
+  else orig.log(line);
+  appendFile(line);
 }
 
 export const log = {

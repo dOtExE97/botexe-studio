@@ -6,8 +6,8 @@ const CSS = `
 .bx-tr { position: absolute; inset: 0; display: flex; flex-direction: column; font-family: var(--bx-font-body); overflow: hidden; }
 .bx-tr-head { position: relative; height: 34px; margin-bottom: 6px; }
 .bx-tr-title { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-family: var(--bx-font-display); font-size: 20px; letter-spacing: .08em; text-transform: uppercase; color: #fff;
-  -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill;
+  font-family: var(--bx-font-display); font-size: 20px; letter-spacing: .08em; text-transform: uppercase; color: var(--bx-text,#fff);
+  -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 3px 5px rgba(0,0,0,.5);
   transition: opacity .35s, transform .35s; }
 .bx-tr-list { position: relative; flex: 1; }
@@ -29,13 +29,13 @@ const CSS = `
 .bx-tr-row[data-rank="3"] .bx-tr-pic { box-shadow: 0 0 0 3px #f0a35a, 0 4px 10px rgba(0,0,0,.5); }
 .bx-tr-crown { position: absolute; margin-top: -34px; margin-left: 26px; transform: rotate(-12deg);
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
-.bx-tr-name { flex: 1; min-width: 0; font-family: var(--bx-font-display); font-size: 21px; color: #fff; text-transform: uppercase;
+.bx-tr-name { flex: 1; min-width: 0; font-family: var(--bx-font-display); font-size: 21px; color: var(--bx-text,#fff); text-transform: uppercase;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
+  -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
 .bx-tr-row[data-rank="1"] .bx-tr-name { color: var(--bx-gold); }
-.bx-tr-val { flex: none; font-family: var(--bx-font-display); font-size: 21px; color: #fff;
-  -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
-.bx-tr-val .arr { font-size: 15px; -webkit-text-stroke: 2px #0a0b12; }
+.bx-tr-val { flex: none; font-family: var(--bx-font-display); font-size: 21px; color: var(--bx-text,#fff);
+  -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
+.bx-tr-val .arr { font-size: 15px; -webkit-text-stroke: 2px var(--bx-ink, #0a0b12); }
 .bx-tr-empty { display: flex; align-items: center; justify-content: center; height: 100%; font-family: var(--bx-font-display);
   font-size: 15px; letter-spacing: .1em; color: var(--bx-muted); text-transform: uppercase; }
 `;
@@ -45,6 +45,7 @@ const SRC = {
   gifts: { title: 'Top Gifter', accent: '#ff5436', valColor: '#ffd23e', list: (s) => s?.topGifters || [], val: (e) => fmt(e.coins), arr: '▲' },
   likes: { title: 'Top Likes', accent: '#ff5e8a', valColor: '#ff8ab0', list: (s) => s?.topLikers || [], val: (e) => `${fmt(e.likes)} ❤`, arr: '▲' },
   points: { title: 'Top Supporter', accent: '#7c5cff', valColor: '#b59cff', list: (s) => s?.topPoints || [], val: (e) => fmt(e.points), arr: '★' },
+  wins: { title: 'Top Gewinner', accent: '#ffd23e', valColor: '#ffe88a', list: (s) => s?.topWinners || [], val: (e) => `${e.gameWins || 0} 🏆`, arr: '★' },
 };
 
 export default class TopRotator {
@@ -92,7 +93,7 @@ export default class TopRotator {
         <div class="bx-tr-rank">${i+1}</div>
         ${this.showPic ? `<div class="bx-tr-pic" style="${e.profilePic?`background-image:url('${attrUrl(e.profilePic)}')`:''}"></div>${i===0?'<div class="bx-tr-crown"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="17" viewBox="0 0 24 18"><path d="M2 6.2l3.6 3.1L9.4 3l2.6 4.2L14.6 3l3.8 6.3L22 6.2l-1.7 9.3a1 1 0 0 1-1 .8H4.7a1 1 0 0 1-1-.8L2 6.2Z" fill="#ffd23e" stroke="rgba(0,0,0,.55)" stroke-width=".8" stroke-linejoin="round"/><circle cx="2" cy="6.2" r="1.4" fill="#ffd23e"/><circle cx="12" cy="2.4" r="1.4" fill="#ffd23e"/><circle cx="22" cy="6.2" r="1.4" fill="#ffd23e"/></svg></div>':''}` : ''}
         <div class="bx-tr-name">${escapeHtml(e.nickname)}</div>
-        <div class="bx-tr-val" style="color:${i===0&&key!=='points'?def.valColor:'#fff'}"><span class="arr">${def.arr}</span> ${def.val(e)}</div>
+        <div class="bx-tr-val" style="color:${i===0&&key!=='points'?def.valColor:'var(--bx-text,#fff)'}"><span class="arr">${def.arr}</span> ${def.val(e)}</div>
       </div>`).join('');
   }
   destroy() { clearInterval(this.timer); this.el.remove(); }

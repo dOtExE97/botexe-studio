@@ -14,10 +14,10 @@ const CSS = `
   border-radius: var(--bx-radius); box-shadow: var(--bx-shadow), 0 0 44px -16px var(--bx-accent);
   overflow:hidden; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 .bx-gn-title { font-family: var(--bx-font-display); font-size:16px; letter-spacing:.26em; text-transform:uppercase;
-  color:#fff; text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); text-align:center; }
+  color: var(--bx-text, #fff); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); text-align:center; }
 .bx-gn-tiles { display:flex; gap:8px; perspective: 500px; }
 .bx-gn-tile { width:62px; height:78px; border-radius:12px; display:flex; align-items:center; justify-content:center;
-  font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size:44px; color:#fff;
+  font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size:44px; color: var(--bx-text, #fff);
   background: linear-gradient(165deg, rgba(255,255,255,.14), rgba(255,255,255,.04));
   border:1.5px solid color-mix(in srgb, var(--bx-accent) 55%, transparent);
   box-shadow: 0 6px 16px rgba(0,0,0,.45), 0 0 22px -8px var(--bx-accent);
@@ -128,6 +128,12 @@ export default class GuessNumberWidget {
     this.hintEl.textContent = '';
     this.subEl.textContent = '';
     if (this.winSound) this.ctx.playSound?.(this.winSound);
+    // Sieg fürs Spiel-Leaderboard melden (winId gleich auf allen Clients → 1× gezählt).
+    if (user?.id) {
+      this.ctx.reportWin?.(`${this.ctx.layerId || 'guess'}-${this.round}`, {
+        id: user.id, nickname: user.nickname || 'Jemand', profilePic: user.profilePic,
+      });
+    }
 
     const w = document.createElement('div');
     w.className = 'bx-gn-win';

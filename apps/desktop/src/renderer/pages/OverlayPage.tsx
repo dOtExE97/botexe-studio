@@ -25,6 +25,7 @@ import {
   type OverlayLayer,
 } from '@botexe/overlay-engine';
 import ConfirmButton from '../components/ConfirmButton';
+import GiftListEditor from '../components/GiftListEditor';
 import { toast } from '../components/ToastHost';
 
 interface PropField {
@@ -33,7 +34,7 @@ interface PropField {
   /** seconds = im UI in Sekunden, gespeichert als ms · boolean = Schalter
    *  media = visueller Bild/Video-Picker mit Import · sound = Sound-Dropdown
    *  (abgespielt über die App, nie im Overlay) */
-  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound';
+  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound' | 'gift-list';
   options?: { value: string; label: string }[];
   hint?: string;
 }
@@ -48,6 +49,64 @@ const ACCENT_FIELD: PropField = {
 function styleField(options: { value: string; label: string }[]): PropField {
   return { key: 'style', label: 'Stil', type: 'select', options };
 }
+
+// Pro-Widget-Typografie (B2.1): Schriftart + Größe + Textfarbe. Wirkt über
+// CSS-Vars/Zoom, die die Runtime auf den Layer-Root setzt.
+const FONT_FIELD: PropField = {
+  key: 'fontFamily', label: 'Schriftart', type: 'select',
+  options: [
+    { value: '', label: 'Standard (Studio-Mix)' },
+    { value: 'lilita', label: 'Lilita One (verspielt, fett)' },
+    { value: 'baloo', label: 'Baloo 2 (rund, kräftig)' },
+    { value: 'sans', label: 'Sans (schlicht)' },
+    { value: 'rounded', label: 'Rounded' },
+    { value: 'condensed', label: 'Schmal (Condensed)' },
+    { value: 'serif', label: 'Serif (elegant)' },
+    { value: 'mono', label: 'Mono' },
+  ],
+  hint: 'Schriftart dieses Widgets (nur lokale/System-Fonts).',
+};
+const SIZE_FIELD: PropField = {
+  key: 'fontScale', label: 'Größe', type: 'select',
+  options: [
+    { value: '0.7', label: 'Klein' },
+    { value: '0.85', label: 'Kompakt' },
+    { value: '1', label: 'Normal' },
+    { value: '1.2', label: 'Groß' },
+    { value: '1.5', label: 'Sehr groß' },
+  ],
+  hint: 'Skaliert den gesamten Widget-Inhalt (Schrift + Abstände).',
+};
+const TEXTCOLOR_FIELD: PropField = {
+  key: 'textColor', label: 'Textfarbe', type: 'color', hint: 'Haupt-Textfarbe (leer = hell).',
+};
+/** Premium-Design ("Skin") — kuratierte Looks, durchwählbar. Akzentfarbe bleibt
+ *  separat (Theme + eigene Brand-Farbe kombinierbar). */
+const THEME_FIELD: PropField = {
+  key: 'theme', label: 'Design', type: 'select',
+  options: [
+    { value: 'glas', label: 'Glas (Standard)' },
+    { value: 'neon', label: 'Neon (Cyberpunk)' },
+    { value: 'synthwave', label: 'Synthwave (Retro-Pink)' },
+    { value: 'arcade', label: 'Arcade (fett, TikFinity-Look)' },
+    { value: 'luxus', label: 'Luxus (Schwarz/Gold, Serif)' },
+    { value: 'midnight', label: 'Midnight (Tiefblau)' },
+    { value: 'inferno', label: 'Inferno (Glut/Rot)' },
+    { value: 'mint', label: 'Mint (Frisch)' },
+    { value: 'minimal', label: 'Minimal (clean)' },
+    { value: 'vapor', label: 'Vapor (Pastell-Lila)' },
+    { value: 'holo', label: 'Holo (Iridescent)' },
+    { value: 'royal', label: 'Royal (Tiefviolett/Gold)' },
+    { value: 'forest', label: 'Forest (Wald-Grün)' },
+    { value: 'mono', label: 'Mono (Schwarz/Weiß, Terminal)' },
+    { value: 'aurora', label: 'Aurora (Polarlicht)' },
+    { value: 'paper', label: 'Paper (Hell, Papier) ☀️' },
+    { value: 'bubblegum', label: 'Bubblegum (Hell, Pink) ☀️' },
+  ],
+  hint: 'Edler Komplett-Look des Widgets — färbt Panel, Schatten, Radius, Schrift. Mit deiner Akzentfarbe kombinierbar.',
+};
+/** Volles Typo-Set (Design + Schriftart + Größe + Farbe) — für reine Text-Widgets. */
+const STYLE_FIELDS: PropField[] = [THEME_FIELD, FONT_FIELD, SIZE_FIELD, TEXTCOLOR_FIELD];
 
 const WIDGET_TYPES: {
   type: string;
@@ -84,8 +143,38 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'hype-train', label: 'Hype-Train', desc: 'Geschenke & Likes treiben einen Zug an, der in Stufen aufsteigt (Twitch-Style) — füllt sich live, verlängert den Timer, eskaliert die Farbe, Sound beim Level-Up.',
+    w: 560, h: 150, props: { coinsPerPoint: 1, likesPerPoint: 10, levelStep: 200, maxLevels: 5, windowSec: 30, title: 'Hype-Train', levelSoundId: 'botexe-gewinn.wav', accent: '#ff4d2e' },
+    fields: [
+      { key: 'levelStep', label: 'Punkte pro Level', type: 'number', hint: 'Wie viele Punkte ein Level kostet. Punkte = Coins (÷ Coins/Punkt) + Likes (÷ Likes/Punkt).' },
+      { key: 'maxLevels', label: 'Max. Level', type: 'number', hint: '2–6. Bei MAX flippt der Zug auf Feuer-Modus.' },
+      { key: 'windowSec', label: 'Zeitfenster (Sek.)', type: 'number', hint: 'So lange darf zwischen zwei Beiträgen vergehen, sonst endet der Zug. Jeder Beitrag verlängert.' },
+      { key: 'coinsPerPoint', label: 'Coins pro Punkt', type: 'number', hint: '1 = jeder Coin ein Punkt. Höher = Coins zählen weniger.' },
+      { key: 'likesPerPoint', label: 'Likes pro Punkt', type: 'number', hint: 'z.B. 10 = 10 Likes ein Punkt.' },
+      { key: 'title', label: 'Titel', type: 'text' },
+      { key: 'levelSoundId', label: 'Level-Up-Sound', type: 'sound', hint: 'Spielt über die App bei jedem neuen Level.' },
+      ACCENT_FIELD,
+      THEME_FIELD,
+    ],
+  },
+  {
+    type: 'subathon', label: 'Subathon-Timer', desc: 'Countdown, den Geschenke & Follower VERLÄNGERN — hält den Stream am Laufen (Twitch-Klassiker). „+Xs" ploppt bei jedem Zuwachs auf.',
+    w: 440, h: 200, props: { startMinutes: 30, secondsPerCoin: 2, secondsPerFollow: 30, secondsPerLike: 0, maxMinutes: 600, title: 'Subathon', addSoundId: 'botexe-gewinn.wav', accent: '#28e0c4' },
+    fields: [
+      { key: 'startMinutes', label: 'Startzeit (Min.)', type: 'number', hint: 'Womit der Timer startet (beim Laden).' },
+      { key: 'secondsPerCoin', label: 'Sek. pro Coin', type: 'number', hint: 'Jeder Gift-Coin verlängert um so viele Sekunden.' },
+      { key: 'secondsPerFollow', label: 'Sek. pro Follower', type: 'number' },
+      { key: 'secondsPerLike', label: 'Sek. pro Like', type: 'number', hint: '0 = Likes verlängern nicht (sonst läuft der Timer nie ab).' },
+      { key: 'maxMinutes', label: 'Max. Minuten', type: 'number', hint: 'Obergrenze, damit der Timer nicht ins Unendliche wächst.' },
+      { key: 'title', label: 'Titel', type: 'text' },
+      { key: 'addSoundId', label: 'Verlängerungs-Sound', type: 'sound' },
+      ACCENT_FIELD,
+      THEME_FIELD,
+    ],
+  },
+  {
     type: 'goal-bar', label: 'Goal-Bar', desc: 'Fortschrittsbalken Richtung Session-Ziel.',
-    w: 560, h: 80, props: { metric: 'coins', target: 1000, label: '' },
+    w: 560, h: 80, props: { metric: 'coins', target: 1000, label: '', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'metric', label: 'Metrik', type: 'select', options: [
         { value: 'coins', label: 'Coins' }, { value: 'likes', label: 'Likes' },
@@ -94,11 +183,29 @@ const WIDGET_TYPES: {
       { key: 'target', label: 'Ziel', type: 'number', hint: 'Bei diesem Wert ist der Balken voll.' },
       { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Leer = automatisch (z.B. „Coin-Goal").' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
+    ],
+  },
+  {
+    type: 'milestone-confetti', label: 'Meilenstein-Konfetti', desc: 'Feiert erreichte Marken (z.B. alle 100 Follower) mit Konfetti-Burst + Glow-Banner.',
+    w: 520, h: 320, props: { metric: 'follows', step: 100, milestones: '', label: '', message: 'Meilenstein! 🎉', soundId: 'botexe-gewinn.wav', accent: '#ffd23e', theme: 'glas' },
+    fields: [
+      { key: 'metric', label: 'Metrik', type: 'select', options: [
+        { value: 'follows', label: 'Follower' }, { value: 'coins', label: 'Coins' },
+        { value: 'likes', label: 'Likes' }, { value: 'gifts', label: 'Gifts' },
+      ] },
+      { key: 'step', label: 'Schritt', type: 'number', hint: 'Alle N Einheiten feiern (z.B. 100 = bei 100, 200, 300 …). Wird ignoriert, wenn unten eine Liste steht.' },
+      { key: 'milestones', label: 'Feste Marken', type: 'text', hint: 'Optional: eigene Schwellen, mit Komma (z.B. „1000, 5000, 10000"). Überschreibt den Schritt.' },
+      { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Leer = automatisch (z.B. „Follower").' },
+      { key: 'message', label: 'Botschaft', type: 'text', hint: 'Untertitel im Banner, z.B. „Danke euch! 🎉".' },
+      { key: 'soundId', label: 'Feier-Sound', type: 'sound', hint: 'Spielt über die App beim Erreichen einer Marke.' },
+      ACCENT_FIELD,
+      THEME_FIELD,
     ],
   },
   {
     type: 'leaderboard', label: 'Top Gifter', desc: 'Die größten Gift-Supporter — TikFinity-Look (Avatare + Kronen) oder Box.',
-    w: 760, h: 180, props: { source: 'gifts', limit: 5, title: '', style: 'arcade' },
+    w: 760, h: 180, props: { source: 'gifts', limit: 5, title: '', style: 'arcade', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'source', label: 'Quelle', type: 'select', options: [
         { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
@@ -113,11 +220,12 @@ const WIDGET_TYPES: {
       { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Gifter").' },
       { key: 'showPic', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Avatare der Zuschauer anzeigen.' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
     ],
   },
   {
     type: 'leaderboard', label: 'Like-Liste', desc: 'Wer am fleißigsten liked — TikFinity-Look (Avatare + Kronen) oder Box.',
-    w: 760, h: 180, props: { source: 'likes', limit: 5, title: '', style: 'arcade' },
+    w: 760, h: 180, props: { source: 'likes', limit: 5, title: '', style: 'arcade', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'source', label: 'Quelle', type: 'select', options: [
         { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
@@ -132,36 +240,40 @@ const WIDGET_TYPES: {
       { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Likes").' },
       { key: 'showPic', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Avatare der Zuschauer anzeigen.' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
     ],
   },
   {
     type: 'top-rotator', label: 'Bestenliste (Wechsel)', desc: 'Zeigt abwechselnd Top Gifter, Top Likes, Top Punkte — smooth übergeblendet, untereinander. Ideal fürs Hochformat.',
-    w: 460, h: 360, props: { sources: 'gifts,likes', interval: 5, limit: 5, accent: '', showPic: true },
+    w: 460, h: 360, props: { sources: 'gifts,likes', interval: 5, limit: 5, accent: '', showPic: true, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
-      { key: 'sources', label: 'Welche Listen', type: 'text', hint: 'Reihenfolge, kommagetrennt: gifts, likes, points.' },
+      { key: 'sources', label: 'Welche Listen', type: 'text', hint: 'Reihenfolge, kommagetrennt: gifts, likes, points, wins (Spiel-Siege).' },
       { key: 'interval', label: 'Sekunden pro Liste', type: 'number', hint: 'Wie lange jede Liste gezeigt wird, bevor gewechselt wird.' },
       { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Zuschauer pro Liste (1–8).' },
       { key: 'showPic', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Avatare der Zuschauer anzeigen.' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
     ],
   },
   {
     type: 'points-board', label: 'Punkte-Bestenliste', desc: 'All-Time Top-Supporter nach gesammelten Loyalty-Punkten (über alle Streams).',
-    w: 360, h: 300, props: { source: 'points', limit: 5, title: '', accent: '#7c5cff' },
+    w: 360, h: 300, props: { source: 'points', limit: 5, title: '', accent: '#7c5cff', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Top-Supporter (1–10).' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Punkte").' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
     ],
   },
   {
     type: 'countdown', label: 'Countdown', desc: 'Zähler nach unten — z.B. „Stream startet in" oder Pausen-Timer.',
-    w: 460, h: 200, props: { minutes: 5, label: 'Countdown', doneText: 'LOS!' },
+    w: 460, h: 200, props: { minutes: 5, label: 'Countdown', doneText: 'LOS!', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'minutes', label: 'Startzeit (Minuten)', type: 'number', hint: 'Von hier zählt der Timer runter (beim Laden der Quelle).' },
       { key: 'label', label: 'Beschriftung', type: 'text', hint: 'Text über dem Timer, z.B. „Stream-Start in".' },
       { key: 'doneText', label: 'Text bei 0', type: 'text', hint: 'Was angezeigt wird, wenn der Timer abläuft.' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
     ],
   },
   {
@@ -171,7 +283,7 @@ const WIDGET_TYPES: {
       { key: 'size', label: 'Rastergröße', type: 'select', options: [
         { value: '3', label: '3×3 (9 Ziele)' }, { value: '4', label: '4×4 (16 Ziele)' }, { value: '5', label: '5×5 (25 Ziele)' },
       ], hint: 'Wie groß das Bingo-Brett ist.' },
-      { key: 'gifts', label: 'Gift-Ziele', type: 'text', hint: 'Gift-Namen, kommagetrennt (genau wie sie bei TikTok heißen, z.B. Rose,GG). Leer = nur Meilensteine.' },
+      { key: 'gifts', label: 'Gift-Felder (welche Gifts lösen aus)', type: 'gift-list', hint: 'Wähle die Gifts, die als Bingo-Felder erscheinen — mit echten Bildern. Leer = Auto (günstige Gifts aus dem Katalog) + Meilensteine.' },
       { key: 'likeStep', label: 'Like-Schritt', type: 'number', hint: 'Meilenstein-Abstand, z.B. 2000 = Zellen für +2K/+4K/+6K Likes (ab Rundenstart). 0 = keine Like-Ziele.' },
       { key: 'coinStep', label: 'Coin-Schritt', type: 'number', hint: 'Wie Like-Schritt, für Coins. 0 = aus.' },
       { key: 'followStep', label: 'Follower-Schritt', type: 'number', hint: 'Wie Like-Schritt, für neue Follower. 0 = aus.' },
@@ -180,6 +292,7 @@ const WIDGET_TYPES: {
       { key: 'bingoSoundId', label: 'Bingo-Sound', type: 'sound', hint: 'Spielt bei einer kompletten Reihe/Spalte/Diagonale.' },
       { key: 'title', label: 'Titel', type: 'text' },
       ACCENT_FIELD,
+      THEME_FIELD,
     ],
   },
   {
@@ -194,24 +307,27 @@ const WIDGET_TYPES: {
       { key: 'winSoundId', label: 'Gewinn-Sound', type: 'sound', hint: 'Spielt, wenn jemand die Zahl trifft.' },
       { key: 'title', label: 'Titel', type: 'text' },
       ACCENT_FIELD,
+      THEME_FIELD,
     ],
   },
   {
     type: 'counter', label: 'Counter', desc: 'Manueller Zähler („Tode: 7") — hoch/runter per Panel-Klick, Hotkey oder Chat-Befehl. Wert überlebt Overlay-Reloads.',
-    w: 320, h: 160, props: { label: 'Tode', start: 0, accent: '#ff5436' },
+    w: 320, h: 160, props: { label: 'Tode', start: 0, accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'label', label: 'Beschriftung', type: 'text', hint: 'Was gezählt wird, z.B. „Tode", „Wins", „Schreie".' },
       { key: 'start', label: 'Startwert', type: 'number', hint: 'Nur beim allerersten Laden — danach merkt sich der Counter seinen Stand.' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
     ],
   },
   {
     type: 'activity-feed', label: 'Activity-Feed', desc: 'Alle Events gemischt (Follow, Sub, Share, Gift) als Live-Ticker.',
-    w: 420, h: 320, props: { max: 6, ttlMs: 60000 },
+    w: 420, h: 320, props: { max: 6, ttlMs: 60000, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'max', label: 'Max. Einträge', type: 'number', hint: 'So viele Events bleiben gleichzeitig sichtbar.' },
       { key: 'ttlMs', label: 'Verschwinden nach', type: 'seconds', hint: 'Wie lange ein Eintrag stehen bleibt (0 = nie).' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
     ],
   },
   {
@@ -228,9 +344,14 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'top-gift', label: 'Top-Gift', desc: 'Highlight des größten Einzel-Gifts der Session — Bild, Spender, Bounce bei Rekord.',
-    w: 320, h: 320, props: { title: '', accent: '#ffd23e' },
-    fields: [{ key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Größtes Gift".' }, ACCENT_FIELD],
+    type: 'top-gift', label: 'Top-Gift', desc: 'Highlight des größten Einzel-Gifts der Session — Gift-Bild, Spender-Avatar, Bounce bei Rekord.',
+    w: 320, h: 320, props: { title: '', accent: '#ffd23e', fontFamily: '', fontScale: 1, textColor: '' },
+    fields: [{ key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Größtes Gift".' }, ACCENT_FIELD, ...STYLE_FIELDS],
+  },
+  {
+    type: 'top-streak', label: 'Top-Streak', desc: 'Höchste Combo der Session (z.B. „50x Rose") — Gift-Bild, Spender-Avatar und die Streak-Zahl groß.',
+    w: 340, h: 320, props: { title: '', accent: '#ff5e8a', fontFamily: '', fontScale: 1, textColor: '' },
+    fields: [{ key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Höchste Combo".' }, ACCENT_FIELD, ...STYLE_FIELDS],
   },
   {
     type: 'media', label: 'Bild / Video', desc: 'Eigenes Bild oder Video einblenden — dauerhaft (Logo/Banner) oder per Trigger (z.B. Begrüßungsvideo bei einem Superfan).',
@@ -253,16 +374,25 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'heart-rain', label: 'Herzregen', desc: 'Likes steigen als Emojis auf (TikTok-Style) — transparent, deckt nichts zu.',
-    w: 1080, h: 900, props: { emojis: '❤️,💖,💕,✨,🔥', maxPerBurst: 5 },
+    type: 'heart-rain', label: 'Like-Herzen', desc: 'Likes als Herzen — Fontäne (TikFinity-Style, viele Mini-Herzen aus einer Quelle) oder verteilter Regen.',
+    w: 1080, h: 900, props: { emojis: '❤️,💖,💕,✨,🔥', maxPerBurst: 8, mode: 'fountain', source: 'center' },
     fields: [
-      { key: 'emojis', label: 'Emojis', type: 'text', hint: 'Welche Symbole aufsteigen, kommagetrennt (z.B. ❤️,💖,🔥).' },
+      { key: 'mode', label: 'Stil', type: 'select', options: [
+        { value: 'fountain', label: 'Fontäne (Mini-Herzen, TikFinity-Style)' },
+        { value: 'rain', label: 'Regen (große Herzen, verteilt)' },
+      ], hint: 'Fontäne: viele kleine Herzen aus einer Quelle. Regen: große Herzen über die ganze Breite.' },
+      { key: 'source', label: 'Fontänen-Quelle', type: 'select', options: [
+        { value: 'center', label: 'Unten Mitte' },
+        { value: 'left', label: 'Unten links' },
+        { value: 'right', label: 'Unten rechts (wie Like-Button)' },
+      ], hint: 'Wo die Fontäne entspringt (nur im Fontänen-Stil).' },
+      { key: 'emojis', label: 'Emojis', type: 'text', hint: 'Eigene Symbole, kommagetrennt (z.B. ❤️,💖,🔥). Leer/Default = edle SVG-Herzen.' },
       { key: 'maxPerBurst', label: 'Max. pro Like-Schub', type: 'number', hint: 'Begrenzt, wie viele bei einer Like-Welle gleichzeitig kommen.' },
     ],
   },
   {
     type: 'text-ticker', label: 'Lauftext-Banner', desc: 'Scrollender Streifen für Socials/Ansagen — dünn, deckt kaum zu. 3 Stile.',
-    w: 760, h: 56, props: { messages: 'Folge mir! | Discord in der Bio | Danke fürs Zuschauen ❤️', speed: 18, style: 'glas' },
+    w: 760, h: 56, props: { messages: 'Folge mir! | Discord in der Bio | Danke fürs Zuschauen ❤️', speed: 18, style: 'glas', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'messages', label: 'Nachrichten', type: 'text', hint: 'Mehrere mit | trennen, z.B. „Folge mir! | Discord in der Bio".' },
       styleField([
@@ -272,6 +402,7 @@ const WIDGET_TYPES: {
       ]),
       { key: 'speed', label: 'Tempo (Sek/Runde)', type: 'number', hint: 'Kleiner = schneller. Sekunden für einen Durchlauf.' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
     ],
   },
   {
@@ -284,51 +415,105 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'gift-fireworks', label: 'Gift-Feuerwerk', desc: 'Jedes Gift steigt als Rakete auf und explodiert — je mehr Coins, desto fetter der Burst.',
-    w: 900, h: 1200, props: { minCoins: 0, maxRockets: 3, soundId: 'botexe-feuerwerk.wav' },
+    type: 'gift-fireworks', label: 'Gift-Feuerwerk', desc: 'Jedes Gift steigt als Rakete auf und explodiert — bei Combos (z.B. 10x Rose) fächert es in mehrere Raketen.',
+    w: 900, h: 1200, props: { minCoins: 0, maxRockets: 12, comboMode: 'fan', burstScale: 1.5, soundId: 'botexe-boom.wav', whistleSoundId: 'botexe-pfeife.wav' },
     fields: [
       { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Feuerwerk nur für Gifts ab diesem Wert. 0 = jedes.' },
-      { key: 'maxRockets', label: 'Max. Raketen gleichzeitig', type: 'number', hint: 'Begrenzt die Show bei vielen Gifts auf einmal.' },
-      { key: 'soundId', label: 'Knall-Sound', type: 'sound', hint: 'Spielt bei jedem Feuerwerk über die App (Tipp: MyInstants → „firework").' },
+      { key: 'comboMode', label: 'Bei Combos (z.B. 10x Rose)', type: 'select', options: [
+        { value: 'fan', label: 'Auffächern — eine Rakete pro Gift' },
+        { value: 'single', label: 'Eine große Rakete (Größe = Gesamtwert)' },
+      ], hint: '„Auffächern": 10x Rose = 10er-Raketen-Volley. „Eine große": ein einzelner, großer Burst.' },
+      { key: 'maxRockets', label: 'Max. Raketen pro Combo', type: 'number', hint: 'Obergrenze beim Auffächern — z.B. 150x Rose wird auf so viele Raketen gedeckelt (Default 12).' },
+      { key: 'burstScale', label: 'Burst-Größe', type: 'select', options: [
+        { value: '0.6', label: 'Klein' },
+        { value: '1', label: 'Normal' },
+        { value: '1.5', label: 'Groß' },
+        { value: '2', label: 'Riesig' },
+      ], hint: 'Skaliert die Größe jeder Explosion. Große Raketen brechen oben in bunte Verbund-Bursts.' },
+      { key: 'whistleSoundId', label: 'Aufstiegs-Pfeife', type: 'sound', hint: 'Spielt, während die Rakete aufsteigt (Default: synthetisches Pfeifen).' },
+      { key: 'soundId', label: 'Boom-Sound', type: 'sound', hint: 'Spielt bei der Explosion oben — getimt zur Animation (Default: synthetischer Boom).' },
+    ],
+  },
+  {
+    type: 'sport-ticker', label: 'Sport-Liveticker', desc: 'Aktuelle Fußballspiele (WM, Bundesliga, …) mit Wappen + Spielstand — aktualisiert live, blitzt bei jedem Tor auf.',
+    w: 460, h: 320, props: { provider: 'football-data', competition: '2000', title: 'Liveticker', maxMatches: 5, refreshSec: 30, goalSoundId: 'botexe-gewinn.wav', accent: '#28e0c4' },
+    fields: [
+      { key: 'provider', label: 'Datenquelle', type: 'select', options: [
+        { value: 'football-data', label: 'football-data.org (WM + Ligen, braucht Key)' },
+        { value: 'openligadb', label: 'OpenLigaDB (deutsche Ligen, kein Key)' },
+      ], hint: 'football-data deckt WM/CL/Top-Ligen ab (kostenloser Key in den Einstellungen → Sport). OpenLigaDB braucht keinen Key.' },
+      { key: 'competition', label: 'Wettbewerb', type: 'text', hint: 'football-data: ID (WM=2000, Bundesliga=2002, Premier League=2021, CL=2001). OpenLigaDB: Kürzel (bl1, bl2, dfb).' },
+      { key: 'title', label: 'Titel', type: 'text' },
+      { key: 'maxMatches', label: 'Max. Spiele', type: 'number', hint: 'Wie viele Spiele gleichzeitig (Live zuerst).' },
+      { key: 'refreshSec', label: 'Aktualisieren alle … Sek.', type: 'number', hint: 'Mind. 15s. football-data Free erlaubt 10 Abrufe/Min.' },
+      { key: 'goalSoundId', label: 'Tor-Sound', type: 'sound', hint: 'Spielt über die App, wenn ein Tor fällt.' },
+      ACCENT_FIELD,
+      THEME_FIELD,
     ],
   },
   {
     type: 'gift-feed', label: 'Gift-Feed', desc: 'Ticker der letzten Gifts mit Gift-Bildern.',
-    w: 380, h: 240, props: { max: 5, ttlMs: 25000 },
+    w: 380, h: 240, props: { max: 5, ttlMs: 25000, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'max', label: 'Max. Einträge', type: 'number', hint: 'So viele letzte Gifts bleiben sichtbar.' },
       { key: 'ttlMs', label: 'Verschwinden nach', type: 'seconds', hint: 'Wie lange ein Gift im Ticker bleibt.' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
     ],
   },
   {
     type: 'stat-chips', label: 'Live-Zähler', desc: 'Kompakte Chips für Viewer, Likes, Follower & Co. — mit Puls bei jeder Änderung.',
-    w: 540, h: 60, props: { metrics: 'viewers,likes,follows' },
+    w: 540, h: 60, props: { metrics: 'viewers,likes,follows', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'metrics', label: 'Welche Zähler', type: 'text', hint: 'Kommagetrennt, Reihenfolge zählt: viewers, likes, follows, coins, gifts, shares.' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
     ],
   },
   {
     type: 'chat-box', label: 'Chat-Box', desc: 'Der Live-Chat direkt im Overlay.',
-    w: 420, h: 360, props: { max: 8, hideAfterMs: 0, accent: '#ff5436' },
+    w: 420, h: 360, props: { max: 8, hideAfterMs: 0, accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'max', label: 'Max. Nachrichten', type: 'number', hint: 'So viele Chat-Zeilen bleiben gleichzeitig sichtbar.' },
       { key: 'hideAfterMs', label: 'Ausblenden nach', type: 'seconds', hint: 'Einzelne Nachrichten verschwinden danach. 0 = bleiben.' },
       ACCENT_FIELD,
+      ...STYLE_FIELDS,
     ],
   },
 ];
 
+// Palette-Kategorien — gruppieren die lange Widget-Liste (Feedback Bild 1/2:
+// „zu unübersichtlich"). Mapping per Typ, damit die Einträge oben unberührt bleiben.
+const PALETTE_CATEGORIES: { id: string; label: string }[] = [
+  { id: 'alerts', label: 'Alerts' },
+  { id: 'spiele', label: 'Spiele' },
+  { id: 'gifts', label: 'Gifts & Ziele' },
+  { id: 'listen', label: 'Listen & Chat' },
+  { id: 'stats', label: 'Stats & Zähler' },
+  { id: 'deko', label: 'Ambient & Deko' },
+  { id: 'media', label: 'Media' },
+];
+const CATEGORY_OF: Record<string, string> = {
+  'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts',
+  bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele',
+  'gift-jar': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts',
+  'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',
+  'stat-chips': 'stats', counter: 'stats',
+  'heart-rain': 'deko', 'text-ticker': 'deko',
+  media: 'media',
+};
+
 interface ZoneStyle {
-  fill: string;
-  stroke: string;
+  /** Akzentfarbe (rgb-Tripel) — Tönung & Rand werden daraus abgeleitet. */
+  rgb: string;
+  /** Diagonale Schraffur als „bitte meiden"-Hinweis (nur Sperrzonen). */
+  hatch?: boolean;
 }
-const ZONE_FALLBACK: ZoneStyle = { fill: 'rgba(255,210,62,.10)', stroke: 'rgba(255,210,62,.55)' };
+const ZONE_FALLBACK: ZoneStyle = { rgb: '255,210,62' };
 const ZONE_STYLE: Record<string, ZoneStyle> = {
-  blocked: { fill: 'rgba(255,77,46,.16)', stroke: 'rgba(255,77,46,.7)' },
+  blocked: { rgb: '255,77,46', hatch: true },
   risky: ZONE_FALLBACK,
-  focus: { fill: 'transparent', stroke: 'rgba(33,230,193,.55)' },
+  focus: { rgb: '33,230,193' },
 };
 
 interface MediaItem { id: string; filename: string; kind: 'image' | 'video'; url: string }
@@ -365,6 +550,9 @@ export default function OverlayPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const [soundList, setSoundList] = useState<{ id: string; filename: string }[]>([]);
+  const [paletteQuery, setPaletteQuery] = useState('');
+  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.3);
   const dragRef = useRef<{ id: string; mode: 'move' | 'resize'; startX: number; startY: number; orig: OverlayLayer } | null>(null);
@@ -607,21 +795,58 @@ export default function OverlayPage() {
 
   return (
     <div className="grid h-full grid-cols-[200px_1fr_260px] gap-0">
-      {/* Widget-Palette */}
+      {/* Widget-Palette — nach Kategorien gruppiert + Suche (übersichtlicher) */}
       <aside className="overflow-y-auto border-r border-studio-border bg-studio-panel p-3">
         <h2 className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Widgets</h2>
-        <div className="flex flex-col gap-2">
-          {WIDGET_TYPES.map((w) => (
-            <button
-              key={w.label}
-              onClick={() => addWidget(w)}
-              className="clip-slant group rounded-lg border border-studio-border bg-studio-raised p-3 text-left transition-colors hover:border-studio-accent/60"
-            >
-              <div className="text-xs font-bold group-hover:text-studio-accent">{w.label}</div>
-              <div className="mt-0.5 text-[10px] leading-snug text-studio-muted">{w.desc}</div>
-            </button>
-          ))}
-        </div>
+        <input
+          value={paletteQuery}
+          onChange={(e) => setPaletteQuery(e.target.value)}
+          placeholder="Widget suchen…"
+          className="bx-input mb-3 w-full text-xs"
+        />
+        {(() => {
+          const q = paletteQuery.trim().toLowerCase();
+          const match = (w: (typeof WIDGET_TYPES)[number]) =>
+            !q || w.label.toLowerCase().includes(q) || w.desc.toLowerCase().includes(q);
+          return (
+            <div className="flex flex-col gap-3">
+              {PALETTE_CATEGORIES.map((cat) => {
+                const items = WIDGET_TYPES.filter((w) => (CATEGORY_OF[w.type] ?? 'deko') === cat.id && match(w));
+                if (items.length === 0) return null;
+                const open = q !== '' || !collapsedCats.has(cat.id); // bei Suche immer offen
+                return (
+                  <div key={cat.id}>
+                    <button
+                      onClick={() => setCollapsedCats((prev) => {
+                        const next = new Set(prev);
+                        next.has(cat.id) ? next.delete(cat.id) : next.add(cat.id);
+                        return next;
+                      })}
+                      className="mb-1.5 flex w-full items-center justify-between px-1 text-[10px] font-bold uppercase tracking-[0.2em] text-studio-muted hover:text-studio-fg"
+                    >
+                      <span>{cat.label}</span>
+                      <span className="text-studio-muted/60">{open ? '−' : `+${items.length}`}</span>
+                    </button>
+                    {open && (
+                      <div className="flex flex-col gap-2">
+                        {items.map((w) => (
+                          <button
+                            key={w.label}
+                            onClick={() => addWidget(w)}
+                            className="clip-slant group rounded-lg border border-studio-border bg-studio-raised p-3 text-left transition-colors hover:border-studio-accent/60"
+                          >
+                            <div className="text-xs font-bold group-hover:text-studio-accent">{w.label}</div>
+                            <div className="mt-0.5 text-[10px] leading-snug text-studio-muted">{w.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </aside>
 
       {/* Canvas */}
@@ -708,9 +933,9 @@ export default function OverlayPage() {
             );
           })}
           <div className="flex-1" />
-          <label className="flex items-center gap-2 text-[11px] text-studio-muted">
+          <label className="flex items-center gap-2 text-[11px] text-studio-muted" title="Zeigt die echten Widgets live mit Demo-Daten. Rahmen erscheinen nur, wenn du ein Widget anfasst.">
             <input type="checkbox" checked={showPreview} onChange={(e) => setShowPreview(e.target.checked)} className="accent-[#21e6c1]" />
-            Live-Vorschau
+            Echte Widgets (Vorschau)
           </label>
           <label className="flex items-center gap-2 text-[11px] text-studio-muted">
             <input type="checkbox" checked={showZones} onChange={(e) => setShowZones(e.target.checked)} className="accent-[#ff4d2e]" />
@@ -745,28 +970,31 @@ export default function OverlayPage() {
               />
             )}
 
-            {/* TikTok-UI SafeZones als Guides */}
+            {/* TikTok-UI SafeZones als dezente Guides (weiche Tönung, Pill-Label) */}
             {showZones &&
               safeZones?.zones.map((zone) => {
                 const zs = ZONE_STYLE[zone.kind] ?? ZONE_FALLBACK;
+                const hatch = zs.hatch
+                  ? `, repeating-linear-gradient(45deg, rgba(${zs.rgb},.10) 0 6px, transparent 6px 12px)`
+                  : '';
                 return (
                   <div
                     key={zone.id}
-                    className="pointer-events-none absolute"
+                    className="pointer-events-none absolute overflow-hidden rounded-[6px]"
                     style={{
                       left: zone.x * scale,
                       top: zone.y * scale,
                       width: zone.w * scale,
                       height: zone.h * scale,
-                      background: zs.fill,
-                      outline: `1.5px dashed ${zs.stroke}`,
-                      outlineOffset: '-1.5px',
+                      background: `linear-gradient(rgba(${zs.rgb},.06), rgba(${zs.rgb},.06))${hatch}`,
+                      border: `1px solid rgba(${zs.rgb},.32)`,
+                      boxShadow: `inset 0 0 0 1px rgba(${zs.rgb},.06)`,
                     }}
                     title={zone.note}
                   >
                     <span
-                      className="absolute top-0.5 left-1 text-[8px] font-bold uppercase tracking-wider"
-                      style={{ color: zs.stroke }}
+                      className="absolute left-1 top-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider"
+                      style={{ background: `rgba(${zs.rgb},.16)`, color: `rgb(${zs.rgb})`, backdropFilter: 'blur(2px)' }}
                     >
                       {zone.label}
                     </span>
@@ -776,15 +1004,23 @@ export default function OverlayPage() {
 
             {layout.layers.map((layer) => {
               const isSel = layer.id === selectedId;
+              const isHover = layer.id === hoveredId;
               const label =
                 layer.widgetType === 'leaderboard' && layer.props?.source === 'likes'
                   ? 'Like-Liste'
                   : (WIDGET_TYPES.find((w) => w.type === layer.widgetType)?.label ?? layer.widgetType);
+              // Bei aktiver Vorschau ist der echte Widget-Inhalt (iframe) die
+              // Hauptsache → Rahmen/Label nur bei Hover oder Auswahl zeigen, sonst
+              // unsichtbar (echtes WYSIWYG). Ohne Vorschau: gefülltes Platzhalter-Feld.
+              const showFrame = isSel || isHover || !showPreview;
+              const showLabel = isSel || isHover || !showPreview;
               return (
                 <div
                   key={layer.id}
                   onPointerDown={(e) => onPointerDown(e, layer, 'move')}
-                  className={`absolute flex cursor-grab items-center justify-center select-none active:cursor-grabbing ${
+                  onPointerEnter={() => setHoveredId(layer.id)}
+                  onPointerLeave={() => setHoveredId((h) => (h === layer.id ? null : h))}
+                  className={`absolute flex cursor-grab items-center justify-center select-none rounded-[4px] transition-[background,box-shadow] duration-100 active:cursor-grabbing ${
                     isSel ? 'z-50' : ''
                   }`}
                   style={{
@@ -792,33 +1028,35 @@ export default function OverlayPage() {
                     top: layer.y * scale,
                     width: layer.w * scale,
                     height: layer.h * scale,
-                    // Vorschau an: Kästchen transparent, nur Rahmen — das Widget
-                    // im iframe bleibt sichtbar. Aus: gefülltes Platzhalter-Feld.
-                    background: showPreview
-                      ? isSel ? 'rgba(255,77,46,.08)' : 'transparent'
-                      : isSel ? 'rgba(255,77,46,.14)' : 'rgba(33,230,193,.07)',
-                    outline: isSel
-                      ? '2px solid #ff4d2e'
-                      : showPreview ? '1px dashed rgba(255,255,255,.18)' : '1px dashed rgba(33,230,193,.45)',
+                    background: !showPreview
+                      ? isSel ? 'rgba(255,77,46,.14)' : 'rgba(33,230,193,.07)'
+                      : isSel ? 'rgba(255,77,46,.06)' : 'transparent',
+                    boxShadow: isSel
+                      ? '0 0 0 2px #ff4d2e, 0 0 0 5px rgba(255,77,46,.18)'
+                      : showFrame
+                        ? showPreview
+                          ? '0 0 0 1px rgba(255,255,255,.5)'
+                          : '0 0 0 1px rgba(33,230,193,.5)'
+                        : 'none',
                     opacity: layer.visible ? 1 : 0.35,
                   }}
                 >
-                  {showPreview ? (
+                  {showLabel && showPreview ? (
                     <span
-                      className="pointer-events-none absolute left-0 top-0 max-w-full truncate bg-black/55 px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider text-white/85"
-                      style={{ opacity: isSel ? 1 : 0.65 }}
+                      className="pointer-events-none absolute -top-[18px] left-0 max-w-full truncate rounded-t-[4px] bg-studio-accent px-1.5 py-0.5 font-display text-[9px] uppercase tracking-wider text-white"
+                      style={{ background: isSel ? '#ff4d2e' : 'rgba(20,22,30,.9)', opacity: isSel || isHover ? 1 : 0 }}
                     >
                       {label}
                     </span>
-                  ) : (
+                  ) : showLabel ? (
                     <span className="pointer-events-none px-1 text-center font-display text-[11px] uppercase tracking-wider text-white/80" style={{ textShadow: '0 1px 4px #000' }}>
                       {label}
                     </span>
-                  )}
+                  ) : null}
                   {isSel && (
                     <div
                       onPointerDown={(e) => onPointerDown(e, layer, 'resize')}
-                      className="absolute -right-1.5 -bottom-1.5 h-3.5 w-3.5 cursor-nwse-resize bg-studio-accent"
+                      className="absolute -bottom-1.5 -right-1.5 h-3.5 w-3.5 cursor-nwse-resize rounded-full border-2 border-white bg-studio-accent shadow"
                     />
                   )}
                 </div>
@@ -845,9 +1083,9 @@ export default function OverlayPage() {
             <p>Klick links ein Widget, um es auf den Screen zu legen — oder wähl eins auf dem Canvas aus, um es hier einzustellen.</p>
             <div className="border-t border-studio-border pt-3">
               <p className="mb-2 font-bold uppercase tracking-widest text-[10px]">TikTok-UI-Zonen</p>
-              <p><span style={{ color: ZONE_STYLE.blocked?.stroke }}>■ Rot</span> — hier liegt Chat/Gift-Leiste, Widgets werden verdeckt.</p>
-              <p><span style={{ color: ZONE_STYLE.risky?.stroke }}>■ Gelb</span> — riskant, UI-Elemente je nach Gerät.</p>
-              <p><span style={{ color: ZONE_STYLE.focus?.stroke }}>■ Türkis</span> — bester Bereich für dauerhafte Widgets.</p>
+              <p><span style={{ color: `rgb(${ZONE_STYLE.blocked?.rgb})` }}>■ Rot</span> — hier liegt Chat/Gift-Leiste, Widgets werden verdeckt.</p>
+              <p><span style={{ color: `rgb(${ZONE_STYLE.risky?.rgb})` }}>■ Gelb</span> — riskant, UI-Elemente je nach Gerät.</p>
+              <p><span style={{ color: `rgb(${ZONE_STYLE.focus?.rgb})` }}>■ Türkis</span> — bester Bereich für dauerhafte Widgets.</p>
             </div>
           </div>
         )}
@@ -892,6 +1130,17 @@ export default function OverlayPage() {
                     const value = selected.props?.[field.key] ?? '';
                     const setProp = (v: unknown) =>
                       updateLayer(selected.id, { props: { ...selected.props, [field.key]: v } }, true);
+
+                    // Gift-Liste = visuelle Mehrfach-Gift-Auswahl (z.B. Bingo-Felder)
+                    if (field.type === 'gift-list') {
+                      return (
+                        <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
+                          {field.label}
+                          <GiftListEditor value={String(value)} onChange={(v) => setProp(v)} />
+                          {field.hint && <p className="mt-1 normal-case tracking-normal text-studio-muted/70">{field.hint}</p>}
+                        </div>
+                      );
+                    }
 
                     // Media = visueller Bild/Video-Picker mit Import
                     if (field.type === 'media') {

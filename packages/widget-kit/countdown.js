@@ -9,7 +9,7 @@ const CSS = `
   font-family: var(--bx-font-body); gap: 6px; }
 .bx-cd-label { font-family: var(--bx-font-display); font-size: 15px; letter-spacing: .34em; text-transform: uppercase;
   color: var(--bx-muted); text-shadow: 0 2px 6px rgba(0,0,0,.8); }
-.bx-cd-time { display: flex; align-items: center; font-family: var(--bx-font-mono); font-weight: 700; font-size: 64px; line-height: 1; color: #fff;
+.bx-cd-time { display: flex; align-items: center; font-family: var(--bx-font-mono); font-weight: 700; font-size: 64px; line-height: 1; color: var(--bx-text,#fff);
   padding: 10px 28px; border-radius: 18px; background: var(--bx-glass);
   box-shadow: var(--bx-shadow), 0 0 40px -12px var(--bx-accent);
   text-shadow: 0 0 22px color-mix(in srgb, var(--bx-accent) 55%, transparent), 0 3px 8px rgba(0,0,0,.7);

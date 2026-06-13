@@ -1,0 +1,28 @@
+{
+  "SDKVersion": 2,
+  "Author": "dotexe",
+  "Name": "bOtExE Studio",
+  "Description": "Löst Panel-Aktionen in bOtExE Studio per Stream-Deck-Taste aus.",
+  "Category": "bOtExE Studio",
+  "CategoryIcon": "icons/category",
+  "Icon": "icons/plugin",
+  "URL": "https://github.com/dOtExE97/botexe-studio",
+  "Version": "1.0",
+  "CodePath": "plugin.html",
+  "PropertyInspectorPath": "pi.html",
+  "Software": { "MinimumVersion": "6.0" },
+  "OS": [
+    { "Platform": "windows", "MinimumVersion": "10" },
+    { "Platform": "mac", "MinimumVersion": "10.15" }
+  ],
+  "Actions": [
+    {
+      "Name": "Panel-Aktion auslösen",
+      "UUID": "de.botexe.studio.fire",
+      "Icon": "icons/action",
+      "Tooltip": "Löst einen bOtExE-Studio-Panel-Knopf aus (Sound, Alert, Glücksrad …).",
+      "PropertyInspectorPath": "pi.html",
+      "States": [{ "Image": "icons/key", "TitleAlignment": "bottom" }]
+    }
+  ]
+}

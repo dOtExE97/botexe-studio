@@ -19,6 +19,15 @@ const CSS = `
   12% { opacity: 1; transform: translateY(-12%) scale(1); }
   100% { opacity: 0; transform: translateY(-108%) translateX(var(--drift,0px)) scale(1.05) rotate(var(--rot,0deg)); }
 }
+/* Fontäne (TikFinity-Style): viele Mini-Herzen aus EINER Quelle unten, fächern
+   in einem leichten Bogen nach oben auf und faden aus. */
+.bx-hr-e.fount { bottom: var(--src-y, 3%); animation: bx-hr-fount var(--dur,3s) cubic-bezier(.25,.6,.5,1) forwards; }
+@keyframes bx-hr-fount {
+  0%   { opacity: 0; transform: translate(0,0) scale(.3) rotate(0); }
+  12%  { opacity: 1; transform: translate(calc(var(--drift) * .25), -14%) scale(var(--scale,1)); }
+  60%  { opacity: 1; transform: translate(calc(var(--drift) * .8), -62%) scale(var(--scale,1)) rotate(var(--rot,0deg)); }
+  100% { opacity: 0; transform: translate(var(--drift), -104%) scale(.55) rotate(var(--rot,0deg)); }
+}
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 
@@ -79,7 +88,11 @@ export default class HeartRain {
       accent ? `color-mix(in srgb, ${accent} 70%, transparent)` : 'var(--bx-pink, rgba(255,94,138,.65))');
     this.accent = accent || '';
 
-    this.maxPerBurst = Math.min(12, Math.max(1, Number(props.maxPerBurst ?? 5)));
+    this.maxPerBurst = Math.min(24, Math.max(1, Number(props.maxPerBurst ?? 8)));
+    // Fontäne (TikFinity-Style, Default) vs. verteilter Regen.
+    this.mode = props.mode === 'rain' ? 'rain' : 'fountain';
+    // Quelle der Fontäne unten: Mitte / links / rechts (wie der Like-Button).
+    this.sourceX = props.source === 'left' ? 18 : props.source === 'right' ? 82 : 50;
     this.gradBase = `${++GRAD_SEQ}-${Math.random().toString(36).slice(2, 7)}`;
     this.gradN = 0;
 
@@ -91,9 +104,12 @@ export default class HeartRain {
   }
   onEvent(event) {
     if (event.type !== 'like') return;
-    const n = Math.min(this.maxPerBurst, Math.max(1, Math.round((event.likeCount ?? 1) / 5)));
+    // Fontäne ist dichter (mehr, kleinere Herzen) → /3 statt /5.
+    const per = this.mode === 'fountain' ? 3 : 5;
+    const n = Math.min(this.maxPerBurst, Math.max(1, Math.round((event.likeCount ?? 1) / per)));
+    const gap = this.mode === 'fountain' ? 55 : 90;
     for (let i = 0; i < n; i++) {
-      const t = setTimeout(() => { this.timers.delete(t); this.spawn(); }, i * 90);
+      const t = setTimeout(() => { this.timers.delete(t); this.spawn(); }, i * gap);
       this.timers.add(t);
     }
   }
@@ -114,11 +130,12 @@ export default class HeartRain {
     return heartSVG(id, tilt.toFixed(1), base, accent);
   }
   spawn() {
-    if (this.live > 40) return; // harte obergrenze (TTLS-schonend)
+    if (this.live > 60) return; // harte obergrenze (TTLS-schonend)
     const e = document.createElement('div');
-    e.className = 'bx-hr-e';
-    // Groß genug für 1080×1920-Streams (wird am Handy stark verkleinert).
-    const size = 38 + Math.random() * 34;
+    const fount = this.mode === 'fountain';
+    e.className = fount ? 'bx-hr-e fount' : 'bx-hr-e';
+    // Fontäne: kleine Mini-Herzen. Regen: groß für 1080×1920.
+    const size = fount ? 18 + Math.random() * 18 : 38 + Math.random() * 34;
     if (this.useEmojis) {
       e.textContent = this.emojis[Math.floor(Math.random() * this.emojis.length)] || '❤️';
       e.style.fontSize = `${size}px`;
@@ -127,10 +144,20 @@ export default class HeartRain {
       e.style.height = `${size}px`;
       e.innerHTML = this.spriteHtml();
     }
-    e.style.left = `${6 + Math.random() * 88}%`;
-    e.style.setProperty('--dur', `${3 + Math.random() * 1.8}s`);
-    e.style.setProperty('--drift', `${(Math.random() - 0.5) * 80}px`);
-    e.style.setProperty('--rot', `${(Math.random() - 0.5) * 50}deg`);
+    if (fount) {
+      // Alle aus EINER Quelle unten, fächern seitlich auf.
+      e.style.left = `${this.sourceX + (Math.random() - 0.5) * 6}%`;
+      e.style.setProperty('--src-y', '3%');
+      e.style.setProperty('--dur', `${2.4 + Math.random() * 1.4}s`);
+      e.style.setProperty('--drift', `${(Math.random() - 0.5) * 240}px`);
+      e.style.setProperty('--scale', `${0.85 + Math.random() * 0.4}`);
+      e.style.setProperty('--rot', `${(Math.random() - 0.5) * 40}deg`);
+    } else {
+      e.style.left = `${6 + Math.random() * 88}%`;
+      e.style.setProperty('--dur', `${3 + Math.random() * 1.8}s`);
+      e.style.setProperty('--drift', `${(Math.random() - 0.5) * 80}px`);
+      e.style.setProperty('--rot', `${(Math.random() - 0.5) * 50}deg`);
+    }
     this.el.appendChild(e);
     this.live++;
     const t = setTimeout(() => { this.timers.delete(t); e.remove(); this.live--; }, 5200);

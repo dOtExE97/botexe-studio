@@ -1,16 +1,18 @@
 // TriggersPage — „Wenn X passiert → mach Y". Regeln werden als Karten
 // editiert; jede Änderung speichert sofort (Single-User-Tool).
 import { useEffect, useState } from 'react';
-import { Zap, Filter, Play, Plus, Trash2, Power, Clock, AlertTriangle } from 'lucide-react';
+import { Zap, Filter, Play, Plus, Trash2, Power, Clock, AlertTriangle, Copy } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
-import { toast } from '../components/ToastHost';
+import GiftPicker from '../components/GiftPicker';
+import { toast, toastAction } from '../components/ToastHost';
 import type { TriggerRule, TriggerCondition, TriggerAction, StudioEventType } from '@botexe/trigger-engine';
 import type { OverlayLayout } from '@botexe/overlay-engine';
 
 const EVENT_OPTIONS: { value: StudioEventType; label: string }[] = [
   { value: 'gift', label: 'Gift kommt rein' },
   { value: 'follow', label: 'Neuer Follower' },
-  { value: 'sub', label: 'Neuer Sub' },
+  { value: 'sub', label: 'Neuer Sub (Teamherz)' },
+  { value: 'join', label: 'Zuschauer betritt Stream' },
   { value: 'share', label: 'Stream geteilt' },
   { value: 'chat', label: 'Chat-Nachricht' },
   { value: 'like', label: 'Likes' },
@@ -70,6 +72,9 @@ export default function TriggersPage() {
   const [sounds, setSounds] = useState<SoundEntry[]>([]);
   const [layers, setLayers] = useState<{ id: string; name: string; widgetType: string }[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [query, setQuery] = useState('');
+  const [obsScenes, setObsScenes] = useState<string[]>([]);
+  const [sbActions, setSbActions] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     void (async () => {
@@ -77,6 +82,8 @@ export default function TriggersPage() {
       setSounds((await window.studio.listSounds()) as SoundEntry[]);
       const layouts = (await window.studio.listLayouts()) as OverlayLayout[];
       setLayers((layouts[0]?.layers ?? []).map((l) => ({ id: l.id, name: `${l.name} (${l.widgetType})`, widgetType: l.widgetType })));
+      setObsScenes((await window.studio.getObsScenes().catch(() => [])) as string[]);
+      setSbActions((await window.studio.getStreamerbotActions().catch(() => [])) as { id: string; name: string }[]);
       setLoaded(true);
     })();
   }, []);
@@ -85,6 +92,22 @@ export default function TriggersPage() {
     setRules(next);
     void window.studio.setRules(next as unknown as unknown[]);
   };
+
+  // Regel duplizieren (häufige Variante schneller bauen).
+  const duplicateRule = (rule: TriggerRule) => {
+    const copy: TriggerRule = {
+      ...JSON.parse(JSON.stringify(rule)),
+      id: `rule-${Date.now().toString(36)}`,
+      name: `${rule.name} (Kopie)`,
+    };
+    save([...rules, copy]);
+  };
+
+  const eventLabel = (ev: string) => EVENT_OPTIONS.find((o) => o.value === ev)?.label ?? ev;
+  const q = query.trim().toLowerCase();
+  const shownRules = q
+    ? rules.filter((r) => r.name.toLowerCase().includes(q) || eventLabel(r.event).toLowerCase().includes(q))
+    : rules;
 
   const patchRule = (id: string, patch: Partial<TriggerRule>) =>
     save(rules.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -142,6 +165,22 @@ export default function TriggersPage() {
     });
   };
 
+  const setObsSceneAction = (rule: TriggerRule, scene: string) => {
+    const others = rule.actions.filter((a) => a.kind !== 'obs_scene');
+    patchRule(rule.id, {
+      actions: scene ? [...others, { kind: 'obs_scene', scene }] : others,
+    });
+  };
+
+  const setChatAction = (rule: TriggerRule, template: string) => {
+    const others = rule.actions.filter((a) => a.kind !== 'send_chat');
+    patchRule(rule.id, { actions: template.trim() ? [...others, { kind: 'send_chat', template }] : others });
+  };
+  const setSbAction = (rule: TriggerRule, action: string) => {
+    const others = rule.actions.filter((a) => a.kind !== 'streamerbot_action');
+    patchRule(rule.id, { actions: action ? [...others, { kind: 'streamerbot_action', action }] : others });
+  };
+
   // Verzögerung einer bestehenden Aktion setzen (Combo-Sequenz).
   const setActionDelay = (rule: TriggerRule, kind: TriggerAction['kind'], delayMs: number) => {
     patchRule(rule.id, {
@@ -160,12 +199,17 @@ export default function TriggersPage() {
             Wenn ein Event reinkommt und die Bedingung passt, feuert die Aktion — Alert im Overlay und/oder Sound über deine Anlage.
           </p>
         </div>
-        <button
-          onClick={() => save([...rules, newRule()])}
-          className="bx-btn-accent"
-        >
-          <Plus size={15} /> Neue Regel
-        </button>
+        <div className="flex items-center gap-2">
+          {rules.length > 4 && (
+            <label className="flex items-center gap-2 rounded-lg border border-studio-border bg-studio-bg px-2.5 py-1.5">
+              <Filter size={13} className="text-studio-muted" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Regel suchen…" className="bg-transparent text-sm outline-none" style={{ width: '9rem' }} />
+            </label>
+          )}
+          <button onClick={() => save([...rules, newRule()])} className="bx-btn-accent">
+            <Plus size={15} /> Neue Regel
+          </button>
+        </div>
       </div>
 
       {rules.length === 0 && (
@@ -173,8 +217,13 @@ export default function TriggersPage() {
           Noch keine Regeln. Beispiel: „Gift ≥ 100 Coins → Gift-Alert + Sound".
         </div>
       )}
+      {rules.length > 0 && shownRules.length === 0 && (
+        <div className="border border-dashed border-studio-border p-6 text-center text-sm text-studio-muted">
+          Keine Regel passt zu „{query}".
+        </div>
+      )}
 
-      {rules.map((rule) => {
+      {shownRules.map((rule) => {
         const condOptions = CONDITION_OPTIONS[rule.event] ?? [];
         const cond = rule.conditions?.[0];
         const condDef = condOptions.find((c) => c.value === cond?.kind);
@@ -184,6 +233,9 @@ export default function TriggersPage() {
         const spinAction = getAction(rule, 'spin_wheel') as { targetId?: string; cost?: number } | undefined;
         const mediaAction = getAction(rule, 'play_media') as { targetId?: string; delayMs?: number } | undefined;
         const counterAction = getAction(rule, 'counter_add') as { targetId?: string; delta?: number } | undefined;
+        const obsAction = getAction(rule, 'obs_scene') as { scene?: string } | undefined;
+        const chatAction = getAction(rule, 'send_chat') as { template?: string } | undefined;
+        const sbAction = getAction(rule, 'streamerbot_action') as { action?: string } | undefined;
         const comboCount = rule.actions.length;
         const wheels = layers.filter((l) => l.widgetType === 'wheel');
         const mediaLayers = layers.filter((l) => l.widgetType === 'media');
@@ -218,8 +270,26 @@ export default function TriggersPage() {
               >
                 <Play size={13} /> Test
               </button>
+              <button
+                onClick={() => duplicateRule(rule)}
+                title="Regel duplizieren"
+                className="flex items-center gap-1 text-[11px] text-studio-muted transition-colors hover:text-studio-text"
+              >
+                <Copy size={13} /> Kopie
+              </button>
               <ConfirmButton
-                onConfirm={() => save(rules.filter((r) => r.id !== rule.id))}
+                onConfirm={() => {
+                  const removed = rule;
+                  save(rules.filter((r) => r.id !== rule.id));
+                  toastAction('info', `„${removed.name}" gelöscht.`, {
+                    label: 'Rückgängig',
+                    onClick: () => setRules((cur) => {
+                      const next = [...cur, removed];
+                      void window.studio.setRules(next as unknown as unknown[]);
+                      return next;
+                    }),
+                  });
+                }}
                 className="flex items-center gap-1 text-[11px] text-studio-muted transition-colors hover:text-studio-accent"
               >
                 <Trash2 size={13} /> Löschen
@@ -283,7 +353,13 @@ export default function TriggersPage() {
                         <option key={c.value} value={c.value}>{c.label}</option>
                       ))}
                     </select>
-                    {cond && condDef && condDef.valueType && (
+                    {cond && cond.kind === 'gift_slug_is' ? (
+                      // Visueller Gift-Picker mit Suche statt blankem Textfeld.
+                      <GiftPicker
+                        value={('value' in cond ? String(cond.value) : '')}
+                        onChange={(slug) => patchRule(rule.id, { conditions: [{ ...cond, value: slug } as TriggerCondition] })}
+                      />
+                    ) : cond && condDef && condDef.valueType ? (
                       <input
                         type={condDef.valueType}
                         value={('value' in cond ? cond.value : '') as string | number}
@@ -294,7 +370,7 @@ export default function TriggersPage() {
                         }
                         className={`bx-input${condDef.valueType === 'number' ? ' font-mono' : ''}`}
                       />
-                    )}
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -339,6 +415,11 @@ export default function TriggersPage() {
                   />
                   {speakAction?.template && (
                     <ActionDelay value={speakAction.delayMs ?? 0} onChange={(ms) => setActionDelay(rule, 'speak', ms)} />
+                  )}
+                  {wheels.length === 0 && mediaLayers.length === 0 && counterLayers.length === 0 && (
+                    <p className="text-[10px] leading-snug text-studio-muted/70">
+                      💡 Aktionen wie Glücksrad drehen, Medium abspielen oder Counter ändern erscheinen hier, sobald du im <b>Overlay</b> ein passendes Widget anlegst.
+                    </p>
                   )}
                   {wheels.length > 0 && (
                     <div className="flex gap-1.5">
@@ -392,6 +473,31 @@ export default function TriggersPage() {
                         />
                       )}
                     </div>
+                  )}
+                  {/* OBS-Szenenwechsel (nur wenn OBS-Steuerung verbunden = Szenen da). */}
+                  {obsScenes.length > 0 && (
+                    <select
+                      value={obsAction?.scene ?? ''}
+                      onChange={(e) => setObsSceneAction(rule, e.target.value)}
+                      className="bx-select"
+                    >
+                      <option value="">Keine OBS-Szene</option>
+                      {obsScenes.map((s) => (<option key={s} value={s}>OBS-Szene: {s}</option>))}
+                    </select>
+                  )}
+                  {/* Chat-Nachricht senden (braucht TikTok-Login in den Einstellungen). */}
+                  <input
+                    value={chatAction?.template ?? ''}
+                    onChange={(e) => setChatAction(rule, e.target.value)}
+                    placeholder="💬 Chat-Nachricht (leer = aus) — {user} {gift} möglich"
+                    className="bx-input"
+                  />
+                  {/* Streamer.bot-Aktion (nur wenn verbunden = Aktionen geladen). */}
+                  {sbActions.length > 0 && (
+                    <select value={sbAction?.action ?? ''} onChange={(e) => setSbAction(rule, e.target.value)} className="bx-select">
+                      <option value="">Keine Streamer.bot-Aktion</option>
+                      {sbActions.map((a) => (<option key={a.id} value={a.name}>SB: {a.name}</option>))}
+                    </select>
                   )}
                   {deadTargets.length > 0 && (
                     <p className="flex items-center gap-1 text-[10px] text-studio-accent">

@@ -10,20 +10,27 @@
 //          cellSoundId?, bingoSoundId?, title?, accent? }
 const STYLE_ID = 'bx-bingo-style';
 const CSS = `
-.bx-bg { position:absolute; inset:0; display:flex; flex-direction:column; gap:8px; padding:14px;
+.bx-bg { position:absolute; inset:0; display:flex; flex-direction:column; gap:8px; padding:3.5cqmin;
+  container-type: size;
   font-family: var(--bx-font-body); background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow), 0 0 44px -16px var(--bx-accent); overflow:hidden;
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
-.bx-bg-title { text-align:center; font-family: var(--bx-font-display); font-size:17px; letter-spacing:.28em;
-  text-transform:uppercase; color:#fff; text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
-.bx-bg-grid { position:relative; flex:1; display:grid; gap:6px; }
+.bx-bg-title { text-align:center; font-family: var(--bx-font-display);
+  font-size: clamp(13px, 5.5cqmin, 30px); letter-spacing:.22em;
+  text-transform:uppercase; color: var(--bx-text, #fff); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
+.bx-bg-grid { position:relative; flex:1; display:grid; gap: 1.4cqmin; --n: 3; }
+/* Zell-Schrift & Bildgröße skalieren mit Brettgröße: --n = Spaltenzahl.
+   Größeres Brett (5×5) ⇒ kleinere, aber immer noch lesbare Inhalte. */
 .bx-bg-cell { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:2px; border-radius:10px; background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09);
-  padding:4px; text-align:center; overflow:hidden; transition: background .3s, border-color .3s; }
-.bx-bg-cell img { width:55%; max-height:55%; object-fit:contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,.5)); }
-.bx-bg-cell .lbl { font-family: var(--bx-font-display); font-size:11px; line-height:1.15; color:#dfe2ee;
-  text-transform:uppercase; word-break:break-word; }
-.bx-bg-cell.done { background: color-mix(in srgb, var(--bx-teal) 26%, transparent);
+  gap: 0.6cqmin; border-radius: 1.8cqmin; background: rgba(8,10,18,.42); border:1px solid rgba(255,255,255,.12);
+  padding: 1cqmin; text-align:center; overflow:hidden; transition: background .3s, border-color .3s; }
+.bx-bg-cell img { width: min(62%, calc(150cqmin / var(--n) * 0.6)); max-height:58%; object-fit:contain;
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,.6)); }
+.bx-bg-cell .lbl { font-family: var(--bx-font-display); line-height:1.1; color:#fff;
+  font-size: clamp(9px, calc(34cqmin / var(--n)), 26px);
+  text-transform:uppercase; word-break:break-word; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.bx-bg-cell.gift .lbl { font-size: clamp(8px, calc(24cqmin / var(--n)), 18px); opacity:.92; }
+.bx-bg-cell.done { background: color-mix(in srgb, var(--bx-teal) 32%, rgba(8,10,18,.5));
   border-color: var(--bx-teal); }
 .bx-bg-cell.done .lbl { color:#fff; }
 .bx-bg-check { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
@@ -36,7 +43,7 @@ const CSS = `
 @keyframes bx-bg-line { from { scale: 0 1; } to { scale: 1 1; } }
 .bx-bg-banner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   pointer-events:none; z-index:4; }
-.bx-bg-banner span { font-family: var(--bx-font-display); font-size:58px; color: var(--bx-gold);
+.bx-bg-banner span { font-family: var(--bx-font-display); font-size: clamp(34px, 16cqmin, 80px); color: var(--bx-gold);
   -webkit-text-stroke: 4px #0a0b12; paint-order: stroke fill;
   text-shadow: 0 0 36px var(--bx-gold); animation: bx-bg-banner 1600ms cubic-bezier(.2,1.5,.35,1) forwards; }
 @keyframes bx-bg-banner { 0% { transform: scale(.2) rotate(-8deg); opacity:0; }
@@ -80,6 +87,9 @@ export default class BingoWidget {
     this.round = 0;
     this.baseStats = null; // Meilensteine zählen RELATIV zum Rundenstart
     this.lastStats = null;
+    this.autoGifts = [];   // im Auto-Modus aus dem Katalog gewürfelte Gifts
+    this.catalogList = [];
+    this.timers = new Set(); // Auto-Runde/Banner-Timer → bei destroy clearen
 
     this.el = document.createElement('div');
     this.el.className = 'bx-bg';
@@ -97,11 +107,35 @@ export default class BingoWidget {
     try {
       const res = await fetch(`${this.ctx.baseUrl}/gift-catalog?token=${this.ctx.token}`);
       const cat = await res.json();
+      const list = [];
       for (const [slug, entry] of Object.entries(cat)) {
-        if (entry && entry.icon) this.icons[slug] = entry.icon;
+        if (entry && entry.icon) {
+          this.icons[slug] = entry.icon;
+          list.push({ slug: entry.slug || slug, coins: Number(entry.coinsPerUnit ?? entry.coins ?? 0) });
+        }
       }
-      this.applyIcons();
+      this.catalogList = list;
+      // Auto-Modus (keine Gifts konfiguriert): echte, eher günstige Gifts ins
+      // Brett würfeln, damit Gift-Felder MIT Bild erscheinen (sonst nur Meilensteine).
+      if (this.gifts.length === 0 && list.length) {
+        this.autoGifts = this.pickAutoGifts(list);
+        this.buildBoard(false); // selbe Runde, jetzt mit Gift-Zellen
+      } else {
+        this.applyIcons();
+      }
     } catch { /* offline/alt — Namen reichen als Fallback */ }
+  }
+
+  /** Deterministisch ~Hälfte der Felder mit günstigen, häufig gesendeten Gifts. */
+  pickAutoGifts(list) {
+    const affordable = list
+      .filter((g) => g.coins > 0)
+      .sort((a, b) => a.coins - b.coins || a.slug.localeCompare(b.slug));
+    const pool = (affordable.length ? affordable : list).slice(0, 40);
+    const rand = rng(`${this.ctx.layerId || 'bingo'}-autogifts`);
+    const shuffled = [...pool].sort(() => rand() - 0.5);
+    const want = Math.max(3, Math.floor((this.size * this.size) / 2));
+    return shuffled.slice(0, want).map((g) => g.slug);
   }
 
   applyIcons() {
@@ -121,13 +155,19 @@ export default class BingoWidget {
     cell.el.insertBefore(img, cell.el.firstChild);
   }
 
-  /** Brett würfeln — deterministisch aus layerId + Runde. */
+  /** Neue Runde: Zähler hoch, dann Brett bauen. */
   newRound(animate) {
     this.round++;
+    this.buildBoard(animate);
+  }
+
+  /** Brett würfeln — deterministisch aus layerId + Runde. */
+  buildBoard(animate) {
     const rand = rng(`${this.ctx.layerId || 'bingo'}-${this.round}`);
     const base = this.baseStats ?? { likes: 0, coins: 0, follows: 0 };
     const pool = [];
-    for (const g of this.gifts) pool.push({ kind: 'gift', slug: g, label: g, icon: (this.icons || {})[g.toLowerCase()] });
+    const giftSlugs = this.gifts.length ? this.gifts : (this.autoGifts || []);
+    for (const g of giftSlugs) pool.push({ kind: 'gift', slug: g, label: g, icon: (this.icons || {})[g.toLowerCase()] });
     for (let i = 1; i <= 4; i++) {
       if (this.likeStep) pool.push({ kind: 'likes', target: base.likes + i * this.likeStep, label: `+${fmt(i * this.likeStep)} Likes` });
       if (this.coinStep) pool.push({ kind: 'coins', target: base.coins + i * this.coinStep, label: `+${fmt(i * this.coinStep)} Coins` });
@@ -150,11 +190,12 @@ export default class BingoWidget {
 
   renderGrid(animate) {
     this.gridEl.style.gridTemplateColumns = `repeat(${this.size}, 1fr)`;
+    this.gridEl.style.setProperty('--n', String(this.size));
     this.gridEl.innerHTML = '';
     if (animate) { this.gridEl.classList.remove('newround'); void this.gridEl.offsetWidth; this.gridEl.classList.add('newround'); }
     for (const cell of this.cells) {
       const d = document.createElement('div');
-      d.className = 'bx-bg-cell';
+      d.className = cell.kind === 'gift' ? 'bx-bg-cell gift' : 'bx-bg-cell';
       if (cell.kind === 'gift' && cell.icon) {
         const img = document.createElement('img');
         img.alt = '';
@@ -205,7 +246,7 @@ export default class BingoWidget {
     }
     // Volles Brett → neue Runde
     if (this.cells.every((c) => c.done) && this.autoNewRound) {
-      setTimeout(() => { this.baseStats = this.lastStats; this.newRound(true); }, 3200);
+      { const t = setTimeout(() => { this.timers.delete(t); this.baseStats = this.lastStats; this.newRound(true); }, 3200); this.timers.add(t); }
     }
   }
 
@@ -235,7 +276,7 @@ export default class BingoWidget {
     b.innerHTML = `<span></span>`;
     b.querySelector('span').textContent = text;
     this.el.appendChild(b);
-    setTimeout(() => b.remove(), 1700);
+    { const t = setTimeout(() => { this.timers.delete(t); b.remove(); }, 1700); this.timers.add(t); }
   }
 
   onEvent(event) {
@@ -271,5 +312,5 @@ export default class BingoWidget {
     }
   }
 
-  destroy() { this.el.remove(); }
+  destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

@@ -16,7 +16,7 @@ const CSS = `
 .bx-cb-body { min-width: 0; }
 .bx-cb-name { font-family: var(--bx-font-display); font-size: 13px; text-transform: uppercase; letter-spacing: .03em;
   text-shadow: 0 1px 3px rgba(0,0,0,.8); }
-.bx-cb-text { font-size: 15px; line-height: 1.32; color: #f2f3f8; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+.bx-cb-text { font-size: 15px; line-height: 1.32; color: var(--bx-text,#f2f3f8); text-shadow: 0 1px 2px rgba(0,0,0,.6);
   word-break: break-word; overflow-wrap: anywhere; }
 @keyframes bx-cb-in { to { transform: translateY(0); opacity: 1; } }
 @keyframes bx-cb-out { to { opacity: 0; } }

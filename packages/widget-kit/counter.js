@@ -14,7 +14,7 @@ const CSS = `
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; pointer-events:none; }
 .bx-cnt-label { font-family: var(--bx-font-display); font-size: 14px; letter-spacing:.32em; text-transform:uppercase;
   color: var(--bx-muted); }
-.bx-cnt-value { font-family: var(--bx-font-num); font-weight: 800; font-size: 52px; line-height:1; color:#fff;
+.bx-cnt-value { font-family: var(--bx-font-num); font-weight: 800; font-size: 52px; line-height:1; color:var(--bx-text,#fff);
   text-shadow: 0 0 22px color-mix(in srgb, var(--bx-accent) 55%, transparent), 0 2px 8px rgba(0,0,0,.6); }
 .bx-cnt-value.pop { animation: bx-cnt-pop 380ms cubic-bezier(.2,1.5,.35,1); }
 @keyframes bx-cnt-pop { 0% { transform: scale(1); } 45% { transform: scale(1.22); } 100% { transform: scale(1); } }

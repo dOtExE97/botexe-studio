@@ -27,12 +27,18 @@ export default function SoundPlayer() {
 
   useEffect(() => {
     return window.studio.onSoundPlay((cmd) => {
-      if (playing.current >= MAX_PARALLEL) return; // sound-bombing deckeln
+      if (playing.current >= MAX_PARALLEL) {
+        window.studio.reportSoundEnded(cmd.soundId); // übersprungen → TTS nicht blockieren
+        return; // sound-bombing deckeln
+      }
       const audio = new Audio(cmd.url) as SinkAudio;
       audio.volume = Math.min(1, Math.max(0, cmd.volume));
       playing.current++;
+      let reported = false;
+      const report = () => { if (!reported) { reported = true; window.studio.reportSoundEnded(cmd.soundId); } };
       const done = () => {
         playing.current = Math.max(0, playing.current - 1);
+        report(); // echtes Audio-Ende ans Main melden (TTS-Sequencing)
       };
       audio.addEventListener('ended', done, { once: true });
       audio.addEventListener('error', () => { done(); toast('error', 'Sound konnte nicht abgespielt werden.'); }, { once: true });

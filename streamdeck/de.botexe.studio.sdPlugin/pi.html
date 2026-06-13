@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { font-family: -apple-system, "Segoe UI", sans-serif; font-size: 13px; color: #ddd; background: #2d2d2d; margin: 0; padding: 12px; }
+      .row { margin-bottom: 10px; }
+      label { display: block; font-size: 11px; color: #999; margin-bottom: 3px; text-transform: uppercase; letter-spacing: .04em; }
+      input, select { width: 100%; box-sizing: border-box; padding: 6px 8px; background: #3d3d3d; border: 1px solid #555; border-radius: 4px; color: #fff; }
+      .hint { font-size: 11px; color: #888; margin-top: 4px; line-height: 1.4; }
+      button { padding: 6px 10px; background: #4a4a4a; border: 1px solid #666; border-radius: 4px; color: #fff; cursor: pointer; }
+      .ok { color: #5fd38a; } .err { color: #ff7a5c; }
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <label>Server-URL (aus bOtExE Studio → Einstellungen → Stream Deck)</label>
+      <input id="serverUrl" placeholder="http://127.0.0.1:27415" />
+    </div>
+    <div class="row">
+      <label>Token</label>
+      <input id="token" placeholder="aus den Einstellungen kopieren" />
+    </div>
+    <div class="row">
+      <label>Panel-Knopf <button id="reload" type="button" style="float:right;font-size:10px;padding:2px 6px">Liste laden</button></label>
+      <select id="buttonId"><option value="">— erst Server/Token + „Liste laden" —</option></select>
+      <div id="status" class="hint"></div>
+    </div>
+    <div class="hint">Tipp: In bOtExE Studio unter <b>Panel</b> die Knöpfe anlegen, in <b>Einstellungen → Stream Deck</b> URL + Token kopieren.</div>
+    <script src="pi.js"></script>
+  </body>
+</html>

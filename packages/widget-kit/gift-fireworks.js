@@ -6,6 +6,8 @@
 // Performance (TTLS!): ein Canvas, rAF nur solange etwas fliegt,
 // harte Caps für Raketen & Partikel (Gift-Bombing-sicher, H6).
 
+import { comboPlan } from './combo.js';
+
 const STYLE_ID = 'bx-fw-style';
 const CSS = `
 .bx-fw { position: absolute; inset: 0; pointer-events: none; }
@@ -66,17 +68,33 @@ function scheduleFrame(cb) {
 }
 
 export default class GiftFireworks {
-  constructor(root, props) {
+  constructor(root, props, ctx) {
     ensureStyle();
+    // Widget-Kontext (playSound etc.) getrennt halten — this.ctx wird unten mit
+    // dem Canvas-2D-Kontext belegt, würde playSound sonst verschlucken.
+    this.host = ctx || {};
+    // Sounds passend zur Animation: Pfeife beim Aufstieg, Boom bei der Explosion.
+    // Lokal über die App gespielt (host.playSound → WS-Backchannel, dedupliziert).
+    this.whistleSound = props.whistleSoundId ?? 'botexe-pfeife.wav';
+    this.boomSound = props.soundId ?? 'botexe-boom.wav';
+    // Schnell-Modus (TTLS ohne GPU): weniger Partikel, gleicher Look.
+    this.perf = document.documentElement.classList.contains('bx-perf');
+    this.particleCap = this.perf ? 320 : 620;
     this.minCoins = Number(props.minCoins ?? 0);
-    this.maxRockets = Math.min(6, Math.max(1, Number(props.maxRockets ?? 3)));
+    // maxRockets = wie viele Raketen eine Combo höchstens auffächert (10x Rose
+    // → 10 Raketen). Default deutlich höher als früher (war 3 → „1 Rakete"-Bug).
+    this.maxRockets = Math.min(20, Math.max(1, Number(props.maxRockets ?? 12)));
+    // Im Editor einstellbar: Combo-Verhalten + Burst-Größe.
+    this.comboMode = props.comboMode === 'single' ? 'single' : 'fan';
+    this.burstScale = Number(props.burstScale ?? 1) || 1;
+    // Harte Obergrenze gleichzeitig fliegender Raketen (Gift-Bombing-sicher).
+    this.rocketCap = this.perf ? 16 : 28;
+    this.staggerMs = 70; // Combo-Raketen fächern als Volley auf
     this.rockets = [];
     this.particles = [];
     this.running = false;
     this.lastT = 0;
-    // Schnell-Modus (TTLS ohne GPU): weniger Partikel, gleicher Look.
-    this.perf = document.documentElement.classList.contains('bx-perf');
-    this.particleCap = this.perf ? 240 : 460;
+    this.pendingTimers = new Set();
 
     this.el = document.createElement('div');
     this.el.className = 'bx-fw';
@@ -111,24 +129,42 @@ export default class GiftFireworks {
   onAction(action) {
     if (action.kind !== 'fire_alert') return;
     const p = action.params || {};
-    this.launch({ totalCoins: Number(p.coins ?? 100), icon: p.icon });
+    this.launch({ totalCoins: Number(p.coins ?? 100), count: Number(p.count ?? 1), icon: p.icon });
   }
 
+  // Eine Combo (z.B. 10x Rose) fächert in mehrere Raketen auf — Anzahl & Stärke
+  // kommen aus comboPlan (count + Coin-Wert), nicht mehr nur aus totalCoins.
   launch(gift) {
-    if (this.rockets.length >= this.maxRockets) return; // backpressure
-    const coins = gift.totalCoins ?? 1;
-    // Wert skaliert die Show: 1 coin = klein, 1000+ = monster-burst
-    const power = Math.min(1, Math.log10(Math.max(1, coins)) / 3);
+    const plan = comboPlan(gift, this.maxRockets, { mode: this.comboMode, burstScale: this.burstScale });
+    const img = loadImage(gift.icon);
+    for (let i = 0; i < plan.rockets; i++) {
+      if (i === 0) {
+        this.spawnRocket(plan.power, gift.icon, img);
+      } else {
+        // Volley: leicht gestaffelt für den „peng-peng-peng"-Effekt.
+        const t = setTimeout(() => {
+          this.pendingTimers.delete(t);
+          this.spawnRocket(plan.power, gift.icon, img);
+        }, i * this.staggerMs);
+        this.pendingTimers.add(t);
+      }
+    }
+  }
+
+  spawnRocket(power, icon, img) {
+    if (this.rockets.length >= this.rocketCap) return; // backpressure
+    // Aufstiegs-Pfeifen (Server dedupliziert mehrfaches Auslösen einer Salve).
+    if (this.whistleSound) this.host.playSound?.(this.whistleSound);
     this.rockets.push({
-      x: this.w * (0.25 + Math.random() * 0.5),
+      x: this.w * (0.18 + Math.random() * 0.64),
       y: this.h + 6,
       vx: (Math.random() - 0.5) * 1.4,
       vy: -(this.h * 0.012 + this.h * 0.006 * power) - Math.random() * 2,
       targetY: this.h * (0.42 - 0.22 * power) + Math.random() * this.h * 0.1,
       palette: PALETTES[Math.floor(Math.random() * PALETTES.length)],
       power,
-      icon: gift.icon,
-      img: loadImage(gift.icon),
+      icon,
+      img,
       wobble: Math.random() * Math.PI * 2,
       trail: 0,
     });
@@ -136,41 +172,30 @@ export default class GiftFireworks {
   }
 
   explode(r) {
-    // Doppel-Burst: farbiger Außenring (gleichmäßig, schnell) + heller Kern
-    // (chaotisch, langsamer) — deutlich größer und satter als vorher.
-    const scale = this.perf ? 0.6 : 1;
-    const ring = Math.round((44 + 110 * r.power) * scale);
-    const core = Math.round((18 + 40 * r.power) * scale);
-    let free = this.particleCap - this.particles.length; // hartes partikel-cap
-
-    for (let i = 0; i < Math.min(ring, free); i++) {
-      const angle = (Math.PI * 2 * i) / ring + Math.random() * 0.12;
-      const speed = (3.2 + Math.random() * 5.5) * (0.9 + r.power * 1.5);
-      this.particles.push({
-        x: r.x,
-        y: r.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 1,
-        decay: 0.008 + Math.random() * 0.009,
-        color: r.palette[i % r.palette.length],
-        r: 1.8 + Math.random() * 2.4 + r.power * 1.8,
-      });
-    }
-    free = this.particleCap - this.particles.length;
-    for (let i = 0; i < Math.min(core, free); i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = (1 + Math.random() * 2.4) * (0.8 + r.power);
-      this.particles.push({
-        x: r.x,
-        y: r.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 1,
-        decay: 0.014 + Math.random() * 0.012,
-        color: r.palette[2], // hellster Palettenton = leuchtender Kern
-        r: 2.4 + Math.random() * 2.6 + r.power * 2,
-      });
+    // Boom passend zur Explosion (Server dedupliziert die Salve auf ~1 Knall).
+    if (this.boomSound) this.host.playSound?.(this.boomSound);
+    // Heller Initial-Blitz im Zentrum.
+    this.flash(r.x, r.y, 26 + 60 * r.power);
+    // Mehrfarbig: zweite Palette dazu → bunter „Verbund"-Look.
+    const pal2 = PALETTES[(PALETTES.indexOf(r.palette) + 2 + Math.floor(Math.random() * 2)) % PALETTES.length];
+    this.burst(r.x, r.y, r.power, r.palette, pal2, 1);
+    // Verbund: kräftige Raketen brechen oben in mehrere kleine Nach-Bursts
+    // („multi-break shell") — leicht versetzt in Ort und Zeit.
+    if (r.power > 0.45 && !this.perf) {
+      const breaks = 2 + Math.floor(r.power * 3);
+      for (let i = 0; i < breaks; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const dist = (24 + Math.random() * 46) * (0.6 + r.power);
+        const bx = r.x + Math.cos(ang) * dist;
+        const by = r.y + Math.sin(ang) * dist;
+        const t = setTimeout(() => {
+          this.pendingTimers.delete(t);
+          this.flash(bx, by, 14 + 24 * r.power);
+          this.burst(bx, by, r.power * 0.55, pal2, r.palette, 0.7);
+          this.kick();
+        }, 160 + i * 90);
+        this.pendingTimers.add(t);
+      }
     }
     if (r.icon) {
       const img = document.createElement('img');
@@ -178,11 +203,61 @@ export default class GiftFireworks {
       img.src = r.icon;
       img.style.left = `${(r.x / this.w) * 100}%`;
       img.style.top = `${(r.y / this.h) * 100}%`;
-      img.style.width = `${48 + 56 * r.power}px`;
+      img.style.width = `${58 + 64 * r.power}px`;
       img.style.height = img.style.width;
       this.el.appendChild(img);
       setTimeout(() => img.remove(), 1500);
     }
+  }
+
+  // Ein Burst: farbiger Außenring (zwei Paletten gemischt) + heller Kern +
+  // funkelnde Glitzer-Sterne. amount skaliert Anzahl (für Nach-Bursts kleiner).
+  burst(x, y, power, palA, palB, amount) {
+    const scale = (this.perf ? 0.6 : 1) * amount;
+    const ring = Math.round((60 + 150 * power) * scale);
+    const core = Math.round((26 + 60 * power) * scale);
+    const twinkles = Math.round((10 + 26 * power) * scale);
+    let free = () => this.particleCap - this.particles.length;
+
+    for (let i = 0; i < Math.min(ring, free()); i++) {
+      const angle = (Math.PI * 2 * i) / ring + Math.random() * 0.14;
+      const speed = (3.6 + Math.random() * 6.4) * (0.9 + power * 1.6);
+      const pal = i % 2 === 0 ? palA : palB; // zwei Farben pro Ring
+      this.particles.push({
+        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        life: 1, decay: 0.007 + Math.random() * 0.008,
+        color: pal[i % pal.length], r: 2 + Math.random() * 2.6 + power * 2.2,
+      });
+    }
+    for (let i = 0; i < Math.min(core, free()); i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = (1 + Math.random() * 2.6) * (0.8 + power);
+      this.particles.push({
+        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        life: 1, decay: 0.014 + Math.random() * 0.012,
+        color: palA[2], r: 2.6 + Math.random() * 2.8 + power * 2.2,
+      });
+    }
+    // Glitzer: langlebige, langsam fallende Funken, die hell AUFBLITZEN (twinkle).
+    for (let i = 0; i < Math.min(twinkles, free()); i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = (1.5 + Math.random() * 5) * (0.8 + power);
+      this.particles.push({
+        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        life: 1, decay: 0.004 + Math.random() * 0.005,
+        color: Math.random() < 0.5 ? '#ffffff' : palB[2],
+        r: 1.4 + Math.random() * 1.8, twinkle: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  // Kurzer, sehr heller Lichtblitz (eine schnell verglühende Riesen-Funke).
+  flash(x, y, radius) {
+    if (this.particles.length >= this.particleCap) return;
+    this.particles.push({
+      x, y, vx: 0, vy: 0, life: 1, decay: 0.07,
+      color: '#ffffff', r: radius, flash: true,
+    });
   }
 
   kick() {
@@ -207,8 +282,9 @@ export default class GiftFireworks {
       r.x += r.vx * dt;
       r.y += r.vy * dt;
       r.vy += 0.06 * dt;
-      // Funken-Schweif
+      // Funken-Schweif — goldene Glitzer, die hinter der Rakete herrieseln.
       if (this.particles.length < this.particleCap) {
+        const spark = Math.random() < 0.4;
         this.particles.push({
           x: r.x + (Math.random() - 0.5) * 3,
           y: r.y + 6,
@@ -216,13 +292,14 @@ export default class GiftFireworks {
           vy: 1 + Math.random(),
           life: 0.55,
           decay: 0.04,
-          color: r.palette[2],
+          color: spark ? '#fff3c4' : r.palette[2],
           r: 1.4,
+          ...(spark ? { twinkle: Math.random() * Math.PI * 2 } : {}),
         });
       }
       // Die Rakete IST das Geschenk: bild mit glow steigt auf
       r.wobble += 0.18 * dt;
-      const size = 24 + 16 * r.power;
+      const size = 30 + 22 * r.power;
       ctx.save();
       ctx.translate(r.x + Math.sin(r.wobble) * 2, r.y);
       ctx.rotate(Math.sin(r.wobble) * 0.12);
@@ -251,13 +328,29 @@ export default class GiftFireworks {
     // (deutlich billiger als shadowBlur pro Partikel).
     ctx.globalCompositeOperation = 'lighter';
     for (const p of this.particles) {
+      if (p.flash) {
+        // Blitz: bleibt am Ort, verglüht schnell als großer weicher Schein.
+        p.life -= p.decay * dt;
+        if (p.life <= 0) continue;
+        ctx.globalAlpha = Math.max(0, p.life) * 0.6;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * (0.6 + (1 - p.life) * 0.8), 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.vy += 0.05 * dt; // gravity
       p.vx *= Math.pow(0.985, dt);
       p.life -= p.decay * dt;
       if (p.life <= 0) continue;
-      const alpha = Math.max(0, p.life);
+      let alpha = Math.max(0, p.life);
+      // Glitzer-Sterne blitzen rhythmisch auf (sin-Flacker) → Funkel-Effekt.
+      if (p.twinkle !== undefined) {
+        p.twinkle += 0.55 * dt;
+        alpha *= 0.45 + 0.55 * Math.abs(Math.sin(p.twinkle));
+      }
       const radius = p.r * (0.4 + p.life * 0.6);
       ctx.fillStyle = p.color;
       // Außen-Glow
@@ -285,6 +378,8 @@ export default class GiftFireworks {
 
   destroy() {
     if (this.cancelFrame) this.cancelFrame();
+    for (const t of this.pendingTimers) clearTimeout(t);
+    this.pendingTimers.clear();
     this.observer.disconnect();
     this.rockets = [];
     this.particles = [];

@@ -65,7 +65,19 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [testChat, setTestChat] = useState('');
+  const [chatText, setChatText] = useState('');
   const [showIntro, setShowIntro] = useState(() => localStorage.getItem('bx-intro-dismissed') !== '1');
+  const [range, setRange] = useState<'week' | 'month' | 'year'>('week');
+  const [history, setHistory] = useState<{ coins: number; gifts: number; likes: number; chats: number; follows: number; sessions: number } | null>(null);
+
+  // Zeitraum-Zusammenfassung laden (auch bei laufenden Stats aktualisieren).
+  useEffect(() => {
+    let alive = true;
+    const load = () => void window.studio.getStatsHistory(range).then((h) => { if (alive) setHistory(h as typeof history); });
+    load();
+    const iv = setInterval(load, 15000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [range, studio.stats]);
 
   useEffect(() => {
     void window.studio.getSettings().then((s: { lastUsername: string }) => {
@@ -83,7 +95,7 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
         await window.studio.platformDisconnect();
       } else {
         const result = await window.studio.platformConnect(username.trim());
-        if (!result.ok) setError(result.error ?? 'Verbindung fehlgeschlagen');
+        if (!result.ok) { setError(result.error ?? 'Verbindung fehlgeschlagen'); toast('error', `Verbindung fehlgeschlagen: ${result.error ?? 'unbekannt'}`); }
       }
     } finally {
       setBusy(false);
@@ -117,6 +129,15 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 font-display text-xl uppercase">
           <Radio size={20} className="text-studio-accent" /> Live-Cockpit
+          {!showIntro && (
+            <button
+              onClick={() => { setShowIntro(true); localStorage.removeItem('bx-intro-dismissed'); }}
+              title="Erste-Schritte-Hilfe wieder einblenden"
+              className="grid h-5 w-5 place-items-center rounded-full border border-studio-border text-[11px] text-studio-muted hover:border-studio-accent hover:text-studio-accent"
+            >
+              ?
+            </button>
+          )}
         </h1>
         <div className="flex flex-wrap items-center gap-3">
           {error && <span className="text-xs text-studio-accent">{error}</span>}
@@ -141,19 +162,20 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
             }
           >
             {connected ? <WifiOff size={15} /> : <Wifi size={15} />}
-            {busy ? '…' : connected ? 'TRENNEN' : 'GO LIVE'}
+            {busy ? '…' : connected ? 'TRENNEN' : 'MIT TIKTOK VERBINDEN'}
           </button>
         </div>
       </div>
 
       {/* Stats-Karten */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-6 gap-3">
         {[
           { label: 'Zuschauer', value: t?.viewers ?? 0, peak: t?.peakViewers },
           { label: 'Coins', value: t?.coins ?? 0 },
           { label: 'Gifts', value: t?.gifts ?? 0 },
           { label: 'Follower', value: t?.follows ?? 0 },
           { label: 'Likes', value: t?.likes ?? 0 },
+          { label: 'Kommentare', value: t?.chats ?? 0 },
         ].map((card) => (
           <div key={card.label} className="bx-card overflow-hidden p-4">
             <div
@@ -173,6 +195,67 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
           </div>
         ))}
       </div>
+
+      {/* Zeitraum-Übersicht (Woche/Monat/Jahr) — summiert vergangene Streams + laufende Session */}
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-studio-border bg-studio-raised/30 px-4 py-2.5">
+        <span className="text-[10px] uppercase tracking-[0.3em] text-studio-muted">Zeitraum</span>
+        <div className="flex overflow-hidden rounded-md border border-studio-border">
+          {([['week', 'Woche'], ['month', 'Monat'], ['year', 'Jahr']] as const).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setRange(id)}
+              className={`px-3 py-1 text-[11px] font-semibold transition-colors ${range === id ? 'bg-studio-accent/20 text-studio-accent' : 'text-studio-muted hover:bg-studio-raised'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-1 flex-wrap items-center gap-x-5 gap-y-1 font-mono text-xs text-studio-muted">
+          {history ? (
+            <>
+              <span><b className="text-studio-gold">{history.coins.toLocaleString('de-DE')}</b> Coins</span>
+              <span><b className="text-studio-text">{history.gifts.toLocaleString('de-DE')}</b> Gifts</span>
+              <span><b className="text-studio-text">{history.likes.toLocaleString('de-DE')}</b> Likes</span>
+              <span><b className="text-studio-text">{history.follows.toLocaleString('de-DE')}</b> Follower</span>
+              <span><b className="text-studio-text">{history.chats.toLocaleString('de-DE')}</b> Kommentare</span>
+              <span className="text-studio-muted/60">· {history.sessions} Stream{history.sessions === 1 ? '' : 's'}</span>
+            </>
+          ) : (
+            <span>Lade…</span>
+          )}
+        </div>
+        <button
+          onClick={() => void window.studio.exportStatsCsv()}
+          className="bx-pill ml-auto text-[11px] hover:text-studio-teal"
+          title="Komplette Stream-Historie als CSV exportieren (Excel/Tabelle)"
+        >
+          CSV
+        </button>
+      </div>
+
+      {/* Chat-Nachricht senden (braucht TikTok-Login in den Einstellungen) */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const text = chatText.trim();
+          if (!text) return;
+          void window.studio.sendChat(text).then((r: { ok: boolean; error?: string }) => {
+            if (r.ok) { setChatText(''); toast('success', 'Nachricht gesendet.'); }
+            else toast('error', r.error ?? 'Senden fehlgeschlagen.');
+          });
+        }}
+        className="flex items-center gap-2"
+      >
+        <MessageSquare size={15} className="flex-none text-studio-muted" />
+        <input
+          value={chatText}
+          onChange={(e) => setChatText(e.target.value)}
+          maxLength={150}
+          placeholder="Nachricht in deinen TikTok-Chat schreiben… (Einstellungen → mit TikTok anmelden)"
+          className="bx-input flex-1"
+        />
+        <button type="submit" className="bx-pill px-4 hover:text-studio-teal">Senden</button>
+      </form>
 
       {/* Event-Feed + Test-Panel */}
       <div className="grid min-h-0 flex-1 grid-cols-[1fr_280px] gap-4">

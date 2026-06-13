@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard } from 'lucide-react';
+import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
 import ToastHost, { toast } from './components/ToastHost';
@@ -12,19 +12,23 @@ import SoundsPage from './pages/SoundsPage';
 import TtsPage from './pages/TtsPage';
 import SettingsPage from './pages/SettingsPage';
 import ViewersPage from './pages/ViewersPage';
+import GalleryPage from './pages/GalleryPage';
+import CommandsPage from './pages/CommandsPage';
 
-type Page = 'live' | 'overlay' | 'triggers' | 'store' | 'panel' | 'sounds' | 'tts' | 'viewers' | 'settings';
+type Page = 'live' | 'overlay' | 'triggers' | 'commands' | 'gallery' | 'store' | 'panel' | 'sounds' | 'tts' | 'viewers' | 'settings';
 
-const NAV: { id: Page; label: string; icon: typeof Radio }[] = [
-  { id: 'live', label: 'Live', icon: Radio },
-  { id: 'overlay', label: 'Overlay', icon: LayoutPanelTop },
-  { id: 'triggers', label: 'Trigger', icon: Zap },
-  { id: 'store', label: 'Store', icon: Gift },
-  { id: 'panel', label: 'Panel', icon: Gamepad2 },
-  { id: 'sounds', label: 'Sounds', icon: Volume2 },
-  { id: 'tts', label: 'Stimme', icon: Mic },
-  { id: 'viewers', label: 'Zuschauer', icon: Users },
-  { id: 'settings', label: 'Einstellungen', icon: Settings },
+const NAV: { id: Page; label: string; icon: typeof Radio; group: string }[] = [
+  { id: 'live', label: 'Live', icon: Radio, group: 'Stream' },
+  { id: 'overlay', label: 'Overlay', icon: LayoutPanelTop, group: 'Stream' },
+  { id: 'gallery', label: 'Geschenke', icon: Images, group: 'Stream' },
+  { id: 'triggers', label: 'Trigger', icon: Zap, group: 'Reaktionen' },
+  { id: 'commands', label: 'Befehle', icon: Terminal, group: 'Reaktionen' },
+  { id: 'store', label: 'Store', icon: Gift, group: 'Reaktionen' },
+  { id: 'panel', label: 'Panel', icon: Gamepad2, group: 'Reaktionen' },
+  { id: 'sounds', label: 'Sounds', icon: Volume2, group: 'Medien' },
+  { id: 'tts', label: 'Stimme', icon: Mic, group: 'Medien' },
+  { id: 'viewers', label: 'Zuschauer', icon: Users, group: 'Mehr' },
+  { id: 'settings', label: 'Einstellungen', icon: Settings, group: 'Mehr' },
 ];
 
 interface StatusStyle {
@@ -86,20 +90,29 @@ export default function App() {
           </div>
           <div className="mt-1 text-[10px] uppercase tracking-[0.4em] text-studio-muted">Studio</div>
         </div>
-        <nav className="flex flex-col gap-1 px-3">
-          {NAV.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setPage(id)}
-              className={`clip-slant flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
-                page === id
-                  ? 'bg-studio-accent font-bold text-black'
-                  : 'text-studio-muted hover:bg-studio-raised hover:text-studio-text'
-              }`}
-            >
-              <Icon size={16} strokeWidth={2.5} />
-              {label}
-            </button>
+        <nav className="flex flex-col gap-0.5 px-3">
+          {NAV.map(({ id, label, icon: Icon, group }, i) => (
+            <div key={id}>
+              {(i === 0 || NAV[i - 1]?.group !== group) && (
+                <div className="mb-1 mt-3 px-2 text-[9px] font-bold uppercase tracking-[0.3em] text-studio-muted/60 first:mt-0">
+                  {group}
+                </div>
+              )}
+              <button
+                onClick={() => setPage(id)}
+                className={`clip-slant flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+                  page === id
+                    ? 'bg-studio-accent font-bold text-black'
+                    : 'text-studio-muted hover:bg-studio-raised hover:text-studio-text'
+                }`}
+              >
+                <Icon size={16} strokeWidth={2.5} />
+                {label}
+                {id === 'live' && studio.status.status === 'connected' && (
+                  <span className="ml-auto h-2 w-2 rounded-full bg-studio-teal" title="Verbunden" />
+                )}
+              </button>
+            </div>
           ))}
         </nav>
         <div className="mt-auto px-5 pb-4 text-[10px] text-studio-muted">v0.1.0 · lokal</div>
@@ -142,6 +155,8 @@ export default function App() {
           {page === 'live' && <LivePage studio={studio} />}
           {page === 'overlay' && <OverlayPage />}
           {page === 'triggers' && <TriggersPage />}
+          {page === 'commands' && <CommandsPage />}
+          {page === 'gallery' && <GalleryPage />}
           {page === 'store' && <StorePage />}
           {page === 'panel' && <PanelPage />}
           {page === 'sounds' && <SoundsPage />}

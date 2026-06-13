@@ -20,11 +20,13 @@ function makeDirs(): { runtimeDir: string; widgetDir: string; mediaDir: string }
   fs.writeFileSync(path.join(runtimeDir, 'overlay.html'), '<!doctype html><html><head></head><body>RUNTIME</body></html>');
   fs.writeFileSync(path.join(runtimeDir, 'runtime.js'), '// runtime');
   fs.writeFileSync(path.join(widgetDir, 'gift-alert.js'), '// widget');
+  fs.writeFileSync(path.join(widgetDir, 'combo.js'), 'export const x = 1;');
+  fs.writeFileSync(path.join(widgetDir, 'with-import.js'), "import { x } from './combo.js';\n");
   fs.writeFileSync(path.join(mediaDir, 'logo.png'), Buffer.from('PNGDATA-0123456789'));
   return { runtimeDir, widgetDir, mediaDir };
 }
 
-async function setup(heartbeatMs = 0) {
+async function setup(heartbeatMs = 0, extra: Record<string, unknown> = {}) {
   const bus = new EventBus();
   const layout = createDefaultLayout('Test-Layout', 'test-layout');
   const profileB = createDefaultLayout('Profil-B', 'profile-b');
@@ -34,6 +36,7 @@ async function setup(heartbeatMs = 0) {
     heartbeatMs,
     getLayout: (id) => (id === 'profile-b' ? profileB : id === 'test-layout' || !id ? layout : null),
     getDefaultLayoutId: () => 'test-layout',
+    ...extra,
   });
   await server.start();
   return { bus, server, layout, profileB };
@@ -76,6 +79,60 @@ function wsConnect(url: string): Promise<WsClient> {
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+test('http: /api/panel listet Knöpfe + /api/panel/fire löst per ID aus (token-geschützt)', async () => {
+  const fired: string[] = [];
+  const { server } = await setup(0, {
+    listPanelButtons: () => [{ id: 'b1', label: 'Airhorn' }],
+    firePanelButton: (id: string) => { fired.push(id); return id === 'b1'; },
+  });
+  try {
+    const base = `http://127.0.0.1:${server.getPort()}`;
+    const token = server.getToken();
+
+    const denied = await fetch(`${base}/api/panel`);
+    assert.equal(denied.status, 403);
+
+    const list = await (await fetch(`${base}/api/panel?token=${token}`)).json();
+    assert.equal(list.buttons[0]?.label, 'Airhorn');
+
+    const ok = await fetch(`${base}/api/panel/fire?token=${token}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'b1' }),
+    });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(fired, ['b1']);
+
+    const miss = await fetch(`${base}/api/panel/fire?token=${token}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'nope' }),
+    });
+    assert.equal(miss.status, 404);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('ws: gamewin wird pro winId genau EINMAL gezählt (Dedup über mehrere Clients)', async () => {
+  const wins: Array<{ winId: string; user: { id: string } }> = [];
+  const { server } = await setup(0, { onGameWin: (winId: string, user: { id: string }) => wins.push({ winId, user }) });
+  try {
+    const url = `ws://127.0.0.1:${server.getPort()}/ws?token=${server.getToken()}`;
+    const a = await wsConnect(url);
+    const b = await wsConnect(url);
+    const msg = JSON.stringify({ kind: 'gamewin', winId: 'layer1-3', user: { id: 'mia', nickname: 'Mia' } });
+    a.ws.send(msg); // Client A (z.B. OBS)
+    b.ws.send(msg); // Client B (z.B. TTLS) — gleiche Runde
+    await wait(40);
+    assert.equal(wins.length, 1, 'gleiche winId → nur 1× gezählt');
+    assert.equal(wins[0]?.user.id, 'mia');
+
+    a.ws.send(JSON.stringify({ kind: 'gamewin', winId: 'layer1-4', user: { id: 'ben', nickname: 'Ben' } }));
+    await wait(40);
+    assert.equal(wins.length, 2, 'neue Runde (winId) → neu gezählt');
+    a.close(); b.close();
+  } finally {
+    await server.stop();
+  }
+});
 
 test('http: /overlay ohne token → 403, mit token → 200 + html', async () => {
   const { server } = await setup();
@@ -177,6 +234,24 @@ test('http: widget-files werden ausgeliefert, path-traversal abgewehrt', async (
 
     const evil = await fetch(`${base}/widgets/..%2F..%2Fetc%2Fpasswd?token=${token}`);
     assert.notEqual(evil.status, 200);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('http: relative ES-Modul-Imports in Widget-JS bekommen den Token angehängt', async () => {
+  const { server } = await setup();
+  try {
+    const base = `http://127.0.0.1:${server.getPort()}`;
+    const token = server.getToken();
+    const res = await fetch(`${base}/widgets/with-import.js?token=${token}`);
+    assert.equal(res.status, 200);
+    const body = await res.text();
+    // Sonst würde der Browser ./combo.js ohne Token anfragen → 403.
+    assert.match(body, new RegExp(`from\\s*['"]\\./combo\\.js\\?token=${token}['"]`));
+    // Und das so referenzierte Modul ist dann auch wirklich abrufbar.
+    const combo = await fetch(`${base}/widgets/combo.js?token=${token}`);
+    assert.equal(combo.status, 200);
   } finally {
     await server.stop();
   }

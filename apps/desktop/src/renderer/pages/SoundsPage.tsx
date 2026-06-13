@@ -2,6 +2,7 @@
 // Wiedergabe läuft immer über den App-SoundPlayer (wie im echten Trigger-Fall).
 import { useEffect, useState } from 'react';
 import { Volume2, Play, Trash2, Music, Search, Upload, Download } from 'lucide-react';
+import ConfirmButton from '../components/ConfirmButton';
 import { toast } from '../components/ToastHost';
 
 interface SoundEntry {
@@ -25,6 +26,7 @@ export default function SoundsPage() {
   const [results, setResults] = useState<MyInstantsResult[]>([]);
   const [searchError, setSearchError] = useState('');
   const [importing, setImporting] = useState<string | null>(null);
+  const [libQuery, setLibQuery] = useState('');
 
   const refresh = async () => {
     setSounds((await window.studio.listSounds()) as SoundEntry[]);
@@ -60,7 +62,7 @@ export default function SoundsPage() {
         await refresh();
         if (res.id) void window.studio.testSound(res.id); // direkt probehören
       } else {
-        setSearchError(res.error ?? 'Import fehlgeschlagen');
+        toast('error', `Import fehlgeschlagen: ${res.error ?? 'unbekannt'}`);
       }
     } finally {
       setImporting(null);
@@ -175,8 +177,14 @@ export default function SoundsPage() {
         </div>
       )}
 
+      {sounds.length > 6 && (
+        <label className="flex items-center gap-2 self-start rounded-lg border border-studio-border bg-studio-bg px-2.5 py-1.5">
+          <Search size={13} className="text-studio-muted" />
+          <input value={libQuery} onChange={(e) => setLibQuery(e.target.value)} placeholder="Eigene Sounds filtern…" className="bg-transparent text-sm outline-none" style={{ width: '12rem' }} />
+        </label>
+      )}
       <div className="grid grid-cols-3 gap-3">
-        {sounds.map((s) => (
+        {sounds.filter((s) => !libQuery.trim() || s.filename.toLowerCase().includes(libQuery.trim().toLowerCase())).map((s) => (
           <div
             key={s.id}
             className="flex items-center gap-3 rounded-lg border border-studio-border bg-studio-raised/40 px-4 py-3 transition-colors hover:border-studio-accent/30"
@@ -192,13 +200,13 @@ export default function SoundsPage() {
               <div className="truncate text-xs font-bold">{s.filename}</div>
               <div className="font-mono text-[10px] text-studio-muted">{(s.sizeBytes / 1024).toFixed(0)} KB</div>
             </div>
-            <button
-              onClick={() => void window.studio.deleteSound(s.id).then(refresh)}
+            <ConfirmButton
+              onConfirm={() => void window.studio.deleteSound(s.id).then(refresh)}
               className="text-studio-muted transition-colors hover:text-studio-accent"
               title="Löschen"
             >
               <Trash2 size={15} />
-            </button>
+            </ConfirmButton>
           </div>
         ))}
       </div>

@@ -21,6 +21,39 @@ test('record sammelt Gifts mit Bild + Zähler, all() liefert sie slug-normalisie
   assert.equal(all['lion']?.coins, 29999);
 });
 
+test('erster echter Sender wird mit Datum verewigt und ändert sich nicht mehr', () => {
+  const c = new GiftCatalog(tmpDir());
+  // Aus der Room-Liste (count 0) → noch kein Sender.
+  c.record({ slug: 'Rose', icon: 'https://cdn/rose.png', coinsPerUnit: 1, count: 0 });
+  assert.equal(c.all()['rose']?.firstSender, undefined);
+
+  // Erstes echtes Gift mit Sender → verewigt.
+  c.record({ slug: 'Rose', count: 1, sender: { id: 'anna', nickname: 'Anna' }, at: 1000 });
+  assert.equal(c.all()['rose']?.firstSender?.nickname, 'Anna');
+  assert.equal(c.all()['rose']?.firstSenderAt, 1000);
+
+  // Späterer Sender überschreibt den Erstsender NICHT.
+  c.record({ slug: 'Rose', count: 1, sender: { id: 'ben', nickname: 'Ben' }, at: 2000 });
+  assert.equal(c.all()['rose']?.firstSender?.nickname, 'Anna');
+  assert.equal(c.all()['rose']?.firstSenderAt, 1000);
+});
+
+test('markLastRoom markiert genau die Gifts des letzten Live (vorige Markierung fällt weg)', () => {
+  const c = new GiftCatalog(tmpDir());
+  c.record({ slug: 'Rose', count: 0 });
+  c.record({ slug: 'Lion', count: 0 });
+  c.record({ slug: 'Galaxy', count: 0 });
+
+  c.markLastRoom(['Rose', 'Lion']);
+  assert.equal(c.all()['rose']?.inLastRoom, true);
+  assert.equal(c.all()['galaxy']?.inLastRoom, false);
+
+  // Nächstes Live mit anderer Liste → alte Markierung weg.
+  c.markLastRoom(['Galaxy']);
+  assert.equal(c.all()['rose']?.inLastRoom, false);
+  assert.equal(c.all()['galaxy']?.inLastRoom, true);
+});
+
 test('persistiert und lädt wieder', () => {
   const dir = tmpDir();
   const a = new GiftCatalog(dir);

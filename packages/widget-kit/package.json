@@ -3,5 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Pro-Widgets für den Overlay-Canvas (Vanilla ES-Module, self-contained, kein CDN)"
+  "description": "Pro-Widgets für den Overlay-Canvas (Vanilla ES-Module, self-contained, kein CDN)",
+  "scripts": {
+    "test": "node --import tsx --test *.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.22.4"
+  }
 }

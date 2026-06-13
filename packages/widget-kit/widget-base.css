@@ -23,6 +23,9 @@
   --bx-ink: #0a0b10;
   --bx-text: #f4f5fa;
   --bx-muted: #aab0c4;
+  /* Textschatten-Farbe — Themes setzen sie auf hell, damit Text auf hellem
+     Hintergrund nicht matscht (Default: dunkler Glow für dunkle Themes). */
+  --bx-text-shadow: rgba(0, 0, 0, 0.6);
 
   --bx-font-display: 'Lilita One', 'Arial Black', sans-serif;
   --bx-font-body: 'Baloo 2', 'Segoe UI', system-ui, sans-serif;
@@ -111,6 +114,14 @@
   0% { opacity: 0; transform: scale(0.82) translateY(10px); }
   60% { opacity: 1; transform: scale(1.04) translateY(0); }
   100% { transform: scale(1); }
+}
+
+/* Dezentes Einschweben jedes Widgets beim Mount (Runtime setzt .bx-enter).
+   Vollflächige Effekt-Widgets (Feuerwerk/Herzen) bekommen die Klasse NICHT. */
+.bx-enter { animation: bx-enter-in 0.5s cubic-bezier(0.2, 1, 0.3, 1) both; }
+@keyframes bx-enter-in {
+  0% { opacity: 0; transform: translateY(10px) scale(0.97); }
+  100% { opacity: 1; transform: none; }
 }
 
 /* Avatar-Ring mit Akzent-Glow */

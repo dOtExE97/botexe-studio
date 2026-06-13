@@ -38,6 +38,152 @@ async function loadWidgetClass(widgetType) {
   return promise;
 }
 
+// ── Pro-Widget-Stil (Schriftart / Textfarbe / Größe) ───────────────────────
+// Nur gebündelte (Lilita One, Baloo 2) + System-Fonts — kein CDN.
+const FONT_STACKS = {
+  lilita: "'Lilita One', 'Arial Black', sans-serif",
+  baloo: "'Baloo 2', system-ui, sans-serif",
+  sans: "'Segoe UI', system-ui, Arial, sans-serif",
+  rounded: "'Baloo 2', 'Trebuchet MS', system-ui, sans-serif",
+  condensed: "'Arial Narrow', 'Roboto Condensed', 'Oswald', sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  mono: "'JetBrains Mono', Consolas, monospace",
+};
+
+// Premium-Designs ("Skins"): kuratierte CSS-Var-Bündel. Weil alle Widgets diese
+// Vars nutzen, übernimmt JEDES Widget das Design sofort. Akzentfarbe bleibt
+// bewusst beim User (eigenes Feld) → Theme + eigene Brand-Farbe kombinierbar.
+// Alle Themes sind dunkel/satt → sicher mit jedem Widget (heller Text bleibt lesbar).
+const THEMES = {
+  glas: {}, // Default: edler dunkler Glasmorphismus (wie bisher)
+  neon: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(8,12,22,.9), rgba(5,8,16,.92))',
+    '--bx-shadow': '0 0 0 1.5px color-mix(in srgb, var(--bx-accent) 55%, transparent) inset, 0 0 30px -6px var(--bx-accent), 0 18px 40px -14px rgba(0,0,0,.8)',
+    '--bx-radius': '10px', '--bx-text': '#eafffb', '--bx-muted': '#86d8d0',
+  },
+  synthwave: {
+    '--bx-glass': 'linear-gradient(165deg, rgba(46,18,66,.92), rgba(18,9,38,.93))',
+    '--bx-shadow': '0 0 0 1.5px rgba(255,94,170,.45) inset, 0 0 34px -8px rgba(124,92,255,.6), 0 18px 40px -14px rgba(0,0,0,.82)',
+    '--bx-radius': '12px', '--bx-text': '#ffe6f6', '--bx-muted': '#caa0e6',
+    '--bx-gold': '#ff7ac8', '--bx-teal': '#6df0ff',
+  },
+  arcade: {
+    '--bx-glass': 'linear-gradient(165deg, #262a3a, #14151e)',
+    '--bx-shadow': '0 6px 0 rgba(0,0,0,.55), 0 16px 30px -10px rgba(0,0,0,.7)',
+    '--bx-radius': '20px', '--bx-text': '#ffffff',
+    '--bx-font-display': "'Lilita One', 'Arial Black', sans-serif",
+  },
+  luxus: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(22,18,10,.95), rgba(9,8,5,.96))',
+    '--bx-shadow': '0 0 0 1px rgba(255,210,62,.38) inset, 0 22px 52px -16px rgba(0,0,0,.88)',
+    '--bx-radius': '14px', '--bx-text': '#fbf2d6', '--bx-muted': '#bda775',
+    '--bx-font-display': "Georgia, 'Times New Roman', serif",
+  },
+  midnight: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(14,22,44,.92), rgba(8,12,26,.93))',
+    '--bx-shadow': '0 0 0 1px rgba(120,160,255,.22) inset, 0 20px 46px -16px rgba(0,0,0,.85)',
+    '--bx-radius': '16px', '--bx-text': '#eaf1ff', '--bx-muted': '#94a6cf',
+  },
+  inferno: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(34,12,8,.93), rgba(16,7,5,.94))',
+    '--bx-shadow': '0 0 0 1px rgba(255,120,60,.3) inset, 0 0 30px -10px rgba(255,80,30,.5), 0 18px 42px -14px rgba(0,0,0,.85)',
+    '--bx-radius': '14px', '--bx-text': '#ffeede', '--bx-muted': '#d39c80',
+    '--bx-gold': '#ff8a3d',
+  },
+  mint: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(10,28,26,.9), rgba(6,18,18,.92))',
+    '--bx-shadow': '0 0 0 1px rgba(40,224,196,.28) inset, 0 18px 42px -16px rgba(0,0,0,.82)',
+    '--bx-radius': '18px', '--bx-text': '#e7fff8', '--bx-muted': '#86c8bb',
+  },
+  minimal: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(22,24,32,.6), rgba(15,17,23,.58))',
+    '--bx-shadow': '0 10px 24px -14px rgba(0,0,0,.6)',
+    '--bx-radius': '8px', '--bx-text': '#eef0f6', '--bx-muted': '#9aa0b2',
+  },
+  vapor: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(18,30,42,.62), rgba(12,22,34,.58))',
+    '--bx-shadow': '0 0 0 1px rgba(180,220,255,.22) inset, 0 26px 60px -18px rgba(0,0,0,.7)',
+    '--bx-radius': '22px', '--bx-text': '#eef7ff', '--bx-muted': '#9fc2dc',
+  },
+  holo: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(20,18,30,.92), rgba(10,9,18,.93))',
+    '--bx-shadow': '0 0 0 1.5px rgba(255,120,220,.4) inset, 0 0 26px -8px rgba(120,200,255,.5), 0 18px 44px -14px rgba(0,0,0,.82)',
+    '--bx-radius': '14px', '--bx-text': '#f4eeff', '--bx-muted': '#b9aed6',
+    '--bx-gold': '#ff8ad6', '--bx-teal': '#7cd6ff', '--bx-pink': '#c77bff',
+  },
+  royal: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(28,18,46,.93), rgba(14,9,26,.94))',
+    '--bx-shadow': '0 0 0 1px rgba(210,200,255,.3) inset, 0 22px 50px -16px rgba(0,0,0,.86)',
+    '--bx-radius': '12px', '--bx-text': '#f3eeff', '--bx-muted': '#b6acd2',
+    '--bx-gold': '#d9d2ff', '--bx-font-display': "Georgia, 'Times New Roman', serif",
+  },
+  forest: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(16,30,22,.93), rgba(9,18,13,.94))',
+    '--bx-shadow': '0 0 0 1px rgba(120,200,150,.22) inset, 0 20px 46px -16px rgba(0,0,0,.84)',
+    '--bx-radius': '20px', '--bx-text': '#eef7ee', '--bx-muted': '#9bc0a2',
+    '--bx-gold': '#ffcf73',
+  },
+  mono: {
+    '--bx-glass': 'linear-gradient(160deg, #1a1a1c, #0c0c0e)',
+    '--bx-shadow': '0 0 0 2px #2c2c30 inset, 0 14px 30px -12px rgba(0,0,0,.85)',
+    '--bx-radius': '4px', '--bx-text': '#f2f2f4', '--bx-muted': '#9a9aa0',
+    '--bx-font-display': "'Arial Narrow', 'Roboto Condensed', 'Oswald', sans-serif",
+  },
+  aurora: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(10,24,40,.9), rgba(14,30,28,.9))',
+    '--bx-shadow': '0 0 0 1px rgba(120,255,200,.22) inset, 0 0 30px -10px rgba(80,180,255,.45), 0 18px 44px -14px rgba(0,0,0,.82)',
+    '--bx-radius': '18px', '--bx-text': '#eafff6', '--bx-muted': '#8fcabf',
+    '--bx-teal': '#5cffc0',
+  },
+  // ── Helle Themes: --bx-text auf dunkel + --bx-text-shadow auf hell, damit
+  //    Kontur/Schatten auf hellem Grund nicht matschen (Token in widget-base.css).
+  paper: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(252,250,244,.94), rgba(244,240,230,.92))',
+    '--bx-shadow': '0 1px 0 rgba(0,0,0,.04) inset, 0 16px 36px -18px rgba(80,70,50,.4)',
+    '--bx-radius': '12px', '--bx-text': '#26211a', '--bx-muted': '#7a7060',
+    '--bx-ink': '#fbf7ee', '--bx-text-shadow': 'rgba(255,255,255,.7)',
+    '--bx-font-display': "Georgia, 'Times New Roman', serif",
+  },
+  bubblegum: {
+    '--bx-glass': 'linear-gradient(160deg, rgba(255,240,250,.95), rgba(255,228,244,.93))',
+    '--bx-shadow': '0 0 0 3px #3a1430, 6px 6px 0 rgba(58,20,48,.85)',
+    '--bx-radius': '20px', '--bx-text': '#3a1430', '--bx-muted': '#9c5680',
+    '--bx-ink': '#fff0fa', '--bx-text-shadow': 'rgba(255,255,255,.65)',
+    '--bx-font-display': "'Lilita One', 'Arial Black', sans-serif",
+  },
+};
+
+/** Setzt Stil-Vars auf den Layer-Root und legt bei Bedarf einen Zoom-Wrapper
+ *  an (skaliert den Inhalt = Schrift + Abstände). Liefert das Mount-Element. */
+function applyWidgetStyle(el, props, w, h) {
+  // Theme zuerst — eigene Schrift/Farbe (unten) gewinnt darüber.
+  const theme = THEMES[props.theme];
+  if (theme) for (const k in theme) el.style.setProperty(k, theme[k]);
+
+  const fam = FONT_STACKS[props.fontFamily];
+  if (fam) {
+    el.style.setProperty('--bx-font-display', fam);
+    el.style.setProperty('--bx-font-body', fam);
+    el.style.setProperty('--bx-font-num', fam);
+  }
+  if (props.textColor) el.style.setProperty('--bx-text', String(props.textColor));
+
+  const scale = Number(props.fontScale ?? 1) || 1;
+  if (Math.abs(scale - 1) < 0.01) return el;
+  // Inhalt im inversen Maß rendern und zurückskalieren → Box bleibt gleich,
+  // alles drin (Schrift/Abstände/Bilder) wird um `scale` größer/kleiner.
+  const inner = document.createElement('div');
+  inner.style.position = 'absolute';
+  inner.style.top = '0';
+  inner.style.left = '0';
+  inner.style.width = `${w / scale}px`;
+  inner.style.height = `${h / scale}px`;
+  inner.style.transformOrigin = 'top left';
+  inner.style.transform = `scale(${scale})`;
+  el.appendChild(inner);
+  return inner;
+}
+
 // ── Stage / Layout ─────────────────────────────────────────────────────────
 let currentLayout = null;
 /** layerId → { el, widget } */
@@ -83,6 +229,12 @@ async function renderLayout(layout) {
   for (const layer of sorted) {
     const el = document.createElement('div');
     el.className = 'layer';
+    // Dezentes Einschweben beim Mount — außer bei vollflächigen Effekt-Widgets,
+    // die ihren eigenen Auftritt mitbringen (Feuerwerk, Herzregen).
+    if (layer.widgetType !== 'gift-fireworks' && layer.widgetType !== 'heart-rain'
+        && layer.widgetType !== 'milestone-confetti') {
+      el.classList.add('bx-enter');
+    }
     el.dataset.layerId = layer.id;
     el.dataset.widgetType = layer.widgetType;
     el.style.left = `${layer.x}px`;
@@ -94,21 +246,36 @@ async function renderLayout(layout) {
     if (!layer.visible) el.style.display = 'none';
     stage.appendChild(el);
 
+    // Pro-Widget-Stil: Schriftart + Textfarbe als CSS-Vars (kaskadieren in den
+    // Widget-Baum), Größe per Inhalt-Zoom (skaliert Schrift + Abstände).
+    const mountEl = applyWidgetStyle(el, layer.props || {}, layer.w, layer.h);
+
     const entry = { el, widget: null };
     liveLayers.set(layer.id, entry);
 
     const WidgetClass = await loadWidgetClass(layer.widgetType);
     if (WidgetClass) {
       try {
-        entry.widget = new WidgetClass(el, layer.props || {}, {
+        entry.widget = new WidgetClass(mountEl, layer.props || {}, {
           baseUrl: cfg.baseUrl,
           token: cfg.token,
           layerId: layer.id,
+          // Editor-Vorschau: Widgets, die nur auf seltene Ereignisse reagieren
+          // (z.B. Meilenstein-Konfetti), können sich damit selbst vorführen.
+          preview: PREVIEW,
           // Spiel-Widgets: Sound über die App auslösen (Server dedupliziert).
           playSound: (soundId) => {
             try {
               if (activeWs && activeWs.readyState === 1 && soundId) {
                 activeWs.send(JSON.stringify({ kind: 'sound', soundId: String(soundId) }));
+              }
+            } catch { /* nie eskalieren */ }
+          },
+          // Spiel-Sieg melden (winId = layerId+Runde → Server zählt 1×).
+          reportWin: (winId, user) => {
+            try {
+              if (activeWs && activeWs.readyState === 1 && winId && user?.id) {
+                activeWs.send(JSON.stringify({ kind: 'gamewin', winId: String(winId), user }));
               }
             } catch { /* nie eskalieren */ }
           },

@@ -9,7 +9,7 @@ const CSS = `
 .bx-sc-icon { display: flex; align-items: center; justify-content: center; width: 19px; height: 19px;
   color: var(--bx-accent); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--bx-accent) 55%, transparent)); }
 .bx-sc-icon svg { width: 100%; height: 100%; display: block; }
-.bx-sc-value { font-family: var(--bx-font-num); font-weight: 700; font-size: 19px; color: #fff;
+.bx-sc-value { font-family: var(--bx-font-num); font-weight: 700; font-size: 19px; color: var(--bx-text,#fff);
   text-shadow: 0 2px 6px rgba(0,0,0,.7); min-width: 38px; }
 .bx-sc-chip.pulse .bx-sc-value { animation: bx-sc-pop 440ms cubic-bezier(.2,1.6,.4,1); }
 .bx-sc-chip.pulse .bx-sc-icon { animation: bx-sc-glow 440ms ease; }

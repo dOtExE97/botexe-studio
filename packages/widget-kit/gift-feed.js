@@ -13,7 +13,7 @@ const CSS = `
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
 .bx-gf-text { font-size: 15px; color: #e9ebf4; text-shadow: 0 1px 2px rgba(0,0,0,.6);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bx-gf-text b { font-family: var(--bx-font-display); color: #fff; text-transform: uppercase; font-weight: 700; }
+.bx-gf-text b { font-family: var(--bx-font-display); color: var(--bx-text,#fff); text-transform: uppercase; font-weight: 700; }
 .bx-gf-img { height: 28px; flex: none; filter: drop-shadow(0 2px 5px rgba(0,0,0,.5)); }
 .bx-gf-coins { margin-left: auto; font-family: var(--bx-font-mono); font-weight: 700; font-size: 14px; color: var(--bx-gold);
   text-shadow: 0 0 10px color-mix(in srgb, var(--bx-gold) 40%, transparent); flex: none; }

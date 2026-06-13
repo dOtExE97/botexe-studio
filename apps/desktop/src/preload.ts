@@ -33,8 +33,15 @@ const api = {
   // Trigger-Regeln
   getRules: () => ipcRenderer.invoke(IPC.RULES_GET),
   setRules: (rules: unknown[]) => ipcRenderer.invoke(IPC.RULES_SET, rules),
+  // Geschenke-Galerie
+  getGiftCatalog: () => ipcRenderer.invoke(IPC.GIFT_CATALOG_GET),
+  // Stats-Zeitraum (Woche/Monat/Jahr)
+  getStatsHistory: (range: 'week' | 'month' | 'year') => ipcRenderer.invoke(IPC.STATS_HISTORY_GET, range),
+  exportStatsCsv: () => ipcRenderer.invoke(IPC.STATS_CSV_EXPORT),
   getRedemptions: () => ipcRenderer.invoke(IPC.REDEMPTIONS_GET),
   setRedemptions: (reds: unknown[]) => ipcRenderer.invoke(IPC.REDEMPTIONS_SET, reds),
+  getCommands: () => ipcRenderer.invoke(IPC.COMMANDS_GET),
+  setCommands: (cmds: unknown[]) => ipcRenderer.invoke(IPC.COMMANDS_SET, cmds),
   getPanelButtons: () => ipcRenderer.invoke(IPC.PANEL_GET),
   setPanelButtons: (buttons: unknown[]) => ipcRenderer.invoke(IPC.PANEL_SET, buttons),
   firePanel: (action: unknown) => ipcRenderer.invoke(IPC.PANEL_FIRE, action),
@@ -65,6 +72,25 @@ const api = {
   // App-Info
   getAppInfo: () => ipcRenderer.invoke(IPC.APP_INFO),
   openDataDir: () => ipcRenderer.invoke(IPC.APP_OPEN_DATA_DIR),
+  // Konfig-Backup
+  exportConfig: () => ipcRenderer.invoke(IPC.CONFIG_EXPORT),
+  importConfig: () => ipcRenderer.invoke(IPC.CONFIG_IMPORT),
+  // Auto-Update
+  checkForUpdate: () => ipcRenderer.invoke(IPC.UPDATE_CHECK),
+  installUpdate: () => ipcRenderer.invoke(IPC.UPDATE_INSTALL),
+  onUpdateStatus: listen<{ state: string; version?: string; message?: string }>(IPC.UPDATE_STATUS),
+  // OBS-Studio
+  setObsConfig: (cfg: { enabled: boolean; url: string; password: string }) => ipcRenderer.invoke(IPC.OBS_SET_CONFIG, cfg),
+  getObsScenes: () => ipcRenderer.invoke(IPC.OBS_GET_SCENES),
+  onObsStatus: listen<string>(IPC.OBS_STATUS),
+  // TikTok-Login + Chat senden
+  tiktokLogin: () => ipcRenderer.invoke(IPC.TIKTOK_LOGIN),
+  tiktokLogout: () => ipcRenderer.invoke(IPC.TIKTOK_LOGOUT),
+  sendChat: (text: string) => ipcRenderer.invoke(IPC.CHAT_SEND, text),
+  // Streamer.bot
+  setStreamerbotConfig: (cfg: { enabled: boolean; url: string }) => ipcRenderer.invoke(IPC.SB_SET_CONFIG, cfg),
+  getStreamerbotActions: () => ipcRenderer.invoke(IPC.SB_GET_ACTIONS),
+  onStreamerbotStatus: listen<string>(IPC.SB_STATUS),
   openLogs: () => ipcRenderer.invoke(IPC.LOGS_OPEN),
   resetSession: () => ipcRenderer.invoke(IPC.SESSION_RESET),
   getTtlsLink: (layoutId?: string) => ipcRenderer.invoke(IPC.TTLS_LINK_GET, layoutId),
@@ -76,6 +102,7 @@ const api = {
   setViewerFlag: (userId: string, flag: string, value: boolean) => ipcRenderer.invoke(IPC.VIEWER_FLAG, userId, flag, value),
   grantPoints: (userId: string, delta: number) => ipcRenderer.invoke(IPC.VIEWER_GRANT, userId, delta),
   setViewerVoice: (userId: string, voice: string) => ipcRenderer.invoke(IPC.VIEWER_VOICE, userId, voice),
+  setViewerWelcomeMedia: (userId: string, mediaId: string) => ipcRenderer.invoke(IPC.VIEWER_WELCOME_MEDIA, userId, mediaId),
 
   // Settings
   getSettings: () => ipcRenderer.invoke(IPC.SETTINGS_GET),
@@ -93,6 +120,8 @@ const api = {
   onBusEvent: listen<Record<string, unknown>>(IPC.BUS_EVENT),
   onStats: listen<Record<string, unknown>>(IPC.STATS_UPDATE),
   onSoundPlay: listen<{ soundId: string; url: string; volume: number }>(IPC.SOUND_PLAY),
+  /** Renderer meldet, dass ein Audio fertig ist (fürs TTS-Sequencing). */
+  reportSoundEnded: (soundId: string) => ipcRenderer.send(IPC.SOUND_ENDED, soundId),
   onToast: listen<{ type: 'error' | 'warn' | 'info'; message: string }>(IPC.TOAST_SHOW),
 };
 

@@ -11,21 +11,25 @@ function layout(layers: Array<Partial<OverlayLayout['layers'][number]>>): Overla
   } as OverlayLayout;
 }
 
-test('collectGiftSounds: Feuerwerk/Alert-Sound ab minCoins, dedupliziert über Profile', () => {
+test('collectGiftSounds: Alert-Sound ab minCoins, dedupliziert über Profile', () => {
   const layouts = [
-    layout([{ widgetType: 'gift-fireworks', props: { soundId: 'boom.mp3', minCoins: 100 } }]),
-    layout([{ widgetType: 'gift-alert', props: { soundId: 'tada.mp3' } }]),
-    layout([{ widgetType: 'gift-fireworks', props: { soundId: 'boom.mp3', minCoins: 100 } }]), // Duplikat
+    layout([{ widgetType: 'gift-alert', props: { soundId: 'tada.mp3', minCoins: 100 } }]),
+    layout([{ widgetType: 'gift-alert', props: { soundId: 'tada.mp3', minCoins: 100 } }]), // Duplikat
   ];
-  assert.deepEqual(collectGiftSounds(layouts, 500), ['boom.mp3', 'tada.mp3']);
-  assert.deepEqual(collectGiftSounds(layouts, 50), ['tada.mp3']); // unter minCoins des Feuerwerks
+  assert.deepEqual(collectGiftSounds(layouts, 500), ['tada.mp3']);
+  assert.deepEqual(collectGiftSounds(layouts, 50), []); // unter minCoins
+});
+
+test('collectGiftSounds: Feuerwerk spielt NICHT server-seitig (Widget-getrieben, getimter Boom)', () => {
+  const layouts = [layout([{ widgetType: 'gift-fireworks', props: { soundId: 'boom.mp3' } }])];
+  assert.deepEqual(collectGiftSounds(layouts, 1000), []);
 });
 
 test('collectGiftSounds: unsichtbare Layer und Widgets ohne Sound zählen nicht', () => {
   const layouts = [
     layout([
-      { widgetType: 'gift-fireworks', visible: false, props: { soundId: 'boom.mp3' } },
-      { widgetType: 'gift-fireworks', props: {} },
+      { widgetType: 'gift-alert', visible: false, props: { soundId: 'tada.mp3' } },
+      { widgetType: 'gift-alert', props: {} },
     ]),
   ];
   assert.deepEqual(collectGiftSounds(layouts, 1000), []);

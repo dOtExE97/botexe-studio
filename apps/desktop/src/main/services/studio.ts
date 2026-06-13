@@ -1,9 +1,10 @@
 // studio.ts — die Komposition: Adapter → Bus → Trigger-Engine → Aktionen.
 // Hier steckt die Verdrahtung, die in der Alt-App über ein 1500-Zeilen-
 // main.ts verschmiert war — main.ts bleibt dünn (Fenster + IPC).
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { TriggerEngine, renderSpeakTemplate, matchRedemption, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction } from '@botexe/trigger-engine';
+import { TriggerEngine, renderSpeakTemplate, matchRedemption, matchChatCommand, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { SessionStats } from '../core/session-stats';
@@ -14,10 +15,15 @@ import { SettingsStore } from './settings-store';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
 import { MediaLibrary } from './media-library';
-import { shouldReadChat } from './tts-filter';
+import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
+import { StatsHistory, type StatsRange, type StatsSummary } from './stats-history';
+import { SportService } from './sport-service';
+import type { SportProvider } from './sport-normalize';
+import { ObsService, type ObsStatus } from './obs-service';
+import { StreamerbotService, type StreamerbotStatus } from './streamerbot-service';
 import { TTSService } from './tts-service';
 import { log } from '../core/logger';
 
@@ -36,6 +42,10 @@ export interface StudioHooks {
   onStats: (stats: StatsSnapshot) => void;
   /** Nutzer-sichtbare Meldung (Fehler/Hinweis) → Toast im Renderer. */
   onToast?: (toast: { type: 'error' | 'warn' | 'info'; message: string }) => void;
+  /** OBS-Verbindungsstatus → Settings-UI. */
+  onObsStatus?: (status: ObsStatus) => void;
+  /** Streamer.bot-Verbindungsstatus → Settings-UI. */
+  onStreamerbotStatus?: (status: StreamerbotStatus) => void;
 }
 
 export interface StudioPaths {
@@ -45,6 +55,18 @@ export interface StudioPaths {
 }
 
 const STATS_BROADCAST_MIN_MS = 250;
+/** Mindestabstand zwischen zwei Chat-Sendungen — TikTok drosselt stark (~1/30s). */
+const CHAT_SEND_MIN_INTERVAL_MS = 30_000;
+
+/** Rechte-Prüfung für Chat-Befehle (App-VIPs immer erlaubt). */
+function commandGroupOk(who: string, event: StudioEvent, isVip: boolean): boolean {
+  if (who === 'all' || isVip) return true;
+  const u = event.user;
+  if (who === 'followers') return !!(u?.isFollower || u?.isSub || u?.isMod);
+  if (who === 'subs') return !!(u?.isSub || u?.isMod);
+  if (who === 'mods') return !!u?.isMod;
+  return true;
+}
 
 export class Studio {
   readonly bus = new EventBus();
@@ -55,6 +77,10 @@ export class Studio {
   readonly tts: TTSService;
   readonly points: PointsStore;
   readonly giftCatalog: GiftCatalog;
+  readonly statsHistory: StatsHistory;
+  readonly sport: SportService;
+  readonly obs: ObsService;
+  readonly streamerbot: StreamerbotService;
   readonly stats = new SessionStats();
 
   private readonly engine = new TriggerEngine();
@@ -69,8 +95,10 @@ export class Studio {
   private timerTicker: ReturnType<typeof setInterval> | null = null;
   /** Laufende verzögerte Aktionen (Combo-Sequenzen) — beim Stop aufräumen. */
   private actionTimers = new Set<ReturnType<typeof setTimeout>>();
+  private lastChatSendAt = 0;
   /** redemptionId → event.ts der letzten Einlösung (globaler Cooldown). */
   private redemptionCooldowns = new Map<string, number>();
+  private commandCooldowns = new Map<string, number>();
 
   constructor(paths: StudioPaths, hooks: StudioHooks) {
     this.hooks = hooks;
@@ -81,6 +109,10 @@ export class Studio {
     this.media = new MediaLibrary(paths.userDataDir);
     this.points = new PointsStore(paths.userDataDir);
     this.giftCatalog = new GiftCatalog(paths.userDataDir);
+    this.statsHistory = new StatsHistory(paths.userDataDir);
+    this.sport = new SportService(() => this.settings.get().sportApiKey ?? '');
+    this.obs = new ObsService((status) => this.hooks.onObsStatus?.(status));
+    this.streamerbot = new StreamerbotService((status) => this.hooks.onStreamerbotStatus?.(status));
     this.tts = new TTSService(
       paths.userDataDir,
       (playback) => {
@@ -94,6 +126,7 @@ export class Studio {
 
     this.server = new OverlayServer(this.bus, {
       port: 27415,
+      token: this.getOrCreateControlToken(),
       runtimeDir: paths.runtimeDir,
       widgetDir: paths.widgetDir,
       soundsDir: this.sounds.getDir(),
@@ -105,13 +138,27 @@ export class Studio {
       getStats: () => ({
         ...this.stats.snapshot(),
         topPoints: this.points.top(10),
+        topWinners: this.points.topWinners(10),
         currencyName: this.settings.get().points.currencyName,
       }),
       onWidgetSound: (soundId) => this.playSound(soundId),
+      onGameWin: (_winId, user) => this.recordGameWin(user),
       getGiftCatalog: () => this.giftCatalog.all(),
+      getSportMatches: (provider, competition) => this.sport.getMatches(provider as SportProvider, competition),
+      listPanelButtons: () => this.getPanelButtons().map((b) => ({ id: b.id, label: b.label })),
+      firePanelButton: (id) => this.firePanelById(id),
     });
 
     this.adapter = new TikTokAdapter(this.bus, {
+      // TikFinity-Verhalten: nach Stream-Ende auf das nächste Live warten und
+      // automatisch wieder verbinden — Single-User-Tool, also default an.
+      autoConnect: true,
+      // Login fürs Chat-Senden (sessionid-Cookie + optionaler Sign-Key).
+      getAuth: () => ({
+        sessionId: this.settings.get().tiktokSessionId || undefined,
+        ttTargetIdc: this.settings.get().tiktokTargetIdc || undefined,
+        signApiKey: this.settings.get().tiktokSignApiKey || undefined,
+      }),
       // Komplette Gift-Liste (mit Bildern) nach dem Connect in den Katalog —
       // so kennt z.B. das Bingo ALLE Gift-Bilder, bevor das erste Gift kommt.
       onAvailableGifts: (gifts) => this.importAvailableGifts(gifts),
@@ -149,17 +196,28 @@ export class Studio {
         this.dispatchAction(match.ruleId, match.action, e);
       }
 
-      // 3b. Chat: Punkte-Einlösungen + Vorlesen (TikFinity-Style)
+      // 3b. Chat: Befehle (Bot) + Punkte-Einlösungen + Vorlesen (TikFinity-Style)
       if (e.type === 'chat') {
+        this.maybeRunCommand(e);
         this.maybeRedeem(e);
         this.maybeReadChat(e);
       }
+
+      // 3b2. Teamherz (Sub): persönliches Begrüßungs-Medium des Zuschauers spielen.
+      if (e.type === 'sub' && e.user) this.maybePlayWelcomeMedia(e.user);
 
       // 3c. Widget-Sounds: Feuerwerk-Knall / Alert-Sound direkt am Widget
       // konfiguriert — gespielt LOKAL über die App (nie im Overlay).
       if (e.type === 'gift' && e.gift) {
         // Gift-Katalog: Bild + Coins jedes Gifts dauerhaft merken (Bingo/Galerie).
-        this.giftCatalog.record({ slug: e.gift.slug, icon: e.gift.icon, coinsPerUnit: e.gift.coinsPerUnit, count: e.gift.count });
+        // Erstsender wird im Katalog verewigt (count>0 + Sender).
+        this.giftCatalog.record({
+          slug: e.gift.slug,
+          icon: e.gift.icon,
+          coinsPerUnit: e.gift.coinsPerUnit,
+          count: e.gift.count,
+          sender: e.user ? { id: e.user.id, nickname: e.user.nickname } : undefined,
+        });
         for (const soundId of collectGiftSounds(this.layouts.list(), e.gift.totalCoins)) {
           this.playSound(soundId);
         }
@@ -211,6 +269,14 @@ export class Studio {
   private runAction(ruleId: string, action: import('@botexe/trigger-engine').TriggerAction, event: StudioEvent): void {
     if (action.kind === 'play_sound') {
       this.playSound(action.soundId, action.volume);
+    } else if (action.kind === 'obs_scene') {
+      void this.obs.setScene(action.scene);
+    } else if (action.kind === 'obs_visibility') {
+      void this.obs.setSourceVisible(action.scene, action.source, action.visible);
+    } else if (action.kind === 'send_chat') {
+      void this.sendChat(renderSpeakTemplate(action.template, event));
+    } else if (action.kind === 'streamerbot_action') {
+      void this.streamerbot.doAction(action.action);
     } else if (action.kind === 'speak') {
       this.speakForEvent(action.template, event, action.voice);
     } else if (action.kind === 'spin_wheel') {
@@ -250,6 +316,7 @@ export class Studio {
       const snapshot = {
         ...this.stats.snapshot(),
         topPoints: this.points.top(10),
+        topWinners: this.points.topWinners(10),
         currencyName: cfg.currencyName,
       };
       this.server.broadcast({ kind: 'stats', stats: snapshot });
@@ -269,6 +336,8 @@ export class Studio {
 
   async start(): Promise<void> {
     await this.server.start();
+    this.obs.applyConfig(this.settings.get().obs); // OBS-Verbindung (falls aktiviert)
+    this.streamerbot.applyConfig(this.settings.get().streamerbot); // Streamer.bot-Brücke
     // Timer-Regeln: jede Sekunde prüfen, ob ein Intervall abgelaufen ist.
     // Synthetisches timer-Event als Kontext (für speak-Templates ohne user).
     this.timerTicker = setInterval(() => {
@@ -286,19 +355,80 @@ export class Studio {
     if (this.timerTicker) clearInterval(this.timerTicker);
     for (const t of this.actionTimers) clearTimeout(t);
     this.actionTimers.clear();
+    this.flushSessionToHistory();
     this.points.save();
     this.giftCatalog.save();
+    this.statsHistory.save();
+    this.obs.dispose();
+    this.streamerbot.dispose();
     await this.adapter.disconnect();
     await this.server.stop();
+  }
+
+  // ── OBS-Studio-Steuerung ──────────────────────────────────────────────
+  /** OBS-Einstellungen setzen + Verbindung anwenden. */
+  setObsConfig(cfg: { enabled: boolean; url: string; password: string }): void {
+    this.settings.update({ obs: cfg });
+    this.obs.applyConfig(cfg);
+  }
+  getObsStatus(): ObsStatus { return this.obs.getStatus(); }
+  getObsScenes(): Promise<string[]> { return this.obs.getScenes(); }
+
+  // ── Streamer.bot-Brücke ───────────────────────────────────────────────
+  setStreamerbotConfig(cfg: { enabled: boolean; url: string }): void {
+    this.settings.update({ streamerbot: cfg });
+    this.streamerbot.applyConfig(cfg);
+  }
+  getStreamerbotStatus(): StreamerbotStatus { return this.streamerbot.getStatus(); }
+  getStreamerbotActions(): Promise<{ id: string; name: string }[]> { return this.streamerbot.refreshActions(); }
+
+  // ── TikTok-Login (Chat-Senden) ────────────────────────────────────────
+  /** Login-Cookies setzen/löschen (aus dem Login-Fenster). Beide nötig zum Senden. */
+  setTiktokSession(sessionId: string | undefined, ttTargetIdc?: string | undefined): void {
+    this.settings.update({ tiktokSessionId: sessionId ?? '', tiktokTargetIdc: ttTargetIdc ?? '' });
+  }
+  isTiktokLoggedIn(): boolean {
+    const s = this.settings.get();
+    return (s.tiktokSessionId ?? '').length > 0 && (s.tiktokTargetIdc ?? '').length > 0;
+  }
+
+  /** Aktuelle Session-Totals (falls Aktivität) in die persistente Historie kippen. */
+  private flushSessionToHistory(): void {
+    this.statsHistory.record(this.stats.snapshot().totals, Date.now());
+  }
+
+  /** Stream-Historie als CSV (für Tabellen/Auswertung). */
+  exportStatsCsv(): string {
+    const head = 'Datum;Coins;Gifts;Follower;Likes;Shares;Kommentare;Peak-Zuschauer';
+    const rows = this.statsHistory.all().map((e) => {
+      const d = new Date(e.at).toISOString().slice(0, 16).replace('T', ' ');
+      return [d, e.coins, e.gifts, e.follows, e.likes, e.shares, e.chats, e.peakViewers].join(';');
+    });
+    return [head, ...rows].join('\r\n');
+  }
+
+  /** Zeitraum-Zusammenfassung (Woche/Monat/Jahr) inkl. laufender Session. */
+  getStatsHistory(range: StatsRange): StatsSummary {
+    const sum = this.statsHistory.summary(range, Date.now());
+    // Laufende (noch nicht geflushte) Session mit einrechnen.
+    const t = this.stats.snapshot().totals;
+    sum.coins += t.coins; sum.gifts += t.gifts; sum.follows += t.follows;
+    sum.likes += t.likes; sum.shares += t.shares; sum.chats += t.chats;
+    sum.peakViewers = Math.max(sum.peakViewers, t.peakViewers);
+    if (t.coins + t.gifts + t.likes + t.chats > 0) sum.sessions += 1;
+    return sum;
   }
 
   // ── Plattform ─────────────────────────────────────────────────────────
 
   async connect(username: string): Promise<void> {
+    // Vorherige Session (falls Aktivität) in die Historie sichern, dann reset.
+    this.flushSessionToHistory();
     // Neuer Stream = frische Session: Stats + Cooldowns zurück auf null.
     this.stats.reset();
     this.engine.resetCooldowns();
     this.redemptionCooldowns.clear();
+    this.commandCooldowns.clear();
     this.scheduleStatsBroadcast();
     this.settings.update({ lastUsername: username });
     await this.adapter.connect(username);
@@ -317,6 +447,86 @@ export class Studio {
   setRules(rules: TriggerRule[]): void {
     this.settings.update({ triggerRules: rules });
     this.engine.setRules(rules);
+  }
+
+  /** Kompletter Gift-Katalog (mit Bildern) für die Geschenke-Galerie. */
+  getGiftCatalog(): Record<string, import('./gift-catalog').GiftEntry> {
+    return this.giftCatalog.all();
+  }
+
+  /** Komplettes Konfig-Backup (Einstellungen, Trigger, Store, Panel, Overlays,
+   *  Zuschauer/Punkte) als ein JSON-Objekt. Sounds/Medien liegen als Dateien
+   *  im Datenordner und sind NICHT enthalten. */
+  exportConfig(): Record<string, unknown> {
+    return {
+      schemaVersion: 1,
+      settings: this.settings.get(),
+      layouts: this.layouts.list(),
+      viewers: this.points.exportEntries(),
+    };
+  }
+
+  /** Backup einspielen. Liefert, wie viele Overlays/Zuschauer übernommen wurden. */
+  importConfig(data: unknown): { ok: boolean; layouts: number; viewers: number; error?: string } {
+    if (!data || typeof data !== 'object') return { ok: false, layouts: 0, viewers: 0, error: 'Ungültige Datei' };
+    const d = data as { settings?: Record<string, unknown>; layouts?: unknown[]; viewers?: unknown[] };
+    try {
+      if (d.settings && typeof d.settings === 'object') {
+        const rest = { ...(d.settings as Record<string, unknown>) };
+        delete rest.schemaVersion; // Version nicht überschreiben
+        this.settings.update(rest as Parameters<typeof this.settings.update>[0]);
+        this.engine.setRules(this.settings.get().triggerRules);
+        this.obs.applyConfig(this.settings.get().obs); // OBS-Verbindung aus Backup übernehmen
+        this.streamerbot.applyConfig(this.settings.get().streamerbot);
+      }
+      let layouts = 0;
+      if (Array.isArray(d.layouts)) {
+        for (const l of d.layouts) if (this.layouts.save(l).ok) layouts++;
+      }
+      let viewers = 0;
+      if (Array.isArray(d.viewers)) {
+        this.points.importEntries(d.viewers as Parameters<typeof this.points.importEntries>[0]);
+        viewers = d.viewers.length;
+      }
+      this.server.rebroadcastLayouts();
+      this.scheduleStatsBroadcast();
+      log.info('Backup', `Konfig importiert: ${layouts} Overlays, ${viewers} Zuschauer`);
+      return { ok: true, layouts, viewers };
+    } catch (err) {
+      return { ok: false, layouts: 0, viewers: 0, error: (err as Error).message };
+    }
+  }
+
+  /** Spiel-Sieg verbuchen (vom Overlay gemeldet) → Spiel-Leaderboard. */
+  private recordGameWin(user: { id: string; nickname: string; profilePic?: string }): void {
+    this.points.recordWin(user);
+    log.info('Spiel', `Sieg für ${user.nickname} verbucht`);
+    this.scheduleStatsBroadcast();
+  }
+
+  // ── Chat-Befehle (Bot) ────────────────────────────────────────────────
+
+  getChatCommands(): ChatCommand[] { return this.settings.get().chatCommands ?? []; }
+  setChatCommands(commands: ChatCommand[]): void { this.settings.update({ chatCommands: commands }); }
+
+  /** Chat-Nachricht gegen die Befehle prüfen → Antwort (Overlay/TTS/Chat). */
+  private maybeRunCommand(event: StudioEvent): void {
+    const cmds = this.getChatCommands();
+    if (!cmds.length || !event.text) return;
+    const cmd = matchChatCommand(cmds, event.text);
+    if (!cmd) return;
+    if (!commandGroupOk(cmd.who ?? 'all', event, event.user ? this.points.isVip(event.user.id) : false)) return;
+    const now = event.ts;
+    if (cmd.cooldownMs) {
+      const last = this.commandCooldowns.get(cmd.id) ?? 0;
+      if (now - last < cmd.cooldownMs) return; // noch im Cooldown
+    }
+    this.commandCooldowns.set(cmd.id, now);
+
+    const text = renderSpeakTemplate(cmd.response, event);
+    if (cmd.speak) this.speakForEvent(cmd.response, event);
+    if (cmd.sendToChat) void this.sendChat(text);
+    log.info('Befehl', `${cmd.command} von ${event.user?.nickname ?? '?'}`);
   }
 
   // ── Einlöse-Store ─────────────────────────────────────────────────────
@@ -344,6 +554,26 @@ export class Studio {
     this.dispatchAction('manual', action, { type: 'timer', ts: Date.now() });
   }
 
+  /** Nachricht in den TikTok-Live-Chat senden (rate-limited gegen TikTok-Drossel). */
+  async sendChat(text: string): Promise<{ ok: boolean; error?: string }> {
+    const now = Date.now();
+    if (now - this.lastChatSendAt < CHAT_SEND_MIN_INTERVAL_MS) {
+      return { ok: false, error: `Bitte langsamer — max. 1 Nachricht alle ${CHAT_SEND_MIN_INTERVAL_MS / 1000}s (TikTok drosselt).` };
+    }
+    const res = await this.adapter.sendChat(text);
+    if (res.ok) this.lastChatSendAt = now;
+    else log.warn('Chat-Senden', res.error ?? 'fehlgeschlagen');
+    return res;
+  }
+
+  /** Panel-Knopf per ID auslösen (z.B. vom Stream-Deck-Plugin). true = gefunden. */
+  firePanelById(id: string): boolean {
+    const btn = this.getPanelButtons().find((b) => b.id === id);
+    if (!btn) return false;
+    this.fireManual(btn.action);
+    return true;
+  }
+
   // ── Layout ────────────────────────────────────────────────────────────
 
   getActiveLayout() {
@@ -368,6 +598,7 @@ export class Studio {
   setViewerFlag(userId: string, flag: 'vip' | 'muted', value: boolean) { this.points.setFlag(userId, flag, value); }
   grantPoints(userId: string, delta: number) { this.points.grant(userId, delta); }
   setViewerVoice(userId: string, voice: string | undefined) { this.points.setVoice(userId, voice); }
+  setViewerWelcomeMedia(userId: string, mediaId: string | undefined) { this.points.setWelcomeMedia(userId, mediaId); }
 
   /** Session-Reset: Stats/Zähler/Widget-Inhalte auf null — räumt z.B.
    *  Test-Events weg. Loyalty-PUNKTE bleiben (das ist resetPoints). */
@@ -375,6 +606,7 @@ export class Studio {
     this.stats.reset();
     this.engine.resetCooldowns();
     this.redemptionCooldowns.clear();
+    this.commandCooldowns.clear();
     this.bus.clearLastValues();
     this.scheduleStatsBroadcast();
     this.server.rebroadcastLayouts();
@@ -416,6 +648,8 @@ export class Studio {
     if (!raw.trim()) return;
     if (tts.skipCommands && raw.trimStart().startsWith('!')) return;
     if (event.user && this.points.isMuted(event.user.id)) return; // Troll-Sperre
+    // Chat-Moderation: gesperrte Wörter nicht vorlesen.
+    if (containsBlockedWord(raw, this.settings.get().moderation?.blockedWords ?? [])) return;
 
     // Wer-Filter (Teamherz/Mod/Follower/VIP) + optionaler Prefix-Modus.
     const isVip = event.user ? this.points.isVip(event.user.id) : false;
@@ -464,6 +698,32 @@ export class Studio {
     this.hooks.onSoundPlay({ soundId, url, volume: vol });
   }
 
+  /** Renderer meldet, dass ein Audio fertig ist → TTS-Sequencing freigeben. */
+  notifySoundEnded(soundId: string): void {
+    this.tts.notifyEnded(soundId);
+  }
+
+  /** Persönliches Begrüßungs-Medium eines Zuschauers (bei Teamherz) abspielen. */
+  private maybePlayWelcomeMedia(user: { id: string }): void {
+    const mediaId = this.points.welcomeMediaFor(user.id);
+    if (!mediaId) return;
+    const entry = this.media.list().find((m) => m.id === mediaId);
+    if (!entry) return;
+    // Erstes Trigger-Medium-Widget im aktiven Layout als Bühne nutzen.
+    const layout = this.getActiveLayout();
+    const layer = layout?.layers.find(
+      (l) => l.widgetType === 'media' && l.visible && (l.props?.mode ?? 'trigger') !== 'static',
+    );
+    if (!layer) return;
+    const action = {
+      kind: 'play_media' as const,
+      targetId: layer.id,
+      params: { mediaUrl: this.mediaUrl(mediaId), kind: entry.kind },
+    };
+    this.server.broadcast({ kind: 'action', ruleId: 'welcome-media', action });
+    log.info('Begrüßung', `Begrüßungs-Medium für Zuschauer ${user.id} abgespielt`);
+  }
+
   /** Gift-Liste der Lib (untypisiert/variabel) defensiv in den Katalog laden. */
   private importAvailableGifts(gifts: unknown): void {
     const list: unknown[] = Array.isArray(gifts)
@@ -472,6 +732,7 @@ export class Studio {
         ? Object.values(gifts as Record<string, unknown>).filter((v) => typeof v === 'object')
         : [];
     let imported = 0;
+    const roomSlugs: string[] = [];
     for (const raw of list) {
       const g = raw as { name?: string; describe?: string; diamondCount?: number; diamond_count?: number; image?: { url_list?: string[]; urlList?: string[] }; icon?: { url_list?: string[]; urlList?: string[] } };
       const name = g.name || g.describe;
@@ -479,8 +740,11 @@ export class Studio {
       const img = g.image ?? g.icon;
       const icon = img?.url_list?.[0] ?? img?.urlList?.[0];
       this.giftCatalog.record({ slug: name, icon, coinsPerUnit: g.diamondCount ?? g.diamond_count ?? 0, count: 0 });
+      roomSlugs.push(name);
       imported++;
     }
+    // „Letztes Live"-Ansicht der Galerie: genau diese Gifts markieren.
+    if (roomSlugs.length) this.giftCatalog.markLastRoom(roomSlugs);
     if (imported > 0) log.info('GiftCatalog', `${imported} Gifts (mit Bildern) aus der Room-Liste übernommen`);
   }
 
@@ -555,6 +819,20 @@ export class Studio {
       port: this.server.getPort(),
       connected: this.adapter.isConnected(),
     };
+  }
+
+  /** Basis-URL + Token für externe Steuerung (Stream-Deck-Plugin, Web-Requests). */
+  getControlInfo(): { url: string; token: string } {
+    return { url: `http://127.0.0.1:${this.server.getPort()}`, token: this.server.getToken() };
+  }
+
+  /** Persistenten Steuer-Token aus den Settings holen — oder einmalig erzeugen. */
+  private getOrCreateControlToken(): string {
+    const existing = this.settings.get().controlToken;
+    if (existing && existing.length >= 16) return existing;
+    const token = crypto.randomBytes(32).toString('hex');
+    this.settings.update({ controlToken: token });
+    return token;
   }
 
   static resolvePaths(appPath: string, resourcesPath: string | undefined, isPackaged: boolean, userDataDir: string): StudioPaths {

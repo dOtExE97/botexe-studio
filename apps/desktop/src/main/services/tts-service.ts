@@ -51,6 +51,8 @@ export class TTSService {
   private queue: QueueItem[] = [];
   private processing = false;
   private dropped = 0;
+  /** fileId → Auflöser, der feuert, wenn der Renderer das echte Audio-Ende meldet. */
+  private pendingEnded = new Map<string, () => void>();
 
   private getCredentials: () => Record<string, ByokCredentials>;
   private readonly onError?: (message: string) => void;
@@ -145,6 +147,33 @@ export class TTSService {
 
   clear(): void {
     this.queue = [];
+    // Laufende Wartezeit beenden, damit ein Reset nicht hängt.
+    for (const f of [...this.pendingEnded.values()]) f();
+  }
+
+  /** Renderer meldet: dieses Audio ist fertig abgespielt → nächste Ansage darf starten. */
+  notifyEnded(fileId: string): void {
+    this.pendingEnded.get(fileId)?.();
+  }
+
+  /** Wartet auf das ECHTE Audio-Ende (Renderer-Rückmeldung) statt auf eine
+   *  Zeichen-Schätzung — so überlappen sich mehrere Ansagen nicht mehr. Die
+   *  geschätzte Dauer dient nur noch als Sicherheits-Fallback (falls kein 'ended'
+   *  kommt, z.B. wenn der Sound wegen Überlast gar nicht gespielt wurde). */
+  private waitForPlayback(p: TTSPlayback): Promise<void> {
+    return new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.pendingEnded.delete(p.fileId);
+        // Kleine Atempause zwischen zwei Ansagen.
+        setTimeout(resolve, 180);
+      };
+      const timer = setTimeout(finish, p.durationMs + 4000);
+      this.pendingEnded.set(p.fileId, finish);
+    });
   }
 
   private async processNext(): Promise<void> {
@@ -158,8 +187,9 @@ export class TTSService {
     try {
       const playback = await this.synthesize(item.text, item.voice);
       this.onAudio(playback);
-      // Seriell bleiben: ungefähre Sprechdauer abwarten, dann nächste Ansage.
-      await new Promise((r) => setTimeout(r, playback.durationMs + 250));
+      // Seriell bleiben: auf das ECHTE Audio-Ende warten (Renderer-Rückmeldung),
+      // sonst greift nach durationMs+Puffer der Sicherheits-Fallback.
+      await this.waitForPlayback(playback);
     } catch (err) {
       const msg = (err as Error)?.message || String(err) || 'unbekannter Fehler';
       log.error('TTS', `Synthese fehlgeschlagen (voice=${item.voice})`, msg);

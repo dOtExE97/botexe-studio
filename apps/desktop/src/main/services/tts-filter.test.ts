@@ -1,11 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldReadChat } from './tts-filter';
+import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import type { StudioEvent } from '@botexe/trigger-engine';
 
 function chat(text: string, user: Partial<NonNullable<StudioEvent['user']>> = {}): StudioEvent {
   return { type: 'chat', ts: 1, text, user: { id: 'u1', nickname: 'Mia', ...user } };
 }
+
+test('containsBlockedWord: case-insensitiv, Teilwort, Leerliste = nie blockiert', () => {
+  const words = ['Idiot', 'spam'];
+  assert.equal(containsBlockedWord('du IDIOT!', words), true);
+  assert.equal(containsBlockedWord('keine spammerei', words), true);
+  assert.equal(containsBlockedWord('alles gut', words), false);
+  assert.equal(containsBlockedWord('idiot', []), false);
+  assert.equal(containsBlockedWord('', words), false);
+});
 
 test('readWho all: jeder wird vorgelesen', () => {
   assert.deepEqual(shouldReadChat(chat('hi'), 'all', '', false), { read: true, text: 'hi' });

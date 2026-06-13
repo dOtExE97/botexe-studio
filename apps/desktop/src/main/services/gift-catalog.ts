@@ -14,6 +14,11 @@ export interface GiftEntry {
   coins: number;
   count: number;
   lastSeen?: number;
+  /** Wer dieses Gift als ALLERERSTER wirklich geschickt hat — verewigt. */
+  firstSender?: { id: string; nickname: string };
+  firstSenderAt?: number;
+  /** War in der Gift-Liste des zuletzt verbundenen Live-Streams. */
+  inLastRoom?: boolean;
 }
 
 interface Serialized {
@@ -45,15 +50,35 @@ export class GiftCatalog {
     }
   }
 
-  record(gift: { slug: string; icon?: string; coinsPerUnit?: number; count?: number }): void {
+  record(gift: {
+    slug: string;
+    icon?: string;
+    coinsPerUnit?: number;
+    count?: number;
+    sender?: { id: string; nickname: string };
+    at?: number;
+  }): void {
     const key = gift.slug.trim().toLowerCase();
     if (!key) return;
+    const inc = gift.count ?? 1;
     const entry = this.gifts.get(key) ?? { slug: gift.slug, coins: gift.coinsPerUnit ?? 0, count: 0 };
-    entry.count += gift.count ?? 1;
-    entry.lastSeen = Date.now();
+    entry.count += inc;
+    entry.lastSeen = gift.at ?? Date.now();
     if (gift.icon) entry.icon = gift.icon; // neueste CDN-URL gewinnt
     if (gift.coinsPerUnit) entry.coins = gift.coinsPerUnit;
+    // Erstsender nur bei einem ECHTEN Empfang (count>0, mit Sender) verewigen.
+    if (inc > 0 && gift.sender && !entry.firstSender) {
+      entry.firstSender = { id: gift.sender.id, nickname: gift.sender.nickname };
+      entry.firstSenderAt = gift.at ?? Date.now();
+    }
     this.gifts.set(key, entry);
+    this.scheduleSave();
+  }
+
+  /** Markiert die Gift-Liste des aktuellen Live-Streams (für die „Letztes Live"-Ansicht). */
+  markLastRoom(slugs: string[]): void {
+    const want = new Set(slugs.map((s) => s.trim().toLowerCase()).filter(Boolean));
+    for (const [key, entry] of this.gifts) entry.inLastRoom = want.has(key);
     this.scheduleSave();
   }
 

@@ -15,9 +15,11 @@ const CSS = `
   filter: drop-shadow(0 0 14px color-mix(in srgb, var(--bx-gold) 55%, transparent)) drop-shadow(0 5px 12px rgba(0,0,0,.5));
   animation: bx-float 2.8s ease-in-out infinite; }
 .bx-tg-svg svg { width: 100%; height: 100%; display: block; }
-.bx-tg-gift { font-family: var(--bx-font-display); font-size: 22px; text-transform: uppercase; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.6); }
-.bx-tg-by { font-size: 14px; color: var(--bx-muted); margin-top: 2px; }
+.bx-tg-gift { font-family: var(--bx-font-display); font-size: 22px; text-transform: uppercase; color: var(--bx-text,#fff); text-shadow: 0 2px 8px rgba(0,0,0,.6); }
+.bx-tg-by { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 14px; color: var(--bx-muted); margin-top: 5px; }
 .bx-tg-by b { color: var(--bx-accent); font-family: var(--bx-font-display); }
+.bx-tg-av { width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
+  border: 2px solid color-mix(in srgb, var(--bx-accent) 70%, transparent); box-shadow: 0 2px 8px rgba(0,0,0,.5); }
 .bx-tg-coins { margin-top: 6px; font-family: var(--bx-font-mono); font-weight: 700; font-size: 22px; color: var(--bx-gold);
   text-shadow: 0 0 16px color-mix(in srgb, var(--bx-gold) 50%, transparent); }
 .bx-tg.bounce { animation: bx-tg-bounce 600ms cubic-bezier(.2,1.6,.4,1); }
@@ -46,16 +48,32 @@ export default class TopGift {
   onEvent(event) {
     if (event.type !== 'gift' || !event.gift) return;
     if (event.gift.totalCoins <= this.max) return;
-    this.max = event.gift.totalCoins;
+    this.render({
+      coins: event.gift.totalCoins,
+      slug: event.gift.slug,
+      icon: event.gift.icon,
+      nickname: event.user?.nickname,
+      avatar: event.user?.profilePic,
+    });
+  }
+  // Nach Overlay-Reload aus den Session-Stats wiederherstellen (sonst leer).
+  onStats(stats) {
+    const t = stats?.topGift;
+    if (!t || t.coins <= this.max) return;
+    this.render({ coins: t.coins, slug: t.giftSlug, icon: t.giftIcon, nickname: t.nickname, avatar: t.profilePic });
+  }
+  render({ coins, slug, icon, nickname, avatar }) {
+    this.max = coins;
     this.el.innerHTML = `
       <div class="bx-tg-kicker">${escapeHtml(this.title)}</div>
-      ${event.gift.icon ? '<img class="bx-tg-img" alt="" />' : GIFT_SVG}
+      ${icon ? '<img class="bx-tg-img" alt="" />' : GIFT_SVG}
       <div class="bx-tg-gift"></div>
-      <div class="bx-tg-by">von <b></b></div>
-      <div class="bx-tg-coins">${fmt(event.gift.totalCoins)} Coins</div>`;
-    if (event.gift.icon) this.el.querySelector('.bx-tg-img').src = event.gift.icon;
-    this.el.querySelector('.bx-tg-gift').textContent = event.gift.slug;
-    this.el.querySelector('.bx-tg-by b').textContent = event.user?.nickname || 'Jemand';
+      <div class="bx-tg-by">${avatar ? '<img class="bx-tg-av" alt="" />' : ''} von <b></b></div>
+      <div class="bx-tg-coins">${fmt(coins)} Coins</div>`;
+    if (icon) this.el.querySelector('.bx-tg-img').src = icon;
+    if (avatar) this.el.querySelector('.bx-tg-av').src = avatar;
+    this.el.querySelector('.bx-tg-gift').textContent = slug;
+    this.el.querySelector('.bx-tg-by b').textContent = nickname || 'Jemand';
     this.el.classList.remove('bounce'); void this.el.offsetWidth; this.el.classList.add('bounce');
   }
   destroy() { this.el.remove(); }

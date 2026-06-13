@@ -3,7 +3,7 @@
 // beim Laden gefiltert — eine kaputte Regel macht nicht alle Regeln kaputt.
 import fs from 'node:fs';
 import path from 'node:path';
-import type { TriggerRule, Redemption, PanelButton } from '@botexe/trigger-engine';
+import type { TriggerRule, Redemption, PanelButton, ChatCommand } from '@botexe/trigger-engine';
 import { DEFAULT_POINTS_CONFIG, type PointsConfig } from './points-store';
 import { log } from '../core/logger';
 
@@ -38,11 +38,40 @@ export interface StudioSettings {
   redemptions: Redemption[];
   /** Manuelles Auslöse-Panel (Soundboard/Schnell-Aktionen) mit Hotkeys. */
   panelButtons: PanelButton[];
+  /** Chat-Befehle (Bot): !befehl → Antwort (Overlay/TTS/Chat). */
+  chatCommands: ChatCommand[];
   activeLayoutId: string | null;
   tts: TTSSettings;
   /** BYOK-Zugangsdaten pro Provider (lokal, klartext — single-user-tool). */
   ttsCredentials: Record<string, Record<string, string>>;
   points: PointsConfig;
+  /** Chat-Moderation: gesperrte Wörter werden nicht vorgelesen. */
+  moderation: ModerationSettings;
+  /** football-data.org API-Key für den Sport-Liveticker (lokal). */
+  sportApiKey: string;
+  /** OBS-Studio-Steuerung (WebSocket) — Trigger können Szenen/Quellen schalten. */
+  obs: ObsSettings;
+  /** Persistenter Overlay-/Steuer-Token (stabil über Neustarts). */
+  controlToken: string;
+  /** TikTok „sessionid"-Cookie — schaltet das Chat-Senden frei (sensibel, lokal). */
+  tiktokSessionId: string;
+  /** TikTok „tt-target-idc"-Cookie — von der Lib zum Senden ZWINGEND verlangt. */
+  tiktokTargetIdc: string;
+  /** Optionaler Euler-Sign-Key fürs zuverlässige Senden. */
+  tiktokSignApiKey: string;
+  /** Streamer.bot-Brücke (WebSocket-Client). */
+  streamerbot: { enabled: boolean; url: string };
+}
+
+export interface ObsSettings {
+  enabled: boolean;
+  url: string;
+  password: string;
+}
+
+export interface ModerationSettings {
+  /** Wörter/Phrasen (kommagetrennt eingegeben) — Nachrichten damit werden vom TTS gesperrt. */
+  blockedWords: string[];
 }
 
 const TTS_DEFAULTS: TTSSettings = {
@@ -66,10 +95,19 @@ const DEFAULTS: StudioSettings = {
   triggerRules: [],
   redemptions: [],
   panelButtons: [],
+  chatCommands: [],
   activeLayoutId: null,
   tts: TTS_DEFAULTS,
   ttsCredentials: {},
   points: DEFAULT_POINTS_CONFIG,
+  moderation: { blockedWords: [] },
+  sportApiKey: '',
+  obs: { enabled: false, url: 'ws://127.0.0.1:4455', password: '' },
+  controlToken: '',
+  tiktokSessionId: '',
+  tiktokTargetIdc: '',
+  tiktokSignApiKey: '',
+  streamerbot: { enabled: false, url: 'ws://127.0.0.1:8080/' },
 };
 
 function isValidRule(rule: unknown): rule is TriggerRule {

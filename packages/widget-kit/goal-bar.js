@@ -5,7 +5,7 @@ const CSS = `
 .bx-gb { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center;
   font-family: var(--bx-font-body); padding: 4px 2px; }
 .bx-gb-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0 4px 8px; }
-.bx-gb-label { font-family: var(--bx-font-display); font-size: 16px; letter-spacing: .26em; color: #fff;
+.bx-gb-label { font-family: var(--bx-font-display); font-size: 16px; letter-spacing: .26em; color: var(--bx-text,#fff);
   text-transform: uppercase; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
 .bx-gb-nums { font-family: var(--bx-font-mono); font-weight: 700; font-size: 17px; color: var(--bx-gold);
   text-shadow: 0 0 12px color-mix(in srgb, var(--bx-gold) 45%, transparent), 0 2px 6px rgba(0,0,0,.8); }

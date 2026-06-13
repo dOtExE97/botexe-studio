@@ -156,6 +156,68 @@ test('streamEnd: kein auto-reconnect (stream ist vorbei)', async () => {
   assert.equal(statuses.at(-1)?.status, 'disconnected');
 });
 
+test('auto-connect: nach streamEnd wird gepollt und beim nächsten live automatisch verbunden', async () => {
+  const bus = new EventBus();
+  let live = false;
+  const connections: FakeConnection[] = [];
+  const adapter = new TikTokAdapter(bus, {
+    factory: () => { const c = new FakeConnection(); connections.push(c); return c; },
+    onStatus: () => undefined,
+    autoConnect: true,
+    livePollMs: 5,
+    checkLive: async () => live,
+    baseReconnectDelayMs: 1,
+    jitterMs: 0,
+  });
+  await adapter.connect('testuser');
+  connections[0]?.emit('streamEnd', { action: 3 });
+  connections[0]?.emit('disconnected');
+  await wait(25);
+  assert.equal(connections.length, 1, 'noch nicht live → keine neue connection');
+
+  live = true;
+  await wait(25);
+  assert.equal(connections.length, 2, 'live erkannt → automatisch verbunden');
+  assert.equal(connections[1]?.connectCalls, 1);
+});
+
+test('auto-connect: manuelles disconnect stoppt den live-watch', async () => {
+  const bus = new EventBus();
+  let live = false;
+  const connections: FakeConnection[] = [];
+  const adapter = new TikTokAdapter(bus, {
+    factory: () => { const c = new FakeConnection(); connections.push(c); return c; },
+    onStatus: () => undefined,
+    autoConnect: true,
+    livePollMs: 5,
+    checkLive: async () => live,
+  });
+  await adapter.connect('testuser');
+  connections[0]?.emit('streamEnd', { action: 3 });
+  connections[0]?.emit('disconnected');
+  await adapter.disconnect();
+
+  live = true;
+  await wait(25);
+  assert.equal(connections.length, 1, 'nach manuellem disconnect kein Auto-Connect mehr');
+});
+
+test('auto-connect aus (default): streamEnd startet keinen live-watch', async () => {
+  const bus = new EventBus();
+  const connections: FakeConnection[] = [];
+  const adapter = new TikTokAdapter(bus, {
+    factory: () => { const c = new FakeConnection(); connections.push(c); return c; },
+    onStatus: () => undefined,
+    livePollMs: 5,
+    checkLive: async () => true, // wäre live — darf aber nicht gepollt werden
+  });
+  await adapter.connect('testuser');
+  connections[0]?.emit('streamEnd', { action: 3 });
+  connections[0]?.emit('disconnected');
+  await wait(25);
+  assert.equal(connections.length, 1, 'ohne autoConnect kein erneutes Verbinden');
+});
+
 test('gift-events: laufender streak unterdrückt, finale combo landet auf dem bus', async () => {
   const { adapter, connections, events } = setup();
   await adapter.connect('testuser');
@@ -174,6 +236,36 @@ test('gift-events: laufender streak unterdrückt, finale combo landet auf dem bu
   const gifts = events.filter((e) => e.type === 'gift');
   assert.equal(gifts.length, 1);
   assert.equal(gifts[0]?.gift?.count, 3);
+});
+
+test('sendChat: ohne vollständigen Login Fehler, mit Login sendet mit Auth-Optionen', async () => {
+  const bus = new EventBus();
+  const sent: Array<{ content: string; options?: Record<string, unknown> }> = [];
+  class SendableConn extends FakeConnection {
+    async sendMessage(content: string, options?: Record<string, unknown>): Promise<unknown> {
+      sent.push({ content, options });
+      return { ok: true };
+    }
+  }
+  let auth: { sessionId?: string; ttTargetIdc?: string } = {};
+  const adapter = new TikTokAdapter(bus, {
+    factory: () => new SendableConn(),
+    onStatus: () => undefined,
+    getAuth: () => auth,
+  });
+  await adapter.connect('testuser');
+
+  assert.equal((await adapter.sendChat('hallo')).ok, false, 'ohne Login kein Senden');
+  auth = { sessionId: 'sid-123' };
+  assert.equal((await adapter.sendChat('hallo')).ok, false, 'nur sessionId reicht nicht (ttTargetIdc fehlt)');
+  assert.equal(sent.length, 0);
+
+  auth = { sessionId: 'sid-123', ttTargetIdc: 'eu-ttp2' };
+  const ok = await adapter.sendChat('  hallo welt  ');
+  assert.equal(ok.ok, true);
+  assert.equal(sent[0]?.content, 'hallo welt', 'getrimmt gesendet');
+  assert.equal(sent[0]?.options?.sessionId, 'sid-123');
+  assert.equal(sent[0]?.options?.ttTargetIdc, 'eu-ttp2', 'Auth explizit übergeben');
 });
 
 test('viewer_count wird beim connect aus dem initial-state publiziert', async () => {

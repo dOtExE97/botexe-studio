@@ -95,9 +95,18 @@ export default class MediaWidget {
     return img;
   }
 
-  // play_media-Aktion → einblenden + abspielen
+  // play_media-Aktion → einblenden + abspielen. Mit params.mediaUrl wird ein
+  // anderes Medium gespielt (z.B. das Begrüßungsvideo eines bestimmten Zuschauers).
   onAction(action) {
     if (!action || action.kind !== 'play_media' || !this.media) return;
+    const p = action.params || {};
+    if (p.mediaUrl && p.mediaUrl !== this.url) {
+      this.url = String(p.mediaUrl);
+      if (p.kind === 'video' || p.kind === 'image') this.kind = p.kind;
+      const next = this.buildMedia();
+      this.media.replaceWith(next);
+      this.media = next;
+    }
     this.show();
   }
 
@@ -108,8 +117,11 @@ export default class MediaWidget {
     if (this.kind === 'video') {
       try { this.media.currentTime = 0; } catch { /* noop */ }
       this.media.play?.().catch(() => {});
-      // Sicherheitsnetz, falls 'ended' nie feuert (Stream/Decoder-Hänger)
-      this.hideTimer = setTimeout(() => this.hide(), Math.max(this.durationMs, (this.media.duration || 0) * 1000 + 800));
+      // Sicherheitsnetz, falls 'ended' nie feuert (Stream/Decoder-Hänger).
+      // duration kann NaN/Infinity sein (Live-Quelle) → nur endliche Werte nutzen.
+      const dur = this.media.duration;
+      const vidMs = Number.isFinite(dur) ? dur * 1000 + 800 : 0;
+      this.hideTimer = setTimeout(() => this.hide(), Math.max(this.durationMs, vidMs));
     } else {
       this.hideTimer = setTimeout(() => this.hide(), this.durationMs);
     }

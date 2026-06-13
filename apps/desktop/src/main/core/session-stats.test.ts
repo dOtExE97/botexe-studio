@@ -10,6 +10,49 @@ const gift = (id: string, coins: number, count = 1, ts = 1): StudioEvent => ({
   gift: { slug: 'rose', count, coinsPerUnit: coins / count, totalCoins: coins },
 });
 
+const giftOf = (id: string, slug: string, count: number, coins: number, icon?: string): StudioEvent => ({
+  type: 'gift',
+  ts: 1,
+  user: { id, nickname: id.toUpperCase(), profilePic: `pic-${id}` },
+  gift: { slug, count, coinsPerUnit: coins / count, totalCoins: coins, ...(icon ? { icon } : {}) },
+});
+
+test('topGift merkt sich das wertvollste EINZEL-Gift mit Sender + Bild', () => {
+  const s = new SessionStats();
+  s.apply(giftOf('anna', 'rose', 10, 10, 'rose.png'));
+  s.apply(giftOf('ben', 'lion', 1, 29999, 'lion.png'));
+  s.apply(giftOf('cara', 'rose', 5, 5));
+  const top = s.snapshot().topGift;
+  assert.equal(top?.nickname, 'BEN');
+  assert.equal(top?.giftSlug, 'lion');
+  assert.equal(top?.giftIcon, 'lion.png');
+  assert.equal(top?.coins, 29999);
+  assert.equal(top?.profilePic, 'pic-ben');
+});
+
+test('topStreak merkt sich die höchste Combo (count) mit Sender + Bild', () => {
+  const s = new SessionStats();
+  s.apply(giftOf('anna', 'rose', 10, 10, 'rose.png'));
+  s.apply(giftOf('ben', 'galaxy', 3, 3000, 'galaxy.png'));
+  s.apply(giftOf('cara', 'rose', 50, 50, 'rose.png'));
+  const streak = s.snapshot().topStreak;
+  assert.equal(streak?.nickname, 'CARA');
+  assert.equal(streak?.count, 50);
+  assert.equal(streak?.giftSlug, 'rose');
+  assert.equal(streak?.giftIcon, 'rose.png');
+});
+
+test('topGift/topStreak überleben Serialisierung und reset', () => {
+  const s = new SessionStats();
+  s.apply(giftOf('ben', 'lion', 2, 60000, 'lion.png'));
+  const restored = SessionStats.fromJSON(s.toJSON());
+  assert.equal(restored?.snapshot().topGift?.coins, 60000);
+  assert.equal(restored?.snapshot().topStreak?.count, 2);
+  restored?.reset();
+  assert.equal(restored?.snapshot().topGift, undefined);
+  assert.equal(restored?.snapshot().topStreak, undefined);
+});
+
 test('gifts erhöhen totals und gifter-aggregation', () => {
   const s = new SessionStats();
   s.apply(gift('anna', 10));

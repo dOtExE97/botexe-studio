@@ -36,9 +36,17 @@ export interface LiveConnectionLike {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on(event: string, cb: (...args: any[]) => void): unknown;
   removeAllListeners(): unknown;
+  /** Nachricht in den Live-Chat senden (braucht sessionId). Optional in Tests. */
+  sendMessage?(content: string, options?: Record<string, unknown>): Promise<unknown>;
 }
 
-export type ConnectionFactory = (username: string) => LiveConnectionLike;
+export interface TikTokAuth {
+  sessionId?: string;
+  ttTargetIdc?: string;
+  signApiKey?: string;
+}
+
+export type ConnectionFactory = (username: string, auth: TikTokAuth) => LiveConnectionLike;
 
 export interface TikTokAdapterOptions {
   factory?: ConnectionFactory;
@@ -49,15 +57,24 @@ export interface TikTokAdapterOptions {
   baseReconnectDelayMs?: number;
   jitterMs?: number;
   now?: () => number;
+  /** Wie TikFinity: nach Stream-Ende auf das nächste Live warten & automatisch verbinden. */
+  autoConnect?: boolean;
+  /** Poll-Intervall des Live-Watches (ms). */
+  livePollMs?: number;
+  /** Prüft, ob @username gerade live ist (in Tests injizierbar). */
+  checkLive?: (username: string) => Promise<boolean>;
+  /** Login-Daten fürs Chat-Senden (sessionid-Cookie + optionaler Sign-Key). */
+  getAuth?: () => TikTokAuth;
 }
 
 const DEFAULTS = {
   maxReconnect: 5,
   baseReconnectDelayMs: 3_000,
   jitterMs: 1_000,
+  livePollMs: 15_000,
 };
 
-function defaultFactory(username: string): LiveConnectionLike {
+function defaultFactory(username: string, auth: TikTokAuth): LiveConnectionLike {
   // Lazy import: hält Tests und Startpfad frei von der schweren Lib.
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { TikTokLiveConnection } = require('tiktok-live-connector');
@@ -65,6 +82,10 @@ function defaultFactory(username: string): LiveConnectionLike {
     processInitialData: true,
     enableExtendedGiftInfo: true,
     fetchRoomInfoOnConnect: true,
+    // WICHTIG: sessionId hier NICHT setzen — die Lib verlangt dann zwingend
+    // ttTargetIdc, sonst wirft der Konstruktor und JEDER Connect crasht.
+    // Die Login-Daten geben wir stattdessen explizit beim sendMessage() mit.
+    ...(auth.signApiKey ? { signApiKey: auth.signApiKey } : {}),
   });
 }
 
@@ -77,6 +98,11 @@ export class TikTokAdapter {
   private readonly baseReconnectDelayMs: number;
   private readonly jitterMs: number;
   private readonly now: () => number;
+  private autoConnect: boolean;
+  private readonly livePollMs: number;
+  private readonly checkLive: (username: string) => Promise<boolean>;
+  private readonly getAuth: () => TikTokAuth;
+  private liveWatchTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Generation-Token: jede connect()/disconnect()-Entscheidung erhöht es —
    * Handler und Timer älterer Generationen erkennen sich als veraltet. */
@@ -97,6 +123,50 @@ export class TikTokAdapter {
     this.baseReconnectDelayMs = options.baseReconnectDelayMs ?? DEFAULTS.baseReconnectDelayMs;
     this.jitterMs = options.jitterMs ?? DEFAULTS.jitterMs;
     this.now = options.now ?? Date.now;
+    this.autoConnect = options.autoConnect ?? false;
+    this.livePollMs = options.livePollMs ?? DEFAULTS.livePollMs;
+    this.checkLive = options.checkLive ?? ((u) => this.defaultCheckLive(u));
+    this.getAuth = options.getAuth ?? (() => ({}));
+  }
+
+  /** Nachricht in den Live-Chat senden — Login explizit übergeben, damit es auch
+   *  funktioniert, wenn man sich NACH dem Verbinden eingeloggt hat. */
+  async sendChat(text: string): Promise<{ ok: boolean; error?: string }> {
+    const clean = text.trim().slice(0, 150);
+    if (!clean) return { ok: false, error: 'leer' };
+    if (!this.connection) return { ok: false, error: 'nicht verbunden — erst mit deinem Live verbinden' };
+    const auth = this.getAuth();
+    if (!auth.sessionId || !auth.ttTargetIdc) {
+      return { ok: false, error: 'kein vollständiger TikTok-Login — in den Einstellungen neu „Mit TikTok anmelden"' };
+    }
+    if (typeof this.connection.sendMessage !== 'function') return { ok: false, error: 'Senden von dieser Lib-Version nicht unterstützt' };
+    try {
+      await this.connection.sendMessage(clean, { sessionId: auth.sessionId, ttTargetIdc: auth.ttTargetIdc });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  }
+
+  /** Auto-Connect (Live-Watch) zur Laufzeit umschalten. */
+  setAutoConnect(enabled: boolean): void {
+    this.autoConnect = enabled;
+    if (!enabled) this.clearLiveWatch();
+  }
+
+  /** Default-Live-Check: leichte Wegwerf-Connection, fragt fetchIsLive(). */
+  private async defaultCheckLive(username: string): Promise<boolean> {
+    try {
+      const conn = this.factory(username, this.getAuth()) as unknown as {
+        fetchIsLive?: () => Promise<boolean>;
+        disconnect?: () => void;
+      };
+      const live = await conn.fetchIsLive?.();
+      try { conn.disconnect?.(); } catch { /* egal */ }
+      return Boolean(live);
+    } catch {
+      return false;
+    }
   }
 
   isConnected(): boolean {
@@ -114,6 +184,7 @@ export class TikTokAdapter {
   async disconnect(): Promise<void> {
     this.epoch++; // entwertet laufende Handler/Timer/Connect-Promises
     this.clearReconnectTimer();
+    this.clearLiveWatch();
     this.cleanupConnection();
     this.emitStatus({ status: 'disconnected', isReconnect: false });
     log.info('TikTok', 'Getrennt (manuell)');
@@ -124,12 +195,13 @@ export class TikTokAdapter {
 
     // K2: alte Connection IMMER zuerst abräumen.
     this.clearReconnectTimer();
+    this.clearLiveWatch();
     this.cleanupConnection();
 
     this.emitStatus({ status: isReconnect ? 'reconnecting' : 'connecting', isReconnect });
     log.info('TikTok', `${isReconnect ? 'Re-Connect' : 'Verbinde'} mit @${this.username}…`);
 
-    const conn = this.factory(this.username);
+    const conn = this.factory(this.username, this.getAuth());
     this.connection = conn;
     this.attachHandlers(conn, epoch);
 
@@ -190,11 +262,14 @@ export class TikTokAdapter {
     on('like', guard((d: Parameters<typeof normalizeLike>[0]) => publish(normalizeLike(d, this.now()))));
     on('follow', guard((d: Parameters<typeof normalizeSocial>[0]) => publish(normalizeSocial(d, 'follow', this.now()))));
     on('share', guard((d: Parameters<typeof normalizeSocial>[0]) => publish(normalizeSocial(d, 'share', this.now()))));
+    on('member', guard((d: Parameters<typeof normalizeSocial>[0]) => publish(normalizeSocial(d, 'join', this.now()))));
     on('roomUser', guard((d: Parameters<typeof normalizeViewerCount>[0]) => publish(normalizeViewerCount(d, this.now()))));
 
     on('streamEnd', guard(() => {
       log.info('TikTok', 'Stream beendet');
       this.streamEnded = true;
+      // TikFinity-Verhalten: auf das nächste Live warten und automatisch zurück.
+      if (this.autoConnect) this.startLiveWatch(epoch);
     }));
 
     on('disconnected', guard(() => {
@@ -230,6 +305,41 @@ export class TikTokAdapter {
       this.reconnectTimer = null;
       void this.doConnect(epoch, true);
     }, delay);
+  }
+
+  /** Pollt periodisch, ob @username wieder live ist — dann automatisch verbinden. */
+  private startLiveWatch(epoch: number): void {
+    if (epoch !== this.epoch) return;
+    if (this.liveWatchTimer) return; // läuft schon
+    log.info('TikTok', `Auto-Connect: warte, bis @${this.username} wieder live geht…`);
+    this.emitStatus({ status: 'reconnecting', isReconnect: true, detail: 'warte auf Live' });
+
+    const tick = async (): Promise<void> => {
+      this.liveWatchTimer = null;
+      if (epoch !== this.epoch) return;
+      let live = false;
+      try {
+        live = await this.checkLive(this.username);
+      } catch (err) {
+        log.warn('TikTok', 'Live-Check fehlgeschlagen', (err as Error).message);
+      }
+      if (epoch !== this.epoch) return; // zwischenzeitlich manuell ge-connectet/getrennt
+      if (live) {
+        log.info('TikTok', `@${this.username} ist wieder live → verbinde automatisch`);
+        this.streamEnded = false;
+        void this.doConnect(epoch, true);
+      } else {
+        this.liveWatchTimer = setTimeout(() => void tick(), this.livePollMs);
+      }
+    };
+    this.liveWatchTimer = setTimeout(() => void tick(), this.livePollMs);
+  }
+
+  private clearLiveWatch(): void {
+    if (this.liveWatchTimer) {
+      clearTimeout(this.liveWatchTimer);
+      this.liveWatchTimer = null;
+    }
   }
 
   private cleanupConnection(): void {

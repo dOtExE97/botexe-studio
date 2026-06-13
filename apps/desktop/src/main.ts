@@ -1,9 +1,9 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, session, shell } from 'electron';
+import { app, autoUpdater, BrowserWindow, dialog, globalShortcut, ipcMain, session, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
-import type { StudioEvent, TriggerRule, Redemption, PanelButton } from '@botexe/trigger-engine';
+import type { StudioEvent, TriggerRule, Redemption, PanelButton, ChatCommand } from '@botexe/trigger-engine';
 import { IPC } from './shared/constants';
 import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
@@ -28,16 +28,43 @@ if (!gotLock) {
   app.quit();
 }
 
-// Auto-Update über GitHub Releases — wird scharf, sobald das Repo existiert.
-const UPDATE_REPO = ''; // TODO nach Remote-Anlage: 'dOtExE97/botexe-studio'
-if (app.isPackaged && UPDATE_REPO) {
+// Auto-Update über GitHub Releases (Squirrel-Delta: Nutzer laden nur die
+// Änderungen). Funktioniert nur, wenn die Releases öffentlich sind.
+const UPDATE_REPO = 'dOtExE97/botexe-studio';
+/** Letzter bekannter Update-Zustand — fürs UI (Settings) + Toasts. */
+let updateState: { state: string; version?: string; message?: string } = { state: 'idle' };
+
+function pushUpdateStatus(next: typeof updateState): void {
+  updateState = next;
+  sendToRenderer(IPC.UPDATE_STATUS, next);
+}
+
+function setupAutoUpdate(): void {
+  if (!app.isPackaged || !UPDATE_REPO) {
+    pushUpdateStatus({ state: 'dev' }); // Auto-Update nur in der installierten App
+    return;
+  }
   try {
+    // notifyUser:false → kein eigener Dialog der Lib; wir steuern das UI selbst.
     updateElectronApp({
       updateSource: { type: UpdateSourceType.ElectronPublicUpdateService, repo: UPDATE_REPO },
-      updateInterval: '1 hour',
+      updateInterval: '6 hours',
+      notifyUser: false,
+    });
+    autoUpdater.on('checking-for-update', () => pushUpdateStatus({ state: 'checking' }));
+    autoUpdater.on('update-available', () => pushUpdateStatus({ state: 'available' }));
+    autoUpdater.on('update-not-available', () => pushUpdateStatus({ state: 'none' }));
+    autoUpdater.on('update-downloaded', (_e, _notes, name) => {
+      pushUpdateStatus({ state: 'downloaded', version: typeof name === 'string' ? name : undefined });
+      sendToRenderer(IPC.TOAST_SHOW, { type: 'info', message: 'Update geladen — beim nächsten Neustart aktiv (oder jetzt in den Einstellungen installieren).' });
+    });
+    autoUpdater.on('error', (err) => {
+      log.warn('Update', 'Auto-Update-Fehler', err?.message ?? String(err));
+      pushUpdateStatus({ state: 'error', message: err?.message ?? 'unbekannt' });
     });
   } catch (err) {
     log.warn('Update', 'Auto-Update nicht verfügbar', (err as Error).message);
+    pushUpdateStatus({ state: 'error', message: (err as Error).message });
   }
 }
 
@@ -84,6 +111,51 @@ function createMainWindow(): void {
   });
 }
 
+const CHROME_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+/** Login-Fenster: der Nutzer meldet sich bei TikTok an, wir lesen danach den
+ *  „sessionid"-Cookie aus (schaltet das Chat-Senden frei). Eigene, persistente
+ *  Session (getrennt vom App-Shell, daher keine strikte CSP); echter Chrome-UA,
+ *  sonst zeigt TikTok in Electron oft „Seite nicht verfügbar". */
+async function openTiktokLogin(): Promise<{ ok: boolean; loggedIn: boolean }> {
+  return new Promise((resolve) => {
+    const win = new BrowserWindow({
+      width: 520,
+      height: 760,
+      title: 'Bei TikTok anmelden — danach kann die App in den Chat schreiben',
+      autoHideMenuBar: true,
+      parent: mainWindow ?? undefined,
+      webPreferences: { partition: 'persist:tiktok', sandbox: true },
+    });
+    win.webContents.setUserAgent(CHROME_UA);
+    void win.loadURL('https://www.tiktok.com/login');
+    let done = false;
+    const finish = (loggedIn: boolean) => {
+      if (done) return;
+      done = true;
+      clearInterval(iv);
+      if (!win.isDestroyed()) win.close();
+      resolve({ ok: true, loggedIn });
+    };
+    const check = async () => {
+      try {
+        const sess = win.webContents.session;
+        const sidC = await sess.cookies.get({ url: 'https://www.tiktok.com', name: 'sessionid' });
+        const sid = sidC.find((c) => c.value && c.value.length > 10)?.value;
+        if (!sid) return; // noch nicht eingeloggt
+        // tt-target-idc ist von der Lib ZWINGEND zum Senden nötig.
+        const idcC = await sess.cookies.get({ url: 'https://www.tiktok.com', name: 'tt-target-idc' });
+        const idc = idcC.find((c) => c.value)?.value ?? '';
+        isStudio().setTiktokSession(sid, idc);
+        finish(true);
+      } catch { /* noch nicht eingeloggt */ }
+    };
+    const iv = setInterval(() => void check(), 1500);
+    win.on('closed', () => { clearInterval(iv); if (!done) resolve({ ok: true, loggedIn: isStudio().isTiktokLoggedIn() }); });
+  });
+}
+
 function setupStudio(): Studio {
   const paths = Studio.resolvePaths(
     app.getAppPath(),
@@ -97,6 +169,8 @@ function setupStudio(): Studio {
     onBusEvent: (e) => sendToRenderer(IPC.BUS_EVENT, e),
     onStats: (stats) => sendToRenderer(IPC.STATS_UPDATE, stats),
     onToast: (toast) => sendToRenderer(IPC.TOAST_SHOW, toast),
+    onObsStatus: (status) => sendToRenderer(IPC.OBS_STATUS, status),
+    onStreamerbotStatus: (status) => sendToRenderer(IPC.SB_STATUS, status),
   });
 }
 
@@ -134,10 +208,62 @@ function registerIpc(): void {
     platform: process.platform,
     dataDir: app.getPath('userData'),
     overlayPort: isStudio().getOverlayInfo().port,
+    control: isStudio().getControlInfo(),
   }));
   ipcMain.handle(IPC.APP_OPEN_DATA_DIR, () => {
     void shell.openPath(app.getPath('userData'));
     return { ok: true };
+  });
+  // Konfig-Backup: alles (Einstellungen/Trigger/Store/Panel/Overlays/Zuschauer)
+  // in eine JSON-Datei sichern bzw. wieder einspielen.
+  ipcMain.handle(IPC.CONFIG_EXPORT, async () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Backup speichern',
+      defaultPath: `botexe-studio-backup-${stamp}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (canceled || !filePath) return { ok: false };
+    try {
+      const bundle = { app: app.getVersion(), exportedAt: new Date().toISOString(), ...isStudio().exportConfig() };
+      fs.writeFileSync(filePath, JSON.stringify(bundle, null, 2), 'utf-8');
+      return { ok: true, path: filePath };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
+  ipcMain.handle(IPC.CONFIG_IMPORT, async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'Backup einspielen',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    });
+    if (canceled || !filePaths[0]) return { ok: false };
+    try {
+      const data = JSON.parse(fs.readFileSync(filePaths[0], 'utf-8'));
+      const res = isStudio().importConfig(data);
+      if (res.ok) registerPanelHotkeys(); // Hotkeys aus dem Backup neu greifen
+      return res;
+    } catch (err) {
+      return { ok: false, layouts: 0, viewers: 0, error: (err as Error).message };
+    }
+  });
+  // Auto-Update: manuell prüfen + installieren (Settings).
+  ipcMain.handle(IPC.UPDATE_CHECK, () => {
+    if (!app.isPackaged) return { state: 'dev' };
+    try {
+      pushUpdateStatus({ state: 'checking' });
+      autoUpdater.checkForUpdates();
+    } catch (err) {
+      pushUpdateStatus({ state: 'error', message: (err as Error).message });
+    }
+    return updateState;
+  });
+  ipcMain.handle(IPC.UPDATE_INSTALL, () => {
+    if (updateState.state === 'downloaded') {
+      try { autoUpdater.quitAndInstall(); } catch (err) { log.warn('Update', 'quitAndInstall', (err as Error).message); }
+    }
+    return { ok: updateState.state === 'downloaded' };
   });
   // TikTok-Live-Studio-Link: Domain-Form + Status der lokalen Auflösung
   ipcMain.handle(IPC.TTLS_LINK_GET, async (_e, layoutId: unknown) => {
@@ -164,6 +290,9 @@ function registerIpc(): void {
     return { ok: true };
   });
   // Renderer-Fehler (Widget-/UI-Crashes) ins zentrale Datei-Log spiegeln.
+  ipcMain.on(IPC.SOUND_ENDED, (_e, soundId: unknown) => {
+    if (typeof soundId === 'string') isStudio().notifySoundEnded(soundId);
+  });
   ipcMain.on(IPC.LOG_RENDERER, (_e, level: unknown, scope: unknown, message: unknown) => {
     const s = typeof scope === 'string' ? scope : 'Renderer';
     const m = typeof message === 'string' ? message : String(message);
@@ -186,6 +315,10 @@ function registerIpc(): void {
   });
   ipcMain.handle(IPC.VIEWER_VOICE, (_e, userId: unknown, voice: unknown) => {
     if (typeof userId === 'string') isStudio().setViewerVoice(userId, typeof voice === 'string' && voice ? voice : undefined);
+    return { ok: true };
+  });
+  ipcMain.handle(IPC.VIEWER_WELCOME_MEDIA, (_e, userId: unknown, mediaId: unknown) => {
+    if (typeof userId === 'string') isStudio().setViewerWelcomeMedia(userId, typeof mediaId === 'string' && mediaId ? mediaId : undefined);
     return { ok: true };
   });
   ipcMain.handle(IPC.SESSION_RESET, () => {
@@ -235,12 +368,65 @@ function registerIpc(): void {
     isStudio().setRules(rules as TriggerRule[]);
     return { ok: true };
   });
+  ipcMain.handle(IPC.GIFT_CATALOG_GET, () => isStudio().getGiftCatalog());
+  ipcMain.handle(IPC.OBS_SET_CONFIG, (_e, cfg: unknown) => {
+    const c = (cfg ?? {}) as Record<string, unknown>;
+    isStudio().setObsConfig({
+      enabled: c.enabled === true,
+      url: typeof c.url === 'string' ? c.url.slice(0, 200) : 'ws://127.0.0.1:4455',
+      password: typeof c.password === 'string' ? c.password.slice(0, 200) : '',
+    });
+    return { ok: true, status: isStudio().getObsStatus() };
+  });
+  ipcMain.handle(IPC.OBS_GET_SCENES, () => isStudio().getObsScenes());
+  // Streamer.bot
+  ipcMain.handle(IPC.SB_SET_CONFIG, (_e, cfg: unknown) => {
+    const c = (cfg ?? {}) as Record<string, unknown>;
+    isStudio().setStreamerbotConfig({
+      enabled: c.enabled === true,
+      url: typeof c.url === 'string' ? c.url.slice(0, 200) : 'ws://127.0.0.1:8080/',
+    });
+    return { ok: true, status: isStudio().getStreamerbotStatus() };
+  });
+  ipcMain.handle(IPC.SB_GET_ACTIONS, () => isStudio().getStreamerbotActions());
+  // TikTok-Login-Fenster: nach dem Login den sessionid-Cookie auslesen.
+  ipcMain.handle(IPC.TIKTOK_LOGIN, () => openTiktokLogin());
+  ipcMain.handle(IPC.TIKTOK_LOGOUT, () => { isStudio().setTiktokSession(undefined); return { ok: true }; });
+  ipcMain.handle(IPC.CHAT_SEND, async (_e, text: unknown) => {
+    if (typeof text !== 'string') return { ok: false, error: 'kein Text' };
+    return isStudio().sendChat(text);
+  });
+  ipcMain.handle(IPC.STATS_HISTORY_GET, (_e, range: unknown) => {
+    const r = range === 'month' || range === 'year' ? range : 'week';
+    return isStudio().getStatsHistory(r);
+  });
+  ipcMain.handle(IPC.STATS_CSV_EXPORT, async () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Stream-Statistik als CSV speichern',
+      defaultPath: `botexe-stats-${stamp}.csv`,
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+    });
+    if (canceled || !filePath) return { ok: false };
+    try {
+      fs.writeFileSync(filePath, '﻿' + isStudio().exportStatsCsv(), 'utf-8'); // BOM für Excel
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
 
   // Einlöse-Store
   ipcMain.handle(IPC.REDEMPTIONS_GET, () => isStudio().getRedemptions());
   ipcMain.handle(IPC.REDEMPTIONS_SET, (_e, reds: unknown) => {
     if (!Array.isArray(reds)) return { ok: false, error: 'redemptions muss ein Array sein' };
     isStudio().setRedemptions(reds as Redemption[]);
+    return { ok: true };
+  });
+  ipcMain.handle(IPC.COMMANDS_GET, () => isStudio().getChatCommands());
+  ipcMain.handle(IPC.COMMANDS_SET, (_e, cmds: unknown) => {
+    if (!Array.isArray(cmds)) return { ok: false, error: 'commands muss ein Array sein' };
+    isStudio().setChatCommands(cmds as ChatCommand[]);
     return { ok: true };
   });
 
@@ -361,6 +547,14 @@ function registerIpc(): void {
     // get() liefert eine tiefe Kopie, das delete trifft also nur die Antwort.
     const safe = isStudio().settings.get() as unknown as Record<string, unknown>;
     delete safe.ttsCredentials;
+    // Sensible Account-/Sign-Tokens nicht roh ausliefern — nur ein Boolean-Status.
+    safe.tiktokLoggedIn =
+      typeof safe.tiktokSessionId === 'string' && safe.tiktokSessionId.length > 0 &&
+      typeof safe.tiktokTargetIdc === 'string' && safe.tiktokTargetIdc.length > 0;
+    safe.tiktokSignKeySet = typeof safe.tiktokSignApiKey === 'string' && safe.tiktokSignApiKey.length > 0;
+    delete safe.tiktokSessionId;
+    delete safe.tiktokTargetIdc;
+    delete safe.tiktokSignApiKey;
     return safe;
   });
   ipcMain.handle(IPC.SETTINGS_UPDATE, (_e, patch: unknown) => {
@@ -401,6 +595,20 @@ function registerIpc(): void {
           : {}),
         ...(typeof t.readPrefix === 'string' ? { readPrefix: t.readPrefix.slice(0, 3) } : {}),
       };
+    }
+    if (typeof p.sportApiKey === 'string') allowed.sportApiKey = p.sportApiKey.trim().slice(0, 120);
+    if (typeof p.tiktokSignApiKey === 'string') allowed.tiktokSignApiKey = p.tiktokSignApiKey.trim().slice(0, 200);
+    if (typeof p.moderation === 'object' && p.moderation !== null) {
+      const m = p.moderation as Record<string, unknown>;
+      if (Array.isArray(m.blockedWords)) {
+        allowed.moderation = {
+          blockedWords: m.blockedWords
+            .filter((w): w is string => typeof w === 'string')
+            .map((w) => w.trim().slice(0, 60))
+            .filter(Boolean)
+            .slice(0, 200),
+        };
+      }
     }
     return { ok: true, settings: isStudio().settings.update(allowed) };
   });
@@ -482,15 +690,22 @@ app.whenReady().then(async () => {
   // Restriktive CSP für den Renderer in Production (dev braucht Vite-HMR).
   if (!MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      // Das eingebettete Overlay-iframe wird vom lokalen Server geladen und
+      // injiziert seine Config per Inline-<script> + lädt Gift-Bilder vom
+      // TikTok-CDN. Dafür braucht es eine eigene, lockere CSP — sonst bleibt
+      // die Vorschau im Editor leer (Inline-Script geblockt). Die STRIKTE CSP
+      // gilt nur fürs eigentliche App-Shell (Schutz gegen XSS).
+      const isLocalOverlay = /^https?:\/\/(127\.0\.0\.1|localhost|localtest\.me)(:\d+)?\//.test(details.url);
+      const csp = isLocalOverlay
+        ? "default-src 'self' 'unsafe-inline' http: https: ws: wss: data: blob:"
+        : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+          "img-src 'self' data: https: http://127.0.0.1:*; media-src 'self' http://127.0.0.1:*; " +
+          "frame-src http://127.0.0.1:*; " +
+          "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*";
       callback({
         responseHeaders: {
           ...details.responseHeaders,
-          'Content-Security-Policy': [
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-              "img-src 'self' data: https: http://127.0.0.1:*; media-src 'self' http://127.0.0.1:*; " +
-              "frame-src http://127.0.0.1:*; " +
-              "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*",
-          ],
+          'Content-Security-Policy': [csp],
         },
       });
     });
@@ -506,6 +721,7 @@ app.whenReady().then(async () => {
   }
 
   createMainWindow();
+  setupAutoUpdate(); // Hintergrund-Update-Check + Event-Weiterleitung ans UI
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

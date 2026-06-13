@@ -100,10 +100,10 @@ export function normalizeLike(
   };
 }
 
-/** v2 splittet WebcastSocialMessage selbst in follow/share — wir mappen 1:1. */
+/** v2 splittet WebcastSocialMessage selbst in follow/share/join — wir mappen 1:1. */
 export function normalizeSocial(
   data: { user?: RawUser },
-  kind: 'follow' | 'share',
+  kind: 'follow' | 'share' | 'join',
   ts: number,
 ): StudioEvent {
   return { type: kind, ts, user: toUser(data.user) };

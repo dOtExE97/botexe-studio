@@ -1,6 +1,8 @@
 // @botexe/trigger-engine — deterministische Regel-Logik, keine Electron-/IO-Abhängigkeiten.
 // Cooldowns rechnen mit event.ts (nicht Wanduhr) → Replay-Tests sind exakt reproduzierbar.
 
+export { giftRuleId, findGiftRule, upsertGiftRule, otherGiftRules } from './gift-mapping';
+
 export type StudioEventType =
   | 'chat'
   | 'gift'
@@ -8,6 +10,8 @@ export type StudioEventType =
   | 'sub'
   | 'like'
   | 'share'
+  /** Zuschauer betritt den Stream (TikTok „member"/join). */
+  | 'join'
   | 'viewer_count'
   /** Periodischer Tick — Timer-Regeln (z.B. alle 10 Min. Socials einblenden). */
   | 'timer';
@@ -70,7 +74,15 @@ export type TriggerActionKind =
   /** Media-Widget abspielen (Bild einblenden / Video starten) — z.B. Begrüßungsclip. */
   | { kind: 'play_media'; targetId: string }
   /** Counter-Widget verändern (delta ±N, z.B. „Tode +1" per Hotkey/Befehl). */
-  | { kind: 'counter_add'; targetId: string; delta: number };
+  | { kind: 'counter_add'; targetId: string; delta: number }
+  /** OBS-Szene wechseln (braucht OBS-WebSocket-Verbindung). */
+  | { kind: 'obs_scene'; scene: string }
+  /** OBS-Quelle in einer Szene ein-/ausblenden. */
+  | { kind: 'obs_visibility'; scene: string; source: string; visible: boolean }
+  /** Nachricht in den TikTok-Live-Chat senden (braucht Login; rate-limited). */
+  | { kind: 'send_chat'; template: string }
+  /** Streamer.bot-Aktion auslösen (per Name oder ID). */
+  | { kind: 'streamerbot_action'; action: string };
 
 /** Eine Aktion mit optionaler Verzögerung (Combo-Sequenz: Alert jetzt,
  *  Sound +0,5s, Ansage +2s …). delayMs = Versatz ab Auslösung der Regel. */
@@ -182,6 +194,32 @@ export function commandMatches(message: string, command: string): boolean {
 export function matchRedemption(redemptions: Redemption[], message: string): Redemption | null {
   for (const r of redemptions) {
     if (r.enabled && commandMatches(message, r.command)) return r;
+  }
+  return null;
+}
+
+/** Chat-Befehl („Bot"): !befehl → Antwort (Overlay/TTS/Chat). */
+export interface ChatCommand {
+  id: string;
+  /** Auslöse-Befehl, z.B. '!discord' (führende ! egal). */
+  command: string;
+  /** Antworttext mit Platzhaltern ({user} {text} …). */
+  response: string;
+  /** Antwort per TTS vorlesen. */
+  speak: boolean;
+  /** Antwort in den TikTok-Chat schreiben (braucht Login). */
+  sendToChat: boolean;
+  /** Mindest-Gruppe (Standard 'all'). */
+  who?: 'all' | 'followers' | 'subs' | 'mods';
+  /** Globaler Mindestabstand zwischen zwei Auslösungen (ms). */
+  cooldownMs?: number;
+  enabled: boolean;
+}
+
+/** Erster aktivierter Befehl, der auf die Nachricht passt. */
+export function matchChatCommand(commands: ChatCommand[], message: string): ChatCommand | null {
+  for (const c of commands) {
+    if (c.enabled && commandMatches(message, c.command)) return c;
   }
   return null;
 }

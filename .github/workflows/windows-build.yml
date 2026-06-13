@@ -1,15 +1,20 @@
-# Windows-Build — baut die Setup-.exe (Squirrel) auf einem Windows-Runner.
-# Läuft bei jedem Push auf main + manuell (workflow_dispatch).
-# Die .exe liegt danach als Artefakt am Workflow-Lauf (Actions → Lauf → Artifacts).
+# Windows-Build & Release.
+# - Push auf main / manuell: baut die Setup-.exe als Artefakt (zum Testen).
+# - Push eines Versions-Tags `v*` (z.B. v0.2.0): VERÖFFENTLICHT ein GitHub-Release
+#   mit Squirrel-Feed (.exe + .nupkg + RELEASES) → die App zieht daraus per Delta
+#   automatisch nur die Änderungen (Auto-Update).
 name: Windows Build
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 jobs:
   build-windows:
+    # Bei Tags NICHT bauen — dann übernimmt der publish-Job.
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,3 +36,22 @@ jobs:
             apps/desktop/out/make/squirrel.windows/x64/RELEASES
           if-no-files-found: error
           retention-days: 14
+
+  publish-windows:
+    # Nur bei Versions-Tag: Release veröffentlichen (Update-Feed).
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    runs-on: windows-latest
+    permissions:
+      contents: write # Release anlegen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Publish (GitHub Release + Update-Feed)
+        run: npm run publish --workspace apps/desktop
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

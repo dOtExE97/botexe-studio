@@ -10,6 +10,47 @@ function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'points-'));
 }
 
+test('recordWin zählt Spiel-Siege pro User, topWinners sortiert + filtert', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordWin({ id: 'mia', nickname: 'Mia', profilePic: 'm.jpg' });
+  s.recordWin({ id: 'mia', nickname: 'Mia' });
+  s.recordWin({ id: 'ben', nickname: 'Ben' });
+  s.award('cara', 'Cara', 100); // hat Punkte, aber 0 Siege → nicht in topWinners
+
+  assert.equal(s.get('mia')?.gameWins, 2);
+  const top = s.topWinners(10);
+  assert.equal(top.length, 2, 'nur User mit Siegen');
+  assert.equal(top[0]?.id, 'mia');
+  assert.equal(top[0]?.gameWins, 2);
+  assert.equal(top[1]?.id, 'ben');
+  assert.equal(top[0]?.profilePic, 'm.jpg');
+});
+
+test('gameWins überlebt Persistenz', () => {
+  const dir = tmpDir();
+  const a = new PointsStore(dir);
+  a.recordWin({ id: 'mia', nickname: 'Mia' });
+  a.save();
+  const b = new PointsStore(dir);
+  assert.equal(b.get('mia')?.gameWins, 1);
+});
+
+test('exportEntries/importEntries: Backup-Roundtrip erhält Punkte + Felder', () => {
+  const a = new PointsStore(tmpDir());
+  a.award('mia', 'Mia', 50, 'm.jpg');
+  a.recordWin({ id: 'mia', nickname: 'Mia' });
+  a.setFlag('mia', 'vip', true);
+  const dump = a.exportEntries();
+
+  const b = new PointsStore(tmpDir());
+  b.importEntries(dump);
+  const e = b.get('mia');
+  assert.equal(e?.points, 50);
+  assert.equal(e?.gameWins, 1);
+  assert.equal(e?.vip, true);
+  assert.equal(e?.profilePic, 'm.jpg');
+});
+
 test('award addiert punkte pro user und merkt nickname/bild', () => {
   const s = new PointsStore(tmpDir());
   s.award('mia', 'Mia', 10, 'pic.jpg');

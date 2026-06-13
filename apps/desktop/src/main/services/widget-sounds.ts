@@ -4,8 +4,10 @@
 // UND TikTok Live Studio gleichzeitig offen ist. Pure Logik, testbar.
 import type { OverlayLayout } from '@botexe/overlay-engine';
 
-/** Widgets, deren soundId bei einem Gift-Event feuert (mit minCoins-Filter). */
-const GIFT_SOUND_WIDGETS = new Set(['gift-fireworks', 'gift-alert']);
+/** Widgets, deren soundId bei einem Gift-Event SOFORT (server-seitig) feuert.
+ *  gift-fireworks NICHT mehr hier: das spielt Pfeife/Boom selbst, zeitlich
+ *  an die Animation gekoppelt (ctx.playSound → WS-Backchannel). */
+const GIFT_SOUND_WIDGETS = new Set(['gift-alert']);
 
 /** Sound-IDs, die für dieses Gift abgespielt werden sollen — über alle
  *  Profile gesammelt und dedupliziert (Widget in 2 Profilen = 1× Ton). */

@@ -5,18 +5,24 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, Info, CheckCircle2, X } from 'lucide-react';
 
 export type ToastType = 'error' | 'warn' | 'info' | 'success';
-interface Toast { id: number; type: ToastType; message: string }
+interface ToastAction { label: string; onClick: () => void }
+interface Toast { id: number; type: ToastType; message: string; action?: ToastAction }
 
 /** Von überall im Renderer aufrufbar: zeigt einen Toast. */
 export function toast(type: ToastType, message: string): void {
   window.dispatchEvent(new CustomEvent('bx-toast', { detail: { type, message } }));
 }
 
+/** Toast mit Aktion, z.B. „Gelöscht — [Rückgängig]". */
+export function toastAction(type: ToastType, message: string, action: ToastAction): void {
+  window.dispatchEvent(new CustomEvent('bx-toast', { detail: { type, message, action } }));
+}
+
 const STYLE: Record<ToastType, { cls: string; Icon: typeof Info }> = {
   error: { cls: 'border-studio-accent/50 text-studio-accent', Icon: AlertTriangle },
   warn: { cls: 'border-studio-gold/50 text-studio-gold', Icon: AlertTriangle },
-  info: { cls: 'border-studio-teal/50 text-studio-teal', Icon: Info },
-  success: { cls: 'border-studio-teal/50 text-studio-teal', Icon: CheckCircle2 },
+  info: { cls: 'border-sky-400/50 text-sky-300', Icon: Info },
+  success: { cls: 'border-emerald-400/50 text-emerald-300', Icon: CheckCircle2 },
 };
 
 let seq = 0;
@@ -25,14 +31,14 @@ export default function ToastHost() {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => {
-    const push = (type: ToastType, message: string) => {
+    const push = (type: ToastType, message: string, action?: ToastAction) => {
       const id = ++seq;
-      setToasts((ts) => [...ts.slice(-3), { id, type, message }]);
-      setTimeout(() => setToasts((ts) => ts.filter((t) => t.id !== id)), type === 'error' ? 7000 : 4500);
+      setToasts((ts) => [...ts.slice(-3), { id, type, message, action }]);
+      setTimeout(() => setToasts((ts) => ts.filter((t) => t.id !== id)), action ? 7000 : type === 'error' ? 7000 : 4500);
     };
     const onWin = (e: Event) => {
-      const d = (e as CustomEvent<{ type: ToastType; message: string }>).detail;
-      if (d?.message) push(d.type ?? 'info', d.message);
+      const d = (e as CustomEvent<{ type: ToastType; message: string; action?: ToastAction }>).detail;
+      if (d?.message) push(d.type ?? 'info', d.message, d.action);
     };
     window.addEventListener('bx-toast', onWin);
     const off = window.studio?.onToast?.((t) => push((t.type as ToastType) ?? 'info', t.message));
@@ -55,6 +61,14 @@ export default function ToastHost() {
           >
             <Icon size={17} className="mt-0.5 flex-none" />
             <span className="flex-1 text-studio-text/90">{t.message}</span>
+            {t.action && (
+              <button
+                onClick={() => { t.action?.onClick(); setToasts((ts) => ts.filter((x) => x.id !== t.id)); }}
+                className="flex-none rounded-md bg-studio-raised px-2 py-0.5 text-xs font-bold text-studio-text hover:bg-studio-accent hover:text-black"
+              >
+                {t.action.label}
+              </button>
+            )}
             <button onClick={() => setToasts((ts) => ts.filter((x) => x.id !== t.id))} className="flex-none text-studio-muted hover:text-studio-text">
               <X size={15} />
             </button>

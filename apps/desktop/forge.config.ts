@@ -1,6 +1,7 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
+import { PublisherGithub } from '@electron-forge/publisher-github';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
@@ -66,7 +67,16 @@ const config: ForgeConfig = {
     }),
   ],
   publishers: [
-    // TODO vor erstem Release: publisher-github konfigurieren (Repo entsteht später).
+    // GitHub-Releases als Update-Feed. `npm run publish` (in CI mit GITHUB_TOKEN)
+    // lädt Squirrel-Artefakte (.exe + .nupkg + RELEASES) als Release hoch — die
+    // App zieht daraus per Delta NUR die Änderungen, nicht den ganzen Ordner.
+    // WICHTIG: Für Auto-Update ohne eigenen Server müssen die Releases öffentlich
+    // sein (Repo public ODER ein public Release-Repo). Privat = kein Auto-Update.
+    new PublisherGithub({
+      repository: { owner: 'dOtExE97', name: 'botexe-studio' },
+      prerelease: false,
+      draft: false,
+    }),
   ],
   hooks: {
     // Production-deps direkt in den kopierten App-Ordner installieren —

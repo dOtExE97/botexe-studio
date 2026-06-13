@@ -3,6 +3,8 @@
 // Die Bälle stapeln sich (Heightmap-Physik) zu einem dichten Haufen.
 // props: { target?, label?, accent? }. rAF nur bei Bewegung (TTLS-schonend).
 
+import { comboPlan } from './combo.js';
+
 const STYLE_ID = 'bx-jar-style';
 const CSS = `
 .bx-jar { position: absolute; inset: 0; font-family: var(--bx-font-display); }
@@ -101,11 +103,25 @@ export default class GiftJar {
     if (event.type !== 'gift' || !event.gift) return;
     this.coinsValue += event.gift.totalCoins;
     this.el.querySelector('.bx-jar-badge .num').textContent = fmt(this.coinsValue);
-    this.spawn(event.gift);
+    // Combo (z.B. 10x Rose) wirft EINEN Ball pro Gift — nicht nur einen für die
+    // ganze Combo. Anzahl gedeckelt, Ballgröße aus dem Einzel-Coin-Wert.
+    const count = comboPlan(event.gift, 24).rockets;
+    const coinsPerUnit = event.gift.coinsPerUnit || event.gift.totalCoins || 1;
+    for (let i = 0; i < count; i++) {
+      if (i === 0) this.spawn(event.gift, coinsPerUnit);
+      else {
+        const t = setTimeout(() => { this.pendingTimers?.delete(t); this.spawn(event.gift, coinsPerUnit); }, i * 55);
+        (this.pendingTimers ??= new Set()).add(t);
+      }
+    }
   }
-  spawn(gift) {
-    if (this.resting.length + this.falling.length >= MAX_BALLS) this.resting.shift();
-    const r = this.ballRadius(gift.totalCoins);
+  spawn(gift, coins) {
+    // Backpressure: bevorzugt fallende Bälle deckeln; ruhende nur entfernen, wenn
+    // der Boden-Stapel selbst voll ist (sonst „verschwinden" Bälle am Boden).
+    if (this.resting.length + this.falling.length >= MAX_BALLS) {
+      if (this.resting.length > 0) this.resting.shift(); else this.falling.shift();
+    }
+    const r = this.ballRadius(coins ?? gift.totalCoins);
     // Füllhöhe = Fortschritt Richtung Ziel (coins), Bälle gleichmäßig von unten gestreut
     const fill = Math.min(0.97, this.coinsValue / this.target);
     const targetRy = 0.03 + Math.random() * Math.max(0.06, fill);
@@ -190,6 +206,9 @@ export default class GiftJar {
     ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(x, y, r-0.5, 0, Math.PI*2); ctx.stroke();
     ctx.beginPath(); ctx.arc(x-r*0.32, y-r*0.32, r*0.26, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fill();
   }
-  destroy() { this.observer.disconnect(); this.falling=[]; this.resting=[]; this.el.remove(); }
+  destroy() {
+    if (this.pendingTimers) for (const t of this.pendingTimers) clearTimeout(t);
+    this.observer.disconnect(); this.falling=[]; this.resting=[]; this.el.remove();
+  }
 }
 function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
