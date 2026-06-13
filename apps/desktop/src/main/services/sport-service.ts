@@ -16,13 +16,22 @@ export class SportService {
   private readonly getApiKey: () => string;
   private readonly now: () => number;
   private readonly fetchFn: typeof fetch;
+  private readonly logWarn: (scope: string, msg: string, detail?: string) => void;
   /** Bis zu diesem Zeitpunkt KEINE football-data-Anfragen (Rate-Limit-Pause). */
   private fdBackoffUntil = 0;
+  /** Wann zuletzt vor fehlendem Key gewarnt wurde — drosselt den Hinweis auf 1/60s. */
+  private noKeyNotifiedAt = Number.NEGATIVE_INFINITY;
 
-  constructor(getApiKey: () => string, now: () => number = Date.now, fetchFn: typeof fetch = fetch) {
+  constructor(
+    getApiKey: () => string,
+    now: () => number = Date.now,
+    fetchFn: typeof fetch = fetch,
+    logWarn: (scope: string, msg: string, detail?: string) => void = (s, m, d) => log.warn(s, m, d),
+  ) {
     this.getApiKey = getApiKey;
     this.now = now;
     this.fetchFn = fetchFn;
+    this.logWarn = logWarn;
   }
 
   /** Spiele eines Wettbewerbs — gecacht. Bei Fehler/Drosselung bleibt der letzte Stand. */
@@ -30,6 +39,16 @@ export class SportService {
     const key = `${provider}:${competition}`;
     const cached = this.cache.get(key);
     if (cached && this.now() - cached.at < CACHE_TTL_MS) return cached.matches;
+    // Kein football-data-Key → nicht bei jedem Poll spammen: höchstens 1 Hinweis/60s,
+    // und gar keine Anfrage (separat von der Rate-Limit-Pause, damit ein später
+    // eingetragener Key sofort greift).
+    if (provider === 'football-data' && !this.getApiKey()) {
+      if (this.now() - this.noKeyNotifiedAt >= 60_000) {
+        this.noKeyNotifiedAt = this.now();
+        this.logWarn('Sport', `Übersprungen (${key}) — Kein football-data.org API-Key (Einstellungen → Sport)`);
+      }
+      return cached?.matches ?? [];
+    }
     // Während der Rate-Limit-Pause gar nicht erst anfragen.
     if (provider === 'football-data' && this.now() < this.fdBackoffUntil) {
       return cached?.matches ?? [];
@@ -39,7 +58,7 @@ export class SportService {
       this.cache.set(key, { at: this.now(), matches });
       return matches;
     } catch (err) {
-      log.warn('Sport', `Abruf fehlgeschlagen (${key})`, (err as Error).message);
+      this.logWarn('Sport', `Abruf fehlgeschlagen (${key})`, (err as Error).message);
       return cached?.matches ?? [];
     }
   }
@@ -67,7 +86,7 @@ export class SportService {
     const reset = Number(res.headers.get('X-RequestCounter-Reset')) || 0; // Sek. bis Zähler-Reset
     if (res.status === 429) {
       this.fdBackoffUntil = this.now() + (reset > 0 ? reset : 60) * 1000;
-      log.warn('Sport', `football-data Rate-Limit — Pause ${reset || 60}s`);
+      this.logWarn('Sport', `football-data Rate-Limit — Pause ${reset || 60}s`);
       return;
     }
     const available = res.headers.get('X-Requests-Available-Minute');

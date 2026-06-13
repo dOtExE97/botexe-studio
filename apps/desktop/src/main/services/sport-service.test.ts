@@ -52,3 +52,21 @@ test('HTTP 429 → letzter Stand bleibt erhalten', async () => {
   const second = await svc.getMatches('football-data', '2000');
   assert.deepEqual(second, first, 'bei 429 bleibt der letzte gültige Stand');
 });
+
+test('ohne API-Key: kein Netzaufruf und nur ein Hinweis pro 60s (kein Log-Spam)', async () => {
+  let calls = 0;
+  let t = 1000;
+  let warns = 0;
+  const fetchFn = (async () => { calls++; return makeRes({ matches: [] }); }) as unknown as typeof fetch;
+  const svc = new SportService(() => '', () => t, fetchFn, () => { warns++; });
+
+  await svc.getMatches('football-data', '2000');
+  await svc.getMatches('football-data', '2000');
+  await svc.getMatches('football-data', '2000');
+  assert.equal(calls, 0, 'ohne Key wird die API gar nicht erst angefragt');
+  assert.equal(warns, 1, 'trotz mehrerer Polls nur ein Hinweis');
+
+  t += 61_000;
+  await svc.getMatches('football-data', '2000');
+  assert.equal(warns, 2, 'nach 60s darf wieder einmal gewarnt werden');
+});

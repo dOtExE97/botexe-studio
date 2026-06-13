@@ -280,8 +280,12 @@ export class TikTokAdapter {
       }
     }));
 
-    on('error', guard((err: { message?: string }) => {
-      log.error('TikTok', 'Connection-Fehler', err?.message ?? String(err));
+    on('error', guard((err: { message?: string; info?: string } | undefined) => {
+      // Die Lib feuert hier oft ein nacktes Objekt ohne .message → früher stand
+      // „[object Object]" im Log. Sinnvoll serialisieren (message → info → JSON).
+      let detail = err?.message ?? err?.info;
+      if (!detail) { try { detail = JSON.stringify(err); } catch { detail = String(err); } }
+      log.error('TikTok', 'Connection-Fehler', detail || 'unbekannt');
     }));
   }
 

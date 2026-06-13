@@ -270,6 +270,25 @@ der Widget-ctx → alle 7 s eine Demo-Feier).
   je Render), PREVIEW keine TDZ (Mount erst zur Laufzeit), milestone-confetti landet
   via extraResource im Windows-Build (keine Allowlist).
 
+### Log-Audit nach 1. Windows-Build (Logs vom Win-PC, 13.06.) ✅
+Aus zwei echten Start-Logs der installierten App geprüft:
+- 🟢 **App läuft** (Overlay-Server, Editor-Vorschau ~180 fps, TTLS-Link ~143–181 fps).
+- 🔵 **B (gefixt):** TikTok-`error`-Event loggte „Connection-Fehler — [object Object]"
+  (Lib feuert ein Objekt ohne `.message`). Jetzt sauber serialisiert (message→info→JSON).
+- 🔵 **C (gefixt):** Sport-Ticker spammte ohne Key 10× WARN in 35 s. Jetzt: ohne Key
+  gar keine Anfrage + höchstens 1 Hinweis/60 s (eigener `noKeyNotifiedAt`-Throttle,
+  separat vom Rate-Limit-Backoff, damit ein später eingetragener Key sofort greift).
+  `SportService` bekam injizierbaren `logWarn` → TDD-Test (kein Netzaufruf + 1 Hinweis/60s).
+- ⚪ **A (erwartet):** Auto-Update knallt beim Start einen 404-Stacktrace
+  (update.electronjs.org kennt das Release noch nicht). Verschwindet, sobald Releases
+  PUBLIC sind + ein Tag `v*` gepusht ist. Harmlos, kein Crash.
+- ⚪ **D (erwartet):** zwei Start-Logs/Doppel-Server kurz nach der Installation =
+  Squirrel-FirstRun (einmalig beim Einrichten). Danach greift der Single-Instance-Lock.
+- 💡 **Beobachtung (offen):** Startet man die App, BEVOR man live geht, gibt der Connect
+  nach 5 Versuchen auf und pollt NICHT auf das spätere Live (live-watch startet nur nach
+  Stream-Ende). Empfehlung: bei „isn't online" auf live-watch-Poll umschalten statt aufgeben.
+  189→190 Tests grün.
+
 ### Command-System („Bot", 13.06.) ✅
 Eigene Seite „Befehle": `!befehl → Antwort`. `ChatCommand`-Modell + `matchChatCommand`
 (trigger-engine, TDD), Settings-Liste, `maybeRunCommand` in studio (Rechte-Stufe
