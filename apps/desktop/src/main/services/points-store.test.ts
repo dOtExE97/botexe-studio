@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { PointsStore, DEFAULT_POINTS_CONFIG } from './points-store';
+import { PointsStore, DEFAULT_POINTS_CONFIG, isNewVisit } from './points-store';
 import type { StudioEvent } from '@botexe/trigger-engine';
 
 function tmpDir(): string {
@@ -164,4 +164,14 @@ test('migration v1→v2: alte einträge ohne flags bleiben lesbar', () => {
   const s = new PointsStore(dir);
   assert.equal(s.get('mia')?.points, 42);
   assert.equal(s.isVip('mia'), false);
+});
+
+// — Stammgast-Erkennung: neuer Besuch nach längerer Pause (Standard 4h Lücke).
+test('isNewVisit: erster Kontakt zählt als Besuch', () => {
+  assert.equal(isNewVisit(undefined, 1000, 4 * 3600 * 1000), true);
+});
+test('isNewVisit: nach langer Pause neuer Besuch, im selben Stream nicht', () => {
+  const gap = 4 * 3600 * 1000;
+  assert.equal(isNewVisit(1000, 1000 + 5 * 3600 * 1000, gap), true);  // 5h später → neuer Besuch
+  assert.equal(isNewVisit(1000, 1000 + 1 * 3600 * 1000, gap), false); // 1h später → gleicher Stream
 });

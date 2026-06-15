@@ -48,6 +48,16 @@ export interface PointsEntry {
   gameWins?: number;
   /** Eigenes Begrüßungs-Medium (Media-ID) — spielt z.B. beim Teamherz. */
   welcomeMediaId?: string;
+  /** Wie oft dieser Zuschauer schon da war (Besuche, Lücke ≥ RETURN_GAP_MS = neuer). */
+  visitCount?: number;
+}
+
+/** Abstand, ab dem ein erneuter Kontakt als NEUER Besuch zählt (4 h → neuer Stream). */
+export const RETURN_GAP_MS = 4 * 3600 * 1000;
+
+/** Erster Kontakt ODER nach längerer Pause = neuer Besuch (für Stammgast-Zähler). */
+export function isNewVisit(lastSeen: number | undefined, ts: number, gapMs: number): boolean {
+  return lastSeen === undefined || ts - lastSeen > gapMs;
 }
 
 export type ViewerFlag = 'vip' | 'muted';
@@ -129,6 +139,8 @@ export class PointsStore {
     const e = this.viewers.get(user.id) ?? { id: user.id, nickname: user.nickname, points: 0 };
     e.nickname = user.nickname || e.nickname;
     if (user.profilePic) e.profilePic = user.profilePic;
+    // Besuche zählen, bevor lastSeen aktualisiert wird (Lücke ≥ 4h = neuer Besuch).
+    if (isNewVisit(e.lastSeen, event.ts, RETURN_GAP_MS)) e.visitCount = (e.visitCount ?? 0) + 1;
     e.firstSeen = e.firstSeen ?? event.ts;
     e.lastSeen = event.ts;
     if (event.type === 'gift' && event.gift) {
@@ -157,6 +169,8 @@ export class PointsStore {
 
   isMuted(userId: string): boolean { return this.viewers.get(userId)?.muted === true; }
   isVip(userId: string): boolean { return this.viewers.get(userId)?.vip === true; }
+  /** Wie oft dieser Zuschauer schon da war (für Stammgast-Begrüßung). */
+  visitCountOf(userId: string): number { return this.viewers.get(userId)?.visitCount ?? 0; }
   voiceFor(userId: string): string | undefined { return this.viewers.get(userId)?.voice; }
 
   /** Punkte manuell ändern (auch negativ); legt Eintrag an falls nötig. */

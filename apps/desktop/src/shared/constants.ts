@@ -40,6 +40,8 @@ export const IPC = {
   GIVEAWAY_CONFIG: 'giveaway:config',
   GIVEAWAY_DRAW: 'giveaway:draw',
   GIVEAWAY_RESET: 'giveaway:reset',
+  GREET_GET: 'greet:get',
+  GREET_SET: 'greet:set',
   // Manuelles Auslöse-Panel + Hotkeys
   PANEL_GET: 'panel:get',
   PANEL_SET: 'panel:set',

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2 } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
+import GreetReturningCard from '../components/GreetReturningCard';
 import { toast } from '../components/ToastHost';
 
 interface PointsConfig {
@@ -373,6 +374,9 @@ export default function SettingsPage() {
           In Streamer.bot: <b>Servers/Clients → WebSocket Server</b> aktivieren (Standard-Port 8080). Dann hier „verbinden". Auf der <b>Trigger</b>-Seite kannst du dann „Streamer.bot-Aktion" als Aktion wählen.
         </p>
       </section>
+
+      {/* Stammgast-Begrüßung */}
+      <GreetReturningCard />
 
       {/* Chat-Moderation */}
       <section className="bx-card p-5">

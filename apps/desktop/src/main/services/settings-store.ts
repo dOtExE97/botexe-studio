@@ -52,6 +52,8 @@ export interface StudioSettings {
   moderation: ModerationSettings;
   /** Giveaway/Verlosung: Zuschauer treten per Join-Wort bei. */
   giveaway: GiveawaySettings;
+  /** Stammgast-Begrüßung: wiederkehrende Zuschauer per TTS willkommen heißen. */
+  greetReturning: GreetReturningSettings;
   /** football-data.org API-Key für den Sport-Liveticker (lokal). */
   sportApiKey: string;
   /** OBS-Studio-Steuerung (WebSocket) — Trigger können Szenen/Quellen schalten. */
@@ -88,6 +90,15 @@ export interface GiveawaySettings {
   entryCost: number;
 }
 
+export interface GreetReturningSettings {
+  /** Stammgäste beim ersten Chat der Session per TTS begrüßen. */
+  enabled: boolean;
+  /** Ab dem wievielten Besuch begrüßt wird (2 = ab dem 2. Mal). */
+  minVisits: number;
+  /** Vorlage, {user} = Name, {visits} = Anzahl Besuche. */
+  template: string;
+}
+
 const TTS_DEFAULTS: TTSSettings = {
   enabled: true,
   voice: 'de-DE-KatjaNeural',
@@ -117,6 +128,7 @@ const DEFAULTS: StudioSettings = {
   points: DEFAULT_POINTS_CONFIG,
   moderation: { blockedWords: [] },
   giveaway: { enabled: false, joinWord: '!join', entryCost: 0 },
+  greetReturning: { enabled: false, minVisits: 2, template: 'Willkommen zurück, {user}! Schön, dass du wieder dabei bist.' },
   sportApiKey: '',
   obs: { enabled: false, url: 'ws://127.0.0.1:4455', password: '' },
   controlToken: '',
@@ -200,6 +212,12 @@ export class SettingsStore {
         enabled: typeof gw?.enabled === 'boolean' ? gw.enabled : false,
         joinWord: typeof gw?.joinWord === 'string' && gw.joinWord.trim() ? gw.joinWord.trim().slice(0, 30) : '!join',
         entryCost: typeof gw?.entryCost === 'number' && gw.entryCost >= 0 ? Math.floor(gw.entryCost) : 0,
+      };
+      const gr = raw.greetReturning as Record<string, unknown> | undefined;
+      merged.greetReturning = {
+        enabled: typeof gr?.enabled === 'boolean' ? gr.enabled : false,
+        minVisits: typeof gr?.minVisits === 'number' && gr.minVisits >= 2 ? Math.floor(gr.minVisits) : 2,
+        template: typeof gr?.template === 'string' && gr.template.trim() ? gr.template.slice(0, 200) : DEFAULTS.greetReturning.template,
       };
       merged.panelButtons = (Array.isArray(raw.panelButtons) ? raw.panelButtons : []).filter(
         (b: unknown): b is PanelButton => {

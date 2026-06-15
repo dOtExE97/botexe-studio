@@ -99,6 +99,8 @@ export class Studio {
   /** Giveaway-Teilnehmer (userId → Anzeige) — dedupliziert, neuer Stream leert. */
   private giveawayParticipants = new Map<string, { nickname: string; avatar?: string }>();
   private lastGiveawayWinner = '';
+  /** Wer in DIESER Session schon (erstmals) geschrieben hat — für Stammgast-Begrüßung. */
+  private greetedThisSession = new Set<string>();
   /** redemptionId → event.ts der letzten Einlösung (globaler Cooldown). */
   private redemptionCooldowns = new Map<string, number>();
   private commandCooldowns = new Map<string, number>();
@@ -206,6 +208,7 @@ export class Studio {
 
       // 3b. Chat: Befehle (Bot) + Punkte-Einlösungen + Vorlesen (TikFinity-Style)
       if (e.type === 'chat') {
+        this.maybeGreetReturning(e);
         this.maybeJoinGiveaway(e);
         this.maybeRunCommand(e);
         this.maybeRedeem(e);
@@ -517,6 +520,40 @@ export class Studio {
     this.scheduleStatsBroadcast();
   }
 
+  // ── Stammgast-Begrüßung ───────────────────────────────────────────────
+
+  /** Beim ersten Chat eines wiederkehrenden Zuschauers in dieser Session per
+   *  TTS begrüßen (ab minVisits Besuchen). Punkte/Besuche sind zu diesem
+   *  Zeitpunkt schon fortgeschrieben (touchStats lief im Event-Handler davor). */
+  private maybeGreetReturning(event: StudioEvent): void {
+    if (event.type !== 'chat' || !event.user) return;
+    if (this.greetedThisSession.has(event.user.id)) return;
+    this.greetedThisSession.add(event.user.id);
+    const g = this.settings.get().greetReturning;
+    if (!g.enabled) return;
+    const visits = this.points.visitCountOf(event.user.id);
+    if (visits < g.minVisits) return;
+    const tts = this.settings.get().tts;
+    if (!tts.enabled) return;
+    const text = TTSService.sanitize(
+      g.template.replace(/\{user\}/g, event.user.nickname).replace(/\{visits\}/g, String(visits)),
+      tts.maxTextLen,
+    );
+    if (text) this.tts.speak(text, tts.voice);
+  }
+
+  getGreetReturning(): import('./settings-store').GreetReturningSettings { return this.settings.get().greetReturning; }
+  setGreetReturning(patch: Partial<import('./settings-store').GreetReturningSettings>): import('./settings-store').GreetReturningSettings {
+    const cur = this.settings.get().greetReturning;
+    const next = {
+      enabled: typeof patch.enabled === 'boolean' ? patch.enabled : cur.enabled,
+      minVisits: typeof patch.minVisits === 'number' && patch.minVisits >= 2 ? Math.floor(patch.minVisits) : cur.minVisits,
+      template: typeof patch.template === 'string' && patch.template.trim() ? patch.template.slice(0, 200) : cur.template,
+    };
+    this.settings.update({ greetReturning: next });
+    return next;
+  }
+
   // ── Giveaway / Verlosung ──────────────────────────────────────────────
 
   /** Beitritt via Join-Wort: dedupliziert pro Zuschauer, optional Punkte-Eintritt. */
@@ -670,6 +707,7 @@ export class Studio {
     this.commandCooldowns.clear();
     this.giveawayParticipants.clear();
     this.lastGiveawayWinner = '';
+    this.greetedThisSession.clear();
     this.bus.clearLastValues();
     // Reset-Signal an die Overlay-Widgets: setzt auch persistente Zähler zurück
     // (counter/gift-counter via localStorage) — ein reines Re-Mount täte das nicht.

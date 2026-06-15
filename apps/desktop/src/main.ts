@@ -460,6 +460,12 @@ function registerIpc(): void {
   });
   ipcMain.handle(IPC.GIVEAWAY_DRAW, () => isStudio().drawGiveaway());
   ipcMain.handle(IPC.GIVEAWAY_RESET, () => { isStudio().resetGiveaway(); return { ok: true }; });
+  // Stammgast-Begrüßung
+  ipcMain.handle(IPC.GREET_GET, () => isStudio().getGreetReturning());
+  ipcMain.handle(IPC.GREET_SET, (_e, patch: unknown) => {
+    if (typeof patch !== 'object' || patch === null) return {};
+    return isStudio().setGreetReturning(patch as Partial<{ enabled: boolean; minVisits: number; template: string }>);
+  });
 
   // Manuelles Auslöse-Panel + Hotkeys
   ipcMain.handle(IPC.PANEL_GET, () => isStudio().getPanelButtons());
