@@ -96,4 +96,4 @@ git tag v0.2.0 && git push origin v0.2.0
 - Änderungen: [`CHANGELOG.md`](CHANGELOG.md)
 
 ## Lizenz
-Siehe [`LICENSE`](LICENSE).
+**Source-available, kein Open Source.** Der Code ist öffentlich einsehbar (Transparenz + Audit), und du darfst die offiziellen Builds fürs eigene Streaming nutzen — aber **nicht** kopieren, weiterverbreiten oder ein eigenes/kommerzielles Produkt daraus bauen. Alle Rechte bei dOtExE. Kommerzielle/Agentur-Lizenzen auf Anfrage. Details: [`LICENSE`](LICENSE).

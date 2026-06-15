@@ -1,0 +1,50 @@
+bOtExE Studio — Source-Available License
+Copyright (c) 2026 dOtExE (Alex). All rights reserved.
+
+Deutsch (Kurzfassung, unverbindlich — verbindlich ist der englische Text unten):
+Der Quellcode ist öffentlich EINSEHBAR, damit jeder ihn prüfen und nachvollziehen
+kann (Transparenz). Er ist NICHT Open Source. Du darfst die offiziellen Builds für
+dein eigenes Streaming nutzen. Du darfst den Code (oder Teile davon) NICHT kopieren,
+weiterverbreiten, verändern-und-weitergeben oder verwenden, um ein eigenes oder
+kommerzielles Produkt daraus zu bauen oder zu betreiben — ohne ausdrückliche
+schriftliche Erlaubnis des Inhabers. Für kommerzielle Nutzung / Agentur-Lizenzen:
+beim Inhaber anfragen.
+
+-------------------------------------------------------------------------------
+
+This is source-available software, NOT open source. All rights are reserved by the
+copyright holder ("the Owner").
+
+1. Viewing & audit. You may view, read, and study the source code in this
+   repository for transparency and security-review purposes.
+
+2. Personal use of official builds. You may download and run the official,
+   unmodified release builds (e.g. from the project's GitHub Releases) to operate
+   your own livestream, free of charge.
+
+3. Restrictions. Except as explicitly permitted above, you may NOT, without the
+   Owner's prior written permission:
+   (a) copy, redistribute, publish, sublicense, sell, or host the software or its
+       source code (in whole or in substantial part);
+   (b) modify the software and distribute or operate the modified version;
+   (c) use the software, its source code, or its design (in whole or in
+       substantial part) to build, market, or operate a competing and/or
+       commercial product or service;
+   (d) remove or alter this license, the copyright notice, or attribution.
+
+4. Contributions. Code contributed to this repository (e.g. via pull request) is
+   licensed to the Owner for use within this project; the Owner retains the right
+   to relicense the project as a whole.
+
+5. Commercial licensing. Commercial use, agency/white-label use, or redistribution
+   rights may be granted under a separate agreement. Contact the Owner.
+
+6. No warranty. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO
+   EVENT SHALL THE OWNER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR
+   IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+7. Reservation. All rights not expressly granted here are reserved by the Owner.
+   The Owner may release future versions under different terms.
