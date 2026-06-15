@@ -11,7 +11,7 @@ import { SessionStats } from '../core/session-stats';
 import { EventRecorder, parseReplay, playReplay } from '../core/replay';
 import { TikTokAdapter, type AdapterStatusInfo } from '../adapters/tiktok-adapter';
 import { OverlayServer } from '../adapters/overlay-server';
-import { SettingsStore } from './settings-store';
+import { SettingsStore, type GiveawaySettings } from './settings-store';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
 import { MediaLibrary } from './media-library';
@@ -96,6 +96,9 @@ export class Studio {
   /** Laufende verzögerte Aktionen (Combo-Sequenzen) — beim Stop aufräumen. */
   private actionTimers = new Set<ReturnType<typeof setTimeout>>();
   private lastChatSendAt = 0;
+  /** Giveaway-Teilnehmer (userId → Anzeige) — dedupliziert, neuer Stream leert. */
+  private giveawayParticipants = new Map<string, { nickname: string; avatar?: string }>();
+  private lastGiveawayWinner = '';
   /** redemptionId → event.ts der letzten Einlösung (globaler Cooldown). */
   private redemptionCooldowns = new Map<string, number>();
   private commandCooldowns = new Map<string, number>();
@@ -203,6 +206,7 @@ export class Studio {
 
       // 3b. Chat: Befehle (Bot) + Punkte-Einlösungen + Vorlesen (TikFinity-Style)
       if (e.type === 'chat') {
+        this.maybeJoinGiveaway(e);
         this.maybeRunCommand(e);
         this.maybeRedeem(e);
         this.maybeReadChat(e);
@@ -282,6 +286,10 @@ export class Studio {
       void this.sendChat(renderSpeakTemplate(action.template, event));
     } else if (action.kind === 'streamerbot_action') {
       void this.streamerbot.doAction(action.action);
+    } else if (action.kind === 'giveaway_draw') {
+      this.drawGiveaway();
+    } else if (action.kind === 'giveaway_reset') {
+      this.resetGiveaway();
     } else if (action.kind === 'speak') {
       this.speakForEvent(action.template, event, action.voice);
     } else if (action.kind === 'spin_wheel') {
@@ -503,6 +511,54 @@ export class Studio {
     this.scheduleStatsBroadcast();
   }
 
+  // ── Giveaway / Verlosung ──────────────────────────────────────────────
+
+  /** Beitritt via Join-Wort: dedupliziert pro Zuschauer, optional Punkte-Eintritt. */
+  private maybeJoinGiveaway(event: StudioEvent): void {
+    const gw = this.settings.get().giveaway;
+    if (!gw.enabled || event.type !== 'chat' || !event.user || !event.text) return;
+    const norm = (s: string) => s.trim().toLowerCase().replace(/^!+/, '');
+    if (norm(event.text) !== norm(gw.joinWord)) return;
+    if (this.giveawayParticipants.has(event.user.id)) return; // schon dabei
+    if (gw.entryCost > 0) {
+      if (!this.points.spend(event.user.id, gw.entryCost)) return; // nicht genug Punkte
+      this.scheduleStatsBroadcast();
+    }
+    this.giveawayParticipants.set(event.user.id, { nickname: event.user.nickname, avatar: event.user.profilePic });
+  }
+
+  giveawayState(): { enabled: boolean; joinWord: string; entryCost: number; count: number; lastWinner: string } {
+    const gw = this.settings.get().giveaway;
+    return { enabled: gw.enabled, joinWord: gw.joinWord, entryCost: gw.entryCost, count: this.giveawayParticipants.size, lastWinner: this.lastGiveawayWinner };
+  }
+
+  setGiveawayConfig(patch: Partial<GiveawaySettings>): GiveawaySettings {
+    const cur = this.settings.get().giveaway;
+    const next: GiveawaySettings = {
+      enabled: typeof patch.enabled === 'boolean' ? patch.enabled : cur.enabled,
+      joinWord: typeof patch.joinWord === 'string' && patch.joinWord.trim() ? patch.joinWord.trim().slice(0, 30) : cur.joinWord,
+      entryCost: typeof patch.entryCost === 'number' && patch.entryCost >= 0 ? Math.floor(patch.entryCost) : cur.entryCost,
+    };
+    this.settings.update({ giveaway: next });
+    return next;
+  }
+
+  /** Gewinner ziehen: zufällig aus den Teilnehmern, Widget animiert die Ziehung. */
+  drawGiveaway(): { ok: boolean; winner?: string } {
+    const list = [...this.giveawayParticipants.values()];
+    if (list.length === 0) return { ok: false };
+    const winner = list[Math.floor(Math.random() * list.length)]!;
+    this.lastGiveawayWinner = winner.nickname;
+    this.server.broadcast({ kind: 'action', ruleId: 'giveaway', action: { kind: 'giveaway_draw', params: { winner, names: list.map((p) => p.nickname) } } });
+    return { ok: true, winner: winner.nickname };
+  }
+
+  resetGiveaway(): void {
+    this.giveawayParticipants.clear();
+    this.lastGiveawayWinner = '';
+    this.server.broadcast({ kind: 'action', ruleId: 'giveaway', action: { kind: 'giveaway_reset' } });
+  }
+
   // ── Chat-Befehle (Bot) ────────────────────────────────────────────────
 
   getChatCommands(): ChatCommand[] { return this.settings.get().chatCommands ?? []; }
@@ -606,6 +662,8 @@ export class Studio {
     this.engine.resetCooldowns();
     this.redemptionCooldowns.clear();
     this.commandCooldowns.clear();
+    this.giveawayParticipants.clear();
+    this.lastGiveawayWinner = '';
     this.bus.clearLastValues();
     // Reset-Signal an die Overlay-Widgets: setzt auch persistente Zähler zurück
     // (counter/gift-counter via localStorage) — ein reines Re-Mount täte das nicht.

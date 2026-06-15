@@ -50,6 +50,8 @@ export interface StudioSettings {
   points: PointsConfig;
   /** Chat-Moderation: gesperrte Wörter werden nicht vorgelesen. */
   moderation: ModerationSettings;
+  /** Giveaway/Verlosung: Zuschauer treten per Join-Wort bei. */
+  giveaway: GiveawaySettings;
   /** football-data.org API-Key für den Sport-Liveticker (lokal). */
   sportApiKey: string;
   /** OBS-Studio-Steuerung (WebSocket) — Trigger können Szenen/Quellen schalten. */
@@ -75,6 +77,15 @@ export interface ObsSettings {
 export interface ModerationSettings {
   /** Wörter/Phrasen (kommagetrennt eingegeben) — Nachrichten damit werden vom TTS gesperrt. */
   blockedWords: string[];
+}
+
+export interface GiveawaySettings {
+  /** Beitritt aktiv (sammelt Teilnehmer, sobald jemand das Join-Wort schreibt). */
+  enabled: boolean;
+  /** Wort/Befehl zum Beitreten, z.B. '!join' (führende ! egal). */
+  joinWord: string;
+  /** Eintritts-Kosten in Punkten (0 = gratis). Reicht's nicht, kein Beitritt. */
+  entryCost: number;
 }
 
 const TTS_DEFAULTS: TTSSettings = {
@@ -105,6 +116,7 @@ const DEFAULTS: StudioSettings = {
   ttsCredentials: {},
   points: DEFAULT_POINTS_CONFIG,
   moderation: { blockedWords: [] },
+  giveaway: { enabled: false, joinWord: '!join', entryCost: 0 },
   sportApiKey: '',
   obs: { enabled: false, url: 'ws://127.0.0.1:4455', password: '' },
   controlToken: '',
@@ -183,6 +195,12 @@ export class SettingsStore {
       );
       merged.audioOutputId = typeof raw.audioOutputId === 'string' ? raw.audioOutputId : '';
       merged.audioOutputLabel = typeof raw.audioOutputLabel === 'string' ? raw.audioOutputLabel : '';
+      const gw = raw.giveaway as Record<string, unknown> | undefined;
+      merged.giveaway = {
+        enabled: typeof gw?.enabled === 'boolean' ? gw.enabled : false,
+        joinWord: typeof gw?.joinWord === 'string' && gw.joinWord.trim() ? gw.joinWord.trim().slice(0, 30) : '!join',
+        entryCost: typeof gw?.entryCost === 'number' && gw.entryCost >= 0 ? Math.floor(gw.entryCost) : 0,
+      };
       merged.panelButtons = (Array.isArray(raw.panelButtons) ? raw.panelButtons : []).filter(
         (b: unknown): b is PanelButton => {
           if (typeof b !== 'object' || b === null) return false;

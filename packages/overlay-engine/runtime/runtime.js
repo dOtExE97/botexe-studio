@@ -468,6 +468,10 @@ function demoTriggerWidgets() {
     const type = entry.el?.dataset.widgetType;
     if (type === 'wheel') dispatchAction('preview-spin', { kind: 'spin_wheel', targetId: layerId });
     else if (type === 'media') dispatchAction('preview-media', { kind: 'play_media', targetId: layerId });
+    else if (type === 'giveaway') {
+      const names = DEMO_USERS.map((u) => u.nickname);
+      dispatchAction('preview-giveaway', { kind: 'giveaway_draw', params: { winner: { nickname: names[0] }, names } });
+    }
   }
 }
 

@@ -1,6 +1,7 @@
 // LivePage — verbinden, zuschauen, testen. Test-Werkzeuge sind bewusst
 // immer sichtbar (Single-User-Tool, keine versteckten Dev-Gates).
 import { useEffect, useState, type ComponentType } from 'react';
+import GiveawayCard from '../components/GiveawayCard';
 import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, X, LayoutPanelTop, Zap, RotateCcw } from 'lucide-react';
 import type { useStudio } from '../hooks/useStudio';
 import ConfirmButton from '../components/ConfirmButton';
@@ -232,6 +233,9 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
           CSV
         </button>
       </div>
+
+      {/* Giveaway / Verlosung — Teilnehmer sammeln + Gewinner ziehen */}
+      <GiveawayCard />
 
       {/* Chat-Nachricht senden (braucht TikTok-Login in den Einstellungen) */}
       <form

@@ -345,6 +345,21 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'giveaway', label: 'Giveaway / Verlosung', desc: 'Zuschauer treten per !join bei (in Einstellungen → Giveaway aktivieren); auf der Live-Seite „Gewinner ziehen" → das Widget animiert die Ziehung und enthüllt den Gewinner.',
+    w: 760, h: 240, props: { style: 'strip', title: 'Giveaway', soundId: '', winSoundId: 'botexe-gewinn.wav', accent: '#ff5436', theme: 'glas' },
+    fields: [
+      { key: 'title', label: 'Titel', type: 'text' },
+      styleField([
+        { value: 'strip', label: 'Streifen (Case-Opening-Style)' },
+        { value: 'spotlight', label: 'Spotlight (Flacker-Reveal)' },
+      ]),
+      { key: 'soundId', label: 'Zieh-Sound', type: 'sound', hint: 'Spielt beim Start der Ziehung.' },
+      { key: 'winSoundId', label: 'Gewinner-Sound', type: 'sound', hint: 'Spielt beim Reveal des Gewinners.' },
+      ACCENT_FIELD,
+      THEME_FIELD,
+    ],
+  },
+  {
     type: 'top-gift', label: 'Top-Gift', desc: 'Highlight des größten Einzel-Gifts der Session — Gift-Bild, Spender-Avatar, Bounce bei Rekord.',
     w: 320, h: 320, props: { title: '', style: 'glas', accent: '#ffd23e', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
@@ -588,7 +603,7 @@ const PALETTE_CATEGORIES: { id: string; label: string }[] = [
 ];
 const CATEGORY_OF: Record<string, string> = {
   'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts',
-  bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele',
+  bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele', giveaway: 'spiele',
   'gift-jar': 'gifts', 'gift-counter': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts',
   'gift-cannon': 'alerts',
   'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',

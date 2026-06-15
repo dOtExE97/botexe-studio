@@ -82,7 +82,12 @@ export type TriggerActionKind =
   /** Nachricht in den TikTok-Live-Chat senden (braucht Login; rate-limited). */
   | { kind: 'send_chat'; template: string }
   /** Streamer.bot-Aktion auslösen (per Name oder ID). */
-  | { kind: 'streamerbot_action'; action: string };
+  | { kind: 'streamerbot_action'; action: string }
+  /** Giveaway: Gewinner aus den !join-Teilnehmern ziehen (App wählt, Widget
+   *  animiert). params werden von der App gesetzt (winner + names). */
+  | { kind: 'giveaway_draw'; params?: { winner?: { nickname: string; avatar?: string }; names?: string[] } }
+  /** Giveaway zurücksetzen (Teilnehmerliste leeren, Widget auf Idle). */
+  | { kind: 'giveaway_reset' };
 
 /** Eine Aktion mit optionaler Verzögerung (Combo-Sequenz: Alert jetzt,
  *  Sound +0,5s, Ansage +2s …). delayMs = Versatz ab Auslösung der Regel. */

@@ -34,6 +34,11 @@ export const IPC = {
   // Chat-Befehle (Bot)
   COMMANDS_GET: 'commands:get',
   COMMANDS_SET: 'commands:set',
+  // Giveaway / Verlosung
+  GIVEAWAY_STATE: 'giveaway:state',
+  GIVEAWAY_CONFIG: 'giveaway:config',
+  GIVEAWAY_DRAW: 'giveaway:draw',
+  GIVEAWAY_RESET: 'giveaway:reset',
   // Manuelles Auslöse-Panel + Hotkeys
   PANEL_GET: 'panel:get',
   PANEL_SET: 'panel:set',

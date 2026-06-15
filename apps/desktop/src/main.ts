@@ -448,6 +448,15 @@ function registerIpc(): void {
     return { ok: true };
   });
 
+  // Giveaway / Verlosung
+  ipcMain.handle(IPC.GIVEAWAY_STATE, () => isStudio().giveawayState());
+  ipcMain.handle(IPC.GIVEAWAY_CONFIG, (_e, patch: unknown) => {
+    if (typeof patch !== 'object' || patch === null) return { ok: false };
+    return { ok: true, config: isStudio().setGiveawayConfig(patch as Partial<{ enabled: boolean; joinWord: string; entryCost: number }>) };
+  });
+  ipcMain.handle(IPC.GIVEAWAY_DRAW, () => isStudio().drawGiveaway());
+  ipcMain.handle(IPC.GIVEAWAY_RESET, () => { isStudio().resetGiveaway(); return { ok: true }; });
+
   // Manuelles Auslöse-Panel + Hotkeys
   ipcMain.handle(IPC.PANEL_GET, () => isStudio().getPanelButtons());
   ipcMain.handle(IPC.PANEL_SET, (_e, buttons: unknown) => {
