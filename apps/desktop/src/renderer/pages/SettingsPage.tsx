@@ -1,7 +1,7 @@
 // SettingsPage — App-Einstellungen: Loyalty-Punkte-Regeln, App-Infos,
 // Datenordner, Punkte-Reset.
 import { useEffect, useState } from 'react';
-import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2 } from 'lucide-react';
+import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
 import GreetReturningCard from '../components/GreetReturningCard';
 import { toast } from '../components/ToastHost';
@@ -130,9 +130,18 @@ export default function SettingsPage() {
 
   return (
     <div className="flex max-w-3xl flex-col gap-5 p-6">
-      <div>
-        <h1 className="font-display text-xl uppercase">Einstellungen</h1>
-        <p className="mt-1 text-xs text-studio-muted">Loyalty-Punkte, App-Infos und Daten.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-xl uppercase">Einstellungen</h1>
+          <p className="mt-1 text-xs text-studio-muted">Loyalty-Punkte, App-Infos und Daten.</p>
+        </div>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('bx-show-tour'))}
+          className="bx-pill flex-none text-[11px] hover:text-studio-accent"
+          title="Die Willkommens-/Einrichtungs-Tour erneut anzeigen"
+        >
+          <Rocket size={13} /> Tour erneut zeigen
+        </button>
       </div>
 
       {/* Loyalty-Punkte */}

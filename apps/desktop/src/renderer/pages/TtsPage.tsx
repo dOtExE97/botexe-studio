@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
   Lightbulb,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface TtsVoice {
@@ -185,6 +186,11 @@ export default function TtsPage() {
             <span className="w-9 font-mono">{Math.round(tts.volume * 100)}%</span>
           </label>
         </div>
+        {!needsPiperSetup && selectedVoice?.ready && (
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-studio-teal">
+            <Check size={13} /> Diese Stimme ist sofort bereit — kein Download nötig{currentVoice.startsWith('edge:') ? ' (Cloud-Stimme über Microsoft Edge, gratis)' : ''}. Tipp ein Wort und klick VORLESEN.
+          </p>
+        )}
         <div className="mt-3 flex gap-2">
           <input
             value={testText}
@@ -293,9 +299,12 @@ export default function TtsPage() {
         <h2 className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <Sparkles size={15} /> Premium- & KI-Stimmen (eigene Keys)
         </h2>
+        <div className="mb-3 flex items-start gap-2 rounded-lg border border-studio-gold/40 bg-studio-gold/10 px-3 py-2 text-[11px] leading-relaxed text-studio-gold">
+          <AlertTriangle size={14} className="mt-0.5 flex-none" />
+          <span><b>Diese Stimmen kosten Geld.</b> Sie laufen über deine eigenen Cloud-API-Keys (Amazon, ElevenLabs, OpenAI …) und rechnen pro Zeichen/Minute über DEINEN Account ab. Prüfe die Preise beim Anbieter, bevor du einen Key einträgst. Die <b>Standard-Stimme oben ist gratis</b> und reicht für den Anfang.</span>
+        </div>
         <p className="mb-3 text-[11px] leading-relaxed text-studio-muted">
-          Trag deinen eigenen Zugang ein — die Stimmen erscheinen dann oben im Dropdown. Jeder Dienst rechnet über
-          deinen eigenen Account ab, du entscheidest selbst, was du nutzt. Keys bleiben lokal auf diesem Rechner.
+          Trag deinen eigenen Zugang ein — die Stimmen erscheinen dann oben im Dropdown. Keys bleiben lokal auf diesem Rechner.
         </p>
         <div className="flex flex-col gap-2">
           {byokProviders.map((p) => {

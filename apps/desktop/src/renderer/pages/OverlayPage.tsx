@@ -16,6 +16,7 @@ import {
   Plus,
   Play,
   AlertTriangle,
+  LayoutPanelTop,
 } from 'lucide-react';
 import {
   CANVAS_PRESETS,
@@ -1169,6 +1170,15 @@ export default function OverlayPage() {
                 className="pointer-events-none absolute left-0 top-0 origin-top-left border-0"
                 style={{ width: canvasW, height: canvasH, transform: `scale(${scale})` }}
               />
+            )}
+
+            {/* Leerer Canvas: freundlicher Hinweis statt blankes Bild (Onboarding). */}
+            {layout.layers.length === 0 && (
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
+                <LayoutPanelTop size={36} className="text-studio-muted/50" />
+                <p className="text-sm font-bold text-studio-text/80">Noch keine Widgets auf diesem Screen</p>
+                <p className="max-w-[80%] text-xs text-studio-muted">Wähl links aus der <b>Widget-Palette</b> — du siehst jedes Widget schon live in der Liste. Mit <b>➕ Hinzufügen</b> landet es hier.</p>
+              </div>
             )}
 
             {/* TikTok-UI SafeZones als dezente Guides (weiche Tönung, Pill-Label) */}
