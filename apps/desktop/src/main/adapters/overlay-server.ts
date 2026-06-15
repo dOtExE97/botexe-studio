@@ -137,6 +137,9 @@ export class OverlayServer {
       const preview = req.query.preview === '1';
       // Schnell-Modus (TTLS-Browser ohne GPU): Blur/Effekte reduziert.
       const perf = req.query.perf === '1';
+      // Einzel-Widget-Vorschau (Palette-Schaufenster): KEIN WS, das Layout kommt
+      // per postMessage vom Editor, Widget führt sich mit Demo-Daten selbst vor.
+      const single = req.query.single === '1';
       let html = fs.readFileSync(htmlPath, 'utf-8');
       // WS-/Asset-URLs über DENSELBEN Host ausliefern, über den die Seite
       // geladen wurde (z.B. localtest.me für TikTok Live Studio) — sonst lädt
@@ -155,6 +158,7 @@ export class OverlayServer {
         token: this.token,
         preview,
         perf,
+        single,
       })};</script>`;
       html = html.includes('</head>') ? html.replace('</head>', `${cfg}\n</head>`) : cfg + html;
       // Relativer script-src würde auf /runtime.js zeigen (404, kein Token) —

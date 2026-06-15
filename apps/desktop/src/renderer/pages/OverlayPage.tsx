@@ -26,6 +26,7 @@ import {
 } from '@botexe/overlay-engine';
 import ConfirmButton from '../components/ConfirmButton';
 import GiftListEditor from '../components/GiftListEditor';
+import WidgetPreview from '../components/WidgetPreview';
 import { toast } from '../components/ToastHost';
 
 interface PropField {
@@ -699,6 +700,10 @@ export default function OverlayPage() {
   const [soundList, setSoundList] = useState<{ id: string; filename: string }[]>([]);
   const [paletteQuery, setPaletteQuery] = useState('');
   const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
+  // Schaufenster: Overlay-Basis-URL (für die Live-Vorschau-Iframes der Palette)
+  // + An/Aus-Schalter (auf schwachen PCs abschaltbar).
+  const [overlayBase, setOverlayBase] = useState<string | null>(null);
+  const [livePalette, setLivePalette] = useState(() => localStorage.getItem('bx-palette-live') !== '0');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.3);
@@ -737,6 +742,11 @@ export default function OverlayPage() {
   useEffect(() => { void refreshMedia(); }, [refreshMedia]);
   useEffect(() => {
     void window.studio.listSounds().then((s: { id: string; filename: string }[]) => setSoundList(s));
+  }, []);
+
+  // Overlay-Basis-URL (inkl. Token) für die Palette-Schaufenster-Iframes holen.
+  useEffect(() => {
+    void window.studio.getOverlayInfo().then((info: { url: string }) => setOverlayBase(info.url));
   }, []);
 
   const selectProfile = (id: string) => {
@@ -944,8 +954,17 @@ export default function OverlayPage() {
   return (
     <div className="grid h-full grid-cols-[200px_1fr_260px] gap-0">
       {/* Widget-Palette — nach Kategorien gruppiert + Suche (übersichtlicher) */}
-      <aside className="overflow-y-auto border-r border-studio-border bg-studio-panel p-3">
-        <h2 className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Widgets</h2>
+      <aside data-palette-scroll className="overflow-y-auto border-r border-studio-border bg-studio-panel p-3">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Widgets</h2>
+          <button
+            onClick={() => setLivePalette((on) => { const next = !on; localStorage.setItem('bx-palette-live', next ? '1' : '0'); return next; })}
+            className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${livePalette ? 'text-studio-teal' : 'text-studio-muted'} hover:text-studio-teal`}
+            title="Live-Vorschau der Widgets in der Liste an/aus (auf schwachen PCs ggf. aus)"
+          >
+            <Play size={11} /> {livePalette ? 'Live an' : 'Live aus'}
+          </button>
+        </div>
         <input
           value={paletteQuery}
           onChange={(e) => setPaletteQuery(e.target.value)}
@@ -977,16 +996,30 @@ export default function OverlayPage() {
                     </button>
                     {open && (
                       <div className="flex flex-col gap-2">
-                        {items.map((w) => (
-                          <button
-                            key={w.label}
-                            onClick={() => addWidget(w)}
-                            className="clip-slant group rounded-lg border border-studio-border bg-studio-raised p-3 text-left transition-colors hover:border-studio-accent/60"
-                          >
-                            <div className="text-xs font-bold group-hover:text-studio-accent">{w.label}</div>
-                            <div className="mt-0.5 text-[10px] leading-snug text-studio-muted">{w.desc}</div>
-                          </button>
-                        ))}
+                        {items.map((w) =>
+                          livePalette ? (
+                            <WidgetPreview
+                              key={w.label}
+                              type={w.type}
+                              props={w.props}
+                              w={w.w}
+                              h={w.h}
+                              label={w.label}
+                              desc={w.desc}
+                              overlayBase={overlayBase}
+                              onAdd={() => addWidget(w)}
+                            />
+                          ) : (
+                            <button
+                              key={w.label}
+                              onClick={() => addWidget(w)}
+                              className="clip-slant group rounded-lg border border-studio-border bg-studio-raised p-3 text-left transition-colors hover:border-studio-accent/60"
+                            >
+                              <div className="text-xs font-bold group-hover:text-studio-accent">{w.label}</div>
+                              <div className="mt-0.5 text-[10px] leading-snug text-studio-muted">{w.desc}</div>
+                            </button>
+                          ),
+                        )}
                       </div>
                     )}
                   </div>

@@ -365,6 +365,9 @@ function dispatchAction(ruleId, action) {
 // Streamer sieht, wie die Widgets wirklich aussehen und sich bewegen. Layouts
 // kommen weiter per WS (Editor-Edits live), echte Events/Stats werden ignoriert.
 const PREVIEW = !!cfg.preview;
+// Einzel-Widget-Schaufenster (Palette): KEIN WS — der Editor schickt das Layer
+// per postMessage, das Widget führt sich mit denselben Demo-Daten selbst vor.
+const SINGLE = !!cfg.single;
 
 function demoAvatar(name, color) {
   const initial = (name[0] || '?').toUpperCase();
@@ -483,6 +486,45 @@ function startPreview() {
   window.__bxPreviewEvent = (e) => dispatchEvent({ ts: Date.now(), ...e });
 }
 
+// ── Einzel-Widget-Schaufenster (Palette-Vorschau) ──────────────────────────
+// Kein WS: der Editor schickt das Layer per postMessage, danach treibt der
+// normale Demo-Motor das Widget. Der „Test"-Knopf am Kärtchen löst die
+// typische Aktion/ein dickes Gift aus.
+function setupSinglePreview() {
+  let started = false;
+  window.addEventListener('message', (ev) => {
+    const d = ev.data;
+    if (!d || typeof d !== 'object' || typeof d.type !== 'string') return;
+    if (d.type === 'bx-preview-mount' && d.layer && d.canvas) {
+      const layout = { canvas: { width: d.canvas.width, height: d.canvas.height }, layers: [d.layer] };
+      void renderLayout(layout).then(() => { if (!started) { started = true; startPreview(); } });
+    } else if (d.type === 'bx-preview-test') {
+      previewTest(d.widgetType, d.layerId);
+    }
+  });
+  // Dem Editor signalisieren: bereit, Layer entgegenzunehmen.
+  try { window.parent?.postMessage({ type: 'bx-preview-ready' }, '*'); } catch { /* noop */ }
+}
+
+function previewTest(widgetType, layerId) {
+  const u = demoPickUser();
+  const user = { id: u.id, nickname: u.nickname, profilePic: u.profilePic };
+  if (widgetType === 'wheel') { dispatchAction('preview-test', { kind: 'spin_wheel', targetId: layerId }); return; }
+  if (widgetType === 'media') { dispatchAction('preview-test', { kind: 'play_media', targetId: layerId }); return; }
+  if (widgetType === 'giveaway') {
+    const names = DEMO_USERS.map((x) => x.nickname);
+    dispatchAction('preview-test', { kind: 'giveaway_draw', params: { winner: { nickname: names[0] }, names } });
+    return;
+  }
+  if (widgetType === 'live-poll') {
+    DEMO_USERS.forEach((x, i) => dispatchEvent({ type: 'chat', ts: Date.now(), user: { id: x.id, nickname: x.nickname, profilePic: x.profilePic }, text: String((i % 3) + 1) }));
+    return;
+  }
+  // Default: ein dickes Gift treibt Alerts/Feuerwerk/Kanone/Zähler/Glas/…
+  const g = DEMO_GIFTS[DEMO_GIFTS.length - 1];
+  dispatchEvent({ type: 'gift', ts: Date.now(), user, gift: { slug: g.slug, count: 5, coinsPerUnit: g.coins, totalCoins: g.coins * 5, icon: g.icon } });
+}
+
 // ── WebSocket mit Selbstheilung ───────────────────────────────────────────
 let reconnectDelay = 1000;
 let activeWs = null;
@@ -560,7 +602,10 @@ setTimeout(() => {
   requestAnimationFrame(count);
 }, 6000);
 
-if (cfg.wsUrl) {
+if (SINGLE) {
+  // Schaufenster-Vorschau: kein WS, Layer kommt per postMessage vom Editor.
+  setupSinglePreview();
+} else if (cfg.wsUrl) {
   connect();
   if (PREVIEW) startPreview();
 } else {
