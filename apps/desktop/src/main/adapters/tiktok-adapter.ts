@@ -257,6 +257,9 @@ export class TikTokAdapter {
         this.pendingFresh = true; // erstes Live = neuer Stream → Reset
         this.startLiveWatch(epoch);
       } else {
+        // Kurz-Abriss-Reconnect: ein evtl. gesetztes pendingFresh NICHT
+        // verschleppen (sonst löst der nächste Reconnect fälschlich Reset aus).
+        this.pendingFresh = false;
         this.scheduleReconnect(epoch);
       }
     }
@@ -398,5 +401,9 @@ export class TikTokAdapter {
 /** „Streamer ist (noch) nicht live" — kein Fehler zum Aufgeben, sondern Anlass,
  *  auf das Live zu warten. Deckt die TikTok-Lib-Meldungen ab. */
 export function isOfflineError(msg: string): boolean {
-  return /isn'?t online|not online|offline|user_offline|not.*live|no.*live|room.*not.*found/i.test(String(msg || ''));
+  // Konservativ: nur eindeutige „nicht live"-Meldungen. NICHT „room not found"
+  // o.Ä. (mehrdeutig: Tippfehler im Namen, Auth-/Sign-Fehler) — sonst würde die
+  // App ewig auf ein Live warten, das nie kommt, statt normal zu reconnecten.
+  return /isn'?t online|is not online|not online|user_offline|user is offline|live (has )?ended|isn'?t live/i
+    .test(String(msg || ''));
 }

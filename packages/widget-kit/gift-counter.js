@@ -105,8 +105,8 @@ export default class GiftCounter {
     if (animate) { this.el.classList.remove('hit'); void this.el.offsetWidth; this.el.classList.add('hit'); }
   }
 
-  // Neuer Stream → Zähler + Ziel zurück auf Start.
-  onReset() { this.count = 0; this.target = this.step; this.persist(); this.render(false); }
+  // Neuer Stream → Zähler + Ziel zurück auf Start, altes Gift-Icon weg.
+  onReset() { this.count = 0; this.target = this.step; this.lastIcon = ''; this.renderIcon(); this.persist(); this.render(false); }
 
   destroy() { this.el.remove(); }
 }

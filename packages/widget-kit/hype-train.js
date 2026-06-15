@@ -125,8 +125,17 @@ export default class HypeTrain {
     this.el.classList.remove('on');
   }
 
-  // Neuer Stream → Hype-Train zurück auf Anfang (ausblenden, Punkte/Level null).
-  onReset() { this.points = 0; this.level = 1; this.end(); }
+  // Neuer Stream → Hype-Train komplett zurück: ausblenden, Punkte/Level/Beiträge
+  // null, Frame-Loop stoppen UND die DOM-Anzeige (Fill/Level/Farbe/Text) neu
+  // zeichnen, sonst bleiben Balken/Level/Glow vom alten Stream stehen.
+  onReset() {
+    this.points = 0; this.level = 1; this.contributors = 0; this.deadline = 0;
+    if (this.cancelFrame) this.cancelFrame();
+    this.running = false;
+    this.el.classList.remove('levelup');
+    this.end();
+    this.render();
+  }
 
   kick() {
     if (this.running) return;

@@ -8,8 +8,10 @@ import { TikTokAdapter, isOfflineError, type LiveConnectionLike, type AdapterSta
 test('isOfflineError: „nicht live" wird als Offline erkannt (→ auf Live warten)', () => {
   assert.equal(isOfflineError("The requested user isn't online :("), true);
   assert.equal(isOfflineError('user not online'), true);
-  assert.equal(isOfflineError('room not found'), true);
-  // echte Fehler NICHT als offline werten (→ normaler Reconnect):
+  assert.equal(isOfflineError('LIVE has ended'), true);
+  // mehrdeutige/echte Fehler NICHT als offline werten (→ normaler Reconnect,
+  // sonst wartet die App ewig): „room not found" (Tippfehler/Auth), Sign, Netz.
+  assert.equal(isOfflineError('room not found'), false);
   assert.equal(isOfflineError('sign server error 500'), false);
   assert.equal(isOfflineError('connection timeout'), false);
 });

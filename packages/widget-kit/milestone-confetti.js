@@ -127,8 +127,14 @@ export default class MilestoneConfetti {
     }
   }
 
-  // Neuer Stream → Schwellen-Tracking zurücksetzen (nächster Stats-Push merkt neu).
-  onReset() { this.lastSeen = null; }
+  // Neuer Stream → Schwellen-Tracking zurücksetzen (nächster Stats-Push merkt neu)
+  // UND eine evtl. laufende Feier aus dem alten Stream abräumen.
+  onReset() {
+    this.lastSeen = null;
+    clearTimeout(this.hideT);
+    this.el.classList.remove('show', 'hide');
+    this.el.querySelectorAll('.bx-mc-piece').forEach((p) => p.remove());
+  }
 
   destroy() { clearTimeout(this.hideT); clearTimeout(this.demoTimer); clearInterval(this.demoInterval); this.el.remove(); }
 }

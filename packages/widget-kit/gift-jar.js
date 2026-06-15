@@ -234,12 +234,16 @@ export default class GiftJar {
     ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(x, y, r-0.5, 0, Math.PI*2); ctx.stroke();
     ctx.beginPath(); ctx.arc(x-r*0.32, y-r*0.32, r*0.26, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fill();
   }
-  // Neuer Stream → Glas leeren, Coin-Zähler auf 0.
+  // Neuer Stream → Glas leeren, Coin-Zähler auf 0. WICHTIG: ausstehende Spawn-
+  // Timer (Combo-Volley) clearen, sonst landen nach dem Reset noch Geister-Bälle
+  // aus dem alten Stream im frisch geleerten Glas.
   onReset() {
+    if (this.pendingTimers) { for (const t of this.pendingTimers) clearTimeout(t); this.pendingTimers.clear(); }
+    for (const t of this.toastTimers) clearTimeout(t); this.toastTimers.clear();
     this.coinsValue = 0; this.falling = []; this.resting = [];
     const num = this.el.querySelector('.bx-jar-badge .num'); if (num) num.textContent = '0';
     this.el.querySelectorAll('.bx-jar-toast').forEach((t) => t.remove());
-    this.draw();
+    if (this.jar) this.draw();
   }
 
   destroy() {
