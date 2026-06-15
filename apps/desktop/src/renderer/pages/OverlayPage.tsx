@@ -360,6 +360,44 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'gift-battle', label: 'Geschenk-Schlacht', desc: 'Zwei Teams im Tauziehen — jedes Team ist Gifts zugeordnet, Zuschauer pushen ihr Team. Rundentimer, Sieger-Blitz, optional Auto-Runde. (Zwei Designs)',
+    w: 620, h: 220, props: { style: 'tug', teamA: 'Team Rosa', teamB: 'Team Blau', giftsA: 'rose', giftsB: 'heart', metric: 'coins', durationSec: 60, autoNewRound: true, winSoundId: 'botexe-gewinn.wav', accent: '#ff5436', theme: 'glas' },
+    fields: [
+      styleField([
+        { value: 'tug', label: 'Tauziehen (Balken)' },
+        { value: 'versus', label: 'Versus (zwei Säulen)' },
+      ]),
+      { key: 'teamA', label: 'Name Team A', type: 'text' },
+      { key: 'teamB', label: 'Name Team B', type: 'text' },
+      { key: 'giftsA', label: 'Gifts Team A', type: 'text', hint: 'Gift-Namen für Team A, kommagetrennt (z.B. „rose, finger heart"). Leer + Team B leer = Auto-Split (günstig=A, teuer=B).' },
+      { key: 'giftsB', label: 'Gifts Team B', type: 'text', hint: 'Gift-Namen für Team B, kommagetrennt.' },
+      { key: 'metric', label: 'Wertung', type: 'select', options: [
+        { value: 'coins', label: 'Coins (Wert der Gifts)' },
+        { value: 'count', label: 'Anzahl (jedes Gift = 1)' },
+      ], hint: 'Womit gezogen wird.' },
+      { key: 'durationSec', label: 'Rundenlänge (Sek.)', type: 'number', hint: 'Wie lange eine Schlacht dauert.' },
+      { key: 'autoNewRound', label: 'Auto neue Runde', type: 'boolean', hint: 'Nach dem Sieger automatisch eine frische Runde starten.' },
+      { key: 'winSoundId', label: 'Sieger-Sound', type: 'sound', hint: 'Spielt über die App, wenn ein Team gewinnt.' },
+      ACCENT_FIELD, THEME_FIELD,
+    ],
+  },
+  {
+    type: 'live-poll', label: 'Live-Umfrage', desc: 'Frage + 2–4 Optionen. Zuschauer stimmen per Chat ab (Zahl tippen, z.B. „1") — eine Stimme pro Person. Balken füllen sich live, am Ende Sieger-Reveal. (Zwei Designs)',
+    w: 480, h: 280, props: { style: 'bars', question: 'Was sollen wir spielen?', options: 'Fortnite, Just Chatting, Zuschauer-Games', durationSec: 45, autoNewRound: false, revealSoundId: 'botexe-gewinn.wav', accent: '#7c5cff', theme: 'glas' },
+    fields: [
+      styleField([
+        { value: 'bars', label: 'Balken (untereinander)' },
+        { value: 'cards', label: 'Karten (nebeneinander)' },
+      ]),
+      { key: 'question', label: 'Frage', type: 'text' },
+      { key: 'options', label: 'Optionen', type: 'text', hint: '2–4 Optionen, kommagetrennt. Zuschauer tippen die Zahl (1, 2, …) in den Chat.' },
+      { key: 'durationSec', label: 'Abstimmdauer (Sek.)', type: 'number', hint: 'Wie lange abgestimmt werden kann, bis der Sieger enthüllt wird.' },
+      { key: 'autoNewRound', label: 'Auto neue Runde', type: 'boolean', hint: 'Nach dem Reveal automatisch wieder offen für Stimmen.' },
+      { key: 'revealSoundId', label: 'Reveal-Sound', type: 'sound', hint: 'Spielt über die App beim Enthüllen des Siegers.' },
+      ACCENT_FIELD, THEME_FIELD,
+    ],
+  },
+  {
     type: 'top-gift', label: 'Top-Gift', desc: 'Highlight des größten Einzel-Gifts der Session — Gift-Bild, Spender-Avatar, Bounce bei Rekord.',
     w: 320, h: 320, props: { title: '', style: 'glas', accent: '#ffd23e', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
@@ -603,7 +641,7 @@ const PALETTE_CATEGORIES: { id: string; label: string }[] = [
 ];
 const CATEGORY_OF: Record<string, string> = {
   'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts',
-  bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele', giveaway: 'spiele',
+  bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele', giveaway: 'spiele', 'gift-battle': 'spiele', 'live-poll': 'spiele',
   'gift-jar': 'gifts', 'gift-counter': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts',
   'gift-cannon': 'alerts',
   'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',
