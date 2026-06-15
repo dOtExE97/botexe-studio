@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
@@ -56,6 +56,11 @@ export default function App() {
   const [page, setPage] = useState<Page>('live');
   const studio = useStudio();
   const [copied, setCopied] = useState(false);
+  const [version, setVersion] = useState('');
+
+  useEffect(() => {
+    void window.studio.getAppInfo().then((i: { version?: string }) => setVersion(i?.version ?? ''));
+  }, []);
 
   const st = STATUS_STYLE[studio.status.status] ?? STATUS_FALLBACK;
 
@@ -117,7 +122,7 @@ export default function App() {
             </div>
           ))}
         </nav>
-        <div className="mt-auto px-5 pb-4 text-[10px] text-studio-muted">v0.1.0 · lokal</div>
+        <div className="mt-auto px-5 pb-4 text-[10px] text-studio-muted">{version ? `v${version}` : ''} · lokal</div>
       </aside>
 
       {/* Main */}
