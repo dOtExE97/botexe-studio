@@ -8,7 +8,7 @@ import { IPC } from './shared/constants';
 import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
-import { log, initFileLogging, getLogDir } from './main/core/logger';
+import { log, initFileLogging, getLogDir, formatLocalStamp } from './main/core/logger';
 import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, uninstallHostsEntry, TTLS_HOST } from './main/services/ttls-link';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
@@ -45,11 +45,23 @@ function setupAutoUpdate(): void {
     return;
   }
   try {
+    // „Kein Release"/404 ist der NORMALFALL, solange keine öffentlichen Releases
+    // existieren — soll NICHT als Riesen-Stacktrace im Log landen.
+    const isNoRelease = (m: unknown) => /\b404\b|not found/i.test(String(m ?? ''));
+    const firstLine = (m: unknown) => (String(m ?? '').split('\n')[0] ?? '').slice(0, 180);
+    // Eigener, kompakter Logger für update-electron-app → schluckt Squirrels
+    // verbose Child-Prozess-Ausgabe (sonst dumpt sie via console den ganzen Stack).
+    const updLogger = {
+      log: () => undefined, info: () => undefined,
+      warn: (...a: unknown[]) => log.warn('Update', firstLine(a[0])),
+      error: (...a: unknown[]) => { if (!isNoRelease(a[0])) log.warn('Update', firstLine(a[0])); },
+    };
     // notifyUser:false → kein eigener Dialog der Lib; wir steuern das UI selbst.
     updateElectronApp({
       updateSource: { type: UpdateSourceType.ElectronPublicUpdateService, repo: UPDATE_REPO },
       updateInterval: '6 hours',
       notifyUser: false,
+      logger: updLogger,
     });
     autoUpdater.on('checking-for-update', () => pushUpdateStatus({ state: 'checking' }));
     autoUpdater.on('update-available', () => pushUpdateStatus({ state: 'available' }));
@@ -59,8 +71,14 @@ function setupAutoUpdate(): void {
       sendToRenderer(IPC.TOAST_SHOW, { type: 'info', message: 'Update geladen — beim nächsten Neustart aktiv (oder jetzt in den Einstellungen installieren).' });
     });
     autoUpdater.on('error', (err) => {
-      log.warn('Update', 'Auto-Update-Fehler', err?.message ?? String(err));
-      pushUpdateStatus({ state: 'error', message: err?.message ?? 'unbekannt' });
+      // 404 = noch kein öffentliches Release → harmloser Normalzustand, nur knapp + leise.
+      if (isNoRelease(err?.message)) {
+        log.info('Update', 'Kein Update verfügbar (noch kein öffentliches Release)');
+        pushUpdateStatus({ state: 'none' });
+        return;
+      }
+      log.warn('Update', 'Auto-Update-Fehler', firstLine(err?.message ?? err));
+      pushUpdateStatus({ state: 'error', message: firstLine(err?.message ?? 'unbekannt') });
     });
   } catch (err) {
     log.warn('Update', 'Auto-Update nicht verfügbar', (err as Error).message);
@@ -685,7 +703,7 @@ app.whenReady().then(async () => {
   // loggt/bindet ein Geister-Studio kurz mit, bevor quit() greift.
   if (!gotLock) return;
   // Datei-Logging zuerst — damit ALLE Start-Logs/Fehler in die Datei wandern.
-  initFileLogging(app.getPath('userData'), new Date().toISOString());
+  initFileLogging(app.getPath('userData'), formatLocalStamp(new Date()));
 
   // Restriktive CSP für den Renderer in Production (dev braucht Vite-HMR).
   if (!MAIN_WINDOW_VITE_DEV_SERVER_URL) {

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { TTSService, type TTSPlayback } from './tts-service';
+import { TTSService, isTransientTtsError, type TTSPlayback } from './tts-service';
 
 function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'tts-'));
@@ -47,4 +47,24 @@ test('clear() gibt eine laufende Wartezeit frei (Reset hängt nicht)', async () 
   await wait(20);
   // Queue ist leer → keine weitere Ansage, aber auch kein Hänger.
   assert.deepEqual(played, ['f-x']);
+});
+
+// — Transiente Fehler-Erkennung (für Auto-Retry bei TTS-Aussetzern, z.B. Edge 503).
+test('isTransientTtsError: Server-/Netzfehler sind transient', () => {
+  for (const m of [
+    'Unexpected server response: 503',
+    'HTTP 502 Bad Gateway',
+    'request timed out (ETIMEDOUT)',
+    'socket hang up ECONNRESET',
+    'fetch failed',
+    'Too Many Requests 429',
+  ]) assert.equal(isTransientTtsError(m), true, m);
+});
+
+test('isTransientTtsError: permanente Fehler NICHT (kein sinnloser Retry)', () => {
+  for (const m of [
+    'Invalid API key',
+    'voice not found',
+    'unauthorized 401',
+  ]) assert.equal(isTransientTtsError(m), false, m);
 });

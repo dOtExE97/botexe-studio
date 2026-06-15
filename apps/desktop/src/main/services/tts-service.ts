@@ -44,6 +44,13 @@ export interface TTSPlayback {
   durationMs: number;
 }
 
+/** Vorübergehender Fehler (Server überlastet/Netz) → Retry sinnvoll. Permanente
+ *  Fehler (falscher Key, unbekannte Stimme) → kein Retry. */
+export function isTransientTtsError(msg: string): boolean {
+  return /\b(429|500|502|503|504)\b|timed?\s*out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|network|fetch failed|server response|temporarily/i
+    .test(String(msg || ''));
+}
+
 export class TTSService {
   readonly piper: PiperRuntime;
   private readonly cacheDir: string;
@@ -184,16 +191,31 @@ export class TTSService {
     }
     this.processing = true;
 
-    try {
-      const playback = await this.synthesize(item.text, item.voice);
+    // Bis zu 3 Versuche bei TRANSIENTEN Fehlern (z.B. Edge-TTS 503/Timeout) — so
+    // schluckt ein Server-Schluckauf keine Ansage mehr. Permanente Fehler (falscher
+    // Key etc.) brechen sofort ab.
+    let playback: TTSPlayback | null = null;
+    let lastMsg = '';
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try { playback = await this.synthesize(item.text, item.voice); break; }
+      catch (err) {
+        lastMsg = (err as Error)?.message || String(err) || 'unbekannter Fehler';
+        if (attempt < 3 && isTransientTtsError(lastMsg)) {
+          log.warn('TTS', `Synthese-Versuch ${attempt} fehlgeschlagen (${lastMsg}) — neuer Versuch…`);
+          await new Promise((r) => setTimeout(r, 350 * attempt));
+          continue;
+        }
+        break;
+      }
+    }
+    if (playback) {
       this.onAudio(playback);
       // Seriell bleiben: auf das ECHTE Audio-Ende warten (Renderer-Rückmeldung),
       // sonst greift nach durationMs+Puffer der Sicherheits-Fallback.
       await this.waitForPlayback(playback);
-    } catch (err) {
-      const msg = (err as Error)?.message || String(err) || 'unbekannter Fehler';
-      log.error('TTS', `Synthese fehlgeschlagen (voice=${item.voice})`, msg);
-      this.onError?.(`Sprachausgabe fehlgeschlagen: ${msg}`);
+    } else {
+      log.error('TTS', `Synthese fehlgeschlagen (voice=${item.voice})`, lastMsg);
+      this.onError?.(`Sprachausgabe fehlgeschlagen: ${lastMsg}`);
     }
 
     void this.processNext();

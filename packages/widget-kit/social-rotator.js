@@ -90,7 +90,7 @@ export default class SocialRotator {
   constructor(root, props, ctx) {
     ensureStyle();
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
-    this.channels = parseChannels(props.channels ?? 'tiktok:dein_name | instagram:@dein_name | discord:Link in Bio');
+    this.channels = parseChannels(props.channels ?? 'tiktok:dein_name | instagram:dein_name | discord:Link in Bio');
     if (!this.channels.length) this.channels = [{ platform: 'link', text: 'Link in Bio' }];
     this.intervalMs = Math.max(2000, Number(props.intervalMs ?? 6000));
     this.followLabel = props.follow ?? 'Folgen';

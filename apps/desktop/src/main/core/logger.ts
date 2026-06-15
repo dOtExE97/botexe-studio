@@ -8,6 +8,15 @@ import path from 'node:path';
 type Level = 'debug' | 'info' | 'warn' | 'error';
 
 const KEEP_LOGS = 15;
+
+/** Zeitstempel in LOKALER Zeit (ISO-ähnlich, ohne Z). So passen die Logs zur Uhr
+ *  des jeweiligen Nutzers (toISOString wäre UTC → Zeitzonen-Verwirrung). */
+export function formatLocalStamp(d: Date): string {
+  const p = (n: number, l = 2) => String(n).padStart(l, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T` +
+    `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}`;
+}
+const stampNow = () => formatLocalStamp(new Date());
 let stream: fs.WriteStream | null = null;
 let logDir = '';
 
@@ -38,10 +47,10 @@ function appendFile(line: string): void {
 /** console.* so umbiegen, dass Fremd-Ausgaben (TikTok-Lib, OBS, ws, Electron …)
  *  ebenfalls in der Log-Datei landen — nicht nur unsere log.*-Aufrufe. */
 function patchConsole(): void {
-  console.log = (...a: unknown[]) => { orig.log(...a); appendFile(`[${new Date().toISOString()}] [LOG] [console] ${fmtArgs(a)}`); };
-  console.info = (...a: unknown[]) => { orig.info(...a); appendFile(`[${new Date().toISOString()}] [INFO] [console] ${fmtArgs(a)}`); };
-  console.warn = (...a: unknown[]) => { orig.warn(...a); appendFile(`[${new Date().toISOString()}] [WARN] [console] ${fmtArgs(a)}`); };
-  console.error = (...a: unknown[]) => { orig.error(...a); appendFile(`[${new Date().toISOString()}] [ERROR] [console] ${fmtArgs(a)}`); };
+  console.log = (...a: unknown[]) => { orig.log(...a); appendFile(`[${stampNow()}] [LOG] [console] ${fmtArgs(a)}`); };
+  console.info = (...a: unknown[]) => { orig.info(...a); appendFile(`[${stampNow()}] [INFO] [console] ${fmtArgs(a)}`); };
+  console.warn = (...a: unknown[]) => { orig.warn(...a); appendFile(`[${stampNow()}] [WARN] [console] ${fmtArgs(a)}`); };
+  console.error = (...a: unknown[]) => { orig.error(...a); appendFile(`[${stampNow()}] [ERROR] [console] ${fmtArgs(a)}`); };
 }
 
 /** Datei-Logging initialisieren (im Main nach app-ready aufrufen). */
@@ -71,7 +80,7 @@ export function getLogDir(): string {
 }
 
 function write(level: Level, scope: string, message: string, detail?: string): void {
-  const line = `[${new Date().toISOString()}] [${level.toUpperCase()}] [${scope}] ${message}${detail ? ` — ${detail}` : ''}`;
+  const line = `[${stampNow()}] [${level.toUpperCase()}] [${scope}] ${message}${detail ? ` — ${detail}` : ''}`;
   // Anzeige über die ORIGINAL-Console (der Patch oben würde sonst doppelt in die
   // Datei schreiben). Die Datei wird hier genau einmal beschrieben.
   if (level === 'error') orig.error(line);

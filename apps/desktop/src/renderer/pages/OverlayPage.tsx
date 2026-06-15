@@ -407,7 +407,7 @@ const WIDGET_TYPES: {
   },
   {
     type: 'social-rotator', label: 'Social-Media-Rotator', desc: 'Rotierende Follow-Pille, die nacheinander deine Kanäle bewirbt — mit echtem Plattform-Branding (TikTok/Insta/YouTube/Discord/Twitch/X/Kick).',
-    w: 540, h: 120, props: { channels: 'tiktok:dotexe_97 | instagram:@dotexe | discord:Link in Bio', intervalMs: 6000, follow: 'Folgen', style: 'pill', accent: '#ff5436', theme: 'glas' },
+    w: 540, h: 120, props: { channels: 'tiktok:dein_name | instagram:dein_name | discord:Link in Bio', intervalMs: 6000, follow: 'Folgen', style: 'pill', accent: '#ff5436', theme: 'glas' },
     fields: [
       { key: 'channels', label: 'Kanäle', type: 'text', hint: 'Format „plattform:Name", mit | trennen. Plattformen: tiktok, instagram, youtube, discord, twitch, x, kick, snapchat, facebook.' },
       styleField([
