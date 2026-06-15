@@ -406,6 +406,69 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'social-rotator', label: 'Social-Media-Rotator', desc: 'Rotierende Follow-Pille, die nacheinander deine Kanäle bewirbt — mit echtem Plattform-Branding (TikTok/Insta/YouTube/Discord/Twitch/X/Kick).',
+    w: 540, h: 120, props: { channels: 'tiktok:dotexe_97 | instagram:@dotexe | discord:Link in Bio', intervalMs: 6000, follow: 'Folgen', style: 'pill', accent: '#ff5436', theme: 'glas' },
+    fields: [
+      { key: 'channels', label: 'Kanäle', type: 'text', hint: 'Format „plattform:Name", mit | trennen. Plattformen: tiktok, instagram, youtube, discord, twitch, x, kick, snapchat, facebook.' },
+      styleField([
+        { value: 'pill', label: 'Pille (hell, TikFinity-Look)' },
+        { value: 'glas', label: 'Glas' },
+        { value: 'neon', label: 'Neon' },
+      ]),
+      { key: 'intervalMs', label: 'Anzeigedauer', type: 'seconds', hint: 'Wie lange jeder Kanal gezeigt wird.' },
+      { key: 'follow', label: 'Button-Text', type: 'text', hint: 'Text auf dem Follow-Button (z.B. „Folgen").' },
+      ACCENT_FIELD,
+      THEME_FIELD,
+    ],
+  },
+  {
+    type: 'emojify', label: 'Emojify (Chat-Emojis)', desc: 'Jedes Emoji, das Zuschauer in den Chat schreiben, fliegt animiert über den Bildschirm.',
+    w: 1080, h: 900, props: { style: 'float', max: 6, size: 52, accent: '#ff5436' },
+    fields: [
+      styleField([
+        { value: 'float', label: 'Aufsteigen (mit Drift)' },
+        { value: 'cross', label: 'Quer fliegen' },
+        { value: 'fall', label: 'Herabregnen' },
+      ]),
+      { key: 'size', label: 'Größe (px)', type: 'number', hint: 'Wie groß die Emojis fliegen.' },
+      { key: 'max', label: 'Max. pro Nachricht', type: 'number', hint: 'Wie viele Emojis aus EINER Chat-Nachricht fliegen (Spam-Schutz).' },
+    ],
+  },
+  {
+    type: 'command-carousel', label: 'Befehl-Karussell', desc: 'Durchlaufende Sticker-Leiste, die Zuschauern zeigt, welche Befehle/Sounds es gibt (TikTok-Sticker-Look).',
+    w: 900, h: 90, props: { items: '🔥 !feuer | 🎵 Musik | 💀 Tod | 🎉 Party | ❤️ Liebe', speed: 26, style: 'sticker', accent: '#ff5436', theme: 'glas' },
+    fields: [
+      { key: 'items', label: 'Einträge', type: 'text', hint: 'Mit | trennen. Führendes Emoji wird zur Kachel, z.B. „🔥 !feuer | 🎵 Musik".' },
+      styleField([
+        { value: 'sticker', label: 'Sticker (bunt, TikTok-Look)' },
+        { value: 'glas', label: 'Glas' },
+        { value: 'neon', label: 'Neon' },
+      ]),
+      { key: 'speed', label: 'Tempo (Sek/Runde)', type: 'number', hint: 'Kleiner = schneller.' },
+      ACCENT_FIELD,
+      THEME_FIELD,
+    ],
+  },
+  {
+    type: 'gift-cannon', label: 'Geschenke-Kanone', desc: 'Bei Gifts fliegen die Profilbilder der Zuschauer (mit Gift-Icon) ins Bild und sammeln sich unten — Combos feuern mehrere Bälle.',
+    w: 1080, h: 900, props: { style: 'cannon', position: 'left', minCoins: 0, maxBalls: 28, soundId: '' },
+    fields: [
+      styleField([
+        { value: 'cannon', label: 'Kanone (schräg, mit Rohr)' },
+        { value: 'fountain', label: 'Fontäne (gerade nach oben)' },
+        { value: 'rain', label: 'Regen (von oben)' },
+      ]),
+      { key: 'position', label: 'Position', type: 'select', options: [
+        { value: 'left', label: 'Unten links' },
+        { value: 'center', label: 'Unten Mitte' },
+        { value: 'right', label: 'Unten rechts' },
+      ], hint: 'Wo die Kanone/Quelle steht (bei „Regen" egal).' },
+      { key: 'minCoins', label: 'Mindest-Coins', type: 'number', hint: 'Erst ab diesem Gift-Wert auslösen (0 = immer).' },
+      { key: 'maxBalls', label: 'Max. Bälle', type: 'number', hint: 'Wie viele Bälle gleichzeitig im Bild bleiben (TTLS-schonend).' },
+      { key: 'soundId', label: 'Schuss-Sound', type: 'sound', hint: 'Spielt beim Abschuss über die App.' },
+    ],
+  },
+  {
     type: 'gift-jar', label: 'Coin-Glas', desc: 'Bonbon-Glas, das sich mit den Geschenken füllt — jedes Gift ein Ball mit Bild, größer bei mehr Coins.',
     w: 440, h: 520, props: { target: 2000, label: '', accent: '#ffd23e' },
     fields: [
@@ -497,9 +560,10 @@ const CATEGORY_OF: Record<string, string> = {
   'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts',
   bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele',
   'gift-jar': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts',
+  'gift-cannon': 'alerts',
   'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',
   'stat-chips': 'stats', counter: 'stats',
-  'heart-rain': 'deko', 'text-ticker': 'deko',
+  'heart-rain': 'deko', 'text-ticker': 'deko', 'social-rotator': 'deko', emojify: 'deko', 'command-carousel': 'deko',
   media: 'media',
 };
 
