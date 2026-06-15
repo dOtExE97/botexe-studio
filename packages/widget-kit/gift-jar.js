@@ -18,6 +18,16 @@ const CSS = `
 .bx-jar-label { position: absolute; left: 0; right: 0; top: 3%; text-align: center;
   font-family: var(--bx-font-display); font-size: 20px; letter-spacing: .04em; color: #fff;
   -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 50%, transparent), 0 3px 5px rgba(0,0,0,.5); }
+/* Donation-Toasts (TikFinity-Style): „Name schickt Gift ×N" fliegt links oben ein. */
+.bx-jar-toasts { position:absolute; left:4%; top:13%; right:4%; display:flex; flex-direction:column; gap:5px; pointer-events:none; }
+.bx-jar-toast { display:flex; align-items:center; gap:7px; align-self:flex-start; max-width:100%;
+  padding:5px 12px 5px 6px; border-radius:999px; font-family: var(--bx-font-body); font-size:13px; color:#fff; white-space:nowrap;
+  background: linear-gradient(160deg, rgba(28,30,42,.95), rgba(13,14,20,.92)); box-shadow: 0 6px 16px -6px rgba(0,0,0,.6);
+  overflow:hidden; text-overflow:ellipsis; animation: bx-jar-toast 3s ease forwards; }
+.bx-jar-toast img { width:22px; height:22px; border-radius:50%; object-fit:cover; flex:none; }
+.bx-jar-toast .g { width:18px; height:18px; object-fit:contain; flex:none; }
+.bx-jar-toast b { color: var(--bx-gold); }
+@keyframes bx-jar-toast { 0%{opacity:0; transform:translateX(-16px)} 10%{opacity:1; transform:none} 82%{opacity:1} 100%{opacity:0; transform:translateY(-8px)} }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -51,9 +61,11 @@ export default class GiftJar {
     this.falling = [];
     this.resting = [];
     this.running = false;
+    this.showToast = props.showToast !== false; // Donation-Toasts (TikFinity-Style)
+    this.toastTimers = new Set();
     this.el = document.createElement('div');
     this.el.className = 'bx-jar';
-    this.el.innerHTML = `<canvas></canvas><div class="bx-jar-label"></div><div class="bx-jar-badge"><span class="ico">🪙</span><span class="num">0</span></div>`;
+    this.el.innerHTML = `<canvas></canvas><div class="bx-jar-label"></div><div class="bx-jar-badge"><span class="ico">🪙</span><span class="num">0</span></div><div class="bx-jar-toasts"></div>`;
     this.el.querySelector('.bx-jar-label').textContent = props.label || 'Coin-Glas';
     root.appendChild(this.el);
     this.canvas = this.el.querySelector('canvas');
@@ -103,6 +115,7 @@ export default class GiftJar {
     if (event.type !== 'gift' || !event.gift) return;
     this.coinsValue += event.gift.totalCoins;
     this.el.querySelector('.bx-jar-badge .num').textContent = fmt(this.coinsValue);
+    if (this.showToast) this.addToast(event);
     // Combo (z.B. 10x Rose) wirft EINEN Ball pro Gift — nicht nur einen für die
     // ganze Combo. Anzahl gedeckelt, Ballgröße aus dem Einzel-Coin-Wert.
     const count = comboPlan(event.gift, 24).rockets;
@@ -129,6 +142,21 @@ export default class GiftJar {
     this.falling.push({ rx, targetRy, r, y: this.jar.top - r - Math.random()*30, vy: 1.5 + Math.random()*1.6,
       img: loadImage(gift.icon), color: FALLBACK[Math.floor(Math.random()*FALLBACK.length)] });
     this.kick();
+  }
+  addToast(event) {
+    const wrap = this.el.querySelector('.bx-jar-toasts');
+    const nick = escapeHtml(event.user?.nickname || 'Jemand');
+    const slug = escapeHtml(event.gift.slug || 'Gift');
+    const cnt = event.gift.count > 1 ? ` ×${event.gift.count}` : '';
+    const av = event.user?.profilePic ? `<img src="${escapeHtml(event.user.profilePic)}" alt="">` : '';
+    const gi = event.gift.icon ? `<img class="g" src="${escapeHtml(event.gift.icon)}" alt="">` : '';
+    const el = document.createElement('div');
+    el.className = 'bx-jar-toast';
+    el.innerHTML = `${av}<span><b>${nick}</b> ${slug}${cnt}</span>${gi}`;
+    wrap.prepend(el);
+    while (wrap.children.length > 3) wrap.lastElementChild.remove();
+    const t = setTimeout(() => { this.toastTimers.delete(t); el.remove(); }, 3000);
+    this.toastTimers.add(t);
   }
   kick() { if (!this.running) { this.running = true; this.lastT = 0; this.cancelFrame = scheduleFrame(this.frame); } }
   frame(now) {
@@ -208,7 +236,9 @@ export default class GiftJar {
   }
   destroy() {
     if (this.pendingTimers) for (const t of this.pendingTimers) clearTimeout(t);
+    for (const t of this.toastTimers) clearTimeout(t);
     this.observer.disconnect(); this.falling=[]; this.resting=[]; this.el.remove();
   }
 }
 function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,(c)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));}

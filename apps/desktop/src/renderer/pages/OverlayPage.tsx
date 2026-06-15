@@ -479,11 +479,28 @@ const WIDGET_TYPES: {
   },
   {
     type: 'gift-jar', label: 'Coin-Glas', desc: 'Bonbon-Glas, das sich mit den Geschenken füllt — jedes Gift ein Ball mit Bild, größer bei mehr Coins.',
-    w: 440, h: 520, props: { target: 2000, label: '', accent: '#ffd23e' },
+    w: 440, h: 520, props: { target: 2000, label: '', showToast: true, accent: '#ffd23e' },
     fields: [
       { key: 'target', label: 'Ziel (Coins)', type: 'number', hint: 'Bei diesem Wert ist das Glas voll.' },
       { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Text über dem Glas, leer = „Coin-Glas".' },
+      { key: 'showToast', label: 'Donation-Toasts', type: 'boolean', hint: 'Zeigt bei jedem Gift kurz „Name schickt Gift ×N" (TikFinity-Style).' },
       ACCENT_FIELD,
+    ],
+  },
+  {
+    type: 'gift-counter', label: 'Geschenkzähler', desc: 'Zählt ein bestimmtes Gift (oder alle) Richtung Ziel — großes animiertes Gift-Icon, „aktuell / Ziel", Aktion bei Erreichen.',
+    w: 340, h: 360, props: { giftSlug: '', target: 15, label: 'Geschenk-Ziel', onReach: 'raise', accent: '#ffd23e', theme: 'glas' },
+    fields: [
+      { key: 'giftSlug', label: 'Gift (Slug)', type: 'text', hint: 'Welches Gift gezählt wird (leer = ALLE Gifts). Den genauen Namen siehst du in der Geschenke-Galerie, z.B. „Rose".' },
+      { key: 'target', label: 'Ziel', type: 'number', hint: 'Wie viele bis zum Ziel.' },
+      { key: 'onReach', label: 'Bei Zielerreichung', type: 'select', options: [
+        { value: 'raise', label: 'Ziel erhöhen (weiterzählen)' },
+        { value: 'reset', label: 'Zähler auf 0 zurück' },
+        { value: 'keep', label: 'Nichts (drüber zählen)' },
+      ] },
+      { key: 'label', label: 'Titel', type: 'text', hint: 'Über dem Zähler, z.B. „Du bist gut genug!".' },
+      ACCENT_FIELD,
+      THEME_FIELD,
     ],
   },
   {
@@ -572,7 +589,7 @@ const PALETTE_CATEGORIES: { id: string; label: string }[] = [
 const CATEGORY_OF: Record<string, string> = {
   'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts',
   bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele',
-  'gift-jar': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts',
+  'gift-jar': 'gifts', 'gift-counter': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts',
   'gift-cannon': 'alerts',
   'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',
   'stat-chips': 'stats', counter: 'stats',
