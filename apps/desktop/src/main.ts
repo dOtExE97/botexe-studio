@@ -233,6 +233,14 @@ function registerIpc(): void {
     void shell.openPath(app.getPath('userData'));
     return { ok: true };
   });
+  ipcMain.handle(IPC.APP_OPEN_EXTERNAL, (_e, url: unknown) => {
+    // Nur http(s) öffnen — kein file:/// o.ä. aus dem Renderer zulassen.
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+      void shell.openExternal(url);
+      return { ok: true };
+    }
+    return { ok: false };
+  });
   // Konfig-Backup: alles (Einstellungen/Trigger/Store/Panel/Overlays/Zuschauer)
   // in eine JSON-Datei sichern bzw. wieder einspielen.
   ipcMain.handle(IPC.CONFIG_EXPORT, async () => {

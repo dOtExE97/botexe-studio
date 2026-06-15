@@ -95,5 +95,17 @@ git tag v0.2.0 && git push origin v0.2.0
 - Build-Briefing: [`docs/specs/2026-06-10-build-briefing.md`](docs/specs/2026-06-10-build-briefing.md)
 - Änderungen: [`CHANGELOG.md`](CHANGELOG.md)
 
+## Datenschutz & Sicherheit
+**Lokal-first:** Die App läuft auf deinem PC. Deine Daten (TikTok-Session fürs
+Chat-Senden, OBS-/TTS-Zugänge, Punkte, Overlays) bleiben **lokal** und werden
+nicht an einen Server von uns gesendet. Ausnahme: **Cloud-TTS** (Edge / Premium)
+schickt den vorzulesenden Text an den Stimmen-Anbieter, und das **Auto-Update**
+fragt bei GitHub nach neuen Versionen.
+Sicherheitslücken bitte **privat** melden → siehe [`SECURITY.md`](SECURITY.md).
+
+## Fehler & Wünsche
+In der App: **Einstellungen → Fehler melden / Funktion wünschen** (öffnet ein
+vorausgefülltes GitHub-Formular). Oder direkt unter [Issues](https://github.com/dOtExE97/botexe-studio/issues).
+
 ## Lizenz
 **Source-available, kein Open Source.** Der Code ist öffentlich einsehbar (Transparenz + Audit), und du darfst die offiziellen Builds fürs eigene Streaming nutzen — aber **nicht** kopieren, weiterverbreiten oder ein eigenes/kommerzielles Produkt daraus bauen. Alle Rechte bei dOtExE. Kommerzielle/Agentur-Lizenzen auf Anfrage. Details: [`LICENSE`](LICENSE).

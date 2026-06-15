@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Sicherheitsproblem (NICHT öffentlich melden!)
+    url: https://github.com/dOtExE97/botexe-studio/security/advisories/new
+    about: Sicherheitslücken (z. B. rund um TikTok-Login/Session) bitte PRIVAT über GitHub Security melden — nicht als öffentliches Issue.

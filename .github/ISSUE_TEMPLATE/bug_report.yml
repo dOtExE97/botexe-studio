@@ -1,0 +1,45 @@
+name: 🐞 Fehler melden
+description: Etwas funktioniert nicht wie erwartet
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke fürs Melden! 🙏 Je konkreter, desto schneller lässt sich's beheben.
+        Tipp: In der App geht's am einfachsten über **Einstellungen → Fehler melden** (trägt Version & System automatisch ein).
+  - type: textarea
+    id: what
+    attributes:
+      label: Was ist passiert?
+      description: Was lief schief?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Was hattest du erwartet?
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte zum Nachstellen
+      placeholder: |
+        1. …
+        2. …
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: App-Version
+      description: Findest du in Einstellungen → Über bOtExE Studio
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Windows-Version
+      placeholder: z. B. Windows 11
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional, hilft sehr)
+      description: In der App auf Einstellungen → „Logs öffnen", die neueste `.log`-Datei hier reinziehen.

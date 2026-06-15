@@ -71,6 +71,8 @@ export const IPC = {
   // App-Info / Einstellungen
   APP_INFO: 'app:info',
   APP_OPEN_DATA_DIR: 'app:open-data-dir',
+  /** Externen Link im Standardbrowser öffnen (nur http/https). */
+  APP_OPEN_EXTERNAL: 'app:open-external',
   CONFIG_EXPORT: 'config:export',
   CONFIG_IMPORT: 'config:import',
   // OBS-Studio-Steuerung

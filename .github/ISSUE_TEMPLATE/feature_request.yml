@@ -1,0 +1,18 @@
+name: 💡 Funktion wünschen
+description: Eine Idee für ein neues Feature
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Cool, dass du mitdenkst! 🙌 Beschreib deine Idee kurz.
+  - type: textarea
+    id: idea
+    attributes:
+      label: Welche Funktion wünschst du dir?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Warum / wofür wäre das gut?
+      description: Was würde dir das im Stream bringen?

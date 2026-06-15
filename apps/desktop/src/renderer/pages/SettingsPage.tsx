@@ -1,7 +1,7 @@
 // SettingsPage — App-Einstellungen: Loyalty-Punkte-Regeln, App-Infos,
 // Datenordner, Punkte-Reset.
 import { useEffect, useState } from 'react';
-import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket } from 'lucide-react';
+import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket, Sparkles } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
 import GreetReturningCard from '../components/GreetReturningCard';
 import { toast } from '../components/ToastHost';
@@ -450,6 +450,38 @@ export default function SettingsPage() {
         <p className="mt-2 text-[10px] text-studio-muted/70">
           Updates kommen automatisch über GitHub — es wird nur die Änderung geladen (kein kompletter Neu-Download). Beim nächsten Start ist die neue Version aktiv.
         </p>
+      </section>
+
+      {/* Feedback & Fehler melden */}
+      <section className="bx-card p-5">
+        <h2 className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <MessageSquare size={15} /> Feedback &amp; Fehler melden
+        </h2>
+        <p className="mb-3 text-[11px] leading-relaxed text-studio-muted">
+          Was kaputt? Idee? Schreib's auf GitHub — App-Version &amp; System werden
+          automatisch eingetragen. Bei Fehlern hilft es, die <b>Logs</b> anzuhängen
+          (unten „Logs öffnen", neueste <code>.log</code>-Datei ins GitHub-Formular ziehen).
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => {
+              const body = `**Was ist passiert?**\n\n\n**Was hattest du erwartet?**\n\n\n**Schritte zum Nachstellen**\n1. \n2. \n\n---\nApp-Version: ${info?.version ?? '?'}\nSystem: ${info?.platform ?? ''} · ${navigator.userAgent}\nTipp: Logs anhängen (Einstellungen → „Logs öffnen", neueste .log-Datei hier reinziehen).`;
+              void window.studio.openExternal(`https://github.com/dOtExE97/botexe-studio/issues/new?labels=bug&title=${encodeURIComponent('[Bug] ')}&body=${encodeURIComponent(body)}`);
+            }}
+            className="bx-pill hover:text-studio-accent"
+          >
+            <AlertTriangle size={13} /> Fehler melden
+          </button>
+          <button
+            onClick={() => {
+              const body = `**Welche Funktion wünschst du dir?**\n\n\n**Warum / wofür?**\n\n\n---\nApp-Version: ${info?.version ?? '?'}`;
+              void window.studio.openExternal(`https://github.com/dOtExE97/botexe-studio/issues/new?labels=enhancement&title=${encodeURIComponent('[Idee] ')}&body=${encodeURIComponent(body)}`);
+            }}
+            className="bx-pill hover:text-studio-teal"
+          >
+            <Sparkles size={13} /> Funktion wünschen
+          </button>
+        </div>
       </section>
 
       {/* App-Info */}
