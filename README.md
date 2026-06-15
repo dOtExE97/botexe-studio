@@ -7,7 +7,7 @@ Ein freier **TikFinity-Ersatz** für Windows: Geschenke, Alerts, Overlays, Sound
 
 [![Download](https://img.shields.io/badge/⬇️_Download-Windows_Setup.exe-ff4d2e?style=for-the-badge)](https://github.com/dOtExE97/botexe-studio/releases/latest)
 
-![bOtExE Studio Overlay](docs/overlay-premium.png)
+![bOtExE Studio Overlay](docs/e2e-overlay.png)
 
 > 🧪 **Frühe Version — erster echter Test!** Die App läuft, aber sie wird gerade auf echten, verschiedenen PCs erprobt. Wenn was hakt oder dir eine Widget-Idee kommt: **bitte melden** (in der App: *Einstellungen → Fehler melden / Funktion wünschen*). Genau dafür ist diese Phase da. 🙏
 >
@@ -41,11 +41,15 @@ Dein TikTok-Live  →  bOtExE Studio (auf deinem PC)  →  ein Overlay-Link  →
 
 <div align="center">
 
+**Die App (Live-Cockpit):**
+
 ![App](docs/e2e-app-live.png)
 
-| Overlay-Editor | Glücksrad | Widget-Designs |
+**Ein paar schöne Features:**
+
+| Glücksrad | Widget-Designs | Coin-Glas |
 |:---:|:---:|:---:|
-| ![Editor](docs/e2e-overlay.png) | ![Glücksrad](docs/wheel.png) | ![Designs](docs/widget-styles.png) |
+| ![Glücksrad](docs/wheel.png) | ![Designs](docs/widget-styles.png) | ![Coin-Glas](docs/overlay-gift-jar.png) |
 
 </div>
 

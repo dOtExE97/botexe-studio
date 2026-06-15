@@ -57,26 +57,36 @@ const DEMO_LAYOUT = {
   name: 'E2E-Demo',
   canvas: { width: 1920, height: 1080, background: 'transparent' },
   layers: [
-    { id: 'l-alert', widgetType: 'gift-alert', name: 'Gift-Alert', x: 560, y: 300, w: 800, h: 360, z: 10, visible: true, props: { minCoins: 0, durationMs: 60000 } },
-    { id: 'l-follow', widgetType: 'follow-alert', name: 'Follow-Alert', x: 40, y: 60, w: 460, h: 90, z: 5, visible: true, props: { durationMs: 60000 } },
-    { id: 'l-goal', widgetType: 'goal-bar', name: 'Goal', x: 560, y: 40, w: 760, h: 90, z: 4, visible: true, props: { metric: 'coins', target: 1000 } },
-    { id: 'l-board', widgetType: 'leaderboard', name: 'Leaderboard', x: 1520, y: 60, w: 360, h: 300, z: 3, visible: true, props: { limit: 5 } },
-    { id: 'l-feed', widgetType: 'gift-feed', name: 'Gift-Feed', x: 1520, y: 420, w: 380, h: 260, z: 2, visible: true, props: { max: 5, ttlMs: 120000 } },
-    { id: 'l-chat', widgetType: 'chat-box', name: 'Chat', x: 40, y: 620, w: 440, h: 420, z: 1, visible: true, props: { max: 8 } },
+    { id: 'l-chips', widgetType: 'stat-chips', name: 'Chips', x: 560, y: 36, w: 800, h: 60, z: 6, visible: true, props: { metrics: 'viewers,likes,follows,gifts' } },
+    { id: 'l-goal', widgetType: 'goal-bar', name: 'Goal', x: 560, y: 116, w: 760, h: 70, z: 4, visible: true, props: { metric: 'coins', target: 5000 } },
+    { id: 'l-alert', widgetType: 'gift-alert', name: 'Gift-Alert', x: 560, y: 420, w: 800, h: 360, z: 10, visible: true, props: { minCoins: 0, durationMs: 60000 } },
+    { id: 'l-follow', widgetType: 'follow-alert', name: 'Follow-Alert', x: 40, y: 50, w: 460, h: 90, z: 5, visible: true, props: { durationMs: 60000 } },
+    { id: 'l-board', widgetType: 'leaderboard', name: 'Top Gifter', x: 1480, y: 50, w: 410, h: 220, z: 3, visible: true, props: { source: 'gifts', limit: 4, title: 'Top Gifter', style: 'arcade' } },
+    { id: 'l-likes', widgetType: 'leaderboard', name: 'Top Likes', x: 1480, y: 290, w: 410, h: 200, z: 3, visible: true, props: { source: 'likes', limit: 3, title: 'Top Likes', style: 'arcade' } },
+    { id: 'l-feed', widgetType: 'gift-feed', name: 'Gift-Feed', x: 40, y: 170, w: 430, h: 280, z: 2, visible: true, props: { max: 5, ttlMs: 120000 } },
+    { id: 'l-chat', widgetType: 'chat-box', name: 'Chat', x: 40, y: 600, w: 440, h: 400, z: 1, visible: true, props: { max: 8 } },
   ],
   createdAt: '2026-06-11T00:00:00.000Z',
   updatedAt: '2026-06-11T00:00:00.000Z',
 };
 
 const TEST_EVENTS = [
-  { type: 'viewer_count', ts: 0, viewerCount: 142 },
+  { type: 'viewer_count', ts: 0, viewerCount: 342 },
   { type: 'chat', ts: 0, user: { id: 'mia', nickname: 'Mia' }, text: 'Erster! 🔥' },
-  { type: 'chat', ts: 0, user: { id: 'leon', nickname: 'LeonGG' }, text: 'Das Overlay ist krass' },
+  { type: 'chat', ts: 0, user: { id: 'leon', nickname: 'LeonGG' }, text: 'Das Overlay ist mega 😍' },
   { type: 'chat', ts: 0, user: { id: 'sara', nickname: 'Sara_99' }, text: 'W Stream' },
+  { type: 'chat', ts: 0, user: { id: 'nova', nickname: 'Nova' }, text: 'sauberes Design!' },
   { type: 'follow', ts: 0, user: { id: 'neu', nickname: 'NeuerFan' } },
+  // Likes (für Top-Likes-Liste)
+  { type: 'like', ts: 0, user: { id: 'mia', nickname: 'Mia' }, likeCount: 320, totalLikes: 320 },
+  { type: 'like', ts: 0, user: { id: 'leon', nickname: 'LeonGG' }, likeCount: 145, totalLikes: 465 },
+  { type: 'like', ts: 0, user: { id: 'nova', nickname: 'Nova' }, likeCount: 90, totalLikes: 555 },
+  // Gifts (für Top-Gifter-Liste + Goal + Feed; BigBen als Top-Spender, großer Alert)
   { type: 'gift', ts: 0, user: { id: 'mia', nickname: 'Mia' }, gift: { slug: 'Rose', count: 3, coinsPerUnit: 1, totalCoins: 3 } },
-  { type: 'gift', ts: 0, user: { id: 'ben', nickname: 'BigBen' }, gift: { slug: 'Galaxy', count: 1, coinsPerUnit: 1000, totalCoins: 1000 } },
-  { type: 'like', ts: 0, user: { id: 'mia', nickname: 'Mia' }, likeCount: 50, totalLikes: 412 },
+  { type: 'gift', ts: 0, user: { id: 'nova', nickname: 'Nova' }, gift: { slug: 'Heart', count: 5, coinsPerUnit: 5, totalCoins: 25 } },
+  { type: 'gift', ts: 0, user: { id: 'sara', nickname: 'Sara_99' }, gift: { slug: 'Finger Heart', count: 2, coinsPerUnit: 5, totalCoins: 10 } },
+  { type: 'gift', ts: 0, user: { id: 'leon', nickname: 'LeonGG' }, gift: { slug: 'Galaxy', count: 1, coinsPerUnit: 1000, totalCoins: 1000 } },
+  { type: 'gift', ts: 0, user: { id: 'ben', nickname: 'BigBen' }, gift: { slug: 'Galaxy', count: 3, coinsPerUnit: 1000, totalCoins: 3000 } },
 ];
 
 async function main(): Promise<void> {
@@ -89,6 +99,19 @@ async function main(): Promise<void> {
   await new Promise((r) => ws.on('open', r));
   await send(ws, 'Page.enable');
   await send(ws, 'Runtime.enable');
+
+  // 0. Onboarding-Tour als „gesehen" markieren + Live-Palette an, dann neu laden —
+  //    sonst verdeckt die Willkommens-Tour den App-Screenshot.
+  await evalJs(ws, `localStorage.setItem('bx-onboarding-done','1'); localStorage.setItem('bx-palette-live','1'); true`);
+  await send(ws, 'Page.reload');
+  await sleep(2500);
+  await send(ws, 'Page.enable');
+  await send(ws, 'Runtime.enable');
+
+  // Sauberer Start: Session-Zähler/Listen zurücksetzen (sonst kumulieren sich
+  // Events über mehrere Snapshot-Läufe).
+  await evalJs(ws, `window.studio.resetSession(); true`);
+  await sleep(400);
 
   // 1. Layout über echte IPC speichern + aktivieren
   const saveResult = await evalJs(ws, `window.studio.saveLayout(${JSON.stringify(DEMO_LAYOUT)})`);
