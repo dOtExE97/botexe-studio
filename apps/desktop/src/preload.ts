@@ -130,6 +130,8 @@ const api = {
   /** Renderer meldet, dass ein Audio fertig ist (fürs TTS-Sequencing). */
   reportSoundEnded: (soundId: string) => ipcRenderer.send(IPC.SOUND_ENDED, soundId),
   onToast: listen<{ type: 'error' | 'warn' | 'info'; message: string }>(IPC.TOAST_SHOW),
+  /** Live-Protokoll: ein Trigger hat gefeuert (Live-Seite). */
+  onTriggerLog: listen<{ id: string; at: number; rule: string; action: string; reason: string }>(IPC.TRIGGER_LOG),
 };
 
 export type StudioApi = typeof api;

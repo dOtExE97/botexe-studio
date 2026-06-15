@@ -187,6 +187,7 @@ function setupStudio(): Studio {
     onBusEvent: (e) => sendToRenderer(IPC.BUS_EVENT, e),
     onStats: (stats) => sendToRenderer(IPC.STATS_UPDATE, stats),
     onToast: (toast) => sendToRenderer(IPC.TOAST_SHOW, toast),
+    onTriggerLog: (entry) => sendToRenderer(IPC.TRIGGER_LOG, entry),
     onObsStatus: (status) => sendToRenderer(IPC.OBS_STATUS, status),
     onStreamerbotStatus: (status) => sendToRenderer(IPC.SB_STATUS, status),
   });

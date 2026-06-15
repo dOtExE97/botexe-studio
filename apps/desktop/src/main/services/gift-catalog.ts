@@ -10,6 +10,9 @@ const SCHEMA_VERSION = 1;
 
 export interface GiftEntry {
   slug: string;
+  /** Globale TikTok-Gift-ID — sprachunabhängig, stabil. Schlüssel für eine
+   *  spätere ID-basierte Namens-Zuordnung (wie TikFinity es macht). */
+  giftId?: number;
   icon?: string;
   coins: number;
   count: number;
@@ -56,6 +59,7 @@ export class GiftCatalog {
 
   record(gift: {
     slug: string;
+    giftId?: number;
     icon?: string;
     coinsPerUnit?: number;
     count?: number;
@@ -69,6 +73,7 @@ export class GiftCatalog {
     entry.count += inc;
     entry.lastSeen = gift.at ?? Date.now();
     if (gift.icon) entry.icon = gift.icon; // neueste CDN-URL gewinnt
+    if (typeof gift.giftId === 'number' && gift.giftId > 0) entry.giftId = gift.giftId;
     if (gift.coinsPerUnit) entry.coins = gift.coinsPerUnit;
     // Erstsender nur bei einem ECHTEN Empfang (count>0, mit Sender) verewigen.
     if (inc > 0 && gift.sender && !entry.firstSender) {

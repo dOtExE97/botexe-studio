@@ -33,6 +33,18 @@ export interface SoundCommand {
   volume: number;
 }
 
+/** Eine Zeile im Trigger-Live-Protokoll. */
+export interface TriggerLogEntry {
+  id: string;
+  at: number;
+  /** Name der Regel (oder „Manuell/Test", „Einlösung …"). */
+  rule: string;
+  /** Was passiert ist — lesbares Aktions-Label (z.B. „Sound", „Alert"). */
+  action: string;
+  /** Warum — Auslöser-Zusammenfassung (z.B. „Gift Rose ×5 von Mia"). */
+  reason: string;
+}
+
 export interface StudioHooks {
   /** Sound LOKAL abspielen — geht an den App-Renderer, nie ans Overlay. */
   onSoundPlay: (cmd: SoundCommand) => void;
@@ -42,6 +54,8 @@ export interface StudioHooks {
   onStats: (stats: StatsSnapshot) => void;
   /** Nutzer-sichtbare Meldung (Fehler/Hinweis) → Toast im Renderer. */
   onToast?: (toast: { type: 'error' | 'warn' | 'info'; message: string }) => void;
+  /** Live-Protokoll: ein Trigger hat gefeuert (für die Live-Seite). */
+  onTriggerLog?: (entry: TriggerLogEntry) => void;
   /** OBS-Verbindungsstatus → Settings-UI. */
   onObsStatus?: (status: ObsStatus) => void;
   /** Streamer.bot-Verbindungsstatus → Settings-UI. */
@@ -55,6 +69,24 @@ export interface StudioPaths {
 }
 
 const STATS_BROADCAST_MIN_MS = 250;
+
+/** Lesbare Labels der Aktions-Typen fürs Trigger-Live-Protokoll. */
+const ACTION_LABELS: Record<string, string> = {
+  play_sound: 'Sound',
+  fire_alert: 'Alert',
+  show_layer: 'Layer zeigen',
+  hide_layer: 'Layer verstecken',
+  speak: 'TTS-Ansage',
+  spin_wheel: 'Glücksrad',
+  play_media: 'Media',
+  counter_add: 'Zähler',
+  obs_scene: 'OBS-Szene',
+  obs_visibility: 'OBS-Quelle',
+  send_chat: 'Chat senden',
+  streamerbot_action: 'Streamer.bot',
+  giveaway_draw: 'Verlosung ziehen',
+  giveaway_reset: 'Verlosung reset',
+};
 /** Mindestabstand zwischen zwei Chat-Sendungen — TikTok drosselt stark (~1/30s). */
 const CHAT_SEND_MIN_INTERVAL_MS = 30_000;
 
@@ -99,6 +131,7 @@ export class Studio {
   /** Giveaway-Teilnehmer (userId → Anzeige) — dedupliziert, neuer Stream leert. */
   private giveawayParticipants = new Map<string, { nickname: string; avatar?: string }>();
   private lastGiveawayWinner = '';
+  private triggerLogSeq = 0;
   /** Wer in DIESER Session schon (erstmals) geschrieben hat — für Stammgast-Begrüßung. */
   private greetedThisSession = new Set<string>();
   /** redemptionId → event.ts der letzten Einlösung (globaler Cooldown). */
@@ -225,6 +258,7 @@ export class Studio {
         // Erstsender wird im Katalog verewigt (count>0 + Sender).
         this.giftCatalog.record({
           slug: e.gift.slug,
+          giftId: e.gift.giftId,
           icon: e.gift.icon,
           coinsPerUnit: e.gift.coinsPerUnit,
           count: e.gift.count,
@@ -242,6 +276,7 @@ export class Studio {
 
   /** Aktion einplanen — mit Verzögerung (Combo-Sequenz) oder sofort. */
   private dispatchAction(ruleId: string, action: import('@botexe/trigger-engine').TriggerAction, event: StudioEvent): void {
+    this.logTrigger(ruleId, action, event);
     // Clamp: schützt vor setTimeout-Overflow (>2^31 ms feuert sofort statt nie).
     const delay = Math.min(Math.max(0, action.delayMs ?? 0), 600_000);
     if (delay > 0) {
@@ -252,6 +287,47 @@ export class Studio {
       this.actionTimers.add(timer);
     } else {
       this.runAction(ruleId, action, event);
+    }
+  }
+
+  /** Eine gefeuerte Aktion ins Live-Protokoll schreiben (Live-Seite). */
+  private logTrigger(ruleId: string, action: import('@botexe/trigger-engine').TriggerAction, event: StudioEvent): void {
+    if (!this.hooks.onTriggerLog) return;
+    this.hooks.onTriggerLog({
+      id: `tl-${Date.now().toString(36)}-${this.triggerLogSeq++}`,
+      at: Date.now(),
+      rule: this.ruleLabel(ruleId),
+      action: ACTION_LABELS[action.kind] ?? action.kind,
+      reason: this.eventReason(event),
+    });
+  }
+
+  private ruleLabel(ruleId: string): string {
+    if (ruleId === 'manual') return 'Manuell / Test';
+    if (ruleId === 'giveaway') return 'Verlosung';
+    if (ruleId === 'welcome-media') return 'Begrüßungs-Video';
+    const rule = this.settings.get().triggerRules.find((r) => r.id === ruleId);
+    if (rule) return rule.name;
+    const red = (this.settings.get().redemptions ?? []).find((r) => r.id === ruleId);
+    if (red) return `Einlösung: ${red.name}`;
+    return ruleId;
+  }
+
+  private eventReason(event: StudioEvent): string {
+    const who = event.user?.nickname ? ` von ${event.user.nickname}` : '';
+    switch (event.type) {
+      case 'gift': {
+        const g = event.gift;
+        return g ? `Gift ${g.slug}${g.count && g.count > 1 ? ` ×${g.count}` : ''}${who}` : `Gift${who}`;
+      }
+      case 'chat': return `Chat „${(event.text ?? '').slice(0, 40)}"${who}`;
+      case 'follow': return `Follow${who}`;
+      case 'sub': return `Sub${who}`;
+      case 'like': return `Likes${who}`;
+      case 'share': return `Share${who}`;
+      case 'join': return `Beitritt${who}`;
+      case 'timer': return 'Timer';
+      default: return event.type + who;
     }
   }
 
@@ -838,12 +914,12 @@ export class Studio {
     let imported = 0;
     const roomSlugs: string[] = [];
     for (const raw of list) {
-      const g = raw as { name?: string; describe?: string; diamondCount?: number; diamond_count?: number; image?: { url_list?: string[]; urlList?: string[] }; icon?: { url_list?: string[]; urlList?: string[] } };
+      const g = raw as { id?: number; gift_id?: number; name?: string; describe?: string; diamondCount?: number; diamond_count?: number; image?: { url_list?: string[]; urlList?: string[] }; icon?: { url_list?: string[]; urlList?: string[] } };
       const name = g.name || g.describe;
       if (!name) continue;
       const img = g.image ?? g.icon;
       const icon = img?.url_list?.[0] ?? img?.urlList?.[0];
-      this.giftCatalog.record({ slug: name, icon, coinsPerUnit: g.diamondCount ?? g.diamond_count ?? 0, count: 0 });
+      this.giftCatalog.record({ slug: name, giftId: g.id ?? g.gift_id, icon, coinsPerUnit: g.diamondCount ?? g.diamond_count ?? 0, count: 0 });
       roomSlugs.push(name);
       imported++;
     }

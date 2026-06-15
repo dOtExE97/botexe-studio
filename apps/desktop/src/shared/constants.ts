@@ -26,6 +26,8 @@ export const IPC = {
   // Trigger-Regeln
   RULES_GET: 'rules:get',
   RULES_SET: 'rules:set',
+  /** Live-Protokoll: welcher Trigger wann warum gefeuert hat (Main → Renderer). */
+  TRIGGER_LOG: 'trigger:log',
   // Geschenke-Galerie (kompletter Gift-Katalog mit Bildern)
   GIFT_CATALOG_GET: 'gift-catalog:get',
   GIFT_META_SET: 'gift-catalog:meta',

@@ -2,6 +2,7 @@
 // immer sichtbar (Single-User-Tool, keine versteckten Dev-Gates).
 import { useEffect, useState, type ComponentType } from 'react';
 import GiveawayCard from '../components/GiveawayCard';
+import TriggerLogCard from '../components/TriggerLogCard';
 import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, X, LayoutPanelTop, Zap, RotateCcw } from 'lucide-react';
 import type { useStudio } from '../hooks/useStudio';
 import ConfirmButton from '../components/ConfirmButton';
@@ -261,8 +262,8 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
         <button type="submit" className="bx-pill px-4 hover:text-studio-teal">Senden</button>
       </form>
 
-      {/* Event-Feed + Test-Panel */}
-      <div className="grid min-h-0 flex-1 grid-cols-[1fr_280px] gap-4">
+      {/* Event-Feed + Trigger-Protokoll + Test-Panel */}
+      <div className="grid min-h-0 flex-1 grid-cols-[1fr_1fr_280px] gap-4">
         <section className="bx-card flex min-h-0 flex-col overflow-hidden">
           <h2 className="border-b border-studio-border px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">
             Live-Feed
@@ -288,6 +289,9 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
             </div>
           </div>
         </section>
+
+        {/* Trigger-Live-Protokoll: was hat warum gefeuert */}
+        <TriggerLogCard />
 
         {/* Test-Werkzeuge */}
         <section className="bx-card flex flex-col gap-2 p-4">
