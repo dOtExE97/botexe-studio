@@ -64,7 +64,7 @@ export default class SportTicker {
     this.goalText = props.goalText || 'GOOOAAALLL';
     this.scores = new Map(); // matchId → Gesamttore (für Tor-Erkennung)
     this.firstLoad = true;
-    this.goalTimers = new Set();
+    this.goalTimer = null;
 
     this.el = document.createElement('div');
     this.el.className = 'bx-sp';
@@ -125,8 +125,9 @@ export default class SportTicker {
     // Lauftext-Animation neu starten (reflow).
     span.style.animation = 'none'; void span.offsetWidth; span.style.animation = '';
     this.el.classList.add('goalflash');
-    const t = setTimeout(() => { this.goalTimers.delete(t); this.el.classList.remove('goalflash'); }, 2600);
-    this.goalTimers.add(t);
+    // Single Timer: ein weiteres Tor VERLÄNGERT den Glow, statt ihn früh zu beenden.
+    clearTimeout(this.goalTimer);
+    this.goalTimer = setTimeout(() => this.el.classList.remove('goalflash'), 2600);
   }
 
   rowHtml(m, goal) {
@@ -145,8 +146,7 @@ export default class SportTicker {
 
   destroy() {
     if (this.timer) clearInterval(this.timer);
-    for (const t of this.goalTimers) clearTimeout(t);
-    this.goalTimers.clear();
+    clearTimeout(this.goalTimer);
     this.el.remove();
   }
 }

@@ -25,7 +25,7 @@ const ready = (img) => img && img.complete && img.naturalWidth > 0;
 function scheduleFrame(cb) {
   const raf = requestAnimationFrame(cb);
   const timer = setTimeout(() => { cancelAnimationFrame(raf); cb(performance.now()); }, 55);
-  return () => clearTimeout(timer);
+  return () => { clearTimeout(timer); cancelAnimationFrame(raf); };
 }
 const STYLES = new Set(['cannon', 'fountain', 'rain']);
 const AVATAR_TINTS = ['#ff5e8a', '#28e0c4', '#ffd23e', '#7c6bff', '#ff9d3d', '#5ad1ff'];

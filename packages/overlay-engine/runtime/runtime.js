@@ -209,6 +209,10 @@ function scaleStage() {
 let rendering = false;
 let pendingEvents = [];
 
+// Vollflächige Effekt-Widgets bekommen KEIN Mount-Einschweben (.bx-enter) —
+// sie bringen ihren eigenen Auftritt mit (Burst/Regen/Konfetti/Fontäne).
+const FULLBLEED_FX = new Set(['gift-fireworks', 'heart-rain', 'milestone-confetti', 'emojify', 'gift-cannon']);
+
 async function renderLayout(layout) {
   // Komplett-Rebuild: Layout-Wechsel ist selten (Editor-Save), Einfachheit
   // schlägt Diffing. Events laufen danach wieder in frische Widgets.
@@ -230,9 +234,8 @@ async function renderLayout(layout) {
     const el = document.createElement('div');
     el.className = 'layer';
     // Dezentes Einschweben beim Mount — außer bei vollflächigen Effekt-Widgets,
-    // die ihren eigenen Auftritt mitbringen (Feuerwerk, Herzregen).
-    if (layer.widgetType !== 'gift-fireworks' && layer.widgetType !== 'heart-rain'
-        && layer.widgetType !== 'milestone-confetti') {
+    // die ihren eigenen Auftritt mitbringen (Feuerwerk, Herzregen, Konfetti, …).
+    if (!FULLBLEED_FX.has(layer.widgetType)) {
       el.classList.add('bx-enter');
     }
     el.dataset.layerId = layer.id;

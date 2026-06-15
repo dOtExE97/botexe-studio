@@ -2,8 +2,9 @@
 // (oder alle) Richtung Ziel. Großes, animiertes Gift-Icon (Puls + rotierender
 // Glow-Ring), Titel, „aktuell / Ziel". Bei Zielerreichung: Ziel erhöhen / Reset /
 // belassen. Wert überlebt Overlay-Reloads (localStorage pro Layer).
-// props: { giftSlug?, target?, step?, label?, onReach?: 'raise'|'reset'|'keep',
-//          accent?, theme? }
+// props: { giftSlug?, target?, label?, onReach?: 'raise'|'reset'|'keep',
+//          accent?, theme? }  — bei „raise" steigt das Ziel um die ursprüngliche
+//          Zielgröße (15 → 30 → 45 …).
 const STYLE_ID = 'bx-gco-style';
 const CSS = `
 .bx-gco { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -79,9 +80,14 @@ export default class GiftCounter {
     if (this.giftSlug && String(event.gift.slug ?? '').toLowerCase() !== this.giftSlug) return;
     if (event.gift.icon) { this.lastIcon = event.gift.icon; this.renderIcon(); }
     this.count += Math.max(1, Math.floor(event.gift.count || 1));
-    if (this.count >= this.target) {
+    // Großer Combo-Sprung kann mehrere Ziele auf einmal überschreiten → mehrfach
+    // hochziehen. break, sobald sich das Ziel nicht mehr ändert (reset/keep/step=0)
+    // → kein Endlos-Loop.
+    while (this.count >= this.target) {
+      const prevTarget = this.target;
       const r = onGiftGoalReached(this.count, this.target, this.step, this.onReach);
       this.count = r.count; this.target = r.target;
+      if (this.target === prevTarget) break;
     }
     this.persist();
     this.render(true);

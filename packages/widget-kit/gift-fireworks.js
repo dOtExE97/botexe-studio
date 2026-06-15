@@ -79,7 +79,7 @@ function ensureStyle() {
 function scheduleFrame(cb) {
   const raf = requestAnimationFrame(cb);
   const timer = setTimeout(() => { cancelAnimationFrame(raf); cb(performance.now()); }, 55);
-  return () => clearTimeout(timer);
+  return () => { clearTimeout(timer); cancelAnimationFrame(raf); };
 }
 
 export default class GiftFireworks {

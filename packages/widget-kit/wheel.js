@@ -41,7 +41,7 @@ function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=docum
 function scheduleFrame(cb) {
   const raf = requestAnimationFrame(cb);
   const timer = setTimeout(() => { cancelAnimationFrame(raf); cb(performance.now()); }, 55);
-  return () => clearTimeout(timer);
+  return () => { clearTimeout(timer); cancelAnimationFrame(raf); };
 }
 
 export default class Wheel {
@@ -184,6 +184,6 @@ export default class Wheel {
     ctx.fillStyle = this.accent; ctx.fill(); ctx.strokeStyle='#0a0b12'; ctx.lineWidth=2.5; ctx.stroke();
     ctx.restore();
   }
-  destroy() { clearTimeout(this.hideT); this.observer.disconnect(); this.el.remove(); }
+  destroy() { if (this.cancelFrame) this.cancelFrame(); clearTimeout(this.hideT); this.observer.disconnect(); this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
