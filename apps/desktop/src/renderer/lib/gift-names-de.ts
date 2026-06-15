@@ -1,0 +1,137 @@
+// gift-names-de.ts — Deutsche Namen für die gängigsten TikTok-Gifts.
+// TikTok liefert die Namen NUR auf Englisch (auch in der DE-App / bei TikFinity);
+// es gibt keine offizielle DE-Liste. Diese Map ist kuratiert. Keys = slug in
+// LOWERCASE (so liegen sie im Gift-Katalog). Nicht enthaltene Gifts fallen auf
+// den englischen Namen zurück (und sind per „eigener Name" umbenennbar).
+const GIFT_NAMES_DE: Record<string, string> = {
+  // 1 Coin
+  rose: 'Rose',
+  gg: 'GG',
+  tiktok: 'TikTok',
+  'love you so much': 'Hab dich sehr lieb',
+  'love you': 'Hab dich lieb',
+  'ice cream cone': 'Eiswaffel',
+  "you're awesome": 'Du bist großartig',
+  'youre awesome': 'Du bist großartig',
+  'wink wink': 'Zwinker zwinker',
+  'cake slice': 'Kuchenstück',
+  pop: 'Pop',
+  heart: 'Herz',
+  'heart me': 'Herz für mich',
+  coffee: 'Kaffee',
+  'music play': 'Musik',
+  star: 'Stern',
+  football: 'Fußball',
+  tennis: 'Tennis',
+  lightning: 'Blitz',
+  // 2
+  'thumbs up': 'Daumen hoch',
+  'team bracelet': 'Team-Armband',
+  // 5
+  'finger heart': 'Fingerherz',
+  overreact: 'Überreaktion',
+  'name shoutout': 'Namens-Shoutout',
+  'friendship necklace': 'Freundschaftskette',
+  'hand hearts': 'Handherzen',
+  'hand heart': 'Handherz',
+  'mini speaker': 'Mini-Lautsprecher',
+  'heart puff': 'Herz-Wölkchen',
+  // 9–10
+  applause: 'Applaus',
+  rosa: 'Rosa',
+  'slow motion': 'Zeitlupe',
+  chocolate: 'Schokolade',
+  lollipop: 'Lutscher',
+  'cheer you up': 'Aufmunterung',
+  'sending positive energy': 'Positive Energie',
+  // 15–30
+  'bravo!': 'Bravo!',
+  bravo: 'Bravo',
+  perfume: 'Parfüm',
+  sunglasses: 'Sonnenbrille',
+  doughnut: 'Donut',
+  donut: 'Donut',
+  // Tiere / Natur
+  butterfly: 'Schmetterling',
+  duck: 'Ente',
+  corgi: 'Corgi',
+  swan: 'Schwan',
+  lion: 'Löwe',
+  whale: 'Wal',
+  'whale diving': 'Tauchender Wal',
+  panda: 'Panda',
+  bear: 'Bär',
+  cat: 'Katze',
+  dog: 'Hund',
+  falcon: 'Falke',
+  phoenix: 'Phönix',
+  dragon: 'Drache',
+  unicorn: 'Einhorn',
+  crab: 'Krabbe',
+  octopus: 'Tintenfisch',
+  'paper crane': 'Papierkranich',
+  sunflower: 'Sonnenblume',
+  tulip: 'Tulpe',
+  coral: 'Koralle',
+  flowers: 'Blumen',
+  flower: 'Blume',
+  garland: 'Blumenkranz',
+  // Objekte
+  cap: 'Mütze',
+  'hat and mustache': 'Hut und Schnurrbart',
+  'boxing gloves': 'Boxhandschuhe',
+  microphone: 'Mikrofon',
+  guitar: 'Gitarre',
+  'disco ball': 'Discokugel',
+  'money gun': 'Geldpistole',
+  trophy: 'Pokal',
+  medal: 'Medaille',
+  'festival medal': 'Festival-Medaille',
+  crown: 'Krone',
+  'little crown': 'Kleine Krone',
+  'gold mine': 'Goldmine',
+  diamond: 'Diamant',
+  'diamond ring': 'Diamantring',
+  'diamond heart': 'Diamantherz',
+  'big heart': 'Großes Herz',
+  // Essen / Trinken
+  pizza: 'Pizza',
+  beer: 'Bier',
+  champagne: 'Champagner',
+  cheers: 'Prost',
+  cake: 'Kuchen',
+  'birthday cake': 'Geburtstagskuchen',
+  burger: 'Burger',
+  fries: 'Pommes',
+  popcorn: 'Popcorn',
+  watermelon: 'Wassermelone',
+  // Groß / teuer
+  fireworks: 'Feuerwerk',
+  confetti: 'Konfetti',
+  galaxy: 'Galaxie',
+  universe: 'Universum',
+  'tiktok universe': 'TikTok-Universum',
+  planet: 'Planet',
+  rocket: 'Rakete',
+  'drama queen': 'Drama-Queen',
+  'sports car': 'Sportwagen',
+  motorcycle: 'Motorrad',
+  'private jet': 'Privatjet',
+  yacht: 'Yacht',
+  castle: 'Schloss',
+  family: 'Familie',
+  train: 'Zug',
+  lovely: 'Lieblich',
+};
+
+/** Deutscher Name oder null (slug case-insensitiv). */
+export function giftNameDe(slug: string): string | null {
+  return GIFT_NAMES_DE[String(slug ?? '').trim().toLowerCase()] ?? null;
+}
+
+/** Anzeigename je Sprache + optionaler eigener Name (eigener Name gewinnt immer). */
+export function giftDisplayName(slug: string, lang: 'de' | 'en', custom?: string): string {
+  if (custom && custom.trim()) return custom.trim();
+  if (lang === 'de') return giftNameDe(slug) ?? slug;
+  return slug;
+}

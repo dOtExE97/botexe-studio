@@ -8,6 +8,7 @@ import { Gift, Search, Crown, Coins, Volume2, Sparkles, Mic, Plus, Trash2, Play,
 import type { TriggerRule, TriggerAction } from '@botexe/trigger-engine';
 import { findGiftRule, upsertGiftRule, otherGiftRules } from '@botexe/trigger-engine';
 import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
+import { giftDisplayName, giftNameDe } from '../lib/gift-names-de';
 import { toast } from '../components/ToastHost';
 
 interface SoundEntry { id: string; filename: string }
@@ -42,6 +43,9 @@ export default function GalleryPage() {
   const [sort, setSort] = useState<Sort>('coins');
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
+  // Anzeige-Sprache der Gift-Namen (lokal gemerkt). Default Deutsch.
+  const [lang, setLang] = useState<'de' | 'en'>(() => (localStorage.getItem('bx-gift-lang') === 'en' ? 'en' : 'de'));
+  const toggleLang = () => setLang((l) => { const n = l === 'de' ? 'en' : 'de'; localStorage.setItem('bx-gift-lang', n); return n; });
 
   useEffect(() => {
     void (async () => {
@@ -62,13 +66,18 @@ export default function GalleryPage() {
     let list = gifts;
     if (view === 'lastRoom') list = list.filter((g) => g.inLastRoom);
     else if (view === 'received') list = list.filter((g) => g.count > 0);
-    if (needle) list = list.filter((g) => g.slug.toLowerCase().includes(needle));
+    // Suche matcht BEIDE Sprachen: deutsche User finden „Herz", andere „Heart".
+    if (needle) list = list.filter((g) => {
+      const de = giftNameDe(g.slug);
+      return g.slug.toLowerCase().includes(needle) || (!!de && de.toLowerCase().includes(needle));
+    });
     const sorted = [...list];
-    if (sort === 'coins') sorted.sort((a, b) => (b.coins || 0) - (a.coins || 0) || a.slug.localeCompare(b.slug));
-    else if (sort === 'name') sorted.sort((a, b) => a.slug.localeCompare(b.slug));
+    const dn = (s: string) => giftDisplayName(s, lang);
+    if (sort === 'coins') sorted.sort((a, b) => (b.coins || 0) - (a.coins || 0) || dn(a.slug).localeCompare(dn(b.slug)));
+    else if (sort === 'name') sorted.sort((a, b) => dn(a.slug).localeCompare(dn(b.slug)));
     else sorted.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
     return sorted;
-  }, [gifts, view, q, sort]);
+  }, [gifts, view, q, sort, lang]);
 
   const selectedGift = gifts.find((g) => g.slug === selected) || null;
 
@@ -113,6 +122,13 @@ export default function GalleryPage() {
           <option value="name">Name (A→Z)</option>
           <option value="recent">Zuletzt gesehen</option>
         </select>
+        <button
+          onClick={toggleLang}
+          title="Geschenk-Namen auf Deutsch oder Englisch anzeigen (Suche findet immer beide)"
+          className="rounded-lg border border-studio-border px-3 py-1.5 text-xs font-semibold tracking-wide text-studio-muted hover:text-studio-accent"
+        >
+          {lang === 'de' ? '🇩🇪 DE' : '🇬🇧 EN'}
+        </button>
       </div>
 
       <div className="flex min-h-0 flex-1 gap-4">
@@ -140,7 +156,7 @@ export default function GalleryPage() {
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded bg-studio-bg text-studio-muted">?</div>
                 )}
-                <span className="w-full truncate text-center text-[10px] font-medium">{g.slug}</span>
+                <span className="w-full truncate text-center text-[10px] font-medium" title={g.slug}>{giftDisplayName(g.slug, lang)}</span>
                 <span className="flex items-center gap-0.5 text-[9px] text-studio-gold"><Coins size={9} /> {g.coins}</span>
                 {g.firstSender && (
                   <span className="flex items-center gap-0.5 text-[8px] text-studio-muted" title={`Erster: ${g.firstSender.nickname} am ${fmtDate(g.firstSenderAt)}`}>
@@ -160,6 +176,7 @@ export default function GalleryPage() {
             rules={rules}
             sounds={sounds}
             layers={layers}
+            lang={lang}
             onSaveRules={saveRules}
             onClose={() => setSelected(null)}
           />
@@ -170,12 +187,13 @@ export default function GalleryPage() {
 }
 
 function GiftActionPanel({
-  gift, rules, sounds, layers, onSaveRules, onClose,
+  gift, rules, sounds, layers, lang, onSaveRules, onClose,
 }: {
   gift: GiftEntry;
   rules: TriggerRule[];
   sounds: SoundEntry[];
   layers: LayerRef[];
+  lang: 'de' | 'en';
   onSaveRules: (r: TriggerRule[]) => void;
   onClose: () => void;
 }) {
@@ -206,7 +224,10 @@ function GiftActionPanel({
       <div className="flex items-center gap-2">
         {gift.icon && <img src={gift.icon} alt="" className="h-10 w-10 object-contain" />}
         <div className="flex-1">
-          <div className="font-display text-sm uppercase">{gift.slug}</div>
+          <div className="font-display text-sm uppercase">{giftDisplayName(gift.slug, lang)}</div>
+          {giftDisplayName(gift.slug, lang) !== gift.slug && (
+            <div className="text-[9px] text-studio-muted/60">{gift.slug}</div>
+          )}
           <div className="flex items-center gap-1 text-[10px] text-studio-gold"><Coins size={10} /> {gift.coins} Coins · {gift.count}× erhalten</div>
         </div>
         <button onClick={onClose} className="text-studio-muted hover:text-studio-accent"><X size={16} /></button>
