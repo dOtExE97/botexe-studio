@@ -323,6 +323,19 @@ function dispatchStats(stats) {
   }
 }
 
+// Neuer Stream → akkumulierende Widgets (Top-Listen, Zähler, Glas) zurücksetzen.
+function dispatchReset() {
+  lastStats = null;
+  for (const { widget } of liveLayers.values()) {
+    try {
+      widget?.onReset?.();
+    } catch (err) {
+      console.warn('[overlay] Widget-Fehler bei onReset:', err);
+      reportClientError('onReset', err && err.message ? err.message : String(err));
+    }
+  }
+}
+
 function dispatchAction(ruleId, action) {
   if (action.kind === 'show_layer' || action.kind === 'hide_layer') {
     const entry = liveLayers.get(action.targetId);
@@ -508,6 +521,7 @@ function connect() {
     }
     else if (msg.kind === 'action') dispatchAction(msg.ruleId, msg.action);
     else if (msg.kind === 'stats') dispatchStats(msg.stats);
+    else if (msg.kind === 'reset') dispatchReset();
   };
 
   ws.onclose = () => {

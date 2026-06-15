@@ -163,10 +163,15 @@ export class Studio {
       // so kennt z.B. das Bingo ALLE Gift-Bilder, bevor das erste Gift kommt.
       onAvailableGifts: (gifts) => this.importAvailableGifts(gifts),
       onStatus: (info) => {
-        // K1-Lehre: bei JEDEM echten (Re-)Connect definierter Zustand.
-        // Session-Stats bleiben bewusst stehen (Leaderboard übersteht Drops),
-        // Trigger-Cooldowns ebenso — nur ein NEUER Stream (connect()-Aufruf
-        // des Users) setzt zurück, siehe connect().
+        // Bei einem NEUEN Stream (erster Connect ODER erneutes Live nach Ende)
+        // die Session frisch starten: alte Session sichern, dann Stats/Cooldowns
+        // UND Overlay-Zähler/Top-Listen zurücksetzen. Bei einem Reconnect nach
+        // kurzem Abriss (freshStream=false) bleibt alles stehen (Leaderboard
+        // übersteht Drops).
+        if (info.status === 'connected' && info.freshStream) {
+          this.flushSessionToHistory();
+          this.resetSession();
+        }
         this.hooks.onStatus(info);
         if (info.status === 'error') {
           this.hooks.onToast?.({ type: 'error', message: `Verbindung fehlgeschlagen${info.detail ? `: ${info.detail}` : ''}` });
@@ -422,15 +427,9 @@ export class Studio {
   // ── Plattform ─────────────────────────────────────────────────────────
 
   async connect(username: string): Promise<void> {
-    // Vorherige Session (falls Aktivität) in die Historie sichern, dann reset.
-    this.flushSessionToHistory();
-    // Neuer Stream = frische Session: Stats + Cooldowns zurück auf null.
-    this.stats.reset();
-    this.engine.resetCooldowns();
-    this.redemptionCooldowns.clear();
-    this.commandCooldowns.clear();
-    this.scheduleStatsBroadcast();
     this.settings.update({ lastUsername: username });
+    // Der eigentliche Reset passiert beim 'connected'-Status mit freshStream
+    // (gilt einheitlich für manuellen Connect UND Auto-Connect ins nächste Live).
     await this.adapter.connect(username);
   }
 
@@ -608,6 +607,9 @@ export class Studio {
     this.redemptionCooldowns.clear();
     this.commandCooldowns.clear();
     this.bus.clearLastValues();
+    // Reset-Signal an die Overlay-Widgets: setzt auch persistente Zähler zurück
+    // (counter/gift-counter via localStorage) — ein reines Re-Mount täte das nicht.
+    this.server.broadcast({ kind: 'reset' });
     this.scheduleStatsBroadcast();
     this.server.rebroadcastLayouts();
     log.info('Studio', 'Session zurückgesetzt (Stats, Cooldowns, Overlay-Inhalte)');

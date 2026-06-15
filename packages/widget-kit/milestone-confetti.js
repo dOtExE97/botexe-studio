@@ -127,5 +127,8 @@ export default class MilestoneConfetti {
     }
   }
 
+  // Neuer Stream → Schwellen-Tracking zurücksetzen (nächster Stats-Push merkt neu).
+  onReset() { this.lastSeen = null; }
+
   destroy() { clearTimeout(this.hideT); clearTimeout(this.demoTimer); clearInterval(this.demoInterval); this.el.remove(); }
 }

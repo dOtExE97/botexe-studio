@@ -33,6 +33,9 @@ export interface StudioSettings {
   soundVolume: number;
   /** Audio-Ausgabegerät für lokale Sounds/TTS (deviceId), '' = Standard. */
   audioOutputId: string;
+  /** Label des gewählten Geräts — Fallback, falls die deviceId nach einem
+   *  Neustart/Umstecken nicht mehr matcht (dann per Name wiederfinden). */
+  audioOutputLabel: string;
   triggerRules: TriggerRule[];
   /** Punkte-Einlöse-Store: Chat-Befehl → Punkte ausgeben → Aktion. */
   redemptions: Redemption[];
@@ -92,6 +95,7 @@ const DEFAULTS: StudioSettings = {
   lastUsername: '',
   soundVolume: 0.7,
   audioOutputId: '',
+  audioOutputLabel: '',
   triggerRules: [],
   redemptions: [],
   panelButtons: [],
@@ -178,6 +182,7 @@ export class SettingsStore {
         },
       );
       merged.audioOutputId = typeof raw.audioOutputId === 'string' ? raw.audioOutputId : '';
+      merged.audioOutputLabel = typeof raw.audioOutputLabel === 'string' ? raw.audioOutputLabel : '';
       merged.panelButtons = (Array.isArray(raw.panelButtons) ? raw.panelButtons : []).filter(
         (b: unknown): b is PanelButton => {
           if (typeof b !== 'object' || b === null) return false;

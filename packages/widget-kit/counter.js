@@ -34,8 +34,8 @@ export default class CounterWidget {
     ensureStyle();
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.storageKey = `bx-counter-${(ctx && ctx.layerId) || 'default'}`;
-    const start = Number(props.start) || 0;
-    this.value = this.load(start);
+    this.start = Number(props.start) || 0;
+    this.value = this.load(this.start);
 
     this.el = document.createElement('div');
     this.el.className = 'bx-cnt';
@@ -77,6 +77,9 @@ export default class CounterWidget {
       v.classList.add('pop');
     }
   }
+
+  // Neuer Stream → zurück auf Startwert.
+  onReset() { this.value = this.start; this.persist(); this.render(false); }
 
   destroy() { this.el.remove(); }
 }

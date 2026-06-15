@@ -51,10 +51,23 @@ Als zusätzliche Optionen, nichts ersetzt:
   laufende Glühbirnen-Kette am Rand (Casino-Look). **BUG GEFIXT**: `scheduleFrame`
   war in wheel.js undefiniert → der Spin warf zur Laufzeit einen ReferenceError
   (von der Runtime geschluckt) → das Rad drehte sich nie. Jetzt definiert.
-- **counter** ⏳ OFFEN: TikFinitys „Geschenkzähler" (gift-getrieben, Ziel,
-  animiertes Gift-Icon mit Puls+Glow-Ring, Abstimmungsmodus) ist konzeptionell ein
-  NEUES Widget (unser `counter` ist manuell/per Aktion) → als eigenes Stück bauen.
-- **gift-jar** ⏳ OFFEN: realistischeres 3D-Glas + Donation-Toast-Variante.
+- **gift-counter** ✅ NEU: TikFinitys Geschenkzähler — zählt ein bestimmtes Gift
+  (oder alle) Richtung Ziel, großes animiertes Gift-Icon (Puls + rotierender
+  Glow-Ring), Aktion bei Erreichen (raise/reset/keep), persistiert. `onGiftGoalReached`
+  TDD. (Abstimmungsmodus = mehrere koordinierte Counter: bewusst weggelassen, MVP.)
+- **gift-jar** ✅: Donation-Toasts („Name schickt Gift ×N") als Option `showToast`.
+  Das 3D-Glas selbst war bereits premium (Glanz/Reflexe/Stapel-Physik).
+
+## Audit nach Batch (4 Agenten, 15.06.) ✅
+Überwiegend Entwarnung. Echte Fixes:
+- 🔴 **wheel.js**: `destroy()` brach den laufenden Frame nicht ab (Frame nach
+  `el.remove()` möglich); `scheduleFrame`-Canceller killte das rAF nicht. Beides gefixt
+  (+ gleiche rAF-Härtung in gift-fireworks/gift-cannon).
+- 🟡 runtime: emojify + gift-cannon von `.bx-enter` ausgenommen (Vollbild-Effekte).
+- 🟡 sport-ticker: Tor-Glow single Timer (zweites Tor verlängert statt früh enden).
+- 🟡 gift-counter: großer Combo-Sprung zieht Ziel mehrfach hoch (Endlos-Schutz).
+Mini-Fixes (TTS-Retry, Logger-Lokalzeit, Auto-Update), gift-jar-Toasts und die
+Batch-1-Widgets wurden als sauber bestätigt. **215 Tests grün.**
 
 ## Batch 3 — Webcam-Rahmen + Footer (später, eigene Kategorie)
 Animierte Cam-Rahmen-Galerie: Neon-Flow / Pixel-Art / Sakura-Partikel / Gold-Champion

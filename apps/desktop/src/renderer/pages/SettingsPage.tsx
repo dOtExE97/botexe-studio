@@ -74,20 +74,26 @@ export default function SettingsPage() {
 
   useEffect(() => {
     void window.studio.getTtlsLink().then((t: { ready: boolean; host: string }) => setTtls(t));
-    // Audio-Ausgabegeräte auflisten (für den Output-Picker)
-    void navigator.mediaDevices
-      ?.enumerateDevices()
-      .then((ds) =>
-        setOutputs(
-          ds.filter((d) => d.kind === 'audiooutput').map((d) => ({ deviceId: d.deviceId, label: d.label || 'Gerät' })),
-        ),
-      )
+    // Audio-Ausgabegeräte auflisten. Erst kurz Media-Permission anfragen
+    // (getUserMedia) — sonst liefert Chromium leere Geräte-Namen und maskierte
+    // IDs, die nach einem Neustart nicht mehr matchen (Ausgabe „verfällt").
+    const md = navigator.mediaDevices;
+    const list = () => md?.enumerateDevices()
+      .then((ds) => setOutputs(
+        ds.filter((d) => d.kind === 'audiooutput').map((d) => ({ deviceId: d.deviceId, label: d.label || 'Gerät' })),
+      ))
       .catch(() => setOutputs([]));
+    Promise.resolve(md?.getUserMedia?.({ audio: true }))
+      .then((stream) => stream?.getTracks().forEach((t) => t.stop()))
+      .catch(() => undefined)
+      .finally(() => void list());
   }, []);
 
   const setAudioOutput = (id: string) => {
     setAudioOut(id);
-    void window.studio.updateSettings({ audioOutputId: id });
+    // Label mitspeichern → robuster Fallback, wenn die deviceId mal wechselt.
+    const label = outputs.find((o) => o.deviceId === id)?.label ?? '';
+    void window.studio.updateSettings({ audioOutputId: id, audioOutputLabel: label });
     window.dispatchEvent(new CustomEvent('bx-audio-output', { detail: id }));
   };
 

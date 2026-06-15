@@ -3,7 +3,16 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import type { StudioEvent } from '@botexe/trigger-engine';
 import { EventBus } from '../core/event-bus';
-import { TikTokAdapter, type LiveConnectionLike, type AdapterStatusInfo } from './tiktok-adapter';
+import { TikTokAdapter, isOfflineError, type LiveConnectionLike, type AdapterStatusInfo } from './tiktok-adapter';
+
+test('isOfflineError: „nicht live" wird als Offline erkannt (→ auf Live warten)', () => {
+  assert.equal(isOfflineError("The requested user isn't online :("), true);
+  assert.equal(isOfflineError('user not online'), true);
+  assert.equal(isOfflineError('room not found'), true);
+  // echte Fehler NICHT als offline werten (→ normaler Reconnect):
+  assert.equal(isOfflineError('sign server error 500'), false);
+  assert.equal(isOfflineError('connection timeout'), false);
+});
 
 class FakeConnection extends EventEmitter implements LiveConnectionLike {
   connectCalls = 0;

@@ -125,6 +125,9 @@ export default class HypeTrain {
     this.el.classList.remove('on');
   }
 
+  // Neuer Stream → Hype-Train zurück auf Anfang (ausblenden, Punkte/Level null).
+  onReset() { this.points = 0; this.level = 1; this.end(); }
+
   kick() {
     if (this.running) return;
     this.running = true; this.lastT = 0;

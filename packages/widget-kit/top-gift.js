@@ -85,6 +85,8 @@ export default class TopGift {
     this.el.querySelector('.bx-tg-by b').textContent = nickname || 'Jemand';
     this.el.classList.remove('bounce'); void this.el.offsetWidth; this.el.classList.add('bounce');
   }
+  // Neuer Stream → Rekord zurück auf „leer".
+  onReset() { this.max = 0; this.el.innerHTML = `<div class="bx-tg-empty">${GIFT_SVG}<span>Noch kein Gift</span></div>`; }
   destroy() { this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

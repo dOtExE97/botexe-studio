@@ -25,7 +25,8 @@ export type OverlayMessage =
   | { kind: 'layout'; layout: OverlayLayout }
   | { kind: 'event'; event: StudioEvent }
   | { kind: 'action'; ruleId: string; action: TriggerAction }
-  | { kind: 'stats'; stats: unknown };
+  | { kind: 'stats'; stats: unknown }
+  | { kind: 'reset' }; // neuer Stream → Overlay-Zähler/Top-Listen zurücksetzen
 
 export interface OverlayServerOptions {
   /** 0 = freier Port (Tests); sonst Wunsch-Port mit Fallback +1…+10. */

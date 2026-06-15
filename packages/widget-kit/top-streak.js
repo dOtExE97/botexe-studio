@@ -77,6 +77,8 @@ export default class TopStreak {
     this.el.querySelector('.bx-ts-by b').textContent = nickname || 'Jemand';
     this.el.classList.remove('bounce'); void this.el.offsetWidth; this.el.classList.add('bounce');
   }
+  // Neuer Stream → höchste Combo zurück auf „leer".
+  onReset() { this.max = 0; this.el.innerHTML = `<div class="bx-ts-empty">${FIRE_SVG}<span>Noch keine Combo</span></div>`; }
   destroy() { this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

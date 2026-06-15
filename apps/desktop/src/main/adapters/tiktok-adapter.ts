@@ -27,6 +27,10 @@ export interface AdapterStatusInfo {
   isReconnect: boolean;
   attempt?: number;
   detail?: string;
+  /** true beim Connect zu einem NEUEN Stream (erster Connect ODER erneutes Live
+   *  nach Stream-Ende) — NICHT bei einem Reconnect nach kurzem Verbindungsabriss.
+   *  Signal für „Session zurücksetzen" (Zähler/Top-Listen im Overlay). */
+  freshStream?: boolean;
 }
 
 /** Minimal-Interface der Live-Connection — in Tests durch Fake ersetzt. */
@@ -113,6 +117,9 @@ export class TikTokAdapter {
   private username = '';
   private streamEnded = false;
   private hasConnectedOnce = false;
+  /** Markiert den nächsten erfolgreichen Connect als „neuer Stream" (→ Reset).
+   *  Gesetzt vom Live-Watch (erneutes Live nach Stream-Ende / nach „nicht online"). */
+  private pendingFresh = false;
 
   constructor(bus: EventBus, options: TikTokAdapterOptions = {}) {
     this.bus = bus;
@@ -215,8 +222,12 @@ export class TikTokAdapter {
         return;
       }
       this.reconnectAttempts = 0;
+      // Neuer Stream = erster Connect ODER erneutes Live nach Stream-Ende
+      // (pendingFresh vom Live-Watch). NICHT bei Reconnect nach kurzem Abriss.
+      const freshStream = !isReconnect || this.pendingFresh;
+      this.pendingFresh = false;
       this.hasConnectedOnce = true;
-      this.emitStatus({ status: 'connected', isReconnect });
+      this.emitStatus({ status: 'connected', isReconnect, freshStream });
       log.info('TikTok', `Verbunden! Room: ${String(state.roomId ?? '?')}`);
 
       // Gift-Katalog: komplette Gift-Liste (mit Bildern) abrufen — best-effort.
@@ -236,9 +247,18 @@ export class TikTokAdapter {
       }
     } catch (err) {
       if (epoch !== this.epoch) return;
-      log.error('TikTok', 'Verbindung fehlgeschlagen', (err as Error).message);
-      this.emitStatus({ status: 'error', isReconnect, detail: (err as Error).message });
-      this.scheduleReconnect(epoch);
+      const msg = (err as Error).message || '';
+      log.error('TikTok', 'Verbindung fehlgeschlagen', msg);
+      this.emitStatus({ status: 'error', isReconnect, detail: msg });
+      // „Noch nicht live" ist KEIN Abbruchfehler: statt nach 5 Versuchen aufzugeben,
+      // auf das Live warten und automatisch verbinden (wie nach Stream-Ende) — der
+      // Streamer muss nicht mehr manuell „Verbinden" klicken, wenn er live geht.
+      if (this.autoConnect && isOfflineError(msg)) {
+        this.pendingFresh = true; // erstes Live = neuer Stream → Reset
+        this.startLiveWatch(epoch);
+      } else {
+        this.scheduleReconnect(epoch);
+      }
     }
   }
 
@@ -331,6 +351,7 @@ export class TikTokAdapter {
       if (live) {
         log.info('TikTok', `@${this.username} ist wieder live → verbinde automatisch`);
         this.streamEnded = false;
+        this.pendingFresh = true; // erneutes Live = neuer Stream → Session-Reset
         void this.doConnect(epoch, true);
       } else {
         this.liveWatchTimer = setTimeout(() => void tick(), this.livePollMs);
@@ -372,4 +393,10 @@ export class TikTokAdapter {
       log.error('TikTok', 'onStatus-Callback warf', (err as Error).message);
     }
   }
+}
+
+/** „Streamer ist (noch) nicht live" — kein Fehler zum Aufgeben, sondern Anlass,
+ *  auf das Live zu warten. Deckt die TikTok-Lib-Meldungen ab. */
+export function isOfflineError(msg: string): boolean {
+  return /isn'?t online|not online|offline|user_offline|not.*live|no.*live|room.*not.*found/i.test(String(msg || ''));
 }

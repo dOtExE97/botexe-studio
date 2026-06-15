@@ -582,6 +582,10 @@ function registerIpc(): void {
     const p = patch as Record<string, unknown>;
     if (typeof p.soundVolume === 'number') allowed.soundVolume = Math.min(1, Math.max(0, p.soundVolume));
     if (typeof p.lastUsername === 'string') allowed.lastUsername = p.lastUsername;
+    // Audio-Ausgabegerät: war NICHT in der Allowlist → wurde nie persistiert
+    // (Ausgabe fiel nach jedem Neustart auf „System" zurück). Jetzt gespeichert.
+    if (typeof p.audioOutputId === 'string') allowed.audioOutputId = p.audioOutputId.slice(0, 200);
+    if (typeof p.audioOutputLabel === 'string') allowed.audioOutputLabel = p.audioOutputLabel.slice(0, 120);
     if (typeof p.points === 'object' && p.points !== null) {
       const pc = p.points as Record<string, unknown>;
       const cur = isStudio().settings.get().points;
@@ -704,6 +708,12 @@ app.whenReady().then(async () => {
   if (!gotLock) return;
   // Datei-Logging zuerst — damit ALLE Start-Logs/Fehler in die Datei wandern.
   initFileLogging(app.getPath('userData'), formatLocalStamp(new Date()));
+
+  // Media-Permission auto-gewähren: ohne sie maskiert Chromium die Audio-Geräte-
+  // IDs (leer/instabil über Neustarts) → die gewählte Ausgabe (setSinkId) „verfällt"
+  // und fällt auf System zurück. Mit Permission sind deviceIds + Labels stabil.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'media'));
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'media');
 
   // Restriktive CSP für den Renderer in Production (dev braucht Vite-HMR).
   if (!MAIN_WINDOW_VITE_DEV_SERVER_URL) {
