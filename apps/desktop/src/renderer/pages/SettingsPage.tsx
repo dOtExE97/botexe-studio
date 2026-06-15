@@ -42,6 +42,8 @@ export default function SettingsPage() {
   const [update, setUpdate] = useState<{ state: string; version?: string; message?: string }>({ state: 'idle' });
   const [blockedWords, setBlockedWords] = useState('');
   const [sportKey, setSportKey] = useState('');
+  const [sportKeySet, setSportKeySet] = useState(false);
+  const [obsPasswordSet, setObsPasswordSet] = useState(false);
   const [obs, setObs] = useState<{ enabled: boolean; url: string; password: string }>({ enabled: false, url: 'ws://127.0.0.1:4455', password: '' });
   const [obsStatus, setObsStatus] = useState('off');
   const [sb, setSb] = useState<{ enabled: boolean; url: string }>({ enabled: false, url: 'ws://127.0.0.1:8080/' });
@@ -50,12 +52,14 @@ export default function SettingsPage() {
   const [signKey, setSignKey] = useState('');
 
   useEffect(() => {
-    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportApiKey?: string; obs?: { enabled: boolean; url: string; password: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
+    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
       setPoints(s.points);
       setAudioOut(s.audioOutputId ?? '');
       setBlockedWords((s.moderation?.blockedWords ?? []).join(', '));
-      setSportKey(s.sportApiKey ?? '');
-      if (s.obs) setObs(s.obs);
+      // Keys/Passwörter kommen nicht mehr roh zurück — nur „gesetzt"-Flags.
+      setSportKeySet(!!s.sportKeySet);
+      setObsPasswordSet(!!s.obsPasswordSet);
+      if (s.obs) setObs({ enabled: s.obs.enabled, url: s.obs.url, password: '' });
       if (s.streamerbot) setSb(s.streamerbot);
       setTiktokIn(!!s.tiktokLoggedIn);
     });
@@ -250,8 +254,8 @@ export default function SettingsPage() {
           type="password"
           value={sportKey}
           onChange={(e) => setSportKey(e.target.value)}
-          onBlur={() => void window.studio.updateSettings({ sportApiKey: sportKey.trim() })}
-          placeholder="dein kostenloser Key von football-data.org/client/register"
+          onBlur={() => { if (sportKey.trim()) { void window.studio.updateSettings({ sportApiKey: sportKey.trim() }); setSportKeySet(true); } }}
+          placeholder={sportKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'dein kostenloser Key von football-data.org/client/register'}
           className="bx-input mt-1.5 w-full font-mono text-xs"
         />
         <p className="mt-2 text-[10px] text-studio-muted/70">
@@ -307,7 +311,15 @@ export default function SettingsPage() {
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-[10px] uppercase tracking-widest text-studio-muted">Passwort</span>
-            <input type="password" value={obs.password} onChange={(e) => setObs({ ...obs, password: e.target.value })} onBlur={() => applyObs(obs)} className="bx-input font-mono" style={{ width: '10rem' }} />
+            <input
+              type="password"
+              value={obs.password}
+              onChange={(e) => setObs({ ...obs, password: e.target.value })}
+              onBlur={() => { applyObs(obs); if (obs.password) setObsPasswordSet(true); }}
+              placeholder={obsPasswordSet ? '•••• (gesetzt)' : ''}
+              className="bx-input font-mono"
+              style={{ width: '10rem' }}
+            />
           </label>
         </div>
         <p className="mt-2 text-[10px] text-studio-muted/70">

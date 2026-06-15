@@ -593,6 +593,16 @@ function registerIpc(): void {
     delete safe.tiktokSessionId;
     delete safe.tiktokTargetIdc;
     delete safe.tiktokSignApiKey;
+    // Weitere Geheimnisse nie roh an den Renderer (Screenshots/Crash-Dumps) —
+    // stattdessen nur ein „ist gesetzt"-Flag, damit die UI „gesetzt" anzeigen kann.
+    safe.sportKeySet = typeof safe.sportApiKey === 'string' && safe.sportApiKey.length > 0;
+    delete safe.sportApiKey;       // football-data.org-Key
+    delete safe.controlToken;      // Steuer-/Overlay-Token (Renderer braucht ihn nie)
+    if (safe.obs && typeof safe.obs === 'object') {
+      const obs = safe.obs as Record<string, unknown>;
+      safe.obsPasswordSet = typeof obs.password === 'string' && (obs.password as string).length > 0;
+      delete obs.password;         // OBS-WebSocket-Passwort
+    }
     return safe;
   });
   ipcMain.handle(IPC.SETTINGS_UPDATE, (_e, patch: unknown) => {

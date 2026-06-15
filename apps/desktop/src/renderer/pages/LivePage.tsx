@@ -68,6 +68,7 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
   const [error, setError] = useState('');
   const [testChat, setTestChat] = useState('');
   const [chatText, setChatText] = useState('');
+  const [tiktokIn, setTiktokIn] = useState(false);
   const [showIntro, setShowIntro] = useState(() => localStorage.getItem('bx-intro-dismissed') !== '1');
   const [range, setRange] = useState<'week' | 'month' | 'year'>('week');
   const [history, setHistory] = useState<{ coins: number; gifts: number; likes: number; chats: number; follows: number; sessions: number } | null>(null);
@@ -82,8 +83,9 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
   }, [range, studio.stats]);
 
   useEffect(() => {
-    void window.studio.getSettings().then((s: { lastUsername: string }) => {
+    void window.studio.getSettings().then((s: { lastUsername: string; tiktokLoggedIn?: boolean }) => {
       if (s.lastUsername) setUsername(s.lastUsername);
+      setTiktokIn(!!s.tiktokLoggedIn);
     });
   }, []);
 
@@ -256,10 +258,11 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
           value={chatText}
           onChange={(e) => setChatText(e.target.value)}
           maxLength={150}
-          placeholder="Nachricht in deinen TikTok-Chat schreiben… (Einstellungen → mit TikTok anmelden)"
-          className="bx-input flex-1"
+          disabled={!tiktokIn}
+          placeholder={tiktokIn ? 'Nachricht in deinen TikTok-Chat schreiben…' : 'Zum Chat-Senden erst anmelden: Einstellungen → mit TikTok anmelden'}
+          className="bx-input flex-1 disabled:cursor-not-allowed disabled:opacity-50"
         />
-        <button type="submit" className="bx-pill px-4 hover:text-studio-teal">Senden</button>
+        <button type="submit" disabled={!tiktokIn} className="bx-pill px-4 hover:text-studio-teal disabled:opacity-40">Senden</button>
       </form>
 
       {/* Event-Feed + Trigger-Protokoll + Test-Panel */}

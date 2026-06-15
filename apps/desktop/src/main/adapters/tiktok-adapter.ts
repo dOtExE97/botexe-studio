@@ -305,10 +305,11 @@ export class TikTokAdapter {
 
     on('error', guard((err: { message?: string; info?: string } | undefined) => {
       // Die Lib feuert hier oft ein nacktes Objekt ohne .message → früher stand
-      // „[object Object]" im Log. Sinnvoll serialisieren (message → info → JSON).
-      let detail = err?.message ?? err?.info;
-      if (!detail) { try { detail = JSON.stringify(err); } catch { detail = String(err); } }
-      log.error('TikTok', 'Connection-Fehler', detail || 'unbekannt');
+      // „[object Object]" im Log. Nur message/info loggen — NICHT das ganze Objekt
+      // serialisieren: es kann sessionId/Keys enthalten, die sonst in der
+      // (teilbaren) Logdatei landen würden.
+      const detail = err?.message ?? err?.info ?? (err ? 'Fehler-Objekt ohne Details (Secrets nicht geloggt)' : 'unbekannt');
+      log.error('TikTok', 'Connection-Fehler', detail);
     }));
   }
 

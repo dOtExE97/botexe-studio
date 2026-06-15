@@ -581,7 +581,7 @@ const WIDGET_TYPES: {
   },
   {
     type: 'sport-ticker', label: 'Sport-Liveticker', desc: 'Aktuelle Fußballspiele (WM, Bundesliga, …) mit Wappen + Spielstand — aktualisiert live, blitzt bei jedem Tor auf.',
-    w: 460, h: 320, props: { provider: 'football-data', competition: '2000', title: 'Liveticker', maxMatches: 5, refreshSec: 30, goalSoundId: 'botexe-gewinn.wav', goalBanner: true, goalText: 'GOOOAAALLL', accent: '#28e0c4' },
+    w: 460, h: 320, props: { provider: 'openligadb', competition: 'bl1', title: 'Liveticker', maxMatches: 5, refreshSec: 30, goalSoundId: 'botexe-gewinn.wav', goalBanner: true, goalText: 'GOOOAAALLL', accent: '#28e0c4' },
     fields: [
       { key: 'provider', label: 'Datenquelle', type: 'select', options: [
         { value: 'football-data', label: 'football-data.org (WM + Ligen, braucht Key)' },

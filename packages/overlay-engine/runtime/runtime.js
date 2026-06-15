@@ -289,7 +289,10 @@ async function renderLayout(layout) {
             } catch { /* nie eskalieren */ }
           },
           // Spiel-Sieg melden (winId = layerId+Runde → Server zählt 1×).
+          // In Vorschau/Schaufenster NICHT melden — sonst landen Demo-Sieger
+          // (Mia/Leon/…) aus den Demo-Events im echten Punkte-/Bestenlisten-System.
           reportWin: (winId, user) => {
+            if (PREVIEW || SINGLE) return;
             try {
               if (activeWs && activeWs.readyState === 1 && winId && user?.id) {
                 activeWs.send(JSON.stringify({ kind: 'gamewin', winId: String(winId), user }));

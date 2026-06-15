@@ -460,10 +460,14 @@ export class Studio {
   }
 
   // ── OBS-Studio-Steuerung ──────────────────────────────────────────────
-  /** OBS-Einstellungen setzen + Verbindung anwenden. */
+  /** OBS-Einstellungen setzen + Verbindung anwenden. Leeres Passwort = das
+   *  gespeicherte behalten (die UI bekommt das Passwort nie zurück, das Feld ist
+   *  beim Bearbeiten leer — sonst würde Speichern es versehentlich löschen). */
   setObsConfig(cfg: { enabled: boolean; url: string; password: string }): void {
-    this.settings.update({ obs: cfg });
-    this.obs.applyConfig(cfg);
+    const cur = this.settings.get().obs;
+    const next = { enabled: cfg.enabled, url: cfg.url, password: cfg.password ? cfg.password : cur.password };
+    this.settings.update({ obs: next });
+    this.obs.applyConfig(next);
   }
   getObsStatus(): ObsStatus { return this.obs.getStatus(); }
   getObsScenes(): Promise<string[]> { return this.obs.getScenes(); }
