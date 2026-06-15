@@ -832,7 +832,8 @@ export default function OverlayPage() {
     const obs = new ResizeObserver(update);
     obs.observe(el);
     return () => obs.disconnect();
-  }, [layout === null, canvasW, canvasH]);
+    // Beim Profilwechsel (Canvas remountet) + bei Größenänderung neu anhängen.
+  }, [layout?.id, canvasW, canvasH]);
 
   const persist = useCallback(async (next: OverlayLayout) => {
     setLayout(next);

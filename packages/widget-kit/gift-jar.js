@@ -247,8 +247,8 @@ export default class GiftJar {
   }
 
   destroy() {
-    if (this.pendingTimers) for (const t of this.pendingTimers) clearTimeout(t);
-    for (const t of this.toastTimers) clearTimeout(t);
+    if (this.pendingTimers) { for (const t of this.pendingTimers) clearTimeout(t); this.pendingTimers.clear(); }
+    for (const t of this.toastTimers) clearTimeout(t); this.toastTimers.clear();
     this.observer.disconnect(); this.falling=[]; this.resting=[]; this.el.remove();
   }
 }

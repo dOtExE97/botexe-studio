@@ -171,6 +171,7 @@ export default class LivePoll {
     if (this.clockTimer) { clearInterval(this.clockTimer); this.clockTimer = null; }
     if (this.roundTimer) { clearTimeout(this.roundTimer); this.roundTimer = null; }
     if (this.previewTimer) { clearInterval(this.previewTimer); this.previewTimer = null; }
+    if (this.previewCycle) { clearInterval(this.previewCycle); this.previewCycle = null; }
     this.newRound();
     if (this.ctx.preview) this.startPreview();
   }

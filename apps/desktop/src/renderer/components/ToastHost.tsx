@@ -1,7 +1,7 @@
 // ToastHost — sichtbares Fehler-/Hinweis-Feedback. Lauscht auf Meldungen vom
 // Main-Prozess (IPC: TTS-Fehler, Verbindungsabbruch …) UND auf renderer-interne
 // Meldungen (Custom-Event 'bx-toast', z.B. Import fehlgeschlagen).
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Info, CheckCircle2, X } from 'lucide-react';
 
 export type ToastType = 'error' | 'warn' | 'info' | 'success';
@@ -29,12 +29,18 @@ let seq = 0;
 
 export default function ToastHost() {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
 
   useEffect(() => {
+    const pending = timers.current;
     const push = (type: ToastType, message: string, action?: ToastAction) => {
       const id = ++seq;
       setToasts((ts) => [...ts.slice(-3), { id, type, message, action }]);
-      setTimeout(() => setToasts((ts) => ts.filter((t) => t.id !== id)), action ? 7000 : type === 'error' ? 7000 : 4500);
+      const t = setTimeout(() => {
+        pending.delete(t);
+        setToasts((ts) => ts.filter((x) => x.id !== id));
+      }, action ? 7000 : type === 'error' ? 7000 : 4500);
+      pending.add(t);
     };
     const onWin = (e: Event) => {
       const d = (e as CustomEvent<{ type: ToastType; message: string; action?: ToastAction }>).detail;
@@ -45,6 +51,8 @@ export default function ToastHost() {
     return () => {
       window.removeEventListener('bx-toast', onWin);
       off?.();
+      for (const t of pending) clearTimeout(t);
+      pending.clear();
     };
   }, []);
 

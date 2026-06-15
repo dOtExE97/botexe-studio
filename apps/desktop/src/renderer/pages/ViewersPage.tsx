@@ -22,6 +22,33 @@ interface TtsVoice { id: string; name: string }
 interface VoiceGroup { provider: string; label: string; voices: TtsVoice[] }
 interface MediaItem { id: string; filename: string; kind: 'image' | 'video' }
 
+/** Punkte-Direkteingabe — controlled, damit live eintreffende Gifts (die die
+ *  Punkte extern ändern) eine laufende Eingabe NICHT überschreiben/wegwerfen.
+ *  Externe Änderungen werden nur übernommen, wenn das Feld gerade nicht fokussiert ist. */
+function PointsInput({ points, onSet }: { points: number; onSet: (target: number) => void }) {
+  const [val, setVal] = useState(String(points));
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { if (!focused) setVal(String(points)); }, [points, focused]);
+  return (
+    <input
+      type="number"
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onFocus={() => setFocused(true)}
+      onBlur={(e) => {
+        setFocused(false);
+        const target = Math.max(0, Math.round(Number(e.target.value)));
+        if (target !== points) onSet(target);
+        else setVal(String(points));
+      }}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+      title="Punkte direkt setzen (Enter)"
+      className="bx-input w-20 text-center font-mono text-sm text-studio-gold"
+      style={{ padding: '3px 4px' }}
+    />
+  );
+}
+
 export default function ViewersPage() {
   const [query, setQuery] = useState('');
   const [viewers, setViewers] = useState<Viewer[]>([]);
@@ -122,16 +149,7 @@ export default function ViewersPage() {
                 <button onClick={() => grant(v, -10)} className="bx-pill px-2 py-1 hover:text-studio-accent" title="−10">
                   <Minus size={12} />10
                 </button>
-                <input
-                  type="number"
-                  defaultValue={v.points}
-                  key={v.points}
-                  onBlur={(e) => { const target = Math.max(0, Math.round(Number(e.target.value))); if (target !== v.points) grant(v, target - v.points); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                  title="Punkte direkt setzen (Enter)"
-                  className="bx-input w-20 text-center font-mono text-sm text-studio-gold"
-                  style={{ padding: '3px 4px' }}
-                />
+                <PointsInput points={v.points} onSet={(target) => grant(v, target - v.points)} />
                 <button onClick={() => grant(v, 10)} className="bx-pill px-2 py-1 hover:text-studio-teal" title="+10">
                   <Plus size={12} />10
                 </button>

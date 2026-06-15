@@ -129,8 +129,12 @@ export default class MediaWidget {
 
   hide() {
     if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
+    if (this.outTimer) { clearTimeout(this.outTimer); this.outTimer = null; }
     this.el.classList.add('bx-media-out');
-    setTimeout(() => {
+    // Ausblend-Timer verfolgen, damit destroy() ihn killt — sonst greift der
+    // Callback nach einem schnellen Stream-Wechsel auf bereits entferntes DOM zu.
+    this.outTimer = setTimeout(() => {
+      this.outTimer = null;
       this.el.classList.add('bx-media-hidden');
       this.el.classList.remove('bx-media-out', 'bx-media-play');
       if (this.kind === 'video') { try { this.media.pause(); this.media.currentTime = 0; } catch { /* noop */ } }
@@ -139,6 +143,7 @@ export default class MediaWidget {
 
   destroy() {
     if (this.hideTimer) clearTimeout(this.hideTimer);
+    if (this.outTimer) clearTimeout(this.outTimer);
     if (this.media && this.kind === 'video') { try { this.media.pause(); this.media.src = ''; } catch { /* noop */ } }
     this.el.remove();
   }

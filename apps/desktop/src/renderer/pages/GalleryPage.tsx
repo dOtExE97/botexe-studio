@@ -201,6 +201,22 @@ export default function GalleryPage() {
   );
 }
 
+/** Eigener-Name-Feld — controlled, synct beim Gift-Wechsel neu, committet bei
+ *  Blur. Verhindert verlorene Eingaben beim schnellen Wechseln der Auswahl. */
+function CustomNameInput({ slug, value, onCommit }: { slug: string; value: string; onCommit: (v: string) => void }) {
+  const [val, setVal] = useState(value);
+  useEffect(() => { setVal(value); }, [slug, value]);
+  return (
+    <input
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={() => { if (val !== value) onCommit(val); }}
+      placeholder="Eigener Name (optional, gewinnt über Übersetzung)"
+      className="bx-input text-xs"
+    />
+  );
+}
+
 function GiftActionPanel({
   gift, rules, sounds, layers, lang, onSetMeta, onSaveRules, onClose,
 }: {
@@ -251,13 +267,7 @@ function GiftActionPanel({
         </button>
         <button onClick={onClose} className="text-studio-muted hover:text-studio-accent"><X size={16} /></button>
       </div>
-      <input
-        defaultValue={gift.customName ?? ''}
-        key={gift.slug}
-        onBlur={(e) => onSetMeta({ customName: e.target.value })}
-        placeholder="Eigener Name (optional, gewinnt über Übersetzung)"
-        className="bx-input text-xs"
-      />
+      <CustomNameInput slug={gift.slug} value={gift.customName ?? ''} onCommit={(name) => onSetMeta({ customName: name })} />
 
       {gift.firstSender && (
         <div className="flex items-center gap-1.5 rounded-lg bg-studio-bg px-2.5 py-1.5 text-[11px]">

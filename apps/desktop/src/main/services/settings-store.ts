@@ -252,3 +252,21 @@ export class SettingsStore {
     return this.get();
   }
 }
+
+/** Tiefe Kopie der Einstellungen OHNE Geheimnisse — für Konfig-Backups, die der
+ *  Nutzer als Datei speichert/teilt. Sonst lägen TikTok-Session, Sign-Key,
+ *  OBS-Passwort, TTS-API-Keys und der Steuer-Token im Klartext im Backup.
+ *  Mutiert das Original NICHT. */
+export function redactSecretsForExport(settings: StudioSettings): Record<string, unknown> {
+  const copy = structuredClone(settings) as unknown as Record<string, unknown>;
+  delete copy.tiktokSessionId;
+  delete copy.tiktokTargetIdc;
+  delete copy.tiktokSignApiKey;
+  delete copy.ttsCredentials;
+  delete copy.controlToken; // bleibt pro Maschine eigen
+  delete copy.sportApiKey;
+  if (copy.obs && typeof copy.obs === 'object') {
+    delete (copy.obs as Record<string, unknown>).password;
+  }
+  return copy;
+}

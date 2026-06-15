@@ -218,7 +218,7 @@ export class OverlayServer {
         return;
       }
       const target = path.join(dir, filename);
-      if (!fs.existsSync(target)) {
+      if (!target.startsWith(dir) || !fs.existsSync(target)) {
         res.status(404).send('Not found');
         return;
       }
@@ -248,7 +248,7 @@ export class OverlayServer {
         return;
       }
       const target = path.join(dir, filename);
-      if (!fs.existsSync(target)) {
+      if (!target.startsWith(dir) || !fs.existsSync(target)) {
         res.status(404).send('Not found');
         return;
       }
@@ -319,7 +319,20 @@ export class OverlayServer {
         res.status(400).json({ ok: false, error: 'StudioEvent erwartet ({type, …})' });
         return;
       }
-      this.bus.publish({ ...e, ts: Date.now() } as StudioEvent);
+      // Nur bekannte StudioEvent-Felder übernehmen — keine beliebigen Fremdfelder
+      // in den Bus spreizen (Defense-in-Depth, auch wenn token-auth davorsteht).
+      const clean: StudioEvent = {
+        type: e.type as StudioEvent['type'],
+        ts: Date.now(),
+        ...(e.user ? { user: e.user } : {}),
+        ...(typeof e.text === 'string' ? { text: e.text } : {}),
+        ...(e.gift ? { gift: e.gift } : {}),
+        ...(typeof e.likeCount === 'number' ? { likeCount: e.likeCount } : {}),
+        ...(typeof e.totalLikes === 'number' ? { totalLikes: e.totalLikes } : {}),
+        ...(typeof e.viewerCount === 'number' ? { viewerCount: e.viewerCount } : {}),
+        ...(typeof e.firstOfUser === 'boolean' ? { firstOfUser: e.firstOfUser } : {}),
+      };
+      this.bus.publish(clean);
       res.json({ ok: true });
     });
   }

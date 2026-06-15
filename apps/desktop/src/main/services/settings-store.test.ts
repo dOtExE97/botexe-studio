@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { SettingsStore, SETTINGS_SCHEMA_VERSION } from './settings-store';
+import { SettingsStore, SETTINGS_SCHEMA_VERSION, redactSecretsForExport } from './settings-store';
 
 function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'settings-'));
@@ -76,4 +76,34 @@ test('get() liefert tiefe Kopie — Mutation leakt nicht in den Cache', () => {
   const b = store.get();
   assert.equal(b.redemptions.length, 0); // Mutation an a hat den Cache NICHT verändert
   assert.notEqual(b.points.perChat, 999);
+});
+
+test('redactSecretsForExport: entfernt alle Geheimnisse, behält harmlose Felder', () => {
+  const input = {
+    lastUsername: 'alex',
+    tiktokSessionId: 'sess', tiktokTargetIdc: 'idc', tiktokSignApiKey: 'sign',
+    ttsCredentials: { elevenlabs: { apiKey: 'k' } },
+    controlToken: 'tok', sportApiKey: 'sport',
+    obs: { enabled: true, url: 'ws://x', password: 'geheim' },
+    points: { perChat: 1 },
+  } as unknown as Parameters<typeof redactSecretsForExport>[0];
+  const out = redactSecretsForExport(input) as Record<string, unknown>;
+  assert.equal(out.tiktokSessionId, undefined);
+  assert.equal(out.tiktokTargetIdc, undefined);
+  assert.equal(out.tiktokSignApiKey, undefined);
+  assert.equal(out.ttsCredentials, undefined);
+  assert.equal(out.controlToken, undefined);
+  assert.equal(out.sportApiKey, undefined);
+  assert.equal((out.obs as Record<string, unknown>).password, undefined);
+  assert.equal((out.obs as Record<string, unknown>).url, 'ws://x'); // harmlose OBS-Felder bleiben
+  assert.equal(out.lastUsername, 'alex');
+  assert.deepEqual(out.points, { perChat: 1 });
+});
+
+test('redactSecretsForExport: mutiert das Original NICHT (tiefe Kopie)', () => {
+  const input = { tiktokSessionId: 'sess', obs: { password: 'geheim', url: 'u' } } as unknown as Parameters<typeof redactSecretsForExport>[0];
+  redactSecretsForExport(input);
+  const orig = input as unknown as { tiktokSessionId: string; obs: { password: string } };
+  assert.equal(orig.tiktokSessionId, 'sess');
+  assert.equal(orig.obs.password, 'geheim');
 });

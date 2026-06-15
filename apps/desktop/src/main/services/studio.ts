@@ -11,7 +11,7 @@ import { SessionStats } from '../core/session-stats';
 import { EventRecorder, parseReplay, playReplay } from '../core/replay';
 import { TikTokAdapter, type AdapterStatusInfo } from '../adapters/tiktok-adapter';
 import { OverlayServer } from '../adapters/overlay-server';
-import { SettingsStore, type GiveawaySettings } from './settings-store';
+import { SettingsStore, redactSecretsForExport, type GiveawaySettings } from './settings-store';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
 import { MediaLibrary } from './media-library';
@@ -97,7 +97,7 @@ function commandGroupOk(who: string, event: StudioEvent, isVip: boolean): boolea
   if (who === 'followers') return !!(u?.isFollower || u?.isSub || u?.isMod);
   if (who === 'subs') return !!(u?.isSub || u?.isMod);
   if (who === 'mods') return !!u?.isMod;
-  return true;
+  return false; // unbekannte/ungültige Gruppe → sicher verweigern (kein Bypass)
 }
 
 export class Studio {
@@ -376,9 +376,11 @@ export class Studio {
       const cost = action.cost ?? 0;
       if (cost > 0 && event.user) {
         if (!this.points.spend(event.user.id, cost)) return; // nicht genug Punkte → kein Spin
-        this.scheduleStatsBroadcast();
       }
       this.server.broadcast({ kind: 'action', ruleId, action });
+      // Stats anstoßen (gedeckelt) — auch beim Gratis-Spin, damit Overlay-Listen
+      // konsistent bleiben statt einzufrieren.
+      this.scheduleStatsBroadcast();
       // Rad-Sounds (am Widget konfiguriert): Drehen sofort, Gewinn nach spinMs.
       const ws = findWheelSounds(this.layouts.list(), action.targetId);
       if (ws) {
@@ -548,11 +550,14 @@ export class Studio {
 
   /** Komplettes Konfig-Backup (Einstellungen, Trigger, Store, Panel, Overlays,
    *  Zuschauer/Punkte) als ein JSON-Objekt. Sounds/Medien liegen als Dateien
-   *  im Datenordner und sind NICHT enthalten. */
+   *  im Datenordner und sind NICHT enthalten.
+   *  SICHERHEIT: sensible Geheimnisse (TikTok-Session, Sign-Key, OBS-Passwort,
+   *  TTS-API-Keys, Steuer-Token) werden NICHT exportiert — sonst lägen sie im
+   *  Klartext in der teilbaren Backup-Datei. Nach dem Import einmal neu eintragen. */
   exportConfig(): Record<string, unknown> {
     return {
       schemaVersion: 1,
-      settings: this.settings.get(),
+      settings: redactSecretsForExport(this.settings.get()),
       layouts: this.layouts.list(),
       viewers: this.points.exportEntries(),
     };
@@ -641,9 +646,11 @@ export class Studio {
     if (this.giveawayParticipants.has(event.user.id)) return; // schon dabei
     if (gw.entryCost > 0) {
       if (!this.points.spend(event.user.id, gw.entryCost)) return; // nicht genug Punkte
-      this.scheduleStatsBroadcast();
     }
     this.giveawayParticipants.set(event.user.id, { nickname: event.user.nickname, avatar: event.user.profilePic });
+    // Auch bei Gratis-Eintritt (entryCost=0) muss der Teilnehmer-Zähler im
+    // Cockpit/Overlay aktualisiert werden — sonst hängt die Anzeige fest.
+    this.scheduleStatsBroadcast();
   }
 
   giveawayState(): { enabled: boolean; joinWord: string; entryCost: number; count: number; lastWinner: string } {
@@ -694,8 +701,8 @@ export class Studio {
     if (cmd.cooldownMs) {
       const last = this.commandCooldowns.get(cmd.id) ?? 0;
       if (now - last < cmd.cooldownMs) return; // noch im Cooldown
+      this.commandCooldowns.set(cmd.id, now); // nur tracken, wenn es einen Cooldown gibt
     }
-    this.commandCooldowns.set(cmd.id, now);
 
     const text = renderSpeakTemplate(cmd.response, event);
     if (cmd.speak) this.speakForEvent(cmd.response, event);
