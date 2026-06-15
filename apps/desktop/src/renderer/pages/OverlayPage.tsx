@@ -704,6 +704,9 @@ export default function OverlayPage() {
   // + An/Aus-Schalter (auf schwachen PCs abschaltbar).
   const [overlayBase, setOverlayBase] = useState<string | null>(null);
   const [livePalette, setLivePalette] = useState(() => localStorage.getItem('bx-palette-live') !== '0');
+  // Vorschau-Sounds: standardmäßig AUS (sonst Demo-Sound-Spam), per Schalter an.
+  const [previewSound, setPreviewSound] = useState(() => localStorage.getItem('bx-preview-sound') === '1');
+  const previewFrameRef = useRef<HTMLIFrameElement>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.3);
@@ -831,6 +834,11 @@ export default function OverlayPage() {
       setPreviewUrl(link ? `${link}&preview=1` : null);
     });
   }, [layout?.id]);
+
+  // Vorschau-Sound-Schalter live an die große Vorschau-Iframe melden.
+  useEffect(() => {
+    previewFrameRef.current?.contentWindow?.postMessage({ type: 'bx-preview-sound-toggle', enabled: previewSound }, '*');
+  }, [previewSound]);
 
   // Canvas-Skalierung an Containergröße anpassen
   useEffect(() => {
@@ -1007,6 +1015,7 @@ export default function OverlayPage() {
                               label={w.label}
                               desc={w.desc}
                               overlayBase={overlayBase}
+                              soundOn={previewSound}
                               onAdd={() => addWidget(w)}
                             />
                           ) : (
@@ -1118,6 +1127,15 @@ export default function OverlayPage() {
             <input type="checkbox" checked={showPreview} onChange={(e) => setShowPreview(e.target.checked)} className="accent-[#21e6c1]" />
             Echte Widgets (Vorschau)
           </label>
+          <label className="flex items-center gap-2 text-[11px] text-studio-muted" title="Sounds in der Vorschau hörbar machen. Standard aus, damit z.B. das Feuerwerk nicht dauernd knallt. Im Schaufenster nur kurz beim Klick auf Test.">
+            <input
+              type="checkbox"
+              checked={previewSound}
+              onChange={(e) => { setPreviewSound(e.target.checked); localStorage.setItem('bx-preview-sound', e.target.checked ? '1' : '0'); }}
+              className="accent-[#ffd23e]"
+            />
+            Vorschau-Sound
+          </label>
           <label className="flex items-center gap-2 text-[11px] text-studio-muted">
             <input type="checkbox" checked={showZones} onChange={(e) => setShowZones(e.target.checked)} className="accent-[#ff4d2e]" />
             TikTok-UI-Zonen
@@ -1144,8 +1162,10 @@ export default function OverlayPage() {
             {showPreview && previewUrl && (
               <iframe
                 key={layout.id}
+                ref={previewFrameRef}
                 src={previewUrl}
                 title="Live-Vorschau"
+                onLoad={() => previewFrameRef.current?.contentWindow?.postMessage({ type: 'bx-preview-sound-toggle', enabled: previewSound }, '*')}
                 className="pointer-events-none absolute left-0 top-0 origin-top-left border-0"
                 style={{ width: canvasW, height: canvasH, transform: `scale(${scale})` }}
               />

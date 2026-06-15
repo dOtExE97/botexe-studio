@@ -271,9 +271,19 @@ async function renderLayout(layout) {
           // Sounds STUMM — sonst feuern Demo-Events (z.B. Feuerwerk alle paar
           // Sekunden) permanent Sounds. Sounds gehören nur ins echte Overlay.
           playSound: (soundId) => {
-            if (PREVIEW || SINGLE) return;
+            if (!soundId) return;
+            if (PREVIEW || SINGLE) {
+              if (!previewSoundOn) return; // Vorschau-Sounds aus → still
+              if (SINGLE) {
+                // Schaufenster (kein WS): nur kurz nach „Test", an den Editor melden.
+                if (performance.now() > soundWindowEnd) return;
+                try { window.parent?.postMessage({ type: 'bx-play-sound', soundId: String(soundId) }, '*'); } catch { /* noop */ }
+                return;
+              }
+              // Große Vorschau (hat WS): unten normal über WS senden.
+            }
             try {
-              if (activeWs && activeWs.readyState === 1 && soundId) {
+              if (activeWs && activeWs.readyState === 1) {
                 activeWs.send(JSON.stringify({ kind: 'sound', soundId: String(soundId) }));
               }
             } catch { /* nie eskalieren */ }
@@ -372,6 +382,11 @@ const PREVIEW = !!cfg.preview;
 // Einzel-Widget-Schaufenster (Palette): KEIN WS — der Editor schickt das Layer
 // per postMessage, das Widget führt sich mit denselben Demo-Daten selbst vor.
 const SINGLE = !!cfg.single;
+// Vorschau-Sounds: standardmäßig AUS (sonst spammt das Demo z.B. Feuerwerk).
+// Der Editor schaltet sie per postMessage an/aus. Im Schaufenster spielt Sound
+// zusätzlich nur kurz nach „Test" (soundWindowEnd), nie im Dauer-Demo.
+let previewSoundOn = false;
+let soundWindowEnd = 0;
 
 function demoAvatar(name, color) {
   const initial = (name[0] || '?').toUpperCase();
@@ -511,6 +526,9 @@ function setupSinglePreview() {
 }
 
 function previewTest(widgetType, layerId) {
+  // Sound-Fenster öffnen: die durch DIESEN Test ausgelösten Sounds dürfen kurz
+  // klingen (falls Vorschau-Sounds an) — das Dauer-Demo bleibt still.
+  soundWindowEnd = performance.now() + 4000;
   const u = demoPickUser();
   const user = { id: u.id, nickname: u.nickname, profilePic: u.profilePic };
   if (widgetType === 'wheel') { dispatchAction('preview-test', { kind: 'spin_wheel', targetId: layerId }); return; }
@@ -605,6 +623,14 @@ setTimeout(() => {
   };
   requestAnimationFrame(count);
 }, 6000);
+
+// Vorschau-Sound-Schalter (Editor → Runtime), gilt für große Vorschau + Schaufenster.
+if (PREVIEW || SINGLE) {
+  window.addEventListener('message', (ev) => {
+    const d = ev.data;
+    if (d && typeof d === 'object' && d.type === 'bx-preview-sound-toggle') previewSoundOn = !!d.enabled;
+  });
+}
 
 if (SINGLE) {
   // Schaufenster-Vorschau: kein WS, Layer kommt per postMessage vom Editor.

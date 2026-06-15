@@ -14,10 +14,12 @@ interface Props {
   desc: string;
   /** Overlay-Basis-URL inkl. Token (http://host:port/overlay?token=…) oder null. */
   overlayBase: string | null;
+  /** Vorschau-Sounds hörbar? (nur beim „Test"-Klick, kurzes Fenster). */
+  soundOn: boolean;
   onAdd: () => void;
 }
 
-export default function WidgetPreview({ type, props, w, h, label, desc, overlayBase, onAdd }: Props) {
+export default function WidgetPreview({ type, props, w, h, label, desc, overlayBase, soundOn, onAdd }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [visible, setVisible] = useState(false);
@@ -36,12 +38,15 @@ export default function WidgetPreview({ type, props, w, h, label, desc, overlayB
   }, []);
 
   // Sobald die Vorschau-Runtime „bereit" meldet, das Layer hineinschicken.
+  // Außerdem: Sound-Wiedergabe-Wünsche des Single-Widgets im Renderer abspielen.
   useEffect(() => {
     if (!visible) return;
     const onMsg = (ev: MessageEvent) => {
-      if (ev.source !== frameRef.current?.contentWindow) return;
-      if ((ev.data as { type?: string } | null)?.type === 'bx-preview-ready') {
-        frameRef.current?.contentWindow?.postMessage(
+      const cw = frameRef.current?.contentWindow;
+      if (ev.source !== cw) return;
+      const d = ev.data as { type?: string; soundId?: string } | null;
+      if (d?.type === 'bx-preview-ready') {
+        cw?.postMessage(
           {
             type: 'bx-preview-mount',
             layer: { id: 'preview', widgetType: type, x: 0, y: 0, w, h, z: 0, opacity: 1, visible: true, props },
@@ -49,11 +54,20 @@ export default function WidgetPreview({ type, props, w, h, label, desc, overlayB
           },
           '*',
         );
+        cw?.postMessage({ type: 'bx-preview-sound-toggle', enabled: soundOn }, '*');
+      } else if (d?.type === 'bx-play-sound' && d.soundId) {
+        // Single-Widget hat keinen WS — der Sound wird hier über die App gespielt.
+        void window.studio.testSound(d.soundId);
       }
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
-  }, [visible, type, w, h, props]);
+  }, [visible, type, w, h, props, soundOn]);
+
+  // Sound-Schalter live an die Vorschau melden.
+  useEffect(() => {
+    frameRef.current?.contentWindow?.postMessage({ type: 'bx-preview-sound-toggle', enabled: soundOn }, '*');
+  }, [soundOn]);
 
   const test = () =>
     frameRef.current?.contentWindow?.postMessage({ type: 'bx-preview-test', widgetType: type, layerId: 'preview' }, '*');
