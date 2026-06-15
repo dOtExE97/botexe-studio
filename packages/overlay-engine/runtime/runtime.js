@@ -267,7 +267,11 @@ async function renderLayout(layout) {
           // (z.B. Meilenstein-Konfetti), können sich damit selbst vorführen.
           preview: PREVIEW,
           // Spiel-Widgets: Sound über die App auslösen (Server dedupliziert).
+          // In der Editor-Vorschau UND im Palette-Schaufenster bleiben Widget-
+          // Sounds STUMM — sonst feuern Demo-Events (z.B. Feuerwerk alle paar
+          // Sekunden) permanent Sounds. Sounds gehören nur ins echte Overlay.
           playSound: (soundId) => {
+            if (PREVIEW || SINGLE) return;
             try {
               if (activeWs && activeWs.readyState === 1 && soundId) {
                 activeWs.send(JSON.stringify({ kind: 'sound', soundId: String(soundId) }));
