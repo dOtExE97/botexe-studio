@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react';
 import { toast } from './ToastHost';
 
 const MAX_PARALLEL = 4;
+const DUCK = 0.3; // andere Sounds auf 30%, während TTS spricht (Ducking)
 
 /** <audio> mit setSinkId — nicht in den DOM-Typen, daher schmales Interface. */
 type SinkAudio = HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
@@ -15,6 +16,9 @@ export default function SoundPlayer() {
   const sinkId = useRef('');
   const sinkLabel = useRef('');
   const effectiveSink = useRef(''); // aufgelöste deviceId (mit Label-Fallback)
+  // Ducking: laufende Nicht-TTS-Sounds + wie viele TTS gerade sprechen.
+  const ttsActive = useRef(0);
+  const duckable = useRef(new Set<{ a: HTMLAudioElement; base: number }>());
 
   useEffect(() => {
     // Effektives Ausgabegerät bestimmen: gespeicherte deviceId wenn noch
@@ -51,12 +55,29 @@ export default function SoundPlayer() {
         return; // sound-bombing deckeln
       }
       const audio = new Audio(cmd.url) as SinkAudio;
-      audio.volume = Math.min(1, Math.max(0, cmd.volume));
+      // TTS-Dateien heißen „tts-…" (siehe tts-service). Während TTS spricht,
+      // werden andere Sounds leiser (Ducking) → die Ansage bleibt verständlich.
+      const isTts = String(cmd.soundId).startsWith('tts-');
+      const base = Math.min(1, Math.max(0, cmd.volume));
+      audio.volume = isTts ? base : base * (ttsActive.current > 0 ? DUCK : 1);
+      const entry = { a: audio as HTMLAudioElement, base };
+      if (isTts) {
+        ttsActive.current++;
+        for (const e of duckable.current) e.a.volume = e.base * DUCK; // laufende leiser
+      } else {
+        duckable.current.add(entry);
+      }
       playing.current++;
       let reported = false;
       const report = () => { if (!reported) { reported = true; window.studio.reportSoundEnded(cmd.soundId); } };
       const done = () => {
         playing.current = Math.max(0, playing.current - 1);
+        if (isTts) {
+          ttsActive.current = Math.max(0, ttsActive.current - 1);
+          if (ttsActive.current === 0) for (const e of duckable.current) e.a.volume = e.base; // zurück
+        } else {
+          duckable.current.delete(entry);
+        }
         report(); // echtes Audio-Ende ans Main melden (TTS-Sequencing)
       };
       audio.addEventListener('ended', done, { once: true });

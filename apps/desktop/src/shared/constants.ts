@@ -28,6 +28,7 @@ export const IPC = {
   RULES_SET: 'rules:set',
   // Geschenke-Galerie (kompletter Gift-Katalog mit Bildern)
   GIFT_CATALOG_GET: 'gift-catalog:get',
+  GIFT_META_SET: 'gift-catalog:meta',
   // Punkte-Einlöse-Store
   REDEMPTIONS_GET: 'redemptions:get',
   REDEMPTIONS_SET: 'redemptions:set',

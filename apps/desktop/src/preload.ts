@@ -35,6 +35,7 @@ const api = {
   setRules: (rules: unknown[]) => ipcRenderer.invoke(IPC.RULES_SET, rules),
   // Geschenke-Galerie
   getGiftCatalog: () => ipcRenderer.invoke(IPC.GIFT_CATALOG_GET),
+  setGiftMeta: (slug: string, patch: { favorite?: boolean; customName?: string }) => ipcRenderer.invoke(IPC.GIFT_META_SET, slug, patch),
   // Stats-Zeitraum (Woche/Monat/Jahr)
   getStatsHistory: (range: 'week' | 'month' | 'year') => ipcRenderer.invoke(IPC.STATS_HISTORY_GET, range),
   exportStatsCsv: () => ipcRenderer.invoke(IPC.STATS_CSV_EXPORT),

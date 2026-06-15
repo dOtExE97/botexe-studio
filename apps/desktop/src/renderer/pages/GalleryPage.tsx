@@ -4,7 +4,7 @@
 // legt im Hintergrund eine Trigger-Regel an (wie bei TikFinity). Der Erst-
 // Schenker jedes Gifts ist mit Datum verewigt. 🏆
 import { useEffect, useMemo, useState } from 'react';
-import { Gift, Search, Crown, Coins, Volume2, Sparkles, Mic, Plus, Trash2, Play, X } from 'lucide-react';
+import { Gift, Search, Crown, Coins, Volume2, Sparkles, Mic, Plus, Trash2, Play, X, Star } from 'lucide-react';
 import type { TriggerRule, TriggerAction } from '@botexe/trigger-engine';
 import { findGiftRule, upsertGiftRule, otherGiftRules } from '@botexe/trigger-engine';
 import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
@@ -14,10 +14,11 @@ import { toast } from '../components/ToastHost';
 interface SoundEntry { id: string; filename: string }
 interface LayerRef { id: string; name: string; widgetType: string }
 
-type View = 'lastRoom' | 'all' | 'received';
+type View = 'favorites' | 'lastRoom' | 'all' | 'received';
 type Sort = 'coins' | 'name' | 'recent';
 
 const VIEWS: { id: View; label: string }[] = [
+  { id: 'favorites', label: '⭐ Favoriten' },
   { id: 'lastRoom', label: 'Letztes Live' },
   { id: 'all', label: 'Alle' },
   { id: 'received', label: 'Schon erhalten' },
@@ -35,7 +36,7 @@ function fmtDate(ts?: number): string {
 }
 
 export default function GalleryPage() {
-  const { gifts, loaded } = useGiftCatalog();
+  const { gifts, loaded, reload } = useGiftCatalog();
   const [rules, setRules] = useState<TriggerRule[]>([]);
   const [sounds, setSounds] = useState<SoundEntry[]>([]);
   const [layers, setLayers] = useState<LayerRef[]>([]);
@@ -61,20 +62,26 @@ export default function GalleryPage() {
     void window.studio.setRules(next as unknown as unknown[]);
   };
 
+  const setMeta = (slug: string, patch: { favorite?: boolean; customName?: string }) =>
+    void window.studio.setGiftMeta(slug, patch).then(reload);
+
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     let list = gifts;
-    if (view === 'lastRoom') list = list.filter((g) => g.inLastRoom);
+    if (view === 'favorites') list = list.filter((g) => g.favorite);
+    else if (view === 'lastRoom') list = list.filter((g) => g.inLastRoom);
     else if (view === 'received') list = list.filter((g) => g.count > 0);
-    // Suche matcht BEIDE Sprachen: deutsche User finden „Herz", andere „Heart".
+    // Suche matcht BEIDE Sprachen + eigenen Namen: „Herz", „Heart" oder „fette Rakete".
     if (needle) list = list.filter((g) => {
       const de = giftNameDe(g.slug);
-      return g.slug.toLowerCase().includes(needle) || (!!de && de.toLowerCase().includes(needle));
+      return g.slug.toLowerCase().includes(needle)
+        || (!!de && de.toLowerCase().includes(needle))
+        || (!!g.customName && g.customName.toLowerCase().includes(needle));
     });
     const sorted = [...list];
-    const dn = (s: string) => giftDisplayName(s, lang);
-    if (sort === 'coins') sorted.sort((a, b) => (b.coins || 0) - (a.coins || 0) || dn(a.slug).localeCompare(dn(b.slug)));
-    else if (sort === 'name') sorted.sort((a, b) => dn(a.slug).localeCompare(dn(b.slug)));
+    const dn = (g: GiftEntry) => giftDisplayName(g.slug, lang, g.customName);
+    if (sort === 'coins') sorted.sort((a, b) => (b.coins || 0) - (a.coins || 0) || dn(a).localeCompare(dn(b)));
+    else if (sort === 'name') sorted.sort((a, b) => dn(a).localeCompare(dn(b)));
     else sorted.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
     return sorted;
   }, [gifts, view, q, sort, lang]);
@@ -156,13 +163,20 @@ export default function GalleryPage() {
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded bg-studio-bg text-studio-muted">?</div>
                 )}
-                <span className="w-full truncate text-center text-[10px] font-medium" title={g.slug}>{giftDisplayName(g.slug, lang)}</span>
+                <span className="w-full truncate text-center text-[10px] font-medium" title={g.slug}>{giftDisplayName(g.slug, lang, g.customName)}</span>
                 <span className="flex items-center gap-0.5 text-[9px] text-studio-gold"><Coins size={9} /> {g.coins}</span>
                 {g.firstSender && (
                   <span className="flex items-center gap-0.5 text-[8px] text-studio-muted" title={`Erster: ${g.firstSender.nickname} am ${fmtDate(g.firstSenderAt)}`}>
                     <Crown size={8} className="text-studio-gold" /> {g.firstSender.nickname}
                   </span>
                 )}
+                <span
+                  onClick={(e) => { e.stopPropagation(); setMeta(g.slug, { favorite: !g.favorite }); }}
+                  className="absolute left-1 top-1 cursor-pointer rounded p-0.5 hover:bg-studio-bg/60"
+                  title={g.favorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
+                >
+                  <Star size={12} className={g.favorite ? 'fill-studio-gold text-studio-gold' : 'text-studio-muted/40'} />
+                </span>
                 {mapped && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-studio-teal" title="Hat zugeordnete Aktionen" />}
               </button>
             );
@@ -177,6 +191,7 @@ export default function GalleryPage() {
             sounds={sounds}
             layers={layers}
             lang={lang}
+            onSetMeta={(patch) => setMeta(selectedGift.slug, patch)}
             onSaveRules={saveRules}
             onClose={() => setSelected(null)}
           />
@@ -187,13 +202,14 @@ export default function GalleryPage() {
 }
 
 function GiftActionPanel({
-  gift, rules, sounds, layers, lang, onSaveRules, onClose,
+  gift, rules, sounds, layers, lang, onSetMeta, onSaveRules, onClose,
 }: {
   gift: GiftEntry;
   rules: TriggerRule[];
   sounds: SoundEntry[];
   layers: LayerRef[];
   lang: 'de' | 'en';
+  onSetMeta: (patch: { favorite?: boolean; customName?: string }) => void;
   onSaveRules: (r: TriggerRule[]) => void;
   onClose: () => void;
 }) {
@@ -224,14 +240,24 @@ function GiftActionPanel({
       <div className="flex items-center gap-2">
         {gift.icon && <img src={gift.icon} alt="" className="h-10 w-10 object-contain" />}
         <div className="flex-1">
-          <div className="font-display text-sm uppercase">{giftDisplayName(gift.slug, lang)}</div>
-          {giftDisplayName(gift.slug, lang) !== gift.slug && (
+          <div className="font-display text-sm uppercase">{giftDisplayName(gift.slug, lang, gift.customName)}</div>
+          {giftDisplayName(gift.slug, lang, gift.customName) !== gift.slug && (
             <div className="text-[9px] text-studio-muted/60">{gift.slug}</div>
           )}
           <div className="flex items-center gap-1 text-[10px] text-studio-gold"><Coins size={10} /> {gift.coins} Coins · {gift.count}× erhalten</div>
         </div>
+        <button onClick={() => onSetMeta({ favorite: !gift.favorite })} title={gift.favorite ? 'Favorit entfernen' : 'Als Favorit'} className="text-studio-muted hover:text-studio-gold">
+          <Star size={16} className={gift.favorite ? 'fill-studio-gold text-studio-gold' : ''} />
+        </button>
         <button onClick={onClose} className="text-studio-muted hover:text-studio-accent"><X size={16} /></button>
       </div>
+      <input
+        defaultValue={gift.customName ?? ''}
+        key={gift.slug}
+        onBlur={(e) => onSetMeta({ customName: e.target.value })}
+        placeholder="Eigener Name (optional, gewinnt über Übersetzung)"
+        className="bx-input text-xs"
+      />
 
       {gift.firstSender && (
         <div className="flex items-center gap-1.5 rounded-lg bg-studio-bg px-2.5 py-1.5 text-[11px]">

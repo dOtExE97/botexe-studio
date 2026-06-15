@@ -12,6 +12,8 @@ export interface GiftEntry {
   firstSender?: { id: string; nickname: string };
   firstSenderAt?: number;
   inLastRoom?: boolean;
+  favorite?: boolean;
+  customName?: string;
 }
 
 export function useGiftCatalog(): { gifts: GiftEntry[]; loaded: boolean; reload: () => void } {

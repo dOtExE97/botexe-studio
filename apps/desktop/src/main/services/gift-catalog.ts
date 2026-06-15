@@ -19,6 +19,10 @@ export interface GiftEntry {
   firstSenderAt?: number;
   /** War in der Gift-Liste des zuletzt verbundenen Live-Streams. */
   inLastRoom?: boolean;
+  /** Vom Nutzer als Favorit markiert (eigene „Favoriten"-Ansicht in der Galerie). */
+  favorite?: boolean;
+  /** Eigener Anzeigename (gewinnt über DE/EN-Übersetzung). */
+  customName?: string;
 }
 
 interface Serialized {
@@ -80,6 +84,17 @@ export class GiftCatalog {
     const want = new Set(slugs.map((s) => s.trim().toLowerCase()).filter(Boolean));
     for (const [key, entry] of this.gifts) entry.inLastRoom = want.has(key);
     this.scheduleSave();
+  }
+
+  /** Favorit/eigenen Namen setzen (Galerie). Sofort speichern (User-Aktion). */
+  setMeta(slug: string, patch: { favorite?: boolean; customName?: string }): void {
+    const key = slug.trim().toLowerCase();
+    const entry = this.gifts.get(key);
+    if (!entry) return;
+    if (typeof patch.favorite === 'boolean') entry.favorite = patch.favorite;
+    if (typeof patch.customName === 'string') entry.customName = patch.customName.trim().slice(0, 40) || undefined;
+    this.gifts.set(key, entry);
+    this.save();
   }
 
   /** slug(lowercase) → Eintrag — fürs Overlay (/gift-catalog) und die Galerie. */

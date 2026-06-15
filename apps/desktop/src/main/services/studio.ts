@@ -461,6 +461,12 @@ export class Studio {
     return this.giftCatalog.all();
   }
 
+  /** Favorit/eigenen Namen eines Gifts setzen (Galerie) → aktualisierter Katalog. */
+  setGiftMeta(slug: string, patch: { favorite?: boolean; customName?: string }): Record<string, import('./gift-catalog').GiftEntry> {
+    this.giftCatalog.setMeta(slug, patch);
+    return this.giftCatalog.all();
+  }
+
   /** Komplettes Konfig-Backup (Einstellungen, Trigger, Store, Panel, Overlays,
    *  Zuschauer/Punkte) als ein JSON-Objekt. Sounds/Medien liegen als Dateien
    *  im Datenordner und sind NICHT enthalten. */

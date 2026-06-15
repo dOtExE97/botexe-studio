@@ -387,6 +387,10 @@ function registerIpc(): void {
     return { ok: true };
   });
   ipcMain.handle(IPC.GIFT_CATALOG_GET, () => isStudio().getGiftCatalog());
+  ipcMain.handle(IPC.GIFT_META_SET, (_e, slug: unknown, patch: unknown) => {
+    if (typeof slug !== 'string' || typeof patch !== 'object' || patch === null) return {};
+    return isStudio().setGiftMeta(slug, patch as { favorite?: boolean; customName?: string });
+  });
   ipcMain.handle(IPC.OBS_SET_CONFIG, (_e, cfg: unknown) => {
     const c = (cfg ?? {}) as Record<string, unknown>;
     isStudio().setObsConfig({
