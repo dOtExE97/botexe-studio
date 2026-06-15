@@ -23,9 +23,26 @@ const CSS = `
 .bx-wh-result .w { font-size: 15px; color: var(--bx-teal); margin-top: 4px; }
 @keyframes bx-wh-pop { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.45); } 12% { opacity: 1; transform: translate(-50%,-50%) scale(1.1); }
   26% { transform: translate(-50%,-50%) scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(.92); } }
+/* Trigger-Banner (TikFinity-Style): zeigt beim Dreh-Start, wer ausgelöst hat. */
+.bx-wh-trigger { position: absolute; left: 0; right: 0; top: 5%; text-align: center; pointer-events: none; z-index: 5;
+  font-family: var(--bx-font-display); opacity: 0; }
+.bx-wh-trigger.show { animation: bx-wh-trig 2.6s ease forwards; }
+@keyframes bx-wh-trig { 0% { opacity: 0; transform: translateY(-12px) scale(.9); } 12% { opacity: 1; transform: none; } 78% { opacity: 1; } 100% { opacity: 0; } }
+.bx-wh-trigger .who { display: inline-block; padding: 7px 16px; border-radius: 999px; font-size: 17px; color: #fff;
+  background: var(--bx-glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 0 24px -6px var(--bx-accent); -webkit-text-stroke: 0; }
+.bx-wh-trigger .who b { color: var(--bx-gold); }
 `;
 const COLORS = ['#ff5436','#ffd23e','#28e0c4','#5c9dff','#c45cff','#ff5e8a','#7dff8a','#ff8a3d'];
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
+
+// Anti-Throttle: der TTLS-Browser drosselt rAF auf ~1/s — Fallback-Timer springt
+// ein, wenn rAF nicht feuert. (War zuvor undefiniert → Spin warf ReferenceError.)
+function scheduleFrame(cb) {
+  const raf = requestAnimationFrame(cb);
+  const timer = setTimeout(() => { cancelAnimationFrame(raf); cb(performance.now()); }, 55);
+  return () => clearTimeout(timer);
+}
 
 export default class Wheel {
   constructor(root, props) {
@@ -37,11 +54,12 @@ export default class Wheel {
     if (this.segments.length < 2) this.segments = ['Gewinn', 'Niete'];
     this.spinMs = Math.max(2000, Number(props.spinMs ?? 5000));
     this.autoShow = props.autoShow !== false;
+    this.showTrigger = props.showTrigger !== false; // Banner „wer hat gedreht" (TikFinity-Style)
     this.title = props.title || 'Glücksrad';
     this.angle = 0; this.spinning = false; this.pointerDefl = 0; this.lastAngle = 0;
     this.el = document.createElement('div');
     this.el.className = 'bx-wh' + (this.autoShow ? ' hidden' : '');
-    this.el.innerHTML = `<canvas></canvas><div class="bx-wh-title"></div><div class="bx-wh-result"><div class="k">Gewinn</div><div class="v"></div><div class="w"></div></div>`;
+    this.el.innerHTML = `<canvas></canvas><div class="bx-wh-title"></div><div class="bx-wh-trigger"><span class="who"></span></div><div class="bx-wh-result"><div class="k">Gewinn</div><div class="v"></div><div class="w"></div></div>`;
     this.el.querySelector('.bx-wh-title').textContent = this.title;
     root.appendChild(this.el);
     this.canvas = this.el.querySelector('canvas'); this.ctx = this.canvas.getContext('2d');
@@ -72,6 +90,13 @@ export default class Wheel {
     this.startT = 0; this.spinning = true;
     const res = this.el.querySelector('.bx-wh-result'); res.classList.remove('show');
     if (this.autoShow) this.el.classList.remove('hidden'); // einblenden
+    // Trigger-Banner: zeigt, wer (womit) gedreht hat.
+    if (this.showTrigger && this.winnerName) {
+      const trig = this.el.querySelector('.bx-wh-trigger');
+      const gift = action.params && action.params.gift ? ` mit ${escapeHtml(String(action.params.gift))}` : '';
+      trig.querySelector('.who').innerHTML = `🎡 <b>${escapeHtml(this.winnerName)}</b> dreht${gift}!`;
+      trig.classList.remove('show'); void trig.offsetWidth; trig.classList.add('show');
+    }
     this.cancelFrame = scheduleFrame(this.frame);
   }
   frame(now) {
@@ -134,9 +159,20 @@ export default class Wheel {
     // Rand
     ctx.beginPath(); ctx.arc(this.cx,this.cy,R,0,Math.PI*2); ctx.lineWidth=7; ctx.strokeStyle='rgba(255,255,255,.42)'; ctx.stroke();
     ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(this.cx,this.cy,R-4,0,Math.PI*2); ctx.stroke();
-    // Pins am Rand (kleine punkte)
-    for (let i=0;i<n;i++){ const a=this.angle+i*seg; const px=this.cx+Math.cos(a)*R, py=this.cy+Math.sin(a)*R;
-      ctx.beginPath(); ctx.arc(px,py,3.2,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); }
+    // Glühbirnen-Kette am Rand (fest, rotiert NICHT mit) — Casino/Jahrmarkt-Look.
+    // Läuft während des Spins (Phase aus der Zeit), idle = schön alternierend.
+    const bulbs = 24;
+    const phase = this.spinning ? Math.floor(performance.now() / 90) : 0;
+    for (let i = 0; i < bulbs; i++) {
+      const a = (i / bulbs) * Math.PI * 2 - Math.PI / 2;
+      const px = this.cx + Math.cos(a) * (R + 3), py = this.cy + Math.sin(a) * (R + 3);
+      const on = (i + phase) % 2 === 0;
+      ctx.beginPath(); ctx.arc(px, py, on ? 4 : 3, 0, Math.PI * 2);
+      ctx.fillStyle = on ? '#ffe27a' : '#fff6cf';
+      ctx.shadowColor = on ? '#ffd23e' : 'transparent'; ctx.shadowBlur = on ? 10 : 0;
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
     // Nabe
     ctx.beginPath(); ctx.arc(this.cx,this.cy,R*0.14,0,Math.PI*2);
     const hg=ctx.createRadialGradient(this.cx-4,this.cy-4,2,this.cx,this.cy,R*0.14);
@@ -150,3 +186,4 @@ export default class Wheel {
   }
   destroy() { clearTimeout(this.hideT); this.observer.disconnect(); this.el.remove(); }
 }
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

@@ -332,12 +332,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'wheel', label: 'Glücksrad', desc: 'Dreht bei einer Trigger-Aktion (z.B. !spin gegen Punkte) und zeigt den Gewinn. Preise frei wählbar.',
-    w: 480, h: 560, props: { segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', spinMs: 5000, accent: '#ff5436', autoShow: true, title: 'Glücksrad', spinSoundId: 'botexe-rad.wav', resultSoundId: 'botexe-gewinn.wav' },
+    w: 480, h: 560, props: { segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', spinMs: 5000, accent: '#ff5436', autoShow: true, showTrigger: true, title: 'Glücksrad', spinSoundId: 'botexe-rad.wav', resultSoundId: 'botexe-gewinn.wav' },
     fields: [
       { key: 'segments', label: 'Preise', type: 'text', hint: 'Mit | trennen — jeder Eintrag ein Segment, z.B. „100 Coins|Nichts|VIP".' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift über dem Rad.' },
       { key: 'spinMs', label: 'Drehdauer', type: 'seconds', hint: 'Wie lange das Rad dreht, bis es stoppt.' },
       { key: 'autoShow', label: 'Auto ein-/ausblenden', type: 'boolean', hint: 'An: Rad erscheint beim Spin und verschwindet nach dem Ergebnis (deckt sonst nichts zu). Aus: dauerhaft sichtbar.' },
+      { key: 'showTrigger', label: 'Dreher-Banner', type: 'boolean', hint: 'Zeigt beim Start kurz, wer (womit) gedreht hat — TikFinity-Style. Lichter-Kette am Rand ist immer an.' },
       { key: 'spinSoundId', label: 'Dreh-Sound', type: 'sound', hint: 'Spielt beim Start des Spins über die App.' },
       { key: 'resultSoundId', label: 'Gewinn-Sound', type: 'sound', hint: 'Spielt, wenn das Rad stehen bleibt.' },
       ACCENT_FIELD,
@@ -345,13 +346,21 @@ const WIDGET_TYPES: {
   },
   {
     type: 'top-gift', label: 'Top-Gift', desc: 'Highlight des größten Einzel-Gifts der Session — Gift-Bild, Spender-Avatar, Bounce bei Rekord.',
-    w: 320, h: 320, props: { title: '', accent: '#ffd23e', fontFamily: '', fontScale: 1, textColor: '' },
-    fields: [{ key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Größtes Gift".' }, ACCENT_FIELD, ...STYLE_FIELDS],
+    w: 320, h: 320, props: { title: '', style: 'glas', accent: '#ffd23e', fontFamily: '', fontScale: 1, textColor: '' },
+    fields: [
+      { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Größtes Gift".' },
+      styleField([{ value: 'glas', label: 'Glas (Panel)' }, { value: 'sticker', label: 'Sticker (freistehend, TikFinity-Look)' }]),
+      ACCENT_FIELD, ...STYLE_FIELDS,
+    ],
   },
   {
     type: 'top-streak', label: 'Top-Streak', desc: 'Höchste Combo der Session (z.B. „50x Rose") — Gift-Bild, Spender-Avatar und die Streak-Zahl groß.',
-    w: 340, h: 320, props: { title: '', accent: '#ff5e8a', fontFamily: '', fontScale: 1, textColor: '' },
-    fields: [{ key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Höchste Combo".' }, ACCENT_FIELD, ...STYLE_FIELDS],
+    w: 340, h: 320, props: { title: '', style: 'glas', accent: '#ff5e8a', fontFamily: '', fontScale: 1, textColor: '' },
+    fields: [
+      { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Höchste Combo".' },
+      styleField([{ value: 'glas', label: 'Glas (Panel)' }, { value: 'sticker', label: 'Sticker (freistehend, TikFinity-Look)' }]),
+      ACCENT_FIELD, ...STYLE_FIELDS,
+    ],
   },
   {
     type: 'media', label: 'Bild / Video', desc: 'Eigenes Bild oder Video einblenden — dauerhaft (Logo/Banner) oder per Trigger (z.B. Begrüßungsvideo bei einem Superfan).',
@@ -479,9 +488,11 @@ const WIDGET_TYPES: {
   },
   {
     type: 'gift-fireworks', label: 'Gift-Feuerwerk', desc: 'Jedes Gift steigt als Rakete auf und explodiert — bei Combos (z.B. 10x Rose) fächert es in mehrere Raketen.',
-    w: 900, h: 1200, props: { minCoins: 0, maxRockets: 12, comboMode: 'fan', burstScale: 1.5, soundId: 'botexe-boom.wav', whistleSoundId: 'botexe-pfeife.wav' },
+    w: 900, h: 1200, props: { minCoins: 0, maxRockets: 12, comboMode: 'fan', burstScale: 1.5, showName: true, soundId: 'botexe-boom.wav', whistleSoundId: 'botexe-pfeife.wav', accent: '#ff5436' },
     fields: [
       { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Feuerwerk nur für Gifts ab diesem Wert. 0 = jedes.' },
+      { key: 'showName', label: 'Name im Burst (TikFinity-Style)', type: 'boolean', hint: 'Zeigt den Namen des Schenkenden als leuchtenden Neon-Schriftzug im Explosionszentrum.' },
+      ACCENT_FIELD,
       { key: 'comboMode', label: 'Bei Combos (z.B. 10x Rose)', type: 'select', options: [
         { value: 'fan', label: 'Auffächern — eine Rakete pro Gift' },
         { value: 'single', label: 'Eine große Rakete (Größe = Gesamtwert)' },
@@ -499,7 +510,7 @@ const WIDGET_TYPES: {
   },
   {
     type: 'sport-ticker', label: 'Sport-Liveticker', desc: 'Aktuelle Fußballspiele (WM, Bundesliga, …) mit Wappen + Spielstand — aktualisiert live, blitzt bei jedem Tor auf.',
-    w: 460, h: 320, props: { provider: 'football-data', competition: '2000', title: 'Liveticker', maxMatches: 5, refreshSec: 30, goalSoundId: 'botexe-gewinn.wav', accent: '#28e0c4' },
+    w: 460, h: 320, props: { provider: 'football-data', competition: '2000', title: 'Liveticker', maxMatches: 5, refreshSec: 30, goalSoundId: 'botexe-gewinn.wav', goalBanner: true, goalText: 'GOOOAAALLL', accent: '#28e0c4' },
     fields: [
       { key: 'provider', label: 'Datenquelle', type: 'select', options: [
         { value: 'football-data', label: 'football-data.org (WM + Ligen, braucht Key)' },
@@ -510,6 +521,8 @@ const WIDGET_TYPES: {
       { key: 'maxMatches', label: 'Max. Spiele', type: 'number', hint: 'Wie viele Spiele gleichzeitig (Live zuerst).' },
       { key: 'refreshSec', label: 'Aktualisieren alle … Sek.', type: 'number', hint: 'Mind. 15s. football-data Free erlaubt 10 Abrufe/Min.' },
       { key: 'goalSoundId', label: 'Tor-Sound', type: 'sound', hint: 'Spielt über die App, wenn ein Tor fällt.' },
+      { key: 'goalBanner', label: 'Tor-Feier (TikFinity-Style)', type: 'boolean', hint: 'Bei einem Tor läuft ein großer Text quer durch + das ganze Widget leuchtet grün.' },
+      { key: 'goalText', label: 'Tor-Text', type: 'text', hint: 'Was bei einem Tor durchläuft (Standard: GOOOAAALLL).' },
       ACCENT_FIELD,
       THEME_FIELD,
     ],

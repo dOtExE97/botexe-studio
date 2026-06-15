@@ -26,6 +26,15 @@ const CSS = `
 @keyframes bx-ts-bounce { 0%,100% { transform: scale(1); } 40% { transform: scale(1.07); } }
 .bx-ts-empty { display: flex; flex-direction: column; align-items: center; gap: 12px;
   font-size: 13px; letter-spacing: .2em; color: var(--bx-muted); text-transform: uppercase; }
+/* — Sticker-Variante (TikFinity-Look): kein Panel, dicke weiße Outline, großes Gift — */
+.bx-ts.st-sticker { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bx-ts.st-sticker::before { display: none; }
+.bx-ts.st-sticker .bx-ts-img { height: 78px; }
+.bx-ts.st-sticker .bx-ts-x { font-size: 58px; }
+.bx-ts.st-sticker .bx-ts-kicker { color: #fff; -webkit-text-stroke: 2px #0a0b12; paint-order: stroke fill; }
+.bx-ts.st-sticker .bx-ts-gift { color: #fff; -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 3px 6px rgba(0,0,0,.5); }
+.bx-ts.st-sticker .bx-ts-by { color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.7); }
+.bx-ts.st-sticker .bx-ts-by b { -webkit-text-stroke: 2px #0a0b12; paint-order: stroke fill; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const FIRE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:46px;height:46px;color:var(--bx-muted);opacity:.5"><path d="M12 2s4 4 4 8a4 4 0 0 1-8 0c0-1 .5-2 .5-2S6 10 6 13a6 6 0 0 0 12 0c0-5-6-11-6-11Z"/></svg>';
@@ -37,7 +46,7 @@ export default class TopStreak {
     this.title = props.title || 'Höchste Combo';
     this.max = 0;
     this.el = document.createElement('div');
-    this.el.className = 'bx-ts';
+    this.el.className = props.style === 'sticker' ? 'bx-ts st-sticker' : 'bx-ts';
     this.el.innerHTML = `<div class="bx-ts-empty">${FIRE_SVG}<span>Noch keine Combo</span></div>`;
     root.appendChild(this.el);
   }

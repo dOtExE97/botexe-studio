@@ -25,6 +25,21 @@ const CSS = `
   78% { transform: scale(1); opacity: 1; }
   100% { transform: scale(.6) translateY(-20px); opacity: 0; }
 }
+/* Neon-Name im Explosionszentrum (TikFinity-Style): leuchtender Script-Schriftzug. */
+.bx-fw-name {
+  position: absolute; transform: translate(-50%,-50%); margin-top: 52px;
+  font-family: var(--bx-font-display); font-style: italic; font-weight: 700; white-space: nowrap;
+  color: var(--bx-accent, #ffd23e); pointer-events: none; letter-spacing: .01em;
+  text-shadow: 0 0 10px var(--bx-accent,#ffd23e), 0 0 22px var(--bx-accent,#ffd23e), 0 2px 6px rgba(0,0,0,.7);
+  animation: bx-fw-name 1700ms cubic-bezier(.2,1.4,.4,1) forwards;
+}
+@keyframes bx-fw-name {
+  0% { transform: translate(-50%,-50%) scale(.3); opacity: 0; }
+  20% { transform: translate(-50%,-50%) scale(1.12); opacity: 1; }
+  32% { transform: translate(-50%,-50%) scale(1); }
+  80% { opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(1) translateY(-16px); opacity: 0; }
+}
 `;
 
 // Bild-Cache: pro URL ein Image, geteilt über Instanzen.
@@ -87,6 +102,8 @@ export default class GiftFireworks {
     // Im Editor einstellbar: Combo-Verhalten + Burst-Größe.
     this.comboMode = props.comboMode === 'single' ? 'single' : 'fan';
     this.burstScale = Number(props.burstScale ?? 1) || 1;
+    // Neon-Name des Schenkenden im Explosionszentrum (TikFinity-Style), default an.
+    this.showName = props.showName !== false;
     // Harte Obergrenze gleichzeitig fliegender Raketen (Gift-Bombing-sicher).
     this.rocketCap = this.perf ? 16 : 28;
     this.staggerMs = 70; // Combo-Raketen fächern als Volley auf
@@ -123,35 +140,37 @@ export default class GiftFireworks {
   onEvent(event) {
     if (event.type !== 'gift' || !event.gift) return;
     if (event.gift.totalCoins < this.minCoins) return;
-    this.launch(event.gift);
+    this.launch(event.gift, event.user?.nickname);
   }
 
   onAction(action) {
     if (action.kind !== 'fire_alert') return;
     const p = action.params || {};
-    this.launch({ totalCoins: Number(p.coins ?? 100), count: Number(p.count ?? 1), icon: p.icon });
+    this.launch({ totalCoins: Number(p.coins ?? 100), count: Number(p.count ?? 1), icon: p.icon }, p.name);
   }
 
   // Eine Combo (z.B. 10x Rose) fächert in mehrere Raketen auf — Anzahl & Stärke
   // kommen aus comboPlan (count + Coin-Wert), nicht mehr nur aus totalCoins.
-  launch(gift) {
+  launch(gift, name) {
     const plan = comboPlan(gift, this.maxRockets, { mode: this.comboMode, burstScale: this.burstScale });
     const img = loadImage(gift.icon);
+    const showName = this.showName && name ? String(name) : '';
     for (let i = 0; i < plan.rockets; i++) {
       if (i === 0) {
-        this.spawnRocket(plan.power, gift.icon, img);
+        // Name nur an der ersten Rakete → erscheint einmal zentral, nicht pro Burst.
+        this.spawnRocket(plan.power, gift.icon, img, showName);
       } else {
         // Volley: leicht gestaffelt für den „peng-peng-peng"-Effekt.
         const t = setTimeout(() => {
           this.pendingTimers.delete(t);
-          this.spawnRocket(plan.power, gift.icon, img);
+          this.spawnRocket(plan.power, gift.icon, img, '');
         }, i * this.staggerMs);
         this.pendingTimers.add(t);
       }
     }
   }
 
-  spawnRocket(power, icon, img) {
+  spawnRocket(power, icon, img, name = '') {
     if (this.rockets.length >= this.rocketCap) return; // backpressure
     // Aufstiegs-Pfeifen (Server dedupliziert mehrfaches Auslösen einer Salve).
     if (this.whistleSound) this.host.playSound?.(this.whistleSound);
@@ -165,6 +184,7 @@ export default class GiftFireworks {
       power,
       icon,
       img,
+      name,
       wobble: Math.random() * Math.PI * 2,
       trail: 0,
     });
@@ -207,6 +227,16 @@ export default class GiftFireworks {
       img.style.height = img.style.width;
       this.el.appendChild(img);
       setTimeout(() => img.remove(), 1500);
+    }
+    if (r.name) {
+      const nm = document.createElement('div');
+      nm.className = 'bx-fw-name';
+      nm.textContent = r.name;
+      nm.style.left = `${(r.x / this.w) * 100}%`;
+      nm.style.top = `${(r.y / this.h) * 100}%`;
+      nm.style.fontSize = `${26 + 26 * r.power}px`;
+      this.el.appendChild(nm);
+      setTimeout(() => nm.remove(), 1750);
     }
   }
 

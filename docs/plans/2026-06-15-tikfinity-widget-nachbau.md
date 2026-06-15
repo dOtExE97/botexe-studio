@@ -39,17 +39,22 @@ alles UI-einstellbar, jedes Widget mit **mehreren durchwählbaren Design-Variant
 - Alle in OverlayPage registriert (Kategorie + Style-Dropdown + Felder), in der
   Editor-Vorschau live (Demo-Daten).
 
-## Batch 2 — TikFinity-Design-Varianten für bestehende Widgets (offen)
-Als zusätzliche wählbare „Styles", nicht ersetzend:
-- **sport-ticker**: durchlaufender Marquee-Modus + großer „GOOOAAALLL"-Lauftext +
-  grüner Tor-Glow-Zustandswechsel (statt nur Aufblitzen).
-- **wheel**: Trigger-Banner („X hat mit 🌹 gedreht") vor dem Spin + Marquee-
-  Glühbirnen-Rand + Casino-Look-Variante.
-- **gift-fireworks**: Neon-Script-Username im Explosionszentrum.
-- **gift-jar**: realistischeres 3D-Glas + Donation-Toast-Variante.
-- **counter**: animiertes Gift-Icon (Puls + rotierender Glow-Ring) + Abstimmungsmodus
-  (mehrere Counter, Reset bei Zielerreichung).
-- **top-gift / top-streak**: Sticker-Outline-Variante (dicke weiße Kontur, TikTok-Look).
+## Batch 2 — TikFinity-Look für bestehende Widgets ✅ (15.06., 211 Tests grün)
+Als zusätzliche Optionen, nichts ersetzt:
+- **sport-ticker** ✅: Tor-Feier `goalBanner` (default an) — großer „GOOOAAALLL"-
+  Lauftext quer + grüner Glow ums ganze Widget; `goalText` konfigurierbar.
+- **gift-fireworks** ✅: `showName` (default an) — Neon-Script-Name des Schenkenden
+  im Explosionszentrum (nur an der 1. Rakete der Combo, erscheint einmal).
+- **top-gift / top-streak** ✅: `style: glas|sticker` — Sticker = freistehend, kein
+  Panel, dicke weiße Outline, größeres Gift (TikTok-Look).
+- **wheel** ✅: `showTrigger` (default an) — Banner „🎡 X dreht!" beim Start +
+  laufende Glühbirnen-Kette am Rand (Casino-Look). **BUG GEFIXT**: `scheduleFrame`
+  war in wheel.js undefiniert → der Spin warf zur Laufzeit einen ReferenceError
+  (von der Runtime geschluckt) → das Rad drehte sich nie. Jetzt definiert.
+- **counter** ⏳ OFFEN: TikFinitys „Geschenkzähler" (gift-getrieben, Ziel,
+  animiertes Gift-Icon mit Puls+Glow-Ring, Abstimmungsmodus) ist konzeptionell ein
+  NEUES Widget (unser `counter` ist manuell/per Aktion) → als eigenes Stück bauen.
+- **gift-jar** ⏳ OFFEN: realistischeres 3D-Glas + Donation-Toast-Variante.
 
 ## Batch 3 — Webcam-Rahmen + Footer (später, eigene Kategorie)
 Animierte Cam-Rahmen-Galerie: Neon-Flow / Pixel-Art / Sakura-Partikel / Gold-Champion

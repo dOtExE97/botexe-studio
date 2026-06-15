@@ -35,6 +35,15 @@ const CSS = `
   100% { background: rgba(8,10,18,.42); transform: scale(1); } }
 .bx-sp-empty { display:flex; flex:1; align-items:center; justify-content:center; text-align:center;
   font-size:12px; letter-spacing:.12em; color: var(--bx-muted); padding: 10px; }
+/* Tor-Feier (TikFinity-Style): grüner Glow ums ganze Widget + durchlaufender
+   „GOOOAAALLL"-Lauftext. */
+.bx-sp.goalflash { box-shadow: var(--bx-shadow), 0 0 60px -4px #2bff88, 0 0 0 2.5px #2bff88 inset !important; }
+.bx-sp-goal-banner { position:absolute; inset:0; display:flex; align-items:center; overflow:hidden; pointer-events:none; opacity:0; }
+.bx-sp.goalflash .bx-sp-goal-banner { opacity:1; }
+.bx-sp-goal-banner span { font-family: var(--bx-font-display); font-size: clamp(30px, 26cqmin, 96px); white-space:nowrap;
+  color:#3dff97; -webkit-text-stroke: 3px #064; paint-order: stroke fill; text-shadow: 0 0 26px #2bff88; will-change: transform;
+  animation: bx-sp-goalrun 2.2s linear; }
+@keyframes bx-sp-goalrun { from { transform: translateX(100%); } to { transform: translateX(-130%); } }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
@@ -50,12 +59,16 @@ export default class SportTicker {
     this.maxMatches = Math.max(1, Math.min(12, Number(props.maxMatches ?? 5)));
     this.refreshMs = Math.max(15, Number(props.refreshSec ?? 30)) * 1000;
     this.goalSound = props.goalSoundId || '';
+    // Tor-Feier (GOOOAAALLL-Banner + grüner Glow) — TikFinity-Style, default an.
+    this.goalBanner = props.goalBanner !== false;
+    this.goalText = props.goalText || 'GOOOAAALLL';
     this.scores = new Map(); // matchId → Gesamttore (für Tor-Erkennung)
     this.firstLoad = true;
+    this.goalTimers = new Set();
 
     this.el = document.createElement('div');
     this.el.className = 'bx-sp';
-    this.el.innerHTML = `<div class="bx-sp-title"><span class="dot"></span><span class="t"></span></div><div class="bx-sp-list"></div>`;
+    this.el.innerHTML = `<div class="bx-sp-title"><span class="dot"></span><span class="t"></span></div><div class="bx-sp-list"></div><div class="bx-sp-goal-banner"><span></span></div>`;
     this.el.querySelector('.t').textContent = this.title;
     this.listEl = this.el.querySelector('.bx-sp-list');
     root.appendChild(this.el);
@@ -99,9 +112,21 @@ export default class SportTicker {
       this.scores.set(m.id, total);
     }
     if (goalIds.size > 0 && this.goalSound) this.ctx.playSound?.(this.goalSound);
+    if (goalIds.size > 0 && this.goalBanner) this.celebrateGoal();
 
     this.listEl.innerHTML = shown.map((m) => this.rowHtml(m, goalIds.has(m.id))).join('');
     this.firstLoad = false;
+  }
+
+  // GOOOAAALLL-Lauftext + grüner Glow für ~2,6s.
+  celebrateGoal() {
+    const span = this.el.querySelector('.bx-sp-goal-banner span');
+    span.textContent = `${this.goalText}   ${this.goalText}`;
+    // Lauftext-Animation neu starten (reflow).
+    span.style.animation = 'none'; void span.offsetWidth; span.style.animation = '';
+    this.el.classList.add('goalflash');
+    const t = setTimeout(() => { this.goalTimers.delete(t); this.el.classList.remove('goalflash'); }, 2600);
+    this.goalTimers.add(t);
   }
 
   rowHtml(m, goal) {
@@ -118,5 +143,10 @@ export default class SportTicker {
     </div>`;
   }
 
-  destroy() { if (this.timer) clearInterval(this.timer); this.el.remove(); }
+  destroy() {
+    if (this.timer) clearInterval(this.timer);
+    for (const t of this.goalTimers) clearTimeout(t);
+    this.goalTimers.clear();
+    this.el.remove();
+  }
 }

@@ -28,6 +28,15 @@ const CSS = `
   font-size: 13px; letter-spacing: .2em; color: var(--bx-muted); text-transform: uppercase; }
 .bx-tg-empty .bx-tg-svg { width: 46px; height: 46px; margin: 0; opacity: .5; color: var(--bx-muted);
   filter: drop-shadow(0 3px 8px rgba(0,0,0,.4)); animation: none; }
+/* — Sticker-Variante (TikFinity-Look): kein Panel, dicke weiße Outline, großes Gift — */
+.bx-tg.st-sticker { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bx-tg.st-sticker::before { display: none; }
+.bx-tg.st-sticker .bx-tg-img { height: 96px; }
+.bx-tg.st-sticker .bx-tg-kicker { color: #fff; -webkit-text-stroke: 2px #0a0b12; paint-order: stroke fill; }
+.bx-tg.st-sticker .bx-tg-gift { color: #fff; font-size: 27px; -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 3px 6px rgba(0,0,0,.5); }
+.bx-tg.st-sticker .bx-tg-coins { font-family: var(--bx-font-display); -webkit-text-stroke: 2.5px #0a0b12; paint-order: stroke fill; }
+.bx-tg.st-sticker .bx-tg-by { color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.7); }
+.bx-tg.st-sticker .bx-tg-by b { -webkit-text-stroke: 2px #0a0b12; paint-order: stroke fill; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -41,7 +50,7 @@ export default class TopGift {
     this.title = props.title || 'Größtes Gift';
     this.max = 0;
     this.el = document.createElement('div');
-    this.el.className = 'bx-tg';
+    this.el.className = props.style === 'sticker' ? 'bx-tg st-sticker' : 'bx-tg';
     this.el.innerHTML = `<div class="bx-tg-empty">${GIFT_SVG}<span>Noch kein Gift</span></div>`;
     root.appendChild(this.el);
   }
