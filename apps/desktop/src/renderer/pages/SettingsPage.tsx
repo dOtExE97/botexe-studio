@@ -1,7 +1,7 @@
 // SettingsPage — App-Einstellungen: Loyalty-Punkte-Regeln, App-Infos,
 // Datenordner, Punkte-Reset.
 import { useEffect, useState } from 'react';
-import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket, Sparkles } from 'lucide-react';
+import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket, Sparkles, KeyRound, ExternalLink } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
 import GreetReturningCard from '../components/GreetReturningCard';
 import { toast } from '../components/ToastHost';
@@ -351,9 +351,20 @@ export default function SettingsPage() {
             {signKeySet ? 'Key gesetzt' : 'Kein Key'}
           </span>
         </div>
-        <p className="mb-3 text-[11px] text-studio-muted">
-          Um dein TikTok-Live zu verbinden (Chat, Geschenke, Likes empfangen) braucht die App einen <b>API-Key</b> von eulerstream. Den gibt's <b>kostenlos</b>: auf <span className="font-mono">eulerstream.com</span> registrieren → einen Key erstellen → hier eintragen. Mit dem <b>Cloud-Modus</b> (unten) reicht der Gratis-Key — kein Bezahl-Plan nötig.
+        <p className="mb-2 text-[11px] text-studio-muted">
+          Zum Verbinden (Chat, Geschenke, Likes empfangen) braucht die App einen <b>kostenlosen API-Key</b> von eulerstream. <b className="text-amber-300">Ohne Key geht's nicht</b> — aber er ist gratis und in 2 Minuten geholt:
         </p>
+        <ol className="mb-3 ml-4 list-decimal space-y-1 text-[11px] text-studio-muted">
+          <li>Unten auf <b>„Gratis-Key holen"</b> klicken → mit Google/GitHub/E-Mail registrieren.</li>
+          <li>Im Dashboard <span className="font-mono">Create Key</span> klicken und den <span className="font-mono">euler_…</span>-Key kopieren.</li>
+          <li>Hier ins Feld einfügen — fertig. Modus <b>„Cloud (gratis)"</b> lassen.</li>
+        </ol>
+        <button
+          onClick={() => void window.studio.openExternal('https://www.eulerstream.com/register')}
+          className="bx-btn-accent mb-3"
+        >
+          <KeyRound size={14} /> Gratis-Key holen <ExternalLink size={12} className="opacity-70" />
+        </button>
         <input
           type="password"
           value={signKey}
