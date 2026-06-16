@@ -77,7 +77,7 @@ Je nach Windows-Einstellung taucht eins davon auf:
 
 **3) „Smart App Control" blockiert ganz (nur neuere Windows-11-PCs)**
 Die strenge neue Funktion lässt unsignierte Apps gar nicht zu. Prüfen/abschalten: **Windows-Sicherheit → App- & Browsersteuerung → Einstellungen für Smart App Control → „Aus"**.
-> ⚠️ Achtung: Einmal aus, lässt sich Smart App Control nur per **Windows-Neuinstallation** wieder einschalten — gut überlegen. Bei den meisten PCs ist sie aus oder im „Bewerten"-Modus, dann brauchst du das gar nicht.
+> ℹ️ Auf **aktuellem Windows 11 (24H2/25H2)** kannst du Smart App Control danach **jederzeit wieder einschalten**. Nur auf **älteren** Win-11-Builds ging das Wieder-Einschalten erst nach einer Windows-Neuinstallation — falls du so einen alten Stand hast, vorher kurz überlegen. Bei den meisten PCs ist die Funktion eh aus oder im „Bewerten"-Modus, dann brauchst du das gar nicht.
 
 *Sobald die App ein Signatur-Zertifikat hat (kommt später), verschwinden diese Warnungen automatisch.*
 
