@@ -60,6 +60,7 @@ export interface OverlayServerOptions {
   getGiftCatalog?: () => Record<string, unknown>;
   /** Sport-Liveticker: Spiele eines Wettbewerbs (gecacht im Main). */
   getSportMatches?: (provider: string, competition: string) => Promise<unknown>;
+  getSportStandings?: (provider: string, competition: string) => Promise<unknown>;
   /** Stream-Deck/Fernsteuerung: Panel-Knöpfe auflisten + per ID auslösen. */
   listPanelButtons?: () => Array<{ id: string; label: string }>;
   firePanelButton?: (id: string) => boolean;
@@ -194,6 +195,20 @@ export class OverlayServer {
         .getSportMatches(provider, competition)
         .then((matches) => res.json({ matches: matches ?? [] }))
         .catch(() => res.json({ matches: [] }));
+    });
+
+    // Tabelle/Standings desselben Wettbewerbs (für die Tabellen-Ansicht des Tickers).
+    this.expressApp.get('/sport/standings', auth, (req, res) => {
+      const provider = String(req.query.provider ?? 'football-data');
+      const competition = String(req.query.competition ?? '');
+      if (!this.options.getSportStandings || !competition) {
+        res.json({ standings: [] });
+        return;
+      }
+      this.options
+        .getSportStandings(provider, competition)
+        .then((standings) => res.json({ standings: standings ?? [] }))
+        .catch(() => res.json({ standings: [] }));
     });
 
     // Fernsteuerung (Stream-Deck-Plugin & Web-Requests): Panel-Knöpfe auflisten

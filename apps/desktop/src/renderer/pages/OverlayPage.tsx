@@ -110,6 +110,15 @@ const THEME_FIELD: PropField = {
 /** Volles Typo-Set (Design + Schriftart + Größe + Farbe) — für reine Text-Widgets. */
 const STYLE_FIELDS: PropField[] = [THEME_FIELD, FONT_FIELD, SIZE_FIELD, TEXTCOLOR_FIELD];
 
+/** „Rahmen ausblenden" — entfernt das Panel (Glas-Hintergrund + Schatten), zeigt
+ *  nur den Inhalt. Wird universell für alle Panel-Widgets eingeblendet (s.u.). */
+const FRAME_FIELD: PropField = {
+  key: 'frameless', label: 'Rahmen ausblenden', type: 'boolean',
+  hint: 'Entfernt Hintergrund-Panel + Schatten — zeigt nur den Inhalt (transparent, wie eine reine Liste). Ideal, wenn das Widget sonst zu viel Fläche deckt.',
+};
+/** Reine Effekt-/Vollbild-Widgets ohne Panel — da bringt „Rahmen ausblenden" nichts. */
+const NO_FRAME_TOGGLE = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'gift-counter', 'gift-jar', 'goal-bar', 'top-rotator', 'combo']);
+
 const WIDGET_TYPES: {
   type: string;
   label: string;
@@ -582,15 +591,23 @@ const WIDGET_TYPES: {
   },
   {
     type: 'sport-ticker', label: 'Sport-Liveticker', desc: 'Aktuelle Fußballspiele (WM, Bundesliga, …) mit Wappen + Spielstand — aktualisiert live, blitzt bei jedem Tor auf.',
-    w: 460, h: 320, props: { provider: 'openligadb', competition: 'bl1', title: 'Liveticker', maxMatches: 5, refreshSec: 30, goalSoundId: 'botexe-gewinn.wav', goalBanner: true, goalText: 'GOOOAAALLL', accent: '#28e0c4' },
+    w: 460, h: 320, props: { provider: 'openligadb', competition: 'bl1', title: 'Liveticker', view: 'matches', maxMatches: 5, tableRows: 8, slideSec: 8, team: '', refreshSec: 30, goalSoundId: 'botexe-gewinn.wav', goalBanner: true, goalText: 'GOOOAAALLL', accent: '#28e0c4' },
     fields: [
       { key: 'provider', label: 'Datenquelle', type: 'select', options: [
         { value: 'football-data', label: 'football-data.org (WM + Ligen, braucht Key)' },
         { value: 'openligadb', label: 'OpenLigaDB (deutsche Ligen, kein Key)' },
       ], hint: 'football-data deckt WM/CL/Top-Ligen ab (kostenloser Key in den Einstellungen → Sport). OpenLigaDB braucht keinen Key.' },
       { key: 'competition', label: 'Wettbewerb', type: 'text', hint: 'football-data: ID (WM=2000, Bundesliga=2002, Premier League=2021, CL=2001). OpenLigaDB: Kürzel (bl1, bl2, dfb).' },
+      { key: 'view', label: 'Anzeige', type: 'select', options: [
+        { value: 'matches', label: 'Nur Spiele' },
+        { value: 'table', label: 'Nur Tabelle' },
+        { value: 'both', label: 'Beides (Slider: Spiele ↔ Tabelle)' },
+      ], hint: 'Spiele, die aktuelle Tabelle, oder beides abwechselnd als Slider.' },
+      { key: 'team', label: 'Nur dieses Team', type: 'text', hint: 'Optional: nur Spiele dieses Teams zeigen (Name-Teil reicht, z.B. „Bayern"). In der Tabelle wird das Team hervorgehoben. Leer = alle.' },
       { key: 'title', label: 'Titel', type: 'text' },
-      { key: 'maxMatches', label: 'Max. Spiele', type: 'number', hint: 'Wie viele Spiele gleichzeitig (Live zuerst).' },
+      { key: 'maxMatches', label: 'Max. Spiele', type: 'number', hint: 'Wie viele Spiele gleichzeitig (Live zuerst). 1 = nur das wichtigste Spiel.' },
+      { key: 'tableRows', label: 'Tabellen-Plätze', type: 'number', hint: 'Wie viele Tabellen-Plätze gezeigt werden (3–24).' },
+      { key: 'slideSec', label: 'Slider-Wechsel (Sek.)', type: 'number', hint: 'Nur bei „Beides": Sekunden pro Seite, bevor zwischen Spiele/Tabelle gewechselt wird.' },
       { key: 'refreshSec', label: 'Aktualisieren alle … Sek.', type: 'number', hint: 'Mind. 15s. football-data Free erlaubt 10 Abrufe/Min.' },
       { key: 'goalSoundId', label: 'Tor-Sound', type: 'sound', hint: 'Spielt über die App, wenn ein Tor fällt.' },
       { key: 'goalBanner', label: 'Tor-Feier (TikFinity-Style)', type: 'boolean', hint: 'Bei einem Tor läuft ein großer Text quer durch + das ganze Widget leuchtet grün.' },
@@ -1337,7 +1354,8 @@ export default function OverlayPage() {
               <div className="mt-1 border-t border-studio-border pt-3">
                 <h3 className="mb-2 text-[10px] uppercase tracking-[0.3em] text-studio-muted">Widget-Einstellungen</h3>
                 <div className="flex flex-col gap-2.5">
-                  {selectedDef.fields.map((field) => {
+                  {/* „Rahmen ausblenden" universell hinten anhängen (außer reinen Effekt-Widgets) */}
+                  {(NO_FRAME_TOGGLE.has(selectedDef.type) ? selectedDef.fields : [...selectedDef.fields, FRAME_FIELD]).map((field) => {
                     const value = selected.props?.[field.key] ?? '';
                     const setProp = (v: unknown) =>
                       updateLayer(selected.id, { props: { ...selected.props, [field.key]: v } }, true);

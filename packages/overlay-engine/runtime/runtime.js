@@ -160,6 +160,14 @@ function applyWidgetStyle(el, props, w, h) {
   const theme = THEMES[props.theme];
   if (theme) for (const k in theme) el.style.setProperty(k, theme[k]);
 
+  // „Rahmen weg" (frameless): Panel-Hintergrund + Schatten transparent → zeigt nur
+  // den Inhalt (wie eine reine Liste). Greift bei ALLEN Panel-Widgets, die die
+  // Glass-Vars nutzen — eine Stelle, alle Widgets. Nach dem Theme, damit es gewinnt.
+  if (props.frameless) {
+    el.style.setProperty('--bx-glass', 'transparent');
+    el.style.setProperty('--bx-shadow', 'none');
+  }
+
   const fam = FONT_STACKS[props.fontFamily];
   if (fam) {
     el.style.setProperty('--bx-font-display', fam);

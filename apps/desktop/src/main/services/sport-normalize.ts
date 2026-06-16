@@ -19,7 +19,23 @@ export interface SportMatch {
   competition?: string;
 }
 
+/** Eine Tabellenzeile (Liga-/Gruppen-Tabelle). */
+export interface SportStandingRow {
+  position: number;
+  team: string;
+  crest?: string;
+  played: number;
+  won: number;
+  draw: number;
+  lost: number;
+  points: number;
+  goalDiff: number;
+  /** Bei Turnieren (WM/EM): Gruppen-Label, sonst leer. */
+  group?: string;
+}
+
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const int = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
 /** football-data.org Status → unser Modell. */
@@ -72,6 +88,57 @@ export function normalizeMatches(provider: SportProvider, raw: unknown): SportMa
         ...(x.team2?.teamIconUrl ? { awayCrest: str(x.team2.teamIconUrl) } : {}),
         ...(x.matchDateTime ? { kickoff: str(x.matchDateTime) } : {}),
         ...(x.leagueName ? { competition: str(x.leagueName) } : {}),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** Provider-Tabellen-Antwort → gemeinsames Zeilen-Modell. Pure & defensiv. */
+export function normalizeStandings(provider: SportProvider, raw: unknown): SportStandingRow[] {
+  try {
+    if (provider === 'football-data') {
+      const groups = (raw as { standings?: unknown })?.standings;
+      if (!Array.isArray(groups)) return [];
+      const out: SportStandingRow[] = [];
+      for (const g of groups) {
+        const gr = g as Record<string, any>;
+        if (String(gr.type ?? 'TOTAL').toUpperCase() !== 'TOTAL') continue; // nur Gesamt-Tabelle
+        const table = Array.isArray(gr.table) ? gr.table : [];
+        const group = gr.group ? str(gr.group) : '';
+        for (const r of table) {
+          const x = r as Record<string, any>;
+          out.push({
+            position: int(x.position),
+            team: str(x.team?.name) || '—',
+            ...(x.team?.crest ? { crest: str(x.team.crest) } : {}),
+            played: int(x.playedGames),
+            won: int(x.won),
+            draw: int(x.draw),
+            lost: int(x.lost),
+            points: int(x.points),
+            goalDiff: int(x.goalDifference),
+            ...(group ? { group } : {}),
+          });
+        }
+      }
+      return out;
+    }
+    // openligadb: Array von Tabellen-Einträgen, Reihenfolge = Platzierung.
+    if (!Array.isArray(raw)) return [];
+    return raw.map((r, i) => {
+      const x = r as Record<string, any>;
+      return {
+        position: i + 1,
+        team: str(x.teamName) || '—',
+        ...(x.teamIconUrl ? { crest: str(x.teamIconUrl) } : {}),
+        played: int(x.matches),
+        won: int(x.won),
+        draw: int(x.draw),
+        lost: int(x.lost),
+        points: int(x.points),
+        goalDiff: int(x.goalDiff),
       };
     });
   } catch {

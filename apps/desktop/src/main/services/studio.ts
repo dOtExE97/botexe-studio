@@ -183,6 +183,7 @@ export class Studio {
       onGameWin: (_winId, user) => this.recordGameWin(user),
       getGiftCatalog: () => this.giftCatalog.all(),
       getSportMatches: (provider, competition) => this.sport.getMatches(provider as SportProvider, competition),
+      getSportStandings: (provider, competition) => this.sport.getStandings(provider as SportProvider, competition),
       listPanelButtons: () => this.getPanelButtons().map((b) => ({ id: b.id, label: b.label })),
       firePanelButton: (id) => this.firePanelById(id),
     });
