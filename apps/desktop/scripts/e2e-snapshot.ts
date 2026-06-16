@@ -7,7 +7,7 @@
 import WebSocket from 'ws';
 import fs from 'node:fs';
 
-const CDP = 'http://127.0.0.1:9222';
+const CDP = process.env.CDP_URL ?? 'http://127.0.0.1:9222';
 const OUT_DIR = process.argv[2] ?? '/tmp';
 
 interface Target {
