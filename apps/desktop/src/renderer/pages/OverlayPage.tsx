@@ -808,7 +808,7 @@ export default function OverlayPage() {
 
   const copyProfileLink = async (id: string) => {
     const link = (await window.studio.getProfileLink(id)) as string;
-    await navigator.clipboard.writeText(link);
+    await window.studio.copyText(link);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1800);
   };
@@ -818,7 +818,7 @@ export default function OverlayPage() {
   // Setup in den Einstellungen hinweisen.
   const copyTtlsLink = async (id: string) => {
     const info = (await window.studio.getTtlsLink(id)) as { url: string; ready: boolean };
-    await navigator.clipboard.writeText(info.url);
+    await window.studio.copyText(info.url);
     if (info.ready) {
       toast('success', 'TikTok-Studio-Link kopiert — als Link-Quelle einfügen.');
     } else {

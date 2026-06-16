@@ -65,7 +65,7 @@ export default function App() {
   const st = STATUS_STYLE[studio.status.status] ?? STATUS_FALLBACK;
 
   const copyLink = () => {
-    void navigator.clipboard.writeText(studio.overlayUrl).then(() => {
+    void window.studio.copyText(studio.overlayUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     });
@@ -75,7 +75,7 @@ export default function App() {
   // der Topbar, weil TTLS-Nutzer ihn am häufigsten brauchen.
   const copyTtls = async () => {
     const info = (await window.studio.getTtlsLink()) as { url: string; ready: boolean };
-    await navigator.clipboard.writeText(info.url);
+    await window.studio.copyText(info.url);
     if (info.ready) {
       toast('success', 'TikTok-Studio-Link kopiert — in TTLS als Link-Quelle einfügen.');
     } else {

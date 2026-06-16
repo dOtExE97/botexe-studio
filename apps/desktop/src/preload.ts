@@ -80,6 +80,7 @@ const api = {
   getAppInfo: () => ipcRenderer.invoke(IPC.APP_INFO),
   openDataDir: () => ipcRenderer.invoke(IPC.APP_OPEN_DATA_DIR),
   openExternal: (url: string) => ipcRenderer.invoke(IPC.APP_OPEN_EXTERNAL, url),
+  copyText: (text: string) => ipcRenderer.invoke(IPC.APP_COPY, text),
   // Konfig-Backup
   exportConfig: () => ipcRenderer.invoke(IPC.CONFIG_EXPORT),
   importConfig: () => ipcRenderer.invoke(IPC.CONFIG_IMPORT),

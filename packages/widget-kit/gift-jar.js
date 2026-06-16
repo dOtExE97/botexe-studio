@@ -129,6 +129,10 @@ export default class GiftJar {
     }
   }
   spawn(gift, coins) {
+    // Glas noch nicht vermessen (z.B. 0-Größe beim Mount/in der Vorschau)? Einmal
+    // nachmessen; klappt das nicht, Ball überspringen (der Zähler lief schon) —
+    // sonst Crash „reading 'top'".
+    if (!this.jar) { this.resize(); if (!this.jar) return; }
     // Backpressure: bevorzugt fallende Bälle deckeln; ruhende nur entfernen, wenn
     // der Boden-Stapel selbst voll ist (sonst „verschwinden" Bälle am Boden).
     if (this.resting.length + this.falling.length >= MAX_BALLS) {

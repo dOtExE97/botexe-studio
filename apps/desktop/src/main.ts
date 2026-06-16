@@ -1,4 +1,4 @@
-import { app, autoUpdater, BrowserWindow, dialog, globalShortcut, ipcMain, session, shell } from 'electron';
+import { app, autoUpdater, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, session, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
@@ -231,6 +231,11 @@ function registerIpc(): void {
   }));
   ipcMain.handle(IPC.APP_OPEN_DATA_DIR, () => {
     void shell.openPath(app.getPath('userData'));
+    return { ok: true };
+  });
+  ipcMain.handle(IPC.APP_COPY, (_e, text: unknown) => {
+    // navigator.clipboard ist im Electron-Renderer geblockt → nativ kopieren.
+    clipboard.writeText(typeof text === 'string' ? text : String(text ?? ''));
     return { ok: true };
   });
   ipcMain.handle(IPC.APP_OPEN_EXTERNAL, (_e, url: unknown) => {

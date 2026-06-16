@@ -286,10 +286,10 @@ export default function SettingsPage() {
           <div className="grid grid-cols-[5rem_1fr_auto] items-center gap-2 text-xs">
             <span className="text-studio-muted">URL</span>
             <input readOnly value={ctrl.url} className="bx-input font-mono" onFocus={(e) => e.target.select()} />
-            <button onClick={() => void navigator.clipboard.writeText(ctrl.url).then(() => toast('success', 'URL kopiert.'))} className="bx-pill px-2 py-1.5 text-[11px] hover:text-studio-teal">Kopieren</button>
+            <button onClick={() => void window.studio.copyText(ctrl.url).then(() => toast('success', 'URL kopiert.'))} className="bx-pill px-2 py-1.5 text-[11px] hover:text-studio-teal">Kopieren</button>
             <span className="text-studio-muted">Token</span>
             <input readOnly value={ctrl.token} className="bx-input font-mono" onFocus={(e) => e.target.select()} />
-            <button onClick={() => void navigator.clipboard.writeText(ctrl.token).then(() => toast('success', 'Token kopiert.'))} className="bx-pill px-2 py-1.5 text-[11px] hover:text-studio-teal">Kopieren</button>
+            <button onClick={() => void window.studio.copyText(ctrl.token).then(() => toast('success', 'Token kopiert.'))} className="bx-pill px-2 py-1.5 text-[11px] hover:text-studio-teal">Kopieren</button>
           </div>
           <p className="mt-2 text-[10px] text-studio-muted/70">
             Plugin liegt im Repo unter <span className="font-mono">streamdeck/de.botexe.studio.sdPlugin</span> — Ordner ins Stream-Deck-Plugin-Verzeichnis kopieren (oder als .streamDeckPlugin doppelklicken). Token wechselt pro App-Start nicht.

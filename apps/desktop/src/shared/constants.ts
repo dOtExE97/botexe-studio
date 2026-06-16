@@ -73,6 +73,9 @@ export const IPC = {
   APP_OPEN_DATA_DIR: 'app:open-data-dir',
   /** Externen Link im Standardbrowser öffnen (nur http/https). */
   APP_OPEN_EXTERNAL: 'app:open-external',
+  /** Text in die Zwischenablage kopieren (Electron-nativ — navigator.clipboard
+   *  ist im Renderer geblockt: „Write permission denied"). */
+  APP_COPY: 'app:copy',
   CONFIG_EXPORT: 'config:export',
   CONFIG_IMPORT: 'config:import',
   // OBS-Studio-Steuerung
