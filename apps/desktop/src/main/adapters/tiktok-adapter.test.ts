@@ -3,7 +3,15 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import type { StudioEvent } from '@botexe/trigger-engine';
 import { EventBus } from '../core/event-bus';
-import { TikTokAdapter, isOfflineError, type LiveConnectionLike, type AdapterStatusInfo } from './tiktok-adapter';
+import { TikTokAdapter, isOfflineError, isSignServerError, type LiveConnectionLike, type AdapterStatusInfo } from './tiktok-adapter';
+
+test('isSignServerError: eulerstream-/Sign-Fehler erkannt (→ kein Retry, Sign-Key nötig)', () => {
+  assert.equal(isSignServerError('[fetchWebcastSignatureFromEulerRoute] Failed to sign a request: This endpoint requires a Business plan.'), true);
+  assert.equal(isSignServerError('eulerstream rate limit'), true);
+  // Abgrenzung: normale Verbindungs-/Offline-Fehler sind KEINE Sign-Fehler.
+  assert.equal(isSignServerError('user isn\'t online'), false);
+  assert.equal(isSignServerError('Error while connecting'), false);
+});
 
 test('isOfflineError: „nicht live" wird als Offline erkannt (→ auf Live warten)', () => {
   assert.equal(isOfflineError("The requested user isn't online :("), true);

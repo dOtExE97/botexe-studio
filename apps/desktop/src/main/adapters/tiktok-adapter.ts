@@ -249,6 +249,19 @@ export class TikTokAdapter {
       if (epoch !== this.epoch) return;
       const msg = (err as Error).message || '';
       log.error('TikTok', 'Verbindung fehlgeschlagen', msg);
+      // Externer Sign-Server (eulerstream) lehnt ab → Retry ist zwecklos und
+      // verbrennt nur Kontingent. Sofort aufgeben mit klarer, handlungsfähiger
+      // Meldung (Sign-Key nötig).
+      if (isSignServerError(msg)) {
+        this.pendingFresh = false;
+        log.error('TikTok', 'eulerstream-Sign verweigert — kein Reconnect. Lösung: gratis Sign-Key unter Einstellungen → TikTok-Sign-Key.');
+        this.emitStatus({
+          status: 'error',
+          isReconnect,
+          detail: 'Verbindung verweigert vom TikTok-Sign-Server (eulerstream). Der kostenlose Webcast-Sign braucht jetzt einen API-Key: gratis Community-Key auf eulerstream.com holen → Einstellungen → TikTok-Sign-Key eintragen.',
+        });
+        return;
+      }
       this.emitStatus({ status: 'error', isReconnect, detail: msg });
       // „Noch nicht live" ist KEIN Abbruchfehler: statt nach 5 Versuchen aufzugeben,
       // auf das Live warten und automatisch verbinden (wie nach Stream-Ende) — der
@@ -407,4 +420,10 @@ export function isOfflineError(msg: string): boolean {
   // App ewig auf ein Live warten, das nie kommt, statt normal zu reconnecten.
   return /isn'?t online|is not online|not online|user_offline|user is offline|live (has )?ended|isn'?t live/i
     .test(String(msg || ''));
+}
+
+/** Fehler vom externen Sign-Server (eulerstream): Retry zwecklos, braucht einen
+ *  API-Key/Plan. Klar abgrenzen von „offline" o.Ä. */
+export function isSignServerError(msg: string): boolean {
+  return /sign a request|eulerstream|business plan|signature/i.test(String(msg || ''));
 }
