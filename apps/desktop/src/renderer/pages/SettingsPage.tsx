@@ -50,14 +50,16 @@ export default function SettingsPage() {
   const [sbStatus, setSbStatus] = useState('off');
   const [tiktokIn, setTiktokIn] = useState(false);
   const [signKey, setSignKey] = useState('');
+  const [signKeySet, setSignKeySet] = useState(false);
 
   useEffect(() => {
-    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
+    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
       setPoints(s.points);
       setAudioOut(s.audioOutputId ?? '');
       setBlockedWords((s.moderation?.blockedWords ?? []).join(', '));
       // Keys/Passwörter kommen nicht mehr roh zurück — nur „gesetzt"-Flags.
       setSportKeySet(!!s.sportKeySet);
+      setSignKeySet(!!s.tiktokSignKeySet);
       setObsPasswordSet(!!s.obsPasswordSet);
       if (s.obs) setObs({ enabled: s.obs.enabled, url: s.obs.url, password: '' });
       if (s.streamerbot) setSb(s.streamerbot);
@@ -336,6 +338,41 @@ export default function SettingsPage() {
         </p>
       </section>
 
+      {/* TikTok-Verbindung (Sign-Key) */}
+      <section className="bx-card p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+            <ShieldCheck size={15} /> TikTok-Verbindung (Sign-Key)
+          </h2>
+          <span className={`flex items-center gap-1.5 text-[11px] font-bold ${signKeySet ? 'text-emerald-300' : 'text-amber-300'}`}>
+            <span className={`h-2 w-2 rounded-full ${signKeySet ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+            {signKeySet ? 'Key gesetzt' : 'Kein Key'}
+          </span>
+        </div>
+        <p className="mb-3 text-[11px] text-studio-muted">
+          Um dein TikTok-Live zu verbinden (Chat, Geschenke, Likes empfangen) braucht die App einen <b>Sign-Key</b> von eulerstream. Den gibt's <b>kostenlos</b>: auf <span className="font-mono">eulerstream.com</span> registrieren → einen Key erstellen → im Dashboard das Add-on <b>„Webcast Signatures"</b> einschalten (ist beim Gratis-Community-Plan dabei, aber standardmäßig <b>aus</b>) → Key hier eintragen.
+        </p>
+        <input
+          type="password"
+          value={signKey}
+          onChange={(e) => setSignKey(e.target.value)}
+          onBlur={() => { if (signKey.trim()) { void window.studio.updateSettings({ tiktokSignApiKey: signKey.trim() }); setSignKeySet(true); toast('success', 'Sign-Key gespeichert.'); } }}
+          placeholder={signKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Euler Sign-Key (euler_… — kostenlos auf eulerstream.com)'}
+          className="bx-input w-full font-mono text-xs"
+        />
+        {signKeySet && (
+          <button
+            onClick={() => { setSignKey(''); void window.studio.updateSettings({ tiktokSignApiKey: '' }); setSignKeySet(false); toast('info', 'Sign-Key gelöscht.'); }}
+            className="bx-pill mt-2 text-[11px] hover:text-studio-accent"
+          >
+            Key löschen
+          </button>
+        )}
+        <p className="mt-2 text-[10px] text-studio-muted/70">
+          Ohne aktiviertes „Webcast Signatures"-Add-on lehnt eulerstream das Verbinden mit der Meldung „requires a Business plan" ab — das Add-on einzuschalten ist gratis und behebt das.
+        </p>
+      </section>
+
       {/* TikTok-Chat senden */}
       <section className="bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
@@ -358,17 +395,9 @@ export default function SettingsPage() {
               <MessageSquare size={14} /> Mit TikTok anmelden
             </button>
           )}
-          <input
-            type="password"
-            value={signKey}
-            onChange={(e) => setSignKey(e.target.value)}
-            onBlur={() => void window.studio.updateSettings({ tiktokSignApiKey: signKey.trim() })}
-            placeholder="Optional: Euler Sign-Key (für zuverlässiges Senden)"
-            className="bx-input flex-1 font-mono text-xs"
-          />
         </div>
         <p className="mt-2 text-[10px] text-studio-muted/70">
-          ⚠️ TikTok drosselt stark — die App sendet max. <b>1 Nachricht / 30 Sek</b>. Senden erfolgt über deine eingeloggte Session (kein offizielles API); nutze es maßvoll. Sign-Key (kostenlos auf <span className="font-mono">eulerstream.com</span>) macht das Senden zuverlässiger.
+          ⚠️ TikTok drosselt stark — die App sendet max. <b>1 Nachricht / 30 Sek</b>. Senden erfolgt über deine eingeloggte Session (kein offizielles API); nutze es maßvoll.
         </p>
       </section>
 
