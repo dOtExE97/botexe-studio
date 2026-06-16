@@ -3,6 +3,26 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.0] — 2026-06-17
+
+**Highlight: Verbinden ist jetzt kostenlos.** TikTok-Live lässt sich ohne Bezahl-Plan verbinden — über Eulers gratis Cloud-WebSocket mit einem kostenlosen Community-Key.
+
+### Added
+- **Gratis-Verbindung über Eulers Cloud-WebSocket** (neuer Standard): Eulerstream hat das Selbst-Signieren hinter den Business-Plan gelegt („requires a Business plan"); der **Cloud-WebSocket** ist dagegen im kostenlosen Community-Plan enthalten und verbindet mit dem **Gratis-Key**. Empfängt Chat/Geschenke/Likes/Follows. Eingebaute 8-Stunden-Reconnect-Logik (Zähler/Bestenlisten überstehen den Reconnect).
+- **Verbindungs-Modus-Umschalter** in den Einstellungen: **Cloud (gratis, Standard)** vs. **Direkt** (selbst signieren, kann zusätzlich Chat senden, braucht aber einen kostenpflichtigen Business-Key).
+- **Onboarding für den Key**: klare 3-Schritt-Anleitung + Button **„Gratis-Key holen"**, der direkt `eulerstream.com/register` öffnet.
+- **Sport-Ticker-Ausbau**: Datumsfilter (behebt das WM-„fetch failed"-Timeout), **Tabelle/Standings**, **Mannschaftsfilter**, Ansicht Matches / Tabelle / Beides (als Slider) und mehr Optionen für die Anzahl angezeigter Spiele.
+- **„Rahmen ausblenden" für alle Widgets**: universeller Schalter — nur der Inhalt, ohne Glas-Rahmen/Schatten (wie bei der Like-Liste), damit Overlays den Bildschirm nicht zu stark zudecken.
+
+### Changed
+- **Sign-/API-Key-Feld** in einen eigenen, prominenten Abschnitt „TikTok-Verbindung" verschoben, mit **„gesetzt"-Status** — der Key ist jetzt fürs Verbinden nötig, nicht nur fürs Senden.
+
+### Fixed
+- **Key wird nicht mehr versehentlich gelöscht**, wenn man das leere Feld anklickt und wieder verlässt (Speichern nur bei nicht-leerem Wert).
+- **Klare Fehlermeldung statt Retry-Spam**, wenn der Sign-Server (eulerstream) die Verbindung ablehnt.
+
+---
+
 ## [Unreleased] — MVP „Pur-Kern"
 
 ### Added

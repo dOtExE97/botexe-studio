@@ -83,9 +83,12 @@ Die strenge neue Funktion lässt unsignierte Apps gar nicht zu. Prüfen/abschalt
 
 ## 🚀 Erste Schritte
 Beim ersten Start führt dich eine kurze **Tour** durch alles (jederzeit wiederholbar: *Einstellungen → Tour erneut zeigen*). Kurzfassung:
-1. **Live** → TikTok-Namen eingeben → *Verbinden*. (Oder „Testen ohne Live" für Demo-Events.)
-2. **Overlay** → Widgets aus der Palette wählen (du siehst sie live!), aufs Bild legen, einstellen.
-3. **Link kopieren** → in TikTok Live Studio (einmalig einrichten) oder OBS als Browser-Quelle.
+1. **Gratis-Key holen (einmalig)** → *Einstellungen → TikTok-Verbindung → **„Gratis-Key holen"***. Damit die App dein Live lesen darf, braucht sie einen **kostenlosen** Schlüssel von [eulerstream.com](https://www.eulerstream.com/register) (mit Google/GitHub/E-Mail registrieren → Key kopieren → in der App einfügen). Modus **„Cloud (gratis)"** lassen — kein Bezahl-Plan nötig. *(Auch ohne Key kannst du sofort „Testen ohne Live" für Demo-Events nutzen.)*
+2. **Live** → TikTok-Namen eingeben → *Verbinden*.
+3. **Overlay** → Widgets aus der Palette wählen (du siehst sie live!), aufs Bild legen, einstellen.
+4. **Link kopieren** → in TikTok Live Studio (einmalig einrichten) oder OBS als Browser-Quelle.
+
+> **Warum ein Key?** TikTok hat keine offene Schnittstelle für Live-Events — ein Signier-Dienst (eulerstream) stellt die Verbindung her. Die App nutzt dessen **gratis Cloud-Stufe**, deshalb der kostenlose Schlüssel. Er bleibt lokal auf deinem PC.
 
 ---
 
