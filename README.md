@@ -6,10 +6,12 @@
 Ein freier **TikFinity-Ersatz** für Windows: Geschenke, Alerts, Overlays, Sounds, Spiele, TTS, Punkte & Store — alles auf deinem Stream-PC, keine Cloud, keine Abo-Gebühr.
 
 [![Download](https://img.shields.io/badge/⬇️_Download-Windows_Setup.exe-ff4d2e?style=for-the-badge)](https://github.com/dOtExE97/botexe-studio/releases/latest)
+&nbsp;
+[![Status: Alpha](https://img.shields.io/badge/Status-ALPHA_(früher_Test)-f59e0b?style=for-the-badge)](#)
 
 ![bOtExE Studio Overlay](docs/e2e-overlay.png)
 
-> 🧪 **Frühe Version — erster echter Test!** Die App läuft, aber sie wird gerade auf echten, verschiedenen PCs erprobt. Wenn was hakt oder dir eine Widget-Idee kommt: **bitte melden** (in der App: *Einstellungen → Fehler melden / Funktion wünschen*). Genau dafür ist diese Phase da. 🙏
+> ⚠️ **ALPHA — das ist KEINE fertige Software!** bOtExE Studio ist eine **frühe Testversion**: Vieles läuft schon, aber es können Fehler auftreten, Sachen sich ändern oder mal abstürzen. Wer's ausprobiert, ist quasi **Test-Pilot** 🧑‍✈️ — und genau dafür gibt's den Knopf *Einstellungen → Fehler melden / Funktion wünschen*. Jedes Feedback & jede Widget-Idee hilft enorm. 🙏 Nutze es vorerst auf eigene Verantwortung, gerne parallel zu deinem bisherigen Setup.
 >
 > 🤖 **Transparenz:** Gebaut von **dOtExE (Alex)**, gemeinsam „gevibe-coded" mit **Claude (Anthropic)** als KI-Pair-Programmer — Ideen, Richtung & Tests von Alex.
 
@@ -57,10 +59,27 @@ Dein TikTok-Live  →  bOtExE Studio (auf deinem PC)  →  ein Overlay-Link  →
 
 ## 📥 Installation
 1. **[Neueste Version herunterladen](https://github.com/dOtExE97/botexe-studio/releases/latest)** → `bOtExE Studio Setup.exe`.
-2. Starten → installieren. Windows zeigt evtl. **SmartScreen** („unbekannter Herausgeber") — das ist **normal** (noch kein kostenpflichtiges Signatur-Zertifikat): *Weitere Informationen → Trotzdem ausführen*.
+2. Starten → installieren. Windows warnt evtl. (unsignierte App) — **das ist normal & safe**, siehe **[Windows-Warnung? 👇](#️-windows-warnt-normal--und-so-gehts)**.
 3. **Updates kommen automatisch** (im Hintergrund, beim nächsten Start aktiv). Manuell: *Einstellungen → Auf Update prüfen*.
 
 **Systemanforderungen:** Windows 10 (22H2) oder 11, 64-bit · ~2 GB RAM frei · TikTok Live Studio *oder* OBS. *(Aktuell nur Windows-Build — kein Mac/Linux-Download.)*
+
+## ⚠️ Windows warnt? Normal — und so geht's
+Weil die App (noch) kein teures **Signatur-Zertifikat** hat, ist Windows bei einer brandneuen, unbekannten `.exe` erstmal misstrauisch. Das bedeutet **NICHT, dass etwas gefährlich ist** — nur „Windows kennt diesen Herausgeber noch nicht". 🔒 **Warum es safe ist:** der komplette **Code ist hier öffentlich einsehbar** (jeder kann ihn prüfen), die App läuft **lokal** ohne komische Server, und du kannst die `.exe` vor dem Start auf [virustotal.com](https://www.virustotal.com) hochladen und scannen lassen.
+
+Je nach Windows-Einstellung taucht eins davon auf:
+
+**1) „Der Computer wurde durch Windows geschützt" (SmartScreen, blaues Fenster)**
+→ Klick **„Weitere Informationen"** → dann erscheint **„Trotzdem ausführen"** → draufklicken. ✅
+
+**2) Datei nach dem Download blockiert**
+→ Rechtsklick auf die `Setup.exe` → **Eigenschaften** → ganz unten **„Zulassen"** (engl. „Unblock") anhaken → **OK** → normal starten.
+
+**3) „Smart App Control" blockiert ganz (nur neuere Windows-11-PCs)**
+Die strenge neue Funktion lässt unsignierte Apps gar nicht zu. Prüfen/abschalten: **Windows-Sicherheit → App- & Browsersteuerung → Einstellungen für Smart App Control → „Aus"**.
+> ⚠️ Achtung: Einmal aus, lässt sich Smart App Control nur per **Windows-Neuinstallation** wieder einschalten — gut überlegen. Bei den meisten PCs ist sie aus oder im „Bewerten"-Modus, dann brauchst du das gar nicht.
+
+*Sobald die App ein Signatur-Zertifikat hat (kommt später), verschwinden diese Warnungen automatisch.*
 
 ## 🚀 Erste Schritte
 Beim ersten Start führt dich eine kurze **Tour** durch alles (jederzeit wiederholbar: *Einstellungen → Tour erneut zeigen*). Kurzfassung:

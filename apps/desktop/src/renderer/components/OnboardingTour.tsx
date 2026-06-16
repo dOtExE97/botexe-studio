@@ -18,7 +18,7 @@ const SLIDES: Slide[] = [
     icon: Rocket,
     title: 'Willkommen bei bOtExE Studio! 👋',
     body: (
-      <>Dein <b>lokaler TikFinity-Ersatz</b> — Geschenke, Alerts, Sounds, Spiele, Overlays, TTS. Alles läuft auf <b>deinem PC</b>, kostenlos. Diese kurze Tour zeigt dir die 4 Schritte. Du kannst sie jederzeit wiederholen (Einstellungen → Tour).</>
+      <>Dein <b>lokaler TikFinity-Ersatz</b> — Geschenke, Alerts, Sounds, Spiele, Overlays, TTS. Alles läuft auf <b>deinem PC</b>, kostenlos. Diese kurze Tour zeigt dir die 4 Schritte. (Jederzeit wiederholbar: Einstellungen → Tour.)<br /><br /><span className="text-studio-gold">⚠️ Das ist eine frühe <b>Alpha</b> — manches kann haken. Du bist Test-Pilot 🧑‍✈️: Fehler & Ideen bitte über <i>Einstellungen → Fehler melden</i> schicken!</span></>
     ),
   },
   {

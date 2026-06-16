@@ -122,7 +122,9 @@ export default function App() {
             </div>
           ))}
         </nav>
-        <div className="mt-auto px-5 pb-4 text-[10px] text-studio-muted">{version ? `v${version}` : ''} · lokal</div>
+        <div className="mt-auto px-5 pb-4 text-[10px] text-studio-muted">
+          {version ? `v${version}` : ''} · <span className="font-bold text-studio-gold">ALPHA</span> · lokal
+        </div>
       </aside>
 
       {/* Main */}
