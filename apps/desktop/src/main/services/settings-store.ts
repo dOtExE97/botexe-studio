@@ -64,8 +64,13 @@ export interface StudioSettings {
   tiktokSessionId: string;
   /** TikTok „tt-target-idc"-Cookie — von der Lib zum Senden ZWINGEND verlangt. */
   tiktokTargetIdc: string;
-  /** Optionaler Euler-Sign-Key fürs zuverlässige Senden. */
+  /** Euler-API-Key (Community gratis) — fürs Verbinden über den Cloud-WebSocket
+   *  UND fürs zuverlässige Senden. */
   tiktokSignApiKey: string;
+  /** Verbindungsweg: 'cloud' = Eulers gehosteter WebSocket (gratis, Standard),
+   *  'direct' = selbst signieren via tiktok-live-connector (braucht Business-Key,
+   *  kann dafür Chat senden). */
+  tiktokConnectMode: 'cloud' | 'direct';
   /** Streamer.bot-Brücke (WebSocket-Client). */
   streamerbot: { enabled: boolean; url: string };
 }
@@ -135,6 +140,7 @@ const DEFAULTS: StudioSettings = {
   tiktokSessionId: '',
   tiktokTargetIdc: '',
   tiktokSignApiKey: '',
+  tiktokConnectMode: 'cloud',
   streamerbot: { enabled: false, url: 'ws://127.0.0.1:8080/' },
 };
 

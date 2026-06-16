@@ -9,7 +9,8 @@ import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { SessionStats } from '../core/session-stats';
 import { EventRecorder, parseReplay, playReplay } from '../core/replay';
-import { TikTokAdapter, type AdapterStatusInfo } from '../adapters/tiktok-adapter';
+import { TikTokAdapter, createDirectConnection, type AdapterStatusInfo } from '../adapters/tiktok-adapter';
+import { EulerCloudConnection } from '../adapters/tiktok-cloud';
 import { OverlayServer } from '../adapters/overlay-server';
 import { SettingsStore, redactSecretsForExport, type GiveawaySettings } from './settings-store';
 import { LayoutStore } from './layout-store';
@@ -192,6 +193,17 @@ export class Studio {
       // TikFinity-Verhalten: nach Stream-Ende auf das nächste Live warten und
       // automatisch wieder verbinden — Single-User-Tool, also default an.
       autoConnect: true,
+      // Verbindungsweg wählen: Standard ist Eulers gratis Cloud-WebSocket
+      // (funktioniert mit dem kostenlosen Community-Key). Nur wenn der User
+      // bewusst auf 'direct' stellt (Business-Key + Chat-Senden), geht's über
+      // tiktok-live-connector. Ohne Key bleibt nur der Direkt-Weg übrig.
+      factory: (username, auth) => {
+        const mode = this.settings.get().tiktokConnectMode ?? 'cloud';
+        if (mode === 'cloud' && auth.signApiKey) {
+          return new EulerCloudConnection(username, { apiKey: auth.signApiKey });
+        }
+        return createDirectConnection(username, auth);
+      },
       // Login fürs Chat-Senden (sessionid-Cookie + optionaler Sign-Key).
       getAuth: () => ({
         sessionId: this.settings.get().tiktokSessionId || undefined,

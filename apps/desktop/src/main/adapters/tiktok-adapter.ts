@@ -78,6 +78,13 @@ const DEFAULTS = {
   livePollMs: 15_000,
 };
 
+/** Direkter Weg: tiktok-live-connector signiert selbst (braucht Business-Key),
+ *  kann dafür auch Chat senden. Exportiert, damit die Verdrahtung je nach
+ *  Verbindungsmodus zwischen diesem und dem Cloud-Weg wählen kann. */
+export function createDirectConnection(username: string, auth: TikTokAuth): LiveConnectionLike {
+  return defaultFactory(username, auth);
+}
+
 function defaultFactory(username: string, auth: TikTokAuth): LiveConnectionLike {
   // Lazy import: hält Tests und Startpfad frei von der schweren Lib.
   // eslint-disable-next-line @typescript-eslint/no-var-requires

@@ -51,15 +51,17 @@ export default function SettingsPage() {
   const [tiktokIn, setTiktokIn] = useState(false);
   const [signKey, setSignKey] = useState('');
   const [signKeySet, setSignKeySet] = useState(false);
+  const [connectMode, setConnectMode] = useState<'cloud' | 'direct'>('cloud');
 
   useEffect(() => {
-    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
+    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; tiktokConnectMode?: 'cloud' | 'direct'; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
       setPoints(s.points);
       setAudioOut(s.audioOutputId ?? '');
       setBlockedWords((s.moderation?.blockedWords ?? []).join(', '));
       // Keys/Passwörter kommen nicht mehr roh zurück — nur „gesetzt"-Flags.
       setSportKeySet(!!s.sportKeySet);
       setSignKeySet(!!s.tiktokSignKeySet);
+      setConnectMode(s.tiktokConnectMode === 'direct' ? 'direct' : 'cloud');
       setObsPasswordSet(!!s.obsPasswordSet);
       if (s.obs) setObs({ enabled: s.obs.enabled, url: s.obs.url, password: '' });
       if (s.streamerbot) setSb(s.streamerbot);
@@ -350,26 +352,48 @@ export default function SettingsPage() {
           </span>
         </div>
         <p className="mb-3 text-[11px] text-studio-muted">
-          Um dein TikTok-Live zu verbinden (Chat, Geschenke, Likes empfangen) braucht die App einen <b>Sign-Key</b> von eulerstream. Den gibt's <b>kostenlos</b>: auf <span className="font-mono">eulerstream.com</span> registrieren → einen Key erstellen → im Dashboard das Add-on <b>„Webcast Signatures"</b> einschalten (ist beim Gratis-Community-Plan dabei, aber standardmäßig <b>aus</b>) → Key hier eintragen.
+          Um dein TikTok-Live zu verbinden (Chat, Geschenke, Likes empfangen) braucht die App einen <b>API-Key</b> von eulerstream. Den gibt's <b>kostenlos</b>: auf <span className="font-mono">eulerstream.com</span> registrieren → einen Key erstellen → hier eintragen. Mit dem <b>Cloud-Modus</b> (unten) reicht der Gratis-Key — kein Bezahl-Plan nötig.
         </p>
         <input
           type="password"
           value={signKey}
           onChange={(e) => setSignKey(e.target.value)}
-          onBlur={() => { if (signKey.trim()) { void window.studio.updateSettings({ tiktokSignApiKey: signKey.trim() }); setSignKeySet(true); toast('success', 'Sign-Key gespeichert.'); } }}
-          placeholder={signKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Euler Sign-Key (euler_… — kostenlos auf eulerstream.com)'}
+          onBlur={() => { if (signKey.trim()) { void window.studio.updateSettings({ tiktokSignApiKey: signKey.trim() }); setSignKeySet(true); toast('success', 'API-Key gespeichert.'); } }}
+          placeholder={signKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Euler API-Key (euler_… — kostenlos auf eulerstream.com)'}
           className="bx-input w-full font-mono text-xs"
         />
         {signKeySet && (
           <button
-            onClick={() => { setSignKey(''); void window.studio.updateSettings({ tiktokSignApiKey: '' }); setSignKeySet(false); toast('info', 'Sign-Key gelöscht.'); }}
+            onClick={() => { setSignKey(''); void window.studio.updateSettings({ tiktokSignApiKey: '' }); setSignKeySet(false); toast('info', 'API-Key gelöscht.'); }}
             className="bx-pill mt-2 text-[11px] hover:text-studio-accent"
           >
             Key löschen
           </button>
         )}
+
+        {/* Verbindungs-Modus */}
+        <div className="mt-4 rounded-lg border border-studio-border/60 p-3">
+          <div className="mb-2 text-[11px] font-bold text-studio-fg">Verbindungs-Modus</div>
+          <label className="flex cursor-pointer items-start gap-2 text-[11px] text-studio-muted">
+            <input
+              type="radio" name="connectMode" checked={connectMode === 'cloud'}
+              onChange={() => { setConnectMode('cloud'); void window.studio.updateSettings({ tiktokConnectMode: 'cloud' }); }}
+              className="mt-0.5"
+            />
+            <span><b className="text-emerald-300">Cloud (gratis, empfohlen)</b> — Euler hostet die Verbindung. Funktioniert mit dem <b>kostenlosen Community-Key</b>. Empfängt Chat/Geschenke/Likes. (Chat-Senden geht hier nicht.)</span>
+          </label>
+          <label className="mt-2 flex cursor-pointer items-start gap-2 text-[11px] text-studio-muted">
+            <input
+              type="radio" name="connectMode" checked={connectMode === 'direct'}
+              onChange={() => { setConnectMode('direct'); void window.studio.updateSettings({ tiktokConnectMode: 'direct' }); }}
+              className="mt-0.5"
+            />
+            <span><b>Direkt</b> — App signiert selbst. Kann <b>auch Chat senden</b>, braucht aber einen <b>kostenpflichtigen Business-Key</b> (eulerstream „Webcast Signatures"). Nur wählen, wenn du den hast.</span>
+          </label>
+        </div>
+
         <p className="mt-2 text-[10px] text-studio-muted/70">
-          Ohne aktiviertes „Webcast Signatures"-Add-on lehnt eulerstream das Verbinden mit der Meldung „requires a Business plan" ab — das Add-on einzuschalten ist gratis und behebt das.
+          Tipp: Bleib bei <b>Cloud</b> — das ist der Gratis-Weg. „Direkt" ohne Business-Key endet in „requires a Business plan".
         </p>
       </section>
 
