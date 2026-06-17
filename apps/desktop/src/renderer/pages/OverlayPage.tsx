@@ -447,19 +447,15 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'heart-rain', label: 'Like-Herzen', desc: 'Likes als Herzen — Fontäne (TikFinity-Style, viele Mini-Herzen aus einer Quelle) oder verteilter Regen.',
-    w: 1080, h: 900, props: { emojis: '❤️,💖,💕,✨,🔥', maxPerBurst: 8, mode: 'fountain', source: 'center' },
+    type: 'heart-rain', label: 'Like-Herzen', desc: 'Likes als bunte Herzen + Profilbilder, über die ganze Breite aufsteigend, sanft schwingend (TikFinity-Style).',
+    w: 1080, h: 1100, props: { emojis: '❤️,💖,💕,✨,🔥', maxPerBurst: 16, mode: 'fountain', avatars: true },
     fields: [
       { key: 'mode', label: 'Stil', type: 'select', options: [
-        { value: 'fountain', label: 'Fontäne (Mini-Herzen, TikFinity-Style)' },
-        { value: 'rain', label: 'Regen (große Herzen, verteilt)' },
-      ], hint: 'Fontäne: viele kleine Herzen aus einer Quelle. Regen: große Herzen über die ganze Breite.' },
-      { key: 'source', label: 'Fontänen-Quelle', type: 'select', options: [
-        { value: 'center', label: 'Unten Mitte' },
-        { value: 'left', label: 'Unten links' },
-        { value: 'right', label: 'Unten rechts (wie Like-Button)' },
-      ], hint: 'Wo die Fontäne entspringt (nur im Fontänen-Stil).' },
-      { key: 'emojis', label: 'Emojis', type: 'text', hint: 'Eigene Symbole, kommagetrennt (z.B. ❤️,💖,🔥). Leer/Default = edle SVG-Herzen.' },
+        { value: 'fountain', label: 'Dicht (viele kleine Herzen)' },
+        { value: 'rain', label: 'Locker (größere Herzen)' },
+      ], hint: 'Beide steigen über die ganze Breite auf — „Dicht" wirft mehr kleinere Herzen, „Locker" weniger, größere.' },
+      { key: 'avatars', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Ab und zu steigt das echte Profilbild des Likers mit auf (wie bei TikFinity).' },
+      { key: 'emojis', label: 'Emojis', type: 'text', hint: 'Eigene Symbole, kommagetrennt (z.B. ❤️,💖,🔥). Leer/Default = edle bunte SVG-Herzen.' },
       { key: 'maxPerBurst', label: 'Max. pro Like-Schub', type: 'number', hint: 'Begrenzt, wie viele bei einer Like-Welle gleichzeitig kommen.' },
     ],
   },
