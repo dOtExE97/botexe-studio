@@ -3,6 +3,23 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.2] — 2026-06-17
+
+### Added
+- **Auto-Reload der Overlay-Browser-Quelle bei Updates:** Nach einem App-Update lädt sich das Overlay in TikTok Live Studio / OBS künftig **von selbst neu** und holt den frischen Code — kein manuelles Neu-Einfügen der Quelle mehr nötig.
+- **Like-Fontäne im TikFinity-Stil** 💖: Herzen steigen jetzt **über die ganze Breite verteilt** auf, **bunt**, höher & länger, sanft schwingend — und ab und zu mit dem **echten Profilbild** des Likers.
+- **Sound-Vorhören ohne Download:** In der MyInstants-Suche spielt **„Anhören"** einen Treffer kurz vor, ohne ihn in die Bibliothek zu importieren.
+- **Befehl-Karussell mit Geschenken:** zeigt jetzt, welches **Geschenk** welche Aktion auslöst — mit echtem Gift-Bild + Text, statt Emojis.
+- **Durchsuchbare Gift-Auswahl** beim Gift-Zähler und Gift-Battle (kein Namen-Auswendiglernen mehr).
+
+### Fixed
+- **„Rahmen ausblenden" entfernt jetzt wirklich alles** — auch den Milchglas-Blur, die Gradient-Randlinie und feine Eigen-Ränder einzelner Widgets. Nur noch der Inhalt.
+- **Galerie „Letztes Live"** zeigt nur noch die **tatsächlich erhaltenen** Geschenke, nicht den ganzen Room-Katalog.
+- **Follower-Zahl + Gift-Summen überleben App-Neustart/Update** — die Goal-Bars fallen nicht mehr auf 0 zurück (laufende Session-Stats werden persistiert).
+- **Widgets skalieren sauber beim Verkleinern** (Leaderboard, Goal-Bar, Gift-Feed, Chat-Box) — Inhalt wird nicht mehr abgeschnitten, sondern schrumpft mit (Container-Queries).
+
+---
+
 ## [0.3.1] — 2026-06-17
 
 ### Fixed
