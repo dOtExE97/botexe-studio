@@ -16,17 +16,21 @@ const CSS = `
 .bx-hr-e svg { display: block; width: 100%; height: 100%; overflow: visible; }
 @keyframes bx-hr-rise {
   0% { opacity: 0; transform: translateY(0) translateX(0) scale(.6) rotate(0); }
-  12% { opacity: 1; transform: translateY(-12%) scale(1); }
-  100% { opacity: 0; transform: translateY(-108%) translateX(var(--drift,0px)) scale(1.05) rotate(var(--rot,0deg)); }
+  10% { opacity: 1; transform: translateY(-10%) scale(1); }
+  /* Sanftes Schwingen: Drift kehrt zur Mitte um → S-Kurve statt schräger Linie. */
+  50% { opacity: 1; transform: translateY(-55%) translateX(calc(var(--drift,0px) * -.4)) scale(1.05); }
+  85% { opacity: 1; transform: translateY(-92%) translateX(calc(var(--drift,0px) * .7)) scale(1.05); }
+  100% { opacity: 0; transform: translateY(-122%) translateX(var(--drift,0px)) scale(1.08) rotate(var(--rot,0deg)); }
 }
-/* Fontäne (TikFinity-Style): viele Mini-Herzen aus EINER Quelle unten, fächern
-   in einem leichten Bogen nach oben auf und faden aus. */
-.bx-hr-e.fount { bottom: var(--src-y, 3%); animation: bx-hr-fount var(--dur,3s) cubic-bezier(.25,.6,.5,1) forwards; }
+/* Fontäne (TikFinity-Style): viele Mini-Herzen aus EINER Quelle unten, steigen in
+   einem sanften Schlängelbogen hoch HINAUS und faden erst ganz oben aus. */
+.bx-hr-e.fount { bottom: var(--src-y, 3%); animation: bx-hr-fount var(--dur,3s) cubic-bezier(.22,.62,.36,1) forwards; }
 @keyframes bx-hr-fount {
-  0%   { opacity: 0; transform: translate(0,0) scale(.3) rotate(0); }
-  12%  { opacity: 1; transform: translate(calc(var(--drift) * .25), -14%) scale(var(--scale,1)); }
-  60%  { opacity: 1; transform: translate(calc(var(--drift) * .8), -62%) scale(var(--scale,1)) rotate(var(--rot,0deg)); }
-  100% { opacity: 0; transform: translate(var(--drift), -104%) scale(.55) rotate(var(--rot,0deg)); }
+  0%   { opacity: 0; transform: translate(0,0) scale(.35) rotate(0); }
+  10%  { opacity: 1; transform: translate(calc(var(--drift) * .18), -12%) scale(var(--scale,1)); }
+  45%  { opacity: 1; transform: translate(calc(var(--drift) * -.35), -52%) scale(var(--scale,1)) rotate(calc(var(--rot,0deg) * .5)); }
+  80%  { opacity: .95; transform: translate(calc(var(--drift) * .55), -90%) scale(var(--scale,1)); }
+  100% { opacity: 0; transform: translate(var(--drift), -124%) scale(.6) rotate(var(--rot,0deg)); }
 }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
@@ -68,6 +72,18 @@ function sparkSVG(id, base, accent) {
 </svg>`;
 }
 
+/** Wie viele Herzen pro Like-Event spawnen. Großzügige Untergrenze, damit auch
+ *  ein einzelner Like einen sichtbaren Schwung wirft, skaliert mit der Like-Zahl,
+ *  gedeckelt durch maxPerBurst. Reine Logik → testbar. */
+export function heartsForLike(likeCount, mode, maxPerBurst) {
+  const L = Math.max(0, Number(likeCount) || 0);
+  const fount = mode === 'fountain';
+  const divisor = fount ? 1.5 : 2.5;
+  const floor = fount ? 4 : 3;
+  const cap = Math.max(1, Number(maxPerBurst) || 14);
+  return Math.max(floor, Math.min(cap, Math.round(L / divisor)));
+}
+
 export default class HeartRain {
   constructor(root, props) {
     ensureStyle();
@@ -88,7 +104,7 @@ export default class HeartRain {
       accent ? `color-mix(in srgb, ${accent} 70%, transparent)` : 'var(--bx-pink, rgba(255,94,138,.65))');
     this.accent = accent || '';
 
-    this.maxPerBurst = Math.min(24, Math.max(1, Number(props.maxPerBurst ?? 8)));
+    this.maxPerBurst = Math.min(28, Math.max(1, Number(props.maxPerBurst ?? 14)));
     // Fontäne (TikFinity-Style, Default) vs. verteilter Regen.
     this.mode = props.mode === 'rain' ? 'rain' : 'fountain';
     // Quelle der Fontäne unten: Mitte / links / rechts (wie der Like-Button).
@@ -104,10 +120,9 @@ export default class HeartRain {
   }
   onEvent(event) {
     if (event.type !== 'like') return;
-    // Fontäne ist dichter (mehr, kleinere Herzen) → /3 statt /5.
-    const per = this.mode === 'fountain' ? 3 : 5;
-    const n = Math.min(this.maxPerBurst, Math.max(1, Math.round((event.likeCount ?? 1) / per)));
-    const gap = this.mode === 'fountain' ? 55 : 90;
+    const n = heartsForLike(event.likeCount, this.mode, this.maxPerBurst);
+    // Dichter Strom: kleinere Lücke zwischen den Herzen.
+    const gap = this.mode === 'fountain' ? 45 : 75;
     for (let i = 0; i < n; i++) {
       const t = setTimeout(() => { this.timers.delete(t); this.spawn(); }, i * gap);
       this.timers.add(t);
@@ -130,7 +145,7 @@ export default class HeartRain {
     return heartSVG(id, tilt.toFixed(1), base, accent);
   }
   spawn() {
-    if (this.live > 60) return; // harte obergrenze (TTLS-schonend)
+    if (this.live > 130) return; // harte obergrenze (TTLS-schonend, jetzt großzügiger)
     const e = document.createElement('div');
     const fount = this.mode === 'fountain';
     e.className = fount ? 'bx-hr-e fount' : 'bx-hr-e';
