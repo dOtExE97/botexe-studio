@@ -3,22 +3,33 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseItems } from './command-carousel.js';
 
-test('trennt führendes Emoji vom Label', () => {
-  assert.deepEqual(parseItems('🔥 !feuer | 🎵 Musik'), [
-    { emoji: '🔥', label: '!feuer' },
-    { emoji: '🎵', label: 'Musik' },
+test('neues Format: "slug::Text" → Gift + Label', () => {
+  assert.deepEqual(parseItems('rose::!feuer | heart::Liebe'), [
+    { slug: 'rose', emoji: '', label: '!feuer' },
+    { slug: 'heart', emoji: '', label: 'Liebe' },
   ]);
 });
 
-test('Emoji mit Variation-Selector (❤️) wird erkannt', () => {
-  assert.deepEqual(parseItems('❤️ Liebe'), [{ emoji: '❤️', label: 'Liebe' }]);
+test('"slug::" ohne Text = nur Gift (Label leer)', () => {
+  assert.deepEqual(parseItems('galaxy::'), [{ slug: 'galaxy', emoji: '', label: '' }]);
 });
 
-test('Eintrag ohne Emoji = nur Label', () => {
-  assert.deepEqual(parseItems('!nurtext'), [{ emoji: '', label: '!nurtext' }]);
+test('Legacy: führendes Emoji wird abgetrennt (slug leer)', () => {
+  assert.deepEqual(parseItems('🔥 !feuer | 🎵 Musik'), [
+    { slug: '', emoji: '🔥', label: '!feuer' },
+    { slug: '', emoji: '🎵', label: 'Musik' },
+  ]);
+});
+
+test('Legacy: Emoji mit Variation-Selector (❤️)', () => {
+  assert.deepEqual(parseItems('❤️ Liebe'), [{ slug: '', emoji: '❤️', label: 'Liebe' }]);
+});
+
+test('Eintrag ohne alles = nur Label', () => {
+  assert.deepEqual(parseItems('!nurtext'), [{ slug: '', emoji: '', label: '!nurtext' }]);
 });
 
 test('leere Einträge werden verworfen, leere Eingabe = []', () => {
-  assert.equal(parseItems('🔥 a | | b').length, 2);
+  assert.equal(parseItems('rose::a | | b').length, 2);
   assert.deepEqual(parseItems(''), []);
 });

@@ -27,6 +27,7 @@ import {
 } from '@botexe/overlay-engine';
 import ConfirmButton from '../components/ConfirmButton';
 import GiftListEditor from '../components/GiftListEditor';
+import GiftCommandListEditor from '../components/GiftCommandListEditor';
 import GiftPicker from '../components/GiftPicker';
 import WidgetPreview from '../components/WidgetPreview';
 import { toast } from '../components/ToastHost';
@@ -37,7 +38,7 @@ interface PropField {
   /** seconds = im UI in Sekunden, gespeichert als ms · boolean = Schalter
    *  media = visueller Bild/Video-Picker mit Import · sound = Sound-Dropdown
    *  (abgespielt über die App, nie im Overlay) */
-  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound' | 'gift-list' | 'gift';
+  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound' | 'gift-list' | 'gift' | 'gift-command-list';
   options?: { value: string; label: string }[];
   hint?: string;
 }
@@ -505,10 +506,10 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'command-carousel', label: 'Befehl-Karussell', desc: 'Durchlaufende Sticker-Leiste, die Zuschauern zeigt, welche Befehle/Sounds es gibt (TikTok-Sticker-Look).',
-    w: 900, h: 90, props: { items: '🔥 !feuer | 🎵 Musik | 💀 Tod | 🎉 Party | ❤️ Liebe', speed: 26, style: 'sticker', accent: '#ff5436', theme: 'glas' },
+    type: 'command-carousel', label: 'Befehl-Karussell', desc: 'Durchlaufende Sticker-Leiste, die Zuschauern zeigt, welches GESCHENK welche Aktion auslöst (TikTok-Sticker-Look mit Gift-Bildern).',
+    w: 900, h: 90, props: { items: 'rose::!feuer | heart::Liebe | gg::GG', speed: 26, style: 'sticker', accent: '#ff5436', theme: 'glas' },
     fields: [
-      { key: 'items', label: 'Einträge', type: 'text', hint: 'Mit | trennen. Führendes Emoji wird zur Kachel, z.B. „🔥 !feuer | 🎵 Musik".' },
+      { key: 'items', label: 'Geschenke + Text', type: 'gift-command-list', hint: 'Pro Zeile ein Geschenk wählen + den Text dazu (was es auslöst). Das echte Gift-Bild läuft mit durch.' },
       styleField([
         { value: 'sticker', label: 'Sticker (bunt, TikTok-Look)' },
         { value: 'glas', label: 'Glas' },
@@ -1363,6 +1364,17 @@ export default function OverlayPage() {
                         <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
                           {field.label}
                           <GiftListEditor value={String(value)} onChange={(v) => setProp(v)} />
+                          {field.hint && <p className="mt-1 normal-case tracking-normal text-studio-muted/70">{field.hint}</p>}
+                        </div>
+                      );
+                    }
+
+                    // Geschenk + Text pro Zeile (Befehl-Karussell).
+                    if (field.type === 'gift-command-list') {
+                      return (
+                        <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
+                          {field.label}
+                          <GiftCommandListEditor value={String(value)} onChange={(v) => setProp(v)} />
                           {field.hint && <p className="mt-1 normal-case tracking-normal text-studio-muted/70">{field.hint}</p>}
                         </div>
                       );
