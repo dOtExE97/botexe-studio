@@ -1,7 +1,21 @@
 // gift-counter.test.ts — Ziel-Logik bei Erreichen (DOM-frei).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { onGiftGoalReached } from './gift-counter.js';
+import { onGiftGoalReached, findGiftIcon } from './gift-counter.js';
+
+test('findGiftIcon: Icon per lowercase-Slug (Katalog-Key ODER entry.slug), sonst leer', () => {
+  const cat = {
+    galaxy: { slug: 'Galaxy', icon: 'galaxy.png', coins: 1000 },
+    rose: { slug: 'Rose', icon: 'rose.png' },
+  };
+  assert.equal(findGiftIcon(cat, 'galaxy'), 'galaxy.png');
+  assert.equal(findGiftIcon(cat, 'Galaxy'), 'galaxy.png', 'case-insensitiv');
+  assert.equal(findGiftIcon(cat, 'rose'), 'rose.png');
+  assert.equal(findGiftIcon(cat, 'unbekannt'), '');
+  assert.equal(findGiftIcon(cat, ''), '');
+  // Fallback: Key passt nicht, aber entry.slug schon.
+  assert.equal(findGiftIcon({ 'k1': { slug: 'Galaxy', icon: 'g.png' } }, 'galaxy'), 'g.png');
+});
 
 test('raise: Ziel um die Schrittweite erhöhen, Zähler läuft weiter', () => {
   assert.deepEqual(onGiftGoalReached(15, 15, 15, 'raise'), { count: 15, target: 30 });

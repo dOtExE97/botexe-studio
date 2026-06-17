@@ -33,6 +33,19 @@ function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=docum
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 const GIFT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8"/><path d="M2 7h20v5H2z"/><path d="M12 21V7"/><path d="M12 7S10.5 3 8 3a2.2 2.2 0 0 0 0 4Z"/><path d="M12 7s1.5-4 4-4a2.2 2.2 0 0 1 0 4Z"/></svg>';
 
+/** Gift-Icon im Katalog finden — per lowercase-Slug (Katalog-Key oder entry.slug).
+ *  Liefert '' wenn nicht gefunden. Reine Logik → testbar. */
+export function findGiftIcon(catalog, slug) {
+  const key = String(slug || '').trim().toLowerCase();
+  if (!key || !catalog) return '';
+  const direct = catalog[key];
+  if (direct && direct.icon) return direct.icon;
+  for (const e of Object.values(catalog)) {
+    if (e && e.icon && String(e.slug || '').toLowerCase() === key) return e.icon;
+  }
+  return '';
+}
+
 /** Was bei Zielerreichung passiert. step = ursprüngliche Schrittweite. */
 export function onGiftGoalReached(count, target, step, mode) {
   if (mode === 'raise') return step > 0 ? { count, target: target + step } : { count, target };
@@ -43,6 +56,7 @@ export function onGiftGoalReached(count, target, step, mode) {
 export default class GiftCounter {
   constructor(root, props, ctx) {
     ensureStyle();
+    this.ctx = ctx || {};
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.giftSlug = String(props.giftSlug ?? '').trim().toLowerCase();
     this.step = Math.max(0, Math.floor(Number(props.target ?? 15))) || 15;
@@ -63,6 +77,21 @@ export default class GiftCounter {
     root.appendChild(this.el);
     this.renderIcon();
     this.render(false);
+    this.preloadIcon();
+  }
+
+  /** Konfiguriertes Gift-Bild SOFORT aus dem Katalog laden (auch bei Stand 0) —
+   *  so zeigt der Zähler von Anfang an das richtige Gift, wie bei TikFinity,
+   *  statt erst nach dem ersten Eingang. Nur bei festem Gift (giftSlug gesetzt). */
+  preloadIcon() {
+    if (!this.giftSlug || !this.ctx.baseUrl) return;
+    fetch(`${this.ctx.baseUrl}/gift-catalog?token=${this.ctx.token}`)
+      .then((r) => r.json())
+      .then((cat) => {
+        const icon = findGiftIcon(cat, this.giftSlug);
+        if (icon) { this.lastIcon = icon; this.renderIcon(); this.persist(); }
+      })
+      .catch(() => {});
   }
 
   load() {
