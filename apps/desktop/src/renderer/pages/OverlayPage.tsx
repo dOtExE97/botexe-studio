@@ -27,6 +27,7 @@ import {
 } from '@botexe/overlay-engine';
 import ConfirmButton from '../components/ConfirmButton';
 import GiftListEditor from '../components/GiftListEditor';
+import GiftPicker from '../components/GiftPicker';
 import WidgetPreview from '../components/WidgetPreview';
 import { toast } from '../components/ToastHost';
 
@@ -36,7 +37,7 @@ interface PropField {
   /** seconds = im UI in Sekunden, gespeichert als ms · boolean = Schalter
    *  media = visueller Bild/Video-Picker mit Import · sound = Sound-Dropdown
    *  (abgespielt über die App, nie im Overlay) */
-  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound' | 'gift-list';
+  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound' | 'gift-list' | 'gift';
   options?: { value: string; label: string }[];
   hint?: string;
 }
@@ -380,8 +381,8 @@ const WIDGET_TYPES: {
       ]),
       { key: 'teamA', label: 'Name Team A', type: 'text' },
       { key: 'teamB', label: 'Name Team B', type: 'text' },
-      { key: 'giftsA', label: 'Gifts Team A', type: 'text', hint: 'Gift-Namen für Team A, kommagetrennt (z.B. „rose, finger heart"). Leer + Team B leer = Auto-Split (günstig=A, teuer=B).' },
-      { key: 'giftsB', label: 'Gifts Team B', type: 'text', hint: 'Gift-Namen für Team B, kommagetrennt.' },
+      { key: 'giftsA', label: 'Gifts Team A', type: 'gift-list', hint: 'Gifts für Team A — durchsuchbar auswählen. Leer + Team B leer = Auto-Split (günstig=A, teuer=B).' },
+      { key: 'giftsB', label: 'Gifts Team B', type: 'gift-list', hint: 'Gifts für Team B — durchsuchbar auswählen.' },
       { key: 'metric', label: 'Wertung', type: 'select', options: [
         { value: 'coins', label: 'Coins (Wert der Gifts)' },
         { value: 'count', label: 'Anzahl (jedes Gift = 1)' },
@@ -551,7 +552,7 @@ const WIDGET_TYPES: {
     type: 'gift-counter', label: 'Geschenkzähler', desc: 'Zählt ein bestimmtes Gift (oder alle) Richtung Ziel — großes animiertes Gift-Icon, „aktuell / Ziel", Aktion bei Erreichen.',
     w: 340, h: 360, props: { giftSlug: '', target: 15, label: 'Geschenk-Ziel', onReach: 'raise', accent: '#ffd23e', theme: 'glas' },
     fields: [
-      { key: 'giftSlug', label: 'Gift (Slug)', type: 'text', hint: 'Welches Gift gezählt wird (leer = ALLE Gifts). Den genauen Namen siehst du in der Geschenke-Galerie, z.B. „Rose".' },
+      { key: 'giftSlug', label: 'Gift zählen', type: 'gift', hint: 'Welches Gift gezählt wird — durchsuchbar auswählen (leer = ALLE Gifts).' },
       { key: 'target', label: 'Ziel', type: 'number', hint: 'Wie viele bis zum Ziel.' },
       { key: 'onReach', label: 'Bei Zielerreichung', type: 'select', options: [
         { value: 'raise', label: 'Ziel erhöhen (weiterzählen)' },
@@ -1362,6 +1363,17 @@ export default function OverlayPage() {
                         <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
                           {field.label}
                           <GiftListEditor value={String(value)} onChange={(v) => setProp(v)} />
+                          {field.hint && <p className="mt-1 normal-case tracking-normal text-studio-muted/70">{field.hint}</p>}
+                        </div>
+                      );
+                    }
+
+                    // Einzel-Gift mit durchsuchbarer Auswahl (Bild + Name, keine Tipparbeit).
+                    if (field.type === 'gift') {
+                      return (
+                        <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
+                          {field.label}
+                          <div className="mt-1.5"><GiftPicker value={String(value)} onChange={(v) => setProp(v)} placeholder="Alle Gifts (leer lassen)…" /></div>
                           {field.hint && <p className="mt-1 normal-case tracking-normal text-studio-muted/70">{field.hint}</p>}
                         </div>
                       );
