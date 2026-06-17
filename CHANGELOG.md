@@ -3,6 +3,24 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.3] — 2026-06-17
+
+Stabilitäts-Build nach gründlichem Mehr-Agenten-Audit — behebt mehrere echte Fehler aus v0.3.2.
+
+### Fixed
+- **Follower-Zahl + Gift-Summen bleiben jetzt wirklich erhalten** nach Update/Neustart — der Wiederherstell-Mechanismus wurde vorher beim ersten erneuten Verbinden sofort wieder gelöscht.
+- **Galerie „Letztes Live"** verliert nicht mehr bei jedem kurzen Verbindungsabriss die bereits erhaltenen Geschenke.
+- **„Rahmen ausblenden" behält die Profilbild- und Ranglisten-Ringe** (Gold/Silber/Bronze im Arcade-Leaderboard) — die waren vorher fälschlich mit verschwunden. Gift-Alert-Restrahmen und Sport-„Mein Team"-Markierung im Frameless ebenfalls korrigiert.
+- **Gift-Feed-Text** ist auf hellen Designs wieder lesbar.
+- **Cloud-Verbindung robuster:** keine Geister-Trennungen mehr, sauberes Schließen alter Verbindungen, schonenderer Umgang mit dem Gratis-Kontingent, und Likes/Viewer-Zahlen fallen nicht mehr auf 0, falls der Cloud-Dienst Felder anders benennt. Klare Meldung, dass Chat-Senden im Cloud-Modus nicht geht.
+- **Befehl-Karussell-Editor** verträgt jetzt Sonderzeichen im Text ohne die Liste zu zerschießen; die Editor-Vorschau lädt nicht mehr mitten im Bearbeiten neu.
+- Sicherheits-Härtung des internen Sound-Vorhör-Proxys (SSRF/Redirect-Schutz, Größenlimit, Timeout).
+
+### Added
+- **Empfohlene Browserquellen-Größe** (z.B. 1080×1920) wird jetzt am Profil angezeigt und beim Link-Kopieren mitgesagt — inkl. kurzer Schritt-Anleitung für TikTok Live Studio.
+
+---
+
 ## [0.3.2] — 2026-06-17
 
 ### Added
