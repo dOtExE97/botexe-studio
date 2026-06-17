@@ -94,6 +94,8 @@ export interface CloudWsLike {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on(event: string, cb: (...args: any[]) => void): unknown;
   close(): void;
+  /** Beim Trennen die WS-Handler abräumen (die echte ws-Lib kann das). */
+  removeAllListeners?(): void;
 }
 
 export type CloudWsFactory = (url: string) => CloudWsLike;
@@ -140,6 +142,8 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
   private ws: CloudWsLike | null = null;
   private settled = false;
   private connectedOnce = false;
+  /** true ab disconnect() → unterdrückt Geister-Events eines selbst ausgelösten Close. */
+  private closing = false;
 
   constructor(username: string, opts: EulerCloudOptions) {
     super();
@@ -151,6 +155,10 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
   connect(): Promise<Record<string, unknown>> {
     return new Promise<Record<string, unknown>>((resolve, reject) => {
       this.settled = false;
+      this.closing = false;
+      // Doppel-connect()/Alt-WS schützen: eine evtl. bestehende WS sauber schließen
+      // (sonst leakt sie gegen das 10-Cloud-WS-Limit).
+      if (this.ws) { try { this.ws.removeAllListeners?.(); this.ws.close(); } catch { /* egal */ } this.ws = null; }
       const ws = this.wsFactory(this.url);
       this.ws = ws;
 
@@ -188,6 +196,8 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
           reject(new Error(closeRejectMessage(Number(code), reason)));
           return;
         }
+        // Selbst ausgelöster Close (disconnect) → keine Geister-Events.
+        if (this.closing) return;
         if (STREAM_END_CLOSE_CODES.has(Number(code))) this.emit('streamEnd', {});
         this.emit('disconnected');
       });
@@ -201,8 +211,11 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
   }
 
   disconnect(): void {
+    this.closing = true;
     if (this.ws) {
-      try { this.ws.close(); } catch { /* egal */ }
+      // Erst Handler abräumen (kein Geister-'disconnected'/'streamEnd' nach close),
+      // dann schließen.
+      try { this.ws.removeAllListeners?.(); this.ws.close(); } catch { /* egal */ }
       this.ws = null;
     }
   }

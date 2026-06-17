@@ -127,6 +127,20 @@ test('nach erfolgreichem connect: Close → disconnected-Event, Stream-Ende-Code
   assert.deepEqual(events, ['streamEnd', 'disconnected']);
 });
 
+test('disconnect: selbst ausgelöster Close erzeugt KEIN Geister-disconnected/streamEnd', async () => {
+  const { conn, getWs } = makeConn();
+  const events: string[] = [];
+  conn.on('disconnected', () => events.push('disconnected'));
+  conn.on('streamEnd', () => events.push('streamEnd'));
+  const p = conn.connect();
+  getWs().deliver([{ type: 'tiktok.connect', data: {} }]);
+  await p;
+  const ws = getWs();
+  conn.disconnect();
+  ws.emit('close', 4005, Buffer.from('stream ended')); // alter Handler darf nicht mehr feuern
+  assert.deepEqual(events, [], 'nach disconnect() keine Events mehr');
+});
+
 test('connect: Timeout ohne jede Antwort → reject', async () => {
   const { conn } = makeConn();
   await assert.rejects(conn.connect(), /Timeout|antwortet nicht/i);

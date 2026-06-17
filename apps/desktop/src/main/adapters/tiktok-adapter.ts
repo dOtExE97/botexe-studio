@@ -75,7 +75,10 @@ const DEFAULTS = {
   maxReconnect: 5,
   baseReconnectDelayMs: 3_000,
   jitterMs: 1_000,
-  livePollMs: 15_000,
+  // Auto-Connect-Live-Watch: Im Cloud-Modus öffnet jeder Tick eine echte Cloud-WS
+  // (Live-Check). 30s schont das Gratis-Kontingent (10 WS / 1000 Req/Tag) deutlich,
+  // ohne dass das Auto-Verbinden spürbar träge wird.
+  livePollMs: 30_000,
 };
 
 /** Direkter Weg: tiktok-live-connector signiert selbst (braucht Business-Key),
@@ -149,11 +152,15 @@ export class TikTokAdapter {
     const clean = text.trim().slice(0, 150);
     if (!clean) return { ok: false, error: 'leer' };
     if (!this.connection) return { ok: false, error: 'nicht verbunden — erst mit deinem Live verbinden' };
+    // Cloud-Verbindung kann grundsätzlich kein Chat-Senden (nur Empfangen) →
+    // klare Meldung, BEVOR wir den Login bemängeln.
+    if (typeof this.connection.sendMessage !== 'function') {
+      return { ok: false, error: 'Chat-Senden geht im Cloud-Modus (gratis) nicht — in Einstellungen → TikTok-Verbindung auf „Direkt" umstellen (braucht Business-Sign-Key).' };
+    }
     const auth = this.getAuth();
     if (!auth.sessionId || !auth.ttTargetIdc) {
       return { ok: false, error: 'kein vollständiger TikTok-Login — in den Einstellungen neu „Mit TikTok anmelden"' };
     }
-    if (typeof this.connection.sendMessage !== 'function') return { ok: false, error: 'Senden von dieser Lib-Version nicht unterstützt' };
     try {
       await this.connection.sendMessage(clean, { sessionId: auth.sessionId, ttTargetIdc: auth.ttTargetIdc });
       return { ok: true };

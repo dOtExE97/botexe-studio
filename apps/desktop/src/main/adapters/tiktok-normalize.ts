@@ -88,7 +88,8 @@ export function normalizeGift(
 }
 
 export function normalizeLike(
-  data: { user?: RawUser; likeCount?: number; totalLikeCount?: number },
+  // Fallback-Feldnamen, falls der Cloud-WS (Euler) leicht andere Casings liefert.
+  data: { user?: RawUser; likeCount?: number; totalLikeCount?: number; totalLikes?: number; total?: number },
   ts: number,
 ): StudioEvent {
   return {
@@ -96,7 +97,7 @@ export function normalizeLike(
     ts,
     user: toUser(data.user),
     likeCount: data.likeCount ?? 1,
-    totalLikes: data.totalLikeCount ?? 0,
+    totalLikes: data.totalLikeCount ?? data.totalLikes ?? data.total ?? 0,
   };
 }
 
@@ -109,6 +110,9 @@ export function normalizeSocial(
   return { type: kind, ts, user: toUser(data.user) };
 }
 
-export function normalizeViewerCount(data: { viewerCount?: number }, ts: number): StudioEvent {
-  return { type: 'viewer_count', ts, viewerCount: data.viewerCount ?? 0 };
+export function normalizeViewerCount(
+  data: { viewerCount?: number; totalUser?: number; total?: number },
+  ts: number,
+): StudioEvent {
+  return { type: 'viewer_count', ts, viewerCount: data.viewerCount ?? data.totalUser ?? data.total ?? 0 };
 }
