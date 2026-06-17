@@ -938,20 +938,21 @@ export class Studio {
       : typeof gifts === 'object' && gifts !== null
         ? Object.values(gifts as Record<string, unknown>).filter((v) => typeof v === 'object')
         : [];
+    // Neuer Live-Stream → „Letztes Live"-Markierung leeren. Danach markiert sich
+    // jedes tatsächlich EMPFANGENE Gift selbst (record count>0 im gift-Handler),
+    // sodass die Galerie nur die erhaltenen Gifts zeigt, nicht den Room-Katalog.
+    this.giftCatalog.resetLastRoom();
     let imported = 0;
-    const roomSlugs: string[] = [];
     for (const raw of list) {
       const g = raw as { id?: number; gift_id?: number; name?: string; describe?: string; diamondCount?: number; diamond_count?: number; image?: { url_list?: string[]; urlList?: string[] }; icon?: { url_list?: string[]; urlList?: string[] } };
       const name = g.name || g.describe;
       if (!name) continue;
       const img = g.image ?? g.icon;
       const icon = img?.url_list?.[0] ?? img?.urlList?.[0];
+      // count:0 → nur Bild/Coins in den Katalog, markiert NICHT als „erhalten".
       this.giftCatalog.record({ slug: name, giftId: g.id ?? g.gift_id, icon, coinsPerUnit: g.diamondCount ?? g.diamond_count ?? 0, count: 0 });
-      roomSlugs.push(name);
       imported++;
     }
-    // „Letztes Live"-Ansicht der Galerie: genau diese Gifts markieren.
-    if (roomSlugs.length) this.giftCatalog.markLastRoom(roomSlugs);
     if (imported > 0) log.info('GiftCatalog', `${imported} Gifts (mit Bildern) aus der Room-Liste übernommen`);
   }
 

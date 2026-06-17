@@ -71,6 +71,9 @@ export class GiftCatalog {
     const inc = gift.count ?? 1;
     const entry = this.gifts.get(key) ?? { slug: gift.slug, coins: gift.coinsPerUnit ?? 0, count: 0 };
     entry.count += inc;
+    // Tatsächlich empfangenes Gift (inc>0) zählt zur „Letztes Live"-Ansicht.
+    // (Katalog-Import läuft mit count:0 → markiert NICHT.)
+    if (inc > 0) entry.inLastRoom = true;
     entry.lastSeen = gift.at ?? Date.now();
     if (gift.icon) entry.icon = gift.icon; // neueste CDN-URL gewinnt
     if (typeof gift.giftId === 'number' && gift.giftId > 0) entry.giftId = gift.giftId;
@@ -84,10 +87,11 @@ export class GiftCatalog {
     this.scheduleSave();
   }
 
-  /** Markiert die Gift-Liste des aktuellen Live-Streams (für die „Letztes Live"-Ansicht). */
-  markLastRoom(slugs: string[]): void {
-    const want = new Set(slugs.map((s) => s.trim().toLowerCase()).filter(Boolean));
-    for (const [key, entry] of this.gifts) entry.inLastRoom = want.has(key);
+  /** Bei Stream-Start: „Letztes Live"-Markierung leeren. Danach markiert sich
+   *  jedes TATSÄCHLICH empfangene Gift selbst (record mit count>0) — so zeigt die
+   *  Ansicht nur die Gifts dieses/letzten Streams, nicht den ganzen Room-Katalog. */
+  resetLastRoom(): void {
+    for (const entry of this.gifts.values()) entry.inLastRoom = false;
     this.scheduleSave();
   }
 

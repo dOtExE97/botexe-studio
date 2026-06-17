@@ -38,20 +38,26 @@ test('erster echter Sender wird mit Datum verewigt und ändert sich nicht mehr',
   assert.equal(c.all()['rose']?.firstSenderAt, 1000);
 });
 
-test('markLastRoom markiert genau die Gifts des letzten Live (vorige Markierung fällt weg)', () => {
+test('„Letztes Live": nur ERHALTENE Gifts markiert, Katalog-Import (count:0) NICHT', () => {
   const c = new GiftCatalog(tmpDir());
+  // Stream-Start: Room-Katalog importiert (count:0, nur Bilder) + Reset.
+  c.resetLastRoom();
   c.record({ slug: 'Rose', count: 0 });
   c.record({ slug: 'Lion', count: 0 });
   c.record({ slug: 'Galaxy', count: 0 });
+  // Nur ein Rose-Gift kam wirklich rein.
+  c.record({ slug: 'Rose', count: 3, sender: { id: 'u1', nickname: 'Anna' } });
 
-  c.markLastRoom(['Rose', 'Lion']);
-  assert.equal(c.all()['rose']?.inLastRoom, true);
-  assert.equal(c.all()['galaxy']?.inLastRoom, false);
+  assert.equal(c.all()['rose']?.inLastRoom, true, 'erhaltenes Gift ist markiert');
+  assert.ok(!c.all()['lion']?.inLastRoom, 'nur verfügbares (count:0) NICHT');
+  assert.ok(!c.all()['galaxy']?.inLastRoom);
 
-  // Nächstes Live mit anderer Liste → alte Markierung weg.
-  c.markLastRoom(['Galaxy']);
-  assert.equal(c.all()['rose']?.inLastRoom, false);
+  // Nächster Stream: Reset leert alles, dann markiert sich das neue Gift.
+  c.resetLastRoom();
+  assert.ok(!c.all()['rose']?.inLastRoom, 'voriges Live fällt weg');
+  c.record({ slug: 'Galaxy', count: 1, sender: { id: 'u2', nickname: 'Ben' } });
   assert.equal(c.all()['galaxy']?.inLastRoom, true);
+  assert.ok(!c.all()['rose']?.inLastRoom);
 });
 
 test('persistiert und lädt wieder', () => {
