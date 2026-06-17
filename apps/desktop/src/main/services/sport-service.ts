@@ -74,7 +74,7 @@ export class SportService {
       // Leitung („fetch failed") + langsamer Ticker.
       const { from, to } = this.dateRange();
       const url = `https://api.football-data.org/v4/competitions/${encodeURIComponent(competition)}/matches?dateFrom=${from}&dateTo=${to}`;
-      const res = await this.fetchFn(url, { headers: { 'X-Auth-Token': apiKey } });
+      const res = await this.robustFetch(url, { headers: { 'X-Auth-Token': apiKey } }, `Spiele ${competition}`);
       this.applyRateLimit(res);
       if (res.status === 429) throw new Error('Rate-Limit erreicht — Pause');
       if (!res.ok) throw new Error(`football-data HTTP ${res.status}`);
@@ -82,7 +82,7 @@ export class SportService {
     }
     // OpenLigaDB: competition = Liga-Kürzel (z.B. 'bl1') → aktueller Spieltag.
     const url = `https://api.openligadb.de/getmatchdata/${encodeURIComponent(competition)}`;
-    const res = await this.fetchFn(url);
+    const res = await this.robustFetch(url, {}, `Spiele ${competition}`);
     if (!res.ok) throw new Error(`openligadb HTTP ${res.status}`);
     return normalizeMatches('openligadb', await res.json());
   }
@@ -109,7 +109,7 @@ export class SportService {
       const apiKey = this.getApiKey();
       if (!apiKey) throw new Error('Kein football-data.org API-Key (Einstellungen → Sport)');
       const url = `https://api.football-data.org/v4/competitions/${encodeURIComponent(competition)}/standings`;
-      const res = await this.fetchFn(url, { headers: { 'X-Auth-Token': apiKey } });
+      const res = await this.robustFetch(url, { headers: { 'X-Auth-Token': apiKey } }, `Tabelle ${competition}`);
       this.applyRateLimit(res);
       if (res.status === 429) throw new Error('Rate-Limit erreicht — Pause');
       if (!res.ok) throw new Error(`football-data HTTP ${res.status}`);
@@ -117,9 +117,30 @@ export class SportService {
     }
     // OpenLigaDB: getbltable braucht Liga + Saison (Aug–Jun → Startjahr).
     const url = `https://api.openligadb.de/getbltable/${encodeURIComponent(competition)}/${this.season()}`;
-    const res = await this.fetchFn(url);
+    const res = await this.robustFetch(url, {}, `Tabelle ${competition}`);
     if (!res.ok) throw new Error(`openligadb HTTP ${res.status}`);
     return normalizeStandings('openligadb', await res.json());
+  }
+
+  /** Fetch mit Timeout + genau EINER Wiederholung bei Netz-Aussetzer.
+   *  „fetch failed"/Timeout sind oft transient (kurzer Verbindungs-Blip) — ein
+   *  sofortiger zweiter Versuch fängt das ab, ohne den Ticker endlos zu hämmern. */
+  private async robustFetch(url: string, init: RequestInit, label: string): Promise<Response> {
+    const attempt = async (): Promise<Response> => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8_000);
+      try {
+        return await this.fetchFn(url, { ...init, signal: ctrl.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+    try {
+      return await attempt();
+    } catch (err) {
+      this.logWarn('Sport', `${label}: Netzwerk-Aussetzer, 1× Wiederholung`, (err as Error).message);
+      return await attempt();
+    }
   }
 
   /** Datum-Fenster (YYYY-MM-DD) für die Spiele-Abfrage: heute … +8 Tage. */

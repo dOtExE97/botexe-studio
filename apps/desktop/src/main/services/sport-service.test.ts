@@ -70,3 +70,27 @@ test('ohne API-Key: kein Netzaufruf und nur ein Hinweis pro 60s (kein Log-Spam)'
   await svc.getMatches('football-data', '2000');
   assert.equal(warns, 2, 'nach 60s darf wieder einmal gewarnt werden');
 });
+
+test('transienter Netz-Aussetzer ("fetch failed") → genau EINE Wiederholung, dann Erfolg', async () => {
+  let calls = 0;
+  const fetchFn = (async () => {
+    calls++;
+    if (calls === 1) throw new Error('fetch failed'); // erster Versuch: Netz-Blip
+    return makeRes({ matches: [] });                  // zweiter Versuch: klappt
+  }) as unknown as typeof fetch;
+  const svc = new SportService(() => 'key', () => 1000, fetchFn, () => undefined);
+
+  const matches = await svc.getMatches('football-data', '2000');
+  assert.deepEqual(matches, [], 'liefert (leere) Daten statt zu scheitern');
+  assert.equal(calls, 2, 'genau einmal wiederholt');
+});
+
+test('zweimal "fetch failed" → letzter Stand/leer, KEIN dritter Versuch', async () => {
+  let calls = 0;
+  const fetchFn = (async () => { calls++; throw new Error('fetch failed'); }) as unknown as typeof fetch;
+  const svc = new SportService(() => 'key', () => 1000, fetchFn, () => undefined);
+
+  const matches = await svc.getMatches('football-data', '2000');
+  assert.deepEqual(matches, [], 'kein letzter Stand vorhanden → leer, aber kein Crash');
+  assert.equal(calls, 2, 'genau ein Retry, dann aufgeben (kein Endlos-Hämmern)');
+});
