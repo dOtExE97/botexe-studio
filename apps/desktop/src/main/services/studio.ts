@@ -116,7 +116,10 @@ export class Studio {
   readonly sport: SportService;
   readonly obs: ObsService;
   readonly streamerbot: StreamerbotService;
-  readonly stats = new SessionStats();
+  private stats: SessionStats;
+  /** Persistenz der laufenden Session-Stats (überlebt App-Update/Neustart). */
+  private statsFile = '';
+  private statsSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly engine = new TriggerEngine();
   private readonly adapter: TikTokAdapter;
@@ -151,6 +154,10 @@ export class Studio {
     this.points = new PointsStore(paths.userDataDir);
     this.giftCatalog = new GiftCatalog(paths.userDataDir);
     this.statsHistory = new StatsHistory(paths.userDataDir);
+    // Laufende Session-Stats wiederherstellen (z.B. nach Update-Neustart), damit
+    // Follower-Zahl + Gift-Summen im Overlay nicht auf 0 zurückfallen.
+    this.statsFile = path.join(paths.userDataDir, 'session-stats.json');
+    this.stats = this.restoreSessionStats();
     this.sport = new SportService(() => this.settings.get().sportApiKey ?? '');
     this.obs = new ObsService((status) => this.hooks.onObsStatus?.(status));
     this.streamerbot = new StreamerbotService((status) => this.hooks.onStreamerbotStatus?.(status));
@@ -248,7 +255,7 @@ export class Studio {
 
       // 2. Loyalty-Punkte (persistent über Streams) + Session-Statistik
       this.points.recordEvent(e, this.settings.get().points);
-      if (this.stats.apply(e)) this.scheduleStatsBroadcast();
+      if (this.stats.apply(e)) { this.scheduleStatsBroadcast(); this.scheduleStatsSave(); }
 
       // 3. Trigger-Engine: Regeln auswerten, Aktionen ausführen (mit Sequenz-Delay)
       for (const match of this.engine.evaluate(e)) {
@@ -466,6 +473,8 @@ export class Studio {
     for (const t of this.actionTimers) clearTimeout(t);
     this.actionTimers.clear();
     this.flushSessionToHistory();
+    if (this.statsSaveTimer) { clearTimeout(this.statsSaveTimer); this.statsSaveTimer = null; }
+    this.saveSessionStats();
     this.points.save();
     this.giftCatalog.save();
     this.statsHistory.save();
@@ -803,8 +812,48 @@ export class Studio {
 
   /** Session-Reset: Stats/Zähler/Widget-Inhalte auf null — räumt z.B.
    *  Test-Events weg. Loyalty-PUNKTE bleiben (das ist resetPoints). */
+  /** Laufende Session-Stats von der Platte holen — nur frische Sessions (<6h),
+   *  sonst aufersteht nach langer Pause eine uralte Session. */
+  private restoreSessionStats(): SessionStats {
+    try {
+      if (fs.existsSync(this.statsFile)) {
+        const ageMs = Date.now() - fs.statSync(this.statsFile).mtimeMs;
+        if (ageMs < 6 * 3_600_000) {
+          const restored = SessionStats.fromJSON(fs.readFileSync(this.statsFile, 'utf-8'));
+          if (restored) {
+            log.info('Studio', 'Laufende Session-Stats wiederhergestellt (Update/Neustart)');
+            return restored;
+          }
+        }
+      }
+    } catch (err) {
+      log.warn('Studio', 'Session-Stats-Restore fehlgeschlagen', (err as Error).message);
+    }
+    return new SessionStats();
+  }
+
+  private scheduleStatsSave(): void {
+    if (this.statsSaveTimer) return;
+    this.statsSaveTimer = setTimeout(() => {
+      this.statsSaveTimer = null;
+      this.saveSessionStats();
+    }, 5_000);
+  }
+
+  private saveSessionStats(): void {
+    try {
+      fs.writeFileSync(this.statsFile, this.stats.toJSON());
+    } catch (err) {
+      log.warn('Studio', 'Session-Stats speichern fehlgeschlagen', (err as Error).message);
+    }
+  }
+
   resetSession(): void {
     this.stats.reset();
+    // Neuer Stream → persistierten Stand verwerfen (sonst kommt er beim nächsten
+    // Start zurück). Laufenden Save-Timer abbrechen.
+    if (this.statsSaveTimer) { clearTimeout(this.statsSaveTimer); this.statsSaveTimer = null; }
+    try { fs.rmSync(this.statsFile, { force: true }); } catch { /* egal */ }
     this.engine.resetCooldowns();
     this.redemptionCooldowns.clear();
     this.commandCooldowns.clear();
