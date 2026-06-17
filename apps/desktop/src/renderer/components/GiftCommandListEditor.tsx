@@ -61,7 +61,9 @@ export default function GiftCommandListEditor({ value, onChange }: { value: stri
           </div>
           <input
             value={row.text}
-            onChange={(e) => setRow(i, { text: e.target.value })}
+            // | und :: sind Trennzeichen im Speicherformat → im Text neutralisieren,
+            // damit eine Eingabe die Liste nicht zerschießt.
+            onChange={(e) => setRow(i, { text: e.target.value.replace(/\|/g, '/').replace(/::/g, ':') })}
             placeholder="Auslöser/Text (z.B. !feuer)"
             className="bx-input min-w-0 flex-1 text-xs normal-case tracking-normal"
           />

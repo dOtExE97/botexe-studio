@@ -607,7 +607,9 @@ function connect() {
     // damit Browser-Quellen den frischen Runtime-/Widget-Code holen statt ewig den
     // alten im Speicher zu behalten.
     if (msg.kind === 'hello') {
-      if (seenVersion !== null && seenVersion !== msg.version) {
+      // Editor-Vorschau (PREVIEW) NICHT neuladen — würde mitten im Bearbeiten
+      // neu starten; sie wird beim App-Neustart ohnehin frisch geladen.
+      if (seenVersion !== null && seenVersion !== msg.version && !PREVIEW) {
         console.warn(`[overlay] neue Version ${msg.version} (war ${seenVersion}) — lade neu`);
         location.reload();
         return;
