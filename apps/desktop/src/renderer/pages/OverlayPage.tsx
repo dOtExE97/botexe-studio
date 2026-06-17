@@ -821,11 +821,18 @@ export default function OverlayPage() {
     setActiveId(layout.id);
   };
 
+  /** Empfohlene Browserquellen-Größe eines Profils, z.B. „1080×1920". */
+  const dimsFor = (id: string) => {
+    const p = profiles.find((l) => l.id === id);
+    return p ? `${p.canvas.width}×${p.canvas.height}` : '1080×1920';
+  };
+
   const copyProfileLink = async (id: string) => {
     const link = (await window.studio.getProfileLink(id)) as string;
     await window.studio.copyText(link);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1800);
+    toast('success', `Link kopiert — Browserquelle auf ${dimsFor(id)} stellen (benutzerdefinierte Auflösung).`);
   };
 
   // TikTok-Live-Studio-Link: Domain-Form (TTLS lehnt IP-Links ab). Wenn die
@@ -835,7 +842,7 @@ export default function OverlayPage() {
     const info = (await window.studio.getTtlsLink(id)) as { url: string; ready: boolean };
     await window.studio.copyText(info.url);
     if (info.ready) {
-      toast('success', 'TikTok-Studio-Link kopiert — als Link-Quelle einfügen.');
+      toast('success', `TikTok-Studio-Link kopiert — als Link-Quelle einfügen, Größe ${dimsFor(id)}.`);
     } else {
       toast('warn', 'Link kopiert — aber einmalige Einrichtung nötig: Einstellungen → TikTok Live Studio.');
     }
@@ -1073,6 +1080,9 @@ export default function OverlayPage() {
                 <button onClick={() => selectProfile(p.id)} className="flex items-center gap-1.5">
                   {isPortraitP ? <Smartphone size={13} /> : <Monitor size={13} />}
                   <span className="font-bold">{p.name}</span>
+                  <span className="rounded bg-black/30 px-1 py-0.5 font-mono text-[9px] tabular-nums text-studio-muted" title="Browserquellen-Größe in TTLS/OBS auf diesen Wert stellen">
+                    {p.canvas.width}×{p.canvas.height}
+                  </span>
                   {p.id === activeId && <Star size={11} className="text-studio-teal" fill="currentColor" aria-label="Standard-Link" />}
                 </button>
                 <button
