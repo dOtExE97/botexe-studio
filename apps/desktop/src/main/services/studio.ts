@@ -120,6 +120,10 @@ export class Studio {
   /** Persistenz der laufenden Session-Stats (überlebt App-Update/Neustart). */
   private statsFile = '';
   private statsSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** true, wenn beim Start eine laufende Session aus der Datei wiederhergestellt
+   *  wurde → der ERSTE Connect danach ist eine Fortsetzung (App-Update mitten im
+   *  Stream), kein neuer Stream → NICHT resetten. */
+  private restoredStatsValid = false;
 
   private readonly engine = new TriggerEngine();
   private readonly adapter: TikTokAdapter;
@@ -230,8 +234,14 @@ export class Studio {
         // kurzem Abriss (freshStream=false) bleibt alles stehen (Leaderboard
         // übersteht Drops).
         if (info.status === 'connected' && info.freshStream) {
-          this.flushSessionToHistory();
-          this.resetSession();
+          if (this.restoredStatsValid) {
+            // App wurde mitten in der Session neugestartet (Update) → fortsetzen,
+            // NICHT resetten (sonst wären die wiederhergestellten Stats sofort weg).
+            this.restoredStatsValid = false;
+          } else {
+            this.flushSessionToHistory();
+            this.resetSession();
+          }
         }
         this.hooks.onStatus(info);
         if (info.status === 'error') {
@@ -822,6 +832,7 @@ export class Studio {
           const restored = SessionStats.fromJSON(fs.readFileSync(this.statsFile, 'utf-8'));
           if (restored) {
             log.info('Studio', 'Laufende Session-Stats wiederhergestellt (Update/Neustart)');
+            this.restoredStatsValid = true; // erster Connect = Fortsetzung, kein Reset
             return restored;
           }
         }
@@ -850,6 +861,10 @@ export class Studio {
 
   resetSession(): void {
     this.stats.reset();
+    // Neuer Stream → „Letztes Live"-Gift-Markierung leeren (NUR hier, an freshStream
+    // gekoppelt — NICHT bei jedem Reconnect, sonst verschwinden mitten im Stream
+    // alle bereits erhaltenen Gifts aus der Galerie).
+    this.giftCatalog.resetLastRoom();
     // Neuer Stream → persistierten Stand verwerfen (sonst kommt er beim nächsten
     // Start zurück). Laufenden Save-Timer abbrechen.
     if (this.statsSaveTimer) { clearTimeout(this.statsSaveTimer); this.statsSaveTimer = null; }
@@ -994,10 +1009,8 @@ export class Studio {
       : typeof gifts === 'object' && gifts !== null
         ? Object.values(gifts as Record<string, unknown>).filter((v) => typeof v === 'object')
         : [];
-    // Neuer Live-Stream → „Letztes Live"-Markierung leeren. Danach markiert sich
-    // jedes tatsächlich EMPFANGENE Gift selbst (record count>0 im gift-Handler),
-    // sodass die Galerie nur die erhaltenen Gifts zeigt, nicht den Room-Katalog.
-    this.giftCatalog.resetLastRoom();
+    // Hinweis: „Letztes Live" wird in resetSession() (an freshStream gekoppelt)
+    // geleert — NICHT hier, weil onAvailableGifts auch bei jedem Reconnect läuft.
     let imported = 0;
     for (const raw of list) {
       const g = raw as { id?: number; gift_id?: number; name?: string; describe?: string; diamondCount?: number; diamond_count?: number; image?: { url_list?: string[]; urlList?: string[] }; icon?: { url_list?: string[]; urlList?: string[] } };
