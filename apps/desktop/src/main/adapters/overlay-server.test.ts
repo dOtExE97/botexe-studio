@@ -45,6 +45,8 @@ async function setup(heartbeatMs = 0, extra: Record<string, unknown> = {}) {
 interface WsClient {
   ws: WebSocket;
   next(): Promise<Record<string, unknown>>;
+  /** Die hello-Begrüßung (App-Version), die der Server als ALLERERSTES schickt. */
+  whenHello(): Promise<Record<string, unknown>>;
   close(): void;
 }
 
@@ -56,8 +58,17 @@ function wsConnect(url: string): Promise<WsClient> {
     const ws = new WebSocket(url);
     const queue: Record<string, unknown>[] = [];
     const waiters: Array<(m: Record<string, unknown>) => void> = [];
+    // hello (App-Version) kommt immer zuerst — separat halten, damit die übrigen
+    // Tests ihre erste Inhalts-Nachricht (layout/event) unverändert sehen.
+    let hello: Record<string, unknown> | null = null;
+    let helloWaiter: ((m: Record<string, unknown>) => void) | null = null;
     ws.on('message', (data) => {
       const msg = JSON.parse(String(data)) as Record<string, unknown>;
+      if (msg.kind === 'hello') {
+        hello = msg;
+        helloWaiter?.(msg);
+        return;
+      }
       const waiter = waiters.shift();
       if (waiter) waiter(msg);
       else queue.push(msg);
@@ -71,6 +82,11 @@ function wsConnect(url: string): Promise<WsClient> {
             const queued = queue.shift();
             if (queued) res(queued);
             else waiters.push(res);
+          }),
+        whenHello: () =>
+          new Promise((res) => {
+            if (hello) res(hello);
+            else helloWaiter = res;
           }),
         close: () => ws.close(),
       }),
@@ -267,6 +283,19 @@ test('ws: ohne gültigen token wird die verbindung geschlossen', async () => {
       setTimeout(() => resolve(false), 500);
     });
     assert.equal(closed, true);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('ws: ALLERERSTE nachricht ist hello mit der App-Version (Auto-Reload-Handshake)', async () => {
+  const { server } = await setup(0, { appVersion: '9.9.9' });
+  try {
+    const client = await wsConnect(server.getWsUrl());
+    const hello = await client.whenHello();
+    assert.equal(hello.kind, 'hello');
+    assert.equal(hello.version, '9.9.9');
+    client.close();
   } finally {
     await server.stop();
   }

@@ -22,6 +22,7 @@ import type { EventBus } from '../core/event-bus';
 import { log } from '../core/logger';
 
 export type OverlayMessage =
+  | { kind: 'hello'; version: string } // App-Version → Runtime lädt bei Wechsel neu
   | { kind: 'layout'; layout: OverlayLayout }
   | { kind: 'event'; event: StudioEvent }
   | { kind: 'action'; ruleId: string; action: TriggerAction }
@@ -40,6 +41,9 @@ export interface OverlayServerOptions {
   widgetDir: string;
   /** 0 = Heartbeat aus (Tests); Default 30s. */
   heartbeatMs?: number;
+  /** App-Version — beim Connect an die Runtime gesendet; wechselt sie (Update),
+   *  lädt die Browser-Quelle automatisch neu und holt den frischen Overlay-Code. */
+  appVersion?: string;
   /** Layout zu einer Profil-ID (undefined = Default-Profil). */
   getLayout: (id?: string) => OverlayLayout | null;
   /** ID des Default-Profils (für den Link ohne profile-Param). */
@@ -377,6 +381,12 @@ export class OverlayServer {
     };
     const ext = path.extname(filename);
     res.setHeader('Content-Type', `${types[ext] ?? 'application/octet-stream'}; charset=utf-8`);
+    // Overlay-Code (runtime.js/widget-base.css/Widget-Module) NICHT lange cachen —
+    // nach einem Update muss die Browser-Quelle den frischen Code holen (zusammen
+    // mit dem Auto-Reload via hello-Version). ETag-Revalidierung bleibt aktiv.
+    if (ext === '.js' || ext === '.css' || ext === '.html') {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
     if (ext === '.css') {
       // Relative Font-URLs (url('x.woff2')) brauchen den Token — sonst 403.
       let css = fs.readFileSync(target, 'utf-8');
@@ -475,6 +485,11 @@ export class OverlayServer {
       ws.on('error', (err) => {
         log.warn('Overlay', 'WS-Client-Fehler', err.message);
       });
+
+      // Allererste Nachricht: App-Version. Hat die Runtime schon eine ANDERE
+      // Version gesehen (= App wurde aktualisiert, Server neu gestartet), lädt
+      // sie die Seite neu und holt den frischen Overlay-/Widget-Code.
+      this.sendTo(client, { kind: 'hello', version: this.options.appVersion ?? '' }, true);
 
       // Initial-Zustand: aktives Layout + sticky last-values, damit der
       // Overlay-Canvas nicht leer startet (Late-Joiner).

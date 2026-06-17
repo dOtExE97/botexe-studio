@@ -67,6 +67,8 @@ export interface StudioPaths {
   userDataDir: string;
   runtimeDir: string;
   widgetDir: string;
+  /** App-Version → an die Overlay-Runtime, die bei Wechsel automatisch neu lädt. */
+  appVersion?: string;
 }
 
 const STATS_BROADCAST_MIN_MS = 250;
@@ -166,6 +168,7 @@ export class Studio {
     this.server = new OverlayServer(this.bus, {
       port: 27415,
       token: this.getOrCreateControlToken(),
+      appVersion: paths.appVersion,
       runtimeDir: paths.runtimeDir,
       widgetDir: paths.widgetDir,
       soundsDir: this.sounds.getDir(),

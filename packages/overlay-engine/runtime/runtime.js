@@ -9,7 +9,7 @@
 // Bewusst Vanilla-JS ohne Framework: der TTLS-Browser ist limitiert,
 // jedes eingesparte Kilobyte und jeder eingesparte Frame zählt.
 
-/* global window, document, WebSocket */
+/* global window, document, WebSocket, location */
 
 const cfg = window.BOTEXE_OVERLAY || {};
 const stage = document.getElementById('stage');
@@ -570,6 +570,9 @@ function previewTest(widgetType, layerId) {
 
 // ── WebSocket mit Selbstheilung ───────────────────────────────────────────
 let reconnectDelay = 1000;
+// Zuletzt vom Server gemeldete App-Version. Wechselt sie über einen Reconnect
+// hinweg (= App wurde aktualisiert), lädt die Seite neu → frischer Overlay-Code.
+let seenVersion = null;
 let activeWs = null;
 
 // Widget-/Runtime-Fehler an die App melden (zentrales Datei-Log), nicht nur
@@ -598,6 +601,18 @@ function connect() {
     try {
       msg = JSON.parse(raw.data);
     } catch {
+      return;
+    }
+    // Versions-Handshake: bei neuer App-Version (nach Update) die Seite neu laden,
+    // damit Browser-Quellen den frischen Runtime-/Widget-Code holen statt ewig den
+    // alten im Speicher zu behalten.
+    if (msg.kind === 'hello') {
+      if (seenVersion !== null && seenVersion !== msg.version) {
+        console.warn(`[overlay] neue Version ${msg.version} (war ${seenVersion}) — lade neu`);
+        location.reload();
+        return;
+      }
+      seenVersion = msg.version;
       return;
     }
     if (msg.kind === 'layout') void renderLayout(msg.layout);

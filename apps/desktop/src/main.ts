@@ -181,6 +181,7 @@ function setupStudio(): Studio {
     app.isPackaged,
     app.getPath('userData'),
   );
+  paths.appVersion = app.getVersion();
   return new Studio(paths, {
     onSoundPlay: (cmd) => sendToRenderer(IPC.SOUND_PLAY, cmd),
     onStatus: (info) => sendToRenderer(IPC.PLATFORM_STATUS, info),
