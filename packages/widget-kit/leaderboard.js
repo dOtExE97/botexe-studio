@@ -2,8 +2,8 @@
 // props: { source?, limit?, title?, accent?, style?: 'glas'|'neon'|'bars' }
 const STYLE_ID = 'bx-lb-style';
 const CSS = `
-.bx-lb { position: absolute; inset: 0; display: flex; flex-direction: column; font-family: var(--bx-font-body); padding: 16px 18px 14px; overflow: hidden; }
-.bx-lb-title { position: relative; overflow: hidden; font-family: var(--bx-font-display); font-size: 15px; letter-spacing: .3em;
+.bx-lb { position: absolute; inset: 0; display: flex; flex-direction: column; font-family: var(--bx-font-body); padding: 16px 18px 14px; overflow: hidden; container-type: size; }
+.bx-lb-title { position: relative; overflow: hidden; font-family: var(--bx-font-display); font-size: clamp(11px,4.5cqmin,16px); letter-spacing: .3em;
   text-transform: uppercase; color: var(--bx-accent); text-shadow: 0 0 12px color-mix(in srgb, var(--bx-accent) 45%, transparent);
   padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid color-mix(in srgb, var(--bx-accent) 45%, transparent); }
 .bx-lb-title::after { content:''; position:absolute; top:0; bottom:0; left:-60%; width:45%; transform:skewX(-20deg);
@@ -17,8 +17,8 @@ const CSS = `
 .bx-lb-row[data-rank="3"] .bx-lb-rank { background: linear-gradient(160deg,#f0b487,#c9763c); }
 .bx-lb-row[data-rank="1"]::after { content:url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2018%22%3E%3Cpath%20d%3D%22M2%206.2l3.6%203.1L9.4%203l2.6%204.2L14.6%203l3.8%206.3L22%206.2l-1.7%209.3a1%201%200%200%201-1%20.8H4.7a1%201%200%200%201-1-.8L2%206.2Z%22%20fill%3D%22%23ffd23e%22%20stroke%3D%22rgba%280%2C0%2C0%2C.55%29%22%20stroke-width%3D%22.8%22%20stroke-linejoin%3D%22round%22%2F%3E%3Ccircle%20cx%3D%222%22%20cy%3D%226.2%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%222.4%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%226.2%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3C%2Fsvg%3E'); position:absolute; left:24px; top:-6px; transform:rotate(-18deg); filter:drop-shadow(0 1px 2px rgba(0,0,0,.8)); z-index:2; }
 .bx-lb-pic { width:32px; height:32px; border-radius:50%; flex:none; background:#1a1c28 center/cover; box-shadow:0 0 0 2px rgba(255,255,255,.12); }
-.bx-lb-name { flex:1; font-family: var(--bx-font-display); font-size:18px; color:var(--bx-text,#fff); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 2px 4px rgba(0,0,0,.5); }
-.bx-lb-val { font-family: var(--bx-font-mono); font-weight:700; font-size:16px; color: var(--bx-gold); text-shadow: 0 0 10px color-mix(in srgb, var(--bx-gold) 40%, transparent); }
+.bx-lb-name { flex:1; font-family: var(--bx-font-display); font-size:clamp(11px,5cqmin,18px); color:var(--bx-text,#fff); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 2px 4px rgba(0,0,0,.5); }
+.bx-lb-val { font-family: var(--bx-font-mono); font-weight:700; font-size:clamp(10px,4.5cqmin,16px); color: var(--bx-gold); text-shadow: 0 0 10px color-mix(in srgb, var(--bx-gold) 40%, transparent); }
 .bx-lb-likes .bx-lb-title, .bx-lb-likes .bx-lb-val { color: var(--bx-pink); }
 .bx-lb-likes .bx-lb-title { border-bottom-color: color-mix(in srgb, var(--bx-pink) 45%, transparent); }
 .bx-lb-empty { display:flex; align-items:center; justify-content:center; height:100%; font-size:13px; letter-spacing:.2em; color: var(--bx-muted); text-transform:uppercase; }
@@ -58,20 +58,20 @@ const CSS = `
 .bx-st-arcade .bx-lb-list { display: flex; align-items: flex-start; justify-content: center; gap: 3%; flex-wrap: nowrap; }
 .bx-st-arcade .bx-lb-row { position: static; height: auto; flex-direction: column; align-items: center; gap: 4px; padding: 0; transform: none !important; flex: 1 1 0; min-width: 0; max-width: 20%; }
 .bx-st-arcade .bx-lb-rank { display: none; }
-.bx-st-arcade .bx-lb-pic { width: 78px; height: 78px; box-shadow: 0 0 0 4px #5c9dff, 0 6px 14px rgba(0,0,0,.55); }
-.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-pic { width: 92px; height: 92px; box-shadow: 0 0 0 5px #ffd23e, 0 0 26px -2px #ffd23e, 0 6px 14px rgba(0,0,0,.55); }
+.bx-st-arcade .bx-lb-pic { width: clamp(34px,22cqmin,78px); height: clamp(34px,22cqmin,78px); box-shadow: 0 0 0 4px #5c9dff, 0 6px 14px rgba(0,0,0,.55); }
+.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-pic { width: clamp(40px,26cqmin,92px); height: clamp(40px,26cqmin,92px); box-shadow: 0 0 0 5px #ffd23e, 0 0 26px -2px #ffd23e, 0 6px 14px rgba(0,0,0,.55); }
 .bx-st-arcade .bx-lb-row[data-rank="2"] .bx-lb-pic { box-shadow: 0 0 0 4px #d7deec, 0 6px 14px rgba(0,0,0,.55); }
 .bx-st-arcade .bx-lb-row[data-rank="3"] .bx-lb-pic { box-shadow: 0 0 0 4px #f0a35a, 0 6px 14px rgba(0,0,0,.55); }
 .bx-st-arcade .bx-lb-row::after { content: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2226%22%20height%3D%2220%22%20viewBox%3D%220%200%2024%2018%22%3E%3Cpath%20d%3D%22M2%206.2l3.6%203.1L9.4%203l2.6%204.2L14.6%203l3.8%206.3L22%206.2l-1.7%209.3a1%201%200%200%201-1%20.8H4.7a1%201%200%200%201-1-.8L2%206.2Z%22%20fill%3D%22%23ffd23e%22%20stroke%3D%22rgba%280%2C0%2C0%2C.55%29%22%20stroke-width%3D%22.8%22%20stroke-linejoin%3D%22round%22%2F%3E%3Ccircle%20cx%3D%222%22%20cy%3D%226.2%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%222.4%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%226.2%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3C%2Fsvg%3E'); position: static; order: -1; margin-bottom: -8px; z-index: 2;
   transform: rotate(-8deg); filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
 .bx-st-arcade .bx-lb-row[data-rank="1"]::after { font-size: 36px; margin-bottom: -10px; transform: rotate(0); }
 .bx-st-arcade .bx-lb-row[data-rank="4"]::after, .bx-st-arcade .bx-lb-row[data-rank="5"]::after { content: ''; }
-.bx-st-arcade .bx-lb-name { flex: none; max-width: 100%; font-size: 17px; text-align: center; line-height: 1.05; color: #8dffa0;
+.bx-st-arcade .bx-lb-name { flex: none; max-width: 100%; font-size: clamp(10px,7cqmin,17px); text-align: center; line-height: 1.05; color: #8dffa0;
   -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
-.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-name { font-size: 20px; color: #ffd23e; }
+.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-name { font-size: clamp(11px,8cqmin,20px); color: #ffd23e; }
 .bx-st-arcade .bx-lb-row[data-rank="2"] .bx-lb-name { color: #f0f4ff; }
 .bx-st-arcade .bx-lb-row[data-rank="3"] .bx-lb-name { color: #ffb05a; }
-.bx-st-arcade .bx-lb-val { font-family: var(--bx-font-display); font-size: 19px; color: var(--bx-text,#fff);
+.bx-st-arcade .bx-lb-val { font-family: var(--bx-font-display); font-size: clamp(10px,7cqmin,19px); color: var(--bx-text,#fff);
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
 .bx-st-arcade .bx-lb-val .arr { color: #59f08a; -webkit-text-stroke: 2px #0a0b12; }
 .bx-st-arcade.bx-lb-likes .bx-lb-val { color: #ff8ab0; }
@@ -106,6 +106,11 @@ export default class Leaderboard {
     const empty = list.querySelector('.bx-lb-empty');
     if (empty && items.length > 0) empty.remove();
     const maxVal = Math.max(1, ...items.map((g) => (this.source === 'likes' ? g.likes : g.coins)));
+    // Zeilenhöhe aus der tatsächlichen Box ableiten (statt fix 48px) → beim
+    // Verkleinern werden die Zeilen enger statt unten abgeschnitten.
+    const rowH = this.style !== 'arcade'
+      ? Math.max(22, (list.clientHeight || this.limit * 48) / this.limit)
+      : 0;
     const seen = new Set();
     items.forEach((g, i) => {
       seen.add(g.id);
@@ -118,7 +123,7 @@ export default class Leaderboard {
       }
       const val = this.source === 'likes' ? g.likes : g.coins;
       row.dataset.rank = String(i + 1);
-      if (this.style !== 'arcade') row.style.transform = `translateY(${i * 48}px)`;
+      if (this.style !== 'arcade') { row.style.height = `${rowH}px`; row.style.transform = `translateY(${i * rowH}px)`; }
       if (this.style === 'bars') row.style.setProperty('--bar', `${Math.max(8, (val / maxVal) * 100)}%`);
       row.querySelector('.bx-lb-rank').textContent = String(i + 1);
       row.querySelector('.bx-lb-name').textContent = g.nickname;

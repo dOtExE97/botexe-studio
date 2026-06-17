@@ -3,13 +3,13 @@
 const STYLE_ID = 'bx-gb-style';
 const CSS = `
 .bx-gb { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center;
-  font-family: var(--bx-font-body); padding: 4px 2px; }
+  font-family: var(--bx-font-body); padding: 4px 2px; container-type: size; }
 .bx-gb-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0 4px 8px; }
-.bx-gb-label { font-family: var(--bx-font-display); font-size: 16px; letter-spacing: .26em; color: var(--bx-text,#fff);
+.bx-gb-label { font-family: var(--bx-font-display); font-size: clamp(9px,8cqmin,16px); letter-spacing: .26em; color: var(--bx-text,#fff);
   text-transform: uppercase; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
-.bx-gb-nums { font-family: var(--bx-font-mono); font-weight: 700; font-size: 17px; color: var(--bx-gold);
+.bx-gb-nums { font-family: var(--bx-font-mono); font-weight: 700; font-size: clamp(9px,8cqmin,17px); color: var(--bx-gold);
   text-shadow: 0 0 12px color-mix(in srgb, var(--bx-gold) 45%, transparent), 0 2px 6px rgba(0,0,0,.8); }
-.bx-gb-track { position: relative; height: 30px; border-radius: 999px; overflow: hidden;
+.bx-gb-track { position: relative; height: clamp(14px,38cqmin,30px); border-radius: 999px; overflow: hidden;
   background: linear-gradient(180deg, rgba(8,9,14,.92), rgba(18,20,28,.92));
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--bx-accent) 35%, transparent) inset, 0 10px 24px -8px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,.06) inset; }
 .bx-gb-fill { position: absolute; inset: 0; width: 0%; border-radius: 999px;
@@ -21,7 +21,7 @@ const CSS = `
   animation: bx-gb-stripes 1.3s linear infinite; }
 .bx-gb-tick { position: absolute; top: 4px; bottom: 4px; width: 2px; border-radius: 2px; background: rgba(255,255,255,.18); }
 .bx-gb-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-family: var(--bx-font-display); font-size: 14px; color: #fff; letter-spacing: .14em; text-shadow: 0 1px 4px rgba(0,0,0,.95); }
+  font-family: var(--bx-font-display); font-size: clamp(9px,5cqmin,14px); color: #fff; letter-spacing: .14em; text-shadow: 0 1px 4px rgba(0,0,0,.95); }
 .bx-gb.done .bx-gb-fill { background: linear-gradient(90deg, var(--bx-teal), #7dffe9); box-shadow: 0 0 26px 0 color-mix(in srgb, var(--bx-teal) 75%, transparent); }
 .bx-gb.done .bx-gb-track { animation: bx-gb-pulse 900ms ease-in-out 3; }
 @keyframes bx-gb-stripes { to { transform: translateX(26px); } }
