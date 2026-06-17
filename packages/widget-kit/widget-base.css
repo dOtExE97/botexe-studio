@@ -68,15 +68,21 @@
    allen Panels) und der ::before-Gradient-Randlinie. Beides hier killen, damit
    wirklich nur der Inhalt übrig bleibt. Greift universell über die Panel-Klassen. */
 .bx-frameless * {
+  /* Milchglas-Blur, ALLE Box-Schatten (Panel-Glows, Akzent-Halos) und ALLE
+     Rand-Linien weg — viele Widgets haben eigene border/box-shadow auf ihren
+     Panels. border-color:transparent statt border:none → keine Layout-Sprünge.
+     Inhalt bleibt: Kronen/Medaillen nutzen filter:drop-shadow + Bilder, Text
+     nutzt text-shadow — beides ist KEIN box-shadow, bleibt also erhalten. */
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
 }
 .bx-frameless .bx-glass,
 .bx-frameless .bx-st-glas {
   background: transparent !important;
-  box-shadow: none !important;
-  border-color: transparent !important;
 }
+/* Gradient-Hairline-Rand (Pseudo-Element) der Standard-Panels ganz weg. */
 .bx-frameless .bx-glass::before,
 .bx-frameless .bx-st-glas::before {
   display: none !important;
