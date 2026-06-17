@@ -842,7 +842,7 @@ export default function OverlayPage() {
     const info = (await window.studio.getTtlsLink(id)) as { url: string; ready: boolean };
     await window.studio.copyText(info.url);
     if (info.ready) {
-      toast('success', `TikTok-Studio-Link kopiert — als Link-Quelle einfügen, Größe ${dimsFor(id)}.`);
+      toast('success', `Link kopiert! In TTLS: Quelle hinzufügen → Link einfügen → Größe auf ${dimsFor(id)} (benutzerdefinierte Auflösung) → fertig.`);
     } else {
       toast('warn', 'Link kopiert — aber einmalige Einrichtung nötig: Einstellungen → TikTok Live Studio.');
     }
