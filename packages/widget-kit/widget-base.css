@@ -63,29 +63,38 @@
 }
 
 /* „Rahmen ausblenden" (frameless): das Runtime setzt .bx-frameless auf den Layer.
-   --bx-glass/--bx-shadow sind dann schon transparent/none — ABER der sichtbare
-   Kasten kommt zusätzlich vom backdrop-filter (Milchglas-Blur, hart codiert in
-   allen Panels) und der ::before-Gradient-Randlinie. Beides hier killen, damit
-   wirklich nur der Inhalt übrig bleibt. Greift universell über die Panel-Klassen. */
+   Ziel: Panel-Chrome weg (Hintergrund, Milchglas-Blur, harte Rand-Linien,
+   Gradient-Hairlines) — Inhalt bleibt, INKLUSIVE Profilbild-/Rang-Ringe, die als
+   box-shadow gezeichnet sind. Darum box-shadow NICHT pauschal killen (sonst sind
+   die Ringe weg), sondern nur Blur + Border-Linien universell, und Hintergrund/
+   Schatten gezielt auf den Panel-Klassen. */
 .bx-frameless * {
-  /* Milchglas-Blur, ALLE Box-Schatten (Panel-Glows, Akzent-Halos) und ALLE
-     Rand-Linien weg — viele Widgets haben eigene border/box-shadow auf ihren
-     Panels. border-color:transparent statt border:none → keine Layout-Sprünge.
-     Inhalt bleibt: Kronen/Medaillen nutzen filter:drop-shadow + Bilder, Text
-     nutzt text-shadow — beides ist KEIN box-shadow, bleibt also erhalten. */
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  box-shadow: none !important;
+  /* harte Rand-Linien weg (z.B. Zahl-Raten 1.5px, Top-Gift 2px). Ringe um
+     Profilbilder/Ränge sind box-shadow (kein border) → bleiben erhalten.
+     border-color:transparent statt border:none → keine Layout-Sprünge. */
   border-color: transparent !important;
 }
+/* Panel-Hintergrund + Panel-Schatten der Standard-Glas-Klassen weg.
+   .bx-ga-card (Gift-Alert) hat eigenen Akzent-Glow → ebenfalls entglasen. */
 .bx-frameless .bx-glass,
-.bx-frameless .bx-st-glas {
+.bx-frameless .bx-st-glas,
+.bx-frameless .bx-ga-card {
   background: transparent !important;
+  box-shadow: none !important;
 }
-/* Gradient-Hairline-Rand (Pseudo-Element) der Standard-Panels ganz weg. */
+/* Gradient-Hairline-Ränder (Pseudo-Elemente) der Panels ganz weg — auch der
+   eigene des Gift-Alerts. */
 .bx-frameless .bx-glass::before,
-.bx-frameless .bx-st-glas::before {
+.bx-frameless .bx-st-glas::before,
+.bx-frameless .bx-ga-card::before {
   display: none !important;
+}
+/* „Mein Team"-Markierung des Sport-Tickers nutzte border+box-shadow (beides oben
+   neutralisiert) → über einen Hintergrund-Tint erhalten. */
+.bx-frameless .bx-sp-trow.me {
+  background: color-mix(in srgb, var(--bx-gold) 16%, transparent) !important;
 }
 
 /* Top-Glanzkante */
