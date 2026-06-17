@@ -418,18 +418,35 @@ export class OverlayServer {
   /** MyInstants-mp3 server-seitig holen und durchreichen (Vorhören ohne Import).
    *  Allowlist gegen SSRF, Größen-Cap, kein Caching. */
   private async streamPreview(url: string, res: Response): Promise<void> {
-    if (!/^https:\/\/(www\.)?myinstants\.com\/[^\s"'<>]+\.mp3$/i.test(url)) {
+    // Host-basierte Allowlist (robust gegen Tricks wie myinstants.com.evil.tld) + .mp3.
+    let parsed: URL;
+    try { parsed = new URL(url); } catch { res.status(400).send('bad url'); return; }
+    const host = parsed.hostname.toLowerCase();
+    if ((host !== 'www.myinstants.com' && host !== 'myinstants.com') || parsed.protocol !== 'https:' || !/\.mp3$/i.test(parsed.pathname)) {
       res.status(400).send('bad url');
       return;
     }
+    const MAX = 5 * 1024 * 1024;
     try {
-      const upstream = await fetch(url);
-      if (!upstream.ok) { res.status(502).send('upstream'); return; }
-      const buf = Buffer.from(await upstream.arrayBuffer());
-      if (buf.length > 5 * 1024 * 1024) { res.status(413).send('too large'); return; }
+      // redirect:'manual' → KEIN Folgen auf interne IPs (SSRF). Timeout gegen Hänger.
+      const upstream = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(8000) });
+      if (upstream.status >= 300 && upstream.status < 400) { res.status(502).send('redirect blocked'); return; }
+      if (!upstream.ok || !upstream.body) { res.status(502).send('upstream'); return; }
+      if (Number(upstream.headers.get('content-length') || 0) > MAX) { res.status(413).send('too large'); return; }
+      // Gestreamt mitzählen → Abbruch bei >5MB, auch ohne content-length-Header.
+      const reader = (upstream.body as ReadableStream<Uint8Array>).getReader();
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.length;
+        if (total > MAX) { try { await reader.cancel(); } catch { /* egal */ } res.status(413).end(); return; }
+        chunks.push(value);
+      }
       res.setHeader('Content-Type', 'audio/mpeg');
       res.setHeader('Cache-Control', 'no-store');
-      res.send(buf);
+      res.send(Buffer.concat(chunks));
     } catch {
       res.status(502).send('fetch failed');
     }
