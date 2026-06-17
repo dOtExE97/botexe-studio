@@ -288,6 +288,21 @@ test('ws: ohne gültigen token wird die verbindung geschlossen', async () => {
   }
 });
 
+test('preview-proxy: nur MyInstants-URLs erlaubt (SSRF-Schutz), Token nötig', async () => {
+  const { server } = await setup();
+  try {
+    const base = `http://127.0.0.1:${server.getPort()}`;
+    const token = server.getToken();
+    // Ohne Token → 403.
+    assert.equal((await fetch(`${base}/preview?url=https://www.myinstants.com/x.mp3`)).status, 403);
+    // Fremde Domain → 400 (kein offener Proxy).
+    assert.equal((await fetch(`${base}/preview?url=${encodeURIComponent('http://169.254.169.254/latest/meta-data')}&token=${token}`)).status, 400);
+    assert.equal((await fetch(`${base}/preview?url=${encodeURIComponent('https://evil.example.com/a.mp3')}&token=${token}`)).status, 400);
+  } finally {
+    await server.stop();
+  }
+});
+
 test('ws: ALLERERSTE nachricht ist hello mit der App-Version (Auto-Reload-Handshake)', async () => {
   const { server } = await setup(0, { appVersion: '9.9.9' });
   try {

@@ -249,6 +249,13 @@ export class OverlayServer {
       fs.createReadStream(target).pipe(res);
     });
 
+    // Vorhör-Proxy: holt eine MyInstants-mp3 server-seitig und reicht sie über
+    // 127.0.0.1 durch — so kann der Renderer sie CSP-konform abspielen (media-src
+    // erlaubt nur 'self'/127.0.0.1), OHNE sie in die Bibliothek herunterzuladen.
+    this.expressApp.get('/preview', auth, (req, res) => {
+      void this.streamPreview(String(req.query.url ?? ''), res);
+    });
+
     // Sound-Streaming für den App-Renderer (<audio src>). Bewusst NICHT vom
     // Overlay genutzt — TTLS-Browser-Audio ist unzuverlässig (Spec §5).
     this.expressApp.get('/sounds/:filename', auth, (req, res) => {
@@ -406,6 +413,26 @@ export class OverlayServer {
       return;
     }
     res.send(fs.readFileSync(target));
+  }
+
+  /** MyInstants-mp3 server-seitig holen und durchreichen (Vorhören ohne Import).
+   *  Allowlist gegen SSRF, Größen-Cap, kein Caching. */
+  private async streamPreview(url: string, res: Response): Promise<void> {
+    if (!/^https:\/\/(www\.)?myinstants\.com\/[^\s"'<>]+\.mp3$/i.test(url)) {
+      res.status(400).send('bad url');
+      return;
+    }
+    try {
+      const upstream = await fetch(url);
+      if (!upstream.ok) { res.status(502).send('upstream'); return; }
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      if (buf.length > 5 * 1024 * 1024) { res.status(413).send('too large'); return; }
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(buf);
+    } catch {
+      res.status(502).send('fetch failed');
+    }
   }
 
   // ── WebSocket ───────────────────────────────────────────────────────────

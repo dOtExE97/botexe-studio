@@ -540,6 +540,11 @@ function registerIpc(): void {
       return { ok: false, error: (err as Error).message };
     }
   });
+  ipcMain.handle(IPC.SOUND_PREVIEW_MYINSTANTS, (_e, mp3Url: unknown) => {
+    if (typeof mp3Url !== 'string') return { ok: false, error: 'mp3Url erwartet' };
+    isStudio().previewSound(mp3Url);
+    return { ok: true };
+  });
 
   // Medien (Bilder/Videos)
   ipcMain.handle(IPC.MEDIA_LIST, () => isStudio().listMedia());

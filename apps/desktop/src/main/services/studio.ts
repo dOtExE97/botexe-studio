@@ -954,6 +954,13 @@ export class Studio {
     this.hooks.onSoundPlay({ soundId, url, volume: vol });
   }
 
+  /** MyInstants-Treffer vorhören (ohne Import): über den lokalen /preview-Proxy,
+   *  damit es CSP-konform über dasselbe Audio-System wie alle Sounds läuft. */
+  previewSound(mp3Url: string): void {
+    const url = `http://127.0.0.1:${this.server.getPort()}/preview?url=${encodeURIComponent(mp3Url)}&token=${this.server.getToken()}`;
+    this.hooks.onSoundPlay({ soundId: 'preview', url, volume: this.settings.get().soundVolume });
+  }
+
   /** Renderer meldet, dass ein Audio fertig ist → TTS-Sequencing freigeben. */
   notifySoundEnded(soundId: string): void {
     this.tts.notifyEnded(soundId);

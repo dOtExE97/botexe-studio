@@ -61,6 +61,7 @@ const api = {
   searchMyInstants: (query: string) => ipcRenderer.invoke(IPC.SOUND_SEARCH_MYINSTANTS, query),
   importMyInstants: (mp3Url: string, title: string) =>
     ipcRenderer.invoke(IPC.SOUND_IMPORT_MYINSTANTS, mp3Url, title),
+  previewMyInstants: (mp3Url: string) => ipcRenderer.invoke(IPC.SOUND_PREVIEW_MYINSTANTS, mp3Url),
 
   // Medien (Bilder/Videos)
   listMedia: () => ipcRenderer.invoke(IPC.MEDIA_LIST),

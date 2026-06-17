@@ -119,7 +119,7 @@ export default function SoundsPage() {
           <Search size={15} /> MyInstants durchsuchen
         </h2>
         <p className="mb-3 text-[12px] leading-relaxed text-studio-muted">
-          Sound suchen, Klick auf „Importieren" — landet direkt in deiner Bibliothek und wird einmal angespielt.
+          Sound suchen → <b>„Anhören"</b> spielt ihn nur kurz vor (ohne Import), <b>„Importieren"</b> legt ihn in deine Bibliothek.
         </p>
         <div className="flex gap-2">
           <input
@@ -158,6 +158,13 @@ export default function SoundsPage() {
                   {!r.thumbnail && <Music size={15} />}
                 </div>
                 <div className="min-w-0 flex-1 truncate text-xs" title={r.title}>{r.title}</div>
+                <button
+                  onClick={() => void window.studio.previewMyInstants(r.mp3Url)}
+                  title="Vorhören (ohne Import)"
+                  className="bx-pill flex-none px-2.5 py-1 text-[10px] hover:border-studio-accent hover:text-studio-accent"
+                >
+                  <Play size={12} /> Anhören
+                </button>
                 <button
                   onClick={() => void importResult(r)}
                   disabled={importing !== null}
