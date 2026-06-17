@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.1] — 2026-06-17
+
+### Fixed
+- **„Rahmen ausblenden" entfernt jetzt wirklich den Kasten.** Der Schalter nullte nur Hintergrund + Schatten — der sichtbare Milchglas-Kasten kam aber zusätzlich vom Blur (`backdrop-filter`) und der Gradient-Randlinie, die stehen blieben. Jetzt verschwindet beides → nur noch der Inhalt.
+- **Sport-Ticker robuster:** transiente „fetch failed"-Aussetzer (z.B. WM-Abruf) werden mit Timeout + einer automatischen Wiederholung abgefangen, statt im Log zu landen.
+
+### Changed
+- **Herzregen (Likes):** deutlich **mehr Herzen** pro Like und **schöneres Aufsteigen** — sie steigen höher hinaus, schwingen sanft und faden erst ganz oben aus (vorher spärlich und früh verschwunden).
+
+---
+
 ## [0.3.0] — 2026-06-17
 
 **Highlight: Verbinden ist jetzt kostenlos.** TikTok-Live lässt sich ohne Bezahl-Plan verbinden — über Eulers gratis Cloud-WebSocket mit einem kostenlosen Community-Key.
