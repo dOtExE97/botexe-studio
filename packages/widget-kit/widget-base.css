@@ -62,6 +62,26 @@
   pointer-events: none;
 }
 
+/* „Rahmen ausblenden" (frameless): das Runtime setzt .bx-frameless auf den Layer.
+   --bx-glass/--bx-shadow sind dann schon transparent/none — ABER der sichtbare
+   Kasten kommt zusätzlich vom backdrop-filter (Milchglas-Blur, hart codiert in
+   allen Panels) und der ::before-Gradient-Randlinie. Beides hier killen, damit
+   wirklich nur der Inhalt übrig bleibt. Greift universell über die Panel-Klassen. */
+.bx-frameless * {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.bx-frameless .bx-glass,
+.bx-frameless .bx-st-glas {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+.bx-frameless .bx-glass::before,
+.bx-frameless .bx-st-glas::before {
+  display: none !important;
+}
+
 /* Top-Glanzkante */
 .bx-sheen::after {
   content: '';

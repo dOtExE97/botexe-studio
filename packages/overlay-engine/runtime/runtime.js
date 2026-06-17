@@ -164,8 +164,18 @@ function applyWidgetStyle(el, props, w, h) {
   // den Inhalt (wie eine reine Liste). Greift bei ALLEN Panel-Widgets, die die
   // Glass-Vars nutzen — eine Stelle, alle Widgets. Nach dem Theme, damit es gewinnt.
   if (props.frameless) {
+    // Klasse für die CSS-Regeln (Blur + Gradient-Rand weg) UND Vars als Fallback
+    // für Widgets, die --bx-glass direkt auf ihrer eigenen Wurzel nutzen.
+    el.classList.add('bx-frameless');
     el.style.setProperty('--bx-glass', 'transparent');
     el.style.setProperty('--bx-shadow', 'none');
+  } else {
+    // Layer wird pro Layer-ID wiederverwendet → Frameless sauber zurücknehmen.
+    el.classList.remove('bx-frameless');
+    if (!theme) {
+      el.style.removeProperty('--bx-glass');
+      el.style.removeProperty('--bx-shadow');
+    }
   }
 
   const fam = FONT_STACKS[props.fontFamily];
