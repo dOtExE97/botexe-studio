@@ -200,6 +200,26 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'goal-countdown', label: 'Ziel-Countdown (Text)', desc: 'Cooler Text-Countdown wie „Noch 50.000 Likes bis zum Ziel!" — pro Metrik, zählt automatisch das nächste Ziel hoch.',
+    w: 760, h: 130, props: { metric: 'likes', target: 1000, template: 'Noch {n} {label} bis zum Ziel!', doneText: 'Ziel erreicht! 🎉', onReach: 'raise', accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
+    fields: [
+      { key: 'metric', label: 'Metrik', type: 'select', options: [
+        { value: 'likes', label: 'Likes' }, { value: 'follows', label: 'Follower' },
+        { value: 'shares', label: 'Shares' }, { value: 'gifts', label: 'Geschenke' },
+        { value: 'coins', label: 'Coins' }, { value: 'viewers', label: 'Zuschauer' },
+      ] },
+      { key: 'target', label: 'Ziel', type: 'number', hint: 'Erstes Ziel. Bei „weiterzählen" steigt es danach in dieser Schrittweite (1000 → 2000 → …).' },
+      { key: 'template', label: 'Text', type: 'text', hint: 'Platzhalter: {n} = verbleibend, {label} = Metrik, {target} = Ziel. Z.B. „Noch {n} {label} bis zum Ziel!".' },
+      { key: 'doneText', label: 'Bei Erreichen', type: 'text', hint: 'Text, wenn das Ziel erreicht ist (im Modus „stehenbleiben").' },
+      { key: 'onReach', label: 'Bei Ziel', type: 'select', options: [
+        { value: 'raise', label: 'Weiterzählen (nächstes Ziel)' },
+        { value: 'keep', label: 'Stehenbleiben („erreicht")' },
+      ], hint: 'Weiterzählen = wie TikFinity, das Ziel wächst automatisch mit.' },
+      ACCENT_FIELD,
+      ...STYLE_FIELDS,
+    ],
+  },
+  {
     type: 'milestone-confetti', label: 'Meilenstein-Konfetti', desc: 'Feiert erreichte Marken (z.B. alle 100 Follower) mit Konfetti-Burst + Glow-Banner.',
     w: 520, h: 320, props: { metric: 'follows', step: 100, milestones: '', label: '', message: 'Meilenstein! 🎉', soundId: 'botexe-gewinn.wav', accent: '#ffd23e', theme: 'glas' },
     fields: [
@@ -662,7 +682,7 @@ const CATEGORY_OF: Record<string, string> = {
   'gift-jar': 'gifts', 'gift-counter': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts',
   'gift-cannon': 'alerts',
   'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',
-  'stat-chips': 'stats', counter: 'stats',
+  'stat-chips': 'stats', counter: 'stats', 'goal-countdown': 'stats',
   'heart-rain': 'deko', 'text-ticker': 'deko', 'social-rotator': 'deko', emojify: 'deko', 'command-carousel': 'deko',
   media: 'media',
 };
