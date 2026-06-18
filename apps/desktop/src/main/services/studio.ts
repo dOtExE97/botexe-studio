@@ -196,7 +196,8 @@ export class Studio {
       }),
       onWidgetSound: (soundId) => this.playSound(soundId),
       onGameWin: (_winId, user) => this.recordGameWin(user),
-      getGiftCatalog: () => this.giftCatalog.all(),
+      giftImagesDir: this.giftCatalog.getImagesDir(),
+      getGiftCatalog: () => this.getGiftCatalog(),
       getSportMatches: (provider, competition) => this.sport.getMatches(provider as SportProvider, competition),
       getSportStandings: (provider, competition) => this.sport.getStandings(provider as SportProvider, competition),
       listPanelButtons: () => this.getPanelButtons().map((b) => ({ id: b.id, label: b.label })),
@@ -576,9 +577,18 @@ export class Studio {
     this.engine.setRules(rules);
   }
 
-  /** Kompletter Gift-Katalog (mit Bildern) für die Geschenke-Galerie. */
+  /** Kompletter Gift-Katalog für Galerie + Overlay-Widgets. Lokal gespeicherte
+   *  Gift-Bilder werden auf eine 127.0.0.1-URL umgeschrieben (überleben ablaufende
+   *  CDN-Links + laden offline); ohne lokale Datei bleibt die CDN-URL als Fallback. */
   getGiftCatalog(): Record<string, import('./gift-catalog').GiftEntry> {
-    return this.giftCatalog.all();
+    const cat = this.giftCatalog.all();
+    const base = `http://127.0.0.1:${this.server.getPort()}`;
+    const token = this.server.getToken();
+    for (const e of Object.values(cat)) {
+      const file = this.giftCatalog.localIconFile(e);
+      if (file) e.icon = `${base}/gift-img/${encodeURIComponent(file)}?token=${token}`;
+    }
+    return cat;
   }
 
   /** Favorit/eigenen Namen eines Gifts setzen (Galerie) → aktualisierter Katalog. */

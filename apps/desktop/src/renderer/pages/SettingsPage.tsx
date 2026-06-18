@@ -568,6 +568,9 @@ export default function SettingsPage() {
           <button onClick={() => void window.studio.openDataDir()} className="bx-pill hover:text-studio-teal">
             <FolderOpen size={13} /> Datenordner öffnen
           </button>
+          <button onClick={() => void window.studio.openGiftImages()} className="bx-pill hover:text-studio-teal" title="Lokal gespeicherte Gift-Bilder (werden beim Verbinden automatisch gesichert)">
+            <Gift size={13} /> Geschenk-Bilder öffnen
+          </button>
           <button onClick={() => void window.studio.openLogs()} className="bx-pill hover:text-studio-teal">
             <FileText size={13} /> Logs öffnen
           </button>

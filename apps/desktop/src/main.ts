@@ -234,6 +234,10 @@ function registerIpc(): void {
     void shell.openPath(app.getPath('userData'));
     return { ok: true };
   });
+  ipcMain.handle(IPC.APP_OPEN_GIFT_IMAGES, () => {
+    void shell.openPath(isStudio().giftCatalog.getImagesDir());
+    return { ok: true };
+  });
   ipcMain.handle(IPC.APP_COPY, (_e, text: unknown) => {
     // navigator.clipboard ist im Electron-Renderer geblockt → nativ kopieren.
     clipboard.writeText(typeof text === 'string' ? text : String(text ?? ''));

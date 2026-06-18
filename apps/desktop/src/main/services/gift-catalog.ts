@@ -14,6 +14,9 @@ export interface GiftEntry {
    *  spätere ID-basierte Namens-Zuordnung (wie TikFinity es macht). */
   giftId?: number;
   icon?: string;
+  /** Lokal gespeichertes Gift-Bild (Dateiname in gift-images/) — überlebt
+   *  ablaufende TikTok-CDN-URLs und lädt offline. */
+  iconFile?: string;
   coins: number;
   count: number;
   lastSeen?: number;
@@ -33,15 +36,72 @@ interface Serialized {
   gifts: GiftEntry[];
 }
 
+/** Stabiler Kurz-Hash für Slugs ohne Gift-ID (Dateiname). */
+function slugHash(slug: string): string {
+  let h = 0;
+  for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) | 0;
+  return Math.abs(h).toString(36);
+}
+
 export class GiftCatalog {
   private readonly file: string;
+  private readonly imagesDir: string;
   private gifts = new Map<string, GiftEntry>();
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Gerade laufende Bild-Downloads (Dateiname) — gegen Doppel-Downloads. */
+  private downloading = new Set<string>();
 
   constructor(userDataDir: string) {
     fs.mkdirSync(userDataDir, { recursive: true });
     this.file = path.join(userDataDir, 'gift-catalog.json');
+    this.imagesDir = path.join(userDataDir, 'gift-images');
+    fs.mkdirSync(this.imagesDir, { recursive: true });
     this.load();
+  }
+
+  /** Ordner mit den lokal gespeicherten Gift-Bildern (für „Ordner öffnen"). */
+  getImagesDir(): string {
+    return this.imagesDir;
+  }
+
+  /** Lokaler Dateiname eines Eintrags, wenn die Datei wirklich existiert — sonst ''. */
+  localIconFile(entry: GiftEntry): string {
+    if (entry.iconFile && fs.existsSync(path.join(this.imagesDir, entry.iconFile))) return entry.iconFile;
+    return '';
+  }
+
+  /** Gift-Bild von der CDN-URL lokal sichern (einmalig, dedupliziert, best-effort).
+   *  Danach lädt das Widget das Bild lokal — auch offline / nach CDN-Ablauf. */
+  private cacheIcon(entry: GiftEntry): void {
+    const url = entry.icon;
+    if (!url || !/^https?:\/\//i.test(url)) return;
+    const id = entry.giftId && entry.giftId > 0 ? String(entry.giftId) : slugHash(entry.slug.toLowerCase());
+    const ext = ((url.split('?')[0] ?? url).match(/\.(png|webp|jpe?g|gif)$/i)?.[1] || 'png').toLowerCase();
+    const name = `gift-${id}.${ext}`;
+    const dest = path.join(this.imagesDir, name);
+    if (fs.existsSync(dest)) {
+      if (entry.iconFile !== name) { entry.iconFile = name; this.scheduleSave(); }
+      return;
+    }
+    if (this.downloading.has(name)) return;
+    this.downloading.add(name);
+    void this.downloadIcon(url, dest, name, entry);
+  }
+
+  private async downloadIcon(url: string, dest: string, name: string, entry: GiftEntry): Promise<void> {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
+      if (!res.ok) return;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length === 0 || buf.length > 2 * 1024 * 1024) return; // Sanity-Cap
+      fs.writeFileSync(dest, buf);
+      entry.iconFile = name;
+      this.scheduleSave();
+    } catch (err) {
+      log.warn('GiftCatalog', `Gift-Bild nicht ladbar (${name})`, (err as Error).message);
+    } finally {
+      this.downloading.delete(name);
+    }
   }
 
   private load(): void {
@@ -84,6 +144,8 @@ export class GiftCatalog {
       entry.firstSenderAt = gift.at ?? Date.now();
     }
     this.gifts.set(key, entry);
+    // Bild lokal sichern (einmalig pro Gift, best-effort, blockiert nicht).
+    if (entry.icon) this.cacheIcon(entry);
     this.scheduleSave();
   }
 

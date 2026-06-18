@@ -56,6 +56,8 @@ export interface OverlayServerOptions {
   ttsDir?: string;
   /** Eigene Medien (Bilder/Videos) — fürs Media-Widget im Overlay. */
   mediaDir?: string;
+  /** Lokal gespeicherte Gift-Bilder — überleben ablaufende TikTok-CDN-URLs. */
+  giftImagesDir?: string;
   /** Spiel-Widgets (Bingo/Zahlenraten) lösen Sounds über die App aus. */
   onWidgetSound?: (soundId: string) => void;
   /** Spiel-Sieg (z.B. Zahlen-Raten) — winId dedupliziert über OBS+TTLS+Vorschau. */
@@ -185,6 +187,22 @@ export class OverlayServer {
     // Gift-Katalog: echte Gift-Bilder für Bingo-Zellen & Galerie.
     this.expressApp.get('/gift-catalog', auth, (_req, res) => {
       res.json(this.options.getGiftCatalog?.() ?? {});
+    });
+
+    // Lokal gespeicherte Gift-Bilder (gift-images/) — stabil cachebar.
+    this.expressApp.get('/gift-img/:filename', auth, (req, res) => {
+      const dir = this.options.giftImagesDir;
+      if (!dir) { res.status(404).send('Gift-Bilder nicht konfiguriert'); return; }
+      const raw = req.params.filename;
+      const filename = path.basename(Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? ''));
+      if (!/^gift-[a-z0-9]+\.(png|webp|jpe?g|gif)$/i.test(filename)) { res.status(400).send('Invalid filename'); return; }
+      const target = path.join(dir, filename);
+      if (!target.startsWith(dir) || !fs.existsSync(target)) { res.status(404).send('Not found'); return; }
+      const ext = path.extname(filename).slice(1).toLowerCase();
+      const mime: Record<string, string> = { png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif' };
+      res.setHeader('Content-Type', mime[ext] ?? 'image/png');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      fs.createReadStream(target).pipe(res);
     });
 
     // Sport-Liveticker: das Widget pollt hier, der Main holt+cacht von der API.

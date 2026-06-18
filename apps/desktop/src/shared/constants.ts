@@ -72,6 +72,7 @@ export const IPC = {
   // App-Info / Einstellungen
   APP_INFO: 'app:info',
   APP_OPEN_DATA_DIR: 'app:open-data-dir',
+  APP_OPEN_GIFT_IMAGES: 'app:open-gift-images',
   /** Externen Link im Standardbrowser öffnen (nur http/https). */
   APP_OPEN_EXTERNAL: 'app:open-external',
   /** Text in die Zwischenablage kopieren (Electron-nativ — navigator.clipboard

@@ -9,6 +9,17 @@ function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'giftcat-'));
 }
 
+test('Gift-Bilder: Ordner wird angelegt, localIconFile nur bei echter Datei', () => {
+  const dir = tmpDir();
+  const c = new GiftCatalog(dir);
+  assert.ok(fs.existsSync(c.getImagesDir()), 'gift-images-Ordner angelegt');
+  assert.equal(c.getImagesDir(), path.join(dir, 'gift-images'));
+  // iconFile gesetzt, aber Datei fehlt → '' (CDN-Fallback greift dann)
+  assert.equal(c.localIconFile({ slug: 'x', coins: 0, count: 0, iconFile: 'gift-1.png' }), '');
+  fs.writeFileSync(path.join(c.getImagesDir(), 'gift-1.png'), 'PNGDATA');
+  assert.equal(c.localIconFile({ slug: 'x', coins: 0, count: 0, iconFile: 'gift-1.png' }), 'gift-1.png');
+});
+
 test('record sammelt Gifts mit Bild + Zähler, all() liefert sie slug-normalisiert', () => {
   const c = new GiftCatalog(tmpDir());
   c.record({ slug: 'Rose', icon: 'https://cdn/rose.png', coinsPerUnit: 1, count: 2 });

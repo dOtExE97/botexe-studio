@@ -80,6 +80,7 @@ const api = {
   // App-Info
   getAppInfo: () => ipcRenderer.invoke(IPC.APP_INFO),
   openDataDir: () => ipcRenderer.invoke(IPC.APP_OPEN_DATA_DIR),
+  openGiftImages: () => ipcRenderer.invoke(IPC.APP_OPEN_GIFT_IMAGES),
   openExternal: (url: string) => ipcRenderer.invoke(IPC.APP_OPEN_EXTERNAL, url),
   copyText: (text: string) => ipcRenderer.invoke(IPC.APP_COPY, text),
   // Konfig-Backup
