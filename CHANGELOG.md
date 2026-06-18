@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.4] — 2026-06-18
+
+### Added
+- **Neues Widget „Ziel-Countdown (Text)"** im TikFinity-Stil: cooler Text-Countdown wie „Noch 50.000 Likes bis zum Ziel!" — pro Metrik (Likes/Follower/Shares/Geschenke/Coins/Zuschauer), auf Deutsch, frei betextbar. Zählt das nächste Ziel automatisch hoch oder bleibt bei „erreicht".
+- **Gift-Bilder werden lokal gespeichert.** Beim Verbinden lädt die App jedes Gift-Bild einmalig herunter → überlebt ablaufende TikTok-CDN-Links, Bilder laden auch **offline** (Editor-Vorschau, Test ohne Live), und es ist schneller. Neuer Button **Einstellungen → „Geschenk-Bilder öffnen"**.
+
+### Fixed
+- **Gift-Zähler zeigt das gewählte Gift sofort** (Bild aus dem Katalog vorgeladen) — auch bei seltenen/teuren Gifts wie Galaxy, statt erst nach dem ersten Eingang ein generisches Icon.
+
+---
+
 ## [0.3.3] — 2026-06-17
 
 Stabilitäts-Build nach gründlichem Mehr-Agenten-Audit — behebt mehrere echte Fehler aus v0.3.2.
