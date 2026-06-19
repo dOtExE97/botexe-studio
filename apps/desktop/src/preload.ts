@@ -81,6 +81,10 @@ const api = {
   getAppInfo: () => ipcRenderer.invoke(IPC.APP_INFO),
   openDataDir: () => ipcRenderer.invoke(IPC.APP_OPEN_DATA_DIR),
   openGiftImages: () => ipcRenderer.invoke(IPC.APP_OPEN_GIFT_IMAGES),
+  spotifyBeginAuth: () => ipcRenderer.invoke(IPC.SPOTIFY_BEGIN_AUTH),
+  spotifyStatus: () => ipcRenderer.invoke(IPC.SPOTIFY_STATUS),
+  spotifyControl: (action: string) => ipcRenderer.invoke(IPC.SPOTIFY_CONTROL, action),
+  spotifyLogout: () => ipcRenderer.invoke(IPC.SPOTIFY_LOGOUT),
   openExternal: (url: string) => ipcRenderer.invoke(IPC.APP_OPEN_EXTERNAL, url),
   copyText: (text: string) => ipcRenderer.invoke(IPC.APP_COPY, text),
   // Konfig-Backup

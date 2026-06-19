@@ -27,6 +27,7 @@ export type OverlayMessage =
   | { kind: 'event'; event: StudioEvent }
   | { kind: 'action'; ruleId: string; action: TriggerAction }
   | { kind: 'stats'; stats: unknown }
+  | { kind: 'spotify'; state: unknown } // Now-Playing fürs Spotify-Widget
   | { kind: 'reset' }; // neuer Stream → Overlay-Zähler/Top-Listen zurücksetzen
 
 export interface OverlayServerOptions {
@@ -58,6 +59,10 @@ export interface OverlayServerOptions {
   mediaDir?: string;
   /** Lokal gespeicherte Gift-Bilder — überleben ablaufende TikTok-CDN-URLs. */
   giftImagesDir?: string;
+  /** Spotify-OAuth-Redirect-Callback (ohne Token-Auth — Spotify redirectet pur). */
+  onSpotifyCallback?: (code: string, state: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Letzter Now-Playing-Stand für Late-Joiner (Spotify-Widget startet nicht leer). */
+  getSpotifyState?: () => unknown;
   /** Spiel-Widgets (Bingo/Zahlenraten) lösen Sounds über die App aus. */
   onWidgetSound?: (soundId: string) => void;
   /** Spiel-Sieg (z.B. Zahlen-Raten) — winId dedupliziert über OBS+TTLS+Vorschau. */
@@ -187,6 +192,17 @@ export class OverlayServer {
     // Gift-Katalog: echte Gift-Bilder für Bingo-Zellen & Galerie.
     this.expressApp.get('/gift-catalog', auth, (_req, res) => {
       res.json(this.options.getGiftCatalog?.() ?? {});
+    });
+
+    // Spotify-OAuth-Redirect: KEIN Token-Auth (Spotify ruft die URI direkt auf).
+    // Schutz: nur localhost erreichbar + state-Prüfung im Service.
+    this.expressApp.get('/spotify/callback', (req, res) => {
+      const code = String(req.query.code ?? '');
+      const state = String(req.query.state ?? '');
+      const done = (ok: boolean, msg: string) => res.status(ok ? 200 : 400).send(
+        `<!doctype html><html><head><meta charset="utf-8"><title>Spotify</title></head><body style="font-family:system-ui;background:#0c0c12;color:#eee;display:grid;place-items:center;height:100vh;margin:0;text-align:center"><div><h2>${ok ? '✅ Spotify verbunden!' : '❌ Spotify-Login fehlgeschlagen'}</h2><p>${msg}</p><p style="opacity:.6">Dieses Fenster kannst du schließen.</p></div></body></html>`);
+      if (!code || !this.options.onSpotifyCallback) { done(false, 'Kein Code erhalten.'); return; }
+      void this.options.onSpotifyCallback(code, state).then((r) => done(r.ok, r.ok ? 'Zurück zur App.' : (r.error ?? 'Fehler')));
     });
 
     // Lokal gespeicherte Gift-Bilder (gift-images/) — stabil cachebar.
@@ -559,6 +575,8 @@ export class OverlayServer {
       if (layout) this.sendTo(client, { kind: 'layout', layout }, true);
       const stats = this.options.getStats?.();
       if (stats) this.sendTo(client, { kind: 'stats', stats }, true);
+      const spotify = this.options.getSpotifyState?.();
+      if (spotify) this.sendTo(client, { kind: 'spotify', state: spotify }, true);
       for (const e of this.bus.getAllLastValues()) {
         this.sendTo(client, { kind: 'event', event: e }, true);
       }

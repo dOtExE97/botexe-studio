@@ -238,6 +238,17 @@ function registerIpc(): void {
     void shell.openPath(isStudio().giftCatalog.getImagesDir());
     return { ok: true };
   });
+  ipcMain.handle(IPC.SPOTIFY_BEGIN_AUTH, () => {
+    const r = isStudio().spotifyBeginAuth();
+    if (r.ok && r.url) void shell.openExternal(r.url); // Login im Standardbrowser
+    return r;
+  });
+  ipcMain.handle(IPC.SPOTIFY_STATUS, () => isStudio().spotifyStatus());
+  ipcMain.handle(IPC.SPOTIFY_CONTROL, async (_e, action: unknown) => {
+    if (action !== 'play' && action !== 'pause' && action !== 'next' && action !== 'previous') return { ok: false };
+    return { ok: await isStudio().spotifyControl(action) };
+  });
+  ipcMain.handle(IPC.SPOTIFY_LOGOUT, () => { isStudio().spotifyLogout(); return { ok: true }; });
   ipcMain.handle(IPC.APP_COPY, (_e, text: unknown) => {
     // navigator.clipboard ist im Electron-Renderer geblockt → nativ kopieren.
     clipboard.writeText(typeof text === 'string' ? text : String(text ?? ''));
@@ -621,6 +632,8 @@ function registerIpc(): void {
     safe.sportKeySet = typeof safe.sportApiKey === 'string' && safe.sportApiKey.length > 0;
     delete safe.sportApiKey;       // football-data.org-Key
     delete safe.controlToken;      // Steuer-/Overlay-Token (Renderer braucht ihn nie)
+    safe.spotifyConnected = !!(safe.spotifyTokens && typeof safe.spotifyTokens === 'object');
+    delete safe.spotifyTokens;     // OAuth-Tokens nie an den Renderer
     if (safe.obs && typeof safe.obs === 'object') {
       const obs = safe.obs as Record<string, unknown>;
       safe.obsPasswordSet = typeof obs.password === 'string' && (obs.password as string).length > 0;
@@ -675,6 +688,7 @@ function registerIpc(): void {
     if (typeof p.tiktokSignApiKey === 'string') allowed.tiktokSignApiKey = p.tiktokSignApiKey.trim().slice(0, 200);
     if (p.tiktokConnectMode === 'cloud' || p.tiktokConnectMode === 'direct') allowed.tiktokConnectMode = p.tiktokConnectMode;
     if (typeof p.autoLiveWatch === 'boolean') allowed.autoLiveWatch = p.autoLiveWatch;
+    if (typeof p.spotifyClientId === 'string') allowed.spotifyClientId = p.spotifyClientId.trim().slice(0, 100);
     if (typeof p.moderation === 'object' && p.moderation !== null) {
       const m = p.moderation as Record<string, unknown>;
       if (Array.isArray(m.blockedWords)) {

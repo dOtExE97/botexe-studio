@@ -76,6 +76,10 @@ export interface StudioSettings {
   autoLiveWatch: boolean;
   /** Streamer.bot-Brücke (WebSocket-Client). */
   streamerbot: { enabled: boolean; url: string };
+  /** Spotify: vom Nutzer registrierte App-Client-ID (öffentlich, PKCE). */
+  spotifyClientId: string;
+  /** Spotify OAuth-Tokens (sensibel, lokal — nie an den Renderer). */
+  spotifyTokens: import('./spotify-service').SpotifyTokens | null;
 }
 
 export interface ObsSettings {
@@ -146,6 +150,8 @@ const DEFAULTS: StudioSettings = {
   tiktokConnectMode: 'cloud',
   autoLiveWatch: true,
   streamerbot: { enabled: false, url: 'ws://127.0.0.1:8080/' },
+  spotifyClientId: '',
+  spotifyTokens: null,
 };
 
 function isValidRule(rule: unknown): rule is TriggerRule {
@@ -275,6 +281,7 @@ export function redactSecretsForExport(settings: StudioSettings): Record<string,
   delete copy.ttsCredentials;
   delete copy.controlToken; // bleibt pro Maschine eigen
   delete copy.sportApiKey;
+  delete copy.spotifyTokens; // OAuth-Tokens nie ins Backup
   if (copy.obs && typeof copy.obs === 'object') {
     delete (copy.obs as Record<string, unknown>).password;
   }

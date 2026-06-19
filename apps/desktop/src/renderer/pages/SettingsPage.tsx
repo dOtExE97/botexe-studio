@@ -1,7 +1,7 @@
 // SettingsPage — App-Einstellungen: Loyalty-Punkte-Regeln, App-Infos,
 // Datenordner, Punkte-Reset.
 import { useEffect, useState } from 'react';
-import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket, Sparkles, KeyRound, ExternalLink } from 'lucide-react';
+import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket, Sparkles, KeyRound, ExternalLink, Music, Play, Pause, SkipForward, SkipBack } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
 import GreetReturningCard from '../components/GreetReturningCard';
 import { toast } from '../components/ToastHost';
@@ -53,9 +53,11 @@ export default function SettingsPage() {
   const [signKeySet, setSignKeySet] = useState(false);
   const [connectMode, setConnectMode] = useState<'cloud' | 'direct'>('cloud');
   const [autoLiveWatch, setAutoLiveWatch] = useState(true);
+  const [spotifyClientId, setSpotifyClientId] = useState('');
+  const [spotify, setSpotify] = useState<{ connected: boolean; clientIdSet: boolean; redirectUri: string; nowPlaying: { title: string; artist: string; albumArt: string; isPlaying: boolean } | null }>({ connected: false, clientIdSet: false, redirectUri: '', nowPlaying: null });
 
   useEffect(() => {
-    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; tiktokConnectMode?: 'cloud' | 'direct'; autoLiveWatch?: boolean; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
+    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; tiktokConnectMode?: 'cloud' | 'direct'; autoLiveWatch?: boolean; spotifyClientId?: string; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
       setPoints(s.points);
       setAudioOut(s.audioOutputId ?? '');
       setBlockedWords((s.moderation?.blockedWords ?? []).join(', '));
@@ -64,6 +66,7 @@ export default function SettingsPage() {
       setSignKeySet(!!s.tiktokSignKeySet);
       setConnectMode(s.tiktokConnectMode === 'direct' ? 'direct' : 'cloud');
       setAutoLiveWatch(s.autoLiveWatch !== false);
+      setSpotifyClientId(s.spotifyClientId ?? '');
       setObsPasswordSet(!!s.obsPasswordSet);
       if (s.obs) setObs({ enabled: s.obs.enabled, url: s.obs.url, password: '' });
       if (s.streamerbot) setSb(s.streamerbot);
@@ -74,6 +77,15 @@ export default function SettingsPage() {
     const offObs = window.studio.onObsStatus((s) => setObsStatus(s));
     const offSb = window.studio.onStreamerbotStatus((s) => setSbStatus(s));
     return () => { offUpdate?.(); offObs?.(); offSb?.(); };
+  }, []);
+
+  // Spotify-Status (verbunden? + was läuft gerade) regelmäßig holen.
+  useEffect(() => {
+    let alive = true;
+    const poll = () => { void window.studio.spotifyStatus().then((st) => { if (alive) setSpotify(st); }).catch(() => undefined); };
+    poll();
+    const iv = setInterval(poll, 3000);
+    return () => { alive = false; clearInterval(iv); };
   }, []);
 
   const applySb = (next: { enabled: boolean; url: string }) => { setSb(next); void window.studio.setStreamerbotConfig(next); };
@@ -256,6 +268,72 @@ export default function SettingsPage() {
         </label>
         {outputs.length === 0 && (
           <p className="mt-2 text-[10px] text-studio-muted/70">Keine Geräte gefunden — Standard wird genutzt.</p>
+        )}
+      </section>
+
+      {/* Spotify */}
+      <section className="bx-card p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+            <Music size={15} /> Spotify
+          </h2>
+          <span className={`flex items-center gap-1.5 text-[11px] font-bold ${spotify.connected ? 'text-emerald-300' : 'text-studio-muted'}`}>
+            <span className={`h-2 w-2 rounded-full ${spotify.connected ? 'bg-emerald-400' : 'bg-studio-muted'}`} />
+            {spotify.connected ? 'Verbunden' : 'Nicht verbunden'}
+          </span>
+        </div>
+
+        {!spotify.connected ? (
+          <>
+            <p className="mb-2 text-[11px] text-studio-muted">
+              Zeigt „läuft gerade" im Overlay & lässt dich Spotify steuern. Einmalig einrichten (wie bei TikFinity):
+            </p>
+            <ol className="mb-3 ml-4 list-decimal space-y-1.5 text-[11px] text-studio-muted">
+              <li>Auf <button onClick={() => void window.studio.openExternal('https://developer.spotify.com/dashboard')} className="font-bold text-studio-teal hover:underline">developer.spotify.com</button> eine App anlegen → <b>Client ID</b> kopieren.</li>
+              <li>Dort als <b>Redirect URI</b> exakt eintragen:<br/>
+                <span className="mt-1 inline-flex items-center gap-1.5">
+                  <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-studio-fg">{spotify.redirectUri || 'http://127.0.0.1:27415/spotify/callback'}</code>
+                  <button onClick={() => void window.studio.copyText(spotify.redirectUri)} className="bx-pill px-2 py-0.5 text-[10px] hover:text-studio-accent">kopieren</button>
+                </span>
+              </li>
+              <li>Client ID hier einfügen → <b>Mit Spotify anmelden</b>.</li>
+            </ol>
+            <input
+              type="text" value={spotifyClientId}
+              onChange={(e) => setSpotifyClientId(e.target.value)}
+              onBlur={() => void window.studio.updateSettings({ spotifyClientId: spotifyClientId.trim() })}
+              placeholder="Spotify Client ID" className="bx-input w-full font-mono text-xs"
+            />
+            <button
+              onClick={() => void window.studio.spotifyBeginAuth().then((r: { ok: boolean; error?: string }) => { if (!r.ok) toast('error', r.error ?? 'Login fehlgeschlagen'); })}
+              disabled={!spotifyClientId.trim()}
+              className="bx-btn-accent mt-2 disabled:opacity-40"
+            >
+              <Music size={14} /> Mit Spotify anmelden
+            </button>
+            <p className="mt-2 text-[10px] text-studio-muted/70">Steuern (Play/Skip) braucht <b>Spotify Premium</b> + ein aktives Spotify-Gerät.</p>
+          </>
+        ) : (
+          <>
+            {spotify.nowPlaying ? (
+              <div className="flex items-center gap-3 rounded-lg border border-studio-border bg-studio-raised/40 p-2.5">
+                {spotify.nowPlaying.albumArt && <img src={spotify.nowPlaying.albumArt} alt="" className="h-12 w-12 flex-none rounded object-cover" />}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-bold text-studio-fg">{spotify.nowPlaying.title}</div>
+                  <div className="truncate text-[11px] text-studio-muted">{spotify.nowPlaying.artist}</div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-studio-muted">Gerade läuft nichts (oder kein aktives Spotify-Gerät). Spiel in der Spotify-App etwas ab.</p>
+            )}
+            <div className="mt-3 flex items-center gap-2">
+              <button onClick={() => void window.studio.spotifyControl('previous')} className="bx-pill" title="Vorheriger"><SkipBack size={14} /></button>
+              <button onClick={() => void window.studio.spotifyControl(spotify.nowPlaying?.isPlaying ? 'pause' : 'play')} className="bx-pill" title={spotify.nowPlaying?.isPlaying ? 'Pause' : 'Play'}>{spotify.nowPlaying?.isPlaying ? <Pause size={14} /> : <Play size={14} />}</button>
+              <button onClick={() => void window.studio.spotifyControl('next')} className="bx-pill" title="Nächster"><SkipForward size={14} /></button>
+              <button onClick={() => void window.studio.spotifyLogout()} className="bx-pill ml-auto text-[11px] hover:text-studio-accent">Abmelden</button>
+            </div>
+            <p className="mt-2 text-[10px] text-studio-muted/70">Tipp: Widget <b>„Spotify — Läuft gerade"</b> ins Overlay ziehen (Palette → Medien). Steuern auch per Trigger-Aktion möglich.</p>
+          </>
         )}
       </section>
 

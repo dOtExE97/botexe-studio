@@ -335,6 +335,7 @@ async function renderLayout(layout) {
           },
         });
         if (lastStats) entry.widget?.onStats?.(lastStats);
+        if (lastSpotify) entry.widget?.onSpotify?.(lastSpotify);
       } catch (err) {
         console.warn(`[overlay] Widget "${layer.widgetType}" crash beim mount:`, err);
         reportClientError(layer.widgetType, `Crash beim Mount: ${err && err.message ? err.message : err}`);
@@ -371,6 +372,14 @@ function dispatchStats(stats) {
       console.warn('[overlay] Widget-Fehler bei onStats:', err);
       reportClientError('onStats', err && err.message ? err.message : String(err));
     }
+  }
+}
+
+let lastSpotify = null;
+function dispatchSpotify(state) {
+  lastSpotify = state;
+  for (const { widget } of liveLayers.values()) {
+    try { widget?.onSpotify?.(state); } catch (err) { reportClientError('onSpotify', err && err.message ? err.message : String(err)); }
   }
 }
 
@@ -643,6 +652,7 @@ function connect() {
     }
     else if (msg.kind === 'action') dispatchAction(msg.ruleId, msg.action);
     else if (msg.kind === 'stats') dispatchStats(msg.stats);
+    else if (msg.kind === 'spotify') dispatchSpotify(msg.state);
     else if (msg.kind === 'reset') dispatchReset();
   };
 

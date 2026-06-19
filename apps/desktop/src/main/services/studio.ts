@@ -20,6 +20,7 @@ import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
+import { SpotifyService, type NowPlaying } from './spotify-service';
 import { StatsHistory, type StatsRange, type StatsSummary } from './stats-history';
 import { SportService } from './sport-service';
 import type { SportProvider } from './sport-normalize';
@@ -61,6 +62,8 @@ export interface StudioHooks {
   onObsStatus?: (status: ObsStatus) => void;
   /** Streamer.bot-Verbindungsstatus → Settings-UI. */
   onStreamerbotStatus?: (status: StreamerbotStatus) => void;
+  /** Spotify Now-Playing → an den Renderer (Steuerleiste/Status). */
+  onSpotifyState?: (np: NowPlaying | null) => void;
 }
 
 export interface StudioPaths {
@@ -112,6 +115,9 @@ export class Studio {
   readonly tts: TTSService;
   readonly points: PointsStore;
   readonly giftCatalog: GiftCatalog;
+  readonly spotify: SpotifyService;
+  /** Letzter Now-Playing-Stand (für Late-Joiner + Renderer). */
+  private lastSpotify: NowPlaying | null = null;
   readonly statsHistory: StatsHistory;
   readonly sport: SportService;
   readonly obs: ObsService;
@@ -198,6 +204,8 @@ export class Studio {
       onGameWin: (_winId, user) => this.recordGameWin(user),
       giftImagesDir: this.giftCatalog.getImagesDir(),
       getGiftCatalog: () => this.getGiftCatalog(),
+      onSpotifyCallback: (code, state) => this.onSpotifyCallback(code, state),
+      getSpotifyState: () => this.lastSpotify,
       getSportMatches: (provider, competition) => this.sport.getMatches(provider as SportProvider, competition),
       getSportStandings: (provider, competition) => this.sport.getStandings(provider as SportProvider, competition),
       listPanelButtons: () => this.getPanelButtons().map((b) => ({ id: b.id, label: b.label })),
@@ -252,6 +260,18 @@ export class Studio {
         if (info.status === 'error') {
           this.hooks.onToast?.({ type: 'error', message: `Verbindung fehlgeschlagen${info.detail ? `: ${info.detail}` : ''}` });
         }
+      },
+    });
+
+    this.spotify = new SpotifyService({
+      getClientId: () => this.settings.get().spotifyClientId || '',
+      getTokens: () => this.settings.get().spotifyTokens,
+      saveTokens: (t) => this.settings.update({ spotifyTokens: t }),
+      redirectUri: () => `http://127.0.0.1:${this.server.getPort()}/spotify/callback`,
+      onState: (np) => {
+        this.lastSpotify = np;
+        this.server.broadcast({ kind: 'spotify', state: np });
+        this.hooks.onSpotifyState?.(np);
       },
     });
 
@@ -488,6 +508,9 @@ export class Studio {
       log.info('TikTok', `Auto-Live-Watch: beobachte @${s.lastUsername} — verbinde automatisch, sobald live`);
       this.adapter.watchForLive(s.lastUsername.trim());
     }
+
+    // Spotify: wenn schon verbunden, Now-Playing-Polling starten.
+    if (this.spotify.isConnected()) this.spotify.startPolling();
   }
 
   async stop(): Promise<void> {
@@ -504,6 +527,7 @@ export class Studio {
     this.statsHistory.save();
     this.obs.dispose();
     this.streamerbot.dispose();
+    this.spotify.dispose();
     await this.adapter.disconnect();
     await this.server.stop();
   }
@@ -588,6 +612,53 @@ export class Studio {
     } catch {
       return false;
     }
+  }
+
+  // ── Spotify ──────────────────────────────────────────────────────────────
+
+  /** Login starten — liefert die Authorize-URL (Renderer öffnet sie im Browser). */
+  spotifyBeginAuth(): { url: string; ok: boolean; error?: string } {
+    return this.spotify.beginAuth();
+  }
+
+  /** OAuth-Redirect-Callback (vom lokalen Server) → Tokens holen + Polling starten. */
+  private async onSpotifyCallback(code: string, state: string): Promise<{ ok: boolean; error?: string }> {
+    const r = await this.spotify.completeAuth(code, state);
+    if (r.ok) this.spotify.startPolling();
+    return r;
+  }
+
+  spotifyStatus(): { connected: boolean; clientIdSet: boolean; redirectUri: string; nowPlaying: NowPlaying | null } {
+    return {
+      connected: this.spotify.isConnected(),
+      clientIdSet: !!(this.settings.get().spotifyClientId || '').trim(),
+      redirectUri: `http://127.0.0.1:${this.server.getPort()}/spotify/callback`,
+      nowPlaying: this.lastSpotify,
+    };
+  }
+
+  async spotifyControl(action: 'play' | 'pause' | 'next' | 'previous'): Promise<boolean> {
+    const ok = action === 'play' ? await this.spotify.play()
+      : action === 'pause' ? await this.spotify.pause()
+        : action === 'next' ? await this.spotify.next()
+          : await this.spotify.previous();
+    // Sofort frisch pollen, damit die Anzeige nicht hinterherhinkt.
+    this.spotify.startPolling();
+    return ok;
+  }
+
+  /** Song-Request: suchen + ersten Treffer in die Queue (für Chat-/Gift-Trigger). */
+  async spotifyRequest(query: string): Promise<{ ok: boolean; title?: string; artist?: string }> {
+    const hits = await this.spotify.search(query);
+    const first = hits[0];
+    if (!first) return { ok: false };
+    const ok = await this.spotify.addToQueue(first.uri);
+    return { ok, title: first.title, artist: first.artist };
+  }
+
+  spotifyLogout(): void {
+    this.spotify.logout();
+    this.lastSpotify = null;
   }
 
   async disconnect(): Promise<void> {

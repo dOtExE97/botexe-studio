@@ -654,6 +654,11 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'spotify-now-playing', label: 'Spotify — Läuft gerade', desc: 'Zeigt den aktuell laufenden Spotify-Song (Cover, Titel, Künstler, Fortschritt). Braucht eine verbundene Spotify-App (Einstellungen → Spotify).',
+    w: 560, h: 140, props: { accent: '#1db954', theme: 'glas' },
+    fields: [ ACCENT_FIELD, THEME_FIELD ],
+  },
+  {
     type: 'chat-box', label: 'Chat-Box', desc: 'Der Live-Chat direkt im Overlay.',
     w: 420, h: 360, props: { max: 8, hideAfterMs: 0, accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
@@ -684,7 +689,7 @@ const CATEGORY_OF: Record<string, string> = {
   'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',
   'stat-chips': 'stats', counter: 'stats', 'goal-countdown': 'stats',
   'heart-rain': 'deko', 'text-ticker': 'deko', 'social-rotator': 'deko', emojify: 'deko', 'command-carousel': 'deko',
-  media: 'media',
+  media: 'media', 'spotify-now-playing': 'media',
 };
 
 interface ZoneStyle {
