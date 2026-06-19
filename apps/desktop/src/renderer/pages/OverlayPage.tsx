@@ -121,6 +121,12 @@ const FRAME_FIELD: PropField = {
 /** Reine Effekt-/Vollbild-Widgets ohne Panel — da bringt „Rahmen ausblenden" nichts. */
 const NO_FRAME_TOGGLE = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'gift-counter', 'gift-jar', 'goal-bar', 'top-rotator', 'combo']);
 
+/** Schriftart/Größe/Farbe werden universell an JEDES Widget angehängt (außer reine
+ *  Effekt-Widgets ohne Text) — dedupliziert, damit Widgets, die sie schon haben,
+ *  keine Doppel-Felder bekommen. Das Runtime wendet die Werte universell an. */
+const UNIVERSAL_STYLE_FIELDS: PropField[] = [FONT_FIELD, SIZE_FIELD, TEXTCOLOR_FIELD];
+const NO_STYLE_FIELDS = new Set(['heart-rain', 'gift-fireworks', 'gift-cannon', 'gift-jar', 'emojify', 'media']);
+
 const WIDGET_TYPES: {
   type: string;
   label: string;
@@ -482,6 +488,21 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'text-label', label: 'Text / Schrift', desc: 'Eigener fester Text in schöner Schrift — z.B. „Follow = Lizzard". Farbe, dicke Kontur, optional animiert. Größe = Box ziehen.',
+    w: 760, h: 120, props: { text: 'Dein Text hier', animation: 'none', outline: true, accent: '#ff5436', fontFamily: 'lilita', fontScale: 1, textColor: '' },
+    fields: [
+      { key: 'text', label: 'Text', type: 'text', hint: 'Was angezeigt wird. Zeilenumbruch mit Enter möglich.' },
+      { key: 'animation', label: 'Animation', type: 'select', options: [
+        { value: 'none', label: 'Keine' }, { value: 'pulse', label: 'Pulsieren' },
+        { value: 'bounce', label: 'Hüpfen' }, { value: 'float', label: 'Schweben' },
+        { value: 'glow', label: 'Leuchten' }, { value: 'rainbow', label: 'Regenbogen' },
+        { value: 'shimmer', label: 'Glanz-Sweep' },
+      ] },
+      { key: 'outline', label: 'Dicke Kontur', type: 'boolean', hint: 'Schwarze Outline (TikFinity-Look). Aus = clean.' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
     type: 'text-ticker', label: 'Lauftext-Banner', desc: 'Scrollender Streifen für Socials/Ansagen — dünn, deckt kaum zu. 3 Stile.',
     w: 760, h: 56, props: { messages: 'Folge mir! | Discord in der Bio | Danke fürs Zuschauen ❤️', speed: 18, style: 'glas', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
@@ -688,7 +709,7 @@ const CATEGORY_OF: Record<string, string> = {
   'gift-cannon': 'alerts',
   'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',
   'stat-chips': 'stats', counter: 'stats', 'goal-countdown': 'stats',
-  'heart-rain': 'deko', 'text-ticker': 'deko', 'social-rotator': 'deko', emojify: 'deko', 'command-carousel': 'deko',
+  'heart-rain': 'deko', 'text-ticker': 'deko', 'social-rotator': 'deko', emojify: 'deko', 'command-carousel': 'deko', 'text-label': 'deko',
   media: 'media', 'spotify-now-playing': 'media',
 };
 
@@ -1387,8 +1408,15 @@ export default function OverlayPage() {
               <div className="mt-1 border-t border-studio-border pt-3">
                 <h3 className="mb-2 text-[10px] uppercase tracking-[0.3em] text-studio-muted">Widget-Einstellungen</h3>
                 <div className="flex flex-col gap-2.5">
-                  {/* „Rahmen ausblenden" universell hinten anhängen (außer reinen Effekt-Widgets) */}
-                  {(NO_FRAME_TOGGLE.has(selectedDef.type) ? selectedDef.fields : [...selectedDef.fields, FRAME_FIELD]).map((field) => {
+                  {/* Felder + universell angehängte Stil-Felder (Schrift/Größe/Farbe,
+                      dedupliziert) + „Rahmen ausblenden". */}
+                  {(() => {
+                    const base = NO_FRAME_TOGGLE.has(selectedDef.type) ? selectedDef.fields : [...selectedDef.fields, FRAME_FIELD];
+                    const style = NO_STYLE_FIELDS.has(selectedDef.type)
+                      ? []
+                      : UNIVERSAL_STYLE_FIELDS.filter((sf) => !base.some((f) => f.key === sf.key));
+                    return [...base, ...style];
+                  })().map((field) => {
                     const value = selected.props?.[field.key] ?? '';
                     const setProp = (v: unknown) =>
                       updateLayer(selected.id, { props: { ...selected.props, [field.key]: v } }, true);
