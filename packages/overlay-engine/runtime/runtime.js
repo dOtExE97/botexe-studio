@@ -19,6 +19,22 @@ const stageWrap = document.getElementById('stage-wrap');
 // TTLS-Browser. Widgets können die Klasse selbst abfragen (Partikel-Budget).
 if (cfg.perf) document.documentElement.classList.add('bx-perf');
 
+// Editor-Vorschau (cfg.preview) läuft in Electron ohne VSync → requestAnimationFrame
+// rennt ungebremst (hunderte fps) und frisst CPU, während nebenbei gezockt/gestreamt
+// wird. Auf ~60fps deckeln. Die echte Overlay-Quelle (OBS/TTLS) ist ohnehin
+// fps-/vsync-begrenzt — daher NUR in der Vorschau eingreifen.
+if (cfg.preview && typeof window.requestAnimationFrame === 'function') {
+  const native = window.requestAnimationFrame.bind(window);
+  const MIN = 1000 / 62; // Ziel ~60fps
+  let last = -Infinity;
+  window.requestAnimationFrame = (cb) =>
+    native((t) => {
+      const wait = MIN - (t - last);
+      if (wait <= 0) { last = t; cb(t); }
+      else setTimeout(() => window.requestAnimationFrame(cb), wait); // statt zu spinnen
+    });
+}
+
 // ── Widget-Registry ────────────────────────────────────────────────────────
 // widgetType → Modul-URL. Module werden lazy geladen und gecacht; ein Layout
 // mit unbekanntem widgetType rendert einen leeren Layer statt zu crashen.
