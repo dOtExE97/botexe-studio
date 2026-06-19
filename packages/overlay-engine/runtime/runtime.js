@@ -24,15 +24,25 @@ if (cfg.perf) document.documentElement.classList.add('bx-perf');
 // wird. Auf ~60fps deckeln. Die echte Overlay-Quelle (OBS/TTLS) ist ohnehin
 // fps-/vsync-begrenzt — daher NUR in der Vorschau eingreifen.
 if (cfg.preview && typeof window.requestAnimationFrame === 'function') {
-  const native = window.requestAnimationFrame.bind(window);
+  const nativeRaf = window.requestAnimationFrame.bind(window);
+  const nativeCaf = (window.cancelAnimationFrame || (() => {})).bind(window);
   const MIN = 1000 / 62; // Ziel ~60fps
   let last = -Infinity;
-  window.requestAnimationFrame = (cb) =>
-    native((t) => {
-      const wait = MIN - (t - last);
-      if (wait <= 0) { last = t; cb(t); }
-      else setTimeout(() => window.requestAnimationFrame(cb), wait); // statt zu spinnen
-    });
+  let seq = 0;
+  const pending = new Map(); // eigene ID → Abbruch-Funktion (cancelbar, auch über setTimeout)
+  window.requestAnimationFrame = (cb) => {
+    const id = ++seq;
+    let nativeId = 0;
+    let timerId = 0;
+    const step = (t) => {
+      if (t - last >= MIN) { last = t; pending.delete(id); cb(t); }
+      else { timerId = setTimeout(() => { nativeId = nativeRaf(step); }, MIN - (t - last)); }
+    };
+    nativeId = nativeRaf(step);
+    pending.set(id, () => { nativeCaf(nativeId); clearTimeout(timerId); });
+    return id;
+  };
+  window.cancelAnimationFrame = (id) => { const c = pending.get(id); if (c) { c(); pending.delete(id); } };
 }
 
 // ── Widget-Registry ────────────────────────────────────────────────────────

@@ -701,7 +701,10 @@ function registerIpc(): void {
         };
       }
     }
-    return { ok: true, settings: isStudio().settings.update(allowed) };
+    const saved = isStudio().settings.update(allowed);
+    // Auto-Live-Watch sofort anwenden (nicht erst beim Neustart).
+    if (typeof allowed.autoLiveWatch === 'boolean') isStudio().setAutoLiveWatch(allowed.autoLiveWatch);
+    return { ok: true, settings: saved };
   });
 
   // Replay / Test-Events

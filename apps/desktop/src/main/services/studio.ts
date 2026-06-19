@@ -146,6 +146,7 @@ export class Studio {
   /** Laufende verzögerte Aktionen (Combo-Sequenzen) — beim Stop aufräumen. */
   private actionTimers = new Set<ReturnType<typeof setTimeout>>();
   private lastChatSendAt = 0;
+  private lastSpotifyRequestAt = 0;
   /** Giveaway-Teilnehmer (userId → Anzeige) — dedupliziert, neuer Stream leert. */
   private giveawayParticipants = new Map<string, { nickname: string; avatar?: string }>();
   private lastGiveawayWinner = '';
@@ -216,8 +217,8 @@ export class Studio {
 
     this.adapter = new TikTokAdapter(this.bus, {
       // TikFinity-Verhalten: nach Stream-Ende auf das nächste Live warten und
-      // automatisch wieder verbinden — Single-User-Tool, also default an.
-      autoConnect: true,
+      // automatisch wieder verbinden. An das autoLiveWatch-Setting gekoppelt.
+      autoConnect: this.settings.get().autoLiveWatch !== false,
       // Live-Check BILLIG halten (HTML-Scrape via tiktok-live-connector, ohne
       // Sign-Key/Kontingent) — wichtig fürs dauerhafte „warte auf Live"-Pollen,
       // damit nicht jeder Tick eine Cloud-WS-Verbindung verbrennt.
@@ -606,6 +607,16 @@ export class Studio {
     await this.adapter.connect(username);
   }
 
+  /** „Automatisch verbinden wenn ich live gehe" zur Laufzeit umschalten — wirkt
+   *  sofort (nicht erst beim Neustart). */
+  setAutoLiveWatch(enabled: boolean): void {
+    this.adapter.setAutoConnect(enabled); // false → stoppt auch den laufenden Watch
+    const last = this.settings.get().lastUsername.trim();
+    if (enabled && last && !this.adapter.isConnected()) {
+      this.adapter.watchForLive(last);
+    }
+  }
+
   /** Billiger Live-Check (HTML-Scrape via tiktok-live-connector, KEIN Sign-Key/
    *  Kontingent) — fürs dauerhafte „warte auf Live"-Pollen. */
   private async checkLiveCheap(username: string): Promise<boolean> {
@@ -613,7 +624,12 @@ export class Studio {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { TikTokLiveConnection } = require('tiktok-live-connector');
       const conn = new TikTokLiveConnection(username.replace(/^@/, ''), { disableEulerFallbacks: true });
-      const live = await conn.fetchIsLive();
+      // Timeout: die Lib hat selbst keinen — eine hängende TikTok-Antwort darf den
+      // Live-Watch nicht einschläfern (sonst pollt er nie wieder).
+      const live = await Promise.race([
+        conn.fetchIsLive() as Promise<boolean>,
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 9000)),
+      ]);
       try { conn.disconnect?.(); } catch { /* egal */ }
       return !!live;
     } catch {
@@ -654,12 +670,18 @@ export class Studio {
     return ok;
   }
 
-  /** Song-Request: suchen + ersten Treffer in die Queue (für Chat-/Gift-Trigger). */
+  /** Song-Request: suchen + ersten Treffer in die Queue (für Chat-/Gift-Trigger).
+   *  Eigene Drossel (gegen API-Rate-Limit, falls jede Chat-Nachricht triggert). */
   async spotifyRequest(query: string): Promise<{ ok: boolean; title?: string; artist?: string }> {
+    const now = Date.now();
+    if (now - this.lastSpotifyRequestAt < 2500) return { ok: false };
+    this.lastSpotifyRequestAt = now;
+    if (!this.spotify.isConnected()) { this.hooks.onToast?.({ type: 'warn', message: 'Song-Request: Spotify nicht verbunden (Einstellungen → Spotify).' }); return { ok: false }; }
     const hits = await this.spotify.search(query);
     const first = hits[0];
-    if (!first) return { ok: false };
+    if (!first) { log.info('Spotify', `Song-Request „${query.slice(0, 40)}" — kein Treffer`); return { ok: false }; }
     const ok = await this.spotify.addToQueue(first.uri);
+    if (!ok) this.hooks.onToast?.({ type: 'warn', message: 'Song-Request fehlgeschlagen (Spotify Premium + aktives Gerät nötig).' });
     return { ok, title: first.title, artist: first.artist };
   }
 
@@ -725,7 +747,11 @@ export class Studio {
     try {
       if (d.settings && typeof d.settings === 'object') {
         const rest = { ...(d.settings as Record<string, unknown>) };
-        delete rest.schemaVersion; // Version nicht überschreiben
+        // Backups dürfen KEINE Geheimnisse/Tokens unterschieben (ein manipuliertes
+        // Backup könnte sonst fremde Spotify-/TikTok-Tokens oder den Steuer-Token
+        // setzen). Dieselben Felder hart entfernen, die auch der Export strippt.
+        for (const k of ['schemaVersion', 'spotifyTokens', 'controlToken', 'tiktokSessionId', 'tiktokTargetIdc', 'tiktokSignApiKey', 'ttsCredentials', 'sportApiKey']) delete rest[k];
+        if (rest.obs && typeof rest.obs === 'object') delete (rest.obs as Record<string, unknown>).password;
         this.settings.update(rest as Parameters<typeof this.settings.update>[0]);
         this.engine.setRules(this.settings.get().triggerRules);
         this.obs.applyConfig(this.settings.get().obs); // OBS-Verbindung aus Backup übernehmen
@@ -828,7 +854,8 @@ export class Studio {
   drawGiveaway(): { ok: boolean; winner?: string } {
     const list = [...this.giveawayParticipants.values()];
     if (list.length === 0) return { ok: false };
-    const winner = list[Math.floor(Math.random() * list.length)]!;
+    const winner = list[Math.floor(Math.random() * list.length)];
+    if (!winner) return { ok: false };
     this.lastGiveawayWinner = winner.nickname;
     this.server.broadcast({ kind: 'action', ruleId: 'giveaway', action: { kind: 'giveaway_draw', params: { winner, names: list.map((p) => p.nickname) } } });
     return { ok: true, winner: winner.nickname };

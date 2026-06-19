@@ -199,8 +199,9 @@ export class OverlayServer {
     this.expressApp.get('/spotify/callback', (req, res) => {
       const code = String(req.query.code ?? '');
       const state = String(req.query.state ?? '');
+      const esc = (s: string) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] ?? c));
       const done = (ok: boolean, msg: string) => res.status(ok ? 200 : 400).send(
-        `<!doctype html><html><head><meta charset="utf-8"><title>Spotify</title></head><body style="font-family:system-ui;background:#0c0c12;color:#eee;display:grid;place-items:center;height:100vh;margin:0;text-align:center"><div><h2>${ok ? '✅ Spotify verbunden!' : '❌ Spotify-Login fehlgeschlagen'}</h2><p>${msg}</p><p style="opacity:.6">Dieses Fenster kannst du schließen.</p></div></body></html>`);
+        `<!doctype html><html><head><meta charset="utf-8"><title>Spotify</title></head><body style="font-family:system-ui;background:#0c0c12;color:#eee;display:grid;place-items:center;height:100vh;margin:0;text-align:center"><div><h2>${ok ? '✅ Spotify verbunden!' : '❌ Spotify-Login fehlgeschlagen'}</h2><p>${esc(msg)}</p><p style="opacity:.6">Dieses Fenster kannst du schließen.</p></div></body></html>`);
       if (!code || !this.options.onSpotifyCallback) { done(false, 'Kein Code erhalten.'); return; }
       void this.options.onSpotifyCallback(code, state).then((r) => done(r.ok, r.ok ? 'Zurück zur App.' : (r.error ?? 'Fehler')));
     });
