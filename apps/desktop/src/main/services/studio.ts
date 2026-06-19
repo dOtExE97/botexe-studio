@@ -90,6 +90,8 @@ const ACTION_LABELS: Record<string, string> = {
   obs_visibility: 'OBS-Quelle',
   send_chat: 'Chat senden',
   streamerbot_action: 'Streamer.bot',
+  spotify_control: 'Spotify',
+  spotify_request: 'Song-Request',
   giveaway_draw: 'Verlosung ziehen',
   giveaway_reset: 'Verlosung reset',
 };
@@ -427,6 +429,11 @@ export class Studio {
       this.drawGiveaway();
     } else if (action.kind === 'giveaway_reset') {
       this.resetGiveaway();
+    } else if (action.kind === 'spotify_control') {
+      void this.spotifyControl(action.control);
+    } else if (action.kind === 'spotify_request') {
+      const q = renderSpeakTemplate(action.query || '{args}', event).trim();
+      if (q) void this.spotifyRequest(q);
     } else if (action.kind === 'speak') {
       this.speakForEvent(action.template, event, action.voice);
     } else if (action.kind === 'spin_wheel') {

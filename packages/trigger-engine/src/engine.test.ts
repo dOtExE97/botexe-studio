@@ -284,6 +284,12 @@ test('renderSpeakTemplate füllt platzhalter aus dem event', () => {
     'Jemand folgt!',
     'fehlender user → "Jemand"',
   );
+  // {args} = Chat-Text nach dem ersten Wort (Befehl) — für Song-Requests „!sr <Song>".
+  assert.equal(
+    renderSpeakTemplate('{args}', { type: 'chat', ts: 1, text: '!sr Bad Habits Ed Sheeran' }),
+    'Bad Habits Ed Sheeran',
+  );
+  assert.equal(renderSpeakTemplate('{args}', { type: 'chat', ts: 1, text: '!skip' }), '', 'nur Befehl → leer');
 });
 
 // ── Zyklus 5: chat_command-bedingung ─────────────────────────────────────

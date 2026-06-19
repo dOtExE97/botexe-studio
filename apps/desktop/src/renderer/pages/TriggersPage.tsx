@@ -180,6 +180,15 @@ export default function TriggersPage() {
     const others = rule.actions.filter((a) => a.kind !== 'streamerbot_action');
     patchRule(rule.id, { actions: action ? [...others, { kind: 'streamerbot_action', action }] : others });
   };
+  const setSpotifyControl = (rule: TriggerRule, control: string) => {
+    const others = rule.actions.filter((a) => a.kind !== 'spotify_control');
+    const ok = control === 'play' || control === 'pause' || control === 'next' || control === 'previous';
+    patchRule(rule.id, { actions: ok ? [...others, { kind: 'spotify_control', control }] : others });
+  };
+  const setSpotifyRequest = (rule: TriggerRule, query: string) => {
+    const others = rule.actions.filter((a) => a.kind !== 'spotify_request');
+    patchRule(rule.id, { actions: query.trim() ? [...others, { kind: 'spotify_request', query }] : others });
+  };
 
   // Verzögerung einer bestehenden Aktion setzen (Combo-Sequenz).
   const setActionDelay = (rule: TriggerRule, kind: TriggerAction['kind'], delayMs: number) => {
@@ -236,6 +245,8 @@ export default function TriggersPage() {
         const obsAction = getAction(rule, 'obs_scene') as { scene?: string } | undefined;
         const chatAction = getAction(rule, 'send_chat') as { template?: string } | undefined;
         const sbAction = getAction(rule, 'streamerbot_action') as { action?: string } | undefined;
+        const spoCtrl = getAction(rule, 'spotify_control') as { control?: string } | undefined;
+        const spoReq = getAction(rule, 'spotify_request') as { query?: string } | undefined;
         const comboCount = rule.actions.length;
         const wheels = layers.filter((l) => l.widgetType === 'wheel');
         const mediaLayers = layers.filter((l) => l.widgetType === 'media');
@@ -499,6 +510,21 @@ export default function TriggersPage() {
                       {sbActions.map((a) => (<option key={a.id} value={a.name}>SB: {a.name}</option>))}
                     </select>
                   )}
+                  {/* Spotify steuern (braucht verbundenes Spotify Premium + aktives Gerät). */}
+                  <select value={spoCtrl?.control ?? ''} onChange={(e) => setSpotifyControl(rule, e.target.value)} className="bx-select">
+                    <option value="">🎵 Spotify steuern (aus)</option>
+                    <option value="play">Spotify: Play</option>
+                    <option value="pause">Spotify: Pause</option>
+                    <option value="next">Spotify: Nächster Song</option>
+                    <option value="previous">Spotify: Vorheriger Song</option>
+                  </select>
+                  {/* Song-Request: Suchtext → erster Treffer in die Queue. {args} = Chat nach dem Befehl. */}
+                  <input
+                    value={spoReq?.query ?? ''}
+                    onChange={(e) => setSpotifyRequest(rule, e.target.value)}
+                    placeholder="🎶 Song-Request (leer = aus) — Suchtext, z.B. {args} = Chat nach dem Befehl"
+                    className="bx-input"
+                  />
                   {deadTargets.length > 0 && (
                     <p className="flex items-center gap-1 text-[10px] text-studio-accent">
                       <AlertTriangle size={11} /> {deadTargets.length} Aktion(en) zeigen auf ein gelöschtes Widget — bitte neu zuweisen.

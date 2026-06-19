@@ -87,7 +87,12 @@ export type TriggerActionKind =
    *  animiert). params werden von der App gesetzt (winner + names). */
   | { kind: 'giveaway_draw'; params?: { winner?: { nickname: string; avatar?: string }; names?: string[] } }
   /** Giveaway zurücksetzen (Teilnehmerliste leeren, Widget auf Idle). */
-  | { kind: 'giveaway_reset' };
+  | { kind: 'giveaway_reset' }
+  /** Spotify steuern (braucht verbundenes Spotify Premium + aktives Gerät). */
+  | { kind: 'spotify_control'; control: 'play' | 'pause' | 'next' | 'previous' }
+  /** Song-Request: query (Template, z.B. {args} = Chat-Text nach dem Befehl) →
+   *  Spotify-Suche → erster Treffer in die Wiedergabe-Queue. */
+  | { kind: 'spotify_request'; query: string };
 
 /** Eine Aktion mit optionaler Verzögerung (Combo-Sequenz: Alert jetzt,
  *  Sound +0,5s, Ansage +2s …). delayMs = Versatz ab Auslösung der Regel. */
@@ -234,6 +239,8 @@ export function renderSpeakTemplate(template: string, event: StudioEvent): strin
   return template
     .replace(/\{user\}/g, event.user?.nickname ?? 'Jemand')
     .replace(/\{text\}/g, event.text ?? '')
+    // {args} = Chat-Text NACH dem ersten Wort (dem Befehl) — z.B. "!sr Song" → "Song".
+    .replace(/\{args\}/g, (event.text ?? '').replace(/^\s*\S+\s*/, ''))
     .replace(/\{gift\}/g, event.gift?.slug ?? '')
     .replace(/\{count\}/g, String(event.gift?.count ?? ''))
     .replace(/\{coins\}/g, String(event.gift?.totalCoins ?? ''));
