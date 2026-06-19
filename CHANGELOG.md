@@ -3,6 +3,27 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.5] — 2026-06-19
+
+### Added
+- **🎵 Spotify-Integration (komplett).** Verbinde dein Spotify (Einstellungen → Spotify, Login per Browser).
+  - **Now-Playing-Widget:** zeigt live Cover, Titel, Künstler und Fortschrittsbalken im Overlay.
+  - **Steuerung:** Play/Pause/Weiter/Zurück direkt aus der App.
+  - **Zuschauer-Song-Requests:** per Chat-Befehl oder Geschenk einen Song in deine Warteschlange (Trigger-Aktion „Spotify Song-Request"). Mit Drossel gegen Spam und klaren Hinweisen (Spotify Premium + aktives Gerät nötig).
+- **✍️ Neues Widget „Schrift / Text".** Einfacher Standtext (z.B. „Folge für mehr!") mit schönen Schriftarten, Farben, Umrandung und optionaler Animation (Puls, Hüpfen, Schweben, Glühen, Regenbogen, Schimmer).
+- **Schriftart & Größe jetzt ÜBERALL einstellbar** — bei jedem Widget kannst du Schriftart, Größe und Textfarbe anpassen.
+- **10 neue gebündelte Schriftarten** zur Auswahl (Bebas Neue, Anton, Bungee, Luckiest Guy, Fredoka, Permanent Marker, Pacifico, Russo One, Press Start 2P, Righteous) — funktionieren offline, keine externen Schriften nötig.
+- **🔴 Auto-Live-Erkennung (wie TikFinity):** Die App merkt von selbst, wenn du auf TikTok live gehst, und verbindet sich automatisch — kein manuelles „Verbinden" mehr nötig. Abschaltbar in den Einstellungen.
+
+### Changed
+- **Like-Fontäne steigt höher & über die volle Widget-Höhe** (vorher nur 1–2 cm) — mehr Herzen, schönerer Effekt.
+- **Editor-Vorschau auf ~60 fps gedeckelt** — spart Strom/CPU, das echte Overlay (OBS/TTLS) bleibt unverändert flüssig.
+
+### Fixed
+- **Sicherheits-Härtung (Mehr-Agenten-Audit):** Backups können keine fremden Geheimnisse mehr unterschieben (Spotify-/TikTok-Tokens, Steuer-Token, OBS-Passwort werden beim Import hart entfernt). Spotify-Login-Seite HTML-escaped. Live-Check mit Timeout, damit ein Hänger die Auto-Erkennung nicht einschläfert.
+
+---
+
 ## [0.3.4] — 2026-06-18
 
 ### Added
