@@ -8,7 +8,7 @@
 const STYLE_ID = 'bx-hr-style';
 const DEFAULT_EMOJIS = '❤️,💖,💕,✨,🔥';
 const CSS = `
-.bx-hr { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.bx-hr { position: absolute; inset: 0; overflow: hidden; pointer-events: none; container-type: size; }
 .bx-hr-e { position: absolute; bottom: -6%; opacity: 0; will-change: transform, opacity;
   font-size: 34px; line-height: 1; display: block;
   filter: drop-shadow(0 0 9px var(--bx-glow, rgba(255,94,138,.6))) drop-shadow(0 2px 6px rgba(0,0,0,.4));
@@ -17,14 +17,16 @@ const CSS = `
 /* Profilbild des Likers — runde Scheibe mit Akzent-Ring. */
 .bx-hr-pb { border-radius: 50%; background: #1a1c28 center/cover no-repeat;
   box-shadow: 0 0 0 2.5px var(--bx-pbring, #ff5e8a), 0 0 16px -2px var(--bx-pbring, #ff5e8a); }
+/* Aufstieg in cqh = relativ zur WIDGET-Höhe (nicht zur Herz-Größe!) → die Herzen
+   steigen über die ganze Box hinaus, nicht nur 1-2 cm. */
 @keyframes bx-hr-rise {
   0%   { opacity: 0; transform: translateY(0) translateX(0) scale(.4) rotate(0); }
-  9%   { opacity: 1; transform: translateY(-8%) scale(1); }
+  9%   { opacity: 1; transform: translateY(-8cqh) scale(1); }
   /* Sanftes Schlängeln: Drift kehrt mehrfach um → S-Kurve statt schräger Linie. */
-  35%  { transform: translateY(-38%) translateX(calc(var(--drift,0px) * -.55)) scale(1.04); }
-  62%  { opacity: 1; transform: translateY(-68%) translateX(calc(var(--drift,0px) * .7)) scale(1.04); }
-  85%  { opacity: .96; transform: translateY(-95%) translateX(calc(var(--drift,0px) * -.35)) scale(1); }
-  100% { opacity: 0; transform: translateY(-128%) translateX(var(--drift,0px)) scale(.92) rotate(var(--rot,0deg)); }
+  35%  { transform: translateY(-38cqh) translateX(calc(var(--drift,0px) * -.55)) scale(1.04); }
+  62%  { opacity: 1; transform: translateY(-68cqh) translateX(calc(var(--drift,0px) * .7)) scale(1.04); }
+  85%  { opacity: .96; transform: translateY(-95cqh) translateX(calc(var(--drift,0px) * -.35)) scale(1); }
+  100% { opacity: 0; transform: translateY(-118cqh) translateX(var(--drift,0px)) scale(.92) rotate(var(--rot,0deg)); }
 }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
