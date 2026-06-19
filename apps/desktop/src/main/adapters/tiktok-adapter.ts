@@ -202,6 +202,21 @@ export class TikTokAdapter {
     await this.doConnect(++this.epoch, false);
   }
 
+  /** Ohne sofortigen Connect-Versuch auf das nächste Live warten und dann
+   *  automatisch verbinden — für „erkenne beim App-Start, wenn ich live gehe".
+   *  Nutzt den (billigen) checkLive-Poll, verbrennt also kein Sign-Kontingent. */
+  watchForLive(username: string): void {
+    this.username = username.replace(/^@/, '');
+    this.reconnectAttempts = 0;
+    this.streamEnded = false;
+    this.hasConnectedOnce = false;
+    this.pendingFresh = true; // erstes Live = neuer Stream → Session-Reset
+    const epoch = ++this.epoch;
+    this.clearReconnectTimer();
+    this.cleanupConnection();
+    this.startLiveWatch(epoch);
+  }
+
   async disconnect(): Promise<void> {
     this.epoch++; // entwertet laufende Handler/Timer/Connect-Promises
     this.clearReconnectTimer();

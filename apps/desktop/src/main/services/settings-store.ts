@@ -71,6 +71,9 @@ export interface StudioSettings {
    *  'direct' = selbst signieren via tiktok-live-connector (braucht Business-Key,
    *  kann dafür Chat senden). */
   tiktokConnectMode: 'cloud' | 'direct';
+  /** Beim App-Start automatisch warten, bis der letzte Account live geht, und
+   *  dann verbinden (wie TikFinity) — billiger Live-Check, kein Sign-Kontingent. */
+  autoLiveWatch: boolean;
   /** Streamer.bot-Brücke (WebSocket-Client). */
   streamerbot: { enabled: boolean; url: string };
 }
@@ -141,6 +144,7 @@ const DEFAULTS: StudioSettings = {
   tiktokTargetIdc: '',
   tiktokSignApiKey: '',
   tiktokConnectMode: 'cloud',
+  autoLiveWatch: true,
   streamerbot: { enabled: false, url: 'ws://127.0.0.1:8080/' },
 };
 

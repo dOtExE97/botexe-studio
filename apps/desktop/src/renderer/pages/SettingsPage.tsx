@@ -52,9 +52,10 @@ export default function SettingsPage() {
   const [signKey, setSignKey] = useState('');
   const [signKeySet, setSignKeySet] = useState(false);
   const [connectMode, setConnectMode] = useState<'cloud' | 'direct'>('cloud');
+  const [autoLiveWatch, setAutoLiveWatch] = useState(true);
 
   useEffect(() => {
-    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; tiktokConnectMode?: 'cloud' | 'direct'; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
+    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; tiktokConnectMode?: 'cloud' | 'direct'; autoLiveWatch?: boolean; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
       setPoints(s.points);
       setAudioOut(s.audioOutputId ?? '');
       setBlockedWords((s.moderation?.blockedWords ?? []).join(', '));
@@ -62,6 +63,7 @@ export default function SettingsPage() {
       setSportKeySet(!!s.sportKeySet);
       setSignKeySet(!!s.tiktokSignKeySet);
       setConnectMode(s.tiktokConnectMode === 'direct' ? 'direct' : 'cloud');
+      setAutoLiveWatch(s.autoLiveWatch !== false);
       setObsPasswordSet(!!s.obsPasswordSet);
       if (s.obs) setObs({ enabled: s.obs.enabled, url: s.obs.url, password: '' });
       if (s.streamerbot) setSb(s.streamerbot);
@@ -406,6 +408,18 @@ export default function SettingsPage() {
         <p className="mt-2 text-[10px] text-studio-muted/70">
           Tipp: Bleib bei <b>Cloud</b> — das ist der Gratis-Weg. „Direkt" ohne Business-Key endet in „requires a Business plan".
         </p>
+
+        {/* Auto-Live-Watch */}
+        <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-lg border border-studio-border/60 p-3 text-[11px] text-studio-muted">
+          <input
+            type="checkbox" checked={autoLiveWatch}
+            onChange={(e) => { setAutoLiveWatch(e.target.checked); void window.studio.updateSettings({ autoLiveWatch: e.target.checked }); }}
+            className="mt-0.5"
+          />
+          <span>
+            <b className="text-studio-fg">Automatisch verbinden, wenn ich live gehe</b> — die App beobachtet beim Start deinen zuletzt verbundenen Account und verbindet von selbst, sobald du auf TikTok live gehst (wie TikFinity). Nutzt einen sparsamen Live-Check (kein Sign-Kontingent).
+          </span>
+        </label>
       </section>
 
       {/* TikTok-Chat senden */}

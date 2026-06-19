@@ -674,6 +674,7 @@ function registerIpc(): void {
     if (typeof p.sportApiKey === 'string') allowed.sportApiKey = p.sportApiKey.trim().slice(0, 120);
     if (typeof p.tiktokSignApiKey === 'string') allowed.tiktokSignApiKey = p.tiktokSignApiKey.trim().slice(0, 200);
     if (p.tiktokConnectMode === 'cloud' || p.tiktokConnectMode === 'direct') allowed.tiktokConnectMode = p.tiktokConnectMode;
+    if (typeof p.autoLiveWatch === 'boolean') allowed.autoLiveWatch = p.autoLiveWatch;
     if (typeof p.moderation === 'object' && p.moderation !== null) {
       const m = p.moderation as Record<string, unknown>;
       if (Array.isArray(m.blockedWords)) {

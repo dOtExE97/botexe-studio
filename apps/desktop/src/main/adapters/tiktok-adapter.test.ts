@@ -200,6 +200,30 @@ test('auto-connect: nach streamEnd wird gepollt und beim nächsten live automati
   assert.equal(connections[1]?.connectCalls, 1);
 });
 
+test('watchForLive: verbindet automatisch sobald live — OHNE vorher zu connecten', async () => {
+  const bus = new EventBus();
+  let live = false;
+  const connections: FakeConnection[] = [];
+  const adapter = new TikTokAdapter(bus, {
+    factory: () => { const c = new FakeConnection(); connections.push(c); return c; },
+    onStatus: () => undefined,
+    livePollMs: 5,
+    checkLive: async () => live,
+    baseReconnectDelayMs: 1,
+    jitterMs: 0,
+  });
+  adapter.watchForLive('testuser');
+  await wait(25);
+  assert.equal(connections.length, 0, 'noch nicht live → keine Verbindung');
+
+  live = true;
+  await wait(25);
+  assert.equal(connections.length, 1, 'live erkannt → automatisch verbunden');
+  assert.equal(connections[0]?.connectCalls, 1);
+
+  await adapter.disconnect();
+});
+
 test('auto-connect: manuelles disconnect stoppt den live-watch', async () => {
   const bus = new EventBus();
   let live = false;

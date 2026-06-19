@@ -208,6 +208,10 @@ export class Studio {
       // TikFinity-Verhalten: nach Stream-Ende auf das nächste Live warten und
       // automatisch wieder verbinden — Single-User-Tool, also default an.
       autoConnect: true,
+      // Live-Check BILLIG halten (HTML-Scrape via tiktok-live-connector, ohne
+      // Sign-Key/Kontingent) — wichtig fürs dauerhafte „warte auf Live"-Pollen,
+      // damit nicht jeder Tick eine Cloud-WS-Verbindung verbrennt.
+      checkLive: (username) => this.checkLiveCheap(username),
       // Verbindungsweg wählen: Standard ist Eulers gratis Cloud-WebSocket
       // (funktioniert mit dem kostenlosen Community-Key). Nur wenn der User
       // bewusst auf 'direct' stellt (Business-Key + Chat-Senden), geht's über
@@ -475,6 +479,15 @@ export class Studio {
         this.dispatchAction(match.ruleId, match.action, tickEvent);
       }
     }, 1000);
+
+    // Auto-Live-Watch (wie TikFinity): wenn aktiviert + ein letzter Account bekannt
+    // ist, schon beim Start auf das nächste Live warten und automatisch verbinden —
+    // ohne dass der User „Verbinden" drücken muss.
+    const s = this.settings.get();
+    if (s.autoLiveWatch && s.lastUsername.trim()) {
+      log.info('TikTok', `Auto-Live-Watch: beobachte @${s.lastUsername} — verbinde automatisch, sobald live`);
+      this.adapter.watchForLive(s.lastUsername.trim());
+    }
   }
 
   async stop(): Promise<void> {
@@ -560,6 +573,21 @@ export class Studio {
     // Der eigentliche Reset passiert beim 'connected'-Status mit freshStream
     // (gilt einheitlich für manuellen Connect UND Auto-Connect ins nächste Live).
     await this.adapter.connect(username);
+  }
+
+  /** Billiger Live-Check (HTML-Scrape via tiktok-live-connector, KEIN Sign-Key/
+   *  Kontingent) — fürs dauerhafte „warte auf Live"-Pollen. */
+  private async checkLiveCheap(username: string): Promise<boolean> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { TikTokLiveConnection } = require('tiktok-live-connector');
+      const conn = new TikTokLiveConnection(username.replace(/^@/, ''), { disableEulerFallbacks: true });
+      const live = await conn.fetchIsLive();
+      try { conn.disconnect?.(); } catch { /* egal */ }
+      return !!live;
+    } catch {
+      return false;
+    }
   }
 
   async disconnect(): Promise<void> {
