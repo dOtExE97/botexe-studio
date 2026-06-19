@@ -8,6 +8,17 @@
   src: url('baloo2-extrabold.woff2') format('woff2');
   font-weight: 800; font-display: swap;
 }
+/* Weitere gebündelte Display-Schriften (lokal, kein CDN). */
+@font-face { font-family: 'Bebas Neue'; src: url('bebas.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Anton'; src: url('anton.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Bungee'; src: url('bungee.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Luckiest Guy'; src: url('luckiest.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Fredoka'; src: url('fredoka.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Permanent Marker'; src: url('marker.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Pacifico'; src: url('pacifico.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Russo One'; src: url('russo.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Press Start 2P'; src: url('pressstart.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Righteous'; src: url('righteous.woff2') format('woff2'); font-weight: 400; font-display: swap; }
 
 /* widget-base.css — gemeinsame Premium-Design-Basis aller Widgets.
    Einmal vom Overlay-Runtime geladen. Glasmorphismus, Tiefe, Neon-Akzente,

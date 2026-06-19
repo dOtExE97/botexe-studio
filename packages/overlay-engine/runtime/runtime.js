@@ -60,10 +60,21 @@ const FONT_STACKS = {
   lilita: "'Lilita One', 'Arial Black', sans-serif",
   baloo: "'Baloo 2', system-ui, sans-serif",
   sans: "'Segoe UI', system-ui, Arial, sans-serif",
-  rounded: "'Baloo 2', 'Trebuchet MS', system-ui, sans-serif",
-  condensed: "'Arial Narrow', 'Roboto Condensed', 'Oswald', sans-serif",
+  rounded: "'Fredoka', 'Baloo 2', system-ui, sans-serif",
+  condensed: "'Bebas Neue', 'Arial Narrow', sans-serif",
   serif: "Georgia, 'Times New Roman', serif",
   mono: "'JetBrains Mono', Consolas, monospace",
+  // Gebündelte Display-Schriften
+  bebas: "'Bebas Neue', sans-serif",
+  anton: "'Anton', 'Arial Black', sans-serif",
+  bungee: "'Bungee', sans-serif",
+  luckiest: "'Luckiest Guy', cursive",
+  fredoka: "'Fredoka', sans-serif",
+  marker: "'Permanent Marker', cursive",
+  pacifico: "'Pacifico', cursive",
+  russo: "'Russo One', sans-serif",
+  pressstart: "'Press Start 2P', monospace",
+  righteous: "'Righteous', sans-serif",
 };
 
 // Premium-Designs ("Skins"): kuratierte CSS-Var-Bündel. Weil alle Widgets diese
