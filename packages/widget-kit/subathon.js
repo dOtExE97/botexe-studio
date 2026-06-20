@@ -29,12 +29,6 @@ const CSS = `
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const two = (n) => String(n).padStart(2, '0');
 
-function scheduleFrame(cb) {
-  const raf = requestAnimationFrame(cb);
-  const timer = setTimeout(() => { cancelAnimationFrame(raf); cb(performance.now()); }, 200);
-  return () => { clearTimeout(timer); cancelAnimationFrame(raf); };
-}
-
 export default class Subathon {
   constructor(root, props, ctx) {
     ensureStyle();
@@ -78,16 +72,16 @@ export default class Subathon {
     setTimeout(() => p.remove(), 1300);
   }
 
-  kick() { if (!this.running) { this.running = true; this.lastT = 0; this.cancelFrame = scheduleFrame(this.frame.bind(this)); } }
+  // Sekundenuhr → setInterval statt rAF-Dauerschleife (rendert sich eh nur
+  // 1×/Sekunde sichtbar; die Bewegung ist dt-basiert, also exakt gleich).
+  kick() { if (!this.timer) { this.lastT = 0; this.timer = setInterval(() => this.frame(performance.now()), 250); } }
 
   frame(now) {
-    if (this.cancelFrame) this.cancelFrame();
     const dt = this.lastT ? now - this.lastT : 0;
     this.lastT = now;
     this.remaining = Math.max(0, this.remaining - dt);
     this.render();
-    if (this.remaining > 0) this.cancelFrame = scheduleFrame(this.frame.bind(this));
-    else { this.running = false; this.timeEl.textContent = 'VORBEI!'; }
+    if (this.remaining <= 0) { clearInterval(this.timer); this.timer = null; this.timeEl.textContent = 'VORBEI!'; }
   }
 
   render() {
@@ -97,5 +91,5 @@ export default class Subathon {
     this.el.classList.toggle('low', this.remaining > 0 && this.remaining < 60000);
   }
 
-  destroy() { if (this.cancelFrame) this.cancelFrame(); this.running = false; this.el.remove(); }
+  destroy() { if (this.timer) { clearInterval(this.timer); this.timer = null; } this.el.remove(); }
 }

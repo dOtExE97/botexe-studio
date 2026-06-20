@@ -31,7 +31,7 @@ const CSS = `
   font-size: clamp(10px, 3cqmin, 15px); color: var(--bx-muted); }
 .bx-ht-foot b { color: var(--bx-text, #fff); }
 .bx-ht-timer { height:5px; border-radius:3px; background: rgba(255,255,255,.12); overflow:hidden; }
-.bx-ht-timer > i { display:block; height:100%; width:100%; background: var(--bx-ht-color, var(--bx-accent)); }
+.bx-ht-timer > i { display:block; height:100%; width:100%; background: var(--bx-ht-color, var(--bx-accent)); transition: width .25s linear; }
 .bx-ht.levelup .bx-ht-track { animation: bx-ht-pump .5s ease; }
 @keyframes bx-ht-pump { 0%,100%{ transform:scale(1) } 40%{ transform:scale(1.06) } }
 .bx-ht-burst { position:absolute; inset:0; pointer-events:none; border-radius:inherit;
@@ -42,12 +42,6 @@ const CSS = `
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(Math.round(n)));
-
-function scheduleFrame(cb) {
-  const raf = requestAnimationFrame(cb);
-  const timer = setTimeout(() => { cancelAnimationFrame(raf); cb(performance.now()); }, 120);
-  return () => { clearTimeout(timer); cancelAnimationFrame(raf); };
-}
 
 export default class HypeTrain {
   constructor(root, props, ctx) {
@@ -130,30 +124,26 @@ export default class HypeTrain {
   // zeichnen, sonst bleiben Balken/Level/Glow vom alten Stream stehen.
   onReset() {
     this.points = 0; this.level = 1; this.contributors = 0; this.deadline = 0;
-    if (this.cancelFrame) this.cancelFrame();
-    this.running = false;
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
     this.el.classList.remove('levelup');
     this.end();
     this.render();
   }
 
+  // Countdown-Balken → setInterval statt rAF-Dauerschleife. Die Breite wird
+  // per CSS-transition (.25s) GPU-seitig geglättet, also kein sichtbares Ruckeln.
   kick() {
-    if (this.running) return;
-    this.running = true; this.lastT = 0;
-    this.cancelFrame = scheduleFrame(this.frame.bind(this));
+    if (this.timer) return;
+    this.timer = setInterval(() => this.frame(), 250);
+    this.frame();
   }
 
-  frame(now) {
-    if (this.cancelFrame) this.cancelFrame();
+  frame() {
     const remain = Math.max(0, this.deadline - this.now());
     this.timerEl.style.width = `${(remain / this.windowMs) * 100}%`;
     this.timeEl.textContent = `${Math.ceil(remain / 1000)}s`;
     if (remain <= 0 && this.active) { this.end(); }
-    if (this.active) {
-      this.cancelFrame = scheduleFrame(this.frame.bind(this));
-    } else {
-      this.running = false;
-    }
+    if (!this.active && this.timer) { clearInterval(this.timer); this.timer = null; }
   }
 
   render() {
@@ -173,7 +163,7 @@ export default class HypeTrain {
   }
 
   destroy() {
-    if (this.cancelFrame) this.cancelFrame();
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
     this.active = false;
     this.el.remove();
   }
