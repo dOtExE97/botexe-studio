@@ -199,14 +199,21 @@
 }
 .bx-outline-thin { -webkit-text-stroke: 2.5px #0a0b12; paint-order: stroke fill; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.45); }
 
-/* ── Schnell-Modus (?perf=1) ──────────────────────────────────────────────
-   Der TikTok-Live-Studio-Browser rendert oft ohne GPU — Echtzeit-Blur
-   (backdrop-filter) bricht dort auf Ruckel-FPS ein. Im Schnell-Modus:
-   Blur aus, Glas etwas dichter (sieht fast identisch aus), Schatten leichter. */
-html.bx-perf * {
+/* ── Blur-aus (echte Overlay-Quelle, default) ─────────────────────────────
+   Im echten OBS/TTLS-Overlay liegt hinter den Panels ein TRANSPARENTER
+   Browser-Hintergrund (das Spielbild kommt erst in OBS darunter). backdrop-
+   filter blurrt dort also nur Transparenz → optisch unsichtbar, kostet aber
+   pro Frame volle GPU. Daher im echten Overlay den Blur weglassen, das
+   Glas-Aussehen (--bx-glass/--bx-shadow) aber UNVERÄNDERT lassen. */
+html.bx-noblur *, html.bx-perf * {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
+
+/* ── Schnell-Modus (?perf=1) ──────────────────────────────────────────────
+   Für den schwachen TTLS-Browser ohne GPU: zusätzlich Glas etwas dichter
+   (sieht fast identisch aus, spart das Compositing der Transparenz) und
+   Schatten leichter. */
 html.bx-perf {
   --bx-glass: linear-gradient(150deg, rgba(24, 26, 37, 0.92), rgba(12, 13, 19, 0.9));
   --bx-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.55);

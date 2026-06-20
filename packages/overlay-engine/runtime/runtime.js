@@ -17,9 +17,13 @@ const cfg = window.BOTEXE_OVERLAY || {};
 const stage = document.getElementById('stage');
 const stageWrap = document.getElementById('stage-wrap');
 
-// Schnell-Modus (?perf=1): Blur & teure Effekte aus — für den schwachen
-// TTLS-Browser. Widgets können die Klasse selbst abfragen (Partikel-Budget).
+// Schnell-Modus (?perf=1): Blur & teure Effekte aus + dichteres Glas — für den
+// schwachen TTLS-Browser. Widgets können die Klasse selbst abfragen (Budget).
+// Sonst im ECHTEN Overlay (kein preview): nur Blur aus (bx-noblur) — der blurrt
+// dort eh nur Transparenz, ist also optisch neutral, spart aber GPU. Die
+// Editor-Vorschau behält den vollen Blur (echte Optik beim Bearbeiten).
 if (cfg.perf) document.documentElement.classList.add('bx-perf');
+else if (!cfg.preview) document.documentElement.classList.add('bx-noblur');
 
 // requestAnimationFrame auf ~60fps deckeln — IMMER, nicht nur in der Vorschau.
 // Grund: Die Editor-Vorschau (Electron ohne VSync) rennt mit hunderten fps,
