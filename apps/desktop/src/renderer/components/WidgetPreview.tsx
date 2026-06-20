@@ -24,13 +24,16 @@ export default function WidgetPreview({ type, props, w, h, label, desc, overlayB
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [visible, setVisible] = useState(false);
 
-  // Nur sichtbare Karten laden ihr Live-Widget (schont CPU/Speicher).
+  // Nur sichtbare Karten laden ihr Live-Widget (schont CPU/Speicher). Bidirektional:
+  // beim Rausscrollen wird das iframe wieder ENTLADEN (sonst laufen einmal
+  // gescrollte Vorschauen mit ihren Demo-Loops dauerhaft weiter). rootMargin gibt
+  // etwas Puffer gegen Flackern beim Scrollen.
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
     const root = el.closest('[data-palette-scroll]') as Element | null;
     const io = new IntersectionObserver(
-      (entries) => { if (entries.some((e) => e.isIntersecting)) setVisible(true); },
+      (entries) => { for (const e of entries) setVisible(e.isIntersecting); },
       { root, rootMargin: '160px' },
     );
     io.observe(el);

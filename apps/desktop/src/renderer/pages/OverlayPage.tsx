@@ -3,7 +3,7 @@
 // am Objekt draggen/resizen, Eigenschaften rechts im Panel. TikTok-SafeZones
 // werden als Guides eingeblendet (wo Chat/Buttons der TikTok-UI liegen).
 // Speichern validiert (ajv) und pusht live.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Clapperboard,
   Smartphone,
@@ -723,6 +723,10 @@ const CATEGORY_OF: Record<string, string> = {
   media: 'media', 'spotify-now-playing': 'media',
 };
 
+// widgetType → Label, einmalig aufgebaut. Spart das lineare WIDGET_TYPES.find()
+// pro Layer pro Render in der Ebenen-Liste.
+const WIDGET_LABELS: Record<string, string> = Object.fromEntries(WIDGET_TYPES.map((w) => [w.type, w.label]));
+
 interface ZoneStyle {
   /** Akzentfarbe (rgb-Tripel) — Tönung & Rand werden daraus abgeleitet. */
   rgb: string;
@@ -783,6 +787,12 @@ export default function OverlayPage() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.3);
   const dragRef = useRef<{ id: string; mode: 'move' | 'resize'; startX: number; startY: number; orig: OverlayLayer } | null>(null);
+  // Gebündeltes Speichern von Prop-Edits (gegen Reload-Spam beim Tippen).
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSave = useRef<OverlayLayout | null>(null);
+  // rAF-gedrosselter Drag (max. 1 State-Update pro Frame statt pro pointermove).
+  const dragRaf = useRef<number | null>(null);
+  const dragLatest = useRef<Partial<OverlayLayer> | null>(null);
 
   const canvasW = layout?.canvas.width ?? CANVAS_PRESETS.portrait.width;
   const canvasH = layout?.canvas.height ?? CANVAS_PRESETS.portrait.height;
@@ -932,8 +942,9 @@ export default function OverlayPage() {
     // Beim Profilwechsel (Canvas remountet) + bei Größenänderung neu anhängen.
   }, [layout?.id, canvasW, canvasH]);
 
-  const persist = useCallback(async (next: OverlayLayout) => {
-    setLayout(next);
+  // Eigentlicher Save (IPC → broadcast → Overlay-Rebuild). Bewusst getrennt vom
+  // State-Update, damit er gebündelt werden kann.
+  const doSave = useCallback(async (next: OverlayLayout) => {
     const result = (await window.studio.saveLayout(next)) as { ok: boolean; errors?: string[] };
     if (result.ok) {
       setSaveState('saved');
@@ -946,13 +957,44 @@ export default function OverlayPage() {
     }
   }, []);
 
+  // Sofort speichern — für strukturelle Änderungen (Layer hinzufügen/löschen,
+  // Profil umbenennen, Canvas-Preset).
+  const persist = useCallback(async (next: OverlayLayout) => {
+    setLayout(next);
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    pendingSave.current = null;
+    await doSave(next);
+  }, [doSave]);
+
+  // Gebündeltes Speichern (~300ms) — für Prop-Edits beim Tippen. Ohne das löst
+  // JEDER Tastendruck ein saveLayout + komplettes Overlay-Rebuild aus (Flackern,
+  // CPU-Spike). UI aktualisiert sofort, nur der Save/Broadcast wartet.
+  const persistDebounced = useCallback((next: OverlayLayout) => {
+    setLayout(next);
+    pendingSave.current = next;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      const pending = pendingSave.current;
+      pendingSave.current = null;
+      if (pending) void doSave(pending);
+    }, 300);
+  }, [doSave]);
+
+  // Beim Verlassen einen noch ausstehenden Save sofort rausschreiben (kein
+  // verlorener letzter Tastendruck).
+  useEffect(() => () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (pendingSave.current) void doSave(pendingSave.current);
+  }, [doSave]);
+
   const updateLayer = (id: string, patch: Partial<OverlayLayer>, save = false) => {
     if (!layout) return;
     const next = {
       ...layout,
       layers: layout.layers.map((l) => (l.id === id ? { ...l, ...patch } : l)),
     };
-    if (save) void persist(next);
+    if (save) persistDebounced(next);
     else setLayout(next);
   };
 
@@ -1009,22 +1051,47 @@ export default function OverlayPage() {
     if (!drag) return;
     const dx = (e.clientX - drag.startX) / scale;
     const dy = (e.clientY - drag.startY) / scale;
-    if (drag.mode === 'move') {
-      updateLayer(drag.id, {
-        x: Math.round(Math.max(0, Math.min(canvasW - drag.orig.w, drag.orig.x + dx))),
-        y: Math.round(Math.max(0, Math.min(canvasH - drag.orig.h, drag.orig.y + dy))),
-      });
-    } else {
-      updateLayer(drag.id, {
-        w: Math.round(Math.max(60, drag.orig.w + dx)),
-        h: Math.round(Math.max(40, drag.orig.h + dy)),
-      });
-    }
+    const patch: Partial<OverlayLayer> = drag.mode === 'move'
+      ? {
+          x: Math.round(Math.max(0, Math.min(canvasW - drag.orig.w, drag.orig.x + dx))),
+          y: Math.round(Math.max(0, Math.min(canvasH - drag.orig.h, drag.orig.y + dy))),
+        }
+      : {
+          w: Math.round(Math.max(60, drag.orig.w + dx)),
+          h: Math.round(Math.max(40, drag.orig.h + dy)),
+        };
+    // Auf 1 State-Update pro Frame drosseln — pointermove feuert oft 120+/s und
+    // re-rendert sonst jedes Mal die ganze (große) Editor-Komponente.
+    dragLatest.current = patch;
+    if (dragRaf.current != null) return;
+    dragRaf.current = requestAnimationFrame(() => {
+      dragRaf.current = null;
+      if (dragRef.current && dragLatest.current) updateLayer(dragRef.current.id, dragLatest.current);
+    });
   };
   const onPointerUp = () => {
-    if (dragRef.current && layout) void persist(layout);
+    if (dragRaf.current != null) { cancelAnimationFrame(dragRaf.current); dragRaf.current = null; }
+    const drag = dragRef.current;
     dragRef.current = null;
+    // Finale Position atomar anwenden UND speichern (nur der gedragte Layer
+    // ändert sich; die übrigen Layer bleiben wie im aktuellen Layout).
+    if (drag && dragLatest.current && layout) {
+      const patch = dragLatest.current;
+      dragLatest.current = null;
+      void persist({ ...layout, layers: layout.layers.map((l) => (l.id === drag.id ? { ...l, ...patch } : l)) });
+    }
   };
+
+  // Palette-Gruppierung nur neu berechnen, wenn sich die Suche ändert — nicht
+  // bei jedem Re-Render (z.B. während eines Drags).
+  const paletteGroups = useMemo(() => {
+    const q = paletteQuery.trim().toLowerCase();
+    const match = (w: (typeof WIDGET_TYPES)[number]) =>
+      !q || w.label.toLowerCase().includes(q) || w.desc.toLowerCase().includes(q);
+    return PALETTE_CATEGORIES
+      .map((cat) => ({ cat, items: WIDGET_TYPES.filter((w) => (CATEGORY_OF[w.type] ?? 'deko') === cat.id && match(w)) }))
+      .filter((g) => g.items.length > 0);
+  }, [paletteQuery]);
 
   if (!layout) return <div className="p-6 text-studio-muted">Lade…</div>;
 
@@ -1060,13 +1127,9 @@ export default function OverlayPage() {
         />
         {(() => {
           const q = paletteQuery.trim().toLowerCase();
-          const match = (w: (typeof WIDGET_TYPES)[number]) =>
-            !q || w.label.toLowerCase().includes(q) || w.desc.toLowerCase().includes(q);
           return (
             <div className="flex flex-col gap-3">
-              {PALETTE_CATEGORIES.map((cat) => {
-                const items = WIDGET_TYPES.filter((w) => (CATEGORY_OF[w.type] ?? 'deko') === cat.id && match(w));
-                if (items.length === 0) return null;
+              {paletteGroups.map(({ cat, items }) => {
                 const open = q !== '' || !collapsedCats.has(cat.id); // bei Suche immer offen
                 return (
                   <div key={cat.id}>
@@ -1300,7 +1363,7 @@ export default function OverlayPage() {
               const label =
                 layer.widgetType === 'leaderboard' && layer.props?.source === 'likes'
                   ? 'Like-Liste'
-                  : (WIDGET_TYPES.find((w) => w.type === layer.widgetType)?.label ?? layer.widgetType);
+                  : (WIDGET_LABELS[layer.widgetType] ?? layer.widgetType);
               // Bei aktiver Vorschau ist der echte Widget-Inhalt (iframe) die
               // Hauptsache → Rahmen/Label nur bei Hover oder Auswahl zeigen, sonst
               // unsichtbar (echtes WYSIWYG). Ohne Vorschau: gefülltes Platzhalter-Feld.
