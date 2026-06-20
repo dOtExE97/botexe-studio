@@ -6,7 +6,7 @@ const CSS = `
 .bx-lb-title { position: relative; overflow: hidden; font-family: var(--bx-font-display); font-size: clamp(11px,4.5cqmin,16px); letter-spacing: .3em;
   text-transform: uppercase; color: var(--bx-accent); text-shadow: 0 0 12px color-mix(in srgb, var(--bx-accent) 45%, transparent);
   padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid color-mix(in srgb, var(--bx-accent) 45%, transparent); }
-.bx-lb-title::after { content:''; position:absolute; top:0; bottom:0; left:-60%; width:45%; transform:skewX(-20deg);
+.bx-lb-title::after { content:''; position:absolute; top:0; bottom:0; left:-60%; width:45%; transform:translateX(0) skewX(-20deg);
   background: linear-gradient(90deg, transparent, rgba(255,255,255,.16), transparent); animation: bx-shimmer 3.6s ease-in-out infinite; }
 .bx-lb-list { position: relative; flex: 1; }
 .bx-lb-row { position: absolute; left:0; right:0; height:46px; display:flex; align-items:center; gap:11px; padding:0 8px; border-radius:12px;
@@ -22,7 +22,7 @@ const CSS = `
 .bx-lb-likes .bx-lb-title, .bx-lb-likes .bx-lb-val { color: var(--bx-pink); }
 .bx-lb-likes .bx-lb-title { border-bottom-color: color-mix(in srgb, var(--bx-pink) 45%, transparent); }
 .bx-lb-empty { display:flex; align-items:center; justify-content:center; height:100%; font-size:13px; letter-spacing:.2em; color: var(--bx-muted); text-transform:uppercase; }
-@keyframes bx-shimmer { 0%,55% { left:-60%; } 100% { left:130%; } }
+@keyframes bx-shimmer { 0%,55% { transform:translateX(0) skewX(-20deg); } 100% { transform:translateX(422%) skewX(-20deg); } }
 
 /* — GLAS — */
 .bx-st-glas { background: var(--bx-glass); border-radius: var(--bx-radius); box-shadow: var(--bx-shadow);

@@ -140,13 +140,15 @@
   bottom: 0;
   left: -60%;
   width: 45%;
-  transform: skewX(-20deg);
+  transform: translateX(0) skewX(-20deg);
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
   animation: bx-shimmer 3.6s ease-in-out infinite;
 }
+/* translateX statt left: GPU-compositet (kein Layout/Paint pro Frame). Weg von
+   left:-60%→130% = 190% der Containerbreite ≈ 422% der 45%-breiten Glanzfläche. */
 @keyframes bx-shimmer {
-  0%, 55% { left: -60%; }
-  100% { left: 130%; }
+  0%, 55% { transform: translateX(0) skewX(-20deg); }
+  100% { transform: translateX(422%) skewX(-20deg); }
 }
 
 /* Sanftes Schweben für Hero-Elemente */

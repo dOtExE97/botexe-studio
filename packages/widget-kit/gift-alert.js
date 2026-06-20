@@ -22,9 +22,10 @@ const CSS = `
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; pointer-events: none; }
 .bx-ga-card::after { content: ''; position: absolute; top: 0; bottom: 0; left: -55%; width: 42%;
-  transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255,255,255,.16), transparent);
+  transform: translateX(0) skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255,255,255,.16), transparent);
   animation: bx-ga-sweep 1.5s ease-out 240ms 2; }
-@keyframes bx-ga-sweep { to { left: 135%; } }
+/* translateX statt left: GPU-compositet. -55%→135% = 190% Container ≈ 452% der 42%-Glanzfläche. */
+@keyframes bx-ga-sweep { to { transform: translateX(452%) skewX(-20deg); } }
 .bx-ga-kicker { font-family: var(--bx-font-display); font-size: 14px; letter-spacing: .5em;
   text-transform: uppercase; color: var(--bx-teal); text-shadow: 0 0 12px color-mix(in srgb, var(--bx-teal) 50%, transparent); }
 .bx-ga-pic { width: 76px; height: 76px; margin: 12px auto 0; border-radius: 50%;

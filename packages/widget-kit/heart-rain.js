@@ -9,7 +9,7 @@ const STYLE_ID = 'bx-hr-style';
 const DEFAULT_EMOJIS = '❤️,💖,💕,✨,🔥';
 const CSS = `
 .bx-hr { position: absolute; inset: 0; overflow: hidden; pointer-events: none; container-type: size; }
-.bx-hr-e { position: absolute; bottom: -6%; opacity: 0; will-change: transform, opacity;
+.bx-hr-e { position: absolute; bottom: -6%; opacity: 0;
   font-size: 34px; line-height: 1; display: block;
   filter: drop-shadow(0 0 9px var(--bx-glow, rgba(255,94,138,.6))) drop-shadow(0 2px 6px rgba(0,0,0,.4));
   animation: bx-hr-rise var(--dur,5s) cubic-bezier(.33,.32,.36,1) forwards; }

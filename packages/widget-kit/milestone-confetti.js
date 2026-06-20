@@ -30,7 +30,7 @@ const CSS = `
 .bx-mc-msg { font-family: var(--bx-font-display); font-size: clamp(12px, 5cqmin, 24px); color: var(--bx-text,#fff);
   text-shadow: 0 2px 6px rgba(0,0,0,.6); }
 .bx-mc-piece { position:absolute; top:-8%; width: 1.4cqmin; height: 2.2cqmin; border-radius:1px;
-  will-change: transform, opacity; animation: bx-mc-fall var(--d) linear forwards; }
+  animation: bx-mc-fall var(--d) linear forwards; }
 @keyframes bx-mc-fall { 0%{opacity:1; transform: translateY(0) rotate(0)} 100%{opacity:0; transform: translateY(120cqh) rotate(720deg)} }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }

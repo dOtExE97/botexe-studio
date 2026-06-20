@@ -4,7 +4,7 @@
 const STYLE_ID = 'bx-em-style';
 const CSS = `
 .bx-em { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
-.bx-em-e { position:absolute; line-height:1; will-change:transform,opacity; opacity:0;
+.bx-em-e { position:absolute; line-height:1; opacity:0;
   filter: drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
 /* float: vom unteren Rand aufsteigen + seitlich driften (TikTok-Standard) */
 .bx-em-e.float { bottom:-10%; animation: bx-em-float var(--dur,5s) ease-out forwards; }

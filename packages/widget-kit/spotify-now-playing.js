@@ -15,10 +15,14 @@ const CSS = `
 .bx-spo-body { min-width:0; flex:1; display:flex; flex-direction:column; gap:1.5cqmin; }
 .bx-spo-row { display:flex; align-items:center; gap:6px; min-width:0; }
 .bx-spo-eq { display:inline-flex; gap:2px; align-items:flex-end; height:.9em; flex:none; }
-.bx-spo-eq i { width:3px; background: var(--bx-accent,#1db954); border-radius:2px; animation: bx-spo-eq .9s ease-in-out infinite; }
+/* scaleY statt height: GPU-compositet (kein Layout-Reflow pro Frame). */
+.bx-spo-eq i { width:3px; height:100%; transform:scaleY(.35); transform-origin:bottom;
+  background: var(--bx-accent,#1db954); border-radius:2px; animation: bx-spo-eq .9s ease-in-out infinite; }
 .bx-spo-eq i:nth-child(2){ animation-delay:.25s } .bx-spo-eq i:nth-child(3){ animation-delay:.5s }
-@keyframes bx-spo-eq { 0%,100%{ height:35% } 50%{ height:100% } }
+@keyframes bx-spo-eq { 0%,100%{ transform:scaleY(.35) } 50%{ transform:scaleY(1) } }
 .bx-spo.paused .bx-spo-eq i { animation-play-state: paused; opacity:.4; }
+/* Kein Song → Widget unsichtbar: EQ-Animation anhalten (spart Dauer-Compositing). */
+.bx-spo.empty .bx-spo-eq i { animation-play-state: paused; }
 .bx-spo-title { font-family: var(--bx-font-display); font-size: clamp(12px, 11cqmin, 32px); color: var(--bx-text,#fff);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bx-spo-artist { font-size: clamp(9px, 7cqmin, 19px); color: var(--bx-muted,#aab0c4);
