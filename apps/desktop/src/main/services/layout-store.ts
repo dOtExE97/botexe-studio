@@ -9,6 +9,10 @@ import { log } from '../core/logger';
 
 export class LayoutStore {
   private readonly dir: string;
+  /** Cache der geparsten Layout-Liste — list() läuft im Hot-Path (pro Gift-
+   *  Event über collectGiftSounds/findWheelSounds) und las sonst JEDES Mal alle
+   *  JSON-Dateien von der Disk. Invalidiert bei save/delete. NUR-LESEN. */
+  private cache: OverlayLayout[] | null = null;
 
   constructor(userDataDir: string) {
     this.dir = path.join(userDataDir, 'layouts');
@@ -16,13 +20,20 @@ export class LayoutStore {
   }
 
   list(): OverlayLayout[] {
+    if (this.cache) return this.cache;
     const layouts: OverlayLayout[] = [];
     for (const file of fs.readdirSync(this.dir)) {
       if (!file.endsWith('.json')) continue;
       const layout = this.loadFile(path.join(this.dir, file));
       if (layout) layouts.push(layout);
     }
-    return layouts.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    this.cache = layouts.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return this.cache;
+  }
+
+  /** Cache verwerfen — nach jedem Schreibvorgang auf der Disk. */
+  invalidate(): void {
+    this.cache = null;
   }
 
   get(id: string): OverlayLayout | null {
@@ -41,6 +52,7 @@ export class LayoutStore {
     const tmp = `${file}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(layout, null, 2), 'utf-8');
     fs.renameSync(tmp, file);
+    this.invalidate();
     return { ok: true, layout };
   }
 
@@ -48,6 +60,7 @@ export class LayoutStore {
     const file = this.fileFor(id);
     if (!fs.existsSync(file)) return false;
     fs.unlinkSync(file);
+    this.invalidate();
     return true;
   }
 

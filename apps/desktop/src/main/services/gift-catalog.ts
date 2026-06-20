@@ -50,6 +50,10 @@ export class GiftCatalog {
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   /** Gerade laufende Bild-Downloads (Dateiname) — gegen Doppel-Downloads. */
   private downloading = new Set<string>();
+  /** Concurrency-begrenzte Download-Queue (gegen fetch-Burst beim Erst-Connect). */
+  private static readonly MAX_PARALLEL_DOWNLOADS = 5;
+  private downloadQueue: Array<() => Promise<void>> = [];
+  private activeDownloads = 0;
 
   constructor(userDataDir: string) {
     fs.mkdirSync(userDataDir, { recursive: true });
@@ -85,7 +89,23 @@ export class GiftCatalog {
     }
     if (this.downloading.has(name)) return;
     this.downloading.add(name);
-    void this.downloadIcon(url, dest, name, entry);
+    // Über eine Queue mit Limit laufen lassen — beim ersten Connect will der
+    // Katalog sonst alle Room-Gifts (oft 100+) GLEICHZEITIG laden (fetch-Burst).
+    this.enqueueDownload(() => this.downloadIcon(url, dest, name, entry));
+  }
+
+  private enqueueDownload(task: () => Promise<void>): void {
+    this.downloadQueue.push(task);
+    this.pumpDownloads();
+  }
+
+  private pumpDownloads(): void {
+    while (this.activeDownloads < GiftCatalog.MAX_PARALLEL_DOWNLOADS) {
+      const task = this.downloadQueue.shift();
+      if (!task) break;
+      this.activeDownloads++;
+      void task().finally(() => { this.activeDownloads--; this.pumpDownloads(); });
+    }
   }
 
   private async downloadIcon(url: string, dest: string, name: string, entry: GiftEntry): Promise<void> {

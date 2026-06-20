@@ -148,3 +148,26 @@ test('topLikers überlebt toJSON/fromJSON roundtrip', () => {
   const restored = SessionStats.fromJSON(s.toJSON());
   assert.deepEqual(restored?.snapshot().topLikers, s.snapshot().topLikers);
 });
+
+test('snapshot wird gecacht bis sich der Zustand ändert (Memoize)', () => {
+  const s = new SessionStats();
+  s.apply(gift('a', 100));
+  const first = s.snapshot();
+  assert.equal(s.snapshot(), first, 'unverändert → gecachte Referenz (kein erneutes Sortieren)');
+  s.apply(gift('b', 200)); // Zustandsänderung
+  const second = s.snapshot();
+  assert.notEqual(second, first, 'nach apply → frisch berechnet');
+  assert.equal(second.topGifters.length, 2);
+  s.reset();
+  assert.notEqual(s.snapshot(), second, 'nach reset → frisch (leer)');
+  assert.equal(s.snapshot().topGifters.length, 0);
+});
+
+test('Memoize: ein apply ohne Zustandsänderung invalidiert den Cache nicht', () => {
+  const s = new SessionStats();
+  s.apply(gift('a', 100));
+  const first = s.snapshot();
+  // viewer_count mit gleichem Wert → apply gibt false → kein Cache-Bruch
+  s.apply({ type: 'viewer_count', ts: 2, viewerCount: 0 });
+  assert.equal(s.snapshot(), first, 'no-op-Event behält den Cache');
+});

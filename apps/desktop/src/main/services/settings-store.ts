@@ -260,6 +260,14 @@ export class SettingsStore {
     return structuredClone(this.cache);
   }
 
+  /** Clone-FREIE Read-Referenz auf den Cache — NUR für interne, rein lesende
+   *  Hot-Path-Zugriffe (pro Event mehrfach aufgerufen). structuredClone des
+   *  ganzen Settings-Objekts bei jeder Chat-Nachricht wäre sonst spürbar.
+   *  Niemals mutieren (Readonly erzwingt das auf Top-Level via tsc). */
+  peek(): Readonly<StudioSettings> {
+    return this.cache;
+  }
+
   update(patch: Partial<Omit<StudioSettings, 'schemaVersion'>>): StudioSettings {
     this.cache = { ...this.cache, ...patch, schemaVersion: SETTINGS_SCHEMA_VERSION };
     const tmp = `${this.file}.tmp`;

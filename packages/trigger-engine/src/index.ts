@@ -147,6 +147,12 @@ export class TriggerEngine {
     this.rules = rules;
   }
 
+  /** Gibt es mind. eine aktive Timer-Regel? — damit der 1s-Ticker nur läuft,
+   *  wenn er auch etwas auswerten kann (sonst reine Leerlauf-Last). */
+  hasTimerRules(): boolean {
+    return this.rules.some((r) => r.enabled && r.event === 'timer');
+  }
+
   resetCooldowns(): void {
     this.lastFired.clear();
   }

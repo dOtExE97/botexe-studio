@@ -86,9 +86,20 @@ export class SessionStats {
   private likers = new Map<string, LikerEntry>();
   private topGift?: GiftHighlight;
   private topStreak?: GiftHighlight;
+  /** Memoize: snapshot() sortiert die komplette Gifter-/Liker-Map. Bei vielen
+   *  tausend Likern wäre das 4×/s (Stats-Throttle) + pro Client-Connect teuer.
+   *  Cache gilt, bis ein Event den Zustand tatsächlich ändert (apply→true). */
+  private dirty = true;
+  private cached?: StatsSnapshot;
 
   /** Verarbeitet ein Event; liefert true, wenn sich der Zustand geändert hat. */
   apply(event: StudioEvent): boolean {
+    const changed = this.applyInner(event);
+    if (changed) this.dirty = true;
+    return changed;
+  }
+
+  private applyInner(event: StudioEvent): boolean {
     switch (event.type) {
       case 'gift': {
         if (!event.gift) return false;
@@ -163,6 +174,7 @@ export class SessionStats {
   }
 
   snapshot(): StatsSnapshot {
+    if (!this.dirty && this.cached) return this.cached;
     const topGifters = Array.from(this.gifters.values())
       .sort((a, b) => b.coins - a.coins || b.gifts - a.gifts)
       .slice(0, TOP_GIFTERS_LIMIT)
@@ -171,13 +183,15 @@ export class SessionStats {
       .sort((a, b) => b.likes - a.likes)
       .slice(0, TOP_GIFTERS_LIMIT)
       .map((l) => ({ ...l }));
-    return {
+    this.cached = {
       totals: { ...this.totals },
       topGifters,
       topLikers,
       ...(this.topGift ? { topGift: cleanHighlight(this.topGift) } : {}),
       ...(this.topStreak ? { topStreak: cleanHighlight(this.topStreak) } : {}),
     };
+    this.dirty = false;
+    return this.cached;
   }
 
   reset(): void {
@@ -186,6 +200,7 @@ export class SessionStats {
     this.likers.clear();
     this.topGift = undefined;
     this.topStreak = undefined;
+    this.dirty = true;
   }
 
   toJSON(): string {

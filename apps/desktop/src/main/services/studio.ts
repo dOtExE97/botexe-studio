@@ -293,7 +293,7 @@ export class Studio {
       this.recorder?.record(e);
 
       // 2. Loyalty-Punkte (persistent über Streams) + Session-Statistik
-      this.points.recordEvent(e, this.settings.get().points);
+      this.points.recordEvent(e, this.settings.peek().points);
       if (this.stats.apply(e)) { this.scheduleStatsBroadcast(); this.scheduleStatsSave(); }
 
       // 3. Trigger-Engine: Regeln auswerten, Aktionen ausführen (mit Sequenz-Delay)
@@ -368,9 +368,9 @@ export class Studio {
     if (ruleId === 'manual') return 'Manuell / Test';
     if (ruleId === 'giveaway') return 'Verlosung';
     if (ruleId === 'welcome-media') return 'Begrüßungs-Video';
-    const rule = this.settings.get().triggerRules.find((r) => r.id === ruleId);
+    const rule = this.settings.peek().triggerRules.find((r) => r.id === ruleId);
     if (rule) return rule.name;
-    const red = (this.settings.get().redemptions ?? []).find((r) => r.id === ruleId);
+    const red = (this.settings.peek().redemptions ?? []).find((r) => r.id === ruleId);
     if (red) return `Einlösung: ${red.name}`;
     return ruleId;
   }
@@ -396,7 +396,7 @@ export class Studio {
   /** Punkte-Einlösung prüfen: Chat-Befehl → Punkte abziehen → Aktion(en). */
   private maybeRedeem(event: StudioEvent): void {
     if (event.type !== 'chat' || !event.user) return;
-    const red = matchRedemption(this.settings.get().redemptions ?? [], event.text ?? '');
+    const red = matchRedemption(this.settings.peek().redemptions ?? [], event.text ?? '');
     if (!red) return;
     // Globaler Cooldown
     if (red.cooldownMs) {
@@ -499,15 +499,9 @@ export class Studio {
     await this.server.start();
     this.obs.applyConfig(this.settings.get().obs); // OBS-Verbindung (falls aktiviert)
     this.streamerbot.applyConfig(this.settings.get().streamerbot); // Streamer.bot-Brücke
-    // Timer-Regeln: jede Sekunde prüfen, ob ein Intervall abgelaufen ist.
-    // Synthetisches timer-Event als Kontext (für speak-Templates ohne user).
-    this.timerTicker = setInterval(() => {
-      const ts = Date.now();
-      const tickEvent: StudioEvent = { type: 'timer', ts };
-      for (const match of this.engine.evaluateTimer(ts)) {
-        this.dispatchAction(match.ruleId, match.action, tickEvent);
-      }
-    }, 1000);
+    // Timer-Regeln: 1s-Ticker NUR starten, wenn es überhaupt Timer-Regeln gibt
+    // (sonst lief er die ganze App-Laufzeit im Leerlauf).
+    this.refreshTimerTicker();
 
     // Auto-Live-Watch (wie TikFinity): wenn aktiviert + ein letzter Account bekannt
     // ist, schon beim Start auf das nächste Live warten und automatisch verbinden —
@@ -520,6 +514,24 @@ export class Studio {
 
     // Spotify: Polling nur, wenn es auch jemand sieht (Client + Widget).
     this.refreshSpotifyPolling();
+  }
+
+  /** 1s-Timer-Ticker an/aus je nachdem, ob aktive Timer-Regeln existieren.
+   *  Bei jeder Regeländerung neu bewerten. */
+  private refreshTimerTicker(): void {
+    const want = this.engine.hasTimerRules();
+    if (want && !this.timerTicker) {
+      this.timerTicker = setInterval(() => {
+        const ts = Date.now();
+        const tickEvent: StudioEvent = { type: 'timer', ts };
+        for (const match of this.engine.evaluateTimer(ts)) {
+          this.dispatchAction(match.ruleId, match.action, tickEvent);
+        }
+      }, 1000);
+    } else if (!want && this.timerTicker) {
+      clearInterval(this.timerTicker);
+      this.timerTicker = null;
+    }
   }
 
   async stop(): Promise<void> {
@@ -722,6 +734,7 @@ export class Studio {
   setRules(rules: TriggerRule[]): void {
     this.settings.update({ triggerRules: rules });
     this.engine.setRules(rules);
+    this.refreshTimerTicker(); // Timer-Regel hinzugekommen/entfernt → Ticker neu bewerten
   }
 
   /** Kompletter Gift-Katalog für Galerie + Overlay-Widgets. Lokal gespeicherte
@@ -773,6 +786,7 @@ export class Studio {
         if (rest.obs && typeof rest.obs === 'object') delete (rest.obs as Record<string, unknown>).password;
         this.settings.update(rest as Parameters<typeof this.settings.update>[0]);
         this.engine.setRules(this.settings.get().triggerRules);
+        this.refreshTimerTicker(); // Backup könnte Timer-Regeln mitbringen/entfernen
         this.obs.applyConfig(this.settings.get().obs); // OBS-Verbindung aus Backup übernehmen
         this.streamerbot.applyConfig(this.settings.get().streamerbot);
       }
@@ -810,7 +824,7 @@ export class Studio {
     if (event.type !== 'chat' || !event.user) return;
     if (this.greetedThisSession.has(event.user.id)) return;
     this.greetedThisSession.add(event.user.id);
-    const g = this.settings.get().greetReturning;
+    const g = this.settings.peek().greetReturning;
     if (!g.enabled) return;
     const visits = this.points.visitCountOf(event.user.id);
     if (visits < g.minVisits) return;
@@ -839,7 +853,7 @@ export class Studio {
 
   /** Beitritt via Join-Wort: dedupliziert pro Zuschauer, optional Punkte-Eintritt. */
   private maybeJoinGiveaway(event: StudioEvent): void {
-    const gw = this.settings.get().giveaway;
+    const gw = this.settings.peek().giveaway;
     if (!gw.enabled || event.type !== 'chat' || !event.user || !event.text) return;
     const norm = (s: string) => s.trim().toLowerCase().replace(/^!+/, '');
     if (norm(event.text) !== norm(gw.joinWord)) return;
@@ -1084,7 +1098,7 @@ export class Studio {
     if (tts.skipCommands && raw.trimStart().startsWith('!')) return;
     if (event.user && this.points.isMuted(event.user.id)) return; // Troll-Sperre
     // Chat-Moderation: gesperrte Wörter nicht vorlesen.
-    if (containsBlockedWord(raw, this.settings.get().moderation?.blockedWords ?? [])) return;
+    if (containsBlockedWord(raw, this.settings.peek().moderation?.blockedWords ?? [])) return;
 
     // Wer-Filter (Teamherz/Mod/Follower/VIP) + optionaler Prefix-Modus.
     const isVip = event.user ? this.points.isVip(event.user.id) : false;
