@@ -3,6 +3,40 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.6] — 2026-06-20
+
+Großes **Performance-Update** — die App läuft jetzt deutlich sparsamer, gerade
+wenn du nebenbei zockst und streamst. Optik bleibt gleich. (Nach gründlichem
+Mehr-Agenten-Audit + Recherche zu Electron/Overlay-Best-Practices.)
+
+### Changed
+- **Overlay auf 60 fps gedeckelt.** Das Overlay lief auf schnellen Monitoren mit
+  ~174 fps und hat unnötig CPU/GPU gefressen — für ein Overlay sind 60 fps
+  verlustfrei (Animationen sehen identisch aus). Spart spürbar Leistung fürs Spiel.
+- **Editor-Vorschau-fps-Bug behoben:** lief seit v0.3.5 bei ~30 statt 60 fps.
+- **Glas-Blur im echten Overlay aus** (optisch neutral): Der Weichzeichner hat
+  über dem transparenten Hintergrund nichts gebracht, kostete aber pro Bild
+  GPU. Das Glas-Aussehen bleibt unverändert.
+- **Like-Fontäne & Effekte laufen GPU-schonender** (Compositing statt teurem
+  Neu-Berechnen): Herzen, Spotify-Equalizer, Glanz-Effekte, Konfetti, Emojis.
+- **Spotify fragt nur noch nach Songs, wenn nötig** (Overlay offen + Widget
+  vorhanden) statt dauerhaft alle 4 Sekunden im Hintergrund.
+- **Editor reagiert flüssiger:** Tippen in Feldern lädt das Overlay nicht mehr
+  bei jedem Buchstaben neu (kein Flackern); Verschieben/Größe-Ändern ruckelt
+  weniger; Widget-Vorschauen in der Liste laufen nur noch sichtbar.
+
+### Fixed
+- **Weniger Last bei Geschenk-/Like-Flut:** Nachrichten ans Overlay werden nur
+  noch einmal statt pro Fenster aufbereitet; Statistiken & Layouts werden
+  zwischengespeichert statt bei jedem Event neu berechnet/von der Platte gelesen.
+- **Geschenk-Bilder laden gedrosselt** (max. 5 gleichzeitig) statt alle auf
+  einmal beim Verbinden.
+- **App bricht nicht mehr ein, wenn ein Spiel im Vollbild sie verdeckt.**
+- Timer-/Subathon-/Hype-Train-Widgets laufen im Leerlauf nicht mehr unnötig.
+- Die `~60 fps`-Logmeldung steht jetzt als Info da, nicht mehr als Warnung.
+
+---
+
 ## [0.3.5] — 2026-06-19
 
 ### Added
