@@ -32,6 +32,7 @@ test('parseNowPlaying: mappt Titel/Künstler/Cover/Fortschritt; null ohne item',
 function makeService(opts: { tokens?: SpotifyTokens | null; t?: number } = {}) {
   let tokens: SpotifyTokens | null = opts.tokens ?? null;
   const calls: Array<{ url: string; method: string; body?: string }> = [];
+  const states: Array<unknown> = [];
   let t = opts.t ?? 1_000_000;
   const fetchFn = (async (url: string, init?: { method?: string; body?: string }) => {
     calls.push({ url: String(url), method: init?.method ?? 'GET', body: init?.body });
@@ -50,8 +51,9 @@ function makeService(opts: { tokens?: SpotifyTokens | null; t?: number } = {}) {
     redirectUri: () => 'http://127.0.0.1:27415/spotify/callback',
     fetchFn,
     now: () => t,
+    onState: (np) => states.push(np),
   });
-  return { svc, calls, getTokens: () => tokens, setT: (x: number) => { t = x; } };
+  return { svc, calls, states, getTokens: () => tokens, setT: (x: number) => { t = x; } };
 }
 
 test('completeAuth: Code → Tokens gespeichert (nur mit passendem state)', async () => {
@@ -79,4 +81,24 @@ test('Steuerung: play/pause/next/previous treffen die richtigen Endpunkte', asyn
   assert.ok(calls.some((c) => c.url.endsWith('/me/player/pause') && c.method === 'PUT'));
   assert.ok(calls.some((c) => c.url.endsWith('/me/player/next') && c.method === 'POST'));
   assert.ok(calls.some((c) => c.url.endsWith('/me/player/previous') && c.method === 'POST'));
+});
+
+test('pollOnce: meldet Now-Playing per onState (nur wenn verbunden)', async () => {
+  const off = makeService(); // keine Tokens → nicht verbunden
+  await off.svc.pollOnce();
+  assert.equal(off.states.length, 0, 'ohne Verbindung kein onState');
+
+  const on = makeService({ tokens: { accessToken: 'AT', refreshToken: 'RT', expiresAt: 9_999_999_999 } });
+  await on.svc.pollOnce();
+  assert.equal(on.states.length, 1, 'verbunden → genau ein onState-Push');
+  assert.equal((on.states[0] as { title?: string })?.title, 'X');
+});
+
+test('isPolling: false → startPolling true → stopPolling false', () => {
+  const { svc } = makeService({ tokens: { accessToken: 'AT', refreshToken: 'RT', expiresAt: 9_999_999_999 } });
+  assert.equal(svc.isPolling(), false);
+  svc.startPolling();
+  assert.equal(svc.isPolling(), true);
+  svc.stopPolling();
+  assert.equal(svc.isPolling(), false);
 });

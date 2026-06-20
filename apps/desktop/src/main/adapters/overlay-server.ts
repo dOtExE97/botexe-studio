@@ -63,6 +63,9 @@ export interface OverlayServerOptions {
   onSpotifyCallback?: (code: string, state: string) => Promise<{ ok: boolean; error?: string }>;
   /** Letzter Now-Playing-Stand für Late-Joiner (Spotify-Widget startet nicht leer). */
   getSpotifyState?: () => unknown;
+  /** Anzahl verbundener Overlay-Clients hat sich geändert (connect/disconnect)
+   *  — z.B. um bedarfsabhängiges Polling (Spotify) an/aus zu schalten. */
+  onClientCountChange?: (count: number) => void;
   /** Spiel-Widgets (Bingo/Zahlenraten) lösen Sounds über die App aus. */
   onWidgetSound?: (soundId: string) => void;
   /** Spiel-Sieg (z.B. Zahlen-Raten) — winId dedupliziert über OBS+TTLS+Vorschau. */
@@ -501,6 +504,7 @@ export class OverlayServer {
       const client: TrackedClient = { ws, isAlive: true, profileId };
       this.clients.add(client);
       log.info('Overlay', `Client verbunden, Profil "${profileId}" (${this.clients.size} aktiv)`);
+      this.notifyClientCount();
 
       ws.on('pong', () => {
         client.isAlive = true;
@@ -563,6 +567,7 @@ export class OverlayServer {
       ws.on('close', () => {
         this.clients.delete(client);
         log.info('Overlay', `Client getrennt (${this.clients.size} aktiv)`);
+        this.notifyClientCount();
       });
       ws.on('error', (err) => {
         log.warn('Overlay', 'WS-Client-Fehler', err.message);
@@ -640,6 +645,7 @@ export class OverlayServer {
 
   /** H8: Clients, die auf den letzten Ping nicht geantwortet haben, fliegen raus. */
   private heartbeat(): void {
+    const before = this.clients.size;
     for (const client of this.clients) {
       if (!client.isAlive) {
         log.warn('Overlay', 'Toter Client — terminate');
@@ -655,6 +661,11 @@ export class OverlayServer {
         this.clients.delete(client);
       }
     }
+    if (this.clients.size !== before) this.notifyClientCount();
+  }
+
+  private notifyClientCount(): void {
+    this.options.onClientCountChange?.(this.clients.size);
   }
 
   async stop(): Promise<void> {

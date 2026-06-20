@@ -227,19 +227,28 @@ export class SpotifyService {
     return (await this.api(`/me/player/queue?uri=${encodeURIComponent(uri)}`, 'POST'))?.ok ?? false;
   }
 
-  /** Now-Playing periodisch pollen und per onState melden (fürs Overlay). */
-  startPolling(intervalMs = 4000): void {
+  /** Einmalig Now-Playing holen und per onState melden (z.B. direkt nach einer
+   *  Steuerungs-Aktion, ohne dass dafür ein Dauer-Polling laufen muss). */
+  async pollOnce(): Promise<void> {
+    if (!this.isConnected()) return;
+    this.deps.onState?.(await this.getNowPlaying());
+  }
+
+  /** Now-Playing periodisch pollen und per onState melden (fürs Overlay).
+   *  Default 8s — das reicht fürs Widget; der Fortschrittsbalken zählt zwischen
+   *  den Polls lokal weiter. */
+  startPolling(intervalMs = 8000): void {
     this.stopPolling();
-    const tick = async (): Promise<void> => {
-      if (!this.isConnected()) return;
-      this.deps.onState?.(await this.getNowPlaying());
-    };
-    void tick();
-    this.pollTimer = setInterval(() => void tick(), intervalMs);
+    void this.pollOnce();
+    this.pollTimer = setInterval(() => void this.pollOnce(), intervalMs);
   }
 
   stopPolling(): void {
     if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+  }
+
+  isPolling(): boolean {
+    return this.pollTimer !== null;
   }
 
   dispose(): void { this.stopPolling(); }

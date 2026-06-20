@@ -203,6 +203,7 @@ export class Studio {
         topWinners: this.points.topWinners(10),
         currencyName: this.settings.get().points.currencyName,
       }),
+      onClientCountChange: () => this.refreshSpotifyPolling(),
       onWidgetSound: (soundId) => this.playSound(soundId),
       onGameWin: (_winId, user) => this.recordGameWin(user),
       giftImagesDir: this.giftCatalog.getImagesDir(),
@@ -517,8 +518,8 @@ export class Studio {
       this.adapter.watchForLive(s.lastUsername.trim());
     }
 
-    // Spotify: wenn schon verbunden, Now-Playing-Polling starten.
-    if (this.spotify.isConnected()) this.spotify.startPolling();
+    // Spotify: Polling nur, wenn es auch jemand sieht (Client + Widget).
+    this.refreshSpotifyPolling();
   }
 
   async stop(): Promise<void> {
@@ -639,15 +640,31 @@ export class Studio {
 
   // ── Spotify ──────────────────────────────────────────────────────────────
 
+  /** Now-Playing nur pollen, wenn es auch jemand sieht: verbunden + mind. ein
+   *  Overlay-Client + irgendwo ein Spotify-Widget im Layout. Sonst lief der
+   *  4s-Poll die ganze App-Laufzeit ins Leere (auch ohne Stream/Widget). */
+  private hasSpotifyWidget(): boolean {
+    return this.layouts.list().some((layout) =>
+      layout.layers.some((l) => l.widgetType === 'spotify-now-playing' && l.visible),
+    );
+  }
+
+  refreshSpotifyPolling(): void {
+    const want = this.spotify.isConnected() && this.server.getClientCount() > 0 && this.hasSpotifyWidget();
+    if (want && !this.spotify.isPolling()) this.spotify.startPolling();
+    else if (!want && this.spotify.isPolling()) this.spotify.stopPolling();
+  }
+
   /** Login starten — liefert die Authorize-URL (Renderer öffnet sie im Browser). */
   spotifyBeginAuth(): { url: string; ok: boolean; error?: string } {
     return this.spotify.beginAuth();
   }
 
-  /** OAuth-Redirect-Callback (vom lokalen Server) → Tokens holen + Polling starten. */
+  /** OAuth-Redirect-Callback (vom lokalen Server) → Tokens holen, einmal frisch
+   *  anzeigen + bedarfsabhängiges Polling neu bewerten. */
   private async onSpotifyCallback(code: string, state: string): Promise<{ ok: boolean; error?: string }> {
     const r = await this.spotify.completeAuth(code, state);
-    if (r.ok) this.spotify.startPolling();
+    if (r.ok) { void this.spotify.pollOnce(); this.refreshSpotifyPolling(); }
     return r;
   }
 
@@ -665,8 +682,9 @@ export class Studio {
       : action === 'pause' ? await this.spotify.pause()
         : action === 'next' ? await this.spotify.next()
           : await this.spotify.previous();
-    // Sofort frisch pollen, damit die Anzeige nicht hinterherhinkt.
-    this.spotify.startPolling();
+    // Sofort einmal frisch holen, damit die Anzeige nach der Aktion stimmt —
+    // ohne ein Dauer-Polling zu erzwingen (das steuert refreshSpotifyPolling).
+    void this.spotify.pollOnce();
     return ok;
   }
 
@@ -688,6 +706,7 @@ export class Studio {
   spotifyLogout(): void {
     this.spotify.logout();
     this.lastSpotify = null;
+    this.refreshSpotifyPolling(); // stoppt das Polling (nicht mehr verbunden)
   }
 
   async disconnect(): Promise<void> {
@@ -953,6 +972,8 @@ export class Studio {
   /** Nach jedem Save eines Profils dessen Clients live aktualisieren. */
   notifyLayoutSaved(layoutId: string): void {
     this.server.broadcastLayout(layoutId);
+    // Ein Spotify-Widget könnte hinzugekommen/entfernt worden sein → Polling neu bewerten.
+    this.refreshSpotifyPolling();
   }
 
   // ── Zuschauer-Verwaltung ──────────────────────────────────────────────
