@@ -675,8 +675,12 @@ export class OverlayServer {
   // ── Senden ──────────────────────────────────────────────────────────────
 
   broadcast(message: OverlayMessage): void {
+    if (this.clients.size === 0) return;
+    // Einmal serialisieren statt pro Client: bei mehreren offenen Overlays
+    // (OBS + TTLS + Editor-Vorschau) wäre dasselbe Event sonst N-mal stringified.
+    const payload = JSON.stringify(message);
     for (const client of this.clients) {
-      this.sendTo(client, message);
+      this.sendTo(client, message, false, payload);
     }
   }
 
@@ -689,7 +693,7 @@ export class OverlayServer {
     }
   }
 
-  private sendTo(client: TrackedClient, message: OverlayMessage, critical = false): void {
+  private sendTo(client: TrackedClient, message: OverlayMessage, critical = false, payload?: string): void {
     if (client.ws.readyState !== 1) return;
     // H6: Event-Spam (gift-bombing) darf den Buffer toter/langsamer Clients
     // nicht unbegrenzt füllen. Layout/Initial-Messages gelten als kritisch.
@@ -700,7 +704,8 @@ export class OverlayServer {
       }
       return;
     }
-    client.ws.send(JSON.stringify(message));
+    // payload vorberechnet (Broadcast an mehrere Clients) → nicht neu serialisieren.
+    client.ws.send(payload ?? JSON.stringify(message));
   }
 
   // ── Info ────────────────────────────────────────────────────────────────
