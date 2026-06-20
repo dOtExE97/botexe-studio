@@ -22,6 +22,16 @@ if (started) {
   app.quit();
 }
 
+// Performance neben dem Spiel: Chromium drosselt verdeckte/Hintergrund-Fenster
+// hart (Renderer-Priorität runter, Timer/rAF gebremst). Wenn der Streamer
+// Fortnite im Vollbild zockt, ist unser Fenster verdeckt — ohne diese Switches
+// würde die Editor-Vorschau/Overlay-Logik einbrechen. Das ungebremste rAF, das
+// dadurch sonst entstünde, fängt unser eigener 60fps-Cap ab (fps-cap.js).
+// Bewusst NICHT: --disable-gpu-vsync (würde rAF auf 200+fps treiben) und
+// powerSaveBlocker (hält System künstlich wach — für ein Overlay unnötig).
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+
 // Nur eine Instanz — zweiter Start fokussiert das bestehende Fenster.
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
