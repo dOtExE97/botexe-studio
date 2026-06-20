@@ -6,7 +6,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "test": "node --import tsx --test src/layout.test.ts",
+    "test": "node --import tsx --test src/layout.test.ts runtime/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

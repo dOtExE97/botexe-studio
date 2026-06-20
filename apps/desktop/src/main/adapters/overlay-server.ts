@@ -515,7 +515,7 @@ export class OverlayServer {
         if (str.length > 4096) return;
         try {
           const msg = JSON.parse(str) as {
-            kind?: string; scope?: string; message?: string; soundId?: string;
+            kind?: string; scope?: string; message?: string; soundId?: string; level?: string;
             winId?: string; user?: { id?: string; nickname?: string; profilePic?: string };
           };
           const now = Date.now();
@@ -552,7 +552,10 @@ export class OverlayServer {
           if (msg.kind !== 'clientlog' || !msg.message) return;
           if (now - logWindowStart > 1000) { logWindowStart = now; logCount = 0; }
           if (++logCount > 5) return; // max 5 Client-Logs/s pro Client → kein Flooding
-          log.warn('Overlay-Widget', `[${profileId || 'default'}] ${clean(msg.scope, 60)} ${clean(msg.message, 300)}`.trim());
+          const line = `[${profileId || 'default'}] ${clean(msg.scope, 60)} ${clean(msg.message, 300)}`.trim();
+          // Reine Diagnose (z.B. gesunde fps) als INFO, nur echte Probleme als WARN.
+          if (msg.level === 'info') log.info('Overlay-Widget', line);
+          else log.warn('Overlay-Widget', line);
         } catch {
           /* nicht-JSON ignorieren */
         }

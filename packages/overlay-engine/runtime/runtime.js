@@ -11,6 +11,8 @@
 
 /* global window, document, WebSocket, location */
 
+import { installFpsCap } from './fps-cap.js';
+
 const cfg = window.BOTEXE_OVERLAY || {};
 const stage = document.getElementById('stage');
 const stageWrap = document.getElementById('stage-wrap');
@@ -19,31 +21,14 @@ const stageWrap = document.getElementById('stage-wrap');
 // TTLS-Browser. Widgets können die Klasse selbst abfragen (Partikel-Budget).
 if (cfg.perf) document.documentElement.classList.add('bx-perf');
 
-// Editor-Vorschau (cfg.preview) läuft in Electron ohne VSync → requestAnimationFrame
-// rennt ungebremst (hunderte fps) und frisst CPU, während nebenbei gezockt/gestreamt
-// wird. Auf ~60fps deckeln. Die echte Overlay-Quelle (OBS/TTLS) ist ohnehin
-// fps-/vsync-begrenzt — daher NUR in der Vorschau eingreifen.
-if (cfg.preview && typeof window.requestAnimationFrame === 'function') {
-  const nativeRaf = window.requestAnimationFrame.bind(window);
-  const nativeCaf = (window.cancelAnimationFrame || (() => {})).bind(window);
-  const MIN = 1000 / 62; // Ziel ~60fps
-  let last = -Infinity;
-  let seq = 0;
-  const pending = new Map(); // eigene ID → Abbruch-Funktion (cancelbar, auch über setTimeout)
-  window.requestAnimationFrame = (cb) => {
-    const id = ++seq;
-    let nativeId = 0;
-    let timerId = 0;
-    const step = (t) => {
-      if (t - last >= MIN) { last = t; pending.delete(id); cb(t); }
-      else { timerId = setTimeout(() => { nativeId = nativeRaf(step); }, MIN - (t - last)); }
-    };
-    nativeId = nativeRaf(step);
-    pending.set(id, () => { nativeCaf(nativeId); clearTimeout(timerId); });
-    return id;
-  };
-  window.cancelAnimationFrame = (id) => { const c = pending.get(id); if (c) { c(); pending.delete(id); } };
-}
+// requestAnimationFrame auf ~60fps deckeln — IMMER, nicht nur in der Vorschau.
+// Grund: Die Editor-Vorschau (Electron ohne VSync) rennt mit hunderten fps,
+// UND das echte Overlay lief auf High-Refresh-Monitoren mit ~174fps (per Log
+// gemessen). Für ein Overlay sind 60fps verlustfrei (alle Animationen sind
+// dt-/zeitbasiert), sparen aber massiv CPU/GPU neben dem Spiel. Die Logik
+// (driftfreier Akkumulator, kein Frame-Verschlucken) steckt getestet in
+// fps-cap.js.
+installFpsCap(window, typeof cfg.fpsCap === 'number' ? cfg.fpsCap : 60);
 
 // ── Widget-Registry ────────────────────────────────────────────────────────
 // widgetType → Modul-URL. Module werden lazy geladen und gecacht; ein Layout
@@ -623,10 +608,10 @@ let activeWs = null;
 
 // Widget-/Runtime-Fehler an die App melden (zentrales Datei-Log), nicht nur
 // in die TTLS-Browser-Console (die sieht niemand).
-function reportClientError(scope, message) {
+function reportClientError(scope, message, level = 'warn') {
   try {
     if (activeWs && activeWs.readyState === 1) {
-      activeWs.send(JSON.stringify({ kind: 'clientlog', level: 'error', scope, message: String(message).slice(0, 500) }));
+      activeWs.send(JSON.stringify({ kind: 'clientlog', level, scope, message: String(message).slice(0, 500) }));
     }
   } catch {
     /* Melde-Fehler nie eskalieren */
@@ -703,7 +688,11 @@ setTimeout(() => {
     else {
       const fps = Math.round(frames / 2);
       const ctx = cfg.perf ? 'ttls-link' : cfg.preview ? 'editor-vorschau' : 'obs/browser';
-      reportClientError('fps', `~${fps} fps (rAF) [${ctx}]${fps < 12 ? ' — Browser drosselt, Widgets nutzen Fallback (~18fps)' : ''}`);
+      // Mit dem 60er-Cap ist ~60 der Gesund-Wert → als INFO melden, nicht als
+      // WARN (sonst sieht jedes normale Log alarmierend aus). Nur echte
+      // Drosselung (Browser bremst hart) bleibt eine Warnung.
+      const healthy = fps >= 50;
+      reportClientError('fps', `~${fps} fps (rAF) [${ctx}]${fps < 12 ? ' — Browser drosselt, Widgets nutzen Fallback (~18fps)' : ''}`, healthy ? 'info' : 'warn');
     }
   };
   requestAnimationFrame(count);
