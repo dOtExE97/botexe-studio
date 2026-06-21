@@ -23,7 +23,7 @@ jobs:
           node-version: 20
           cache: npm
       - name: Install
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Make (Squirrel-Setup)
         run: npm run make --workspace apps/desktop
       - name: Upload Setup-Artefakt
@@ -50,7 +50,7 @@ jobs:
           node-version: 20
           cache: npm
       - name: Install
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Publish (GitHub Release + Update-Feed)
         run: npm run publish --workspace apps/desktop
         env:
