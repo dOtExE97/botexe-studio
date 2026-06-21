@@ -1112,7 +1112,7 @@ export class Studio {
 
     // Wer-Filter (Teamherz/Mod/Follower/VIP) + optionaler Prefix-Modus.
     const isVip = event.user ? this.points.isVip(event.user.id) : false;
-    const decision = shouldReadChat(event, tts.readWho ?? 'all', tts.readPrefix ?? '', isVip);
+    const decision = shouldReadChat(event, tts.readGroups ?? ['all'], tts.readPrefix ?? '', isVip);
     if (!decision.read) return;
 
     // Prefix-bereinigten Text fürs Template nutzen (Original-Event unangetastet).

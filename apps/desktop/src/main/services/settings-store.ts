@@ -5,9 +5,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { TriggerRule, Redemption, PanelButton, ChatCommand } from '@botexe/trigger-engine';
 import { DEFAULT_POINTS_CONFIG, type PointsConfig } from './points-store';
+import { migrateReadWho, type ReadGroup } from './tts-filter';
 import { log } from '../core/logger';
 
-export const SETTINGS_SCHEMA_VERSION = 5;
+export const SETTINGS_SCHEMA_VERSION = 6;
 
 export interface TTSSettings {
   enabled: boolean;
@@ -21,8 +22,8 @@ export interface TTSSettings {
   maxTextLen: number;
   /** Vorlese-Format, z.B. '{user} sagt: {text}' */
   chatTemplate: string;
-  /** Wer vorgelesen wird: alle / Follower+ / Teamherz+ / Mods / nur App-VIPs. */
-  readWho: 'all' | 'followers' | 'subs' | 'mods' | 'vips';
+  /** Wer vorgelesen wird — Multi-Select (ODER): alle/Follower/Teamherz/Mods/VIPs. */
+  readGroups: ReadGroup[];
   /** Nur Nachrichten mit diesem Start-Zeichen vorlesen ('' = aus), z.B. '.'. */
   readPrefix: string;
 }
@@ -120,7 +121,7 @@ const TTS_DEFAULTS: TTSSettings = {
   skipCommands: true,
   maxTextLen: 200,
   chatTemplate: '{user} sagt: {text}',
-  readWho: 'all',
+  readGroups: ['all'],
   readPrefix: '',
 };
 
@@ -200,7 +201,14 @@ export class SettingsStore {
       }
       const merged: StudioSettings = { ...DEFAULTS, ...raw, schemaVersion: SETTINGS_SCHEMA_VERSION };
       // Migration v1→v2: tts-block ergänzen; defensiv mergen falls teilweise da.
-      merged.tts = { ...TTS_DEFAULTS, ...(typeof raw.tts === 'object' && raw.tts !== null ? raw.tts : {}) };
+      const rawTts = (typeof raw.tts === 'object' && raw.tts !== null ? raw.tts : {}) as Record<string, unknown>;
+      merged.tts = { ...TTS_DEFAULTS, ...rawTts };
+      // Migration v5→v6: altes Einzel-readWho → Multi-Select readGroups, sofern
+      // der gespeicherte Block noch kein Gruppen-Array hatte (altes Verhalten erhalten).
+      if (!Array.isArray(rawTts.readGroups) && typeof rawTts.readWho === 'string') {
+        merged.tts.readGroups = migrateReadWho(rawTts.readWho);
+      }
+      delete (merged.tts as unknown as Record<string, unknown>).readWho; // Legacy-Feld entfernen
       // Migration v2→v3: credentials-block ergänzen.
       merged.ttsCredentials =
         typeof raw.ttsCredentials === 'object' && raw.ttsCredentials !== null ? raw.ttsCredentials : {};

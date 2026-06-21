@@ -3,9 +3,35 @@
 // optionaler Prefix-Modus („nur Nachrichten, die mit . beginnen").
 import type { StudioEvent } from '@botexe/trigger-engine';
 
-/** Mindest-Gruppe fürs Vorlesen — aufsteigend restriktiver.
- *  App-VIPs (von dir markiert) werden bei jeder Stufe vorgelesen. */
-export type ReadWho = 'all' | 'followers' | 'subs' | 'mods' | 'vips';
+/** Ankreuzbare Gruppen fürs Vorlesen (Multi-Select, ODER-verknüpft).
+ *  App-VIPs (von dir markiert) werden immer vorgelesen. */
+export type ReadGroup = 'all' | 'followers' | 'subs' | 'mods' | 'vips';
+
+/** Legacy: alte Einzel-Stufe (vor dem Multi-Select). Nur noch für die Migration. */
+export type ReadWho = ReadGroup;
+
+/** Alte hierarchische Einzel-Einstellung → neues Gruppen-Array, so dass das
+ *  bisherige Verhalten erhalten bleibt (z.B. „followers" schloss subs+mods ein). */
+export function migrateReadWho(who: string): ReadGroup[] {
+  switch (who) {
+    case 'all': return ['all'];
+    case 'followers': return ['followers', 'subs', 'mods'];
+    case 'subs': return ['subs', 'mods'];
+    case 'mods': return ['mods'];
+    case 'vips': return ['vips'];
+    default: return ['all'];
+  }
+}
+
+function groupMatches(group: ReadGroup, u: StudioEvent['user']): boolean {
+  switch (group) {
+    case 'all': return true;
+    case 'mods': return !!u?.isMod;
+    case 'subs': return !!u?.isSub;
+    case 'followers': return !!u?.isFollower;
+    case 'vips': return false; // nur App-VIPs (separat behandelt)
+  }
+}
 
 export interface ReadDecision {
   read: boolean;
@@ -25,7 +51,7 @@ export function containsBlockedWord(text: string, blockedWords: string[]): boole
 
 export function shouldReadChat(
   event: StudioEvent,
-  who: ReadWho,
+  groups: ReadGroup[],
   prefix: string,
   isAppVip: boolean,
 ): ReadDecision {
@@ -39,22 +65,9 @@ export function shouldReadChat(
     if (!text) return { read: false, text: '' };
   }
 
+  // App-VIPs (von dir markiert) immer; sonst: in mind. einer angekreuzten Gruppe.
   const u = event.user;
-  const groupOk = (() => {
-    if (isAppVip) return true; // von dir markierte VIPs immer
-    switch (who) {
-      case 'all':
-        return true;
-      case 'followers':
-        return !!(u?.isFollower || u?.isSub || u?.isMod);
-      case 'subs':
-        return !!(u?.isSub || u?.isMod);
-      case 'mods':
-        return !!u?.isMod;
-      case 'vips':
-        return false; // nur App-VIPs (oben schon erlaubt)
-    }
-  })();
+  const groupOk = isAppVip || groups.some((g) => groupMatches(g, u));
 
   return { read: groupOk, text };
 }

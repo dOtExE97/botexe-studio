@@ -107,3 +107,30 @@ test('redactSecretsForExport: mutiert das Original NICHT (tiefe Kopie)', () => {
   assert.equal(orig.tiktokSessionId, 'sess');
   assert.equal(orig.obs.password, 'geheim');
 });
+
+test('Migration v5→v6: altes tts.readWho → readGroups (Verhalten erhalten), kein readWho mehr', () => {
+  const dir = tmpDir();
+  writeSettings(dir, {
+    schemaVersion: 5,
+    tts: { enabled: true, readChat: true, readWho: 'followers', chatTemplate: '{user}: {text}' },
+  });
+  const s = new SettingsStore(dir).get();
+  // 'followers' war hierarchisch (Follower + Subs + Mods)
+  assert.deepEqual(s.tts.readGroups, ['followers', 'subs', 'mods']);
+  assert.equal((s.tts as unknown as Record<string, unknown>).readWho, undefined);
+  assert.equal(s.tts.chatTemplate, '{user}: {text}'); // andere Felder bleiben
+});
+
+test('Migration: fehlendes readWho/readGroups → Default ["all"]', () => {
+  const dir = tmpDir();
+  writeSettings(dir, { schemaVersion: 5, tts: { enabled: true } });
+  const s = new SettingsStore(dir).get();
+  assert.deepEqual(s.tts.readGroups, ['all']);
+});
+
+test('Neues readGroups wird unverändert übernommen (nicht überschrieben)', () => {
+  const dir = tmpDir();
+  writeSettings(dir, { schemaVersion: 6, tts: { enabled: true, readGroups: ['mods', 'subs'] } });
+  const s = new SettingsStore(dir).get();
+  assert.deepEqual(s.tts.readGroups, ['mods', 'subs']);
+});

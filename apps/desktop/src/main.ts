@@ -688,8 +688,13 @@ function registerIpc(): void {
         ...(typeof t.skipCommands === 'boolean' ? { skipCommands: t.skipCommands } : {}),
         ...(typeof t.maxTextLen === 'number' ? { maxTextLen: Math.min(500, Math.max(20, t.maxTextLen)) } : {}),
         ...(typeof t.chatTemplate === 'string' ? { chatTemplate: t.chatTemplate } : {}),
-        ...(['all', 'followers', 'subs', 'mods', 'vips'].includes(t.readWho as string)
-          ? { readWho: t.readWho as 'all' | 'followers' | 'subs' | 'mods' | 'vips' }
+        ...(Array.isArray(t.readGroups)
+          ? {
+              readGroups: (t.readGroups as unknown[]).filter(
+                (g): g is 'all' | 'followers' | 'subs' | 'mods' | 'vips' =>
+                  typeof g === 'string' && ['all', 'followers', 'subs', 'mods', 'vips'].includes(g),
+              ),
+            }
           : {}),
         ...(typeof t.readPrefix === 'string' ? { readPrefix: t.readPrefix.slice(0, 3) } : {}),
       };
