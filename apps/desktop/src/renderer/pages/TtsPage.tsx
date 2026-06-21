@@ -28,6 +28,10 @@ interface VoiceGroup {
   voices: TtsVoice[];
 }
 
+type ReadGroup = 'all' | 'followers' | 'subs' | 'mods' | 'vips';
+interface AnnounceCfg { enabled: boolean; template: string; voice: string }
+interface GiftAnnounceCfg extends AnnounceCfg { minCoins: number }
+
 interface TtsSettings {
   enabled: boolean;
   voice: string;
@@ -37,9 +41,19 @@ interface TtsSettings {
   skipCommands: boolean;
   maxTextLen: number;
   chatTemplate: string;
-  readWho?: 'all' | 'followers' | 'subs' | 'mods' | 'vips';
+  readGroups?: ReadGroup[];
   readPrefix?: string;
+  announceFollow?: AnnounceCfg;
+  announceGift?: GiftAnnounceCfg;
 }
+
+const READ_GROUP_LABELS: { id: ReadGroup; label: string }[] = [
+  { id: 'all', label: 'Alle Zuschauer' },
+  { id: 'followers', label: 'Follower' },
+  { id: 'subs', label: 'Teamherz (Team-Mitglieder)' },
+  { id: 'mods', label: 'Moderatoren' },
+  { id: 'vips', label: 'Meine VIPs (Zuschauer-Tab)' },
+];
 
 interface ByokField {
   key: string;
@@ -54,6 +68,94 @@ interface ByokProvider {
   label: string;
   howto: string;
   fields: ByokField[];
+}
+
+/** Stimmen-Dropdown (für Ansage-Blöcke) — "" = Standard-Stimme. */
+function VoiceSelect({ groups, value, onChange }: { groups: VoiceGroup[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="bx-select mt-1 text-xs">
+      <option value="">Standard-Stimme</option>
+      {groups.map((g) => (
+        <optgroup key={g.provider} label={g.label}>
+          {g.voices.map((v) => (
+            <option key={v.id} value={v.id}>{v.name}</option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+}
+
+/** Dedizierte Event-Ansagen (neue Follower / große Gifts) — unabhängig vom Chat. */
+function AnnounceSection({
+  tts,
+  groups,
+  update,
+}: {
+  tts: TtsSettings;
+  groups: VoiceGroup[];
+  update: (p: Partial<TtsSettings>) => void;
+}) {
+  const af = tts.announceFollow ?? { enabled: false, template: '{user} folgt jetzt! ❤️', voice: '' };
+  const ag = tts.announceGift ?? { enabled: false, template: '{user} schenkt {gift}!', voice: '', minCoins: 1000 };
+  return (
+    <section className="bx-card p-5">
+      <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+        <Volume2 size={15} /> Ansagen (Ereignisse vorlesen)
+      </h2>
+      <div className="flex flex-col gap-4">
+        {/* Neue Follower */}
+        <div className="rounded-lg border border-studio-border p-3">
+          <label className="flex items-center gap-2 text-xs font-bold">
+            <input type="checkbox" checked={af.enabled} onChange={(e) => update({ announceFollow: { ...af, enabled: e.target.checked } })} />
+            Neue Follower ansagen
+          </label>
+          <div className="mt-2 flex flex-wrap items-end gap-3">
+            <label className="flex-1 text-[10px] uppercase tracking-widest text-studio-muted">
+              Text
+              <input value={af.template} onChange={(e) => update({ announceFollow: { ...af, template: e.target.value } })}
+                className="bx-input mt-1 font-mono text-xs" />
+            </label>
+            <label className="text-[10px] uppercase tracking-widest text-studio-muted">
+              Stimme
+              <VoiceSelect groups={groups} value={af.voice} onChange={(v) => update({ announceFollow: { ...af, voice: v } })} />
+            </label>
+          </div>
+        </div>
+        {/* Große Gifts */}
+        <div className="rounded-lg border border-studio-border p-3">
+          <label className="flex items-center gap-2 text-xs font-bold">
+            <input type="checkbox" checked={ag.enabled} onChange={(e) => update({ announceGift: { ...ag, enabled: e.target.checked } })} />
+            Große Gifts ansagen
+          </label>
+          <div className="mt-2 flex flex-wrap items-end gap-3">
+            <label className="text-[10px] uppercase tracking-widest text-studio-muted">
+              Ab Coins
+              <input type="number" value={ag.minCoins} min={0}
+                onChange={(e) => update({ announceGift: { ...ag, minCoins: Math.max(0, Number(e.target.value) || 0) } })}
+                className="bx-input mt-1 w-24 font-mono text-xs" />
+            </label>
+            <label className="flex-1 text-[10px] uppercase tracking-widest text-studio-muted">
+              Text
+              <input value={ag.template} onChange={(e) => update({ announceGift: { ...ag, template: e.target.value } })}
+                className="bx-input mt-1 font-mono text-xs" />
+            </label>
+            <label className="text-[10px] uppercase tracking-widest text-studio-muted">
+              Stimme
+              <VoiceSelect groups={groups} value={ag.voice} onChange={(v) => update({ announceGift: { ...ag, voice: v } })} />
+            </label>
+          </div>
+          <span className="mt-1.5 block text-[9px] tracking-normal text-studio-muted/70">
+            Platzhalter: {'{user}'}, {'{gift}'}, {'{count}'}, {'{coins}'}
+          </span>
+        </div>
+        <p className="text-[11px] leading-relaxed text-studio-muted">
+          Tipp: Wenn du für Follower/Gifts bereits eigene „Sprechen"-Trigger angelegt hast, kann es sonst
+          <b> doppelt</b> vorgelesen werden — dann hier oder dort eins ausschalten.
+        </p>
+      </div>
+    </section>
+  );
 }
 
 export default function TtsPage() {
@@ -243,23 +345,33 @@ export default function TtsPage() {
               Platzhalter: {'{user}'} und {'{text}'}
             </span>
           </label>
-          <label className="text-[10px] uppercase tracking-widest text-studio-muted">
-            Wer wird vorgelesen
-            <select
-              value={tts.readWho ?? 'all'}
-              onChange={(e) => update({ readWho: e.target.value as TtsSettings['readWho'] })}
-              className="bx-select mt-1 text-xs"
-            >
-              <option value="all">Alle Zuschauer</option>
-              <option value="followers">Nur Follower (und höher)</option>
-              <option value="subs">Nur Team-Mitglieder (Teamherz) & Mods</option>
-              <option value="mods">Nur Moderatoren</option>
-              <option value="vips">Nur meine VIPs (Zuschauer-Tab)</option>
-            </select>
-            <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">
-              Deine ★VIPs werden bei jeder Stufe vorgelesen. Stumm-geschaltete nie.
+          <div className="text-[10px] uppercase tracking-widest text-studio-muted">
+            Wer wird vorgelesen <span className="normal-case tracking-normal text-studio-muted/60">(mehrere möglich)</span>
+            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1.5 normal-case">
+              {READ_GROUP_LABELS.map((g) => {
+                const groups = tts.readGroups ?? ['all'];
+                return (
+                  <label key={g.id} className="flex items-center gap-1.5 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={groups.includes(g.id)}
+                      onChange={(e) => {
+                        const cur = new Set<ReadGroup>(tts.readGroups ?? ['all']);
+                        if (e.target.checked) cur.add(g.id);
+                        else cur.delete(g.id);
+                        update({ readGroups: [...cur] });
+                      }}
+                    />
+                    {g.label}
+                  </label>
+                );
+              })}
+            </div>
+            <span className="mt-1 block text-[9px] normal-case tracking-normal text-studio-muted/70">
+              Vorgelesen wird, wer in mindestens einer angekreuzten Gruppe ist. Deine ★VIPs werden immer
+              vorgelesen, Stumm-geschaltete nie. „Alle" liest jeden.
             </span>
-          </label>
+          </div>
           <label className="text-[10px] uppercase tracking-widest text-studio-muted">
             Nur mit Start-Zeichen
             <input
@@ -293,6 +405,8 @@ export default function TtsPage() {
           lange Texte werden gekürzt, und bei Nachrichten-Fluten liest bOtExE nur die neuesten vor.
         </p>
       </section>
+
+      <AnnounceSection tts={tts} groups={groups} update={update} />
 
       {/* Premium- / KI-Stimmen (BYOK) */}
       <section className="bx-card p-5">
