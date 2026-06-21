@@ -20,6 +20,8 @@ const CSS = `
 const ICON = {
   // Auge — Outline-Kontur + Pupille gefüllt
   viewers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg>',
+  // Gruppe (zwei Personen) — „verschiedene Zuschauer gesamt"
+  uniqueViewers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3.2"/><path d="M2.5 20v-1a5 5 0 0 1 5-5h3a5 5 0 0 1 5 5v1"/><path d="M16 3.6a3.2 3.2 0 0 1 0 6.8"/><path d="M21.5 20v-1a5 5 0 0 0-3.5-4.8"/></svg>',
   // Herz — gefüllt
   likes: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.7-10.2-9.4C-.4 7.9 1.6 4 5.4 4c2.1 0 3.6 1.2 4.6 2.6C11 5.2 12.5 4 14.6 4c3.8 0 5.8 3.9 3.6 7.6C19.5 16.3 12 21 12 21Z"/></svg>',
   // Person-mit-Plus
@@ -31,7 +33,7 @@ const ICON = {
   // Share — Pfeil nach oben-rechts aus Box heraus
   shares: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3"/><path d="M14 4h6v6"/><path d="M20 4 11 13"/></svg>',
 };
-const METRICS = { viewers: ['viewers'], likes: ['likes'], follows: ['follows'], coins: ['coins'], gifts: ['gifts'], shares: ['shares'] };
+const METRICS = { viewers: ['viewers'], uniqueViewers: ['uniqueViewers'], likes: ['likes'], follows: ['follows'], coins: ['coins'], gifts: ['gifts'], shares: ['shares'] };
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
 

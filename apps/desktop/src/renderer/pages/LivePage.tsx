@@ -172,9 +172,10 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
       </div>
 
       {/* Stats-Karten */}
-      <div className="grid grid-cols-6 gap-3">
+      <div className="grid grid-cols-7 gap-3">
         {[
           { label: 'Zuschauer', value: t?.viewers ?? 0, peak: t?.peakViewers },
+          { label: 'Gesamt dabei', value: t?.uniqueViewers ?? 0 },
           { label: 'Coins', value: t?.coins ?? 0 },
           { label: 'Gifts', value: t?.gifts ?? 0 },
           { label: 'Follower', value: t?.follows ?? 0 },

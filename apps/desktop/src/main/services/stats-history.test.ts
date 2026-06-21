@@ -13,9 +13,9 @@ function tmpDir(): string {
 const DAY = 86_400_000;
 
 const totals = (coins: number, chats: number) => ({
-  coins, gifts: 1, follows: 0, likes: 10, shares: 0, chats, viewers: 0, peakViewers: 5,
+  coins, gifts: 1, follows: 0, likes: 10, shares: 0, chats, viewers: 0, peakViewers: 5, uniqueViewers: 0,
 });
-const EMPTY = { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0 };
+const EMPTY = { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, uniqueViewers: 0 };
 
 test('record speichert nur Sessions mit Aktivität, summary summiert im Zeitraum', () => {
   const now = 1_000 * DAY; // fixer „Jetzt"-Zeitpunkt

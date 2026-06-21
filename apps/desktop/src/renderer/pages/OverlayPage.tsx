@@ -222,7 +222,8 @@ const WIDGET_TYPES: {
       { key: 'metric', label: 'Metrik', type: 'select', options: [
         { value: 'likes', label: 'Likes' }, { value: 'follows', label: 'Follower' },
         { value: 'shares', label: 'Shares' }, { value: 'gifts', label: 'Geschenke' },
-        { value: 'coins', label: 'Coins' }, { value: 'viewers', label: 'Zuschauer' },
+        { value: 'coins', label: 'Coins' }, { value: 'viewers', label: 'Zuschauer (aktuell)' },
+        { value: 'uniqueViewers', label: 'Zuschauer gesamt (verschiedene)' },
       ] },
       { key: 'target', label: 'Ziel', type: 'number', hint: 'Erstes Ziel. Bei „weiterzählen" steigt es danach in dieser Schrittweite (1000 → 2000 → …).' },
       { key: 'template', label: 'Text', type: 'text', hint: 'Platzhalter: {n} = verbleibend, {label} = Metrik, {target} = Ziel. Z.B. „Noch {n} {label} bis zum Ziel!".' },
@@ -679,7 +680,7 @@ const WIDGET_TYPES: {
     type: 'stat-chips', label: 'Live-Zähler', desc: 'Kompakte Chips für Viewer, Likes, Follower & Co. — mit Puls bei jeder Änderung.',
     w: 540, h: 60, props: { metrics: 'viewers,likes,follows', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
-      { key: 'metrics', label: 'Welche Zähler', type: 'text', hint: 'Kommagetrennt, Reihenfolge zählt: viewers, likes, follows, coins, gifts, shares.' },
+      { key: 'metrics', label: 'Welche Zähler', type: 'text', hint: 'Kommagetrennt, Reihenfolge zählt: viewers, uniqueViewers (gesamt dabei), likes, follows, coins, gifts, shares.' },
       ACCENT_FIELD,
       ...STYLE_FIELDS,
     ],

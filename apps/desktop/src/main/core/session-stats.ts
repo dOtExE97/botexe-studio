@@ -30,6 +30,8 @@ export interface StatsTotals {
   chats: number;
   viewers: number;
   peakViewers: number;
+  /** Wie viele VERSCHIEDENE Zuschauer in der Session da/aktiv waren (inkl. Beitritte). */
+  uniqueViewers: number;
 }
 
 /** Highlight eines einzelnen Gift-Events (für Top-Gift / Top-Streak-Widgets). */
@@ -60,10 +62,13 @@ interface SerializedStats {
   likers?: LikerEntry[];
   topGift?: GiftHighlight;
   topStreak?: GiftHighlight;
+  /** Alle gesehenen Zuschauer-IDs — damit uniqueViewers nach Neustart korrekt
+   *  weiterzählt (optional → alte Backups bleiben lesbar). */
+  seenUsers?: string[];
 }
 
 function emptyTotals(): StatsTotals {
-  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0 };
+  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, uniqueViewers: 0 };
 }
 
 /** Klon ohne undefined-Felder — damit In-Memory- und JSON-Roundtrip-Snapshot gleich sind. */
@@ -86,6 +91,9 @@ export class SessionStats {
   private likers = new Map<string, LikerEntry>();
   private topGift?: GiftHighlight;
   private topStreak?: GiftHighlight;
+  /** Alle je gesehenen Zuschauer-IDs der Session → uniqueViewers (= „wie viele
+   *  verschiedene Leute waren da", inkl. reiner Beitritte). */
+  private seenUsers = new Set<string>();
   /** Memoize: snapshot() sortiert die komplette Gifter-/Liker-Map. Bei vielen
    *  tausend Likern wäre das 4×/s (Stats-Throttle) + pro Client-Connect teuer.
    *  Cache gilt, bis ein Event den Zustand tatsächlich ändert (apply→true). */
@@ -94,9 +102,18 @@ export class SessionStats {
 
   /** Verarbeitet ein Event; liefert true, wenn sich der Zustand geändert hat. */
   apply(event: StudioEvent): boolean {
-    const changed = this.applyInner(event);
+    const userNew = this.trackViewer(event.user?.id);
+    const changed = this.applyInner(event) || userNew;
     if (changed) this.dirty = true;
     return changed;
+  }
+
+  /** Eine Zuschauer-ID erstmals erfassen → uniqueViewers. true, wenn neu. */
+  private trackViewer(id: string | undefined): boolean {
+    if (!id || this.seenUsers.has(id)) return false;
+    this.seenUsers.add(id);
+    this.totals.uniqueViewers = this.seenUsers.size;
+    return true;
   }
 
   private applyInner(event: StudioEvent): boolean {
@@ -198,6 +215,7 @@ export class SessionStats {
     this.totals = emptyTotals();
     this.gifters.clear();
     this.likers.clear();
+    this.seenUsers.clear();
     this.topGift = undefined;
     this.topStreak = undefined;
     this.dirty = true;
@@ -211,6 +229,7 @@ export class SessionStats {
       likers: Array.from(this.likers.values()),
       topGift: this.topGift,
       topStreak: this.topStreak,
+      seenUsers: Array.from(this.seenUsers),
     };
     return JSON.stringify(data);
   }
@@ -224,6 +243,9 @@ export class SessionStats {
       stats.totals = { ...emptyTotals(), ...data.totals };
       for (const g of data.gifters) stats.gifters.set(g.id, { ...g });
       for (const l of data.likers ?? []) stats.likers.set(l.id, { ...l });
+      for (const id of data.seenUsers ?? []) stats.seenUsers.add(id);
+      // uniqueViewers konsistent zum wiederhergestellten Set halten.
+      stats.totals.uniqueViewers = stats.seenUsers.size || stats.totals.uniqueViewers;
       if (data.topGift) stats.topGift = { ...data.topGift };
       if (data.topStreak) stats.topStreak = { ...data.topStreak };
       return stats;

@@ -26,7 +26,7 @@ interface Serialized {
 }
 
 function emptySummary(): StatsSummary {
-  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, sessions: 0 };
+  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, uniqueViewers: 0, sessions: 0 };
 }
 
 export class StatsHistory {
@@ -73,6 +73,7 @@ export class StatsHistory {
       out.shares += e.shares;
       out.chats += e.chats;
       out.peakViewers = Math.max(out.peakViewers, e.peakViewers);
+      out.uniqueViewers += e.uniqueViewers ?? 0; // grobe Reichweite über den Zeitraum
       out.sessions += 1;
     }
     return out;

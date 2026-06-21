@@ -171,3 +171,34 @@ test('Memoize: ein apply ohne Zustandsänderung invalidiert den Cache nicht', ()
   s.apply({ type: 'viewer_count', ts: 2, viewerCount: 0 });
   assert.equal(s.snapshot(), first, 'no-op-Event behält den Cache');
 });
+
+// ── Unique-Zuschauer (wie viele VERSCHIEDENE Leute waren da) ────────────────
+test('uniqueViewers: zählt verschiedene Zuschauer über alle Event-Typen (inkl. join)', () => {
+  const s = new SessionStats();
+  s.apply({ type: 'join', ts: 1, user: { id: 'a', nickname: 'A' } });
+  s.apply({ type: 'chat', ts: 2, user: { id: 'b', nickname: 'B' }, text: 'hi' });
+  s.apply({ type: 'like', ts: 3, user: { id: 'c', nickname: 'C' }, likeCount: 5 });
+  s.apply({ type: 'join', ts: 4, user: { id: 'a', nickname: 'A' } }); // schon gezählt
+  assert.equal(s.snapshot().totals.uniqueViewers, 3);
+});
+
+test('uniqueViewers: Events ohne user (viewer_count) zählen nicht', () => {
+  const s = new SessionStats();
+  s.apply({ type: 'viewer_count', ts: 1, viewerCount: 500 });
+  assert.equal(s.snapshot().totals.uniqueViewers, 0);
+});
+
+test('uniqueViewers: reset() setzt zurück', () => {
+  const s = new SessionStats();
+  s.apply({ type: 'join', ts: 1, user: { id: 'a', nickname: 'A' } });
+  s.reset();
+  assert.equal(s.snapshot().totals.uniqueViewers, 0);
+});
+
+test('uniqueViewers: überlebt Serialisierung (Neustart/Update)', () => {
+  const s = new SessionStats();
+  s.apply({ type: 'join', ts: 1, user: { id: 'a', nickname: 'A' } });
+  s.apply({ type: 'chat', ts: 2, user: { id: 'b', nickname: 'B' }, text: 'hi' });
+  const restored = SessionStats.fromJSON(s.toJSON());
+  assert.equal(restored?.snapshot().totals.uniqueViewers, 2);
+});

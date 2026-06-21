@@ -4,7 +4,7 @@
 // props: { metric?, target?, template?, doneText?, onReach?: 'raise'|'keep',
 //          label?, accent?, theme?, fontFamily?, fontScale?, textColor? }
 const STYLE_ID = 'bx-gcd-style';
-const LABELS = { likes: 'Likes', follows: 'Follower', shares: 'Shares', gifts: 'Geschenke', coins: 'Coins', viewers: 'Zuschauer' };
+const LABELS = { likes: 'Likes', follows: 'Follower', shares: 'Shares', gifts: 'Geschenke', coins: 'Coins', viewers: 'Zuschauer', uniqueViewers: 'Zuschauer gesamt' };
 const METRICS = Object.keys(LABELS);
 const CSS = `
 .bx-gcd { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center;
