@@ -220,6 +220,16 @@ export default function SettingsPage() {
           Die Einrichtung trägt dafür <b>eine Zeile ins lokale „Telefonbuch"</b> deines PCs ein (hosts-Datei) —
           einmalig, mit Windows-Admin-Bestätigung. Es wird nichts geöffnet oder freigegeben.
         </p>
+        <div className="mb-3 flex items-start gap-2 rounded-lg border border-studio-border bg-studio-raised px-3 py-2 text-[11px] leading-relaxed text-studio-muted">
+          <AlertTriangle size={14} className="mt-0.5 flex-none text-studio-gold" />
+          <span>
+            <b>Hochformat-Quelle (1080×1920):</b> Beim Einfügen in TTLS die <b>benutzerdefinierte Auflösung</b> auf
+            1080×1920 stellen. TTLS vergisst diese Größe bei Hochformat-Quellen leider manchmal nach einem Neustart
+            (bekanntes TTLS-Verhalten — eine Webseite kann ihre Quellgröße nicht selbst vorgeben, das gilt für jedes
+            Overlay, auch fremde). Hilft meist: TTLS <b>sauber übers Menü beenden</b> statt hart schließen, und in der
+            Hochformat-/9:16-Szene arbeiten.
+          </span>
+        </div>
         {ttls?.ready ? (
           <p className="flex items-center gap-2 text-xs text-studio-teal">
             <Check size={14} /> Bereit — der TikTok-Studio-Link funktioniert auf diesem PC.

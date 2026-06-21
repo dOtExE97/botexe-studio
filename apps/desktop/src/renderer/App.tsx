@@ -77,7 +77,7 @@ export default function App() {
     const info = (await window.studio.getTtlsLink()) as { url: string; ready: boolean };
     await window.studio.copyText(info.url);
     if (info.ready) {
-      toast('success', 'TikTok-Studio-Link kopiert — in TTLS als Link-Quelle einfügen.');
+      toast('success', 'Link kopiert — als Link-Quelle einfügen & benutzerdefinierte Auflösung 1080×1920 setzen.');
     } else {
       toast('warn', 'Link kopiert — einmalige Einrichtung fehlt noch: Einstellungen → TikTok Live Studio.');
     }
