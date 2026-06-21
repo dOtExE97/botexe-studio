@@ -6,6 +6,7 @@ import {
   normalizeLike,
   normalizeSocial,
   normalizeViewerCount,
+  detectRoles,
 } from './tiktok-normalize';
 
 // Fixtures entsprechen den v2-Shapes aus tiktok-live-connector@2.1.1-beta1
@@ -132,4 +133,41 @@ test('gift: icon-url aus giftDetails.giftImage wird übernommen', () => {
     1,
   );
   assert.equal(e?.gift?.icon, 'https://cdn.example/lion.webp');
+});
+
+// ── Rollen-Erkennung (TTS-Vorlese-Filter) ──────────────────────────────────
+test('detectRoles: Mod/Sub/Follower aus userIdentity (camelCase, Direkt-Modus)', () => {
+  assert.deepEqual(
+    detectRoles({ userIdentity: { isModeratorOfAnchor: true } }),
+    { isMod: true, isSub: false, isFollower: false },
+  );
+  assert.deepEqual(
+    detectRoles({ userIdentity: { isSubscriberOfAnchor: true } }),
+    { isMod: false, isSub: true, isFollower: false },
+  );
+  assert.equal(detectRoles({ userIdentity: { isFollowerOfAnchor: true } }).isFollower, true);
+});
+
+test('detectRoles: Follower auch aus followInfo.followStatus / isFollower', () => {
+  assert.equal(detectRoles({ user: { followInfo: { followStatus: 1 } } }).isFollower, true);
+  assert.equal(detectRoles({ user: { followInfo: { followStatus: 2 } } }).isFollower, true);
+  assert.equal(detectRoles({ user: { followStatus: 1 } }).isFollower, true);
+  assert.equal(detectRoles({ user: { isFollower: true } }).isFollower, true);
+  // followStatus 0 = folgt nicht
+  assert.equal(detectRoles({ user: { followInfo: { followStatus: 0 } } }).isFollower, false);
+});
+
+test('detectRoles: GROSS geschriebenes UserIdentity (Cloud-Variante) wird auch gelesen', () => {
+  assert.equal(detectRoles({ UserIdentity: { isModeratorOfAnchor: true } }).isMod, true);
+});
+
+test('detectRoles: leere/unbekannte Daten → alles false (kein Crash)', () => {
+  assert.deepEqual(detectRoles({}), { isMod: false, isSub: false, isFollower: false });
+  assert.deepEqual(detectRoles({ user: {} }), { isMod: false, isSub: false, isFollower: false });
+});
+
+test('normalizeChat: reichert user mit Rollen an (Mod wird erkannt → wird vorgelesen)', () => {
+  const e = normalizeChat({ user, comment: 'mod hier', userIdentity: { isModeratorOfAnchor: true } }, 1);
+  assert.equal(e.user?.isMod, true);
+  assert.ok(!e.user?.isSub); // kein Sub → bleibt unbesetzt (Filter prüft truthy)
 });

@@ -9,6 +9,7 @@ import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { SessionStats } from '../core/session-stats';
 import { EventRecorder, parseReplay, playReplay } from '../core/replay';
+import { SessionFollowers } from '../core/session-followers';
 import { TikTokAdapter, createDirectConnection, type AdapterStatusInfo } from '../adapters/tiktok-adapter';
 import { EulerCloudConnection } from '../adapters/tiktok-cloud';
 import { OverlayServer } from '../adapters/overlay-server';
@@ -153,6 +154,8 @@ export class Studio {
   private triggerLogSeq = 0;
   /** Wer in DIESER Session schon (erstmals) geschrieben hat — für Stammgast-Begrüßung. */
   private greetedThisSession = new Set<string>();
+  /** Wer in dieser Session live gefolgt ist — für zuverlässiges TTS-Follower-Filtern. */
+  private sessionFollowers = new SessionFollowers();
   /** redemptionId → event.ts der letzten Einlösung (globaler Cooldown). */
   private redemptionCooldowns = new Map<string, number>();
   private commandCooldowns = new Map<string, number>();
@@ -288,6 +291,12 @@ export class Studio {
       // 0. Anreichern: allererster Auftritt dieses Zuschauers? (für die
       // „Erste Nachricht"-Begrüßung — VOR recordEvent, das legt den Eintrag an.)
       if (e.user && !this.points.get(e.user.id)) e.firstOfUser = true;
+
+      // 0b. Follow-Gedächtnis: Live-Follower merken; Chat-User nachträglich als
+      // Follower markieren (TikTok liefert den Follow-Status im Chat unzuverlässig)
+      // — VOR allen Konsumenten (Stats, Trigger, TTS-Filter).
+      if (e.type === 'follow' && e.user) this.sessionFollowers.add(e.user.id);
+      if (e.type === 'chat') this.sessionFollowers.enrich(e.user);
 
       // 1. Aufnahme (falls aktiv)
       this.recorder?.record(e);
@@ -1053,6 +1062,7 @@ export class Studio {
     this.giveawayParticipants.clear();
     this.lastGiveawayWinner = '';
     this.greetedThisSession.clear();
+    this.sessionFollowers.clear();
     this.bus.clearLastValues();
     // Reset-Signal an die Overlay-Widgets: setzt auch persistente Zähler zurück
     // (counter/gift-counter via localStorage) — ein reines Re-Mount täte das nicht.

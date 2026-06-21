@@ -28,16 +28,47 @@ interface RawUserIdentity {
   isFollowerOfAnchor?: boolean;
 }
 
+/** Daten, aus denen sich die Rolle eines Zuschauers ableiten lässt. */
+interface RawRoleData {
+  /** camelCase — im Direkt-Modus (tiktok-live-connector v2) am Chat-Event. */
+  userIdentity?: RawUserIdentity;
+  /** GROSS — defensiv für eine evtl. abweichende Cloud-Variante. */
+  UserIdentity?: RawUserIdentity;
+  user?: {
+    isFollower?: boolean;
+    followStatus?: number | string;
+    followInfo?: { followStatus?: number | string };
+  };
+}
+
+/**
+ * Mod/Teamherz/Follower MEHRGLEISIG erkennen — TikTok liefert die Rolle je nach
+ * Modus/Event unterschiedlich. OR über alle bekannten Quellen, damit der
+ * TTS-Filter ("nur Mods/Follower") zuverlässig greift (sonst werden z.B. Mods
+ * übersprungen, weil ein einzelnes Flag fehlt). Reine Funktion → testbar.
+ */
+export function detectRoles(data: RawRoleData): { isMod: boolean; isSub: boolean; isFollower: boolean } {
+  const id = data.userIdentity ?? data.UserIdentity;
+  const u = data.user;
+  const followStatus = Number(u?.followInfo?.followStatus ?? u?.followStatus ?? 0);
+  return {
+    isMod: !!id?.isModeratorOfAnchor,
+    isSub: !!id?.isSubscriberOfAnchor,
+    isFollower: !!(id?.isFollowerOfAnchor || u?.isFollower || (Number.isFinite(followStatus) && followStatus >= 1)),
+  };
+}
+
 export function normalizeChat(
-  data: { user?: RawUser; comment?: string; userIdentity?: RawUserIdentity },
+  data: { user?: RawUser; comment?: string } & RawRoleData,
   ts: number,
 ): StudioEvent {
   const user = toUser(data.user);
   // Rollen (Teamherz/Mod/Follower) fürs TTS-Vorlese-Filter und künftige Trigger.
-  if (user && data.userIdentity) {
-    if (data.userIdentity.isSubscriberOfAnchor) user.isSub = true;
-    if (data.userIdentity.isModeratorOfAnchor) user.isMod = true;
-    if (data.userIdentity.isFollowerOfAnchor) user.isFollower = true;
+  if (user) {
+    const roles = detectRoles(data);
+    if (roles.isSub) user.isSub = true;
+    if (roles.isMod) user.isMod = true;
+    if (roles.isFollower) user.isFollower = true;
   }
   return { type: 'chat', ts, user, text: data.comment ?? '' };
 }
