@@ -10,6 +10,7 @@ import { EventBus } from '../core/event-bus';
 import { SessionStats } from '../core/session-stats';
 import { EventRecorder, parseReplay, playReplay } from '../core/replay';
 import { SessionFollowers } from '../core/session-followers';
+import { shouldAnnounceGift } from './tts-announce';
 import { TikTokAdapter, createDirectConnection, type AdapterStatusInfo } from '../adapters/tiktok-adapter';
 import { EulerCloudConnection } from '../adapters/tiktok-cloud';
 import { OverlayServer } from '../adapters/overlay-server';
@@ -322,6 +323,9 @@ export class Studio {
       // 3b2. Teamherz (Sub): persönliches Begrüßungs-Medium des Zuschauers spielen.
       if (e.type === 'sub' && e.user) this.maybePlayWelcomeMedia(e.user);
 
+      // 3b3. Event-Ansagen per TTS (unabhängig vom Chat-Vorlesen).
+      if (e.type === 'follow') this.maybeAnnounceFollow(e);
+
       // 3c. Widget-Sounds: Feuerwerk-Knall / Alert-Sound direkt am Widget
       // konfiguriert — gespielt LOKAL über die App (nie im Overlay).
       if (e.type === 'gift' && e.gift) {
@@ -338,6 +342,7 @@ export class Studio {
         for (const soundId of collectGiftSounds(this.layouts.list(), e.gift.totalCoins)) {
           this.playSound(soundId);
         }
+        this.maybeAnnounceGift(e); // TTS-Ansage ab Coin-Schwelle
       }
 
       // 4. Live-Feed an die App-Shell
@@ -1118,6 +1123,21 @@ export class Studio {
     // Prefix-bereinigten Text fürs Template nutzen (Original-Event unangetastet).
     const speakEvent = decision.text === raw ? event : { ...event, text: decision.text };
     this.speakForEvent(tts.chatTemplate, speakEvent);
+  }
+
+  /** Ansage „neuer Follower" — eigener Schalter/Text/Stimme, unabhängig vom Chat. */
+  private maybeAnnounceFollow(event: StudioEvent): void {
+    const cfg = this.settings.peek().tts.announceFollow;
+    if (!cfg?.enabled) return;
+    this.speakForEvent(cfg.template, event, cfg.voice || undefined);
+  }
+
+  /** Ansage „großes Gift" ab eingestellter Coin-Schwelle. */
+  private maybeAnnounceGift(event: StudioEvent): void {
+    const cfg = this.settings.peek().tts.announceGift;
+    if (!cfg?.enabled || !event.gift) return;
+    if (!shouldAnnounceGift(event.gift.totalCoins, cfg)) return;
+    this.speakForEvent(cfg.template, event, cfg.voice || undefined);
   }
 
   /** BYOK-Zugangsdaten setzen (leeres feld = löschen). Keys verlassen den Main nie zurück. */

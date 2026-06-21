@@ -6,6 +6,7 @@ import path from 'node:path';
 import type { TriggerRule, Redemption, PanelButton, ChatCommand } from '@botexe/trigger-engine';
 import { DEFAULT_POINTS_CONFIG, type PointsConfig } from './points-store';
 import { migrateReadWho, type ReadGroup } from './tts-filter';
+import type { AnnounceConfig, GiftAnnounceConfig } from './tts-announce';
 import { log } from '../core/logger';
 
 export const SETTINGS_SCHEMA_VERSION = 6;
@@ -26,6 +27,10 @@ export interface TTSSettings {
   readGroups: ReadGroup[];
   /** Nur Nachrichten mit diesem Start-Zeichen vorlesen ('' = aus), z.B. '.'. */
   readPrefix: string;
+  /** Ansage „neuer Follower" (unabhängig vom Chat-Vorlesen). */
+  announceFollow: AnnounceConfig;
+  /** Ansage „großes Gift ab X Coins". */
+  announceGift: GiftAnnounceConfig;
 }
 
 export interface StudioSettings {
@@ -123,6 +128,8 @@ const TTS_DEFAULTS: TTSSettings = {
   chatTemplate: '{user} sagt: {text}',
   readGroups: ['all'],
   readPrefix: '',
+  announceFollow: { enabled: false, template: '{user} folgt jetzt! ❤️', voice: '' },
+  announceGift: { enabled: false, template: '{user} schenkt {gift}!', voice: '', minCoins: 1000 },
 };
 
 const DEFAULTS: StudioSettings = {

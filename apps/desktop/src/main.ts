@@ -211,6 +211,22 @@ function isStudio(): Studio {
   return studio;
 }
 
+/** Einen TTS-Ansage-Block aus dem Renderer säubern (nested merge auf den
+ *  aktuellen Stand, Bounds) — Teil der IPC-Allowlist-Härtung. */
+function sanitizeAnnounce<T extends { enabled: boolean; template: string; voice: string }>(
+  current: T,
+  incoming: unknown,
+): T {
+  if (typeof incoming !== 'object' || incoming === null) return current;
+  const i = incoming as Record<string, unknown>;
+  return {
+    ...current,
+    ...(typeof i.enabled === 'boolean' ? { enabled: i.enabled } : {}),
+    ...(typeof i.template === 'string' ? { template: i.template.slice(0, 300) } : {}),
+    ...(typeof i.voice === 'string' ? { voice: i.voice.slice(0, 100) } : {}),
+  };
+}
+
 function registerIpc(): void {
   ipcMain.handle(IPC.PLATFORM_CONNECT, async (_e, username: unknown) => {
     if (typeof username !== 'string' || !/^@?[a-zA-Z0-9._]{2,40}$/.test(username)) {
@@ -697,6 +713,22 @@ function registerIpc(): void {
             }
           : {}),
         ...(typeof t.readPrefix === 'string' ? { readPrefix: t.readPrefix.slice(0, 3) } : {}),
+        ...(t.announceFollow !== undefined
+          ? { announceFollow: sanitizeAnnounce(current.announceFollow, t.announceFollow) }
+          : {}),
+        ...(t.announceGift !== undefined
+          ? {
+              announceGift: {
+                ...sanitizeAnnounce(current.announceGift, t.announceGift),
+                minCoins: (() => {
+                  const m = (t.announceGift as { minCoins?: unknown })?.minCoins;
+                  return typeof m === 'number' && Number.isFinite(m)
+                    ? Math.min(1_000_000, Math.max(0, Math.round(m)))
+                    : current.announceGift.minCoins;
+                })(),
+              },
+            }
+          : {}),
       };
     }
     if (typeof p.sportApiKey === 'string') allowed.sportApiKey = p.sportApiKey.trim().slice(0, 120);
