@@ -3,6 +3,24 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.8] — 2026-06-22
+
+### Added
+- **„Gesamt dabei" — wie viele verschiedene Leute im Stream waren.** Zählt alle
+  unterschiedlichen Zuschauer pro Stream (inkl. derer, die nur beitreten ohne was
+  zu tun) — die beste Annäherung an TikToks „Views". Sichtbar bei den Live-Stats
+  und als Overlay-Widget nutzbar (Live-Zähler & Ziel-Countdown, Metrik „Zuschauer
+  gesamt"). Überlebt Neustart/Update.
+- **Mehr Einblick im Log** (alles dezent/gedrosselt): erkannte Mods/Teamherz,
+  wer vorgelesen oder übersprungen wird (mit Grund), ausgelöste Ansagen, und alle
+  5 Min eine Stream-Zusammenfassung. Hilft beim Nachvollziehen, was live passiert
+  — z.B. ob im Cloud-Modus Mods erkannt werden.
+
+### Fixed
+- Log-Zeile beim Verbinden zeigt jetzt „Verbunden mit @name" statt „Room: ?".
+
+---
+
 ## [0.3.7] — 2026-06-21
 
 **TTS-Update** — Vorlesen funktioniert jetzt richtig und ist viel feiner einstellbar.
