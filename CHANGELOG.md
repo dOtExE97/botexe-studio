@@ -3,6 +3,26 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.7] — 2026-06-21
+
+**TTS-Update** — Vorlesen funktioniert jetzt richtig und ist viel feiner einstellbar.
+
+### Fixed
+- **Mods, Teamherz & Follower werden jetzt zuverlässig erkannt.** Vorher wurde
+  z.B. ein Moderator beim Filter „nur Mods/Follower" übersprungen, weil TikTok
+  die Rolle nicht immer mitschickt. Jetzt mehrgleisig erkannt — plus ein
+  **Live-Follower-Gedächtnis**: Wer während des Streams folgt, gilt ab dann als
+  Follower (auch wenn seine Chat-Nachrichten das nicht verraten).
+
+### Added
+- **Mehrere Gruppen gleichzeitig ankreuzen**, wer vorgelesen wird (Mods + Teamherz
+  + Follower + VIP …) statt nur einer Stufe. Deine alte Einstellung wird übernommen.
+- **Ansagen** (neuer Bereich, unabhängig vom Chat-Vorlesen):
+  - **Neue Follower ansagen** — eigener Text + eigene Stimme.
+  - **Große Gifts ansagen** — ab einstellbarer Coin-Schwelle, eigener Text + Stimme.
+
+---
+
 ## [0.3.6] — 2026-06-20
 
 Großes **Performance-Update** — die App läuft jetzt deutlich sparsamer, gerade
