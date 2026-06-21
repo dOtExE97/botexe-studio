@@ -65,7 +65,7 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1 w-[min(28rem,80vw)] rounded-xl border border-studio-border bg-studio-raised p-2 shadow-2xl">
+        <div className="absolute right-0 z-30 mt-1 w-full rounded-xl border border-studio-border bg-studio-raised p-2 shadow-2xl">
           <label className="mb-2 flex items-center gap-2 rounded-lg bg-studio-bg px-2.5 py-1.5">
             <Search size={14} className="text-studio-muted" />
             <input
@@ -83,7 +83,7 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
               Noch keine Gifts im Katalog — einmal live verbinden, dann sind alle da.
             </p>
           ) : (
-            <div className="grid max-h-64 grid-cols-4 gap-1 overflow-y-auto sm:grid-cols-5">
+            <div className="grid max-h-64 grid-cols-3 gap-1 overflow-y-auto">
               {results.map((g) => (
                 <GiftCell key={g.slug} gift={g} active={g.slug === value} onPick={() => { onChange(g.slug); setOpen(false); }} />
               ))}
