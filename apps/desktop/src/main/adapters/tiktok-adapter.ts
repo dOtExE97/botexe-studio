@@ -257,7 +257,7 @@ export class TikTokAdapter {
       this.pendingFresh = false;
       this.hasConnectedOnce = true;
       this.emitStatus({ status: 'connected', isReconnect, freshStream });
-      log.info('TikTok', `Verbunden! Room: ${String(state.roomId ?? '?')}`);
+      log.info('TikTok', `Verbunden mit @${this.username}${state.roomId ? ` (Room ${state.roomId})` : ''}`);
 
       // Gift-Katalog: komplette Gift-Liste (mit Bildern) abrufen — best-effort.
       if (this.onAvailableGifts) {

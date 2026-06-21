@@ -157,6 +157,13 @@ export class Studio {
   private greetedThisSession = new Set<string>();
   /** Wer in dieser Session live gefolgt ist — für zuverlässiges TTS-Follower-Filtern. */
   private sessionFollowers = new SessionFollowers();
+  /** Diagnose-Logging: Rollen-Erkennung 1× pro User/Rolle loggen (kein Spam). */
+  private loggedRoleUsers = new Set<string>();
+  private loggedFollowerOnce = false;
+  /** Drossel für TTS-Entscheidungs-Logs (vorgelesen/übersprungen). */
+  private lastTtsDecisionLogAt = 0;
+  /** Periodische Stream-Eckdaten ins Log. */
+  private statsLogTimer: ReturnType<typeof setInterval> | null = null;
   /** redemptionId → event.ts der letzten Einlösung (globaler Cooldown). */
   private redemptionCooldowns = new Map<string, number>();
   private commandCooldowns = new Map<string, number>();
@@ -264,6 +271,10 @@ export class Studio {
             this.resetSession();
           }
         }
+        if (info.status === 'connected') {
+          const mode = this.settings.get().tiktokConnectMode ?? 'cloud';
+          log.info('TikTok', `Verbindungsmodus: ${mode === 'cloud' ? 'Cloud (Euler)' : 'Direkt'}`);
+        }
         this.hooks.onStatus(info);
         if (info.status === 'error') {
           this.hooks.onToast?.({ type: 'error', message: `Verbindung fehlgeschlagen${info.detail ? `: ${info.detail}` : ''}` });
@@ -298,6 +309,7 @@ export class Studio {
       // — VOR allen Konsumenten (Stats, Trigger, TTS-Filter).
       if (e.type === 'follow' && e.user) this.sessionFollowers.add(e.user.id);
       if (e.type === 'chat') this.sessionFollowers.enrich(e.user);
+      if (e.user) this.logRoleDetection(e.user);
 
       // 1. Aufnahme (falls aktiv)
       this.recorder?.record(e);
@@ -528,6 +540,13 @@ export class Studio {
 
     // Spotify: Polling nur, wenn es auch jemand sieht (Client + Widget).
     this.refreshSpotifyPolling();
+
+    // Stream-Eckdaten alle 5 Min ins Log (nur während verbunden) — Überblick ohne Spam.
+    this.statsLogTimer = setInterval(() => {
+      if (!this.adapter.isConnected()) return;
+      const t = this.stats.snapshot().totals;
+      log.info('Stats', `${t.viewers} Zuschauer (Peak ${t.peakViewers}) · ${t.uniqueViewers} gesamt dabei · ${t.likes} Likes · ${t.gifts} Gifts · ${t.coins} Coins · ${t.chats} Chats`);
+    }, 5 * 60 * 1000);
   }
 
   /** 1s-Timer-Ticker an/aus je nachdem, ob aktive Timer-Regeln existieren.
@@ -552,6 +571,7 @@ export class Studio {
     this.replayAbort?.abort();
     if (this.statsTimer) clearTimeout(this.statsTimer);
     if (this.timerTicker) clearInterval(this.timerTicker);
+    if (this.statsLogTimer) { clearInterval(this.statsLogTimer); this.statsLogTimer = null; }
     for (const t of this.actionTimers) clearTimeout(t);
     this.actionTimers.clear();
     this.flushSessionToHistory();
@@ -1068,6 +1088,8 @@ export class Studio {
     this.lastGiveawayWinner = '';
     this.greetedThisSession.clear();
     this.sessionFollowers.clear();
+    this.loggedRoleUsers.clear();
+    this.loggedFollowerOnce = false;
     this.bus.clearLastValues();
     // Reset-Signal an die Overlay-Widgets: setzt auch persistente Zähler zurück
     // (counter/gift-counter via localStorage) — ein reines Re-Mount täte das nicht.
@@ -1111,24 +1133,53 @@ export class Studio {
     const raw = event.text ?? '';
     if (!raw.trim()) return;
     if (tts.skipCommands && raw.trimStart().startsWith('!')) return;
-    if (event.user && this.points.isMuted(event.user.id)) return; // Troll-Sperre
+    const nick = event.user?.nickname ?? '—';
+    if (event.user && this.points.isMuted(event.user.id)) { this.logTtsDecision(`übersprungen: ${nick} (stummgeschaltet)`); return; }
     // Chat-Moderation: gesperrte Wörter nicht vorlesen.
-    if (containsBlockedWord(raw, this.settings.peek().moderation?.blockedWords ?? [])) return;
+    if (containsBlockedWord(raw, this.settings.peek().moderation?.blockedWords ?? [])) { this.logTtsDecision(`übersprungen: ${nick} (gesperrtes Wort)`); return; }
 
     // Wer-Filter (Teamherz/Mod/Follower/VIP) + optionaler Prefix-Modus.
     const isVip = event.user ? this.points.isVip(event.user.id) : false;
     const decision = shouldReadChat(event, tts.readGroups ?? ['all'], tts.readPrefix ?? '', isVip);
-    if (!decision.read) return;
+    if (!decision.read) { this.logTtsDecision(`übersprungen: ${nick} (nicht in gewählter Gruppe)`); return; }
 
     // Prefix-bereinigten Text fürs Template nutzen (Original-Event unangetastet).
+    const roles = [event.user?.isMod && 'mod', event.user?.isSub && 'teamherz', event.user?.isFollower && 'follower', isVip && 'vip'].filter(Boolean).join(',');
+    this.logTtsDecision(`vorgelesen: ${nick}${roles ? ` [${roles}]` : ''}`);
     const speakEvent = decision.text === raw ? event : { ...event, text: decision.text };
     this.speakForEvent(tts.chatTemplate, speakEvent);
+  }
+
+  /** Rollen-Erkennung ins Log — 1× pro User/Rolle (beantwortet u.a. die Frage,
+   *  ob im Cloud-Modus Mods/Teamherz überhaupt erkannt werden). */
+  private logRoleDetection(user: NonNullable<StudioEvent['user']>): void {
+    if (user.isMod && !this.loggedRoleUsers.has(`mod:${user.id}`)) {
+      this.loggedRoleUsers.add(`mod:${user.id}`);
+      log.info('TikTok', `Mod erkannt: ${user.nickname}`);
+    }
+    if (user.isSub && !this.loggedRoleUsers.has(`sub:${user.id}`)) {
+      this.loggedRoleUsers.add(`sub:${user.id}`);
+      log.info('TikTok', `Teamherz erkannt: ${user.nickname}`);
+    }
+    if (user.isFollower && !this.loggedFollowerOnce) {
+      this.loggedFollowerOnce = true;
+      log.info('TikTok', `Follower-Erkennung läuft (z.B. ${user.nickname})`);
+    }
+  }
+
+  /** TTS-Entscheidung ins Log — gedrosselt (max 1/2s), damit es nicht flutet. */
+  private logTtsDecision(msg: string): void {
+    const now = Date.now();
+    if (now - this.lastTtsDecisionLogAt < 2000) return;
+    this.lastTtsDecisionLogAt = now;
+    log.info('TTS', msg);
   }
 
   /** Ansage „neuer Follower" — eigener Schalter/Text/Stimme, unabhängig vom Chat. */
   private maybeAnnounceFollow(event: StudioEvent): void {
     const cfg = this.settings.peek().tts.announceFollow;
     if (!cfg?.enabled) return;
+    log.info('TTS', `Follower-Ansage: ${event.user?.nickname ?? '—'}`);
     this.speakForEvent(cfg.template, event, cfg.voice || undefined);
   }
 
@@ -1137,6 +1188,7 @@ export class Studio {
     const cfg = this.settings.peek().tts.announceGift;
     if (!cfg?.enabled || !event.gift) return;
     if (!shouldAnnounceGift(event.gift.totalCoins, cfg)) return;
+    log.info('TTS', `Gift-Ansage: ${event.user?.nickname ?? '—'} (${event.gift.totalCoins} Coins)`);
     this.speakForEvent(cfg.template, event, cfg.voice || undefined);
   }
 
