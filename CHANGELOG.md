@@ -17,7 +17,13 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
   — z.B. ob im Cloud-Modus Mods erkannt werden.
 
 ### Fixed
+- **Geschenk-Auswahl verzieht nicht mehr das Eigenschaften-Panel.** Das Auswahl-
+  Menü war zu breit fürs schmale rechte Panel und lief über → Panel „verbugt".
+  Jetzt passt es sauber ins Panel (volle Breite, 3 Spalten).
 - Log-Zeile beim Verbinden zeigt jetzt „Verbunden mit @name" statt „Room: ?".
+- Klarere Hinweise zur Hochformat-Browserquelle in TTLS (benutzerdefinierte
+  Auflösung 1080×1920 + Workaround, falls TTLS die Größe nach Neustart vergisst —
+  das ist ein TTLS-Verhalten, kein App-Fehler).
 
 ---
 
