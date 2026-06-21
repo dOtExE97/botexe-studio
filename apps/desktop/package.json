@@ -54,7 +54,7 @@
     "obs-websocket-js": "^5.0.8",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "tiktok-live-connector": "^2.1.1-beta1",
+    "tiktok-live-connector": "^2.4.0",
     "update-electron-app": "^3.0.0",
     "ws": "^8.19.0"
   }
