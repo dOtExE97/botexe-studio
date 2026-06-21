@@ -35,6 +35,15 @@ Mehr-Agenten-Audit + Recherche zu Electron/Overlay-Best-Practices.)
 - Timer-/Subathon-/Hype-Train-Widgets laufen im Leerlauf nicht mehr unnötig.
 - Die `~60 fps`-Logmeldung steht jetzt als Info da, nicht mehr als Warnung.
 
+### Sicherheit
+Nach einem zweiten Audit (Codex GPT, gegengeprüft):
+- **TikTok-Bibliothek auf stabile Version aktualisiert** (raus aus der Beta) —
+  behebt eine kritische + zwei hohe DoS-Lücken in einer Unter-Abhängigkeit.
+  Produkt-Audit jetzt: **0 Schwachstellen**.
+- **Sound-Import (MyInstants) gegen SSRF abgesichert** — lädt nur noch echte
+  myinstants.com-MP3s über HTTPS, folgt keinen Weiterleitungen mehr.
+- CI baut jetzt reproduzierbar (`npm ci`).
+
 ---
 
 ## [0.3.5] — 2026-06-19
