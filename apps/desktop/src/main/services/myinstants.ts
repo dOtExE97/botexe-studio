@@ -21,6 +21,25 @@ const FETCH_TIMEOUT_MS = 10_000;
 const MAX_DOWNLOAD_BYTES = 5 * 1024 * 1024;
 const MIN_QUERY_INTERVAL_MS = 1000;
 
+const ALLOWED_HOSTS = new Set(['www.myinstants.com', 'myinstants.com']);
+
+/** SSRF-Schutz für den Import-Download: nur myinstants.com-MP3s über HTTPS.
+ *  Identische Allowlist wie der Vorhör-Pfad (overlay-server streamPreview) —
+ *  verhindert, dass ein manipulierter Link interne IPs/fremde Hosts abruft. */
+export function isAllowedMyInstantsMp3(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  return (
+    parsed.protocol === 'https:' &&
+    ALLOWED_HOSTS.has(parsed.hostname.toLowerCase()) &&
+    /\.mp3$/i.test(parsed.pathname)
+  );
+}
+
 let lastQueryAt = 0;
 
 export interface MyInstantsResult {
@@ -85,8 +104,11 @@ function fetchBuffer(url: string, maxBytes: number): Promise<Buffer> {
       },
       (res) => {
         const status = res.statusCode ?? 0;
-        if (status >= 300 && status < 400 && res.headers.location) {
-          fetchBuffer(new URL(res.headers.location, url).toString(), maxBytes).then(resolve, reject);
+        // KEINE Redirects folgen — eine 3xx-Weiterleitung könnte von einer
+        // erlaubten myinstants.com-URL auf eine interne IP zeigen (SSRF).
+        if (status >= 300 && status < 400) {
+          res.resume(); // Socket leeren
+          reject(new Error('Weiterleitung beim Download nicht erlaubt'));
           return;
         }
         if (status !== 200) {
@@ -193,7 +215,8 @@ export async function downloadMyInstants(
   title: string,
   soundsDir: string,
 ): Promise<string> {
-  if (!/^https?:\/\//i.test(mp3Url)) throw new Error('Ungültige MP3-URL');
+  // SSRF-Schutz: nur myinstants.com-MP3s über HTTPS — vor jedem Netz-/Datei-Zugriff.
+  if (!isAllowedMyInstantsMp3(mp3Url)) throw new Error('Nur myinstants.com-MP3-Links sind erlaubt');
   let safe = sanitizeFilename(title);
   if (!/\.(mp3|wav|ogg|m4a)$/i.test(safe)) safe += '.mp3';
 
