@@ -3,6 +3,21 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.9] — 2026-06-22
+
+### Fixed
+- **Follower/Mods werden beim Vorlesen nicht mehr „flackern".** Vorher wurde ein
+  und dieselbe Person mal vorgelesen, mal übersprungen — weil TikTok den Rollen-
+  Status nicht in jeder Nachricht mitschickt. Jetzt merkt sich die App: wer einmal
+  als Mod/Teamherz/Follower erkannt wurde, gilt für den ganzen Stream als solcher.
+- **Geschenk-Bilder vollständig auch im Cloud-Modus.** Die komplette Geschenk-Liste
+  des Streams (mit Bildern) wird jetzt auch im Cloud-Modus geladen — vorher fehlten
+  seltene/Event-Gifts (z.B. Community-Fest) im Auswahl-Katalog, bis sie mal geschickt
+  wurden. (Eine garantiert vollständige Liste *aller* Event-Gifts gibt es technisch
+  nirgends — aber jedes real gesendete Gift wird ohnehin lokal gespeichert.)
+
+---
+
 ## [0.3.8] — 2026-06-22
 
 ### Added
