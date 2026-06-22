@@ -329,7 +329,7 @@ test('Gift-Liste: fetchAvailableGifts der Verbindung wird an onAvailableGifts du
   let received: unknown = null;
   const adapter = new TikTokAdapter(bus, {
     factory: () => new GiftConn(),
-    onStatus: () => {},
+    onStatus: () => { /* im Test egal */ },
     onAvailableGifts: (g) => { received = g; },
     baseReconnectDelayMs: 1,
     jitterMs: 0,
