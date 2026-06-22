@@ -319,3 +319,23 @@ test('viewer_count wird beim connect aus dem initial-state publiziert', async ()
   assert.equal(vc.length, 1);
   assert.equal(vc[0]?.viewerCount, 10);
 });
+
+test('Gift-Liste: fetchAvailableGifts der Verbindung wird an onAvailableGifts durchgereicht', async () => {
+  const bus = new EventBus();
+  const gifts = [{ id: 1, name: 'Rose', diamond_count: 1 }];
+  class GiftConn extends FakeConnection {
+    async fetchAvailableGifts(): Promise<unknown> { return gifts; }
+  }
+  let received: unknown = null;
+  const adapter = new TikTokAdapter(bus, {
+    factory: () => new GiftConn(),
+    onStatus: () => {},
+    onAvailableGifts: (g) => { received = g; },
+    baseReconnectDelayMs: 1,
+    jitterMs: 0,
+    maxReconnect: 3,
+  });
+  await adapter.connect('@u');
+  await wait(10); // fetchAvailableGifts läuft async nach dem Connect
+  assert.deepEqual(received, gifts);
+});

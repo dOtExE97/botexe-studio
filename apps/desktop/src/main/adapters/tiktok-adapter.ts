@@ -176,6 +176,39 @@ export class TikTokAdapter {
   }
 
   /** Default-Live-Check: leichte Wegwerf-Connection, fragt fetchIsLive(). */
+  /** Verfügbare Gift-Liste (mit Bildern) laden — best-effort. Im Direkt-Modus
+   *  kann die bestehende Verbindung das selbst; im Cloud-Modus (EulerStream-WS
+   *  hat KEIN fetchAvailableGifts) holen wir sie über eine separate, leichte
+   *  Direkt-Verbindung (signierter HTTP-Call, kein zweiter WS). Sonst fehlen im
+   *  Cloud-Modus alle nie-gesendeten Gifts (z.B. Event-/Community-Fest-Gifts). */
+  private loadAvailableGifts(conn: LiveConnectionLike, epoch: number): void {
+    if (!this.onAvailableGifts) return;
+    const cb = this.onAvailableGifts;
+    const own = (conn as unknown as { fetchAvailableGifts?: () => Promise<unknown> }).fetchAvailableGifts;
+    const fetchGifts = typeof own === 'function'
+      ? () => own.call(conn)
+      : () => this.fetchGiftsViaSeparateConnection();
+    void fetchGifts()
+      .then((gifts) => { if (epoch === this.epoch && gifts) cb(gifts); })
+      .catch((err: Error) => log.warn('TikTok', 'Gift-Liste nicht abrufbar', err.message));
+  }
+
+  /** Cloud-Modus: nur die Gift-Liste über eine Wegwerf-Direkt-Verbindung holen
+   *  (fetchRoomId → fetchAvailableGifts, signiert via Euler-Key; kein Live-WS). */
+  private async fetchGiftsViaSeparateConnection(): Promise<unknown> {
+    const c = createDirectConnection(this.username, this.getAuth()) as unknown as {
+      fetchRoomId?: () => Promise<unknown>;
+      fetchAvailableGifts?: () => Promise<unknown>;
+      disconnect?: () => void;
+    };
+    try {
+      await c.fetchRoomId?.();
+      return await c.fetchAvailableGifts?.();
+    } finally {
+      try { c.disconnect?.(); } catch { /* egal */ }
+    }
+  }
+
   private async defaultCheckLive(username: string): Promise<boolean> {
     try {
       const conn = this.factory(username, this.getAuth()) as unknown as {
@@ -260,15 +293,7 @@ export class TikTokAdapter {
       log.info('TikTok', `Verbunden mit @${this.username}${state.roomId ? ` (Room ${state.roomId})` : ''}`);
 
       // Gift-Katalog: komplette Gift-Liste (mit Bildern) abrufen — best-effort.
-      if (this.onAvailableGifts) {
-        const cb = this.onAvailableGifts;
-        void (conn as unknown as { fetchAvailableGifts?: () => Promise<unknown> })
-          .fetchAvailableGifts?.()
-          ?.then((gifts) => {
-            if (epoch === this.epoch && gifts) cb(gifts);
-          })
-          .catch((err: Error) => log.warn('TikTok', 'Gift-Liste nicht abrufbar', err.message));
-      }
+      this.loadAvailableGifts(conn, epoch);
 
       const viewers = typeof state.viewerCount === 'number' ? state.viewerCount : 0;
       if (viewers > 0) {
