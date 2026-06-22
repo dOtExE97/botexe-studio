@@ -9,7 +9,7 @@ import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { SessionStats } from '../core/session-stats';
 import { EventRecorder, parseReplay, playReplay } from '../core/replay';
-import { SessionFollowers } from '../core/session-followers';
+import { SessionRoles } from '../core/session-roles';
 import { shouldAnnounceGift } from './tts-announce';
 import { TikTokAdapter, createDirectConnection, type AdapterStatusInfo } from '../adapters/tiktok-adapter';
 import { EulerCloudConnection } from '../adapters/tiktok-cloud';
@@ -155,8 +155,9 @@ export class Studio {
   private triggerLogSeq = 0;
   /** Wer in DIESER Session schon (erstmals) geschrieben hat — für Stammgast-Begrüßung. */
   private greetedThisSession = new Set<string>();
-  /** Wer in dieser Session live gefolgt ist — für zuverlässiges TTS-Follower-Filtern. */
-  private sessionFollowers = new SessionFollowers();
+  /** Rollen-Gedächtnis (Mod/Teamherz/Follower) pro Stream — einmal erkannt =
+   *  für die Session gemerkt, da TikTok Rollen nicht in jeder Nachricht liefert. */
+  private sessionRoles = new SessionRoles();
   /** Diagnose-Logging: Rollen-Erkennung 1× pro User/Rolle loggen (kein Spam). */
   private loggedRoleUsers = new Set<string>();
   private loggedFollowerOnce = false;
@@ -304,12 +305,16 @@ export class Studio {
       // „Erste Nachricht"-Begrüßung — VOR recordEvent, das legt den Eintrag an.)
       if (e.user && !this.points.get(e.user.id)) e.firstOfUser = true;
 
-      // 0b. Follow-Gedächtnis: Live-Follower merken; Chat-User nachträglich als
-      // Follower markieren (TikTok liefert den Follow-Status im Chat unzuverlässig)
-      // — VOR allen Konsumenten (Stats, Trigger, TTS-Filter).
-      if (e.type === 'follow' && e.user) this.sessionFollowers.add(e.user.id);
-      if (e.type === 'chat') this.sessionFollowers.enrich(e.user);
-      if (e.user) this.logRoleDetection(e.user);
+      // 0b. Rollen-Gedächtnis: Live-Follow macht zum Follower; erkannte Rollen
+      // (Mod/Teamherz/Follower) für die Session merken UND anwenden — TikTok
+      // liefert sie nicht in jeder Nachricht, sonst flackert das Vorlesen.
+      // VOR allen Konsumenten (Stats, Trigger, TTS-Filter).
+      if (e.type === 'follow' && e.user) e.user.isFollower = true;
+      if (e.user) {
+        this.sessionRoles.remember(e.user);
+        this.sessionRoles.apply(e.user);
+        this.logRoleDetection(e.user);
+      }
 
       // 1. Aufnahme (falls aktiv)
       this.recorder?.record(e);
@@ -1087,7 +1092,7 @@ export class Studio {
     this.giveawayParticipants.clear();
     this.lastGiveawayWinner = '';
     this.greetedThisSession.clear();
-    this.sessionFollowers.clear();
+    this.sessionRoles.clear();
     this.loggedRoleUsers.clear();
     this.loggedFollowerOnce = false;
     this.bus.clearLastValues();
