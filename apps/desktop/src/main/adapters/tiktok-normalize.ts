@@ -17,6 +17,10 @@ function toUser(raw: RawUser | undefined): StudioUser | undefined {
   if (!id) return undefined;
   return {
     id,
+    // Zweiter Schlüssel fürs Rollen-Gedächtnis: rohe userId, falls sie von der
+    // primären id (= uniqueId) abweicht. So findet das Gedächtnis denselben
+    // User auch, wenn ein Event mal nur die userId trägt.
+    ...(raw.userId && raw.userId !== id ? { userId: raw.userId } : {}),
     nickname: raw.nickname || id,
     profilePic: raw.profilePicture?.url?.[0],
   };

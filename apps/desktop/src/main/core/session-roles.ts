@@ -10,30 +10,40 @@ interface RoleFlags {
   isFollower?: boolean;
 }
 
-type RoleUser = { id: string } & RoleFlags;
+type RoleUser = { id: string; userId?: string } & RoleFlags;
 
 export class SessionRoles {
   private roles = new Map<string, RoleFlags>();
 
+  /** Alle bekannten IDs eines Users (primär + rohe userId) — TikTok liefert mal
+   *  die eine, mal die andere, daher unter beiden merken/nachschlagen. */
+  private keysOf(user: RoleUser): string[] {
+    return [user.id, user.userId].filter((k): k is string => !!k);
+  }
+
   /** Aktuell erkannte Rollen eines Users ins Gedächtnis übernehmen (additiv). */
   remember(user: RoleUser | undefined | null): void {
-    if (!user?.id) return;
+    if (!user) return;
     if (!user.isMod && !user.isSub && !user.isFollower) return;
-    const cur = this.roles.get(user.id) ?? {};
-    if (user.isMod) cur.isMod = true;
-    if (user.isSub) cur.isSub = true;
-    if (user.isFollower) cur.isFollower = true;
-    this.roles.set(user.id, cur);
+    for (const key of this.keysOf(user)) {
+      const cur = this.roles.get(key) ?? {};
+      if (user.isMod) cur.isMod = true;
+      if (user.isSub) cur.isSub = true;
+      if (user.isFollower) cur.isFollower = true;
+      this.roles.set(key, cur);
+    }
   }
 
   /** Gemerkte Rollen auf einen User anwenden (nur setzen, nie entfernen). */
   apply(user: RoleUser | undefined | null): void {
-    if (!user?.id) return;
-    const r = this.roles.get(user.id);
-    if (!r) return;
-    if (r.isMod) user.isMod = true;
-    if (r.isSub) user.isSub = true;
-    if (r.isFollower) user.isFollower = true;
+    if (!user) return;
+    for (const key of this.keysOf(user)) {
+      const r = this.roles.get(key);
+      if (!r) continue;
+      if (r.isMod) user.isMod = true;
+      if (r.isSub) user.isSub = true;
+      if (r.isFollower) user.isFollower = true;
+    }
   }
 
   /** Neuer Stream → Gedächtnis leeren. */

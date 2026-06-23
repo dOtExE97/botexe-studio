@@ -52,6 +52,20 @@ test('remember ignoriert User ohne Rolle und ohne id', () => {
   assert.equal(r.size, 0);
 });
 
+test('findet denselben User über beide IDs (uniqueId/userId-Inkonsistenz)', () => {
+  const r = new SessionRoles();
+  // Event 1 trägt beide IDs und die Follower-Rolle.
+  r.remember({ id: 'stressi', userId: '999', isFollower: true });
+  // Späteres Event trägt NUR die userId (id = userId) → muss trotzdem matchen.
+  const later = { id: '999', isFollower: undefined as boolean | undefined };
+  r.apply(later);
+  assert.equal(later.isFollower, true);
+  // Und umgekehrt: Event nur mit uniqueId.
+  const later2 = { id: 'stressi', isFollower: undefined as boolean | undefined };
+  r.apply(later2);
+  assert.equal(later2.isFollower, true);
+});
+
 test('clear() vergisst alles (neuer Stream)', () => {
   const r = new SessionRoles();
   r.remember({ id: 'x', isMod: true });

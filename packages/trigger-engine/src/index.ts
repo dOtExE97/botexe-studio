@@ -18,6 +18,10 @@ export type StudioEventType =
 
 export interface StudioUser {
   id: string;
+  /** Rohe numerische TikTok-userId (falls abweichend von id) — als zweiter,
+   *  stabiler Schlüssel fürs Rollen-Gedächtnis, da TikTok mal uniqueId, mal nur
+   *  userId liefert. */
+  userId?: string;
   nickname: string;
   profilePic?: string;
   /** TikTok-Rollen (bei Chat-Events mitgeliefert): Teamherz-Mitglied. */
