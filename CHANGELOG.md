@@ -3,6 +3,21 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.10] — 2026-06-23
+
+### Fixed
+- **Vorlesen endgültig ohne Flackern.** Trotz Rollen-Gedächtnis (v0.3.9) wurde
+  dieselbe Person noch vereinzelt übersprungen — weil TikTok für einen Zuschauer
+  mal die `uniqueId`, mal nur die `userId` mitschickt und die App ihn dann als
+  zwei verschiedene Leute sah. Jetzt werden beide IDs geführt → ein Mod/Follower
+  wird unter jeder ID-Variante wiedererkannt und durchgehend korrekt vorgelesen.
+- **Freundlicherer Hinweis zur Gift-Liste.** Der Vorab-Abruf der kompletten
+  Geschenk-Liste braucht einen kostenpflichtigen Euler-Plan; mit Gratis-Key kam
+  bei jedem Verbinden eine alarmierende Warnung. Jetzt nur noch ein dezenter
+  Einmal-Hinweis — gesendete Gifts werden ohnehin lokal gespeichert.
+
+---
+
 ## [0.3.9] — 2026-06-22
 
 ### Fixed
