@@ -190,8 +190,22 @@ export class TikTokAdapter {
       : () => this.fetchGiftsViaSeparateConnection();
     void fetchGifts()
       .then((gifts) => { if (epoch === this.epoch && gifts) cb(gifts); })
-      .catch((err: Error) => log.warn('TikTok', 'Gift-Liste nicht abrufbar', err.message));
+      .catch((err: Error) => {
+        const msg = err?.message ?? '';
+        // Der gift/list-Abruf braucht einen kostenpflichtigen Euler-Plan. Mit
+        // Gratis-Key erwartbar → einmalig & freundlich melden, nicht bei jedem
+        // Connect als Warnung. Gesendete Gifts werden ohnehin lokal gecacht.
+        if (/business plan|requires a .*plan/i.test(msg)) {
+          if (!this.giftListPlanNoted) {
+            this.giftListPlanNoted = true;
+            log.info('TikTok', 'Komplette Gift-Liste vorab nur mit Euler-Bezahlplan abrufbar — gesendete Gifts werden trotzdem gespeichert.');
+          }
+        } else {
+          log.warn('TikTok', `Gift-Liste nicht abrufbar: ${msg}`);
+        }
+      });
   }
+  private giftListPlanNoted = false;
 
   /** Cloud-Modus: nur die Gift-Liste über eine Wegwerf-Direkt-Verbindung holen
    *  (fetchRoomId → fetchAvailableGifts, signiert via Euler-Key; kein Live-WS). */
