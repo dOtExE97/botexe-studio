@@ -3,6 +3,18 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.11] — 2026-06-24
+
+### Diagnose
+- **Temporärer Diagnose-Build** fürs verbleibende Vorlese-Flackern (manche
+  Follower/Mods werden trotz Rollen-Gedächtnis noch vereinzelt übersprungen).
+  Die ersten 80 Chat-Nachrichten eines Streams schreiben ihre rohen TikTok-
+  Rollen-/ID-Felder ins Log (`Diag-Roles`) — danach wieder still. Damit lässt
+  sich die Ursache eindeutig bestimmen; der eigentliche Fix folgt. Sonst keine
+  Änderungen.
+
+---
+
 ## [0.3.10] — 2026-06-23
 
 ### Fixed
