@@ -223,6 +223,28 @@ export class TikTokAdapter {
     }
   }
 
+  /** DIAGNOSE (temporär): rohe Rollen-/ID-Felder der ersten Chat-Events ins Log,
+   *  um das Vorlese-Flackern zu verstehen — kommen pro Person konsistente IDs?
+   *  Welches Feld trägt den Follower-Status? Danach still (kein Flooding). */
+  private diagChatSamples = 0;
+  private diagRoles(d: unknown): void {
+    if (this.diagChatSamples >= 80) return;
+    this.diagChatSamples++;
+    const x = d as {
+      user?: { uniqueId?: string; userId?: string; nickname?: string; isFollower?: boolean; followStatus?: unknown; followInfo?: { followStatus?: unknown } };
+      userIdentity?: { isFollowerOfAnchor?: boolean; isModeratorOfAnchor?: boolean };
+      UserIdentity?: { isFollowerOfAnchor?: boolean; isModeratorOfAnchor?: boolean };
+    };
+    const u = x.user ?? {};
+    const ident = x.userIdentity ?? x.UserIdentity;
+    log.info('Diag-Roles',
+      `nick=${u.nickname ?? '?'} uniqueId=${u.uniqueId ?? '-'} userId=${u.userId ?? '-'} `
+      + `followStatus=${String(u.followInfo?.followStatus ?? u.followStatus ?? '-')} `
+      + `isFollower=${String(u.isFollower ?? '-')} `
+      + `ident.follower=${String(ident?.isFollowerOfAnchor ?? '-')} ident.mod=${String(ident?.isModeratorOfAnchor ?? '-')}`,
+    );
+  }
+
   private async defaultCheckLive(username: string): Promise<boolean> {
     try {
       const conn = this.factory(username, this.getAuth()) as unknown as {
@@ -361,7 +383,7 @@ export class TikTokAdapter {
     };
 
     const on = conn.on.bind(conn) as (event: string, cb: (data: never) => void) => unknown;
-    on('chat', guard((d: Parameters<typeof normalizeChat>[0]) => publish(normalizeChat(d, this.now()))));
+    on('chat', guard((d: Parameters<typeof normalizeChat>[0]) => { this.diagRoles(d); publish(normalizeChat(d, this.now())); }));
     on('gift', guard((d: Parameters<typeof normalizeGift>[0]) => publish(normalizeGift(d, this.now()))));
     on('like', guard((d: Parameters<typeof normalizeLike>[0]) => publish(normalizeLike(d, this.now()))));
     on('follow', guard((d: Parameters<typeof normalizeSocial>[0]) => publish(normalizeSocial(d, 'follow', this.now()))));
