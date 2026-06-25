@@ -2,6 +2,7 @@
 // Modell (Trigger-Regeln, Chat-Befehle). Reine Funktion → testbar. Sounds werden
 // vom Aufrufer vorab heruntergeladen; hier wird per URL→soundId-Lookup verknüpft.
 import type { TriggerRule, TriggerAction, ChatCommand } from '@botexe/trigger-engine';
+import type { OverlayLayer } from '@botexe/overlay-engine';
 import type { TikfinityConfig } from './tikfinity-decrypt';
 
 interface TfEvent {
@@ -81,6 +82,38 @@ function mapAction(a: TfAction, soundIdForUrl: (url: string) => string | undefin
   if (a.videoUrl) skipped.push(`Video-Overlay „${a.name ?? ''}" (manuell neu anlegen)`);
   if (a.keystrokes?.trim()) skipped.push(`Tastendruck-Aktion „${a.name ?? ''}" (nicht unterstützt)`);
   return out;
+}
+
+interface TfWheelSeg { text?: string; order?: number }
+interface TfSocial { platform?: string; username?: string }
+
+/** Widgets mit ECHTEN exportierten Daten → Overlay-Layer. TikFinity exportiert
+ *  Ziel-Werte/Gift-Bindungen der meisten Widgets NICHT (server-seitig) — voll
+ *  übernehmbar sind daher v.a. Glücksrad-Segmente und Social-Media-Kanäle. */
+export function mapWidgets(config: TikfinityConfig, newId: () => string): { layers: OverlayLayer[]; report: string[] } {
+  const ds = config.dynamicSettings ?? {};
+  const layers: OverlayLayer[] = [];
+  const report: string[] = [];
+  let z = 1;
+  const add = (widgetType: string, name: string, w: number, h: number, props: Record<string, unknown>) => {
+    layers.push({ id: newId(), widgetType, name, x: 60 + ((z - 1) % 2) * 80, y: 60 + (z - 1) * 120, w, h, z, visible: true, props });
+    z++;
+  };
+
+  // Glücksrad: Segmente aus widget_wheelofactions_wheels (JSON-String)
+  const wheels = parseJson<Array<{ name?: string; segments?: TfWheelSeg[] }>>(ds.widget_wheelofactions_wheels, []);
+  const wheel = wheels.find((w) => w.segments?.length);
+  if (wheel?.segments?.length) {
+    const segments = [...wheel.segments].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((s) => String(s.text ?? '').trim()).filter(Boolean).join('|');
+    if (segments) { add('wheel', wheel.name || 'Glücksrad', 480, 560, { segments, title: wheel.name || 'Glücksrad' }); report.push(`Glücksrad (${wheel.segments.length} Segmente)`); }
+  }
+
+  // Social-Media-Rotator: Kanäle aus widget_socialmediarotator_socials (JSON-String)
+  const socials = parseJson<TfSocial[]>(ds.widget_socialmediarotator_socials, []);
+  const channels = socials.filter((s) => s.platform && s.username).map((s) => `${s.platform}:${s.username}`).join(' | ');
+  if (channels) { add('social-rotator', 'Social-Media', 540, 120, { channels }); report.push(`Social-Rotator (${socials.length} Kanäle)`); }
+
+  return { layers, report };
 }
 
 export function mapTikfinity(

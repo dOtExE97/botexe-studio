@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mapTikfinity, collectSoundUrls } from './tikfinity-map';
+import { mapTikfinity, collectSoundUrls, mapWidgets } from './tikfinity-map';
 import type { TikfinityConfig } from './tikfinity-decrypt';
 
 let n = 0;
@@ -76,6 +76,27 @@ test('inaktive Events + nicht-mappbare Aktionen werden übersprungen', () => {
   );
   assert.equal(r.triggerRules.length, 0, 'inaktiv übersprungen, keystroke-only ergibt keine Aktion');
   assert.ok(r.report.skipped.some((s) => s.includes('Tastendruck')));
+});
+
+test('mapWidgets: Glücksrad-Segmente (sortiert) + Social-Kanäle → Layer', () => {
+  n = 0;
+  const cfg = {
+    dynamicSettings: {
+      widget_wheelofactions_wheels: JSON.stringify([{ name: 'Mein Rad', segments: [{ text: 'B', order: 2 }, { text: 'A', order: 1 }, { text: '', order: 3 }] }]),
+      widget_socialmediarotator_socials: JSON.stringify([{ platform: 'tiktok', username: 'exe' }, { platform: 'discord', username: 'link' }]),
+    },
+  };
+  const r = mapWidgets(cfg, () => `w-${++n}`);
+  assert.equal(r.layers.length, 2);
+  const wheel = r.layers.find((l) => l.widgetType === 'wheel');
+  assert.equal(wheel?.props?.segments, 'A|B', 'nach order sortiert, leere raus');
+  assert.equal(wheel?.props?.title, 'Mein Rad');
+  const social = r.layers.find((l) => l.widgetType === 'social-rotator');
+  assert.equal(social?.props?.channels, 'tiktok:exe | discord:link');
+});
+
+test('mapWidgets: ohne Daten → keine Layer', () => {
+  assert.equal(mapWidgets({ dynamicSettings: {} }, () => 'x').layers.length, 0);
 });
 
 test('collectSoundUrls sammelt audioUrl + soundsdatasource', () => {

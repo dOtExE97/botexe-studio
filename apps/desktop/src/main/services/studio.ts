@@ -24,7 +24,7 @@ import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { ProfileStore, type ProfileMeta } from './profile-store';
 import { decryptTfc } from './tikfinity-decrypt';
-import { mapTikfinity, collectSoundUrls } from './tikfinity-map';
+import { mapTikfinity, collectSoundUrls, mapWidgets } from './tikfinity-map';
 import { downloadMyInstants, isAllowedMyInstantsMp3 } from './myinstants';
 import { SpotifyService, type NowPlaying } from './spotify-service';
 import { StatsHistory, type StatsRange, type StatsSummary } from './stats-history';
@@ -890,13 +890,20 @@ export class Studio {
     }
 
     const { triggerRules, chatCommands, report } = mapTikfinity(cfg, (u) => soundMap.get(u), () => crypto.randomUUID());
+    const { layers, report: widgetReport } = mapWidgets(cfg, () => crypto.randomUUID());
 
-    // Bundle = aktueller Stand als valide Basis, mit den importierten Regeln/Befehlen.
+    // Bundle = aktueller Stand als valide Basis, mit den importierten Regeln/
+    // Befehlen + (falls vorhanden) einem Overlay aus den übernehmbaren Widgets.
     const base = this.exportConfig();
-    const bundle = { ...base, settings: { ...(base.settings as Record<string, unknown>), triggerRules, chatCommands } };
+    const now = new Date().toISOString();
+    const layouts = layers.length
+      ? [{ schemaVersion: 1 as const, id: crypto.randomUUID(), name: 'TikFinity Overlay', canvas: { width: 1080, height: 1920, background: 'transparent' as const }, layers, createdAt: now, updatedAt: now }]
+      : (base.layouts as unknown[]);
+    const bundle = { ...base, settings: { ...(base.settings as Record<string, unknown>), triggerRules, chatCommands }, layouts };
     const p = this.profiles.create('TikFinity-Import', bundle, Date.now(), 'tikfinity');
 
     const parts = [`${report.triggers} Trigger`, `${report.commands} Befehle`, `${soundMap.size} Sounds`];
+    if (widgetReport.length) parts.push(`${layers.length} Widgets (${widgetReport.join(', ')})`);
     if (report.skipped.length) parts.push(`${report.skipped.length} nicht unterstützt`);
     const reportStr = parts.join(' · ');
     log.info('Import', `TikFinity → Profil „${p.name}": ${reportStr}`);
