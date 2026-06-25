@@ -46,7 +46,9 @@
   "dependencies": {
     "@botexe/overlay-engine": "*",
     "@botexe/trigger-engine": "*",
+    "@types/crypto-js": "^4.2.2",
     "ajv": "^8.17.1",
+    "crypto-js": "^4.2.0",
     "electron-squirrel-startup": "^1.0.1",
     "express": "^5.2.1",
     "lucide-react": "^0.577.0",
