@@ -3,6 +3,23 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.17] — 2026-06-26
+
+### Neu
+- **Profile** 🗂️ — umschaltbare Konfigurations-Sets (Trigger, Befehle, Einlösungen,
+  Panel, TTS, Punkte, Overlays). Umschalter oben in der Leiste: Profil anlegen
+  (Snapshot des aktuellen Stands), wechseln (sichert immer vorher → kein
+  Datenverlust), umbenennen, löschen.
+- **TikFinity-Import** 📥 — eine TikFinity-`.tfc`-Profildatei einlesen: wird
+  entschlüsselt, übersetzt und als eigenes „TikFinity-Import"-Profil abgelegt
+  (dein aktuelles Setup bleibt unangetastet). Übernommen werden Trigger
+  (Gift/Coins-Schwelle/Like/Follow/Join/Share/Chat), Chat-Befehle, TTS-Ansagen,
+  Chat-Nachrichten und myinstants-Sounds. Nicht unterstützte TikFinity-Eigenheiten
+  (Overlay-Animationen, Tastendruck-Aktionen, Punkte-Aktionen) werden im
+  Import-Bericht aufgeführt. Widget-Übernahme folgt.
+
+---
+
 ## [0.3.16] — 2026-06-26
 
 ### Verbessert
