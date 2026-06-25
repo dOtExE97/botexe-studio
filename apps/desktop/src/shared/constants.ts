@@ -84,6 +84,13 @@ export const IPC = {
   APP_COPY: 'app:copy',
   CONFIG_EXPORT: 'config:export',
   CONFIG_IMPORT: 'config:import',
+  // Profile (umschaltbare Konfigurations-Sets) + TikFinity-Import
+  PROFILE_LIST: 'profile:list',
+  PROFILE_CREATE: 'profile:create',
+  PROFILE_SWITCH: 'profile:switch',
+  PROFILE_RENAME: 'profile:rename',
+  PROFILE_DELETE: 'profile:delete',
+  PROFILE_IMPORT_TIKFINITY: 'profile:import-tikfinity',
   // OBS-Studio-Steuerung
   OBS_SET_CONFIG: 'obs:set-config',
   OBS_GET_SCENES: 'obs:get-scenes',

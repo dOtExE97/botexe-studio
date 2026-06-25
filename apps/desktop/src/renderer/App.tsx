@@ -4,6 +4,7 @@ import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
 import ToastHost, { toast } from './components/ToastHost';
 import UpdateBanner from './components/UpdateBanner';
+import ProfileSwitcher from './components/ProfileSwitcher';
 import OnboardingTour from './components/OnboardingTour';
 import LivePage from './pages/LivePage';
 import OverlayPage from './pages/OverlayPage';
@@ -143,6 +144,7 @@ export default function App() {
               👁 {studio.stats.totals.viewers}
             </div>
           )}
+          <ProfileSwitcher />
           <div className="flex-1" />
           <button
             onClick={copyLink}

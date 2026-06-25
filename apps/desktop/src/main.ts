@@ -323,6 +323,24 @@ function registerIpc(): void {
       return { ok: false, layouts: 0, viewers: 0, error: (err as Error).message };
     }
   });
+
+  // Profile (umschaltbare Konfigurations-Sets)
+  ipcMain.handle(IPC.PROFILE_LIST, () => isStudio().listProfiles());
+  ipcMain.handle(IPC.PROFILE_CREATE, (_e, name: unknown) =>
+    typeof name === 'string' && name.trim() ? { ok: true, profile: isStudio().createProfile(name.trim()) } : { ok: false },
+  );
+  ipcMain.handle(IPC.PROFILE_SWITCH, (_e, id: unknown) => {
+    if (typeof id !== 'string') return { ok: false };
+    const res = isStudio().switchProfile(id);
+    if (res.ok) registerPanelHotkeys(); // Panel-Hotkeys des neuen Profils greifen
+    return res;
+  });
+  ipcMain.handle(IPC.PROFILE_RENAME, (_e, id: unknown, name: unknown) =>
+    typeof id === 'string' && typeof name === 'string' && name.trim() ? isStudio().renameProfile(id, name.trim()) : { ok: false },
+  );
+  ipcMain.handle(IPC.PROFILE_DELETE, (_e, id: unknown) =>
+    typeof id === 'string' ? isStudio().deleteProfile(id) : { ok: false },
+  );
   // Auto-Update: manuell prüfen + installieren (Settings).
   ipcMain.handle(IPC.UPDATE_CHECK, () => {
     if (!app.isPackaged) return { state: 'dev' };

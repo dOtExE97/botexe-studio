@@ -90,6 +90,13 @@ const api = {
   // Konfig-Backup
   exportConfig: () => ipcRenderer.invoke(IPC.CONFIG_EXPORT),
   importConfig: () => ipcRenderer.invoke(IPC.CONFIG_IMPORT),
+  // Profile
+  listProfiles: () => ipcRenderer.invoke(IPC.PROFILE_LIST),
+  createProfile: (name: string) => ipcRenderer.invoke(IPC.PROFILE_CREATE, name),
+  switchProfile: (id: string) => ipcRenderer.invoke(IPC.PROFILE_SWITCH, id),
+  renameProfile: (id: string, name: string) => ipcRenderer.invoke(IPC.PROFILE_RENAME, id, name),
+  deleteProfile: (id: string) => ipcRenderer.invoke(IPC.PROFILE_DELETE, id),
+  importTikfinity: () => ipcRenderer.invoke(IPC.PROFILE_IMPORT_TIKFINITY),
   // Auto-Update
   checkForUpdate: () => ipcRenderer.invoke(IPC.UPDATE_CHECK),
   installUpdate: () => ipcRenderer.invoke(IPC.UPDATE_INSTALL),
