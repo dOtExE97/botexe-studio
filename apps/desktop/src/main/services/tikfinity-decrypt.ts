@@ -10,7 +10,7 @@ const LAYER1_PW = 'lolsurghwi378ukasfjsdf_s';
 /** Modifizierte MD5 ("shash"): eigene Init-Konstanten, krumme Rotation (i%4)+4,
  *  Input wird mit einem Suffix base64-kodiert. Liefert 32-stelligen Hex-Key. */
 function shash(input: string, encVersion: number): string {
-  const hashValues = [305419896, 2595938032, 4275878552, 2271363873];
+  const hashValues: [number, number, number, number] = [305419896, 2595938032, 4275878552, 2271363873];
   let s = input;
   if (encVersion === 2) s = Buffer.from(input + 'Mozilla').toString('base64');
   else if (encVersion === 3) s = Buffer.from(input + 'dfgkjoi3kdjkfe').toString('base64');

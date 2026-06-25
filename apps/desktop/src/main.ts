@@ -341,6 +341,22 @@ function registerIpc(): void {
   ipcMain.handle(IPC.PROFILE_DELETE, (_e, id: unknown) =>
     typeof id === 'string' ? isStudio().deleteProfile(id) : { ok: false },
   );
+  ipcMain.handle(IPC.PROFILE_IMPORT_TIKFINITY, async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'TikFinity-Profil importieren',
+      filters: [{ name: 'TikFinity-Profil', extensions: ['tfc'] }],
+      properties: ['openFile'],
+    });
+    if (canceled || !filePaths[0]) return { ok: false, error: 'abgebrochen' };
+    try {
+      const content = fs.readFileSync(filePaths[0], 'utf-8');
+      const res = await isStudio().importTikfinity(content);
+      if (res.ok) registerPanelHotkeys();
+      return res;
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
   // Auto-Update: manuell prüfen + installieren (Settings).
   ipcMain.handle(IPC.UPDATE_CHECK, () => {
     if (!app.isPackaged) return { state: 'dev' };

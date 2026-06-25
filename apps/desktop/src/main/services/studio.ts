@@ -23,6 +23,9 @@ import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { ProfileStore, type ProfileMeta } from './profile-store';
+import { decryptTfc } from './tikfinity-decrypt';
+import { mapTikfinity, collectSoundUrls } from './tikfinity-map';
+import { downloadMyInstants, isAllowedMyInstantsMp3 } from './myinstants';
 import { SpotifyService, type NowPlaying } from './spotify-service';
 import { StatsHistory, type StatsRange, type StatsSummary } from './stats-history';
 import { SportService } from './sport-service';
@@ -867,6 +870,37 @@ export class Studio {
     if (this.profiles.list().length <= 1) return { ok: false, error: 'Das letzte Profil kann nicht gelöscht werden' };
     this.profiles.delete(id);
     return { ok: true };
+  }
+
+  /** TikFinity-`.tfc` importieren → entschlüsseln, Sounds laden, übersetzen,
+   *  als neues Profil ablegen. Ändert das aktive Profil NICHT. */
+  async importTikfinity(fileContent: string): Promise<{ ok: boolean; profileName?: string; report?: string; error?: string }> {
+    let cfg;
+    try { cfg = decryptTfc(fileContent); }
+    catch { return { ok: false, error: 'Keine gültige TikFinity-Profildatei (.tfc)' }; }
+
+    // Sounds vorab laden (nur myinstants.com — SSRF-Schutz). url → lokale Sound-ID.
+    const soundMap = new Map<string, string>();
+    for (const url of collectSoundUrls(cfg)) {
+      if (!isAllowedMyInstantsMp3(url)) continue;
+      try {
+        const name = await downloadMyInstants(url, decodeURIComponent(url.split('/').pop() ?? 'sound'), this.sounds.getDir());
+        soundMap.set(url, name);
+      } catch { /* einzelner Sound nicht ladbar → wird im Mapping als skip vermerkt */ }
+    }
+
+    const { triggerRules, chatCommands, report } = mapTikfinity(cfg, (u) => soundMap.get(u), () => crypto.randomUUID());
+
+    // Bundle = aktueller Stand als valide Basis, mit den importierten Regeln/Befehlen.
+    const base = this.exportConfig();
+    const bundle = { ...base, settings: { ...(base.settings as Record<string, unknown>), triggerRules, chatCommands } };
+    const p = this.profiles.create('TikFinity-Import', bundle, Date.now(), 'tikfinity');
+
+    const parts = [`${report.triggers} Trigger`, `${report.commands} Befehle`, `${soundMap.size} Sounds`];
+    if (report.skipped.length) parts.push(`${report.skipped.length} nicht unterstützt`);
+    const reportStr = parts.join(' · ');
+    log.info('Import', `TikFinity → Profil „${p.name}": ${reportStr}`);
+    return { ok: true, profileName: p.name, report: reportStr };
   }
 
   /** Backup einspielen. Liefert, wie viele Overlays/Zuschauer übernommen wurden. */
