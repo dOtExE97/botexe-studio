@@ -3,6 +3,13 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.18] — 2026-06-26
+
+### Neu
+- **Widget-Übernahme im TikFinity-Import**: dein **Glücksrad** (mit allen Preisen/Segmenten) und der **Social-Media-Rotator** (deine Kanäle) werden jetzt als Overlay mit übernommen. Andere Widget-Typen exportiert TikFinity ohne Ziel-/Bindungsdaten — die legst du bei Bedarf neu an (geht dank Gift-Auswahl jetzt schnell).
+
+---
+
 ## [0.3.17] — 2026-06-26
 
 ### Neu
@@ -16,7 +23,7 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
   (Gift/Coins-Schwelle/Like/Follow/Join/Share/Chat), Chat-Befehle, TTS-Ansagen,
   Chat-Nachrichten und myinstants-Sounds. Nicht unterstützte TikFinity-Eigenheiten
   (Overlay-Animationen, Tastendruck-Aktionen, Punkte-Aktionen) werden im
-  Import-Bericht aufgeführt. Widget-Übernahme folgt.
+  Import-Bericht aufgeführt.
 
 ---
 
