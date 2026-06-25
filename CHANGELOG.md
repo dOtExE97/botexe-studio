@@ -3,6 +3,22 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.14] — 2026-06-25
+
+### Neu / Diagnose
+- **Jedes Geschenk wird jetzt geloggt** (Name × Anzahl · Coins · Sender). Bisher
+  gab es nur die 5-Minuten-Summe — dadurch war nicht nachvollziehbar, ob ein
+  bestimmtes Gift (z.B. „Jolly") überhaupt ankommt und unter welchem Namen. Ein
+  „⚠ ohne Namen"-Hinweis erscheint, falls nur die Gift-ID ohne Namen geliefert
+  wird (dann greifen Zähler/Trigger, die auf den Namen matchen, nicht).
+
+### Behoben
+- **Geschenkzähler-Matching robuster**: vergleicht den Gift-Namen jetzt ohne
+  unsichtbare Leerzeichen (war eine mögliche Ursache, warum ein Zähler ein Gift
+  nicht erkannte).
+
+---
+
 ## [0.3.13] — 2026-06-25
 
 ### Behoben / Geklärt
