@@ -3,6 +3,19 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.16] — 2026-06-26
+
+### Verbessert
+- **Gift-Auswahl jetzt mit Bildern, echten Coins & deutschen Namen für ALLE
+  ~5700 Gifts** — nicht nur die erhaltenen. Quelle ist eine öffentliche,
+  vollständige Gift-Liste (echte TikTok-giftIds + Coins + Bild-URLs + offizielle
+  deutsche Namen). Damit zeigt der Gift-Auswähler ab sofort für jedes Gift ein
+  echtes Vorschaubild und den korrekten Coin-Preis, auch für nie-erhaltene.
+- Bilder werden direkt von TikToks CDN geladen (keine Vergrößerung des Downloads).
+- Neues Script `scripts/build-gift-master.mjs` aktualisiert die Liste bei Bedarf.
+
+---
+
 ## [0.3.15] — 2026-06-25
 
 ### Neu
