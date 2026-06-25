@@ -33,15 +33,20 @@ function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=docum
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 const GIFT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8"/><path d="M2 7h20v5H2z"/><path d="M12 21V7"/><path d="M12 7S10.5 3 8 3a2.2 2.2 0 0 0 0 4Z"/><path d="M12 7s1.5-4 4-4a2.2 2.2 0 0 1 0 4Z"/></svg>';
 
-/** Gift-Icon im Katalog finden — per lowercase-Slug (Katalog-Key oder entry.slug).
+/** Normalisierter Gift-Schlüssel: nur Buchstaben/Ziffern, klein. Macht das
+ *  Matching tolerant gegen Apostroph/Leerzeichen/Schreibweise — so findet ein
+ *  vorab gewähltes „Jollie's Community" beim Empfang zuverlässig zusammen. */
+export function giftKey(slug) {
+  return String(slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** Gift-Icon im Katalog finden — über den normalisierten Slug.
  *  Liefert '' wenn nicht gefunden. Reine Logik → testbar. */
 export function findGiftIcon(catalog, slug) {
-  const key = String(slug || '').trim().toLowerCase();
+  const key = giftKey(slug);
   if (!key || !catalog) return '';
-  const direct = catalog[key];
-  if (direct && direct.icon) return direct.icon;
-  for (const e of Object.values(catalog)) {
-    if (e && e.icon && String(e.slug || '').toLowerCase() === key) return e.icon;
+  for (const [k, e] of Object.entries(catalog)) {
+    if (e && e.icon && (giftKey(e.slug || k) === key)) return e.icon;
   }
   return '';
 }
@@ -58,7 +63,7 @@ export default class GiftCounter {
     ensureStyle();
     this.ctx = ctx || {};
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
-    this.giftSlug = String(props.giftSlug ?? '').trim().toLowerCase();
+    this.giftSlug = giftKey(props.giftSlug);
     this.step = Math.max(0, Math.floor(Number(props.target ?? 15))) || 15;
     this.target = this.step;
     this.onReach = ['raise', 'reset', 'keep'].includes(props.onReach) ? props.onReach : 'raise';
@@ -105,10 +110,9 @@ export default class GiftCounter {
 
   onEvent(event) {
     if (event.type !== 'gift' || !event.gift) return;
-    // Bestimmtes Gift (per slug) ODER alle, wenn kein slug gesetzt.
-    // .trim() auf BEIDEN Seiten — sonst scheitert der Vergleich an einem
-    // unsichtbaren Leerzeichen im Gift-Namen (config ist bereits getrimmt).
-    if (this.giftSlug && String(event.gift.slug ?? '').trim().toLowerCase() !== this.giftSlug) return;
+    // Bestimmtes Gift ODER alle, wenn kein slug gesetzt. Normalisierter Vergleich
+    // (giftKey) → unempfindlich gegen Apostroph/Leerzeichen/Schreibweise.
+    if (this.giftSlug && giftKey(event.gift.slug) !== this.giftSlug) return;
     if (event.gift.icon) { this.lastIcon = event.gift.icon; this.renderIcon(); }
     this.count += Math.max(1, Math.floor(event.gift.count || 1));
     // Großer Combo-Sprung kann mehrere Ziele auf einmal überschreiten → mehrfach

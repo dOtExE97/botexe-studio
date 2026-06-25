@@ -256,6 +256,12 @@ export function renderSpeakTemplate(template: string, event: StudioEvent): strin
     .replace(/\{coins\}/g, String(event.gift?.totalCoins ?? ''));
 }
 
+/** Normalisierter Gift-Schlüssel (nur Buchstaben/Ziffern, klein) für tolerantes
+ *  Matching — Apostroph/Leerzeichen/Schreibweise egal. */
+function giftKey(slug: string): string {
+  return slug.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolean {
   switch (condition.kind) {
     case 'gift_coins_gte':
@@ -263,7 +269,9 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
     case 'gift_count_gte':
       return event.gift !== undefined && event.gift.count >= condition.value;
     case 'gift_slug_is':
-      return event.gift !== undefined && event.gift.slug.toLowerCase() === condition.value.toLowerCase();
+      // Normalisiert (nur Buchstaben/Ziffern) — tolerant gegen Apostroph/Leer-
+      // zeichen/Schreibweise, damit ein vorab gewähltes Gift sicher matcht.
+      return event.gift !== undefined && giftKey(event.gift.slug) === giftKey(condition.value);
     case 'chat_keyword':
       return (event.text ?? '').toLowerCase().includes(condition.value.toLowerCase()) && condition.value !== '';
     case 'chat_command':

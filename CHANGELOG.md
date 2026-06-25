@@ -3,6 +3,24 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.15] — 2026-06-25
+
+### Neu
+- **Komplette Gift-Auswahl — alle ~5000 aktuellen TikTok-Gifts wählbar**, nicht
+  mehr nur die schon erhaltenen. Damit lassen sich auch neue Event-Gifts vorab
+  für Zähler/Trigger einstellen, bevor sie zum ersten Mal reinkommen. Bild,
+  Coins und echte ID werden beim ersten Empfang automatisch ergänzt.
+- **Deutsche Gift-Namen** in der Auswahl (wo bekannt), englischer Name als Fallback.
+
+### Verbessert
+- **Tippfehler-tolerante Gift-Suche**: „jolly" findet jetzt „Jollie's Community"
+  (vorher 0 Treffer); Coins sichtbar; schon erhaltene Gifts mit Stern markiert.
+- **Apostroph-/Schreibweise-tolerantes Matching** in Geschenkzähler UND Triggern
+  (`gift_slug_is`): ein vorab gewähltes „Jollie's Community" findet sich beim
+  Empfang zuverlässig zusammen, egal wie Apostroph/Leerzeichen geschrieben sind.
+
+---
+
 ## [0.3.14] — 2026-06-25
 
 ### Neu / Diagnose

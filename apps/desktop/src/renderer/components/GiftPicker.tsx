@@ -67,7 +67,9 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
 
   const results = useMemo(() => {
     const needle = q.trim();
-    const list = needle ? gifts.filter((g) => matchGift(needle, g.slug)) : gifts;
+    const list = needle
+      ? gifts.filter((g) => matchGift(needle, g.slug) || (g.de ? matchGift(needle, g.de) : false))
+      : gifts;
     // Schon erhaltene Gifts (count>0) zuerst — die kommen bei DIR wirklich vor;
     // danach günstige zuerst. So sind die drei „Jollies" leicht auseinanderzuhalten.
     return [...list]
@@ -88,7 +90,7 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
       >
         {current?.icon && <img src={current.icon} alt="" className="h-5 w-5 object-contain" />}
         <span className={`flex-1 truncate ${value ? '' : 'text-studio-muted'}`}>
-          {value || placeholder}
+          {current?.de || value || placeholder}
         </span>
         {value && (
           <X
@@ -140,7 +142,7 @@ function GiftCell({ gift, active, onPick }: { gift: GiftEntry; active: boolean; 
     <button
       type="button"
       onClick={onPick}
-      title={`${gift.slug} · ${gift.coins} Coins${received ? ` · schon ${gift.count}× erhalten` : ''}`}
+      title={`${gift.de ? `${gift.de} (${gift.slug})` : gift.slug}${gift.coins > 0 ? ` · ${gift.coins} Coins` : ''}${received ? ` · schon ${gift.count}× erhalten` : ''}`}
       className={`relative flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition-colors hover:bg-studio-accent/15 ${active ? 'bg-studio-accent/20 ring-1 ring-studio-accent' : ''}`}
     >
       {/* Schon erhalten → Stern: zeigt, welches Gift bei DIR wirklich vorkommt. */}
@@ -150,8 +152,8 @@ function GiftCell({ gift, active, onPick }: { gift: GiftEntry; active: boolean; 
       ) : (
         <div className="flex h-9 w-9 items-center justify-center rounded bg-studio-bg text-[9px] text-studio-muted">?</div>
       )}
-      <span className="w-full truncate text-center text-[9px] text-studio-text/90">{gift.slug}</span>
-      <span className="text-[8px] font-mono text-studio-muted">{gift.coins} 🪙</span>
+      <span className="w-full truncate text-center text-[9px] text-studio-text/90">{gift.de || gift.slug}</span>
+      <span className="text-[8px] font-mono text-studio-muted">{gift.coins > 0 ? `${gift.coins} 🪙` : '—'}</span>
     </button>
   );
 }

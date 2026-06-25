@@ -113,6 +113,17 @@ test('gift_slug_is: matcht exakten slug case-insensitive', () => {
   );
 });
 
+test('gift_slug_is: tolerant gegen Apostroph/Leerzeichen/Schreibweise', () => {
+  const engine = new TriggerEngine();
+  // Vorab gewählt: "Jollie's Community" — Live-Event-Name kann abweichen.
+  engine.setRules([rule({ conditions: [{ kind: 'gift_slug_is', value: "Jollie's Community" }] })]);
+  const g = (slug: string) => giftEvent({ gift: { slug, count: 1, coinsPerUnit: 1, totalCoins: 1 } });
+  assert.equal(engine.evaluate(g("Jollie's Community")).length, 1);
+  assert.equal(engine.evaluate(g('Jollie s Community')).length, 1, 'Apostroph fehlt → matcht trotzdem');
+  assert.equal(engine.evaluate(g('JOLLIES  COMMUNITY')).length, 1, 'Schreibweise/Leerzeichen egal');
+  assert.equal(engine.evaluate(g('Community Heart')).length, 0, 'anderes Gift matcht NICHT');
+});
+
 test('gift_count_gte: matcht combo ab N', () => {
   const engine = new TriggerEngine();
   engine.setRules([rule({ conditions: [{ kind: 'gift_count_gte', value: 10 }] })]);
