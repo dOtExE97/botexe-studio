@@ -3,8 +3,40 @@
 // Zeigt das gewählte Gift als Chip; Klick öffnet ein Such-Popover mit echtem
 // Bild aus dem Gift-Katalog (642+).
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { Search, ChevronDown, X } from 'lucide-react';
+import { Search, ChevronDown, X, Star } from 'lucide-react';
 import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
+
+/** Nur Buchstaben/Ziffern, klein — macht die Suche tolerant gegen Apostroph,
+ *  Leerzeichen & Co. (z.B. „Jollie's Community" → „jolliescommunity"). */
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** Levenshtein-Distanz, früh abgebrochen — für Tippfehler-Toleranz („jolly"→„jollie"). */
+function lev(a: string, b: string): number {
+  if (Math.abs(a.length - b.length) > 2) return 99;
+  let prevRow = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 0; i < a.length; i++) {
+    const curRow = [i + 1];
+    for (let j = 0; j < b.length; j++) {
+      curRow.push(Math.min(
+        (curRow[j] ?? 0) + 1,
+        (prevRow[j + 1] ?? 0) + 1,
+        (prevRow[j] ?? 0) + (a[i] === b[j] ? 0 : 1),
+      ));
+    }
+    prevRow = curRow;
+  }
+  return prevRow[b.length] ?? 99;
+}
+
+/** Passt der Suchbegriff aufs Gift? Teilstring (sonderzeichen-tolerant) ODER ein
+ *  Wort des Namens mit ≤2 Tippfehlern — so findet „jolly" auch „Jollie's …". */
+function matchGift(needle: string, slug: string): boolean {
+  const n = norm(needle);
+  if (!n) return true;
+  if (norm(slug).includes(n)) return true;
+  if (n.length < 4) return false;
+  return slug.toLowerCase().split(/[^a-z0-9]+/).some((w) => w.length >= 4 && lev(w, n) <= 2);
+}
 
 interface Props {
   value: string;
@@ -34,10 +66,17 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
   );
 
   const results = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    const list = needle ? gifts.filter((g) => g.slug.toLowerCase().includes(needle)) : gifts;
-    // günstige/häufige zuerst — die kommen im Stream am ehesten
-    return [...list].sort((a, b) => (a.coins || 0) - (b.coins || 0) || a.slug.localeCompare(b.slug)).slice(0, 60);
+    const needle = q.trim();
+    const list = needle ? gifts.filter((g) => matchGift(needle, g.slug)) : gifts;
+    // Schon erhaltene Gifts (count>0) zuerst — die kommen bei DIR wirklich vor;
+    // danach günstige zuerst. So sind die drei „Jollies" leicht auseinanderzuhalten.
+    return [...list]
+      .sort((a, b) =>
+        (b.count > 0 ? 1 : 0) - (a.count > 0 ? 1 : 0) ||
+        (a.coins || 0) - (b.coins || 0) ||
+        a.slug.localeCompare(b.slug),
+      )
+      .slice(0, 60);
   }, [gifts, q]);
 
   return (
@@ -96,19 +135,23 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
 }
 
 function GiftCell({ gift, active, onPick }: { gift: GiftEntry; active: boolean; onPick: () => void }) {
+  const received = gift.count > 0;
   return (
     <button
       type="button"
       onClick={onPick}
-      title={`${gift.slug} · ${gift.coins} Coins`}
-      className={`flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition-colors hover:bg-studio-accent/15 ${active ? 'bg-studio-accent/20 ring-1 ring-studio-accent' : ''}`}
+      title={`${gift.slug} · ${gift.coins} Coins${received ? ` · schon ${gift.count}× erhalten` : ''}`}
+      className={`relative flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition-colors hover:bg-studio-accent/15 ${active ? 'bg-studio-accent/20 ring-1 ring-studio-accent' : ''}`}
     >
+      {/* Schon erhalten → Stern: zeigt, welches Gift bei DIR wirklich vorkommt. */}
+      {received && <Star size={11} className="absolute right-1 top-1 fill-studio-gold text-studio-gold" />}
       {gift.icon ? (
         <img src={gift.icon} alt="" className="h-9 w-9 object-contain" />
       ) : (
         <div className="flex h-9 w-9 items-center justify-center rounded bg-studio-bg text-[9px] text-studio-muted">?</div>
       )}
-      <span className="w-full truncate text-center text-[9px] text-studio-muted">{gift.slug}</span>
+      <span className="w-full truncate text-center text-[9px] text-studio-text/90">{gift.slug}</span>
+      <span className="text-[8px] font-mono text-studio-muted">{gift.coins} 🪙</span>
     </button>
   );
 }
