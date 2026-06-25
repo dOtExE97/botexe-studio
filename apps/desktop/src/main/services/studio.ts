@@ -346,6 +346,11 @@ export class Studio {
       // 3c. Widget-Sounds: Feuerwerk-Knall / Alert-Sound direkt am Widget
       // konfiguriert — gespielt LOKAL über die App (nie im Overlay).
       if (e.type === 'gift' && e.gift) {
+        // Jedes Gift ins Log — so ist nachvollziehbar, welcher Gift-„slug" (Name)
+        // wirklich ankommt und mit welcher Anzahl. Wichtig fürs Debuggen von
+        // Gift-Zähler-/Trigger-Widgets (matchen exakt auf diesen slug).
+        // „⚠ ohne Namen" = nur giftId kam an → Zähler/Trigger per Name greifen nicht.
+        log.info('Gift', `${e.gift.slug} ×${e.gift.count}${e.gift.giftId != null ? ` (id ${e.gift.giftId})` : ''} · ${e.gift.totalCoins}💎 von ${e.user?.nickname ?? '—'}${e.gift.slug === 'gift' ? ' [⚠ ohne Namen]' : ''}`);
         // Gift-Katalog: Bild + Coins jedes Gifts dauerhaft merken (Bingo/Galerie).
         // Erstsender wird im Katalog verewigt (count>0 + Sender).
         this.giftCatalog.record({

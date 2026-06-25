@@ -106,7 +106,9 @@ export default class GiftCounter {
   onEvent(event) {
     if (event.type !== 'gift' || !event.gift) return;
     // Bestimmtes Gift (per slug) ODER alle, wenn kein slug gesetzt.
-    if (this.giftSlug && String(event.gift.slug ?? '').toLowerCase() !== this.giftSlug) return;
+    // .trim() auf BEIDEN Seiten — sonst scheitert der Vergleich an einem
+    // unsichtbaren Leerzeichen im Gift-Namen (config ist bereits getrimmt).
+    if (this.giftSlug && String(event.gift.slug ?? '').trim().toLowerCase() !== this.giftSlug) return;
     if (event.gift.icon) { this.lastIcon = event.gift.icon; this.renderIcon(); }
     this.count += Math.max(1, Math.floor(event.gift.count || 1));
     // Großer Combo-Sprung kann mehrere Ziele auf einmal überschreiten → mehrfach
