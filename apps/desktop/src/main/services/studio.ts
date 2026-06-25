@@ -22,6 +22,7 @@ import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
+import { ProfileStore, type ProfileMeta } from './profile-store';
 import { SpotifyService, type NowPlaying } from './spotify-service';
 import { StatsHistory, type StatsRange, type StatsSummary } from './stats-history';
 import { SportService } from './sport-service';
@@ -119,6 +120,7 @@ export class Studio {
   readonly tts: TTSService;
   readonly points: PointsStore;
   readonly giftCatalog: GiftCatalog;
+  readonly profiles: ProfileStore;
   readonly spotify: SpotifyService;
   /** Letzter Now-Playing-Stand (für Late-Joiner + Renderer). */
   private lastSpotify: NowPlaying | null = null;
@@ -178,6 +180,7 @@ export class Studio {
     this.media = new MediaLibrary(paths.userDataDir);
     this.points = new PointsStore(paths.userDataDir);
     this.giftCatalog = new GiftCatalog(paths.userDataDir);
+    this.profiles = new ProfileStore(paths.userDataDir);
     this.statsHistory = new StatsHistory(paths.userDataDir);
     // Laufende Session-Stats wiederherstellen (z.B. nach Update-Neustart), damit
     // Follower-Zahl + Gift-Summen im Overlay nicht auf 0 zurückfallen.
@@ -533,6 +536,7 @@ export class Studio {
 
   async start(): Promise<void> {
     await this.server.start();
+    this.ensureDefaultProfile(); // immer ein aktives Profil (sichert beim Wechsel)
     this.obs.applyConfig(this.settings.get().obs); // OBS-Verbindung (falls aktiviert)
     this.streamerbot.applyConfig(this.settings.get().streamerbot); // Streamer.bot-Brücke
     // Timer-Regeln: 1s-Ticker NUR starten, wenn es überhaupt Timer-Regeln gibt
@@ -814,6 +818,55 @@ export class Studio {
       layouts: this.layouts.list(),
       viewers: this.points.exportEntries(),
     };
+  }
+
+  // ── Profile (umschaltbare Konfigurations-Sets) ─────────────────────────────
+
+  /** Beim Start: existiert noch kein Profil, den aktuellen Stand als „Mein
+   *  Setup" sichern und aktivieren. Sorgt dafür, dass IMMER ein aktives Profil
+   *  existiert (in das beim Umschalten gesichert wird). */
+  ensureDefaultProfile(): void {
+    if (this.profiles.list().length === 0) {
+      const p = this.profiles.create('Mein Setup', this.exportConfig(), Date.now());
+      this.profiles.setActiveId(p.id);
+    } else if (!this.profiles.getActiveId()) {
+      this.profiles.setActiveId(this.profiles.list()[0]?.id ?? null);
+    }
+  }
+
+  listProfiles(): { profiles: ProfileMeta[]; activeId: string | null } {
+    return { profiles: this.profiles.list(), activeId: this.profiles.getActiveId() };
+  }
+
+  /** Neues Profil aus dem AKTUELLEN Stand (Snapshot). Ändert nichts am Aktiven. */
+  createProfile(name: string, source?: string): ProfileMeta {
+    const p = this.profiles.create(name, this.exportConfig(), Date.now(), source);
+    return { id: p.id, name: p.name, createdAt: p.createdAt, updatedAt: p.updatedAt, source: p.source };
+  }
+
+  /** Profil wechseln: aktuellen Stand ins bisher aktive Profil sichern (kein
+   *  Datenverlust), dann das Ziel-Profil laden + aktiv setzen. */
+  switchProfile(id: string): { ok: boolean; error?: string } {
+    const target = this.profiles.get(id);
+    if (!target) return { ok: false, error: 'Profil nicht gefunden' };
+    const activeId = this.profiles.getActiveId();
+    if (activeId && activeId !== id) this.profiles.saveBundle(activeId, this.exportConfig(), Date.now());
+    this.importConfig(target.bundle);
+    this.profiles.setActiveId(id);
+    log.info('Profil', `Gewechselt zu „${target.name}"`);
+    return { ok: true };
+  }
+
+  renameProfile(id: string, name: string): { ok: boolean } {
+    return { ok: this.profiles.rename(id, name, Date.now()) };
+  }
+
+  /** Profil löschen (nicht das aktive — vorher umschalten). */
+  deleteProfile(id: string): { ok: boolean; error?: string } {
+    if (this.profiles.getActiveId() === id) return { ok: false, error: 'Aktives Profil kann nicht gelöscht werden' };
+    if (this.profiles.list().length <= 1) return { ok: false, error: 'Das letzte Profil kann nicht gelöscht werden' };
+    this.profiles.delete(id);
+    return { ok: true };
   }
 
   /** Backup einspielen. Liefert, wie viele Overlays/Zuschauer übernommen wurden. */
