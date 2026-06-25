@@ -77,8 +77,9 @@ function setupAutoUpdate(): void {
     autoUpdater.on('update-available', () => pushUpdateStatus({ state: 'available' }));
     autoUpdater.on('update-not-available', () => pushUpdateStatus({ state: 'none' }));
     autoUpdater.on('update-downloaded', (_e, _notes, name) => {
+      // UI zeigt daraufhin ein persistentes Banner (UpdateBanner) mit
+      // „Jetzt neu starten" / „Später" — kein flüchtiger Toast mehr nötig.
       pushUpdateStatus({ state: 'downloaded', version: typeof name === 'string' ? name : undefined });
-      sendToRenderer(IPC.TOAST_SHOW, { type: 'info', message: 'Update geladen — beim nächsten Neustart aktiv (oder jetzt in den Einstellungen installieren).' });
     });
     autoUpdater.on('error', (err) => {
       // 404 = noch kein öffentliches Release → harmloser Normalzustand, nur knapp + leise.

@@ -55,6 +55,15 @@ test('prefix kombiniert mit Gruppe: beides muss passen', () => {
   assert.equal(shouldReadChat(chat('.hi', { isSub: true }), ['subs'], '.', false).read, true);
 });
 
+test('reason: warum übersprungen — Prefix fehlt vs nicht in Gruppe', () => {
+  // Ohne Prefix übersprungen → reason 'prefix' (auch wenn die Rolle passt!)
+  assert.equal(shouldReadChat(chat('hallo', { isMod: true }), ['mods'], '.', false).reason, 'prefix');
+  // Prefix passt, aber Gruppe nicht → reason 'group'
+  assert.equal(shouldReadChat(chat('hi', { isSub: true }), ['mods'], '', false).reason, 'group');
+  // Wird vorgelesen → kein reason
+  assert.equal(shouldReadChat(chat('.hi', { isMod: true }), ['mods'], '.', false).reason, undefined);
+});
+
 test('migrateReadWho: alte Einstellung → Gruppen-Array (altes Verhalten erhalten)', () => {
   assert.deepEqual(migrateReadWho('all'), ['all']);
   assert.deepEqual(migrateReadWho('followers'), ['followers', 'subs', 'mods']); // war hierarchisch

@@ -37,6 +37,9 @@ export interface ReadDecision {
   read: boolean;
   /** Text fürs Vorlesen (Prefix bereits entfernt). */
   text: string;
+  /** Wenn nicht vorgelesen: warum? 'prefix' = Start-Zeichen fehlt (gilt auch für
+   *  Mods/Follower!), 'group' = in keiner gewählten Gruppe. Für klares Logging. */
+  reason?: 'prefix' | 'group';
 }
 
 /** Enthält der Text ein gesperrtes Wort? (case-insensitiv, Teilwort-Match). */
@@ -60,14 +63,14 @@ export function shouldReadChat(
   // Prefix-Modus: nur Nachrichten, die mit dem Zeichen beginnen (wird entfernt).
   let text = raw;
   if (prefix) {
-    if (!raw.startsWith(prefix)) return { read: false, text: raw };
+    if (!raw.startsWith(prefix)) return { read: false, text: raw, reason: 'prefix' };
     text = raw.slice(prefix.length).trim();
-    if (!text) return { read: false, text: '' };
+    if (!text) return { read: false, text: '', reason: 'prefix' };
   }
 
   // App-VIPs (von dir markiert) immer; sonst: in mind. einer angekreuzten Gruppe.
   const u = event.user;
   const groupOk = isAppVip || groups.some((g) => groupMatches(g, u));
 
-  return { read: groupOk, text };
+  return groupOk ? { read: true, text } : { read: false, text, reason: 'group' };
 }

@@ -3,6 +3,7 @@ import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Use
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
 import ToastHost, { toast } from './components/ToastHost';
+import UpdateBanner from './components/UpdateBanner';
 import OnboardingTour from './components/OnboardingTour';
 import LivePage from './pages/LivePage';
 import OverlayPage from './pages/OverlayPage';
@@ -87,6 +88,7 @@ export default function App() {
     <div className="flex h-screen overflow-hidden">
       <SoundPlayer />
       <ToastHost />
+      <UpdateBanner />
       <OnboardingTour onNavigate={(p) => setPage(p as Page)} />
 
       {/* Sidebar */}

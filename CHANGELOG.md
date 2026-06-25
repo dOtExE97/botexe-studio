@@ -3,6 +3,30 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.13] — 2026-06-25
+
+### Behoben / Geklärt
+- **Vorlese-„Flackern" aufgeklärt — es war kein Bug, sondern das Vorlese-Präfix.**
+  Mit gesetztem Präfix (z.B. „.") liest bOtExE nur Nachrichten vor, die mit dem
+  Zeichen beginnen — das gilt **auch für Mods/Follower**. Wer ohne Präfix schrieb,
+  wurde übersprungen; das sah aus wie zufälliges Flackern. Das Log nannte als Grund
+  stur „nicht in gewählter Gruppe", selbst wenn in Wahrheit nur der Punkt fehlte.
+- **Log nennt jetzt den echten Grund** beim Überspringen: „kein „." davor" vs.
+  „nicht in gewählter Gruppe" — damit führt das Log nie wieder auf die falsche Fährte.
+- **Klarere Beschriftung** beim Präfix-Feld (TTS-Einstellungen): weist ausdrücklich
+  darauf hin, dass der Präfix auch Mods/Follower betrifft.
+
+### Neu
+- **Update-Banner.** Wenn ein Update im Hintergrund geladen wurde, erscheint unten
+  rechts ein Banner mit **„Jetzt neu starten"** (installiert sofort & öffnet wieder)
+  und **„Später"** — kein manuelles Schließen/Neuöffnen mehr nötig.
+
+### Entfernt
+- Das temporäre Diagnose-Logging (Diag-Roles / Filter-Flags) aus v0.3.11/0.3.12 —
+  hat seinen Zweck erfüllt.
+
+---
+
 ## [0.3.12] — 2026-06-25
 
 ### Diagnose

@@ -381,7 +381,9 @@ export default function TtsPage() {
               className="bx-input mt-1 w-28 font-mono text-xs"
             />
             <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">
-              Leer = alle Nachrichten. Mit „." liest bOtExE nur „.hallo" vor (Punkt wird entfernt).
+              Leer = alle (wie oben gewählt). Mit „." werden <strong>nur</strong> Nachrichten mit Punkt
+              vorgelesen — <strong>auch von Mods/Followern!</strong> (Punkt wird entfernt). Wenn jemand
+              nicht vorgelesen wird, obwohl er sollte: hier auf leer prüfen.
             </span>
           </label>
           <label className="flex items-center gap-2 text-xs normal-case">
