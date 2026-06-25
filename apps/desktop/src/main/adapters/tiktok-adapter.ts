@@ -13,6 +13,7 @@ import type { StudioEvent } from '@botexe/trigger-engine';
 import type { EventBus } from '../core/event-bus';
 import { log } from '../core/logger';
 import {
+  detectRoles,
   normalizeChat,
   normalizeGift,
   normalizeLike,
@@ -237,11 +238,15 @@ export class TikTokAdapter {
     };
     const u = x.user ?? {};
     const ident = x.userIdentity ?? x.UserIdentity;
+    // Was detectRoles aus DEMSELBEN d berechnet — direkt daneben, um zu sehen,
+    // ob die Auswertung mit den rohen Feldern übereinstimmt.
+    const dr = detectRoles(d as Parameters<typeof detectRoles>[0]);
     log.info('Diag-Roles',
       `nick=${u.nickname ?? '?'} uniqueId=${u.uniqueId ?? '-'} userId=${u.userId ?? '-'} `
       + `followStatus=${String(u.followInfo?.followStatus ?? u.followStatus ?? '-')} `
       + `isFollower=${String(u.isFollower ?? '-')} `
-      + `ident.follower=${String(ident?.isFollowerOfAnchor ?? '-')} ident.mod=${String(ident?.isModeratorOfAnchor ?? '-')}`,
+      + `ident.follower=${String(ident?.isFollowerOfAnchor ?? '-')} ident.mod=${String(ident?.isModeratorOfAnchor ?? '-')} `
+      + `→ detect[mod=${dr.isMod} follower=${dr.isFollower} sub=${dr.isSub}]`,
     );
   }
 

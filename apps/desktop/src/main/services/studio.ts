@@ -1145,12 +1145,19 @@ export class Studio {
 
     // Wer-Filter (Teamherz/Mod/Follower/VIP) + optionaler Prefix-Modus.
     const isVip = event.user ? this.points.isVip(event.user.id) : false;
-    const decision = shouldReadChat(event, tts.readGroups ?? ['all'], tts.readPrefix ?? '', isVip);
-    if (!decision.read) { this.logTtsDecision(`übersprungen: ${nick} (nicht in gewählter Gruppe)`); return; }
+    const groups = tts.readGroups ?? ['all'];
+    const prefix = tts.readPrefix ?? '';
+    const decision = shouldReadChat(event, groups, prefix, isVip);
+    // DIAGNOSE: Rollen-Flags am Filter + gewählte Gruppen + Prefix-Status — zeigt,
+    // ob eine Rolle verloren ging (m/f/s=false trotz korrekter Rohdaten), die
+    // Filter-Auswahl nicht passt (grp) oder ein Vorlese-Prefix greift (pfx).
+    const u = event.user;
+    const flags = `m=${!!u?.isMod} f=${!!u?.isFollower} s=${!!u?.isSub} vip=${isVip}`;
+    const pfx = prefix ? ` pfx='${prefix}' startsWith=${raw.trimStart().startsWith(prefix)}` : '';
+    if (!decision.read) { this.logTtsDecision(`übersprungen: ${nick} [${flags}] grp=${groups.join('+')}${pfx}`); return; }
 
     // Prefix-bereinigten Text fürs Template nutzen (Original-Event unangetastet).
-    const roles = [event.user?.isMod && 'mod', event.user?.isSub && 'teamherz', event.user?.isFollower && 'follower', isVip && 'vip'].filter(Boolean).join(',');
-    this.logTtsDecision(`vorgelesen: ${nick}${roles ? ` [${roles}]` : ''}`);
+    this.logTtsDecision(`vorgelesen: ${nick} [${flags}] grp=${groups.join('+')}${pfx}`);
     const speakEvent = decision.text === raw ? event : { ...event, text: decision.text };
     this.speakForEvent(tts.chatTemplate, speakEvent);
   }

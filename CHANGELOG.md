@@ -3,6 +3,18 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.12] — 2026-06-25
+
+### Diagnose
+- **Diagnose-Build Runde 2** fürs Vorlese-Flackern. Runde 1 hat bereits viel
+  ausgeschlossen (IDs konsistent, Filter-Auswahl unverändert, detectRoles-Logik
+  korrekt, Bus klont nicht). Jetzt zeigt das Log die komplette Kette: was
+  detectRoles aus den Rohdaten berechnet (`→ detect[...]`) UND die Rollen-Flags
+  direkt am TTS-Filter inkl. Gruppen- und Präfix-Status (`[m=.. f=..] grp=.. pfx=..`).
+  Damit ist eindeutig sichtbar, an welcher Stelle eine Rolle verloren geht.
+
+---
+
 ## [0.3.11] — 2026-06-24
 
 ### Diagnose
