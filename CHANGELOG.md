@@ -3,6 +3,15 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.23] — 2026-06-26
+
+### Verbessert
+- **VIP-/Stammgast-Begrüßungskarten jetzt mit allen Stats** 👑 — die Karte zeigt beim ersten Chat einer Person jetzt **Besuche, Coins, Likes, Kommentare (gesamt), Punkte, Gifts und Wins** — vorher fehlten Likes & Kommentare.
+- **Hübschere Darstellung** — Stats erscheinen als Chips mit Icons (🪙 Coins, 👍 Likes, 💬 Kommentare …) und kompakten Zahlen (z.B. „13,7k" statt „13700").
+- Neuer Kommentar-Zähler pro Zuschauer (Gesamt-Kommentare) — überlebt Neustart.
+
+---
+
 ## [0.3.22] — 2026-06-26
 
 ### Sicherheit & Robustheit
