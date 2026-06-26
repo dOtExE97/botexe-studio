@@ -330,14 +330,31 @@ export class TikTokAdapter {
         });
         return;
       }
-      this.emitStatus({ status: 'error', isReconnect, detail: msg });
       // „Noch nicht live" ist KEIN Abbruchfehler: statt nach 5 Versuchen aufzugeben,
       // auf das Live warten und automatisch verbinden (wie nach Stream-Ende) — der
       // Streamer muss nicht mehr manuell „Verbinden" klicken, wenn er live geht.
+      // Dieser Fall wird VOR dem generischen Fehler behandelt, damit der rohe
+      // „isn't online"-Text nicht als verwirrender Fehler-Toast aufpoppt.
       if (this.autoConnect && isOfflineError(msg)) {
+        // Ohne Sign-Key ist das stille „warte auf Live" eine Sackgasse: sobald
+        // der Streamer live geht, scheitert der Sign-Schritt ohnehin am
+        // fehlenden Key. Beim Test (Streamer meist NICHT live) sähe ein neuer
+        // User sonst nur ewig „RECONNECT…" ohne Grund. Darum: kein Key → sofort
+        // der klare, handlungsfähige Key-Hinweis (löst einen Fehler-Toast aus).
+        if (!this.getAuth().signApiKey) {
+          this.pendingFresh = false;
+          this.emitStatus({
+            status: 'error',
+            isReconnect,
+            detail: `@${this.username} ist gerade nicht live — und es fehlt noch der kostenlose eulerstream-Key. Hol ihn dir gratis unter Einstellungen → TikTok-Verbindung; danach verbindet sich die App automatisch, sobald du (oder der Kanal) live ist.`,
+          });
+          return;
+        }
         this.pendingFresh = true; // erstes Live = neuer Stream → Reset
-        this.startLiveWatch(epoch);
+        this.startLiveWatch(epoch); // emittiert selbst status 'reconnecting' (warte auf Live)
       } else {
+        // Echter Verbindungsfehler → generischer Fehler-Toast + Reconnect.
+        this.emitStatus({ status: 'error', isReconnect, detail: msg });
         // Kurz-Abriss-Reconnect: ein evtl. gesetztes pendingFresh NICHT
         // verschleppen (sonst löst der nächste Reconnect fälschlich Reset aus).
         this.pendingFresh = false;

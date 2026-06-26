@@ -29,10 +29,11 @@ class FakeConnection extends EventEmitter implements LiveConnectionLike {
   disconnectCalls = 0;
   removeAllCalls = 0;
   failConnect = false;
+  connectError = 'verbindung fehlgeschlagen';
 
   async connect(): Promise<Record<string, unknown>> {
     this.connectCalls++;
-    if (this.failConnect) throw new Error('verbindung fehlgeschlagen');
+    if (this.failConnect) throw new Error(this.connectError);
     return { roomId: '123', viewerCount: 10 };
   }
 
@@ -259,6 +260,38 @@ test('auto-connect aus (default): streamEnd startet keinen live-watch', async ()
   connections[0]?.emit('disconnected');
   await wait(25);
   assert.equal(connections.length, 1, 'ohne autoConnect kein erneutes Verbinden');
+});
+
+test('Erstkontakt OHNE Key + Streamer offline → klarer Key-Hinweis statt stillem Live-Watch', async () => {
+  const bus = new EventBus();
+  let live = false;
+  const statuses: AdapterStatusInfo[] = [];
+  const connections: FakeConnection[] = [];
+  const adapter = new TikTokAdapter(bus, {
+    factory: () => {
+      const c = new FakeConnection();
+      c.failConnect = true;
+      c.connectError = "The requested user isn't online :("; // offline, bevor Sign nötig wäre
+      connections.push(c);
+      return c;
+    },
+    onStatus: (s) => statuses.push(s),
+    autoConnect: true,
+    livePollMs: 5,
+    checkLive: async () => live,
+    getAuth: () => ({}), // KEIN signApiKey — der Normalfall beim ersten Test
+    baseReconnectDelayMs: 1,
+    jitterMs: 0,
+  });
+  await adapter.connect('testuser');
+  live = true; // Streamer geht live — der stille Live-Watch würde jetzt verbinden
+  await wait(25);
+
+  assert.equal(connections.length, 1, 'ohne Key KEIN stiller Live-Watch (würde am Sign scheitern)');
+  const err = statuses.find((s) => s.status === 'error');
+  assert.ok(err, 'es gibt einen klaren Fehler-Status');
+  assert.match(err?.detail ?? '', /eulerstream-Key/i, 'Fehler nennt den fehlenden Key');
+  await adapter.disconnect();
 });
 
 test('gift-events: laufender streak unterdrückt, finale combo landet auf dem bus', async () => {
