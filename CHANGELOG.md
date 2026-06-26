@@ -3,6 +3,14 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.24] — 2026-06-26
+
+### Verbessert
+- **Profilbild in den Begrüßungskarten** 🖼️ — das Profilbild des Zuschauers wird jetzt groß und schön eingebunden, mit dem Anlass-Icon (👑 VIP, 🏆 Sieg, 💀 Boss …) als kleinem Badge in der Ecke. Falls kein Bild lädt, erscheint automatisch das Icon.
+- **5 ausgebaute Karten-Designs** 🎨 — Premium Gold (mit Schimmer-Titel), Arcade XP (Neon-Retro), Clean Stream (hell/minimal), Cute Pop (rosa/verspielt) und Dark Pro Neon. Pro Action-Screen-Widget wählbar (Feld „Design") — so kann z.B. die VIP-Karte in Gold und der Game-Win in Arcade erscheinen.
+
+---
+
 ## [0.3.23] — 2026-06-26
 
 ### Verbessert
