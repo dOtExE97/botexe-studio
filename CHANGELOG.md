@@ -3,6 +3,13 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.27] — 2026-06-26
+
+### Neu
+- **Open-Source-Lizenzen in der App** 💜 — unter Einstellungen → „Open-Source-Lizenzen" sind jetzt alle genutzten Bibliotheken aufgeführt (mit Lizenz, Autor und Link zum Projekt). bOtExE Studio nutzt viel Open Source (u.a. TikTok-Live-Connector, Electron, React) — alles permissiv lizenziert, jetzt sauber gecreditet, direkt sichtbar in der App.
+
+---
+
 ## [0.3.26] — 2026-06-26
 
 ### Behoben (wichtig für neue Nutzer)
