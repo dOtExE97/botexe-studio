@@ -3,6 +3,15 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.20] — 2026-06-26
+
+### Behoben (aus adversarialer Code-Review)
+- **Quiz:** Doppelklick auf „Auflösen" zählte den Sieg doppelt (doppelte Punkte/Level) — behoben.
+- **VIP-/Stammgast-Momente:** Besuchszähler wurde falsch gelesen → Stammgast-Einblender löste nie aus und VIP-Karten zeigten „0 Besuche". Jetzt korrekt.
+- **Action-Screen:** drei Robustheits-Fixes (Timer-Leak im Editor, unbegrenzt wachsende Dedupe-Liste, verschluckte Momente nach Verdrängung).
+
+---
+
 ## [0.3.19] — 2026-06-26
 
 ### Neu (großes Feature-Paket aus dem Gesamtplan)
