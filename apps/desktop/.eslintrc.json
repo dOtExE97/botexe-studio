@@ -12,5 +12,13 @@
     "plugin:import/electron",
     "plugin:import/typescript"
   ],
-  "parser": "@typescript-eslint/parser"
+  "parser": "@typescript-eslint/parser",
+  "overrides": [
+    {
+      "files": ["**/*.test.ts"],
+      "rules": {
+        "@typescript-eslint/no-non-null-assertion": "off"
+      }
+    }
+  ]
 }

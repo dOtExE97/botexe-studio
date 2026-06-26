@@ -82,7 +82,7 @@ export class HangmanGame {
     // !guess WORT — kompletter Lösungsversuch.
     const guessMatch = /^!guess\s+(.+)$/iu.exec(roh);
     if (guessMatch) {
-      const versuch = guessMatch[1]!.trim().toUpperCase();
+      const versuch = (guessMatch[1] ?? '').trim().toUpperCase();
       const treffer = versuch === this.word;
       if (treffer) {
         this.solvedByGuess = true;
