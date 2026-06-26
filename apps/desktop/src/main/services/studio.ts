@@ -31,6 +31,7 @@ import { ViewerCardService, type ViewerInfo } from './viewer-card';
 import { GameService, type GameKind } from './game-service';
 import { pickQuestions, QUIZ_THEMES } from './games/quiz-questions';
 import { BossService, bossKillMoment } from './boss';
+import { validateTriggerRules, validateChatCommands } from './validators';
 import { SpotifyService, type NowPlaying } from './spotify-service';
 import { StatsHistory, type StatsRange, type StatsSummary } from './stats-history';
 import { SportService } from './sport-service';
@@ -986,6 +987,11 @@ export class Studio {
         // setzen). Dieselben Felder hart entfernen, die auch der Export strippt.
         for (const k of ['schemaVersion', 'spotifyTokens', 'controlToken', 'tiktokSessionId', 'tiktokTargetIdc', 'tiktokSignApiKey', 'ttsCredentials', 'sportApiKey']) delete rest[k];
         if (rest.obs && typeof rest.obs === 'object') delete (rest.obs as Record<string, unknown>).password;
+        // Trigger-Regeln + Chat-Befehle aus dem Backup hart validieren (whitelist-
+        // basierter Rebuild): ein manipuliertes Backup darf keine ungültigen oder
+        // mit Fremdfeldern (Prototype-Pollution) versehenen Strukturen einschleusen.
+        if ('triggerRules' in rest) rest.triggerRules = validateTriggerRules(rest.triggerRules);
+        if ('chatCommands' in rest) rest.chatCommands = validateChatCommands(rest.chatCommands);
         this.settings.update(rest as Parameters<typeof this.settings.update>[0]);
         this.engine.setRules(this.settings.get().triggerRules);
         this.refreshTimerTicker(); // Backup könnte Timer-Regeln mitbringen/entfernen

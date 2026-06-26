@@ -3,7 +3,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
-import type { StudioEvent, TriggerRule, Redemption, PanelButton, ChatCommand } from '@botexe/trigger-engine';
+import type { StudioEvent, Redemption, PanelButton } from '@botexe/trigger-engine';
+import { validateTriggerRules, validateChatCommands } from './main/services/validators';
 import { IPC } from './shared/constants';
 import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
@@ -488,7 +489,7 @@ function registerIpc(): void {
   ipcMain.handle(IPC.RULES_GET, () => isStudio().getRules());
   ipcMain.handle(IPC.RULES_SET, (_e, rules: unknown) => {
     if (!Array.isArray(rules)) return { ok: false, error: 'rules muss ein Array sein' };
-    isStudio().setRules(rules as TriggerRule[]);
+    isStudio().setRules(validateTriggerRules(rules));
     return { ok: true };
   });
   ipcMain.handle(IPC.GIFT_CATALOG_GET, () => isStudio().getGiftCatalog());
@@ -553,7 +554,7 @@ function registerIpc(): void {
   ipcMain.handle(IPC.COMMANDS_GET, () => isStudio().getChatCommands());
   ipcMain.handle(IPC.COMMANDS_SET, (_e, cmds: unknown) => {
     if (!Array.isArray(cmds)) return { ok: false, error: 'commands muss ein Array sein' };
-    isStudio().setChatCommands(cmds as ChatCommand[]);
+    isStudio().setChatCommands(validateChatCommands(cmds));
     return { ok: true };
   });
 

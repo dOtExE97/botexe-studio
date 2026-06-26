@@ -33,6 +33,17 @@ export type OverlayMessage =
   | { kind: 'game-state'; gameKind: string; state: unknown } // Spielzustand fürs Spiel-Widget
   | { kind: 'game-event'; gameKind: string; event: string; payload?: unknown }; // Spiel-Effekt (win/reveal …)
 
+/** WS-Origin-Whitelist (CSWSH-Schutz): nur lokale Overlay-Hosts. Origin-lose
+ *  Verbindungen werden separat (vor dem Aufruf) erlaubt. */
+export function isAllowedWsOrigin(origin: string): boolean {
+  try {
+    const h = new URL(origin).hostname.toLowerCase();
+    return h === '127.0.0.1' || h === 'localhost' || h === 'localtest.me' || h.endsWith('.localtest.me');
+  } catch {
+    return false;
+  }
+}
+
 export interface OverlayServerOptions {
   /** 0 = freier Port (Tests); sonst Wunsch-Port mit Fallback +1…+10. */
   port: number;
@@ -500,6 +511,16 @@ export class OverlayServer {
       const url = new URL(req.url ?? '', `http://${this.host}`);
       if (url.searchParams.get('token') !== this.token) {
         ws.close(4003, 'Invalid token');
+        return;
+      }
+      // CSWSH-Schutz (defense-in-depth): Verbindungen MIT fremdem Web-Origin
+      // ablehnen. Origin-lose Verbindungen (OBS-Browser-Source, native Clients)
+      // bleiben erlaubt — der Token ist dort der Schutz. Eine bösartige Webseite
+      // im Browser des Streamers könnte sonst (ohne Token zu kennen) zumindest
+      // versuchen zu verbinden; mit Origin-Whitelist scheitert das sofort.
+      const origin = String(req.headers.origin ?? '');
+      if (origin && !isAllowedWsOrigin(origin)) {
+        ws.close(4003, 'Origin nicht erlaubt');
         return;
       }
 

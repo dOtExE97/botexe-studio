@@ -7,7 +7,19 @@ import path from 'node:path';
 import WebSocket from 'ws';
 import { createDefaultLayout } from '@botexe/overlay-engine';
 import { EventBus } from '../core/event-bus';
-import { OverlayServer } from './overlay-server';
+import { OverlayServer, isAllowedWsOrigin } from './overlay-server';
+
+test('isAllowedWsOrigin: lokale Overlay-Hosts erlaubt', () => {
+  for (const o of ['http://127.0.0.1:27415', 'http://localhost', 'https://app.localtest.me', 'http://localtest.me:27415']) {
+    assert.equal(isAllowedWsOrigin(o), true, o);
+  }
+});
+
+test('isAllowedWsOrigin: fremde Origins abgelehnt (CSWSH-Schutz)', () => {
+  for (const o of ['https://evil.com', 'http://attacker.localtest.me.evil.com', 'http://192.168.178.50', 'not-a-url', '']) {
+    assert.equal(isAllowedWsOrigin(o), false, o);
+  }
+});
 
 function makeDirs(): { runtimeDir: string; widgetDir: string; mediaDir: string } {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'botexe-overlay-test-'));
