@@ -33,6 +33,20 @@ test('Duell-Sieg wird bei weiteren Chats nach Spielende nicht erneut gemeldet', 
   assert.equal(wins(), 1, 'kein weiterer Sieg nach Spielende');
 });
 
+test('startQuizAuto: leere Frageliste startet nicht', () => {
+  const { s } = svc();
+  assert.equal(s.startQuizAuto([]).ok, false);
+});
+
+test('startQuizAuto: erste Frage wird sofort als game-state gesendet', () => {
+  let lastState: { question?: string } | null = null;
+  const s = new GameService((msg) => { if (msg.kind === 'game-state') lastState = msg.state as { question?: string }; }, () => { /* win egal */ });
+  const r = s.startQuizAuto([{ q: 'Hauptstadt?', options: ['Berlin', 'Bonn', 'Köln', 'Hamburg'], correct: 0 }], { questionMs: 60000 });
+  assert.equal(r.ok, true);
+  assert.equal(lastState?.question, 'Hauptstadt?', 'erste Frage sofort gebroadcastet');
+  s.stop(); // Timer aufräumen, sonst hängt der Test-Prozess
+});
+
 test('Neues Spiel setzt den Sieg-Guard zurück', () => {
   const { s, wins } = svc();
   s.start('quiz', { question: 'Q1', options: ['A', 'B'], correctIndex: 0, winnerMode: 'first' });

@@ -102,6 +102,11 @@ const api = {
   stopGame: () => ipcRenderer.invoke(IPC.GAME_STOP),
   revealGame: () => ipcRenderer.invoke(IPC.GAME_REVEAL),
   gameState: () => ipcRenderer.invoke(IPC.GAME_STATE),
+  quizThemes: () => ipcRenderer.invoke(IPC.GAME_QUIZ_THEMES),
+  startQuizAuto: (themeId: string, opts?: unknown) => ipcRenderer.invoke(IPC.GAME_QUIZ_AUTO, themeId, opts),
+  startBoss: () => ipcRenderer.invoke(IPC.BOSS_START),
+  stopBoss: () => ipcRenderer.invoke(IPC.BOSS_STOP),
+  bossState: () => ipcRenderer.invoke(IPC.BOSS_STATE),
   // Auto-Update
   checkForUpdate: () => ipcRenderer.invoke(IPC.UPDATE_CHECK),
   installUpdate: () => ipcRenderer.invoke(IPC.UPDATE_INSTALL),

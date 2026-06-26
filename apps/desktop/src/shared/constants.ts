@@ -96,6 +96,11 @@ export const IPC = {
   GAME_STOP: 'game:stop',
   GAME_REVEAL: 'game:reveal',
   GAME_STATE: 'game:state',
+  GAME_QUIZ_AUTO: 'game:quiz-auto',
+  GAME_QUIZ_THEMES: 'game:quiz-themes',
+  BOSS_START: 'boss:start',
+  BOSS_STOP: 'boss:stop',
+  BOSS_STATE: 'boss:state',
   // OBS-Studio-Steuerung
   OBS_SET_CONFIG: 'obs:set-config',
   OBS_GET_SCENES: 'obs:get-scenes',

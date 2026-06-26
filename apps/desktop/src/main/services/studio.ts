@@ -29,6 +29,8 @@ import { downloadMyInstants, isAllowedMyInstantsMp3 } from './myinstants';
 import { didLevelUp, levelForWins, masteryMoment } from './game-mastery';
 import { ViewerCardService, type ViewerInfo } from './viewer-card';
 import { GameService, type GameKind } from './game-service';
+import { pickQuestions, QUIZ_THEMES } from './games/quiz-questions';
+import { BossService, bossKillMoment } from './boss';
 import { SpotifyService, type NowPlaying } from './spotify-service';
 import { StatsHistory, type StatsRange, type StatsSummary } from './stats-history';
 import { SportService } from './sport-service';
@@ -166,6 +168,8 @@ export class Studio {
   private momentShownSession = new Set<string>();
   private readonly viewerCard = new ViewerCardService();
   private readonly games: GameService;
+  private readonly boss = new BossService();
+  private bossActive = false;
   /** Rollen-Gedächtnis (Mod/Teamherz/Follower) pro Stream — einmal erkannt =
    *  für die Session gemerkt, da TikTok Rollen nicht in jeder Nachricht liefert. */
   private sessionRoles = new SessionRoles();
@@ -361,6 +365,8 @@ export class Studio {
       // 3c. Widget-Sounds: Feuerwerk-Knall / Alert-Sound direkt am Widget
       // konfiguriert — gespielt LOKAL über die App (nie im Overlay).
       if (e.type === 'gift' && e.gift) {
+        // Stream-Boss: Gift-Coins = Schaden (wenn Boss-Modus aktiv).
+        if (this.bossActive && e.user) this.damageBoss({ id: e.user.id, nickname: e.user.nickname }, e.gift.totalCoins);
         // Jedes Gift ins Log — so ist nachvollziehbar, welcher Gift-„slug" (Name)
         // wirklich ankommt und mit welcher Anzahl. Wichtig fürs Debuggen von
         // Gift-Zähler-/Trigger-Widgets (matchen exakt auf diesen slug).
@@ -891,6 +897,44 @@ export class Studio {
   stopGame(): { ok: boolean } { this.games.stop(); return { ok: true }; }
   revealGame(): { ok: boolean } { this.games.reveal(); return { ok: true }; }
   getGameState(): { kind: GameKind; state: unknown } | null { return this.games.getState(); }
+
+  /** Verfügbare Quiz-Themen (für die UI). */
+  listQuizThemes(): Array<{ id: string; label: string; count: number }> {
+    return QUIZ_THEMES.map((t) => ({ id: t.id, label: t.label, count: t.questions.length }));
+  }
+
+  /** Quiz VOLLAUTOMATISCH starten: zieht `rounds` zufällige Fragen aus dem Thema
+   *  und läuft sie selbsttätig durch (Frage → Sammelzeit → Auflösen → nächste). */
+  startQuizAuto(themeId: string, opts?: { rounds?: number; questionMs?: number; pauseMs?: number; winnerMode?: 'first' | 'random' }): { ok: boolean; error?: string } {
+    const questions = pickQuestions(themeId, opts?.rounds ?? 8);
+    return this.games.startQuizAuto(questions, { questionMs: opts?.questionMs, pauseMs: opts?.pauseMs, winnerMode: opts?.winnerMode });
+  }
+
+  // ── Stream-Boss ──────────────────────────────────────────────────────────
+  /** Boss-Modus an: Gifts (nach Coins) fügen dem Boss Schaden zu, bei Kill gibt
+   *  es einen Boss-Kill-Moment und der nächste (stärkere) Boss spawnt. */
+  startBoss(): { ok: boolean } { this.bossActive = true; this.boss.spawn(); this.broadcastBoss(); return { ok: true }; }
+  stopBoss(): { ok: boolean } { this.bossActive = false; this.server.broadcast({ kind: 'game-state', gameKind: '', state: null }); return { ok: true }; }
+  getBossState(): unknown { return this.bossActive ? this.boss.getState() : null; }
+
+  private broadcastBoss(): void {
+    this.server.broadcast({ kind: 'game-state', gameKind: 'boss', state: this.boss.getState() });
+  }
+
+  /** Schaden am Boss (aus Gifts) — broadcastet neuen Stand, bei Kill Moment +
+   *  nächster Spawn. */
+  private damageBoss(source: { id: string; nickname: string }, amount: number): void {
+    if (!this.bossActive || amount <= 0) return;
+    const r = this.boss.damage(source, amount);
+    this.broadcastBoss();
+    if (r.killed) {
+      const st = this.boss.getState();
+      this.emitMoment(bossKillMoment(st, st.topDamagers));
+      this.boss.onKill();
+      this.boss.spawn();
+      this.broadcastBoss();
+    }
+  }
 
   /** TikFinity-`.tfc` importieren → entschlüsseln, Sounds laden, übersetzen,
    *  als neues Profil ablegen. Ändert das aktive Profil NICHT. */

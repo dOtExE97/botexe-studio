@@ -348,6 +348,13 @@ function registerIpc(): void {
   ipcMain.handle(IPC.GAME_STOP, () => isStudio().stopGame());
   ipcMain.handle(IPC.GAME_REVEAL, () => isStudio().revealGame());
   ipcMain.handle(IPC.GAME_STATE, () => isStudio().getGameState());
+  ipcMain.handle(IPC.GAME_QUIZ_THEMES, () => isStudio().listQuizThemes());
+  ipcMain.handle(IPC.BOSS_START, () => isStudio().startBoss());
+  ipcMain.handle(IPC.BOSS_STOP, () => isStudio().stopBoss());
+  ipcMain.handle(IPC.BOSS_STATE, () => isStudio().getBossState());
+  ipcMain.handle(IPC.GAME_QUIZ_AUTO, (_e, themeId: unknown, opts: unknown) =>
+    typeof themeId === 'string' ? isStudio().startQuizAuto(themeId, (opts ?? {}) as Parameters<Studio['startQuizAuto']>[1]) : { ok: false, error: 'Thema fehlt' },
+  );
   ipcMain.handle(IPC.PROFILE_IMPORT_TIKFINITY, async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       title: 'TikFinity-Profil importieren',

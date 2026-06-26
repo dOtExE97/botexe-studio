@@ -183,6 +183,10 @@ const WIDGET_TYPES: {
     w: 420, h: 350, props: { accent: '#ffd23e' }, fields: [ACCENT_FIELD],
   },
   {
+    type: 'stream-boss', label: 'Stream-Boss', desc: 'Gemeinsamer Boss mit HP-Leiste — Gifts fügen Schaden zu (nach Coins). Top-Schadensliste, Level-Aufstieg, Kill-Moment. Boss-Modus auf der Live-Seite an.',
+    w: 440, h: 190, props: { accent: '#ff3b6b', showDamagers: true }, fields: [ACCENT_FIELD],
+  },
+  {
     type: 'gift-alert', label: 'Gift-Alert', desc: 'Großer Alert mitten im Bild, wenn ein Gift kommt — mit Gift-Bild und Profilfoto.',
     w: 760, h: 380, props: { minCoins: 0, durationMs: 5000, soundId: 'botexe-alert.wav' },
     fields: [
