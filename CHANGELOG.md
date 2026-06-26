@@ -3,6 +3,15 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.21] — 2026-06-26
+
+### Neu
+- **Quiz läuft jetzt VOLLAUTOMATISCH** 🧠 — Thema wählen, Start, fertig: Fragen laufen von selbst durch (Frage → Sammelzeit → automatisch auflösen → nächste). Zuschauer antworten per Chat mit **A/B/C/D**, die richtige Antwort + Gewinner werden automatisch gezeigt. Kein manuelles Eintippen/Auflösen mehr.
+- **150 eingebaute Quizfragen** in 5 Themen (Fortnite, Gaming, Allgemeinwissen, Musik, Film & Serien) + „Bunt gemischt". Einstellbar: Anzahl Fragen + Sekunden pro Frage.
+- **Stream-Boss** 💀 — Boss-Modus an: jedes Gift macht Schaden (nach Coins), HP-Leiste + Top-Schadensliste im Overlay, bei Kill ein Moment + ein stärkerer Boss. Neues „Stream-Boss"-Widget.
+
+---
+
 ## [0.3.20] — 2026-06-26
 
 ### Behoben (aus adversarialer Code-Review)
