@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.28] — 2026-06-26
+
+### Robustheit (aus externem Codex-Audit)
+- **Klare Warnung statt stiller Schein-Funktion**, falls der Overlay-Server nicht starten kann (z.B. alle Ports belegt) — vorher sah die App heil aus, aber kein Overlay ging.
+- **Sound-/Medien-Import** bricht nicht mehr komplett ab, wenn eine einzelne Datei gesperrt/verschwunden ist — die anderen werden trotzdem importiert.
+- **Bestenlisten** bei großem Live spürbar schneller (gecacht statt mehrmals/Sekunde komplett neu zu sortieren).
+- **Profile** werden jetzt absturzsicher gespeichert (kein halb-kaputtes Profil bei Crash mitten im Speichern).
+- Interner Leak-Fix beim Overlay-Server-Startfehler.
+
+---
+
 ## [0.3.27] — 2026-06-26
 
 ### Neu
