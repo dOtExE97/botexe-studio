@@ -147,6 +147,26 @@ const WIDGET_TYPES: {
   fields: PropField[];
 }[] = [
   {
+    type: 'action-screen', label: 'Action-Screen (Momente)', desc: 'Unsichtbar im Idle — spielt kurze Premium-Momente ab: VIP-Welcome, Level-Up, Game-Win, Boss-Kill, Loot. Mehrere Instanzen per Kanal filtern (Mini links, Big mittig).',
+    w: 420, h: 240, props: { channels: '', types: '', sizeMode: 'standard', queueMode: 'priority', maxQueue: 6, minPriority: 0, dedupeMs: 1500, defaultSkin: 'premium', animation: 'pop', showAvatar: true, showStats: true, soundMode: 'moment', accent: '#ff5436' },
+    fields: [
+      { key: 'channels', label: 'Kanäle', type: 'text', hint: 'Leer = alle. Sonst kommagetrennt: vip, viewer, game, mastery, boss, loot, manual, clip.' },
+      { key: 'sizeMode', label: 'Größe', type: 'select', options: [
+        { value: 'compact', label: 'Kompakt' }, { value: 'standard', label: 'Standard' }, { value: 'full', label: 'Groß (kurz)' },
+      ] },
+      { key: 'defaultSkin', label: 'Design', type: 'select', options: [
+        { value: 'premium', label: 'Premium Gold' }, { value: 'arcade', label: 'Arcade XP' }, { value: 'clean', label: 'Clean Stream' }, { value: 'cute', label: 'Cute Pop' }, { value: 'dark-pro', label: 'Dark Pro' },
+      ] },
+      { key: 'animation', label: 'Animation', type: 'select', options: [
+        { value: 'pop', label: 'Pop' }, { value: 'slide', label: 'Slide' }, { value: 'flip', label: 'Flip' }, { value: 'fade', label: 'Fade' },
+      ] },
+      { key: 'minPriority', label: 'Mindest-Priorität', type: 'number', hint: '0 = alles. Höher = nur wichtige Momente (Boss=100, VIP=70, Game-Win=35).' },
+      { key: 'showAvatar', label: 'Profilbild zeigen', type: 'boolean' },
+      { key: 'showStats', label: 'Stats zeigen', type: 'boolean' },
+      ACCENT_FIELD,
+    ],
+  },
+  {
     type: 'gift-alert', label: 'Gift-Alert', desc: 'Großer Alert mitten im Bild, wenn ein Gift kommt — mit Gift-Bild und Profilfoto.',
     w: 760, h: 380, props: { minCoins: 0, durationMs: 5000, soundId: 'botexe-alert.wav' },
     fields: [

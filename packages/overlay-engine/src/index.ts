@@ -13,6 +13,31 @@ export interface OverlayCanvas {
   background: 'transparent' | string;
 }
 
+/** Ein „Moment" — ein kurzer Premium-Einblender (VIP-Welcome, Level-Up, Game-
+ *  Win, Boss-Kill, Loot …), den ein `action-screen`-Widget abspielt. Im Idle ist
+ *  das Widget unsichtbar. Mehrere Action-Screens können per channel filtern. */
+export type MomentChannel = 'viewer' | 'vip' | 'game' | 'mastery' | 'boss' | 'loot' | 'manual' | 'clip';
+export type MomentType =
+  | 'vip-welcome' | 'returning-viewer' | 'game-level-up' | 'game-winner' | 'quiz-reveal'
+  | 'boss-damage' | 'boss-kill' | 'loot-drop' | 'card-drop' | 'clip-marker' | 'manual-card';
+
+export interface MomentPayload {
+  id: string;
+  channel: MomentChannel;
+  type: MomentType;
+  /** Höher = wichtiger; bei voller Queue verdrängt Höheres Niedrigeres. */
+  priority: number;
+  durationMs: number;
+  soundId?: string;
+  user?: { id: string; nickname: string; profilePic?: string };
+  title: string;
+  subtitle?: string;
+  stats?: Record<string, number | string | boolean>;
+  level?: { value: number; title: string; currentWins: number; nextWins?: number };
+  game?: { id: string; label: string; icon?: string };
+  visual?: { skin?: string; variant?: string; accent?: string };
+}
+
 export interface OverlayLayer {
   /** Eindeutig im Layout — Trigger-Actions referenzieren diese ID. */
   id: string;

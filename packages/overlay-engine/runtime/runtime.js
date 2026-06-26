@@ -406,6 +406,19 @@ function dispatchReset() {
   }
 }
 
+// Premium-Moment → an alle Widgets mit onMoment (action-screen) verteilen.
+function dispatchMoment(moment) {
+  if (!moment) return;
+  for (const { widget } of liveLayers.values()) {
+    try {
+      widget?.onMoment?.(moment);
+    } catch (err) {
+      console.warn('[overlay] Widget-Fehler bei onMoment:', err);
+      reportClientError('onMoment', err && err.message ? err.message : String(err));
+    }
+  }
+}
+
 function dispatchAction(ruleId, action) {
   if (action.kind === 'show_layer' || action.kind === 'hide_layer') {
     const entry = liveLayers.get(action.targetId);
@@ -664,6 +677,7 @@ function connect() {
     else if (msg.kind === 'stats') dispatchStats(msg.stats);
     else if (msg.kind === 'spotify') dispatchSpotify(msg.state);
     else if (msg.kind === 'reset') dispatchReset();
+    else if (msg.kind === 'moment') dispatchMoment(msg.moment);
   };
 
   ws.onclose = () => {

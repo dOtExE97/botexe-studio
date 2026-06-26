@@ -16,7 +16,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import type { OverlayLayout } from '@botexe/overlay-engine';
+import type { OverlayLayout, MomentPayload } from '@botexe/overlay-engine';
 import type { StudioEvent, TriggerAction } from '@botexe/trigger-engine';
 import type { EventBus } from '../core/event-bus';
 import { log } from '../core/logger';
@@ -28,7 +28,8 @@ export type OverlayMessage =
   | { kind: 'action'; ruleId: string; action: TriggerAction }
   | { kind: 'stats'; stats: unknown }
   | { kind: 'spotify'; state: unknown } // Now-Playing fürs Spotify-Widget
-  | { kind: 'reset' }; // neuer Stream → Overlay-Zähler/Top-Listen zurücksetzen
+  | { kind: 'reset' } // neuer Stream → Overlay-Zähler/Top-Listen zurücksetzen
+  | { kind: 'moment'; moment: MomentPayload }; // Premium-Einblender fürs action-screen
 
 export interface OverlayServerOptions {
   /** 0 = freier Port (Tests); sonst Wunsch-Port mit Fallback +1…+10. */

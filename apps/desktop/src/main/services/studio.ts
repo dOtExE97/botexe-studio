@@ -872,6 +872,11 @@ export class Studio {
     return { ok: true };
   }
 
+  /** Einen „Moment" (Premium-Einblender) an alle action-screen-Widgets senden. */
+  emitMoment(moment: import('@botexe/overlay-engine').MomentPayload): void {
+    this.server.broadcast({ kind: 'moment', moment });
+  }
+
   /** TikFinity-`.tfc` importieren → entschlüsseln, Sounds laden, übersetzen,
    *  als neues Profil ablegen. Ändert das aktive Profil NICHT. */
   async importTikfinity(fileContent: string): Promise<{ ok: boolean; profileName?: string; report?: string; error?: string }> {
