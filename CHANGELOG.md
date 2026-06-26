@@ -3,6 +3,18 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.19] — 2026-06-26
+
+### Neu (großes Feature-Paket aus dem Gesamtplan)
+- **Action-Screen** 🎬 — ein unsichtbares Widget, das kurze Premium-Momente einblendet (VIP-Welcome, Level-Up, …) und danach wieder verschwindet. Mehrere Instanzen per Kanal filterbar, 5 Designs, Prioritäts-Queue. Fundament für viele Features.
+- **Spiele-Meister** 🏆 — Level-System (Rookie → Spiele-Meister) aus Game-Siegen; bei Level-Up erscheint ein Moment.
+- **VIP-Welcome / Stammgast-Momente** 👑 — beim ersten Chat eines VIPs/Stammgasts (mit Cooldowns).
+- **4 Chat-Spiele** 🎮 — **Quiz** (A/B/C/D-Voting + Auflösung), **Galgenmännchen**, **Tic Tac Toe** und **4 Gewinnt** (Zuschauer-Duell per „!join"). Steuerung auf der Live-Seite, eigene Overlay-Widgets, Sieg zählt aufs Level-System.
+
+*Gebaut mit einem Agenten-Team (7 Logik-Module + 4 Widgets, 81 neue Tests). Stream-Boss, Loot & weitere Phasen folgen.*
+
+---
+
 ## [0.3.18] — 2026-06-26
 
 ### Neu
