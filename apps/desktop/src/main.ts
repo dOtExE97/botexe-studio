@@ -136,6 +136,20 @@ function createMainWindow(): void {
     );
   }
 
+  // Navigation-Härtung (Audit P2): Die App-Shell darf NICHT zu fremden Seiten
+  // navigieren oder fremde Electron-Fenster öffnen. Externe http/https-Links
+  // gehen in den echten Browser (shell.openExternal), nie in ein App-Fenster.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.on('will-navigate', (e, url) => {
+    const isDev = !!MAIN_WINDOW_VITE_DEV_SERVER_URL && url.startsWith(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    if (isDev || url.startsWith('file://')) return; // eigene App-Shell
+    e.preventDefault();
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });

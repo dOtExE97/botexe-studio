@@ -1,0 +1,24 @@
+# Dependabot — wöchentlicher Check auf veraltete/unsichere Abhängigkeiten
+# (Audit P2: Production-Dependency-Hygiene). Gruppiert, damit nicht jede
+# Mini-Bump-PR einzeln aufpoppt.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: development
+      production-dependencies:
+        dependency-type: production
+    # Electron + TikTok-Connector bewusst manuell prüfen (Breaking-Changes).
+    ignore:
+      - dependency-name: electron
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
