@@ -81,7 +81,7 @@ export default class ActionScreen {
 
     // Editor-Schaufenster: einen Demo-Moment zeigen.
     if (this.ctx.preview) {
-      setTimeout(() => this.onMoment({
+      this._previewT = setTimeout(() => this.onMoment({
         id: 'demo', channel: 'vip', type: 'vip-welcome', priority: 70, durationMs: 4000,
         title: 'Willkommen, ExE! 👑', subtitle: 'VIP des Streams', user: { id: '1', nickname: 'ExE' },
         stats: { Besuche: 42, Coins: 1337 },
@@ -98,7 +98,6 @@ export default class ActionScreen {
     const key = `${m.type}:${m.user?.id ?? m.title}`;
     const now = Date.now();
     if (this.dedupeMs && (now - (this.recent.get(key) ?? 0)) < this.dedupeMs) return;
-    this.recent.set(key, now);
 
     if (this.queue.length >= this.maxQueue) {
       // Backpressure: niedrigste Priorität rauswerfen, wenn der Neue höher ist.
@@ -107,6 +106,10 @@ export default class ActionScreen {
       if ((m.priority ?? 0) > (this.queue[lowIdx].priority ?? 0)) this.queue.splice(lowIdx, 1); else return;
     }
     this.queue.push(m);
+    // Dedupe-Marker ERST nach erfolgreicher Einreihung setzen (sonst „vergiftet"
+    // ein verworfener Moment den Schlüssel) + abgelaufene Einträge prunen (Leak).
+    this.recent.set(key, now);
+    if (this.dedupeMs) for (const [k, ts] of this.recent) if (now - ts > this.dedupeMs) this.recent.delete(k);
     if (this.queueMode === 'priority') this.queue.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
     this.pump();
   }
@@ -175,5 +178,5 @@ export default class ActionScreen {
     }, dur);
   }
 
-  destroy() { clearTimeout(this._t); this.queue = []; }
+  destroy() { clearTimeout(this._t); clearTimeout(this._previewT); this.queue = []; this.recent.clear(); }
 }

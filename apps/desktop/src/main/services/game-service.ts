@@ -49,7 +49,12 @@ export class GameService {
     const r = g.reveal();
     this.broadcast({ kind: 'game-event', gameKind: 'quiz', event: 'reveal', payload: r });
     this.push();
-    if (r.winner) this.onWin({ id: r.winner.userId, nickname: r.winner.nickname });
+    // Sieg nur EINMAL melden (sonst doppelte Punkte/Level bei wiederholtem
+    // reveal, z.B. Doppelklick auf „Auflösen") — gleicher Guard wie handleChat.
+    if (r.winner && !this.winReported) {
+      this.winReported = true;
+      this.onWin({ id: r.winner.userId, nickname: r.winner.nickname });
+    }
   }
 
   stop(): void {

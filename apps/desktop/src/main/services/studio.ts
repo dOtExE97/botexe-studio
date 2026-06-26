@@ -989,7 +989,7 @@ export class Studio {
     this.momentShownSession.add(event.user.id);
     const e = this.points.get(event.user.id);
     const isVip = this.points.isVip(event.user.id);
-    const visits = (e as { visits?: number } | undefined)?.visits ?? 0;
+    const visits = this.points.visitCountOf(event.user.id);
     const kind = isVip ? 'vip-welcome' : visits >= 5 ? 'returning-viewer' : null;
     if (!kind) return;
     const info: ViewerInfo = {
