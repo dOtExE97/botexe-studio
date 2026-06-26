@@ -28,8 +28,12 @@ function ensureStyle() {
   .bx-as-ttl { font-weight:800; font-size:1.15em; line-height:1.05; text-shadow:0 2px 8px rgba(0,0,0,.6); }
   .bx-as-sub { font-size:.82em; color:#ffffffcc; line-height:1.1; }
   .bx-as-lvl { font-size:.95em; font-weight:800; color:var(--bx-as-accent); }
-  .bx-as-stats { display:flex; flex-wrap:wrap; gap:.3em .7em; font-size:.74em; color:#fff9; }
-  .bx-as-stats b { color:#fff; }
+  .bx-as-stats { display:flex; flex-wrap:wrap; gap:.32em; margin-top:.15em; }
+  .bx-as-chip { display:inline-flex; align-items:center; gap:.28em; padding:.2em .5em; border-radius:.55em;
+    background:color-mix(in srgb, var(--bx-as-accent) 16%, #0006); font-size:.72em; line-height:1; white-space:nowrap; }
+  .bx-as-chip .ic { font-size:1.05em; }
+  .bx-as-chip b { color:#fff; font-weight:800; font-variant-numeric:tabular-nums; }
+  .bx-as-chip span:last-child { color:#fff8; }
   /* Animations-Varianten */
   .bx-as-card.anim-pop.show { animation:bx-as-pop .5s cubic-bezier(.2,1.5,.35,1); }
   @keyframes bx-as-pop { 0%{transform:scale(.7)} 60%{transform:scale(1.06)} 100%{transform:scale(1)} }
@@ -55,6 +59,20 @@ const BADGE = {
   'card-drop': '🃏', 'clip-marker': '🎬', 'manual-card': '✨',
 };
 const csv = (s) => String(s ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+
+// Icons pro Stat-Label (für die hübschen Chips auf VIP-/Moment-Karten).
+const STAT_ICON = {
+  Besuche: '🔁', Coins: '🪙', Likes: '👍', Kommentare: '💬', Punkte: '⭐',
+  Gifts: '🎁', Wins: '🏆', Schaden: '⚔️',
+};
+// Große Zahlen kompakt: 1337 → „1.337", 12500 → „12,5k", 1_200_000 → „1,2M".
+function fmtNum(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return String(v);
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace('.', ',')}M`;
+  if (Math.abs(n) >= 10_000) return `${(n / 1000).toFixed(1).replace('.', ',')}k`;
+  return n.toLocaleString('de-DE');
+}
 
 export default class ActionScreen {
   constructor(root, props, ctx) {
@@ -84,7 +102,7 @@ export default class ActionScreen {
       this._previewT = setTimeout(() => this.onMoment({
         id: 'demo', channel: 'vip', type: 'vip-welcome', priority: 70, durationMs: 4000,
         title: 'Willkommen, ExE! 👑', subtitle: 'VIP des Streams', user: { id: '1', nickname: 'ExE' },
-        stats: { Besuche: 42, Coins: 1337 },
+        stats: { Besuche: 42, Coins: 13700, Likes: 2840, Kommentare: 512 },
       }), 600);
     }
   }
@@ -156,7 +174,15 @@ export default class ActionScreen {
     if (this.p.showStats !== false && m.stats && Object.keys(m.stats).length) {
       const st = document.createElement('div');
       st.className = 'bx-as-stats';
-      st.innerHTML = Object.entries(m.stats).map(([k, v]) => `<span>${k}: <b>${v}</b></span>`).join('');
+      for (const [k, v] of Object.entries(m.stats)) {
+        const chip = document.createElement('span');
+        chip.className = 'bx-as-chip';
+        const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = STAT_ICON[k] || '•';
+        const val = document.createElement('b'); val.textContent = fmtNum(v);
+        const lbl = document.createElement('span'); lbl.textContent = k;
+        chip.append(ic, val, lbl);
+        st.appendChild(chip);
+      }
       card.appendChild(st);
     }
     this.el.appendChild(card);

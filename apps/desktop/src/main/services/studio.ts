@@ -1044,7 +1044,8 @@ export class Studio {
     if (!kind) return;
     const info: ViewerInfo = {
       id: event.user.id, nickname: event.user.nickname, profilePic: event.user.profilePic,
-      isVip, visits, points: e?.points, coins: e?.coins, gifts: e?.gifts, gameWins: e?.gameWins,
+      isVip, visits, points: e?.points, coins: e?.coins, likes: e?.likes,
+      totalChats: e?.totalChats, gifts: e?.gifts, gameWins: e?.gameWins,
     };
     const moment = this.viewerCard.buildMoment(kind, info, Date.now());
     if (moment) this.emitMoment(moment);

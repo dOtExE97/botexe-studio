@@ -15,6 +15,8 @@ export interface ViewerInfo {
   visits?: number;
   points?: number;
   coins?: number;
+  likes?: number;
+  totalChats?: number;
   gifts?: number;
   gameWins?: number;
 }
@@ -161,6 +163,8 @@ export class ViewerCardService {
     const stats: Record<string, number> = {};
     if (v.visits !== undefined) stats['Besuche'] = v.visits;
     if (v.coins !== undefined) stats['Coins'] = v.coins;
+    if (v.likes !== undefined) stats['Likes'] = v.likes;
+    if (v.totalChats !== undefined) stats['Kommentare'] = v.totalChats;
     if (v.points !== undefined) stats['Punkte'] = v.points;
     if (v.gifts !== undefined) stats['Gifts'] = v.gifts;
     if (v.gameWins !== undefined) stats['Wins'] = v.gameWins;

@@ -40,6 +40,7 @@ export interface PointsEntry {
   gifts?: number;
   coins?: number;
   likes?: number;
+  totalChats?: number; // Gesamt-Kommentare dieser Person (für VIP-Karten/Stats)
   firstSeen?: number;
   lastSeen?: number;
   /** Eigene TTS-Stimme für diesen Zuschauer (überschreibt Default). */
@@ -148,6 +149,8 @@ export class PointsStore {
       e.coins = (e.coins ?? 0) + event.gift.totalCoins;
     } else if (event.type === 'like') {
       e.likes = (event.totalLikes && event.totalLikes > (e.likes ?? 0)) ? event.totalLikes : (e.likes ?? 0) + (event.likeCount ?? 0);
+    } else if (event.type === 'chat') {
+      e.totalChats = (e.totalChats ?? 0) + 1;
     }
     this.viewers.set(user.id, e);
     this.scheduleSave();
