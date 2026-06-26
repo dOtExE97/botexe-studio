@@ -97,6 +97,11 @@ const api = {
   renameProfile: (id: string, name: string) => ipcRenderer.invoke(IPC.PROFILE_RENAME, id, name),
   deleteProfile: (id: string) => ipcRenderer.invoke(IPC.PROFILE_DELETE, id),
   importTikfinity: () => ipcRenderer.invoke(IPC.PROFILE_IMPORT_TIKFINITY),
+  // Chat-Spiele
+  startGame: (kind: string, config?: unknown) => ipcRenderer.invoke(IPC.GAME_START, kind, config),
+  stopGame: () => ipcRenderer.invoke(IPC.GAME_STOP),
+  revealGame: () => ipcRenderer.invoke(IPC.GAME_REVEAL),
+  gameState: () => ipcRenderer.invoke(IPC.GAME_STATE),
   // Auto-Update
   checkForUpdate: () => ipcRenderer.invoke(IPC.UPDATE_CHECK),
   installUpdate: () => ipcRenderer.invoke(IPC.UPDATE_INSTALL),

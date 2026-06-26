@@ -29,7 +29,9 @@ export type OverlayMessage =
   | { kind: 'stats'; stats: unknown }
   | { kind: 'spotify'; state: unknown } // Now-Playing fürs Spotify-Widget
   | { kind: 'reset' } // neuer Stream → Overlay-Zähler/Top-Listen zurücksetzen
-  | { kind: 'moment'; moment: MomentPayload }; // Premium-Einblender fürs action-screen
+  | { kind: 'moment'; moment: MomentPayload } // Premium-Einblender fürs action-screen
+  | { kind: 'game-state'; gameKind: string; state: unknown } // Spielzustand fürs Spiel-Widget
+  | { kind: 'game-event'; gameKind: string; event: string; payload?: unknown }; // Spiel-Effekt (win/reveal …)
 
 export interface OverlayServerOptions {
   /** 0 = freier Port (Tests); sonst Wunsch-Port mit Fallback +1…+10. */

@@ -91,6 +91,11 @@ export const IPC = {
   PROFILE_RENAME: 'profile:rename',
   PROFILE_DELETE: 'profile:delete',
   PROFILE_IMPORT_TIKFINITY: 'profile:import-tikfinity',
+  // Chat-Spiele
+  GAME_START: 'game:start',
+  GAME_STOP: 'game:stop',
+  GAME_REVEAL: 'game:reveal',
+  GAME_STATE: 'game:state',
   // OBS-Studio-Steuerung
   OBS_SET_CONFIG: 'obs:set-config',
   OBS_GET_SCENES: 'obs:get-scenes',

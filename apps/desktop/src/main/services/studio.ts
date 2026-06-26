@@ -28,6 +28,7 @@ import { mapTikfinity, collectSoundUrls, mapWidgets } from './tikfinity-map';
 import { downloadMyInstants, isAllowedMyInstantsMp3 } from './myinstants';
 import { didLevelUp, levelForWins, masteryMoment } from './game-mastery';
 import { ViewerCardService, type ViewerInfo } from './viewer-card';
+import { GameService, type GameKind } from './game-service';
 import { SpotifyService, type NowPlaying } from './spotify-service';
 import { StatsHistory, type StatsRange, type StatsSummary } from './stats-history';
 import { SportService } from './sport-service';
@@ -164,6 +165,7 @@ export class Studio {
   private greetedThisSession = new Set<string>();
   private momentShownSession = new Set<string>();
   private readonly viewerCard = new ViewerCardService();
+  private readonly games: GameService;
   /** Rollen-Gedächtnis (Mod/Teamherz/Follower) pro Stream — einmal erkannt =
    *  für die Session gemerkt, da TikTok Rollen nicht in jeder Nachricht liefert. */
   private sessionRoles = new SessionRoles();
@@ -237,6 +239,7 @@ export class Studio {
       listPanelButtons: () => this.getPanelButtons().map((b) => ({ id: b.id, label: b.label })),
       firePanelButton: (id) => this.firePanelById(id),
     });
+    this.games = new GameService((msg) => this.server.broadcast(msg), (user) => this.recordGameWin(user));
 
     this.adapter = new TikTokAdapter(this.bus, {
       // TikFinity-Verhalten: nach Stream-Ende auf das nächste Live warten und
@@ -342,6 +345,7 @@ export class Studio {
       if (e.type === 'chat') {
         this.maybeGreetReturning(e);
         this.maybeViewerMoment(e);
+        this.games.handleChat(e);
         this.maybeJoinGiveaway(e);
         this.maybeRunCommand(e);
         this.maybeRedeem(e);
@@ -881,6 +885,12 @@ export class Studio {
   emitMoment(moment: import('@botexe/overlay-engine').MomentPayload): void {
     this.server.broadcast({ kind: 'moment', moment });
   }
+
+  // ── Chat-Spiele ────────────────────────────────────────────────────────────
+  startGame(kind: GameKind, config?: unknown): { ok: boolean; error?: string } { return this.games.start(kind, config); }
+  stopGame(): { ok: boolean } { this.games.stop(); return { ok: true }; }
+  revealGame(): { ok: boolean } { this.games.reveal(); return { ok: true }; }
+  getGameState(): { kind: GameKind; state: unknown } | null { return this.games.getState(); }
 
   /** TikFinity-`.tfc` importieren → entschlüsseln, Sounds laden, übersetzen,
    *  als neues Profil ablegen. Ändert das aktive Profil NICHT. */

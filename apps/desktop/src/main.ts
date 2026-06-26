@@ -341,6 +341,13 @@ function registerIpc(): void {
   ipcMain.handle(IPC.PROFILE_DELETE, (_e, id: unknown) =>
     typeof id === 'string' ? isStudio().deleteProfile(id) : { ok: false },
   );
+  // Chat-Spiele
+  ipcMain.handle(IPC.GAME_START, (_e, kind: unknown, config: unknown) =>
+    typeof kind === 'string' ? isStudio().startGame(kind as Parameters<Studio['startGame']>[0], config) : { ok: false },
+  );
+  ipcMain.handle(IPC.GAME_STOP, () => isStudio().stopGame());
+  ipcMain.handle(IPC.GAME_REVEAL, () => isStudio().revealGame());
+  ipcMain.handle(IPC.GAME_STATE, () => isStudio().getGameState());
   ipcMain.handle(IPC.PROFILE_IMPORT_TIKFINITY, async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       title: 'TikFinity-Profil importieren',

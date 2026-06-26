@@ -409,12 +409,19 @@ function dispatchReset() {
 // Premium-Moment → an alle Widgets mit onMoment (action-screen) verteilen.
 function dispatchMoment(moment) {
   if (!moment) return;
+  dispatchToWidgets('onMoment', moment);
+}
+
+// Eine Widget-Methode (onMoment/onGameState/onGameEvent) mit einem Argument an
+// alle lebenden Widgets rufen — wer sie nicht implementiert, ignoriert sie.
+function dispatchToWidgets(method, arg) {
+  if (arg == null) return;
   for (const { widget } of liveLayers.values()) {
     try {
-      widget?.onMoment?.(moment);
+      widget?.[method]?.(arg);
     } catch (err) {
-      console.warn('[overlay] Widget-Fehler bei onMoment:', err);
-      reportClientError('onMoment', err && err.message ? err.message : String(err));
+      console.warn(`[overlay] Widget-Fehler bei ${method}:`, err);
+      reportClientError(method, err && err.message ? err.message : String(err));
     }
   }
 }
@@ -678,6 +685,8 @@ function connect() {
     else if (msg.kind === 'spotify') dispatchSpotify(msg.state);
     else if (msg.kind === 'reset') dispatchReset();
     else if (msg.kind === 'moment') dispatchMoment(msg.moment);
+    else if (msg.kind === 'game-state') dispatchToWidgets('onGameState', { gameKind: msg.gameKind, state: msg.state });
+    else if (msg.kind === 'game-event') dispatchToWidgets('onGameEvent', { gameKind: msg.gameKind, event: msg.event, payload: msg.payload });
   };
 
   ws.onclose = () => {

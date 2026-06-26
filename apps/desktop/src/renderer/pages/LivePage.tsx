@@ -2,6 +2,7 @@
 // immer sichtbar (Single-User-Tool, keine versteckten Dev-Gates).
 import { useEffect, useState, type ComponentType } from 'react';
 import GiveawayCard from '../components/GiveawayCard';
+import GamesCard from '../components/GamesCard';
 import TriggerLogCard from '../components/TriggerLogCard';
 import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, X, LayoutPanelTop, Zap, RotateCcw } from 'lucide-react';
 import type { useStudio } from '../hooks/useStudio';
@@ -237,6 +238,9 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
           CSV
         </button>
       </div>
+
+      {/* Chat-Spiele — Quiz/Hangman/TicTacToe/4-Gewinnt starten */}
+      <GamesCard />
 
       {/* Giveaway / Verlosung — Teilnehmer sammeln + Gewinner ziehen */}
       <GiveawayCard />

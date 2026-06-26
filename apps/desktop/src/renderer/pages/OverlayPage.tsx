@@ -167,6 +167,22 @@ const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'quiz-game', label: 'Quiz', desc: 'Chat-Quiz: Zuschauer antworten mit A/B/C/D, Live-Stimmen-Balken, Auflösung mit Gewinner. Starten/Auflösen auf der Live-Seite.',
+    w: 420, h: 240, props: { accent: '#7c5cff', showVotes: true }, fields: [ACCENT_FIELD],
+  },
+  {
+    type: 'hangman-game', label: 'Galgenmännchen', desc: 'Chat rät Buchstaben (oder „!guess wort"). Wort-Zeile, Fehlversuche, geratene Buchstaben.',
+    w: 400, h: 170, props: { accent: '#ff5436' }, fields: [ACCENT_FIELD],
+  },
+  {
+    type: 'tic-tac-toe-game', label: 'Tic Tac Toe', desc: '2 Zuschauer duellieren sich aus dem Chat („!join", dann Feld 1–9). 3×3-Gitter, Turn-Anzeige, Gewinnlinie.',
+    w: 340, h: 380, props: { accent: '#28e0c4' }, fields: [ACCENT_FIELD],
+  },
+  {
+    type: 'connect-four-game', label: '4 Gewinnt', desc: '2 Zuschauer aus dem Chat („!join", dann Spalte 1–7). 7×6-Raster, fallende Steine, Gewinn-Hervorhebung.',
+    w: 420, h: 350, props: { accent: '#ffd23e' }, fields: [ACCENT_FIELD],
+  },
+  {
     type: 'gift-alert', label: 'Gift-Alert', desc: 'Großer Alert mitten im Bild, wenn ein Gift kommt — mit Gift-Bild und Profilfoto.',
     w: 760, h: 380, props: { minCoins: 0, durationMs: 5000, soundId: 'botexe-alert.wav' },
     fields: [
