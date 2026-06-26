@@ -29,8 +29,13 @@ export class GameService {
   private active: { kind: GameKind; game: GameInstance } | null = null;
   private winReported = false;
   private timer?: ReturnType<typeof setTimeout>;
+  private idleTimer?: ReturnType<typeof setTimeout>;
   private autoQueue: AutoQuizQuestion[] = [];
   private autoOpts: Required<QuizAutoOptions> = { questionMs: 20000, pauseMs: 6000, winnerMode: 'first' };
+  /** Hängt ein (manuell gestartetes) Spiel so lange ohne Eingabe rum, wird es
+   *  automatisch beendet — sonst bleibt ein totes Widget im Overlay stehen. */
+  private idleMs = 120000;
+  private autoMode = false;
 
   constructor(private readonly broadcast: Broadcast, private readonly onWin: (user: WinUser) => void) {}
 
@@ -41,6 +46,8 @@ export class GameService {
   startQuizAuto(questions: AutoQuizQuestion[], opts?: QuizAutoOptions): { ok: boolean; error?: string } {
     if (!questions.length) return { ok: false, error: 'Keine Fragen vorhanden' };
     this.clearTimer();
+    if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = undefined; }
+    this.autoMode = true;
     this.autoQueue = [...questions];
     this.autoOpts = {
       questionMs: Math.max(5000, opts?.questionMs ?? 20000),
@@ -79,8 +86,18 @@ export class GameService {
     } catch (err) { return { ok: false, error: (err as Error).message }; }
     this.active = { kind, game };
     this.winReported = false;
+    this.autoMode = false;
+    this.resetIdle();
     this.push();
     return { ok: true };
+  }
+
+  /** Inaktivitäts-Timer (neu) starten — nur für manuell gestartete Spiele; das
+   *  Auto-Quiz steuert sich über seinen eigenen Takt. */
+  private resetIdle(): void {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    if (this.autoMode) return;
+    this.idleTimer = setTimeout(() => this.stop(), this.idleMs);
   }
 
   /** Quiz auflösen (eigener Schritt, da das Quiz nicht von selbst gewinnt). */
@@ -103,6 +120,8 @@ export class GameService {
 
   stop(): void {
     this.clearTimer();
+    if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = undefined; }
+    this.autoMode = false;
     this.autoQueue = [];
     this.active = null;
     this.broadcast({ kind: 'game-state', gameKind: '', state: null });
@@ -114,8 +133,14 @@ export class GameService {
     if (!this.active || event.type !== 'chat' || !event.user || !event.text) return;
     const r = this.active.game.handleChat(event.user.id, event.user.nickname, event.text);
     if (!r?.accepted) return;
+    this.resetIdle();
     this.push();
     const st = this.active.game.getState();
+    // Spiel entschieden → Inaktivitäts-Timer aus (Ergebnis bleibt stehen, bis
+    // ein neues Spiel startet oder manuell gestoppt wird).
+    if ((st.status === 'won' || st.status === 'draw') && this.idleTimer) {
+      clearTimeout(this.idleTimer); this.idleTimer = undefined;
+    }
     if (st.status === 'won' && st.winner && !this.winReported) {
       this.winReported = true;
       const w = st.winner;

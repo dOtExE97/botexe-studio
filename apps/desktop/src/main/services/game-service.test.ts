@@ -15,6 +15,7 @@ test('Quiz-Sieg wird bei doppeltem reveal() nur EINMAL gemeldet (kein Doppel-Pun
   s.reveal();
   s.reveal(); // Doppelklick auf „Auflösen"
   assert.equal(wins(), 1, 'Sieg nur einmal trotz wiederholtem reveal');
+  s.stop();
 });
 
 test('Duell-Sieg wird bei weiteren Chats nach Spielende nicht erneut gemeldet', () => {
@@ -56,4 +57,5 @@ test('Neues Spiel setzt den Sieg-Guard zurück', () => {
   s.handleChat({ type: 'chat', ts: 2, user: { id: 'b', nickname: 'B' }, text: 'B' });
   s.reveal();
   assert.equal(wins(), 2, 'zwei Spiele → zwei Siege');
+  s.stop();
 });
