@@ -120,5 +120,12 @@ packages/{overlay-engine,widget-kit,trigger-engine}   ← Overlay-Runtime · Wid
 
 **Release:** Version in beiden `package.json` bumpen, committen, dann `git tag v0.X.0 && git push origin v0.X.0` → CI baut & veröffentlicht die Setup.exe (Auto-Update-Feed via GitHub-Releases). Mehr: [`CHANGELOG.md`](CHANGELOG.md).
 
+## 🙏 Open-Source-Bausteine
+bOtExE Studio steht auf den Schultern großartiger Open-Source-Projekte — **Electron**, **React**, **Vite**, **Express**, **ws**, **ajv**, **lucide** (Icons), **obs-websocket-js**, **node-edge-tts** und nicht zuletzt **[TikTok-Live-Connector](https://github.com/zerodytrash/TikTok-Live-Connector)** (zerodytrash), das die TikTok-Live-Anbindung möglich macht. 💜 Danke an alle Maintainer!
+
+Alle mitgelieferten Bibliotheken stehen unter permissiven Lizenzen (MIT/ISC/BSD/Apache-2.0) — vollständige Liste & Attribution: [`THIRD-PARTY-LICENSES.md`](THIRD-PARTY-LICENSES.md).
+
 ## Lizenz
 **Source-available, kein Open Source.** Der Code ist öffentlich einsehbar (Transparenz + Audit), und du darfst die offiziellen Builds fürs eigene Streaming nutzen — aber **nicht** kopieren, weiterverbreiten oder ein eigenes/kommerzielles Produkt daraus bauen. Alle Rechte bei dOtExE. Kommerzielle/Agentur-Lizenzen auf Anfrage. Details: [`LICENSE`](LICENSE).
+
+_Hinweis: Die Eigenlizenz oben gilt für **bOtExE-Studio-eigenen Code**. Die Drittanbieter-Bibliotheken behalten ihre jeweiligen (permissiven) Lizenzen — siehe oben._
