@@ -3,6 +3,13 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.26] — 2026-06-26
+
+### Behoben (wichtig für neue Nutzer)
+- **Klarer Hinweis statt „RECONNECT…"-Sackgasse** — wer die App zum ersten Mal ausprobiert (und gerade nicht live ist), bekommt jetzt sofort den Hinweis, dass der kostenlose eulerstream-Key fehlt (Einstellungen → TikTok-Verbindung). Vorher hing die Verbindung scheinbar endlos, ohne den Grund zu nennen. Sobald der Key gesetzt ist, verbindet sich die App automatisch beim Live-Gehen.
+
+---
+
 ## [0.3.25] — 2026-06-26
 
 ### Sicherheit (P2)
