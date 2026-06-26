@@ -21,10 +21,16 @@ function ensureStyle() {
   .bx-as-card.show { opacity:1; transform:none; transition:opacity .32s ease, transform .42s cubic-bezier(.2,1.3,.35,1); }
   .bx-as-card.out { opacity:0; transform:translateY(-10px) scale(.97); transition:opacity .3s ease, transform .3s ease; }
   .bx-as-head { display:flex; align-items:center; gap:.6em; }
-  .bx-as-av { width:2.4em; height:2.4em; border-radius:50%; object-fit:cover; flex:none;
-    border:2px solid var(--bx-as-accent); box-shadow:0 0 12px color-mix(in srgb,var(--bx-as-accent) 50%,transparent); }
-  .bx-as-badge { flex:none; width:2.4em; height:2.4em; border-radius:.6em; display:flex; align-items:center; justify-content:center;
-    font-size:1.3em; background:color-mix(in srgb,var(--bx-as-accent) 22%, #000); }
+  .bx-as-av-wrap { position:relative; flex:none; }
+  .bx-as-av { width:3.2em; height:3.2em; border-radius:50%; object-fit:cover; display:block; background:#0004;
+    border:2.5px solid var(--bx-as-accent); box-shadow:0 0 18px color-mix(in srgb,var(--bx-as-accent) 55%,transparent), 0 2px 8px #0009; }
+  .bx-as-av-wrap.noimg .bx-as-av { visibility:hidden; }
+  .bx-as-av-wrap.noimg::after { content:attr(data-badge); position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:1.6em; border-radius:50%; background:color-mix(in srgb,var(--bx-as-accent) 25%,#000); }
+  .bx-as-av-badge { position:absolute; bottom:-3px; right:-5px; font-size:1.25em; line-height:1;
+    filter:drop-shadow(0 1px 3px #000); pointer-events:none; }
+  .bx-as-badge { flex:none; width:3.2em; height:3.2em; border-radius:.7em; display:flex; align-items:center; justify-content:center;
+    font-size:1.7em; background:color-mix(in srgb,var(--bx-as-accent) 22%, #000); box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--bx-as-accent) 40%,transparent); }
   .bx-as-ttl { font-weight:800; font-size:1.15em; line-height:1.05; text-shadow:0 2px 8px rgba(0,0,0,.6); }
   .bx-as-sub { font-size:.82em; color:#ffffffcc; line-height:1.1; }
   .bx-as-lvl { font-size:.95em; font-weight:800; color:var(--bx-as-accent); }
@@ -40,11 +46,27 @@ function ensureStyle() {
   .bx-as-card.anim-flip.show { animation:bx-as-flip .55s ease; }
   @keyframes bx-as-flip { 0%{transform:rotateX(80deg);opacity:0} 100%{transform:none;opacity:1} }
   /* Skins */
-  .skin-arcade .bx-as-card { background:linear-gradient(160deg,#1a0f3d,#0d0820); border-radius:.3em; font-family:var(--bx-font-display,monospace); text-transform:uppercase; }
-  .skin-clean .bx-as-card { background:rgba(255,255,255,.96); color:#15151c; box-shadow:0 8px 30px rgba(0,0,0,.25); }
-  .skin-clean .bx-as-sub,.skin-clean .bx-as-stats { color:#15151c99; } .skin-clean .bx-as-stats b{color:#15151c;}
-  .skin-cute .bx-as-card { background:linear-gradient(160deg,#ff8fc7,#ffd1e8); color:#5a1e3e; border-radius:1.4em; }
-  .skin-dark-pro .bx-as-card { background:rgba(8,9,14,.97); border-width:1px; }
+  /* Premium Gold — edler Verlauf, goldener Akzent + Schimmer */
+  .skin-premium .bx-as-card { --bx-as-accent:#ffce54; background:linear-gradient(160deg,#2a2418,#16130c 60%,#0c0a06);
+    border:1px solid #ffce5466; box-shadow:0 12px 44px #000a, 0 0 40px #ffce5430, inset 0 1px 0 #ffffff22; }
+  .skin-premium .bx-as-ttl { background:linear-gradient(90deg,#fff,#ffe7a8); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  /* Arcade XP — Retro, harte Kanten, Neon-Doppelrahmen, Großbuchstaben */
+  .skin-arcade .bx-as-card { --bx-as-accent:#34e2ff; background:linear-gradient(160deg,#1a0f3d,#0d0820); border-radius:.25em;
+    font-family:var(--bx-font-display,monospace); text-transform:uppercase; letter-spacing:.02em;
+    border:2px solid #34e2ff; box-shadow:0 0 0 2px #ff2e9a inset, 0 10px 36px #000a, 0 0 26px #34e2ff66; }
+  .skin-arcade .bx-as-ttl { color:#34e2ff; text-shadow:0 0 8px #34e2ffaa; }
+  /* Clean Stream — hell, minimalistisch, dezent */
+  .skin-clean .bx-as-card { background:rgba(255,255,255,.97); color:#15151c; border:1px solid #0001; border-radius:.9em; box-shadow:0 10px 34px #00000028; }
+  .skin-clean .bx-as-sub { color:#15151c99; } .skin-clean .bx-as-ttl { text-shadow:none; }
+  .skin-clean .bx-as-chip { background:#15151c0d; } .skin-clean .bx-as-chip b { color:#15151c; } .skin-clean .bx-as-chip span:last-child { color:#15151c80; }
+  /* Cute Pop — rosa Verlauf, rund, verspielt */
+  .skin-cute .bx-as-card { --bx-as-accent:#ff4d97; background:linear-gradient(160deg,#ff8fc7,#ffd1e8); color:#5a1e3e; border:0; border-radius:1.5em; box-shadow:0 12px 34px #ff4d9740; }
+  .skin-cute .bx-as-ttl { text-shadow:0 1px 0 #fff6; } .skin-cute .bx-as-sub { color:#5a1e3ecc; }
+  .skin-cute .bx-as-chip { background:#ffffff80; } .skin-cute .bx-as-chip b { color:#5a1e3e; } .skin-cute .bx-as-chip span:last-child { color:#5a1e3eaa; }
+  /* Dark Pro Neon — tiefdunkel, kräftiger Neon-Glow */
+  .skin-dark-pro .bx-as-card { --bx-as-accent:#7c5cff; background:radial-gradient(120% 120% at 0 0, #14132a, #07070d); border:1px solid #7c5cff55;
+    box-shadow:0 12px 44px #000c, 0 0 34px #7c5cff44; }
+  .skin-dark-pro .bx-as-ttl { color:#cfc6ff; text-shadow:0 0 10px #7c5cff88; }
   `;
   document.head.appendChild(s);
 }
@@ -101,7 +123,8 @@ export default class ActionScreen {
     if (this.ctx.preview) {
       this._previewT = setTimeout(() => this.onMoment({
         id: 'demo', channel: 'vip', type: 'vip-welcome', priority: 70, durationMs: 4000,
-        title: 'Willkommen, ExE! 👑', subtitle: 'VIP des Streams', user: { id: '1', nickname: 'ExE' },
+        title: 'Willkommen, ExE! 👑', subtitle: 'VIP des Streams',
+        user: { id: '1', nickname: 'ExE', profilePic: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff7a4d"/><stop offset="1" stop-color="#ff2e63"/></linearGradient></defs><rect width="96" height="96" fill="url(#g)"/><text x="48" y="64" font-size="48" font-family="sans-serif" font-weight="bold" text-anchor="middle" fill="white">E</text></svg>') },
         stats: { Besuche: 42, Coins: 13700, Likes: 2840, Kommentare: 512 },
       }), 600);
     }
@@ -154,10 +177,30 @@ export default class ActionScreen {
 
     const head = document.createElement('div');
     head.className = 'bx-as-head';
+    const badge = BADGE[m.type] || '✨';
     const showAv = this.p.showAvatar !== false && m.user?.profilePic;
-    head.innerHTML = showAv
-      ? `<img class="bx-as-av" src="${m.user.profilePic}" alt="">`
-      : `<div class="bx-as-badge">${BADGE[m.type] || '✨'}</div>`;
+    if (showAv) {
+      // Profilbild groß mit Anlass-Icon (👑/🏆/💀…) als Ecken-Badge. src als
+      // DOM-Property (kein innerHTML) → keine XSS-Fläche über die Bild-URL.
+      const wrap = document.createElement('div');
+      wrap.className = 'bx-as-av-wrap';
+      const img = document.createElement('img');
+      img.className = 'bx-as-av';
+      img.src = m.user.profilePic;
+      img.alt = '';
+      img.referrerPolicy = 'no-referrer';
+      img.onerror = () => { wrap.classList.add('noimg'); wrap.setAttribute('data-badge', badge); };
+      const bdg = document.createElement('span');
+      bdg.className = 'bx-as-av-badge';
+      bdg.textContent = badge;
+      wrap.append(img, bdg);
+      head.appendChild(wrap);
+    } else {
+      const b = document.createElement('div');
+      b.className = 'bx-as-badge';
+      b.textContent = badge;
+      head.appendChild(b);
+    }
     const txt = document.createElement('div');
     txt.innerHTML = `<div class="bx-as-ttl"></div>${m.subtitle ? '<div class="bx-as-sub"></div>' : ''}`;
     txt.querySelector('.bx-as-ttl').textContent = m.title || '';
