@@ -55,23 +55,29 @@ export class MediaLibrary {
     const ext = path.extname(sourcePath).toLowerCase();
     const kind = kindForExt(ext);
     if (!kind) return { ok: false, error: `Format ${ext || '?'} nicht unterstützt` };
-    const stat = fs.statSync(sourcePath);
-    if (stat.size > MAX_BYTES) return { ok: false, error: 'Datei größer als 50 MB' };
+    // Robust gegen gesperrte/verschwundene Dateien (ein kaputter Pfad bricht
+    // nicht den ganzen Mehrfach-Import ab).
+    try {
+      const stat = fs.statSync(sourcePath);
+      if (stat.size > MAX_BYTES) return { ok: false, error: 'Datei größer als 50 MB' };
 
-    const base = path
-      .basename(sourcePath)
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]+/g, '-');
-    let target = path.join(this.dir, base);
-    let n = 1;
-    while (fs.existsSync(target)) {
-      const p = path.parse(base);
-      target = path.join(this.dir, `${p.name}-${n}${p.ext}`);
-      n++;
+      const base = path
+        .basename(sourcePath)
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]+/g, '-');
+      let target = path.join(this.dir, base);
+      let n = 1;
+      while (fs.existsSync(target)) {
+        const p = path.parse(base);
+        target = path.join(this.dir, `${p.name}-${n}${p.ext}`);
+        n++;
+      }
+      fs.copyFileSync(sourcePath, target);
+      const filename = path.basename(target);
+      return { ok: true, entry: { id: filename, filename, kind, sizeBytes: stat.size } };
+    } catch (err) {
+      return { ok: false, error: `„${path.basename(sourcePath)}" konnte nicht gelesen werden: ${(err as Error).message}` };
     }
-    fs.copyFileSync(sourcePath, target);
-    const filename = path.basename(target);
-    return { ok: true, entry: { id: filename, filename, kind, sizeBytes: stat.size } };
   }
 
   delete(id: string): boolean {

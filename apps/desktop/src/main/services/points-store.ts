@@ -71,6 +71,11 @@ interface Serialized {
 export class PointsStore {
   private readonly file: string;
   private viewers = new Map<string, PointsEntry>();
+  // Sortierte Bestenlisten cachen — bei großem Live (hunderte Chatter) wird der
+  // Stats-Broadcast mehrmals/Sekunde gefeuert; ohne Cache würde dabei jedes Mal
+  // das ganze Viewer-Array neu sortiert. Invalidiert bei jeder Mutation.
+  private cacheTop: PointsEntry[] | null = null;
+  private cacheWins: PointsEntry[] | null = null;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(userDataDir: string) {
@@ -210,10 +215,8 @@ export class PointsStore {
   }
 
   top(limit: number): PointsEntry[] {
-    return Array.from(this.viewers.values())
-      .sort((a, b) => b.points - a.points)
-      .slice(0, limit)
-      .map((e) => ({ ...e }));
+    this.cacheTop ??= Array.from(this.viewers.values()).sort((a, b) => b.points - a.points);
+    return this.cacheTop.slice(0, limit).map((e) => ({ ...e }));
   }
 
   /** Einen Spiel-Sieg für diesen Zuschauer verbuchen (Zahlen-Raten etc.). */
@@ -229,11 +232,10 @@ export class PointsStore {
 
   /** Spiel-Leaderboard: meiste Siege zuerst (nur User mit ≥1 Sieg). */
   topWinners(limit: number): PointsEntry[] {
-    return Array.from(this.viewers.values())
+    this.cacheWins ??= Array.from(this.viewers.values())
       .filter((e) => (e.gameWins ?? 0) > 0)
-      .sort((a, b) => (b.gameWins ?? 0) - (a.gameWins ?? 0))
-      .slice(0, limit)
-      .map((e) => ({ ...e }));
+      .sort((a, b) => (b.gameWins ?? 0) - (a.gameWins ?? 0));
+    return this.cacheWins.slice(0, limit).map((e) => ({ ...e }));
   }
 
   /** Begrüßungs-Medium eines Zuschauers setzen/entfernen. */
@@ -263,6 +265,10 @@ export class PointsStore {
   }
 
   private scheduleSave(): void {
+    // Bei jeder Mutation die Bestenlisten-Caches verwerfen (werden bei top()/
+    // topWinners() lazy neu sortiert). scheduleSave() läuft nach jedem Schreiben.
+    this.cacheTop = null;
+    this.cacheWins = null;
     if (this.saveTimer) return;
     // Gebündelt schreiben — Gift-Bombing soll nicht 100×/s auf Disk schreiben.
     this.saveTimer = setTimeout(() => {

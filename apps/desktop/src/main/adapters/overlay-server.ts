@@ -628,6 +628,12 @@ export class OverlayServer {
   // ── Lifecycle ───────────────────────────────────────────────────────────
 
   async start(): Promise<void> {
+    // ZUERST den Server binden — schlägt das fehl (alle Ports belegt), darf
+    // KEIN Timer/Sub zurückbleiben (sonst laufen Heartbeat + Bus-Subscription
+    // ewig ohne HTTP-Server weiter → Leak). Erst nach erfolgreichem listen die
+    // Subscription + den Heartbeat starten.
+    await this.listenWithFallback(this.port);
+
     // H8-Leak-Fix: genau EINE Bus-Subscription für alle Clients.
     this.unsubBus = this.bus.subscribeAll((e) => {
       this.broadcast({ kind: 'event', event: e });
@@ -638,7 +644,6 @@ export class OverlayServer {
       this.heartbeatTimer = setInterval(() => this.heartbeat(), heartbeatMs);
     }
 
-    await this.listenWithFallback(this.port);
     log.info('Overlay', `Server läuft: http://${this.host}:${this.port}`);
   }
 

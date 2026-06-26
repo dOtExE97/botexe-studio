@@ -611,11 +611,13 @@ function registerIpc(): void {
     });
     if (picked.canceled) return { ok: true, imported: [] };
     const imported = [];
+    const failed: Array<{ file: string; error: string }> = [];
     for (const file of picked.filePaths) {
       const result = isStudio().sounds.import(file);
       if (result.ok) imported.push(result.entry);
+      else failed.push({ file: path.basename(file), error: result.error });
     }
-    return { ok: true, imported };
+    return { ok: true, imported, failed };
   });
   ipcMain.handle(IPC.SOUND_DELETE, (_e, id: unknown) =>
     typeof id === 'string' ? isStudio().sounds.delete(id) : false,
@@ -662,11 +664,13 @@ function registerIpc(): void {
     });
     if (picked.canceled) return { ok: true, imported: [] };
     const imported = [];
+    const failed: Array<{ file: string; error: string }> = [];
     for (const file of picked.filePaths) {
       const result = isStudio().media.import(file);
       if (result.ok) imported.push({ ...result.entry, url: isStudio().mediaUrl(result.entry.id) });
+      else failed.push({ file: path.basename(file), error: result.error });
     }
-    return { ok: true, imported };
+    return { ok: true, imported, failed };
   });
   ipcMain.handle(IPC.MEDIA_DELETE, (_e, id: unknown) =>
     typeof id === 'string' ? isStudio().media.delete(id) : false,
@@ -928,7 +932,16 @@ app.whenReady().then(async () => {
     await studio.start();
     registerPanelHotkeys();
   } catch (err) {
-    log.error('Main', 'Studio-Start fehlgeschlagen', (err as Error).message);
+    const msg = (err as Error).message;
+    log.error('Main', 'Studio-Start fehlgeschlagen', msg);
+    // Nicht still weitermachen: Sonst sieht der Nutzer eine voll funktionierend
+    // aussehende App, aber KEIN Overlay geht (z.B. alle Ports 27415–27425 belegt).
+    dialog.showErrorBox(
+      'bOtExE Studio — Overlay-Server konnte nicht starten',
+      `Die App startet, aber die Overlays funktionieren gerade NICHT.\n\n` +
+        `Häufigste Ursache: Die Ports 27415–27425 sind belegt — meist durch ein zweites bOtExE-Studio-Fenster oder ein anderes Tool. Schließe das und starte die App neu.\n\n` +
+        `Details: ${msg}`,
+    );
   }
 
   createMainWindow();

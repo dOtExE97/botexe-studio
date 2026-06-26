@@ -58,10 +58,18 @@ export class ProfileStore {
     try { return JSON.parse(fs.readFileSync(this.fileFor(id), 'utf8')) as ProfileData; } catch { return null; }
   }
 
+  /** Atomar schreiben (tmp + rename): ein Crash mitten im Write kann das Profil
+   *  nicht halb-kaputt zurücklassen — entweder alt oder neu, nie korrupt. */
+  private writeAtomic(file: string, p: ProfileData): void {
+    const tmp = `${file}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(p), 'utf-8');
+    fs.renameSync(tmp, file);
+  }
+
   /** Neues Profil aus einem Config-Bundle anlegen. */
   create(name: string, bundle: Record<string, unknown>, now: number, source?: string): ProfileData {
     const p: ProfileData = { id: this.makeId(name, now), name: name.slice(0, 60) || 'Profil', bundle, createdAt: now, updatedAt: now, ...(source ? { source } : {}) };
-    fs.writeFileSync(this.fileFor(p.id), JSON.stringify(p));
+    this.writeAtomic(this.fileFor(p.id), p);
     return p;
   }
 
@@ -70,7 +78,7 @@ export class ProfileStore {
     const p = this.get(id);
     if (!p) return false;
     p.bundle = bundle; p.updatedAt = now;
-    fs.writeFileSync(this.fileFor(id), JSON.stringify(p));
+    this.writeAtomic(this.fileFor(id), p);
     return true;
   }
 
@@ -78,7 +86,7 @@ export class ProfileStore {
     const p = this.get(id);
     if (!p) return false;
     p.name = name.slice(0, 60) || p.name; p.updatedAt = now;
-    fs.writeFileSync(this.fileFor(id), JSON.stringify(p));
+    this.writeAtomic(this.fileFor(id), p);
     return true;
   }
 

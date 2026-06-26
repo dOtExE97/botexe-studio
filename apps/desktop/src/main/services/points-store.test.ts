@@ -26,6 +26,19 @@ test('recordWin zählt Spiel-Siege pro User, topWinners sortiert + filtert', () 
   assert.equal(top[0]?.profilePic, 'm.jpg');
 });
 
+test('Leaderboard-Cache wird nach Mutation aktualisiert (nicht stale)', () => {
+  const s = new PointsStore(tmpDir());
+  s.award('mia', 'Mia', 10);
+  s.award('ben', 'Ben', 5);
+  assert.deepEqual(s.top(2).map((e) => `${e.id}:${e.points}`), ['mia:10', 'ben:5'], 'erste Sortierung');
+  // Nach weiterer Vergabe muss top() die NEUEN Werte zeigen (Cache invalidiert).
+  s.award('ben', 'Ben', 20);
+  assert.deepEqual(s.top(2).map((e) => `${e.id}:${e.points}`), ['ben:25', 'mia:10'], 'Cache aktualisiert + neu sortiert');
+  assert.equal(s.topWinners(5).length, 0);
+  s.recordWin({ id: 'mia', nickname: 'Mia' });
+  assert.equal(s.topWinners(5).length, 1, 'Winners-Cache nach recordWin frisch');
+});
+
 test('gameWins überlebt Persistenz', () => {
   const dir = tmpDir();
   const a = new PointsStore(dir);
