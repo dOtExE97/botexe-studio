@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.25] — 2026-06-26
+
+### Sicherheit (P2)
+- **Navigations-Schutz** — die App kann nicht mehr zu fremden Seiten „abdriften" oder fremde Fenster öffnen; externe Links öffnen im normalen Browser. Schutz gegen Navigation-Hijacking bei einem evtl. eingeschleusten Link.
+- **Dependabot** — automatischer wöchentlicher Check auf veraltete/unsichere Abhängigkeiten.
+- (Die strikte Content-Security-Policy fürs App-Fenster war bereits aktiv.)
+
+_Hinweis: Die Overlay-Token-Trennung (lesen/steuern) wurde bewusst zurückgestellt — der Overlay-Server ist rein lokal (127.0.0.1) und die browserbasierten Angriffswege sind bereits durch WS-Origin-Schutz + CSP abgedeckt; der Nutzen stünde in keinem Verhältnis zum Risiko, bestehende OBS-Links zu brechen._
+
+---
+
 ## [0.3.24] — 2026-06-26
 
 ### Verbessert
