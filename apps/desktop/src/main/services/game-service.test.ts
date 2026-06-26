@@ -39,11 +39,11 @@ test('startQuizAuto: leere Frageliste startet nicht', () => {
 });
 
 test('startQuizAuto: erste Frage wird sofort als game-state gesendet', () => {
-  let lastState: { question?: string } | null = null;
-  const s = new GameService((msg) => { if (msg.kind === 'game-state') lastState = msg.state as { question?: string }; }, () => { /* win egal */ });
+  const states: Array<{ question?: string }> = [];
+  const s = new GameService((msg) => { if (msg.kind === 'game-state' && msg.state) states.push(msg.state as { question?: string }); }, () => { /* win egal */ });
   const r = s.startQuizAuto([{ q: 'Hauptstadt?', options: ['Berlin', 'Bonn', 'Köln', 'Hamburg'], correct: 0 }], { questionMs: 60000 });
   assert.equal(r.ok, true);
-  assert.equal(lastState?.question, 'Hauptstadt?', 'erste Frage sofort gebroadcastet');
+  assert.equal(states.at(-1)?.question, 'Hauptstadt?', 'erste Frage sofort gebroadcastet');
   s.stop(); // Timer aufräumen, sonst hängt der Test-Prozess
 });
 
