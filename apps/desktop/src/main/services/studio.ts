@@ -26,6 +26,8 @@ import { ProfileStore, type ProfileMeta } from './profile-store';
 import { decryptTfc } from './tikfinity-decrypt';
 import { mapTikfinity, collectSoundUrls, mapWidgets } from './tikfinity-map';
 import { downloadMyInstants, isAllowedMyInstantsMp3 } from './myinstants';
+import { didLevelUp, levelForWins, masteryMoment } from './game-mastery';
+import { ViewerCardService, type ViewerInfo } from './viewer-card';
 import { SpotifyService, type NowPlaying } from './spotify-service';
 import { StatsHistory, type StatsRange, type StatsSummary } from './stats-history';
 import { SportService } from './sport-service';
@@ -160,6 +162,8 @@ export class Studio {
   private triggerLogSeq = 0;
   /** Wer in DIESER Session schon (erstmals) geschrieben hat — für Stammgast-Begrüßung. */
   private greetedThisSession = new Set<string>();
+  private momentShownSession = new Set<string>();
+  private readonly viewerCard = new ViewerCardService();
   /** Rollen-Gedächtnis (Mod/Teamherz/Follower) pro Stream — einmal erkannt =
    *  für die Session gemerkt, da TikTok Rollen nicht in jeder Nachricht liefert. */
   private sessionRoles = new SessionRoles();
@@ -337,6 +341,7 @@ export class Studio {
       // 3b. Chat: Befehle (Bot) + Punkte-Einlösungen + Vorlesen (TikFinity-Style)
       if (e.type === 'chat') {
         this.maybeGreetReturning(e);
+        this.maybeViewerMoment(e);
         this.maybeJoinGiveaway(e);
         this.maybeRunCommand(e);
         this.maybeRedeem(e);
@@ -953,9 +958,36 @@ export class Studio {
 
   /** Spiel-Sieg verbuchen (vom Overlay gemeldet) → Spiel-Leaderboard. */
   private recordGameWin(user: { id: string; nickname: string; profilePic?: string }): void {
+    const before = this.points.get(user.id)?.gameWins ?? 0;
     this.points.recordWin(user);
+    const after = this.points.get(user.id)?.gameWins ?? 0;
     log.info('Spiel', `Sieg für ${user.nickname} verbucht`);
+    // Spiele-Meister: bei neuem Level einen Premium-Moment (Action-Screen) zeigen.
+    if (didLevelUp(before, after)) {
+      this.emitMoment(masteryMoment(user, after));
+      log.info('Spiel', `${user.nickname} Level-Up → „${levelForWins(after).title}"`);
+    }
     this.scheduleStatsBroadcast();
+  }
+
+  /** Beim ersten Chat eines Zuschauers in der Session ggf. einen VIP-Welcome-
+   *  oder Stammgast-Moment auf den Action-Screens zeigen (Cooldowns in der
+   *  ViewerCardService-Logik). */
+  private maybeViewerMoment(event: StudioEvent): void {
+    if (event.type !== 'chat' || !event.user) return;
+    if (this.momentShownSession.has(event.user.id)) return;
+    this.momentShownSession.add(event.user.id);
+    const e = this.points.get(event.user.id);
+    const isVip = this.points.isVip(event.user.id);
+    const visits = (e as { visits?: number } | undefined)?.visits ?? 0;
+    const kind = isVip ? 'vip-welcome' : visits >= 5 ? 'returning-viewer' : null;
+    if (!kind) return;
+    const info: ViewerInfo = {
+      id: event.user.id, nickname: event.user.nickname, profilePic: event.user.profilePic,
+      isVip, visits, points: e?.points, coins: e?.coins, gifts: e?.gifts, gameWins: e?.gameWins,
+    };
+    const moment = this.viewerCard.buildMoment(kind, info, Date.now());
+    if (moment) this.emitMoment(moment);
   }
 
   // ── Stammgast-Begrüßung ───────────────────────────────────────────────
@@ -1196,6 +1228,7 @@ export class Studio {
     this.giveawayParticipants.clear();
     this.lastGiveawayWinner = '';
     this.greetedThisSession.clear();
+    this.momentShownSession.clear();
     this.sessionRoles.clear();
     this.loggedRoleUsers.clear();
     this.loggedFollowerOnce = false;
