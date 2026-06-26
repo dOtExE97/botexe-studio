@@ -1,0 +1,145 @@
+{
+  "direct": [
+    {
+      "name": "@types/crypto-js",
+      "license": "MIT",
+      "author": "",
+      "repo": "https://github.com/DefinitelyTyped/DefinitelyTyped"
+    },
+    {
+      "name": "ajv",
+      "license": "MIT",
+      "author": "Evgeny Poberezkin",
+      "repo": "https://github.com/ajv-validator/ajv"
+    },
+    {
+      "name": "crypto-js",
+      "license": "MIT",
+      "author": "Evan Vosberg",
+      "repo": "https://github.com/brix/crypto-js"
+    },
+    {
+      "name": "electron-squirrel-startup",
+      "license": "Apache-2.0",
+      "author": "Lucas Hrabovsky",
+      "repo": "https://github.com/mongodb-js/electron-squirrel-startup"
+    },
+    {
+      "name": "express",
+      "license": "MIT",
+      "author": "TJ Holowaychuk",
+      "repo": "https://github.com/expressjs/express"
+    },
+    {
+      "name": "lucide-react",
+      "license": "ISC",
+      "author": "Eric Fennis",
+      "repo": "https://github.com/lucide-icons/lucide"
+    },
+    {
+      "name": "node-edge-tts",
+      "license": "MIT",
+      "author": "SchneeHertz",
+      "repo": "https://github.com/SchneeHertz/node-edge-tts"
+    },
+    {
+      "name": "obs-websocket-js",
+      "license": "MIT",
+      "author": "OBS Websocket Community",
+      "repo": "https://github.com/obs-websocket-community-projects/obs-websocket-js"
+    },
+    {
+      "name": "react",
+      "license": "MIT",
+      "author": "",
+      "repo": "https://github.com/facebook/react"
+    },
+    {
+      "name": "react-dom",
+      "license": "MIT",
+      "author": "",
+      "repo": "https://github.com/facebook/react"
+    },
+    {
+      "name": "tiktok-live-connector",
+      "license": "MIT",
+      "author": "zerodytrash",
+      "repo": "https://github.com/zerodytrash/TikTok-Live-Connector"
+    },
+    {
+      "name": "update-electron-app",
+      "license": "MIT",
+      "author": "",
+      "repo": "https://github.com/electron/update-electron-app"
+    },
+    {
+      "name": "ws",
+      "license": "MIT",
+      "author": "Einar Otto Stangvik",
+      "repo": "https://github.com/websockets/ws"
+    }
+  ],
+  "total": 809,
+  "byLicense": [
+    {
+      "license": "MIT",
+      "count": 673
+    },
+    {
+      "license": "ISC",
+      "count": 66
+    },
+    {
+      "license": "BSD-2-Clause",
+      "count": 19
+    },
+    {
+      "license": "Apache-2.0",
+      "count": 19
+    },
+    {
+      "license": "BSD-3-Clause",
+      "count": 11
+    },
+    {
+      "license": "(MIT OR CC0-1.0)",
+      "count": 6
+    },
+    {
+      "license": "UNLICENSED",
+      "count": 5
+    },
+    {
+      "license": "MPL-2.0",
+      "count": 2
+    },
+    {
+      "license": "0BSD",
+      "count": 2
+    },
+    {
+      "license": "(Apache-2.0 AND BSD-3-Clause)",
+      "count": 1
+    },
+    {
+      "license": "Python-2.0",
+      "count": 1
+    },
+    {
+      "license": "CC-BY-4.0",
+      "count": 1
+    },
+    {
+      "license": "BlueOak-1.0.0",
+      "count": 1
+    },
+    {
+      "license": "CC-BY-3.0",
+      "count": 1
+    },
+    {
+      "license": "CC0-1.0",
+      "count": 1
+    }
+  ]
+}

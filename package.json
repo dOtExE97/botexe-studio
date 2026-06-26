@@ -13,6 +13,7 @@
     "build:desktop": "npm --workspace apps/desktop run make",
     "lint": "npm --workspaces --if-present run lint",
     "typecheck": "npm --workspaces --if-present run typecheck",
-    "test": "npm --workspaces --if-present run test"
+    "test": "npm --workspaces --if-present run test",
+    "licenses": "node scripts/build-licenses.mjs"
   }
 }

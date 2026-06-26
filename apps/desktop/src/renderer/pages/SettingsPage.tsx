@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket, Sparkles, KeyRound, ExternalLink, Music, Play, Pause, SkipForward, SkipBack } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
 import GreetReturningCard from '../components/GreetReturningCard';
+import ThirdPartyLicenses from '../components/ThirdPartyLicenses';
 import { toast } from '../components/ToastHost';
 
 interface PointsConfig {
@@ -700,6 +701,8 @@ export default function SettingsPage() {
           Bei Problemen: „Logs öffnen" — dort liegt für jeden App-Start eine Datei mit allem, was passiert/failt.
         </p>
       </section>
+
+      <ThirdPartyLicenses />
     </div>
   );
 }
