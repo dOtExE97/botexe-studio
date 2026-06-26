@@ -3,6 +3,16 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.22] — 2026-06-26
+
+### Sicherheit & Robustheit
+- **WebSocket-Origin-Schutz (CSWSH)** — Overlay-Verbindungen aus fremden Web-Seiten werden abgewiesen; lokale Hosts + OBS-Quellen bleiben erlaubt. Zusätzliche Schutzschicht zum Token.
+- **Eingabe-Validierung** — Trigger-Regeln & Chat-Befehle werden beim Backup-Import UND aus der App jetzt streng geprüft (nur bekannte Felder/Typen, Längen-Limits) — ein manipuliertes Backup kann nichts Ungültiges einschleusen.
+- **Inaktivitäts-Timeout** — Tic Tac Toe / 4 Gewinnt / Galgenmännchen beenden sich nach 2 Min ohne Eingabe selbst (kein hängendes Widget im Overlay mehr).
+- Lint/CI komplett sauber (0 Warnings).
+
+---
+
 ## [0.3.21] — 2026-06-26
 
 ### Neu
