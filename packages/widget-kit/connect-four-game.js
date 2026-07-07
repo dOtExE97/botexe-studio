@@ -132,7 +132,16 @@ export default class ConnectFourWidget {
   /** Nur auf den eigenen gameKind reagieren, sonst ignorieren. Dann neu rendern. */
   onGameState(msg) {
     if (!msg || msg.gameKind !== GAME_KIND) return;
-    this.state = msg.state || null;
+    // Leerer/null state = Spiel vorbei -> Widget sauber in den Idle-Zustand
+    // (unsichtbar) versetzen, statt auf dem letzten Frame einzufrieren.
+    if (!msg.state) {
+      this.state = null;
+      if (this.el) this.el.style.display = 'none';
+      this.render();
+      return;
+    }
+    if (this.el) this.el.style.display = '';
+    this.state = msg.state;
     this.render();
   }
 

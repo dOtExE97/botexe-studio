@@ -39,6 +39,16 @@ test('Leaderboard-Cache wird nach Mutation aktualisiert (nicht stale)', () => {
   assert.equal(s.topWinners(5).length, 1, 'Winners-Cache nach recordWin frisch');
 });
 
+test('Per-User-Likes zählen nur die eigenen (nicht den raumweiten Gesamtzähler)', () => {
+  const s = new PointsStore(tmpDir());
+  const cfg = { ...DEFAULT_POINTS_CONFIG, enabled: true };
+  // totalLikes ist der RAUM-Gesamtwert (48000) — darf NICHT übernommen werden.
+  s.recordEvent({ type: 'like', ts: 1, user: { id: 'u', nickname: 'U' }, likeCount: 3, totalLikes: 48000 }, cfg);
+  assert.equal(s.get('u')?.likes, 3, 'nur die eigenen 3 Likes, nicht 48000');
+  s.recordEvent({ type: 'like', ts: 2, user: { id: 'u', nickname: 'U' }, likeCount: 2, totalLikes: 51000 }, cfg);
+  assert.equal(s.get('u')?.likes, 5, 'kumuliert die eigenen (3+2)');
+});
+
 test('gameWins überlebt Persistenz', () => {
   const dir = tmpDir();
   const a = new PointsStore(dir);

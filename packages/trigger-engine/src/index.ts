@@ -54,6 +54,9 @@ export interface StudioEvent {
   viewerCount?: number;
   /** true = dieser Zuschauer ist zum allerersten Mal aktiv (Studio reichert an). */
   firstOfUser?: boolean;
+  /** true = Test-/Replay-Event (Vorschau) — löst Overlay/TTS aus, wird aber NICHT
+   *  persistent verbucht (keine echten Punkte/Coins/Likes, kein Gift-Katalog). */
+  synthetic?: boolean;
 }
 
 export type TriggerCondition =

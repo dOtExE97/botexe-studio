@@ -334,11 +334,13 @@ export class Studio {
         this.logRoleDetection(e.user);
       }
 
-      // 1. Aufnahme (falls aktiv)
-      this.recorder?.record(e);
+      // 1. Aufnahme (falls aktiv) — Test-/Replay-Events NICHT mitschneiden.
+      if (!e.synthetic) this.recorder?.record(e);
 
-      // 2. Loyalty-Punkte (persistent über Streams) + Session-Statistik
-      this.points.recordEvent(e, this.settings.peek().points);
+      // 2. Loyalty-Punkte (persistent über Streams) + Session-Statistik.
+      //    Test-/Replay-Events (synthetic) dürfen die echte Punkte-DB NICHT
+      //    verändern (sonst kriegen echte User-IDs beim Testen Punkte gutgeschrieben).
+      if (!e.synthetic) this.points.recordEvent(e, this.settings.peek().points);
       if (this.stats.apply(e)) { this.scheduleStatsBroadcast(); this.scheduleStatsSave(); }
 
       // 3. Trigger-Engine: Regeln auswerten, Aktionen ausführen (mit Sequenz-Delay)
@@ -374,8 +376,9 @@ export class Studio {
         // „⚠ ohne Namen" = nur giftId kam an → Zähler/Trigger per Name greifen nicht.
         log.info('Gift', `${e.gift.slug} ×${e.gift.count}${e.gift.giftId != null ? ` (id ${e.gift.giftId})` : ''} · ${e.gift.totalCoins}💎 von ${e.user?.nickname ?? '—'}${e.gift.slug === 'gift' ? ' [⚠ ohne Namen]' : ''}`);
         // Gift-Katalog: Bild + Coins jedes Gifts dauerhaft merken (Bingo/Galerie).
-        // Erstsender wird im Katalog verewigt (count>0 + Sender).
-        this.giftCatalog.record({
+        // Erstsender wird im Katalog verewigt (count>0 + Sender). Test-/Replay-
+        // Gifts (synthetic) NICHT dauerhaft in den Katalog schreiben.
+        if (!e.synthetic) this.giftCatalog.record({
           slug: e.gift.slug,
           giftId: e.gift.giftId,
           icon: e.gift.icon,
@@ -918,7 +921,7 @@ export class Studio {
   /** Boss-Modus an: Gifts (nach Coins) fügen dem Boss Schaden zu, bei Kill gibt
    *  es einen Boss-Kill-Moment und der nächste (stärkere) Boss spawnt. */
   startBoss(): { ok: boolean } { this.bossActive = true; this.boss.spawn(); this.broadcastBoss(); log.info('Boss', `Boss-Modus AN — HP ${this.boss.getState().maxHp}, Gifts = Schaden`); return { ok: true }; }
-  stopBoss(): { ok: boolean } { this.bossActive = false; this.server.broadcast({ kind: 'game-state', gameKind: '', state: null }); log.info('Boss', 'Boss-Modus AUS'); return { ok: true }; }
+  stopBoss(): { ok: boolean } { this.bossActive = false; this.server.broadcast({ kind: 'game-state', gameKind: 'boss', state: null }); log.info('Boss', 'Boss-Modus AUS'); return { ok: true }; }
   getBossState(): unknown { return this.bossActive ? this.boss.getState() : null; }
 
   private broadcastBoss(): void {
@@ -1311,6 +1314,10 @@ export class Studio {
     // Punkte komplett leeren: Store neu mit leerem Stand überschreiben.
     for (const e of this.points.top(100000)) this.points.spend(e.id, e.points);
     this.points.save();
+    // Overlay + App sofort aktualisieren, sonst bleibt die alte Bestenliste
+    // sichtbar, bis zufällig das nächste Event einen Broadcast auslöst.
+    this.scheduleStatsBroadcast();
+    this.server.rebroadcastLayouts();
   }
 
   /** Overlay-Link eines bestimmten Profils (für „Link kopieren" pro Profil). */
@@ -1548,7 +1555,7 @@ export class Studio {
     this.replayAbort = new AbortController();
     const entries = parseReplay(jsonl);
     log.info('Replay', `Wiedergabe: ${entries.length} events, speed ${speed}`);
-    return playReplay(entries, (e) => this.bus.publish(e), {
+    return playReplay(entries, (e) => this.bus.publish({ ...e, synthetic: true }), {
       speed,
       signal: this.replayAbort.signal,
     });
@@ -1560,7 +1567,7 @@ export class Studio {
 
   /** Einzelnes Test-Event aus der UI (z.B. "Test-Gift 100 Coins"). */
   injectTestEvent(event: StudioEvent): void {
-    this.bus.publish({ ...event, ts: Date.now() });
+    this.bus.publish({ ...event, ts: Date.now(), synthetic: true });
   }
 
   // ── Info ──────────────────────────────────────────────────────────────

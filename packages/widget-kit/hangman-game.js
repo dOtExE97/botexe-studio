@@ -11,6 +11,8 @@ const CSS = `
 .bx-hm { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:.55em; container-type:size; font-family: var(--bx-font-display, var(--bx-font-body, sans-serif));
   --bx-hm-accent: var(--bx-accent, #ff5436); }
+/* idle → kein Spiel aktiv: komplett unsichtbar, nimmt keine Klicks an */
+.bx-hm.is-idle { opacity:0; pointer-events:none; }
 /* Karte mit fester Zielgröße ~380x150 — skaliert mit, wenn der Layer gezoomt wird */
 .bx-hm-card { width: clamp(280px, 96cqi, 380px); padding: .9em 1em; border-radius: .9em; box-sizing:border-box;
   display:flex; flex-direction:column; align-items:center; gap:.5em;
@@ -94,8 +96,18 @@ export default class HangmanGame {
 
   // Nur auf den eigenen gameKind reagieren, sonst ignorieren.
   onGameState(msg) {
-    if (!msg || msg.gameKind !== GAME_KIND || !msg.state) return;
+    if (!msg || msg.gameKind !== GAME_KIND) return; // fremder gameKind → ignorieren
+    // Leerer/null state = „Spiel vorbei" → sauber verstecken (idle), nicht einfrieren.
+    if (!msg.state) { this.hide(); return; }
     this.render(msg.state);
+  }
+
+  // Zurück in den unsichtbaren Idle-Zustand (kein Spiel aktiv).
+  hide() {
+    this.state = null;
+    this._celebrated = false;
+    this.el.classList.remove('won', 'lost');
+    this.el.classList.add('is-idle');
   }
 
   // Effekte (z.B. Konfetti bei 'win'). Reagiert nur auf eigenen gameKind.
@@ -108,6 +120,7 @@ export default class HangmanGame {
   render(state) {
     if (!state) return;
     this.state = state;
+    this.el.classList.remove('is-idle'); // Spiel aktiv → wieder sichtbar
     const status = state.status || 'playing';
     this.el.classList.toggle('won', status === 'won');
     this.el.classList.toggle('lost', status === 'lost');

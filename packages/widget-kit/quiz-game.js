@@ -132,7 +132,16 @@ export default class QuizGameWidget {
   // ── Daten-Eingang ──────────────────────────────────────────────────────────
   // Reagiert NUR auf den eigenen gameKind; sonst ignorieren.
   onGameState(msg) {
-    if (!msg || msg.gameKind !== GAME_KIND || !msg.state) return;
+    if (!msg || msg.gameKind !== GAME_KIND) return; // fremder gameKind → ignorieren
+    // Leerer/null state = „Spiel vorbei" → sauber verstecken (idle), nicht einfrieren.
+    if (!msg.state) {
+      this.gs = { state: 'idle', question: '', options: [], totalVotes: 0, voteCounts: [] };
+      this._optCount = 0;
+      this.optsEl.innerHTML = '';
+      this.optEls = [];
+      this.render();
+      return;
+    }
     const s = msg.state;
     const opts = Array.isArray(s.options) ? s.options : [];
     this.gs = {

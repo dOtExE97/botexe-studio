@@ -153,7 +153,10 @@ export class PointsStore {
       e.gifts = (e.gifts ?? 0) + 1;
       e.coins = (e.coins ?? 0) + event.gift.totalCoins;
     } else if (event.type === 'like') {
-      e.likes = (event.totalLikes && event.totalLikes > (e.likes ?? 0)) ? event.totalLikes : (e.likes ?? 0) + (event.likeCount ?? 0);
+      // NUR die eigenen Likes dieses Zuschauers aufaddieren. event.totalLikes ist
+      // der RAUMWEITE Gesamtzähler (zig­tausende) — der gehört NICHT in einen
+      // Per-User-Wert, sonst kriegt ein Viewer mit 3 Likes plötzlich 48.000.
+      e.likes = (e.likes ?? 0) + (event.likeCount ?? 0);
     } else if (event.type === 'chat') {
       e.totalChats = (e.totalChats ?? 0) + 1;
     }

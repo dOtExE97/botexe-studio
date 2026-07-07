@@ -54,8 +54,7 @@ export class GameService {
    *  Chat (A/B/C/D), kein manuelles Auflösen nötig. */
   startQuizAuto(questions: AutoQuizQuestion[], opts?: QuizAutoOptions, refill?: () => AutoQuizQuestion[]): { ok: boolean; error?: string } {
     if (!questions.length) return { ok: false, error: 'Keine Fragen vorhanden' };
-    this.clearTimer();
-    if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = undefined; }
+    this.resetPending();
     this.autoMode = true;
     this.autoQueue = [...questions];
     // Optionaler Nachschub: Sind alle Fragen durch, zieht der Callback frische —
@@ -92,6 +91,17 @@ export class GameService {
 
   private clearTimer(): void { if (this.timer) { clearTimeout(this.timer); this.timer = undefined; } }
 
+  /** ALLE anstehenden Timer + Auto-Quiz-Zustand verwerfen. Muss VOR jedem
+   *  Spielwechsel/Stop laufen, sonst kapert ein alter Timer (Auto-Quiz-Loop oder
+   *  Rundenende-Restart) Sekunden später das gerade gestartete Spiel. */
+  private resetPending(): void {
+    this.clearTimer();
+    if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = undefined; }
+    this.autoMode = false;
+    this.autoQueue = [];
+    this.quizRefill = undefined;
+  }
+
   /** Spiel starten (ersetzt ein laufendes). config je nach Spiel (quiz/hangman). */
   start(kind: GameKind, config?: unknown): { ok: boolean; error?: string } {
     let game: GameInstance;
@@ -102,9 +112,9 @@ export class GameService {
       else if (kind === 'connect-four') game = new ConnectFourGame() as unknown as GameInstance;
       else return { ok: false, error: 'Unbekanntes Spiel' };
     } catch (err) { return { ok: false, error: (err as Error).message }; }
+    this.resetPending(); // alte Timer/Auto-Quiz-Queue weg, bevor das neue Spiel aktiv wird
     this.active = { kind, game };
     this.winReported = false;
-    this.autoMode = false;
     this.resetIdle();
     this.push();
     const duell = kind === 'tic-tac-toe' || kind === 'connect-four';
@@ -140,13 +150,10 @@ export class GameService {
   }
 
   stop(): void {
-    this.clearTimer();
-    if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = undefined; }
-    this.autoMode = false;
-    this.autoQueue = [];
-    this.quizRefill = undefined;
+    const kind = this.active?.kind; // vor dem Nullen merken, damit das Clear das
+    this.resetPending();            // richtige Widget erreicht (Widgets filtern nach gameKind)
     this.active = null;
-    this.broadcast({ kind: 'game-state', gameKind: '', state: null });
+    this.broadcast({ kind: 'game-state', gameKind: kind ?? '', state: null });
   }
 
   /** Auto-Quiz-Ereignisse fürs Log (Frage/Reveal). */

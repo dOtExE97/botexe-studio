@@ -60,6 +60,17 @@ test('Duell öffnet nach Sieg automatisch eine neue Runde (kein Freeze)', () => 
   }, 25));
 });
 
+test('start() räumt ein laufendes Auto-Quiz auf (altes Spiel kapert das neue nicht)', () => {
+  const s = new GameService(() => { /* egal */ }, () => { /* egal */ });
+  s.startQuizAuto([{ q: '?', options: ['A', 'B', 'C', 'D'], correct: 0 }], { questionMs: 5, pauseMs: 5 });
+  s.start('hangman', { word: 'AB' }); // manuelles Spiel OHNE vorher Stop
+  return new Promise<void>((resolve) => setTimeout(() => {
+    assert.equal(s.getState()?.kind, 'hangman', 'nach den alten Quiz-Timern läuft immer noch Hangman, nicht das gekaperte Quiz');
+    s.stop();
+    resolve();
+  }, 30));
+});
+
 test('startQuizAuto: leere Frageliste startet nicht', () => {
   const { s } = svc();
   assert.equal(s.startQuizAuto([]).ok, false);

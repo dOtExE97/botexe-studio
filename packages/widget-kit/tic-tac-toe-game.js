@@ -125,7 +125,18 @@ export default class TicTacToeWidget {
 
   // Spielzustand von außen — nur auf eigenen gameKind reagieren.
   onGameState(msg) {
-    if (!msg || msg.gameKind !== GAME_KIND || !msg.state) return;
+    // Fremder gameKind (oder gar keine Nachricht) → ignorieren.
+    if (!msg || msg.gameKind !== GAME_KIND) return;
+    // Passender gameKind, aber leerer/null state = "Spiel vorbei, verstecken":
+    // sauber zurück in den unsichtbaren Idle-Zustand statt einzufrieren.
+    if (!msg.state) {
+      this.state = this._emptyState();
+      this.render();
+      this.el.style.display = 'none';
+      return;
+    }
+    // Wieder ein echter Zustand → Widget ggf. wieder einblenden.
+    this.el.style.display = '';
     const s = msg.state;
     this.state = {
       board: Array.isArray(s.board) ? s.board.slice(0, 9) : Array(9).fill(null),
