@@ -24,8 +24,8 @@ const CSS = `
   box-shadow: 0 10px 40px rgba(0,0,0,.5), 0 0 38px rgba(255,77,77,.6); }
 /* Wort-Zeile: jeder Slot eine Box */
 .bx-hm-word { display:flex; flex-wrap:wrap; justify-content:center; gap:.28em; }
-.bx-hm-slot { min-width:1.1em; height:1.5em; padding:0 .18em; display:grid; place-items:center;
-  font-weight:800; font-size:clamp(15px, 8cqmin, 26px); line-height:1; border-radius:.22em;
+.bx-hm-slot { min-width:1.15em; height:1.5em; padding:0 .2em; display:grid; place-items:center;
+  font-weight:800; font-size:clamp(20px, 10.5cqmin, 35px); line-height:1; border-radius:.22em;
   background:rgba(255,255,255,.06); border-bottom:.14em solid rgba(255,255,255,.25); color:#fff8;
   text-transform:uppercase; transition: color .2s ease, background .2s ease, border-color .2s ease; }
 .bx-hm-slot.filled { color:#fff; background:color-mix(in srgb, var(--bx-hm-accent) 28%, transparent);
@@ -36,16 +36,17 @@ const CSS = `
   border-bottom-color: var(--bx-teal,#2ee6a6); text-shadow:0 0 10px color-mix(in srgb, var(--bx-teal,#2ee6a6) 70%, transparent); }
 .bx-hm.lost .bx-hm-slot.filled { color:#ffd0d0; }
 /* Fehlversuch-Leiste (Herzen) */
-.bx-hm-hearts { display:flex; gap:.18em; font-size:clamp(13px, 6cqmin, 20px); line-height:1; }
+.bx-hm-hearts { display:flex; gap:.2em; font-size:clamp(17px, 7.8cqmin, 27px); line-height:1; }
 .bx-hm-heart { opacity:1; transition: transform .2s ease, opacity .2s ease; }
 .bx-hm-heart.lost { opacity:.28; filter:grayscale(1); transform:scale(.85); }
 /* Reihe der geratenen Buchstaben */
-.bx-hm-guessed { display:flex; flex-wrap:wrap; justify-content:center; gap:.2em;
-  font-size:clamp(10px, 4.4cqmin, 14px); }
-.bx-hm-g { padding:.06em .32em; border-radius:.3em; font-weight:700; text-transform:uppercase;
+.bx-hm-guessed { display:flex; flex-wrap:wrap; justify-content:center; gap:.24em;
+  font-size:clamp(13px, 5.8cqmin, 19px); }
+.bx-hm-g { padding:.08em .34em; border-radius:.3em; font-weight:700; text-transform:uppercase;
   background:rgba(255,255,255,.08); color:#fff; }
 .bx-hm-g.wrong { background:rgba(255,77,77,.18); color:#ff8a8a; text-decoration:line-through; }
-.bx-hm-status { font-size:clamp(11px, 5cqmin, 16px); font-weight:800; letter-spacing:.02em; }
+.bx-hm-status { font-size:clamp(15px, 6.7cqmin, 22px); font-weight:800; letter-spacing:.02em;
+  text-shadow:0 1px 3px rgba(0,0,0,.55); }
 .bx-hm.won .bx-hm-status { color: var(--bx-teal,#2ee6a6); }
 .bx-hm.lost .bx-hm-status { color:#ff6b6b; }
 /* Konfetti bei Gewinn */

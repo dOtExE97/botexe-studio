@@ -130,6 +130,11 @@ export class TikTokAdapter {
   /** Markiert den nächsten erfolgreichen Connect als „neuer Stream" (→ Reset).
    *  Gesetzt vom Live-Watch (erneutes Live nach Stream-Ende / nach „nicht online"). */
   private pendingFresh = false;
+  /** Dedup gegen Reconnect-Replay: Nach jedem Reconnect schickt die Euler-Cloud
+   *  teils die letzten Nachrichten erneut. TikTok-Events tragen eine eindeutige
+   *  common.msgId — schon gesehene werden verworfen (sonst liest der TTS eine
+   *  Nachricht ein zweites Mal vor). Überlebt Reconnects (Instanz-Feld), TTL-Cleanup. */
+  private readonly seenMsgIds = new Map<string, number>();
 
   constructor(bus: EventBus, options: TikTokAdapterOptions = {}) {
     this.bus = bus;
@@ -376,10 +381,24 @@ export class TikTokAdapter {
     const publish = (e: StudioEvent | null) => {
       if (e) this.bus.publish(e);
     };
+    // Reconnect-Replay verwerfen: dieselbe common.msgId nicht zweimal
+    // verarbeiten (sonst doppelte TTS-Ansage / doppelter Gift-Alert). Like-
+    // Events sind Zähler-Batches ohne verlässliche Einzel-msgId → nicht dedupen.
+    const dedup = (d: unknown): boolean => {
+      const raw = (d as { common?: { msgId?: unknown }; msgId?: unknown } | null)?.common?.msgId
+        ?? (d as { msgId?: unknown } | null)?.msgId;
+      if (raw == null || raw === '' || raw === '0') return false;
+      const key = String(raw);
+      if (this.seenMsgIds.has(key)) return true;
+      const now = this.now();
+      this.seenMsgIds.set(key, now);
+      if (this.seenMsgIds.size > 3000) { for (const [k, t] of this.seenMsgIds) if (now - t > 600_000) this.seenMsgIds.delete(k); }
+      return false;
+    };
 
     const on = conn.on.bind(conn) as (event: string, cb: (data: never) => void) => unknown;
-    on('chat', guard((d: Parameters<typeof normalizeChat>[0]) => publish(normalizeChat(d, this.now()))));
-    on('gift', guard((d: Parameters<typeof normalizeGift>[0]) => publish(normalizeGift(d, this.now()))));
+    on('chat', guard((d: Parameters<typeof normalizeChat>[0]) => { if (!dedup(d)) publish(normalizeChat(d, this.now())); }));
+    on('gift', guard((d: Parameters<typeof normalizeGift>[0]) => { if (!dedup(d)) publish(normalizeGift(d, this.now())); }));
     on('like', guard((d: Parameters<typeof normalizeLike>[0]) => publish(normalizeLike(d, this.now()))));
     on('follow', guard((d: Parameters<typeof normalizeSocial>[0]) => publish(normalizeSocial(d, 'follow', this.now()))));
     on('share', guard((d: Parameters<typeof normalizeSocial>[0]) => publish(normalizeSocial(d, 'share', this.now()))));

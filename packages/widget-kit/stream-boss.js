@@ -11,38 +11,38 @@
 // props: { accent, showDamagers }
 const STYLE_ID = 'bx-boss-style';
 const CSS = `
-.bx-boss { position:absolute; inset:0; display:flex; flex-direction:column; gap:8px;
-  padding:14px 18px; container-type:size; font-family: var(--bx-font-body);
+.bx-boss { position:absolute; inset:0; display:flex; flex-direction:column; gap:10px;
+  padding:16px 20px; container-type:size; font-family: var(--bx-font-body);
   background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow), 0 0 50px -14px var(--bx-boss-color, var(--bx-accent));
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   opacity:0; transform: translateY(12px) scale(.97); transition: opacity .4s, transform .4s; pointer-events:none; }
 .bx-boss.on { opacity:1; transform:none; }
 .bx-boss-head { display:flex; align-items:center; gap:10px; }
-.bx-boss-ava { flex:0 0 auto; width: clamp(32px, 14cqmin, 54px); height: clamp(32px, 14cqmin, 54px);
+.bx-boss-ava { flex:0 0 auto; width: clamp(40px, 17cqmin, 68px); height: clamp(40px, 17cqmin, 68px);
   border-radius:50%; overflow:hidden; display:grid; place-items:center; background: rgba(8,10,18,.55);
   border:2px solid var(--bx-boss-color, var(--bx-accent)); box-shadow: 0 0 16px -2px var(--bx-boss-color, var(--bx-accent)); }
 .bx-boss-ava img { width:100%; height:100%; object-fit:cover; }
 .bx-boss-ava svg { width:62%; height:62%; color: var(--bx-boss-color, var(--bx-accent)); }
 .bx-boss-name { flex:1 1 auto; min-width:0; font-family: var(--bx-font-display);
-  font-size: clamp(14px, 5.4cqmin, 28px); letter-spacing:.04em; text-transform:uppercase;
+  font-size: clamp(18px, 7cqmin, 37px); letter-spacing:.04em; text-transform:uppercase; line-height:1.1;
   color: var(--bx-text, #fff); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   text-shadow: 0 0 16px var(--bx-boss-color, var(--bx-accent)); }
-.bx-boss-lvl { flex:0 0 auto; font-family: var(--bx-font-display); font-size: clamp(11px, 3.8cqmin, 18px);
-  padding: 2px 10px; border-radius: 999px; letter-spacing:.1em; text-transform:uppercase;
+.bx-boss-lvl { flex:0 0 auto; font-family: var(--bx-font-display); font-size: clamp(14px, 5cqmin, 24px);
+  padding: 3px 12px; border-radius: 999px; letter-spacing:.1em; text-transform:uppercase;
   color:#0a0b12; background: var(--bx-boss-color, var(--bx-accent));
   box-shadow: 0 0 14px -2px var(--bx-boss-color, var(--bx-accent)); }
-.bx-boss-track { position:relative; height: clamp(16px, 8cqmin, 30px); border-radius: 999px;
+.bx-boss-track { position:relative; height: clamp(21px, 10cqmin, 40px); border-radius: 999px;
   background: rgba(8,10,18,.6); overflow:hidden; border:1px solid rgba(255,255,255,.12); }
 .bx-boss-fill { position:absolute; inset:0 auto 0 0; width:100%;
   background: linear-gradient(90deg, color-mix(in srgb, var(--bx-boss-color, var(--bx-accent)) 70%, #000), var(--bx-boss-color, var(--bx-accent)));
   box-shadow: 0 0 18px var(--bx-boss-color, var(--bx-accent)); transition: width .4s cubic-bezier(.2,1,.3,1), background .4s; }
 .bx-boss-hptxt { position:absolute; inset:0; display:grid; place-items:center;
-  font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size: clamp(10px, 4cqmin, 16px);
+  font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size: clamp(13px, 5.2cqmin, 21px);
   color:#fff; -webkit-text-stroke: 2px #0a0b12; paint-order: stroke fill; }
-.bx-boss-dmg { display:flex; flex-direction:column; gap:3px; font-size: clamp(9px, 3cqmin, 14px); }
+.bx-boss-dmg { display:flex; flex-direction:column; gap:4px; font-size: clamp(12px, 4cqmin, 19px); }
 .bx-boss-dmg-row { display:flex; align-items:center; gap:8px; color: var(--bx-muted); }
-.bx-boss-dmg-rank { flex:0 0 auto; width: clamp(14px, 5cqmin, 20px); text-align:center;
+.bx-boss-dmg-rank { flex:0 0 auto; width: clamp(19px, 6.5cqmin, 27px); text-align:center;
   font-family: var(--bx-font-display); color: var(--bx-boss-color, var(--bx-accent)); }
 .bx-boss-dmg-name { flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   color: var(--bx-text, #fff); }
@@ -53,7 +53,7 @@ const CSS = `
 .bx-boss.defeated { animation: bx-boss-defeat 1.1s ease forwards; }
 @keyframes bx-boss-defeat { 0%{ transform:none; filter:none } 20%{ transform:scale(1.04); filter: brightness(1.6) } 100%{ transform:scale(.9) rotate(-1deg); filter: grayscale(1) brightness(.5); opacity:0 } }
 .bx-boss-slain { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none;
-  font-family: var(--bx-font-display); font-size: clamp(18px, 11cqmin, 56px); letter-spacing:.08em;
+  font-family: var(--bx-font-display); font-size: clamp(24px, 14cqmin, 72px); letter-spacing:.08em;
   color:#fff; -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill;
   text-shadow: 0 0 24px var(--bx-boss-color, var(--bx-accent)); opacity:0; }
 .bx-boss.defeated .bx-boss-slain { animation: bx-boss-slain-in .9s ease; }

@@ -92,6 +92,17 @@ test('chat-event der connection landet normalisiert auf dem bus', async () => {
   assert.equal(events.find((e) => e.type === 'chat')?.text, 'hi');
 });
 
+test('Reconnect-Replay: chat mit gleicher msgId wird nur EINMAL vorgelesen/verarbeitet', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  const c = connections[0];
+  c?.emit('chat', { common: { msgId: 'm1' }, user: { uniqueId: 'anna' }, comment: 'hi' });
+  c?.emit('chat', { common: { msgId: 'm1' }, user: { uniqueId: 'anna' }, comment: 'hi' }); // Replay nach Reconnect
+  c?.emit('chat', { common: { msgId: 'm2' }, user: { uniqueId: 'anna' }, comment: 'neu' });
+  const chats = events.filter((e) => e.type === 'chat');
+  assert.equal(chats.length, 2, 'Duplikat (gleiche msgId) verworfen, neue Nachricht durch');
+});
+
 test('K2: auto-reconnect räumt alte connection ab (removeAllListeners + disconnect)', async () => {
   const { adapter, connections, statuses } = setup();
   await adapter.connect('testuser');
