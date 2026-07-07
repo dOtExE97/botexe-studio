@@ -1275,7 +1275,11 @@ export class Studio {
 
   private saveSessionStats(): void {
     try {
-      fs.writeFileSync(this.statsFile, this.stats.toJSON());
+      // Atomar (tmp + rename) wie die anderen Stores — ein Crash mitten im Write
+      // darf die laufende Session-Datei nicht korrupt zurücklassen.
+      const tmp = `${this.statsFile}.tmp`;
+      fs.writeFileSync(tmp, this.stats.toJSON());
+      fs.renameSync(tmp, this.statsFile);
     } catch (err) {
       log.warn('Studio', 'Session-Stats speichern fehlgeschlagen', (err as Error).message);
     }
@@ -1298,6 +1302,10 @@ export class Studio {
     this.lastGiveawayWinner = '';
     this.greetedThisSession.clear();
     this.momentShownSession.clear();
+    // Laufende Chat-Spiele + Boss-Modus beenden — sonst reagiert ein altes Spiel
+    // (oder der Boss) im NEUEN Stream weiter auf Chat/Gifts und bleibt im Overlay.
+    this.games.stop();
+    if (this.bossActive) this.stopBoss();
     this.sessionRoles.clear();
     this.loggedRoleUsers.clear();
     this.loggedFollowerOnce = false;

@@ -54,6 +54,9 @@ export class ObsService {
     this.setStatus('connecting');
     try {
       await this.obs.connect(this.config.url, this.config.password || undefined);
+      // Während des await könnte OBS deaktiviert worden sein (wantConnected=false) —
+      // dann nicht fälschlich „connected" melden, sondern sauber wieder trennen.
+      if (!this.wantConnected) { await this.obs.disconnect().catch(() => { /* egal */ }); return; }
       this.setStatus('connected');
       log.info('OBS', 'Verbunden');
     } catch (err) {
