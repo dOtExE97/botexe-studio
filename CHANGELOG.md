@@ -3,6 +3,22 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.31] — 2026-07-07
+
+### Verbessert (Bedienbarkeit — aus UX-Audit)
+- **„Warte auf Live" ist kein Fehler mehr** — eigener ruhiger Status oben statt „RECONNECT… #4", das wie eine kaputte Verbindungsschleife aussah. Verbindungs-Hinweise werden jetzt angezeigt (Tooltip).
+- **Key-Hinweis direkt auf der Live-Seite** — fehlt der eulerstream-Key, steht die Warnung gleich am „Verbinden"-Knopf (nicht erst nach dem Fehlversuch).
+- **Onboarding-Tour erklärt den Key** (Schritt 1) — vorher fehlte der wichtigste Erst-Schritt komplett.
+- **Menü-Erklärungen** (Tooltips) — „Trigger vs. Befehle vs. Store vs. Panel" endlich verständlich.
+- **Overlay-Editor**: neue Widgets landen versetzt (nicht mehr übereinander) + Hinzufügen-Bestätigung + **Rückgängig** beim Löschen.
+
+### Behoben (aus Codex-Audit)
+- Beim Stream-Wechsel/Session-Reset laufen **Spiele/Boss nicht mehr weiter**.
+- Session-Statistik wird **absturzsicher** gespeichert.
+- OBS meldet nicht mehr fälschlich „verbunden", wenn man es währenddessen abschaltet.
+
+---
+
 ## [0.3.30] — 2026-07-07
 
 ### Behoben (aus 3. Gesamt-Audit)
