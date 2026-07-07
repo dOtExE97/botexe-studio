@@ -907,15 +907,18 @@ export class Studio {
   /** Quiz VOLLAUTOMATISCH starten: zieht `rounds` zufällige Fragen aus dem Thema
    *  und läuft sie selbsttätig durch (Frage → Sammelzeit → Auflösen → nächste). */
   startQuizAuto(themeId: string, opts?: { rounds?: number; questionMs?: number; pauseMs?: number; winnerMode?: 'first' | 'random' }): { ok: boolean; error?: string } {
-    const questions = pickQuestions(themeId, opts?.rounds ?? 8);
-    return this.games.startQuizAuto(questions, { questionMs: opts?.questionMs, pauseMs: opts?.pauseMs, winnerMode: opts?.winnerMode });
+    const rounds = opts?.rounds ?? 8;
+    const questions = pickQuestions(themeId, rounds);
+    // Nachschub-Callback → das Quiz läuft endlos (immer neue Zufallsfragen des
+    // Themas), bis der Streamer „Stop" drückt.
+    return this.games.startQuizAuto(questions, { questionMs: opts?.questionMs, pauseMs: opts?.pauseMs, winnerMode: opts?.winnerMode }, () => pickQuestions(themeId, rounds));
   }
 
   // ── Stream-Boss ──────────────────────────────────────────────────────────
   /** Boss-Modus an: Gifts (nach Coins) fügen dem Boss Schaden zu, bei Kill gibt
    *  es einen Boss-Kill-Moment und der nächste (stärkere) Boss spawnt. */
-  startBoss(): { ok: boolean } { this.bossActive = true; this.boss.spawn(); this.broadcastBoss(); return { ok: true }; }
-  stopBoss(): { ok: boolean } { this.bossActive = false; this.server.broadcast({ kind: 'game-state', gameKind: '', state: null }); return { ok: true }; }
+  startBoss(): { ok: boolean } { this.bossActive = true; this.boss.spawn(); this.broadcastBoss(); log.info('Boss', `Boss-Modus AN — HP ${this.boss.getState().maxHp}, Gifts = Schaden`); return { ok: true }; }
+  stopBoss(): { ok: boolean } { this.bossActive = false; this.server.broadcast({ kind: 'game-state', gameKind: '', state: null }); log.info('Boss', 'Boss-Modus AUS'); return { ok: true }; }
   getBossState(): unknown { return this.bossActive ? this.boss.getState() : null; }
 
   private broadcastBoss(): void {
@@ -930,10 +933,12 @@ export class Studio {
     this.broadcastBoss();
     if (r.killed) {
       const st = this.boss.getState();
+      log.info('Boss', `BESIEGT (Level ${st.level})! Top-Schaden: ${st.topDamagers.slice(0, 3).map((d) => `${d.nickname} (${d.damage})`).join(', ') || '—'}`);
       this.emitMoment(bossKillMoment(st, st.topDamagers));
       this.boss.onKill();
       this.boss.spawn();
       this.broadcastBoss();
+      log.info('Boss', `Neuer Boss gespawnt — HP ${this.boss.getState().maxHp}`);
     }
   }
 

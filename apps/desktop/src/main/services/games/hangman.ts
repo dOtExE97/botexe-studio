@@ -31,6 +31,9 @@ export interface HangmanState {
   status: HangmanStatus;
   /** Letzter Spieler, dessen Tipp akzeptiert wurde (Treffer, Fehler oder !guess). */
   lastGuesser?: HangmanGuesser;
+  /** Bei status === 'won' der Löser — damit der GameService den Sieg verbuchen
+   *  kann (er meldet Siege einheitlich über das winner-Feld). */
+  winner?: HangmanGuesser;
 }
 
 /** Ergebnis eines Chat-Inputs. */
@@ -93,6 +96,20 @@ export class HangmanGame {
       return { accepted: true, hit: treffer };
     }
 
+    // Ganzes Wort OHNE "!guess": die meisten tippen einfach das Wort. Wenn es
+    // EXAKT die Lösung ist → Sieg. Ein falsches Mehr-Buchstaben-Wort wird
+    // IGNORIERT (könnte normaler Chat sein) — nur "!guess" riskiert bewusst
+    // einen Fehlversuch. So löst „APFEL" das Rätsel, aber „hallo" schadet nicht.
+    const alsWort = roh.toUpperCase();
+    if (alsWort.length > 1) {
+      if (alsWort === this.word) {
+        this.solvedByGuess = true;
+        this.lastGuesser = { userId, nickname };
+        return { accepted: true, hit: true };
+      }
+      return { accepted: false };
+    }
+
     // Einzelner Buchstabe.
     const buchstabe = roh.toUpperCase();
     if (buchstabe.length !== 1 || !istBuchstabe(buchstabe)) {
@@ -122,6 +139,9 @@ export class HangmanGame {
       status: this.getStatus(),
     };
     if (this.lastGuesser) state.lastGuesser = { ...this.lastGuesser };
+    // Wer das Wort löst, ist der lastGuesser im 'won'-Moment → als winner
+    // ausweisen, damit der Sieg (Punkte/Level) verbucht wird.
+    if (state.status === 'won' && this.lastGuesser) state.winner = { ...this.lastGuesser };
     return state;
   }
 

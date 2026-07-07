@@ -32,6 +32,32 @@ test('Duell-Sieg wird bei weiteren Chats nach Spielende nicht erneut gemeldet', 
   assert.equal(wins(), 1, 'genau ein Sieg nach Gewinnzug');
   s.handleChat({ type: 'chat', ts: 8, user: { id: 'o', nickname: 'O' }, text: '6' }); // Chat nach Spielende
   assert.equal(wins(), 1, 'kein weiterer Sieg nach Spielende');
+  s.stop(); // Auto-Reset-Timer aufräumen
+});
+
+test('Galgenmännchen-Sieg wird jetzt verbucht (winner-Feld)', () => {
+  const { s, wins } = svc();
+  s.start('hangman', { word: 'AB' });
+  s.handleChat({ type: 'chat', ts: 1, user: { id: 'u', nickname: 'Mia' }, text: 'A' });
+  s.handleChat({ type: 'chat', ts: 2, user: { id: 'u', nickname: 'Mia' }, text: 'B' }); // Wort komplett → won
+  assert.equal(wins(), 1, 'Löser bekommt den Sieg (vorher 0 — winner fehlte)');
+  s.stop();
+});
+
+test('Duell öffnet nach Sieg automatisch eine neue Runde (kein Freeze)', () => {
+  const states: Array<{ status?: string }> = [];
+  const s = new GameService((m) => { if (m.kind === 'game-state' && m.state) states.push(m.state as { status?: string }); }, () => { /* egal */ });
+  // Zeit im Test raffen: resultMs kurz setzen (privates Feld via Zugriff).
+  (s as unknown as { resultMs: number }).resultMs = 5;
+  s.start('tic-tac-toe');
+  for (const [ts, id, nick, txt] of [[1, 'x', 'X', '!join'], [2, 'o', 'O', '!join'], [3, 'x', 'X', '1'], [4, 'o', 'O', '4'], [5, 'x', 'X', '2'], [6, 'o', 'O', '5'], [7, 'x', 'X', '3']] as const) {
+    s.handleChat({ type: 'chat', ts, user: { id, nickname: nick }, text: txt });
+  }
+  return new Promise<void>((resolve) => setTimeout(() => {
+    assert.equal(states.at(-1)?.status, 'waiting', 'nach dem Sieg steht wieder ein leeres Brett (waiting) bereit');
+    s.stop();
+    resolve();
+  }, 25));
 });
 
 test('startQuizAuto: leere Frageliste startet nicht', () => {
