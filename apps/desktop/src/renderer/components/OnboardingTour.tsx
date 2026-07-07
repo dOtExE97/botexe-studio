@@ -23,11 +23,11 @@ const SLIDES: Slide[] = [
   },
   {
     icon: Radio,
-    title: '1. Verbinden',
+    title: '1. Verbinden (Key zuerst!)',
     body: (
-      <>Auf der <b>Live</b>-Seite deinen TikTok-Namen eingeben → <b>Verbinden</b>. Die App lauscht dann auf Gifts, Follows, Likes &amp; Chat. Noch nicht live? Rechts <b>„Testen ohne Live"</b> schickt Demo-Events durch die App.</>
+      <><b className="text-studio-gold">Einmalig zuerst:</b> Die App braucht einen <b>kostenlosen eulerstream-Key</b> — TikTok hat keine offene Schnittstelle, darum geht's ohne nicht. Unter <b>Einstellungen → TikTok-Verbindung</b> auf <b>„Gratis-Key holen"</b> (2 Min, gratis), Key einfügen.<br /><br />Dann auf der <b>Live</b>-Seite deinen TikTok-Namen eingeben → <b>Verbinden</b>. Noch nicht live? <b>„Testen ohne Live"</b> schickt Demo-Events. <span className="text-studio-muted">Steht oben „Warte auf Live", ist das kein Fehler — die App verbindet automatisch, sobald du live gehst.</span></>
     ),
-    cta: { label: 'Zur Live-Seite', page: 'live' },
+    cta: { label: 'Zu den Einstellungen (Key holen)', page: 'settings' },
   },
   {
     icon: LayoutPanelTop,

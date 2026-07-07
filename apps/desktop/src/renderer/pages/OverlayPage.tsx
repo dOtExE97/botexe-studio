@@ -30,7 +30,7 @@ import GiftListEditor from '../components/GiftListEditor';
 import GiftCommandListEditor from '../components/GiftCommandListEditor';
 import GiftPicker from '../components/GiftPicker';
 import WidgetPreview from '../components/WidgetPreview';
-import { toast } from '../components/ToastHost';
+import { toast, toastAction } from '../components/ToastHost';
 
 interface PropField {
   key: string;
@@ -1058,12 +1058,15 @@ export default function OverlayPage() {
     if (!layout) return;
     const w = Math.min(typeDef.w, canvasW - 40);
     const h = Math.min(typeDef.h, canvasH - 40);
+    // Treppen-Versatz um die Mitte, damit mehrere neue Widgets NICHT deckungs-
+    // gleich übereinander landen (sonst sieht man nur eins, Klick wirkt „ins Leere").
+    const casc = (layout.layers.length % 6) * 40;
     const layer: OverlayLayer = {
       id: newLayerId(),
       widgetType: typeDef.type,
       name: typeDef.label,
-      x: Math.round((canvasW - w) / 2),
-      y: Math.round((canvasH - h) / 2),
+      x: Math.max(10, Math.min(canvasW - w - 10, Math.round((canvasW - w) / 2) - 100 + casc)),
+      y: Math.max(10, Math.min(canvasH - h - 10, Math.round((canvasH - h) / 2) - 100 + casc)),
       w,
       h,
       z: layout.layers.length + 1,
@@ -1072,12 +1075,22 @@ export default function OverlayPage() {
     };
     setSelectedId(layer.id);
     void persist({ ...layout, layers: [...layout.layers, layer] });
+    toast('success', `„${typeDef.label}" hinzugefügt`);
   };
 
   const removeLayer = (id: string) => {
     if (!layout) return;
+    const removed = layout.layers.find((l) => l.id === id);
+    const afterRemove = { ...layout, layers: layout.layers.filter((l) => l.id !== id) };
     setSelectedId(null);
-    void persist({ ...layout, layers: layout.layers.filter((l) => l.id !== id) });
+    void persist(afterRemove);
+    // Kein stiller Datenverlust bei Fehlklick: Undo anbieten (wie in TriggersPage).
+    if (removed) {
+      toastAction('info', `„${removed.name}" entfernt.`, {
+        label: 'Rückgängig',
+        onClick: () => void persist({ ...afterRemove, layers: [...afterRemove.layers, removed] }),
+      });
+    }
   };
 
   // Drag & Resize direkt am Canvas

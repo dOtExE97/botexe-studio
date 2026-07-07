@@ -20,18 +20,18 @@ import CommandsPage from './pages/CommandsPage';
 
 type Page = 'live' | 'overlay' | 'triggers' | 'commands' | 'gallery' | 'store' | 'panel' | 'sounds' | 'tts' | 'viewers' | 'settings';
 
-const NAV: { id: Page; label: string; icon: typeof Radio; group: string }[] = [
-  { id: 'live', label: 'Live', icon: Radio, group: 'Stream' },
-  { id: 'overlay', label: 'Overlay', icon: LayoutPanelTop, group: 'Stream' },
-  { id: 'gallery', label: 'Geschenke', icon: Images, group: 'Stream' },
-  { id: 'triggers', label: 'Trigger', icon: Zap, group: 'Reaktionen' },
-  { id: 'commands', label: 'Befehle', icon: Terminal, group: 'Reaktionen' },
-  { id: 'store', label: 'Store', icon: Gift, group: 'Reaktionen' },
-  { id: 'panel', label: 'Panel', icon: Gamepad2, group: 'Reaktionen' },
-  { id: 'sounds', label: 'Sounds', icon: Volume2, group: 'Medien' },
-  { id: 'tts', label: 'Stimme', icon: Mic, group: 'Medien' },
-  { id: 'viewers', label: 'Zuschauer', icon: Users, group: 'Mehr' },
-  { id: 'settings', label: 'Einstellungen', icon: Settings, group: 'Mehr' },
+const NAV: { id: Page; label: string; icon: typeof Radio; group: string; hint: string }[] = [
+  { id: 'live', label: 'Live', icon: Radio, group: 'Stream', hint: 'Mit TikTok verbinden, Live-Zahlen & Chat-Spiele starten' },
+  { id: 'overlay', label: 'Overlay', icon: LayoutPanelTop, group: 'Stream', hint: 'Overlay bauen: Widgets aufs Bild ziehen, Link für OBS/TikTok kopieren' },
+  { id: 'gallery', label: 'Geschenke', icon: Images, group: 'Reaktionen', hint: 'Geschenke-Galerie: einem Gift direkt einen Sound/eine Aktion zuweisen (wird zur Trigger-Regel)' },
+  { id: 'triggers', label: 'Trigger', icon: Zap, group: 'Reaktionen', hint: 'Reaktion auf Gift/Follow/Like/Sub — „wenn X passiert, dann tu Y"' },
+  { id: 'commands', label: 'Befehle', icon: Terminal, group: 'Reaktionen', hint: 'Chat-Befehle: schreibt jemand „!wort", antwortet der Bot' },
+  { id: 'store', label: 'Store', icon: Gift, group: 'Reaktionen', hint: 'Zuschauer geben ihre gesammelten Punkte für Aktionen aus' },
+  { id: 'panel', label: 'Panel', icon: Gamepad2, group: 'Reaktionen', hint: 'Deine eigenen Knöpfe/Hotkeys, um selbst Aktionen auszulösen' },
+  { id: 'sounds', label: 'Sounds', icon: Volume2, group: 'Medien', hint: 'Sound-Dateien hochladen & verwalten' },
+  { id: 'tts', label: 'Stimme', icon: Mic, group: 'Medien', hint: 'Text-to-Speech: Chat-Nachrichten vorlesen lassen' },
+  { id: 'viewers', label: 'Zuschauer', icon: Users, group: 'Mehr', hint: 'Zuschauer-Liste mit Punkten, VIPs, Besuchen' },
+  { id: 'settings', label: 'Einstellungen', icon: Settings, group: 'Mehr', hint: 'TikTok-Verbindung (Key!), Punkte, OBS, Backup, Lizenzen …' },
 ];
 
 interface StatusStyle {
@@ -64,7 +64,12 @@ export default function App() {
     void window.studio.getAppInfo().then((i: { version?: string }) => setVersion(i?.version ?? ''));
   }, []);
 
-  const st = STATUS_STYLE[studio.status.status] ?? STATUS_FALLBACK;
+  // „Warte auf Live" ist KEIN Fehler — eigener ruhiger Zustand statt „RECONNECT… #4"
+  // (das sah aus wie eine kaputte Fehlerschleife und war der Haupt-Frust neuer Nutzer).
+  const waitingForLive = studio.status.status === 'reconnecting' && studio.status.detail === 'warte auf Live';
+  const st = waitingForLive
+    ? { label: 'WARTE AUF LIVE', cls: 'text-studio-teal border-studio-teal/40 bg-studio-teal/10', dot: 'bg-studio-teal animate-pulse' }
+    : STATUS_STYLE[studio.status.status] ?? STATUS_FALLBACK;
 
   const copyLink = () => {
     void window.studio.copyText(studio.overlayUrl).then(() => {
@@ -101,7 +106,7 @@ export default function App() {
           <div className="mt-1 text-[10px] uppercase tracking-[0.4em] text-studio-muted">Studio</div>
         </div>
         <nav className="flex flex-col gap-0.5 px-3">
-          {NAV.map(({ id, label, icon: Icon, group }, i) => (
+          {NAV.map(({ id, label, icon: Icon, group, hint }, i) => (
             <div key={id}>
               {(i === 0 || NAV[i - 1]?.group !== group) && (
                 <div className="mb-1 mt-3 px-2 text-[9px] font-bold uppercase tracking-[0.3em] text-studio-muted/60 first:mt-0">
@@ -109,6 +114,7 @@ export default function App() {
                 </div>
               )}
               <button
+                title={hint}
                 onClick={() => setPage(id)}
                 className={`clip-slant flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
                   page === id
@@ -134,10 +140,13 @@ export default function App() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header mit Status-Pills — immer sichtbar */}
         <header className="flex h-14 flex-none items-center gap-3 border-b border-studio-border bg-studio-panel px-5">
-          <div className={`clip-slant flex items-center gap-2 border px-3 py-1.5 text-[11px] font-bold tracking-widest ${st.cls}`}>
+          <div
+            className={`clip-slant flex items-center gap-2 border px-3 py-1.5 text-[11px] font-bold tracking-widest ${st.cls}`}
+            title={waitingForLive ? 'Kein Fehler — die App verbindet automatisch, sobald du (oder der Kanal) auf TikTok live geht.' : studio.status.detail || undefined}
+          >
             <span className={`h-2 w-2 rounded-full ${st.dot}`} />
             {st.label}
-            {studio.status.attempt ? ` #${studio.status.attempt}` : ''}
+            {!waitingForLive && studio.status.attempt ? ` #${studio.status.attempt}` : ''}
           </div>
           {studio.stats && studio.status.status === 'connected' && (
             <div className="clip-slant border border-studio-border bg-studio-raised px-3 py-1.5 font-mono text-[11px] text-studio-muted">

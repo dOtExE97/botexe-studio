@@ -70,6 +70,7 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
   const [testChat, setTestChat] = useState('');
   const [chatText, setChatText] = useState('');
   const [tiktokIn, setTiktokIn] = useState(false);
+  const [keySet, setKeySet] = useState(true); // default true → keine Warnung vor dem Laden
   const [showIntro, setShowIntro] = useState(() => localStorage.getItem('bx-intro-dismissed') !== '1');
   const [range, setRange] = useState<'week' | 'month' | 'year'>('week');
   const [history, setHistory] = useState<{ coins: number; gifts: number; likes: number; chats: number; follows: number; sessions: number } | null>(null);
@@ -84,9 +85,10 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
   }, [range, studio.stats]);
 
   useEffect(() => {
-    void window.studio.getSettings().then((s: { lastUsername: string; tiktokLoggedIn?: boolean }) => {
+    void window.studio.getSettings().then((s: { lastUsername: string; tiktokLoggedIn?: boolean; tiktokSignKeySet?: boolean }) => {
       if (s.lastUsername) setUsername(s.lastUsername);
       setTiktokIn(!!s.tiktokLoggedIn);
+      setKeySet(!!s.tiktokSignKeySet);
     });
   }, []);
 
@@ -170,6 +172,11 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
             {busy ? '…' : connected ? 'TRENNEN' : 'MIT TIKTOK VERBINDEN'}
           </button>
         </div>
+        {!keySet && !connected && (
+          <p className="mt-2 text-[11px] text-amber-300">
+            ⚠ Zum Verbinden fehlt noch der <b>kostenlose eulerstream-Key</b> — hol ihn dir unter <b>Einstellungen → TikTok-Verbindung</b> („Gratis-Key holen", 2 Min). Ohne Key klappt die Verbindung nicht.
+          </p>
+        )}
       </div>
 
       {/* Stats-Karten */}
