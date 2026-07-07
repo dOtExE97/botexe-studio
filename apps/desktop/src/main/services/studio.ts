@@ -896,6 +896,19 @@ export class Studio {
     this.server.broadcast({ kind: 'moment', moment });
   }
 
+  /** Diagnose-Schnappschuss („Warum sehe ich mein Overlay nicht?"). */
+  getDiagnostics(): Record<string, unknown> {
+    const s = this.settings.get();
+    return {
+      ...this.server.getDiagnostics(),
+      keySet: !!s.tiktokSignApiKey,
+      connectMode: s.tiktokConnectMode ?? 'cloud',
+      username: s.lastUsername ?? '',
+      layoutCount: this.layouts.list().length,
+      activeLayoutId: s.activeLayoutId ?? '',
+    };
+  }
+
   // ── Chat-Spiele ────────────────────────────────────────────────────────────
   startGame(kind: GameKind, config?: unknown): { ok: boolean; error?: string } { return this.games.start(kind, config); }
   stopGame(): { ok: boolean } { this.games.stop(); return { ok: true }; }

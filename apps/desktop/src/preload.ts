@@ -102,6 +102,7 @@ const api = {
   stopGame: () => ipcRenderer.invoke(IPC.GAME_STOP),
   revealGame: () => ipcRenderer.invoke(IPC.GAME_REVEAL),
   gameState: () => ipcRenderer.invoke(IPC.GAME_STATE),
+  getDiagnostics: () => ipcRenderer.invoke(IPC.DIAGNOSTICS),
   quizThemes: () => ipcRenderer.invoke(IPC.GAME_QUIZ_THEMES),
   startQuizAuto: (themeId: string, opts?: unknown) => ipcRenderer.invoke(IPC.GAME_QUIZ_AUTO, themeId, opts),
   startBoss: () => ipcRenderer.invoke(IPC.BOSS_START),

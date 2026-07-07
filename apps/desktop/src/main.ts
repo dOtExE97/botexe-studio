@@ -363,6 +363,7 @@ function registerIpc(): void {
   ipcMain.handle(IPC.GAME_STOP, () => isStudio().stopGame());
   ipcMain.handle(IPC.GAME_REVEAL, () => isStudio().revealGame());
   ipcMain.handle(IPC.GAME_STATE, () => isStudio().getGameState());
+  ipcMain.handle(IPC.DIAGNOSTICS, () => isStudio().getDiagnostics());
   ipcMain.handle(IPC.GAME_QUIZ_THEMES, () => isStudio().listQuizThemes());
   ipcMain.handle(IPC.BOSS_START, () => isStudio().startBoss());
   ipcMain.handle(IPC.BOSS_STOP, () => isStudio().stopBoss());

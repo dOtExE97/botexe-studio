@@ -98,6 +98,7 @@ export const IPC = {
   GAME_STATE: 'game:state',
   GAME_QUIZ_AUTO: 'game:quiz-auto',
   GAME_QUIZ_THEMES: 'game:quiz-themes',
+  DIAGNOSTICS: 'app:diagnostics',
   BOSS_START: 'boss:start',
   BOSS_STOP: 'boss:stop',
   BOSS_STATE: 'boss:state',

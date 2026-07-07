@@ -115,6 +115,8 @@ export class OverlayServer {
   private readonly host: string;
   private port: number;
   private clients = new Set<TrackedClient>();
+  private lastBroadcastAt = 0;
+  private readonly recentClientIssues: { at: number; text: string }[] = [];
   /** soundId → letzter Abspiel-Zeitpunkt (Dedup über mehrere Overlay-Clients). */
   private soundDedup = new Map<string, number>();
   private gameWinDedup = new Map<string, number>();
@@ -583,7 +585,12 @@ export class OverlayServer {
           const line = `[${profileId || 'default'}] ${clean(msg.scope, 60)} ${clean(msg.message, 300)}`.trim();
           // Reine Diagnose (z.B. gesunde fps) als INFO, nur echte Probleme als WARN.
           if (msg.level === 'info') log.info('Overlay-Widget', line);
-          else log.warn('Overlay-Widget', line);
+          else {
+            log.warn('Overlay-Widget', line);
+            // Für die Diagnose-Seite: die letzten echten Overlay-Probleme merken.
+            this.recentClientIssues.push({ at: now, text: line });
+            if (this.recentClientIssues.length > 30) this.recentClientIssues.shift();
+          }
         } catch {
           /* nicht-JSON ignorieren */
         }
@@ -714,7 +721,25 @@ export class OverlayServer {
 
   // ── Senden ──────────────────────────────────────────────────────────────
 
+  /** Diagnose-Schnappschuss für die „Warum sehe ich mein Overlay nicht?"-Seite. */
+  getDiagnostics(): {
+    host: string; port: number; overlayUrl: string; clientCount: number;
+    clients: { profileId: string; alive: boolean }[]; lastBroadcastAt: number;
+    recentClientIssues: { at: number; text: string }[];
+  } {
+    return {
+      host: this.host,
+      port: this.port,
+      overlayUrl: this.getOverlayUrl(),
+      clientCount: this.clients.size,
+      clients: [...this.clients].map((c) => ({ profileId: c.profileId, alive: c.isAlive })),
+      lastBroadcastAt: this.lastBroadcastAt,
+      recentClientIssues: [...this.recentClientIssues],
+    };
+  }
+
   broadcast(message: OverlayMessage): void {
+    this.lastBroadcastAt = Date.now();
     if (this.clients.size === 0) return;
     // Einmal serialisieren statt pro Client: bei mehreren offenen Overlays
     // (OBS + TTLS + Editor-Vorschau) wäre dasselbe Event sonst N-mal stringified.

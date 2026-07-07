@@ -503,6 +503,11 @@ export default function TriggersPage() {
                     placeholder="💬 Chat-Nachricht (leer = aus) — {user} {gift} möglich"
                     className="bx-input"
                   />
+                  {chatAction?.template && (
+                    <p className="-mt-1 text-[10px] text-amber-300/90">
+                      ⚠ Chat-Senden braucht den <b>Direkt-Modus</b> + TikTok-Login (Einstellungen → TikTok-Verbindung). Im Cloud-Modus (Standard) kann die App nur empfangen.
+                    </p>
+                  )}
                   {/* Streamer.bot-Aktion (nur wenn verbunden = Aktionen geladen). */}
                   {sbActions.length > 0 && (
                     <select value={sbAction?.action ?? ''} onChange={(e) => setSbAction(rule, e.target.value)} className="bx-select">

@@ -362,7 +362,7 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
           </form>
           <div className="mt-2 border-t border-studio-border pt-3">
             <ConfirmButton
-              onConfirm={() => { void window.studio.resetSession(); toast('success', 'Session zurückgesetzt — Zähler & Overlay sind wieder leer.'); }}
+              onConfirm={() => { void window.studio.resetSession(); toast('success', 'Session zurückgesetzt — Zähler, Overlay & laufende Spiele sind wieder leer.'); }}
               confirmLabel="Zähler & Overlay leeren?"
               className="bx-pill mb-3 w-full justify-center text-[11px] hover:text-studio-accent"
               title="Session-Stats, Bestenlisten und Overlay-Inhalte auf null (z.B. nach Test-Events). Loyalty-Punkte bleiben."
