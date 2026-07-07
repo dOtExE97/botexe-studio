@@ -464,6 +464,12 @@ export default function SettingsPage() {
           placeholder={signKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Euler API-Key (euler_… — kostenlos auf eulerstream.com)'}
           className="bx-input w-full font-mono text-xs"
         />
+        {/* Live-Format-Check: hilft, den richtigen Key zu erkennen. */}
+        {signKey.trim().length > 0 && (
+          signKey.trim().startsWith('euler_')
+            ? <p className="mt-1 text-[11px] text-emerald-300">✓ Sieht nach einem gültigen eulerstream-Key aus — Feld verlassen zum Speichern.</p>
+            : <p className="mt-1 text-[11px] text-amber-300">⚠ Ein eulerstream-Key beginnt normalerweise mit „euler_". Sicher, dass das der richtige ist? (Nicht dein TikTok-Passwort/-Login!)</p>
+        )}
         {signKeySet && (
           <button
             onClick={() => { setSignKey(''); void window.studio.updateSettings({ tiktokSignApiKey: '' }); setSignKeySet(false); toast('info', 'API-Key gelöscht.'); }}
@@ -472,6 +478,10 @@ export default function SettingsPage() {
             Key löschen
           </button>
         )}
+
+        <div className="mt-3 rounded-lg border border-studio-teal/30 bg-studio-teal/5 p-2.5 text-[11px] text-studio-muted">
+          💡 <b className="text-studio-fg">Gut zu wissen:</b> Nach dem Verbinden wartet die App, bis <b>du live gehst</b> — solange steht oben <span className="font-mono">„warte auf Live"</span>. Das ist <b>kein Fehler</b>: Sobald dein Live startet, verbindet sie sich automatisch. Den Key-Status siehst du oben rechts (<span className="text-emerald-300">Key gesetzt</span> / <span className="text-amber-300">Kein Key</span>).
+        </div>
 
         {/* Verbindungs-Modus */}
         <div className="mt-4 rounded-lg border border-studio-border/60 p-3">
