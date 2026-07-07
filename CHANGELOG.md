@@ -3,6 +3,14 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.32] — 2026-07-07
+
+### Neu
+- **Diagnose-Seite** 🩺 (Menü → Mehr → Diagnose): „Warum sehe ich mein Overlay nicht?" — auf einen Blick, ob der Overlay-Server läuft, ob eine **Browser-Quelle verbunden** ist (häufigste Ursache!), ob der Key gesetzt ist, ob TikTok verbunden ist. Plus Overlay-Link zum Kopieren und die letzten Overlay-Meldungen. Aktualisiert sich live.
+- **Hinweis bei „Chat senden"-Triggern**, dass das den Direkt-Modus + TikTok-Login braucht (im Cloud-Modus kann die App nur empfangen).
+
+---
+
 ## [0.3.31] — 2026-07-07
 
 ### Verbessert (Bedienbarkeit — aus UX-Audit)
