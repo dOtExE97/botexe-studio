@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.30] — 2026-07-07
+
+### Behoben (aus 3. Gesamt-Audit)
+- **Spiel-Overlays bleiben nicht mehr hängen**, wenn ein Spiel endet/gestoppt wird — vorher blieb die letzte Frage/HP-Leiste/„!join" für immer stehen (und Zuschauer-„!join" liefen ins Leere).
+- **Spielwechsel ohne vorher „Stop"** klappt jetzt sauber — vorher konnte ein noch laufendes Auto-Quiz das neu gestartete Spiel Sekunden später „kapern".
+- **Likes pro Zuschauer korrekt** — vorher wurde einem Viewer mit 3 Likes der Raum-Gesamtwert (z.B. 48.000) zugeschrieben; betraf die Zahlen auf den Begrüßungskarten.
+- **„Punkte zurücksetzen" aktualisiert das Overlay sofort** (vorher blieb die alte Bestenliste sichtbar).
+- **Test-/Replay-Events verändern die echten Punkte/Coins nicht mehr** — Ausprobieren bläht die Bestenliste nicht länger auf.
+
+---
+
 ## [0.3.29] — 2026-07-07
 
 ### Behoben (aus echten Live-Tests)
