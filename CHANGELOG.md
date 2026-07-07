@@ -3,6 +3,19 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.29] — 2026-07-07
+
+### Behoben (aus echten Live-Tests)
+- **Chat-Spiele: Tic Tac Toe & 4 Gewinnt öffnen nach jeder Runde automatisch neu** — vorher blieben die 2 Plätze der ersten Runde belegt, alle anderen kamen nie rein. Jetzt: Ergebnis kurz anzeigen → frisches Brett, jeder kann per „!join" mitmachen. Abgelehntes „!join" (Tisch voll) gibt jetzt eine Rückmeldung.
+- **Galgenmännchen:** Sieg wird jetzt verbucht (Punkte/Level) — und man kann das **ganze Wort direkt tippen** (nicht mehr nur „!guess wort").
+- **Quiz läuft endlos** weiter, bis du „Stop" drückst (zieht automatisch neue Fragen).
+- **TTS liest Nachrichten nicht mehr doppelt vor** nach Verbindungsabrissen (Reconnect-Replay wird per Nachrichten-ID erkannt).
+- **Größere Schrift** in Quiz, Galgenmännchen, Tic Tac Toe, 4 Gewinnt und Stream-Boss — besser lesbar im Stream.
+- **Mehr Spiele-Logging** (Start, Beitritt, Sieg, Rundenende, Boss) — Fehler/Ablauf sind jetzt im Log nachvollziehbar.
+- **Euler-Key klarer erklärt:** Live-Check des Formats + Hinweis, dass „warte auf Live" normal ist.
+
+---
+
 ## [0.3.28] — 2026-06-26
 
 ### Robustheit (aus externem Codex-Audit)
