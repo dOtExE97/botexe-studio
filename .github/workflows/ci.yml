@@ -21,3 +21,22 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: npm test
+
+  smoke:
+    # Headless-Durchklick durch ALLE App-Seiten (fängt Render-Crashes, die reine
+    # Unit-Tests nicht sehen). Eigener Job → blockiert den schnellen Gate nicht.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: System-Libs für headless Electron
+        run: sudo apt-get update && sudo apt-get install -y xvfb libgbm1 libnss3 libasound2t64
+      - name: Package (Linux)
+        run: npm run package --workspace apps/desktop
+      - name: Smoke-Test (alle Seiten)
+        run: SKIP_BUILD=1 npm run smoke --workspace apps/desktop
