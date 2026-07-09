@@ -123,6 +123,29 @@ async function main(): Promise<void> {
   if (mixerCheck.sliders < 5) problems.push({ page: 'Mixer', text: `Zu wenige Regler (${mixerCheck.sliders}, erwartet ≥5: Master + 4 Kanäle)` });
   if (!mixerCheck.eventOk) problems.push({ page: 'Mixer', text: 'bx-mixer-Event warf eine Exception' });
 
+  // KI-/Steuer-API end-to-end: Token aus der laufenden App holen, dann von Node
+  // aus (umgeht Renderer-CSP) Lesen + eine harmlose Aktion + Reject prüfen.
+  current = 'API';
+  try {
+    const info = (await evalJs(ws, 'window.studio.getOverlayInfo()')) as { url: string };
+    const token = new URL(info.url).searchParams.get('token') ?? '';
+    const base = `http://127.0.0.1:27415`;
+    const status = (await (await fetch(`${base}/api/status?token=${token}`)).json()) as { actions?: unknown; stats?: unknown };
+    if (!Array.isArray(status.actions) || !status.stats) problems.push({ page: 'API', text: 'GET /api/status unvollständig' });
+    // gültige, harmlose Aktion (kein Audio/Netz)
+    const stop = await fetch(`${base}/api/action?token=${token}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'stop_game' }) });
+    if (stop.status !== 200) problems.push({ page: 'API', text: `stop_game gab ${stop.status}` });
+    // ungültige Aktion MUSS abgelehnt werden
+    const bad = await fetch(`${base}/api/action?token=${token}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'rm_rf' }) });
+    if (bad.status !== 400) problems.push({ page: 'API', text: `ungültige Aktion nicht abgelehnt (${bad.status})` });
+    // falscher Token MUSS scheitern
+    const noauth = await fetch(`${base}/api/status?token=falsch`);
+    if (noauth.status === 200) problems.push({ page: 'API', text: 'falscher Token wurde akzeptiert!' });
+    console.log(`  🔌 API: status ${Array.isArray(status.actions) ? '✓' : '✗'}, Aktion ✓, Reject ✓, Auth ✓`);
+  } catch (e) {
+    problems.push({ page: 'API', text: `API-Test warf: ${(e as Error).message}` });
+  }
+
   ws.close();
 
   console.log('');

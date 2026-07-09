@@ -92,6 +92,9 @@ export interface OverlayServerOptions {
   /** Stream-Deck/Fernsteuerung: Panel-Knöpfe auflisten + per ID auslösen. */
   listPanelButtons?: () => Array<{ id: string; label: string }>;
   firePanelButton?: (id: string) => boolean;
+  /** KI-/Steuer-API: aggregierter Zustand lesen + validierte Aktion ausführen. */
+  getApiStatus?: () => Record<string, unknown>;
+  runApiAction?: (action: unknown) => { ok: boolean; error?: string };
 }
 
 const FILE_NAME_RE = /^[a-zA-Z0-9_.-]+\.(js|css|html|woff2?)$/;
@@ -278,6 +281,17 @@ export class OverlayServer {
       const id = String((req.body as { id?: unknown })?.id ?? '');
       const ok = id ? (this.options.firePanelButton?.(id) ?? false) : false;
       res.status(ok ? 200 : 404).json({ ok });
+    });
+
+    // KI-/Steuer-API: aggregierten Zustand lesen (secret-frei) …
+    this.expressApp.get('/api/status', auth, (_req, res) => {
+      res.json(this.options.getApiStatus?.() ?? {});
+    });
+    // … und eine validierte Aktion ausführen (Whitelist in api-actions.ts).
+    this.expressApp.post('/api/action', auth, (req, res) => {
+      if (!this.options.runApiAction) { res.status(501).json({ ok: false, error: 'Nicht verfügbar' }); return; }
+      const result = this.options.runApiAction(req.body);
+      res.status(result.ok ? 200 : 400).json(result);
     });
 
     this.setupTestEventRoute(auth);

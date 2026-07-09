@@ -3,6 +3,19 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.5.0] — 2026-07-09
+
+### Neu
+- **Lokale Steuer-API** 🤖 (für Skripte, Stream-Deck & KI-Agenten): `http://127.0.0.1:27415`, token-geschützt.
+  - `GET /api/status` — Live-Zustand lesen (verbunden?, Zuschauer/Likes/Gifts/Coins, laufendes Spiel, Boss) — **ohne Secrets**.
+  - `POST /api/action` — validierte Aktion ausführen: `play_sound`, `speak` (TTS), `start_game`/`stop_game`/`reveal_game`, `start_boss`/`stop_boss`. Nur erlaubte Aktionen; alles andere wird abgelehnt.
+  - Doku mit curl-Beispielen: `docs/api.md`. Baut auf der bestehenden Stream-Deck-API (`/api/panel`) auf.
+
+### Intern
+- **Headless-Smoke-Test** (`npm run smoke` + CI-Job): klickt die komplette App headless durch (alle Seiten + Mixer + API) und fängt Render-Crashes automatisch — bei jedem Push.
+
+---
+
 ## [0.4.0] — 2026-07-09
 
 ### Neu

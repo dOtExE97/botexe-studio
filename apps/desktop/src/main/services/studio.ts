@@ -16,6 +16,7 @@ import { EulerCloudConnection } from '../adapters/tiktok-cloud';
 import { OverlayServer } from '../adapters/overlay-server';
 import { SettingsStore, redactSecretsForExport, type GiveawaySettings } from './settings-store';
 import type { SoundCategory } from '../../shared/mixer';
+import { parseApiAction, API_ACTION_KINDS } from './api-actions';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
 import { MediaLibrary } from './media-library';
@@ -247,6 +248,8 @@ export class Studio {
       getSportStandings: (provider, competition) => this.sport.getStandings(provider as SportProvider, competition),
       listPanelButtons: () => this.getPanelButtons().map((b) => ({ id: b.id, label: b.label })),
       firePanelButton: (id) => this.firePanelById(id),
+      getApiStatus: () => this.getApiStatus(),
+      runApiAction: (action) => this.runApiAction(action),
     });
     this.games = new GameService((msg) => this.server.broadcast(msg), (user) => this.recordGameWin(user));
 
@@ -916,6 +919,51 @@ export class Studio {
       platformConnected: this.lastPlatformStatus.status === 'connected',
       lastStatusDetail: this.lastPlatformStatus.detail ?? '',
     };
+  }
+
+  // ── Steuer-API / KI ─────────────────────────────────────────────────────────
+  /** Aggregierter, SECRET-FREIER Zustand für die lokale Steuer-API (GET /api/status).
+   *  Enthält nur „gesetzt"-Flags statt echter Keys/Passwörter (getDiagnostics maskiert). */
+  getApiStatus(): Record<string, unknown> {
+    const diag = this.getDiagnostics();
+    const stats = this.stats.snapshot();
+    const game = this.getGameState();
+    return {
+      connected: diag.platformConnected ?? false,
+      platformStatus: diag.platformStatus ?? 'disconnected',
+      username: diag.username ?? '',
+      keySet: diag.keySet ?? false,
+      overlayClients: diag.clientCount ?? 0,
+      stats: {
+        viewers: stats.viewers, likes: stats.likes, gifts: stats.gifts,
+        coins: stats.coins, follows: stats.follows, comments: stats.chats,
+      },
+      game: game ? { kind: game.kind, state: game.state } : null,
+      boss: { active: this.bossActive },
+      actions: API_ACTION_KINDS, // Selbstauskunft: welche POST /api/action-Aktionen es gibt
+    };
+  }
+
+  /** Eine Aktion der Steuer-API ausführen (POST /api/action). Nur die per
+   *  parseApiAction validierten, erlaubten Aktionen — alles andere wird abgelehnt. */
+  runApiAction(raw: unknown): { ok: boolean; error?: string } {
+    const parsed = parseApiAction(raw);
+    if ('error' in parsed) return { ok: false, error: parsed.error };
+    const a = parsed.action;
+    switch (a.kind) {
+      case 'play_sound': this.playSound(a.soundId, a.volume, 'soundboard'); return { ok: true };
+      case 'speak': {
+        const tts = this.settings.get().tts;
+        const clean = TTSService.sanitize(a.text, tts.maxTextLen);
+        if (clean) this.tts.speak(clean, a.voice || tts.voice);
+        return { ok: true };
+      }
+      case 'start_game': return this.startGame(a.game, a.config);
+      case 'stop_game': return this.stopGame();
+      case 'reveal_game': return this.revealGame();
+      case 'start_boss': return this.startBoss();
+      case 'stop_boss': return this.stopBoss();
+    }
   }
 
   // ── Chat-Spiele ────────────────────────────────────────────────────────────
