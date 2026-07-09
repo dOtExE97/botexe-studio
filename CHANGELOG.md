@@ -3,6 +3,13 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.5.1] — 2026-07-09
+
+### Geändert
+- **Widget-Menü aufgeräumt** 🧹 — statt einer langen Liste aller ~37 Widgets auf einmal jetzt **Kategorie-Tabs** oben (⭐ Beliebt · Alerts · Spiele · Gifts · Chat · Stats · Deko · Media). Es ist immer nur **eine** Kategorie sichtbar. „Beliebt" zeigt die wichtigsten Einsteiger-Widgets. Die Suche durchsucht weiterhin alle Kategorien. Kompakt-Ansicht (Live aus) jetzt 2-spaltig.
+
+---
+
 ## [0.5.0] — 2026-07-09
 
 ### Neu

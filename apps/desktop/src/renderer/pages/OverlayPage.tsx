@@ -17,6 +17,12 @@ import {
   Play,
   AlertTriangle,
   LayoutPanelTop,
+  Zap,
+  Gamepad2,
+  Gift,
+  MessageSquare,
+  BarChart3,
+  Sparkles,
 } from 'lucide-react';
 import {
   CANVAS_PRESETS,
@@ -742,16 +748,23 @@ const WIDGET_TYPES: {
   },
 ];
 
-// Palette-Kategorien — gruppieren die lange Widget-Liste (Feedback Bild 1/2:
-// „zu unübersichtlich"). Mapping per Typ, damit die Einträge oben unberührt bleiben.
-const PALETTE_CATEGORIES: { id: string; label: string }[] = [
-  { id: 'alerts', label: 'Alerts' },
-  { id: 'spiele', label: 'Spiele' },
-  { id: 'gifts', label: 'Gifts & Ziele' },
-  { id: 'listen', label: 'Listen & Chat' },
-  { id: 'stats', label: 'Stats & Zähler' },
-  { id: 'deko', label: 'Ambient & Deko' },
-  { id: 'media', label: 'Media' },
+// Palette-Kategorien — Tab-Chips oben, es ist immer NUR eine Kategorie sichtbar
+// (Feedback: „riesen unübersichtliche Liste"). „Beliebt" ist ein kuratierter
+// Quer-Tab mit den wichtigsten Widgets. Mapping per Typ, Einträge oben unberührt.
+const PALETTE_CATEGORIES: { id: string; label: string; icon: typeof Star }[] = [
+  { id: 'beliebt', label: 'Beliebt', icon: Star },
+  { id: 'alerts', label: 'Alerts', icon: Zap },
+  { id: 'spiele', label: 'Spiele', icon: Gamepad2 },
+  { id: 'gifts', label: 'Gifts & Ziele', icon: Gift },
+  { id: 'listen', label: 'Listen & Chat', icon: MessageSquare },
+  { id: 'stats', label: 'Stats & Zähler', icon: BarChart3 },
+  { id: 'deko', label: 'Ambient & Deko', icon: Sparkles },
+  { id: 'media', label: 'Media', icon: Clapperboard },
+];
+// „Beliebt": die typischen Einsteiger-/Stream-Basics, in sinnvoller Reihenfolge.
+const POPULAR_WIDGETS = [
+  'gift-alert', 'follow-alert', 'stat-chips', 'goal-bar', 'leaderboard',
+  'chat-box', 'gift-feed', 'top-gift', 'stream-boss', 'wheel',
 ];
 const CATEGORY_OF: Record<string, string> = {
   'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts',
@@ -816,7 +829,7 @@ export default function OverlayPage() {
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const [soundList, setSoundList] = useState<{ id: string; filename: string }[]>([]);
   const [paletteQuery, setPaletteQuery] = useState('');
-  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
+  const [activeCat, setActiveCat] = useState('beliebt'); // aktiver Kategorie-Tab
   // Schaufenster: Overlay-Basis-URL (für die Live-Vorschau-Iframes der Palette)
   // + An/Aus-Schalter (auf schwachen PCs abschaltbar).
   const [overlayBase, setOverlayBase] = useState<string | null>(null);
@@ -1138,14 +1151,20 @@ export default function OverlayPage() {
 
   // Palette-Gruppierung nur neu berechnen, wenn sich die Suche ändert — nicht
   // bei jedem Re-Render (z.B. während eines Drags).
-  const paletteGroups = useMemo(() => {
+  // Sichtbare Widgets: bei Suche quer über ALLE Kategorien, sonst nur der aktive
+  // Tab. „Beliebt" ist die kuratierte POPULAR_WIDGETS-Reihenfolge.
+  const visibleItems = useMemo(() => {
     const q = paletteQuery.trim().toLowerCase();
     const match = (w: (typeof WIDGET_TYPES)[number]) =>
       !q || w.label.toLowerCase().includes(q) || w.desc.toLowerCase().includes(q);
-    return PALETTE_CATEGORIES
-      .map((cat) => ({ cat, items: WIDGET_TYPES.filter((w) => (CATEGORY_OF[w.type] ?? 'deko') === cat.id && match(w)) }))
-      .filter((g) => g.items.length > 0);
-  }, [paletteQuery]);
+    if (q) return WIDGET_TYPES.filter(match);
+    if (activeCat === 'beliebt') {
+      return POPULAR_WIDGETS
+        .map((t) => WIDGET_TYPES.find((w) => w.type === t))
+        .filter((w): w is (typeof WIDGET_TYPES)[number] => !!w);
+    }
+    return WIDGET_TYPES.filter((w) => (CATEGORY_OF[w.type] ?? 'deko') === activeCat);
+  }, [paletteQuery, activeCat]);
 
   if (!layout) return <div className="p-6 text-studio-muted">Lade…</div>;
 
@@ -1160,8 +1179,8 @@ export default function OverlayPage() {
   const isPortrait = canvasH > canvasW;
 
   return (
-    <div className="grid h-full grid-cols-[200px_1fr_260px] gap-0">
-      {/* Widget-Palette — nach Kategorien gruppiert + Suche (übersichtlicher) */}
+    <div className="grid h-full grid-cols-[220px_1fr_260px] gap-0">
+      {/* Widget-Palette — Kategorie-Tabs + Suche (nur eine Kategorie sichtbar) */}
       <aside data-palette-scroll className="overflow-y-auto border-r border-studio-border bg-studio-panel p-3">
         <div className="mb-2 flex items-center justify-between px-1">
           <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Widgets</h2>
@@ -1179,60 +1198,64 @@ export default function OverlayPage() {
           placeholder="Widget suchen…"
           className="bx-input mb-3 w-full text-xs"
         />
-        {(() => {
-          const q = paletteQuery.trim().toLowerCase();
-          return (
-            <div className="flex flex-col gap-3">
-              {paletteGroups.map(({ cat, items }) => {
-                const open = q !== '' || !collapsedCats.has(cat.id); // bei Suche immer offen
-                return (
-                  <div key={cat.id}>
-                    <button
-                      onClick={() => setCollapsedCats((prev) => {
-                        const next = new Set(prev);
-                        next.has(cat.id) ? next.delete(cat.id) : next.add(cat.id);
-                        return next;
-                      })}
-                      className="mb-1.5 flex w-full items-center justify-between px-1 text-[10px] font-bold uppercase tracking-[0.2em] text-studio-muted hover:text-studio-fg"
-                    >
-                      <span>{cat.label}</span>
-                      <span className="text-studio-muted/60">{open ? '−' : `+${items.length}`}</span>
-                    </button>
-                    {open && (
-                      <div className="flex flex-col gap-2">
-                        {items.map((w) =>
-                          livePalette ? (
-                            <WidgetPreview
-                              key={w.label}
-                              type={w.type}
-                              props={w.props}
-                              w={w.w}
-                              h={w.h}
-                              label={w.label}
-                              desc={w.desc}
-                              overlayBase={overlayBase}
-                              soundOn={previewSound}
-                              onAdd={() => addWidget(w)}
-                            />
-                          ) : (
-                            <button
-                              key={w.label}
-                              onClick={() => addWidget(w)}
-                              className="clip-slant group rounded-lg border border-studio-border bg-studio-raised p-3 text-left transition-colors hover:border-studio-accent/60"
-                            >
-                              <div className="text-xs font-bold group-hover:text-studio-accent">{w.label}</div>
-                              <div className="mt-0.5 text-[10px] leading-snug text-studio-muted">{w.desc}</div>
-                            </button>
-                          ),
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
+        {/* Kategorie-Tabs (nur eine Kategorie sichtbar). Bei aktiver Suche
+            werden stattdessen Treffer quer über alle Kategorien gezeigt. */}
+        {!paletteQuery.trim() ? (
+          <div className="mb-3 flex flex-wrap gap-1">
+            {PALETTE_CATEGORIES.map((cat) => {
+              const Icon = cat.icon;
+              const on = cat.id === activeCat;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCat(cat.id)}
+                  className={`flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-bold transition-colors ${
+                    on
+                      ? 'border-studio-accent bg-studio-accent/15 text-studio-accent'
+                      : 'border-studio-border bg-studio-raised text-studio-muted hover:border-studio-accent/40 hover:text-studio-text'
+                  }`}
+                >
+                  <Icon size={11} /> {cat.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mb-2 px-1 text-[10px] text-studio-muted">
+            {visibleItems.length} Treffer für „{paletteQuery.trim()}“
+          </div>
+        )}
+        {visibleItems.length === 0 ? (
+          <div className="px-1 py-6 text-center text-[11px] text-studio-muted">Nichts gefunden.</div>
+        ) : (
+          <div className={livePalette ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2'}>
+            {visibleItems.map((w) =>
+              livePalette ? (
+                <WidgetPreview
+                  key={w.label}
+                  type={w.type}
+                  props={w.props}
+                  w={w.w}
+                  h={w.h}
+                  label={w.label}
+                  desc={w.desc}
+                  overlayBase={overlayBase}
+                  soundOn={previewSound}
+                  onAdd={() => addWidget(w)}
+                />
+              ) : (
+                <button
+                  key={w.label}
+                  onClick={() => addWidget(w)}
+                  className="clip-slant group rounded-lg border border-studio-border bg-studio-raised p-2.5 text-left transition-colors hover:border-studio-accent/60"
+                >
+                  <div className="text-xs font-bold group-hover:text-studio-accent">{w.label}</div>
+                  <div className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-studio-muted">{w.desc}</div>
+                </button>
+              ),
+            )}
+          </div>
+        )}
       </aside>
 
       {/* Canvas */}
