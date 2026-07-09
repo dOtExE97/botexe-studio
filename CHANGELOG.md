@@ -3,6 +3,13 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.5.2] — 2026-07-09
+
+### Behoben
+- **`GET /api/status` liefert die Live-Zahlen wieder korrekt** (Zuschauer/Likes/Gifts/Coins/Follows/Kommentare) — sie wurden intern aus dem falschen Objekt gelesen und kamen als `undefined`. (Kein Crash, nur die API-Werte betroffen.)
+
+---
+
 ## [0.5.1] — 2026-07-09
 
 ### Geändert

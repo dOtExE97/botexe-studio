@@ -926,7 +926,7 @@ export class Studio {
    *  Enthält nur „gesetzt"-Flags statt echter Keys/Passwörter (getDiagnostics maskiert). */
   getApiStatus(): Record<string, unknown> {
     const diag = this.getDiagnostics();
-    const stats = this.stats.snapshot();
+    const t = this.stats.snapshot().totals;
     const game = this.getGameState();
     return {
       connected: diag.platformConnected ?? false,
@@ -935,8 +935,8 @@ export class Studio {
       keySet: diag.keySet ?? false,
       overlayClients: diag.clientCount ?? 0,
       stats: {
-        viewers: stats.viewers, likes: stats.likes, gifts: stats.gifts,
-        coins: stats.coins, follows: stats.follows, comments: stats.chats,
+        viewers: t.viewers, likes: t.likes, gifts: t.gifts,
+        coins: t.coins, follows: t.follows, comments: t.chats,
       },
       game: game ? { kind: game.kind, state: game.state } : null,
       boss: { active: this.bossActive },
