@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.33] — 2026-07-09
+
+### Behoben (aus externem Codex-Audit)
+- **Spiel-Effekte/Sounds lösen wieder aus** — Quiz-Auflösungs-Sound und die Gewinner-Feier bei Tic Tac Toe & Galgenmännchen kamen bisher nicht (Event wurde anders gesendet als die Widgets ihn lasen).
+- **Spiele-/Boss-Karte zeigt den echten Zustand** — nach Seitenwechsel wusste die Karte nicht mehr, dass ein Spiel/Boss läuft; ein Klick auf „Boss starten" konnte den laufenden Boss neu spawnen (HP weg). Jetzt lädt sie den echten Stand + Boss-Start ist idempotent.
+- **Diagnose-Seite zeigt die TikTok-Verbindung korrekt**, auch wenn man sie erst nach dem Verbinden öffnet.
+- **Galgenmännchen** lehnt ein leeres/ungültiges Wort sauber ab.
+- **„Punkte zurücksetzen"** klarer benannt („Nur Loyalty-Punkte") + Hinweis, dass Level & Stats bleiben.
+
+---
+
 ## [0.3.32] — 2026-07-07
 
 ### Neu
