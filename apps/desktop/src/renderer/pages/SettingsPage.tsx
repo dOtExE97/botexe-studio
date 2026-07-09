@@ -200,12 +200,13 @@ export default function SettingsPage() {
         )}
         <div className="mt-4">
           <ConfirmButton
-            onConfirm={() => { void window.studio.resetPoints(); toast('info', 'Alle Punkte zurückgesetzt.'); }}
-            confirmLabel="Alle Punkte für IMMER löschen?"
+            onConfirm={() => { void window.studio.resetPoints(); toast('info', 'Loyalty-Punkte zurückgesetzt (Level & Stats bleiben).'); }}
+            confirmLabel="Loyalty-Punkte für IMMER auf 0 setzen?"
             className="bx-pill border-studio-accent/40 text-studio-accent hover:border-studio-accent hover:text-studio-accent"
           >
-            <RotateCcw size={13} /> Alle Punkte zurücksetzen
+            <RotateCcw size={13} /> Nur Loyalty-Punkte zurücksetzen
           </ConfirmButton>
+          <p className="mt-1 text-[10px] text-studio-muted/70">Setzt nur die gesammelten Punkte auf 0. Spiele-Meister-Level, Wins, Besuche, Coins & Likes bleiben erhalten.</p>
         </div>
       </section>
 

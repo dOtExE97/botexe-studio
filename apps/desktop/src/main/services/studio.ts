@@ -171,6 +171,7 @@ export class Studio {
   private readonly games: GameService;
   private readonly boss = new BossService();
   private bossActive = false;
+  private lastPlatformStatus: { status: string; detail?: string; at: number } = { status: 'disconnected', at: 0 };
   /** Rollen-Gedächtnis (Mod/Teamherz/Follower) pro Stream — einmal erkannt =
    *  für die Session gemerkt, da TikTok Rollen nicht in jeder Nachricht liefert. */
   private sessionRoles = new SessionRoles();
@@ -294,6 +295,7 @@ export class Studio {
           const mode = this.settings.get().tiktokConnectMode ?? 'cloud';
           log.info('TikTok', `Verbindungsmodus: ${mode === 'cloud' ? 'Cloud (Euler)' : 'Direkt'}`);
         }
+        this.lastPlatformStatus = { status: info.status, detail: info.detail, at: Date.now() };
         this.hooks.onStatus(info);
         if (info.status === 'error') {
           this.hooks.onToast?.({ type: 'error', message: `Verbindung fehlgeschlagen${info.detail ? `: ${info.detail}` : ''}` });
@@ -906,6 +908,10 @@ export class Studio {
       username: s.lastUsername ?? '',
       layoutCount: this.layouts.list().length,
       activeLayoutId: s.activeLayoutId ?? '',
+      // Verbindungsstatus als Snapshot (nicht auf ein Live-Event angewiesen).
+      platformStatus: this.lastPlatformStatus.status,
+      platformConnected: this.lastPlatformStatus.status === 'connected',
+      lastStatusDetail: this.lastPlatformStatus.detail ?? '',
     };
   }
 
@@ -933,7 +939,14 @@ export class Studio {
   // ── Stream-Boss ──────────────────────────────────────────────────────────
   /** Boss-Modus an: Gifts (nach Coins) fügen dem Boss Schaden zu, bei Kill gibt
    *  es einen Boss-Kill-Moment und der nächste (stärkere) Boss spawnt. */
-  startBoss(): { ok: boolean } { this.bossActive = true; this.boss.spawn(); this.broadcastBoss(); log.info('Boss', `Boss-Modus AN — HP ${this.boss.getState().maxHp}, Gifts = Schaden`); return { ok: true }; }
+  startBoss(): { ok: boolean; alreadyActive?: boolean } {
+    // Idempotent: läuft der Boss schon, NICHT neu spawnen (sonst gehen HP + Top-
+    // Damager der laufenden Runde verloren) — nur den aktuellen Stand broadcasten.
+    if (this.bossActive) { this.broadcastBoss(); log.info('Boss', 'Start ignoriert — läuft bereits'); return { ok: true, alreadyActive: true }; }
+    this.bossActive = true; this.boss.spawn(); this.broadcastBoss();
+    log.info('Boss', `Boss-Modus AN — HP ${this.boss.getState().maxHp}, Gifts = Schaden`);
+    return { ok: true };
+  }
   stopBoss(): { ok: boolean } { this.bossActive = false; this.server.broadcast({ kind: 'game-state', gameKind: 'boss', state: null }); log.info('Boss', 'Boss-Modus AUS'); return { ok: true }; }
   getBossState(): unknown { return this.bossActive ? this.boss.getState() : null; }
 
@@ -1332,9 +1345,13 @@ export class Studio {
   }
 
   resetPoints(): void {
-    // Punkte komplett leeren: Store neu mit leerem Stand überschreiben.
-    for (const e of this.points.top(100000)) this.points.spend(e.id, e.points);
+    // Punkte komplett leeren: Store neu mit leerem Stand überschreiben. NUR die
+    // Loyalty-Punkte — Level/Wins/Besuche/Coins bleiben (das ist Absicht).
+    const affected = this.points.top(100000);
+    const sum = affected.reduce((n, e) => n + e.points, 0);
+    for (const e of affected) this.points.spend(e.id, e.points);
     this.points.save();
+    log.info('Punkte', `Loyalty-Punkte zurückgesetzt: ${affected.length} Zuschauer, ${sum} Punkte gelöscht (Level/Wins/Stats bleiben)`);
     // Overlay + App sofort aktualisieren, sonst bleibt die alte Bestenliste
     // sichtbar, bis zufällig das nächste Event einen Broadcast auslöst.
     this.scheduleStatsBroadcast();

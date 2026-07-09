@@ -24,6 +24,16 @@ export default function GamesCard() {
 
   useEffect(() => {
     void (window.studio.quizThemes() as Promise<Theme[]>).then(setThemes).catch(() => { /* Themen-Liste optional */ });
+    // Beim (Neu-)Mount den echten Zustand aus dem Main hydrieren — sonst zeigt die
+    // Karte „kein Spiel/Boss läuft", obwohl im Overlay eins läuft (und ein Klick
+    // auf „Boss starten" würde den laufenden Boss neu spawnen).
+    const sync = () => {
+      void (window.studio.gameState() as Promise<{ kind: Kind } | null>).then((g) => setActive(g?.kind ?? null)).catch(() => { /* egal */ });
+      void (window.studio.bossState() as Promise<unknown | null>).then((b) => setBossOn(!!b)).catch(() => { /* egal */ });
+    };
+    sync();
+    const t = setInterval(sync, 4000); // bleibt nach Auto-Rundenwechsel/Stop korrekt
+    return () => clearInterval(t);
   }, []);
 
   const start = async (kind: Kind, config?: unknown) => {

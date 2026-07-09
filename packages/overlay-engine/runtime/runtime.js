@@ -686,7 +686,9 @@ function connect() {
     else if (msg.kind === 'reset') dispatchReset();
     else if (msg.kind === 'moment') dispatchMoment(msg.moment);
     else if (msg.kind === 'game-state') dispatchToWidgets('onGameState', { gameKind: msg.gameKind, state: msg.state });
-    else if (msg.kind === 'game-event') dispatchToWidgets('onGameEvent', { gameKind: msg.gameKind, event: msg.event, payload: msg.payload });
+    // `type` = `event` mitschicken: einige Widgets lesen msg.type / msg.event.type
+    // statt des Event-Strings — ohne dies fielen Win-Celebration/Reveal-Sound aus.
+    else if (msg.kind === 'game-event') dispatchToWidgets('onGameEvent', { gameKind: msg.gameKind, event: msg.event, type: msg.event, payload: msg.payload });
   };
 
   ws.onclose = () => {

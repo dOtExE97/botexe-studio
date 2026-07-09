@@ -71,6 +71,14 @@ test('start() räumt ein laufendes Auto-Quiz auf (altes Spiel kapert das neue ni
   }, 30));
 });
 
+test('Hangman mit leerem/buchstabenlosem Wort startet nicht (validiert)', () => {
+  const { s } = svc();
+  assert.equal(s.start('hangman', { word: '   ' }).ok, false, 'leeres Wort abgelehnt');
+  assert.equal(s.start('hangman', { word: '123!' }).ok, false, 'ohne Buchstabe abgelehnt');
+  assert.equal(s.start('hangman', { word: 'Apfel' }).ok, true, 'gültiges Wort ok');
+  s.stop();
+});
+
 test('startQuizAuto: leere Frageliste startet nicht', () => {
   const { s } = svc();
   assert.equal(s.startQuizAuto([]).ok, false);

@@ -64,8 +64,12 @@ export class HangmanGame {
 
   /** Startet/erneuert eine Runde. Wort wird uppercase normalisiert. */
   start(config: HangmanConfig): void {
-    this.word = (config.word ?? '').toUpperCase();
-    this.maxWrong = config.maxWrong ?? 6;
+    const word = (config.word ?? '').trim().toUpperCase();
+    // Hart validieren (nicht nur die UI): ein leeres Wort / eins ohne ratbaren
+    // Buchstaben würde ein sofort „gelöstes" oder unspielbares Rätsel erzeugen.
+    if (!/[A-ZÄÖÜ]/u.test(word)) throw new Error('Das Wort braucht mindestens einen Buchstaben.');
+    this.word = word;
+    this.maxWrong = Math.min(20, Math.max(1, Math.round(config.maxWrong ?? 6)));
     this.wrong = 0;
     this.guessed = [];
     this.solvedByGuess = false;

@@ -12,6 +12,7 @@ interface Diag {
   recentClientIssues: { at: number; text: string }[];
   keySet: boolean; connectMode: string; username: string;
   layoutCount: number; activeLayoutId: string;
+  platformConnected: boolean; platformStatus: string;
 }
 
 function Row({ ok, warn, label, hint }: { ok: boolean; warn?: boolean; label: string; hint: string }) {
@@ -30,7 +31,7 @@ function Row({ ok, warn, label, hint }: { ok: boolean; warn?: boolean; label: st
 
 export default function DiagnosePage() {
   const [d, setD] = useState<Diag | null>(null);
-  const [connected, setConnected] = useState(false);
+  const [liveConnected, setLiveConnected] = useState<boolean | null>(null); // von Live-Events; null = noch keins
 
   const load = useCallback(() => {
     void (window.studio.getDiagnostics() as Promise<Diag>).then(setD).catch(() => setD(null));
@@ -40,12 +41,15 @@ export default function DiagnosePage() {
     load();
     const t = setInterval(load, 3000); // live aktualisieren
     // Verbindungsstatus separat (kommt über den Status-Stream)
-    const off = window.studio.onPlatformStatus((s: { status: string }) => setConnected(s.status === 'connected'));
+    const off = window.studio.onPlatformStatus((s: { status: string }) => setLiveConnected(s.status === 'connected'));
     return () => { clearInterval(t); off(); };
   }, [load]);
 
   if (!d) return <div className="p-8 text-studio-muted">Lade Diagnose…</div>;
 
+  // Live-Event bevorzugt (sofort), sonst der Snapshot aus getDiagnostics — so
+  // stimmt der Status auch, wenn man die Seite erst NACH dem Connect öffnet.
+  const connected = liveConnected ?? d.platformConnected;
   const overlayConnected = d.clientCount > 0;
   const broadcastAgo = d.lastBroadcastAt ? Math.round((Date.now() - d.lastBroadcastAt) / 1000) : null;
 
