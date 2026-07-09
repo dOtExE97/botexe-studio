@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal, Stethoscope } from 'lucide-react';
+import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal, Stethoscope, Sliders } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
 import ToastHost, { toast } from './components/ToastHost';
@@ -18,8 +18,9 @@ import SettingsPage from './pages/SettingsPage';
 import ViewersPage from './pages/ViewersPage';
 import GalleryPage from './pages/GalleryPage';
 import CommandsPage from './pages/CommandsPage';
+import MixerPage from './pages/MixerPage';
 
-type Page = 'live' | 'overlay' | 'triggers' | 'commands' | 'gallery' | 'store' | 'panel' | 'sounds' | 'tts' | 'viewers' | 'diagnose' | 'settings';
+type Page = 'live' | 'overlay' | 'triggers' | 'commands' | 'gallery' | 'store' | 'panel' | 'sounds' | 'tts' | 'mixer' | 'viewers' | 'diagnose' | 'settings';
 
 const NAV: { id: Page; label: string; icon: typeof Radio; group: string; hint: string }[] = [
   { id: 'live', label: 'Live', icon: Radio, group: 'Stream', hint: 'Mit TikTok verbinden, Live-Zahlen & Chat-Spiele starten' },
@@ -31,6 +32,7 @@ const NAV: { id: Page; label: string; icon: typeof Radio; group: string; hint: s
   { id: 'panel', label: 'Panel', icon: Gamepad2, group: 'Reaktionen', hint: 'Deine eigenen Knöpfe/Hotkeys, um selbst Aktionen auszulösen' },
   { id: 'sounds', label: 'Sounds', icon: Volume2, group: 'Medien', hint: 'Sound-Dateien hochladen & verwalten' },
   { id: 'tts', label: 'Stimme', icon: Mic, group: 'Medien', hint: 'Text-to-Speech: Chat-Nachrichten vorlesen lassen' },
+  { id: 'mixer', label: 'Mixer', icon: Sliders, group: 'Medien', hint: 'Lautstärke, Mute & Ausgabegerät pro Sound-Quelle (TTS, Alerts, Soundboard, Spiele)' },
   { id: 'viewers', label: 'Zuschauer', icon: Users, group: 'Mehr', hint: 'Zuschauer-Liste mit Punkten, VIPs, Besuchen' },
   { id: 'diagnose', label: 'Diagnose', icon: Stethoscope, group: 'Mehr', hint: 'Warum sehe ich mein Overlay nicht? Server, verbundene Quellen, Key — auf einen Blick' },
   { id: 'settings', label: 'Einstellungen', icon: Settings, group: 'Mehr', hint: 'TikTok-Verbindung (Key!), Punkte, OBS, Backup, Lizenzen …' },
@@ -185,6 +187,7 @@ export default function App() {
           {page === 'panel' && <PanelPage />}
           {page === 'sounds' && <SoundsPage />}
           {page === 'tts' && <TtsPage />}
+          {page === 'mixer' && <MixerPage />}
           {page === 'viewers' && <ViewersPage />}
           {page === 'diagnose' && <DiagnosePage />}
           {page === 'settings' && <SettingsPage />}

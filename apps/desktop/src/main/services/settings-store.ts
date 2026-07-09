@@ -7,6 +7,7 @@ import type { TriggerRule, Redemption, PanelButton, ChatCommand } from '@botexe/
 import { DEFAULT_POINTS_CONFIG, type PointsConfig } from './points-store';
 import { migrateReadWho, type ReadGroup } from './tts-filter';
 import type { AnnounceConfig, GiftAnnounceConfig } from './tts-announce';
+import { DEFAULT_MIXER, normalizeMixer, type MixerSettings } from '../../shared/mixer';
 import { log } from '../core/logger';
 
 export const SETTINGS_SCHEMA_VERSION = 6;
@@ -42,6 +43,8 @@ export interface StudioSettings {
   /** Label des gewählten Geräts — Fallback, falls die deviceId nach einem
    *  Neustart/Umstecken nicht mehr matcht (dann per Name wiederfinden). */
   audioOutputLabel: string;
+  /** App-Mixer: Lautstärke/Mute/Ausgabegerät pro Sound-Kategorie. */
+  mixer: MixerSettings;
   triggerRules: TriggerRule[];
   /** Punkte-Einlöse-Store: Chat-Befehl → Punkte ausgeben → Aktion. */
   redemptions: Redemption[];
@@ -138,6 +141,7 @@ const DEFAULTS: StudioSettings = {
   soundVolume: 0.7,
   audioOutputId: '',
   audioOutputLabel: '',
+  mixer: DEFAULT_MIXER,
   triggerRules: [],
   redemptions: [],
   panelButtons: [],
@@ -238,6 +242,8 @@ export class SettingsStore {
       );
       merged.audioOutputId = typeof raw.audioOutputId === 'string' ? raw.audioOutputId : '';
       merged.audioOutputLabel = typeof raw.audioOutputLabel === 'string' ? raw.audioOutputLabel : '';
+      // App-Mixer (additiv): fehlend/kaputt → Defaults, Zahlen geklemmt.
+      merged.mixer = normalizeMixer(raw.mixer);
       const gw = raw.giveaway as Record<string, unknown> | undefined;
       merged.giveaway = {
         enabled: typeof gw?.enabled === 'boolean' ? gw.enabled : false,

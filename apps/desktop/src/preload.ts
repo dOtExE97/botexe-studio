@@ -152,7 +152,7 @@ const api = {
   onPlatformStatus: listen<{ status: string; isReconnect: boolean; attempt?: number }>(IPC.PLATFORM_STATUS),
   onBusEvent: listen<Record<string, unknown>>(IPC.BUS_EVENT),
   onStats: listen<Record<string, unknown>>(IPC.STATS_UPDATE),
-  onSoundPlay: listen<{ soundId: string; url: string; volume: number }>(IPC.SOUND_PLAY),
+  onSoundPlay: listen<{ soundId: string; url: string; volume: number; category?: string }>(IPC.SOUND_PLAY),
   /** Renderer meldet, dass ein Audio fertig ist (fürs TTS-Sequencing). */
   reportSoundEnded: (soundId: string) => ipcRenderer.send(IPC.SOUND_ENDED, soundId),
   onToast: listen<{ type: 'error' | 'warn' | 'info'; message: string }>(IPC.TOAST_SHOW),

@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.4.0] — 2026-07-09
+
+### Neu
+- **Mixer** 🎚️ (Menü → Medien → Mixer): jede Sound-Quelle einzeln regeln — **Lautstärke, Stummschalten und ein eigenes Ausgabegerät** pro Kategorie:
+  - **Vorlese-Stimme** (TTS) · **Alerts & Gifts** · **Soundboard** · **Spiele** (Quiz, Glücksrad, Feuerwerk, Gewinner)
+  - Plus ein **Master-Regler** über alles und ein **Test-Ton** je Kanal.
+  - Der Clou: Du kannst z.B. die Vorlese-Stimme auf ein **anderes Ausgabegerät** legen (eigener Rodecaster-/VoiceMeeter-Kanal) und im Stream getrennt mischen — der Rest bleibt auf dem Standard-Gerät.
+  - Ducking (andere Sounds leiser, während vorgelesen wird) und der Probehör-Ton laufen bewusst am Mixer vorbei.
+
+---
+
 ## [0.3.33] — 2026-07-09
 
 ### Behoben (aus externem Codex-Audit)

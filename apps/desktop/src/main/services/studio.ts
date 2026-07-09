@@ -15,6 +15,7 @@ import { TikTokAdapter, createDirectConnection, type AdapterStatusInfo } from '.
 import { EulerCloudConnection } from '../adapters/tiktok-cloud';
 import { OverlayServer } from '../adapters/overlay-server';
 import { SettingsStore, redactSecretsForExport, type GiveawaySettings } from './settings-store';
+import type { SoundCategory } from '../../shared/mixer';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
 import { MediaLibrary } from './media-library';
@@ -45,6 +46,8 @@ export interface SoundCommand {
   soundId: string;
   url: string;
   volume: number;
+  /** Mixer-Kategorie — steuert Kanal-Lautstärke/Mute/Gerät im SoundPlayer. */
+  category?: SoundCategory;
 }
 
 /** Eine Zeile im Trigger-Live-Protokoll. */
@@ -209,7 +212,7 @@ export class Studio {
       (playback) => {
         const tts = this.settings.get().tts;
         const url = `http://127.0.0.1:${this.server.getPort()}/tts/${playback.fileId}?token=${this.server.getToken()}`;
-        this.hooks.onSoundPlay({ soundId: playback.fileId, url, volume: tts.volume });
+        this.hooks.onSoundPlay({ soundId: playback.fileId, url, volume: tts.volume, category: 'tts' });
       },
       () => this.settings.get().ttsCredentials,
       (message) => this.hooks.onToast?.({ type: 'error', message }),
@@ -234,7 +237,7 @@ export class Studio {
         currencyName: this.settings.get().points.currencyName,
       }),
       onClientCountChange: () => this.refreshSpotifyPolling(),
-      onWidgetSound: (soundId) => this.playSound(soundId),
+      onWidgetSound: (soundId) => this.playSound(soundId, undefined, 'game'),
       onGameWin: (_winId, user) => this.recordGameWin(user),
       giftImagesDir: this.giftCatalog.getImagesDir(),
       getGiftCatalog: () => this.getGiftCatalog(),
@@ -389,7 +392,7 @@ export class Studio {
           sender: e.user ? { id: e.user.id, nickname: e.user.nickname } : undefined,
         });
         for (const soundId of collectGiftSounds(this.layouts.list(), e.gift.totalCoins)) {
-          this.playSound(soundId);
+          this.playSound(soundId, undefined, 'alert');
         }
         this.maybeAnnounceGift(e); // TTS-Ansage ab Coin-Schwelle
       }
@@ -481,7 +484,7 @@ export class Studio {
   /** Eine Trigger-Aktion ausführen — gemeinsamer Pfad für Events und Timer. */
   private runAction(ruleId: string, action: import('@botexe/trigger-engine').TriggerAction, event: StudioEvent): void {
     if (action.kind === 'play_sound') {
-      this.playSound(action.soundId, action.volume);
+      this.playSound(action.soundId, action.volume, 'soundboard');
     } else if (action.kind === 'obs_scene') {
       void this.obs.setScene(action.scene);
     } else if (action.kind === 'obs_visibility') {
@@ -514,11 +517,11 @@ export class Studio {
       // Rad-Sounds (am Widget konfiguriert): Drehen sofort, Gewinn nach spinMs.
       const ws = findWheelSounds(this.layouts.list(), action.targetId);
       if (ws) {
-        if (ws.spin) this.playSound(ws.spin);
+        if (ws.spin) this.playSound(ws.spin, undefined, 'game');
         if (ws.result) {
           const timer = setTimeout(() => {
             this.actionTimers.delete(timer);
-            this.playSound(ws.result);
+            this.playSound(ws.result, undefined, 'game');
           }, ws.spinMs);
           this.actionTimers.add(timer);
         }
@@ -1483,10 +1486,10 @@ export class Studio {
 
   // ── Sound ─────────────────────────────────────────────────────────────
 
-  playSound(soundId: string, volume?: number): void {
+  playSound(soundId: string, volume?: number, category: SoundCategory = 'soundboard'): void {
     const vol = volume ?? this.settings.get().soundVolume;
     const url = `http://127.0.0.1:${this.server.getPort()}/sounds/${encodeURIComponent(soundId)}?token=${this.server.getToken()}`;
-    this.hooks.onSoundPlay({ soundId, url, volume: vol });
+    this.hooks.onSoundPlay({ soundId, url, volume: vol, category });
   }
 
   /** MyInstants-Treffer vorhören (ohne Import): über den lokalen /preview-Proxy,

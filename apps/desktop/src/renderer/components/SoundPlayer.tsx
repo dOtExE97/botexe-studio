@@ -2,8 +2,16 @@
 // Das Ausgabegerät (z.B. Rodecaster, virtuelles Kabel oder einfach Standard)
 // wird per setSinkId gewählt. Bewusst NICHT im Overlay: der TTLS-Browser
 // spielt Audio unzuverlässig (Spec §5).
+//
+// App-Mixer: jeder Sound trägt eine Kategorie (tts/alert/soundboard/game). Pro
+// Kategorie gelten eigene Lautstärke, Mute und optional ein eigenes Ausgabegerät
+// (z.B. TTS auf einen anderen Rodecaster-/VoiceMeeter-Kanal legen).
 import { useEffect, useRef } from 'react';
 import { toast } from './ToastHost';
+import {
+  DEFAULT_MIXER, normalizeMixer, channelGain, categoryOf, SOUND_CATEGORIES,
+  type MixerSettings,
+} from '../../shared/mixer';
 
 const MAX_PARALLEL = 4;
 const DUCK = 0.3; // andere Sounds auf 30%, während TTS spricht (Ducking)
@@ -15,50 +23,75 @@ export default function SoundPlayer() {
   const playing = useRef(0);
   const sinkId = useRef('');
   const sinkLabel = useRef('');
-  const effectiveSink = useRef(''); // aufgelöste deviceId (mit Label-Fallback)
+  // Aufgelöste deviceIds (mit Label-Fallback): 'global' + eine pro Kategorie.
+  const sinks = useRef<Record<string, string>>({ global: '' });
+  const mixer = useRef<MixerSettings>(DEFAULT_MIXER);
   // Ducking: laufende Nicht-TTS-Sounds + wie viele TTS gerade sprechen.
   const ttsActive = useRef(0);
   const duckable = useRef(new Set<{ a: HTMLAudioElement; base: number }>());
 
   useEffect(() => {
-    // Effektives Ausgabegerät bestimmen: gespeicherte deviceId wenn noch
+    // Effektive Ausgabegeräte bestimmen: gespeicherte deviceId wenn noch
     // vorhanden, sonst per Label wiederfinden (deviceIds können nach Neustart/
-    // Umstecken wechseln → sonst fällt der Ton auf „System" zurück).
+    // Umstecken wechseln → sonst fällt der Ton auf „System" zurück). Wird für
+    // das globale Gerät UND jedes Kanal-Gerät durchgeführt.
     const resolve = async () => {
-      const id = sinkId.current;
-      if (!id) { effectiveSink.current = ''; return; }
+      let outs: MediaDeviceInfo[] = [];
       try {
-        const outs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audiooutput');
-        if (outs.some((d) => d.deviceId === id)) { effectiveSink.current = id; return; }
-        const byLabel = outs.find((d) => sinkLabel.current && d.label === sinkLabel.current);
-        effectiveSink.current = byLabel ? byLabel.deviceId : id;
-      } catch { effectiveSink.current = id; }
+        outs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audiooutput');
+      } catch { /* keine Geräte auflösbar → IDs unverändert nutzen */ }
+      const one = (id: string, label: string): string => {
+        if (!id) return '';
+        if (outs.some((d) => d.deviceId === id)) return id;
+        const byLabel = outs.find((d) => label && d.label === label);
+        return byLabel ? byLabel.deviceId : id;
+      };
+      const globalId = one(sinkId.current, sinkLabel.current);
+      const next: Record<string, string> = { global: globalId };
+      for (const c of SOUND_CATEGORIES) {
+        const ch = mixer.current.channels[c];
+        next[c] = ch.sinkId ? one(ch.sinkId, ch.sinkLabel) : globalId; // eigenes Gerät oder global
+      }
+      sinks.current = next;
     };
-    void window.studio.getSettings().then((s: { audioOutputId?: string; audioOutputLabel?: string }) => {
+    void window.studio.getSettings().then((s: { audioOutputId?: string; audioOutputLabel?: string; mixer?: unknown }) => {
       sinkId.current = s.audioOutputId ?? '';
       sinkLabel.current = s.audioOutputLabel ?? '';
+      mixer.current = normalizeMixer(s.mixer);
       void resolve();
     });
-    const onChange = (e: Event) => { sinkId.current = (e as CustomEvent<string>).detail ?? ''; void resolve(); };
-    window.addEventListener('bx-audio-output', onChange);
+    const onOutput = (e: Event) => { sinkId.current = (e as CustomEvent<string>).detail ?? ''; void resolve(); };
+    const onMixer = (e: Event) => { mixer.current = normalizeMixer((e as CustomEvent).detail); void resolve(); };
+    window.addEventListener('bx-audio-output', onOutput);
+    window.addEventListener('bx-mixer', onMixer);
     navigator.mediaDevices?.addEventListener?.('devicechange', resolve);
     return () => {
-      window.removeEventListener('bx-audio-output', onChange);
+      window.removeEventListener('bx-audio-output', onOutput);
+      window.removeEventListener('bx-mixer', onMixer);
       navigator.mediaDevices?.removeEventListener?.('devicechange', resolve);
     };
   }, []);
 
   useEffect(() => {
     return window.studio.onSoundPlay((cmd) => {
+      // Probehören/Mixer-Test läuft bewusst am Mixer VORBEI (volle Lautstärke,
+      // globales Gerät) — beim Einstellen muss man immer etwas hören.
+      const isPreview = cmd.soundId === 'preview';
+      const category = categoryOf(cmd as { category?: (typeof SOUND_CATEGORIES)[number]; soundId: string });
+      const isTts = category === 'tts';
+      const gain = isPreview ? 1 : channelGain(mixer.current, category);
+
+      // Kanal stumm (gain 0) → gar nicht erst abspielen, aber TTS-Sequencing
+      // freigeben, damit die Vorlese-Warteschlange nicht hängen bleibt.
+      if (gain <= 0 && !isPreview) { window.studio.reportSoundEnded(cmd.soundId); return; }
       if (playing.current >= MAX_PARALLEL) {
         window.studio.reportSoundEnded(cmd.soundId); // übersprungen → TTS nicht blockieren
         return; // sound-bombing deckeln
       }
+
       const audio = new Audio(cmd.url) as SinkAudio;
-      // TTS-Dateien heißen „tts-…" (siehe tts-service). Während TTS spricht,
-      // werden andere Sounds leiser (Ducking) → die Ansage bleibt verständlich.
-      const isTts = String(cmd.soundId).startsWith('tts-');
-      const base = Math.min(1, Math.max(0, cmd.volume));
+      // base = gewünschte Lautstärke nach Mixer-Gain (Ducking kommt oben drauf).
+      const base = Math.min(1, Math.max(0, cmd.volume)) * gain;
       audio.volume = isTts ? base : base * (ttsActive.current > 0 ? DUCK : 1);
       const entry = { a: audio as HTMLAudioElement, base };
       if (isTts) {
@@ -83,10 +116,11 @@ export default function SoundPlayer() {
       audio.addEventListener('ended', done, { once: true });
       audio.addEventListener('error', () => { done(); toast('error', 'Sound konnte nicht abgespielt werden.'); }, { once: true });
       const start = () => void audio.play().catch(done);
-      // Gewähltes Ausgabegerät anwenden (leer = Standard); bei Fehler trotzdem
-      // abspielen (Fallback Standard), damit kein Sound verschluckt wird.
-      if (effectiveSink.current && audio.setSinkId) {
-        audio.setSinkId(effectiveSink.current).then(start, start);
+      // Gewähltes Ausgabegerät anwenden: Kanal-Gerät (falls gesetzt) sonst global;
+      // Vorhören immer global. Bei Fehler trotzdem abspielen (Fallback Standard).
+      const targetSink = isPreview ? sinks.current.global : (sinks.current[category] ?? sinks.current.global);
+      if (targetSink && audio.setSinkId) {
+        audio.setSinkId(targetSink).then(start, start);
       } else {
         start();
       }
