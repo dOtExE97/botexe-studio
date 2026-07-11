@@ -1450,7 +1450,9 @@ export class Studio {
       // Klarer Grund: Prefix fehlt (gilt AUCH für Mods/Follower!) vs. nicht in
       // gewählter Gruppe — sonst führt das Log auf die falsche Fährte.
       const grund = decision.reason === 'prefix' ? `kein „${prefix}" davor` : 'nicht in gewählter Gruppe';
-      this.logTtsDecision(`übersprungen: ${nick} (${grund})`);
+      // Das ist das NORMALE Filter-Verhalten (bei Prefix-Modus praktisch jede
+      // Chat-Nachricht) → nur Debug, sonst besteht das Stream-Log zu ~70% daraus.
+      this.logTtsDecision(`übersprungen: ${nick} (${grund})`, 'debug');
       return;
     }
 
@@ -1479,7 +1481,10 @@ export class Studio {
   }
 
   /** TTS-Entscheidung ins Log — gedrosselt (max 1/2s), damit es nicht flutet. */
-  private logTtsDecision(msg: string): void {
+  private logTtsDecision(msg: string, level: 'info' | 'debug' = 'info'): void {
+    // Debug-Entscheidungen (Filter-Spam) gehen leise raus und berühren die
+    // Drossel NICHT — sonst würde ein Skip ein folgendes „vorgelesen" verschlucken.
+    if (level === 'debug') { log.debug('TTS', msg); return; }
     const now = Date.now();
     if (now - this.lastTtsDecisionLogAt < 2000) return;
     this.lastTtsDecisionLogAt = now;

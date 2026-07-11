@@ -86,7 +86,9 @@ function write(level: Level, scope: string, message: string, detail?: string): v
   if (level === 'error') orig.error(line);
   else if (level === 'warn') orig.warn(line);
   else orig.log(line);
-  appendFile(line);
+  // debug ist ephemer: nur Konsole (Dev), NICHT in die Logdatei — sonst mülen
+  // hochfrequente Entscheidungs-Logs (z.B. TTS-Filter) das Stream-Log zu.
+  if (level !== 'debug') appendFile(line);
 }
 
 export const log = {

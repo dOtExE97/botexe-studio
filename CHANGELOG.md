@@ -3,6 +3,15 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.5.3] — 2026-07-11
+
+### Geändert (Log-Aufräumung — aus Live-Logs)
+- **Stream-Log ist wieder lesbar** 📖 — das häufige `TTS übersprungen (kein „." davor)` (bei aktivem Prefix-Modus praktisch jede Chat-Nachricht → machte ~70% des Logs aus) wandert auf **Debug** und landet nicht mehr in der Logdatei. „Vorgelesen" und Moderations-Skips (stumm/gesperrt) bleiben sichtbar.
+- **Kein Fake-`[ERROR]` am Stream-Ende mehr** — „Streamer ist nicht live" beim automatischen Warten aufs Live ist jetzt eine **INFO** (kein alarmierender Fehler). Echte Verbindungsfehler bleiben `ERROR`.
+- `debug`-Logs sind ab jetzt generell ephemer (nur Konsole, nicht in der Datei).
+
+---
+
 ## [0.5.2] — 2026-07-09
 
 ### Behoben

@@ -321,7 +321,13 @@ export class TikTokAdapter {
     } catch (err) {
       if (epoch !== this.epoch) return;
       const msg = (err as Error).message || '';
-      log.error('TikTok', 'Verbindung fehlgeschlagen', msg);
+      // „(Noch) nicht live" ist KEIN Fehler (Stream-Ende / wartet aufs Live) →
+      // als INFO loggen, nicht als alarmierendes ERROR. Echte Fehler bleiben ERROR.
+      if (isOfflineError(msg)) {
+        log.info('TikTok', `@${this.username} ist gerade nicht live — verbinde automatisch, sobald wieder live.`);
+      } else {
+        log.error('TikTok', 'Verbindung fehlgeschlagen', msg);
+      }
       // Externer Sign-Server (eulerstream) lehnt ab → Retry ist zwecklos und
       // verbrennt nur Kontingent. Sofort aufgeben mit klarer, handlungsfähiger
       // Meldung (Sign-Key nötig).
