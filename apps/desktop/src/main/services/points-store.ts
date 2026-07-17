@@ -51,6 +51,9 @@ export interface PointsEntry {
   welcomeMediaId?: string;
   /** Wie oft dieser Zuschauer schon da war (Besuche, Lücke ≥ RETURN_GAP_MS = neuer). */
   visitCount?: number;
+  /** true = hat schon mindestens einmal gefolgt (seit die App ihn kennt) —
+   *  unterscheidet Erst-Follow von Re-Follow (z.B. Jumpscare nur beim ersten Mal). */
+  everFollowed?: boolean;
 }
 
 /** Abstand, ab dem ein erneuter Kontakt als NEUER Besuch zählt (4 h → neuer Stream). */
@@ -182,6 +185,19 @@ export class PointsStore {
   isVip(userId: string): boolean { return this.viewers.get(userId)?.vip === true; }
   /** Wie oft dieser Zuschauer schon da war (für Stammgast-Begrüßung). */
   visitCountOf(userId: string): number { return this.viewers.get(userId)?.visitCount ?? 0; }
+  /** Merkt „hat gefolgt" und meldet, ob es das ERSTE Mal war (kein Re-Follow).
+   *  Legt den Eintrag bei Bedarf an. Idempotent: nur der erste Aufruf gibt true. */
+  markFollowed(userId: string, nickname?: string): boolean {
+    const e = this.viewers.get(userId) ?? { id: userId, nickname: nickname ?? userId, points: 0 };
+    const wasFirst = e.everFollowed !== true;
+    if (wasFirst) {
+      e.everFollowed = true;
+      if (nickname) e.nickname = nickname;
+      this.viewers.set(userId, e);
+      this.scheduleSave();
+    }
+    return wasFirst;
+  }
   voiceFor(userId: string): string | undefined { return this.viewers.get(userId)?.voice; }
 
   /** Punkte manuell ändern (auch negativ); legt Eintrag an falls nötig. */

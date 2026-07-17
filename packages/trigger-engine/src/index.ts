@@ -54,6 +54,9 @@ export interface StudioEvent {
   viewerCount?: number;
   /** true = dieser Zuschauer ist zum allerersten Mal aktiv (Studio reichert an). */
   firstOfUser?: boolean;
+  /** true = dieser Zuschauer folgt zum ersten Mal (seit die App ihn kennt) —
+   *  kein Re-Follow. Studio reichert an; nur bei type === 'follow' relevant. */
+  firstFollow?: boolean;
   /** true = Test-/Replay-Event (Vorschau) — löst Overlay/TTS aus, wird aber NICHT
    *  persistent verbucht (keine echten Punkte/Coins/Likes, kein Gift-Katalog). */
   synthetic?: boolean;
@@ -68,6 +71,8 @@ export type TriggerCondition =
   | { kind: 'chat_command'; value: string }
   /** Allererste Nachricht dieses Zuschauers (über alle Streams) — Begrüßung. */
   | { kind: 'chat_first_time' }
+  /** Erst-Follow (kein Re-Follow) — z.B. Jumpscare nur beim ersten Mal. */
+  | { kind: 'follow_first_time' }
   | { kind: 'viewer_count_gte'; value: number };
 
 export type TriggerActionKind =
@@ -281,6 +286,8 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return commandMatches(event.text ?? '', condition.value);
     case 'chat_first_time':
       return event.firstOfUser === true;
+    case 'follow_first_time':
+      return event.firstFollow === true;
     case 'viewer_count_gte':
       return event.viewerCount !== undefined && event.viewerCount >= condition.value;
   }

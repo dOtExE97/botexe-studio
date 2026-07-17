@@ -3,8 +3,9 @@
 // Treffer: Kacheln flippen zur Zahl, Gewinner mit Name + Avatar, Sound —
 // danach automatisch neue Runde (props.autoNewRound).
 //
-// Deterministisch: Geheimzahl aus (layerId + Rundennummer) — alle Overlay-
-// Clients (OBS + TTLS) haben dieselbe Zahl und denselben Gewinner.
+// Geheimzahl aus (Session-Seed + layerId + Rundennummer) — alle Overlay-Clients
+// (OBS + TTLS) haben dieselbe Zahl/denselben Gewinner, aber JEDER Stream eine
+// andere (Seed kommt pro Session vom Server via hello/reset).
 // props: { min?, max?, hints?, autoNewRound?, roundDelayMs?, winSoundId?,
 //          title?, accent? }
 const STYLE_ID = 'bx-gn-style';
@@ -86,7 +87,7 @@ export default class GuessNumberWidget {
   newRound(animate) {
     this.round++;
     this.solved = false;
-    this.secret = rngInt(`${this.ctx.layerId || 'guess'}-${this.round}`, this.min, this.max);
+    this.secret = rngInt(`${this.ctx.sessionSeed || ''}-${this.ctx.layerId || 'guess'}-${this.round}`, this.min, this.max);
     this.hintEl.textContent = '';
     this.subEl.textContent = `Schreib eine Zahl von ${this.min} bis ${this.max} in den Chat!`;
     this.renderTiles('?', animate);

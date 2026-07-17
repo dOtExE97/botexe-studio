@@ -307,6 +307,9 @@ async function renderLayout(layout) {
           baseUrl: cfg.baseUrl,
           token: cfg.token,
           layerId: layer.id,
+          // Session-Seed als Getter → Widgets lesen immer den aktuellen Wert
+          // (auch wenn er per reset erst nach dem Mount aktualisiert wird).
+          get sessionSeed() { return sessionSeed; },
           // Editor-Vorschau: Widgets, die nur auf seltene Ereignisse reagieren
           // (z.B. Meilenstein-Konfetti), können sich damit selbst vorführen.
           preview: PREVIEW,
@@ -629,6 +632,9 @@ let reconnectDelay = 1000;
 // hinweg (= App wurde aktualisiert), lädt die Seite neu → frischer Overlay-Code.
 let seenVersion = null;
 let activeWs = null;
+// Session-Seed vom Server (hello/reset) — deterministische Spiele (Zahlen-Raten,
+// Bingo) würfeln damit pro Stream andere Zahlen, aber synchron über alle Quellen.
+let sessionSeed = '';
 
 // Widget-/Runtime-Fehler an die App melden (zentrales Datei-Log), nicht nur
 // in die TTLS-Browser-Console (die sieht niemand).
@@ -662,6 +668,7 @@ function connect() {
     // damit Browser-Quellen den frischen Runtime-/Widget-Code holen statt ewig den
     // alten im Speicher zu behalten.
     if (msg.kind === 'hello') {
+      if (msg.seed) sessionSeed = msg.seed; // Session-Seed für deterministische Spiele
       // Editor-Vorschau (PREVIEW) NICHT neuladen — würde mitten im Bearbeiten
       // neu starten; sie wird beim App-Neustart ohnehin frisch geladen.
       if (seenVersion !== null && seenVersion !== msg.version && !PREVIEW) {
@@ -683,7 +690,7 @@ function connect() {
     else if (msg.kind === 'action') dispatchAction(msg.ruleId, msg.action);
     else if (msg.kind === 'stats') dispatchStats(msg.stats);
     else if (msg.kind === 'spotify') dispatchSpotify(msg.state);
-    else if (msg.kind === 'reset') dispatchReset();
+    else if (msg.kind === 'reset') { if (msg.seed) sessionSeed = msg.seed; dispatchReset(); }
     else if (msg.kind === 'moment') dispatchMoment(msg.moment);
     else if (msg.kind === 'game-state') dispatchToWidgets('onGameState', { gameKind: msg.gameKind, state: msg.state });
     // `type` = `event` mitschicken: einige Widgets lesen msg.type / msg.event.type

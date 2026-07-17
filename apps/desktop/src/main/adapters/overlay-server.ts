@@ -22,13 +22,13 @@ import type { EventBus } from '../core/event-bus';
 import { log } from '../core/logger';
 
 export type OverlayMessage =
-  | { kind: 'hello'; version: string } // App-Version → Runtime lädt bei Wechsel neu
+  | { kind: 'hello'; version: string; seed: string } // App-Version (Reload-Handshake) + Session-Seed für deterministische Spiele
   | { kind: 'layout'; layout: OverlayLayout }
   | { kind: 'event'; event: StudioEvent }
   | { kind: 'action'; ruleId: string; action: TriggerAction }
   | { kind: 'stats'; stats: unknown }
   | { kind: 'spotify'; state: unknown } // Now-Playing fürs Spotify-Widget
-  | { kind: 'reset' } // neuer Stream → Overlay-Zähler/Top-Listen zurücksetzen
+  | { kind: 'reset'; seed: string } // neuer Stream → Overlay-Zähler/Top-Listen zurücksetzen + neuer Session-Seed
   | { kind: 'moment'; moment: MomentPayload } // Premium-Einblender fürs action-screen
   | { kind: 'game-state'; gameKind: string; state: unknown } // Spielzustand fürs Spiel-Widget
   | { kind: 'game-event'; gameKind: string; event: string; payload?: unknown }; // Spiel-Effekt (win/reveal …)
@@ -119,6 +119,10 @@ export class OverlayServer {
   private port: number;
   private clients = new Set<TrackedClient>();
   private lastBroadcastAt = 0;
+  /** Zufalls-Seed pro Session — fließt in deterministische Spiele (Zahlen-Raten,
+   *  Bingo), damit alle Overlay-Quellen dieselbe Zahl haben, aber JEDER Stream
+   *  eine andere. Neu gewürfelt bei jedem Stream-Start (broadcastReset). */
+  private sessionSeed = crypto.randomBytes(8).toString('hex');
   private readonly recentClientIssues: { at: number; text: string }[] = [];
   /** soundId → letzter Abspiel-Zeitpunkt (Dedup über mehrere Overlay-Clients). */
   private soundDedup = new Map<string, number>();
@@ -621,7 +625,7 @@ export class OverlayServer {
       // Allererste Nachricht: App-Version. Hat die Runtime schon eine ANDERE
       // Version gesehen (= App wurde aktualisiert, Server neu gestartet), lädt
       // sie die Seite neu und holt den frischen Overlay-/Widget-Code.
-      this.sendTo(client, { kind: 'hello', version: this.options.appVersion ?? '' }, true);
+      this.sendTo(client, { kind: 'hello', version: this.options.appVersion ?? '', seed: this.sessionSeed }, true);
 
       // Initial-Zustand: aktives Layout + sticky last-values, damit der
       // Overlay-Canvas nicht leer startet (Late-Joiner).
@@ -750,6 +754,13 @@ export class OverlayServer {
       lastBroadcastAt: this.lastBroadcastAt,
       recentClientIssues: [...this.recentClientIssues],
     };
+  }
+
+  /** Neuer Stream: Overlay-Zähler/Listen zurücksetzen UND einen frischen
+   *  Session-Seed würfeln (deterministische Spiele → jede Session neue Zahlen). */
+  broadcastReset(): void {
+    this.sessionSeed = crypto.randomBytes(8).toString('hex');
+    this.broadcast({ kind: 'reset', seed: this.sessionSeed });
   }
 
   broadcast(message: OverlayMessage): void {

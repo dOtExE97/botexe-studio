@@ -83,6 +83,9 @@ export interface StudioSettings {
   /** Beim App-Start automatisch warten, bis der letzte Account live geht, und
    *  dann verbinden (wie TikFinity) — billiger Live-Check, kein Sign-Kontingent. */
   autoLiveWatch: boolean;
+  /** App automatisch mit Windows starten — damit Overlay-Server läuft, BEVOR
+   *  OBS/TTLS die Browser-Quelle lädt (sonst „Seite nicht erreichbar"). */
+  autostart: boolean;
   /** Streamer.bot-Brücke (WebSocket-Client). */
   streamerbot: { enabled: boolean; url: string };
   /** Spotify: vom Nutzer registrierte App-Client-ID (öffentlich, PKCE). */
@@ -161,6 +164,7 @@ const DEFAULTS: StudioSettings = {
   tiktokSignApiKey: '',
   tiktokConnectMode: 'cloud',
   autoLiveWatch: true,
+  autostart: false,
   streamerbot: { enabled: false, url: 'ws://127.0.0.1:8080/' },
   spotifyClientId: '',
   spotifyTokens: null,

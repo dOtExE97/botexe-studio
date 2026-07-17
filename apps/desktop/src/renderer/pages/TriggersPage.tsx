@@ -31,6 +31,9 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
     { value: 'chat_keyword', label: 'Nachricht enthält …', valueType: 'text' },
     { value: 'chat_first_time', label: 'Allererste Nachricht (neuer Zuschauer)' },
   ],
+  follow: [
+    { value: 'follow_first_time', label: 'Nur beim ERSTEN Follow (kein Re-Follow)' },
+  ],
   viewer_count: [{ value: 'viewer_count_gte', label: 'Mindestens … Zuschauer', valueType: 'number' }],
 };
 

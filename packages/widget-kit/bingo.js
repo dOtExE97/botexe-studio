@@ -4,8 +4,9 @@
 // Diagonalen bekommen eine Durchstreich-Linie + BINGO-Banner. Volles Brett →
 // automatisch neue Runde (props.autoNewRound).
 //
-// Deterministisch: Brett wird aus (layerId + Rundennummer) gewürfelt — alle
-// Overlay-Clients (OBS + TTLS gleichzeitig) zeigen exakt dasselbe Brett.
+// Brett wird aus (Session-Seed + layerId + Rundennummer) gewürfelt — alle
+// Overlay-Clients (OBS + TTLS) zeigen dasselbe Brett, aber jeder Stream ein
+// anderes (Seed kommt pro Session vom Server via hello/reset).
 // props: { size?, gifts?, likeStep?, coinStep?, followStep?, autoNewRound?,
 //          cellSoundId?, bingoSoundId?, title?, accent? }
 const STYLE_ID = 'bx-bingo-style';
@@ -132,7 +133,7 @@ export default class BingoWidget {
       .filter((g) => g.coins > 0)
       .sort((a, b) => a.coins - b.coins || a.slug.localeCompare(b.slug));
     const pool = (affordable.length ? affordable : list).slice(0, 40);
-    const rand = rng(`${this.ctx.layerId || 'bingo'}-autogifts`);
+    const rand = rng(`${this.ctx.sessionSeed || ''}-${this.ctx.layerId || 'bingo'}-autogifts`);
     const shuffled = [...pool].sort(() => rand() - 0.5);
     const want = Math.max(3, Math.floor((this.size * this.size) / 2));
     return shuffled.slice(0, want).map((g) => g.slug);
@@ -163,7 +164,7 @@ export default class BingoWidget {
 
   /** Brett würfeln — deterministisch aus layerId + Runde. */
   buildBoard(animate) {
-    const rand = rng(`${this.ctx.layerId || 'bingo'}-${this.round}`);
+    const rand = rng(`${this.ctx.sessionSeed || ''}-${this.ctx.layerId || 'bingo'}-${this.round}`);
     const base = this.baseStats ?? { likes: 0, coins: 0, follows: 0 };
     const pool = [];
     const giftSlugs = this.gifts.length ? this.gifts : (this.autoGifts || []);

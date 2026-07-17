@@ -34,6 +34,14 @@ test('regel matcht event-typ und liefert ihre actions mit ruleId', () => {
   assert.deepEqual(matches[0]?.action, { kind: 'fire_alert', targetId: 'alert-layer' });
 });
 
+test('follow_first_time matcht nur beim Erst-Follow (kein Re-Follow)', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ event: 'follow', conditions: [{ kind: 'follow_first_time' }], actions: [{ kind: 'play_sound', soundId: 'jumpscare.wav' }] })]);
+  const followEvent = (firstFollow: boolean): StudioEvent => ({ type: 'follow', ts: 1, user: { id: 'u', nickname: 'X' }, firstFollow });
+  assert.equal(engine.evaluate(followEvent(true)).length, 1, 'Erst-Follow → Jumpscare feuert');
+  assert.equal(engine.evaluate(followEvent(false)).length, 0, 'Re-Follow → feuert nicht');
+});
+
 test('regel mit anderem event-typ matcht nicht', () => {
   const engine = new TriggerEngine();
   engine.setRules([rule({ event: 'follow' })]);

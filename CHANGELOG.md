@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.6.0] — 2026-07-18
+
+### Behoben
+- **Zahlen-Raten & Bingo sind jetzt wirklich zufällig** 🎲 — bisher kamen **jeden Stream dieselben Zahlen/Bretter** (feste Berechnung, damit alle Overlay-Quellen synchron sind). Jetzt würfelt jeder Stream neue Werte, weiterhin synchron über OBS + TikTok Live Studio (Server vergibt pro Session einen Zufalls-Seed). *(Danke an die aufmerksamen Follower! 😄)*
+
+### Neu
+- **Follow-Trigger „nur beim ersten Mal"** 👻 — neue Bedingung bei Follow-Triggern: löst nur beim **Erst-Follow** aus, nicht bei Re-Follows. Ideal z.B. für einen Jumpscare-Sound. (Zählt jeden Follower, den die App schon einmal live gesehen hat.)
+- **Autostart mit Windows** 🖥️ (Einstellungen → TikTok-Verbindung) — bOtExE Studio läuft dann **schon, bevor** du OBS/TikTok Live Studio öffnest. Behebt „Browser-Quelle nach Neustart leer": Der Overlay-Server ist da, wenn die Quelle lädt → **nie wieder neu einfügen.**
+
+---
+
 ## [0.5.3] — 2026-07-11
 
 ### Geändert (Log-Aufräumung — aus Live-Logs)

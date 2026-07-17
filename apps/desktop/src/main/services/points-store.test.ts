@@ -10,6 +10,16 @@ function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'points-'));
 }
 
+test('markFollowed: erster Follow → true, Re-Follow → false, Eintrag persistiert', () => {
+  const s = new PointsStore(tmpDir());
+  assert.equal(s.markFollowed('u1', 'Mia'), true, 'erstes Mal Folgen → true (Jumpscare feuert)');
+  assert.equal(s.markFollowed('u1', 'Mia'), false, 'Re-Follow → false (kein Jumpscare)');
+  assert.equal(s.markFollowed('u1'), false, 'auch ohne Nickname weiterhin false');
+  assert.equal(s.get('u1')?.everFollowed, true, 'Flag persistent gemerkt');
+  // Anderer User ist unabhängig.
+  assert.equal(s.markFollowed('u2', 'Ben'), true);
+});
+
 test('recordWin zählt Spiel-Siege pro User, topWinners sortiert + filtert', () => {
   const s = new PointsStore(tmpDir());
   s.recordWin({ id: 'mia', nickname: 'Mia', profilePic: 'm.jpg' });

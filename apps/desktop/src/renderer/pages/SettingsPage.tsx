@@ -54,11 +54,12 @@ export default function SettingsPage() {
   const [signKeySet, setSignKeySet] = useState(false);
   const [connectMode, setConnectMode] = useState<'cloud' | 'direct'>('cloud');
   const [autoLiveWatch, setAutoLiveWatch] = useState(true);
+  const [autostart, setAutostart] = useState(false);
   const [spotifyClientId, setSpotifyClientId] = useState('');
   const [spotify, setSpotify] = useState<{ connected: boolean; clientIdSet: boolean; redirectUri: string; nowPlaying: { title: string; artist: string; albumArt: string; isPlaying: boolean } | null }>({ connected: false, clientIdSet: false, redirectUri: '', nowPlaying: null });
 
   useEffect(() => {
-    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; tiktokConnectMode?: 'cloud' | 'direct'; autoLiveWatch?: boolean; spotifyClientId?: string; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
+    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; tiktokConnectMode?: 'cloud' | 'direct'; autoLiveWatch?: boolean; autostart?: boolean; spotifyClientId?: string; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
       setPoints(s.points);
       setAudioOut(s.audioOutputId ?? '');
       setBlockedWords((s.moderation?.blockedWords ?? []).join(', '));
@@ -67,6 +68,7 @@ export default function SettingsPage() {
       setSignKeySet(!!s.tiktokSignKeySet);
       setConnectMode(s.tiktokConnectMode === 'direct' ? 'direct' : 'cloud');
       setAutoLiveWatch(s.autoLiveWatch !== false);
+      setAutostart(s.autostart === true);
       setSpotifyClientId(s.spotifyClientId ?? '');
       setObsPasswordSet(!!s.obsPasswordSet);
       if (s.obs) setObs({ enabled: s.obs.enabled, url: s.obs.url, password: '' });
@@ -518,6 +520,18 @@ export default function SettingsPage() {
           />
           <span>
             <b className="text-studio-fg">Automatisch verbinden, wenn ich live gehe</b> — die App beobachtet beim Start deinen zuletzt verbundenen Account und verbindet von selbst, sobald du auf TikTok live gehst (wie TikFinity). Nutzt einen sparsamen Live-Check (kein Sign-Kontingent).
+          </span>
+        </label>
+
+        {/* Autostart mit Windows */}
+        <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-studio-border/60 p-3 text-[11px] text-studio-muted">
+          <input
+            type="checkbox" checked={autostart}
+            onChange={(e) => { setAutostart(e.target.checked); void window.studio.updateSettings({ autostart: e.target.checked }); }}
+            className="mt-0.5"
+          />
+          <span>
+            <b className="text-studio-fg">Mit Windows automatisch starten</b> — behebt das „Browser-Quelle nach Neustart leer"-Problem: bOtExE Studio (und damit der Overlay-Server) läuft dann schon, <b>bevor</b> du OBS/TikTok Live Studio öffnest. So muss deine Browser-Quelle nie wieder neu eingefügt werden.
           </span>
         </label>
       </section>

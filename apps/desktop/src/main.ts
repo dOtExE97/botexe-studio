@@ -50,6 +50,15 @@ function pushUpdateStatus(next: typeof updateState): void {
   sendToRenderer(IPC.UPDATE_STATUS, next);
 }
 
+/** App mit dem Betriebssystem-Login starten (Windows/macOS). So läuft der
+ *  Overlay-Server schon, bevor OBS/TTLS die Browser-Quelle lädt. Fehler nie
+ *  eskalieren — die Funktion ist auf manchen Linux-Setups nicht verfügbar. */
+function applyAutostart(enabled: boolean): void {
+  try {
+    app.setLoginItemSettings({ openAtLogin: enabled });
+  } catch { /* Autostart nicht verfügbar → ignorieren */ }
+}
+
 function setupAutoUpdate(): void {
   if (!app.isPackaged || !UPDATE_REPO) {
     pushUpdateStatus({ state: 'dev' }); // Auto-Update nur in der installierten App
@@ -804,6 +813,7 @@ function registerIpc(): void {
     if (typeof p.tiktokSignApiKey === 'string') allowed.tiktokSignApiKey = p.tiktokSignApiKey.trim().slice(0, 200);
     if (p.tiktokConnectMode === 'cloud' || p.tiktokConnectMode === 'direct') allowed.tiktokConnectMode = p.tiktokConnectMode;
     if (typeof p.autoLiveWatch === 'boolean') allowed.autoLiveWatch = p.autoLiveWatch;
+    if (typeof p.autostart === 'boolean') allowed.autostart = p.autostart;
     if (typeof p.spotifyClientId === 'string') allowed.spotifyClientId = p.spotifyClientId.trim().slice(0, 100);
     if (typeof p.moderation === 'object' && p.moderation !== null) {
       const m = p.moderation as Record<string, unknown>;
@@ -820,6 +830,8 @@ function registerIpc(): void {
     const saved = isStudio().settings.update(allowed);
     // Auto-Live-Watch sofort anwenden (nicht erst beim Neustart).
     if (typeof allowed.autoLiveWatch === 'boolean') isStudio().setAutoLiveWatch(allowed.autoLiveWatch);
+    // Autostart sofort ins Betriebssystem eintragen/austragen.
+    if (typeof allowed.autostart === 'boolean') applyAutostart(allowed.autostart);
     return { ok: true, settings: saved };
   });
 
@@ -946,6 +958,8 @@ app.whenReady().then(async () => {
   }
 
   createMainWindow();
+  // Autostart-Eintrag mit der gespeicherten Einstellung synchron halten.
+  applyAutostart(studio.settings.get().autostart === true);
   setupAutoUpdate(); // Hintergrund-Update-Check + Event-Weiterleitung ans UI
 
   app.on('activate', () => {

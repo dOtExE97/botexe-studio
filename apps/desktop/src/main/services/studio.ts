@@ -335,7 +335,12 @@ export class Studio {
       // (Mod/Teamherz/Follower) für die Session merken UND anwenden — TikTok
       // liefert sie nicht in jeder Nachricht, sonst flackert das Vorlesen.
       // VOR allen Konsumenten (Stats, Trigger, TTS-Filter).
-      if (e.type === 'follow' && e.user) e.user.isFollower = true;
+      if (e.type === 'follow' && e.user) {
+        e.user.isFollower = true;
+        // Erst-Follow vs. Re-Follow: nur ECHTE Events verändern den Store; Test-/
+        // Replay-Events gelten als „erstes Mal", ohne das echte Gedächtnis zu verbrauchen.
+        e.firstFollow = e.synthetic ? true : this.points.markFollowed(e.user.id, e.user.nickname);
+      }
       if (e.user) {
         this.sessionRoles.remember(e.user);
         this.sessionRoles.apply(e.user);
@@ -1389,7 +1394,7 @@ export class Studio {
     this.bus.clearLastValues();
     // Reset-Signal an die Overlay-Widgets: setzt auch persistente Zähler zurück
     // (counter/gift-counter via localStorage) — ein reines Re-Mount täte das nicht.
-    this.server.broadcast({ kind: 'reset' });
+    this.server.broadcastReset();
     this.scheduleStatsBroadcast();
     this.server.rebroadcastLayouts();
     log.info('Studio', 'Session zurückgesetzt (Stats, Cooldowns, Overlay-Inhalte)');
