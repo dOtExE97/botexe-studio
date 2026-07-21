@@ -113,7 +113,7 @@ export class PointsStore {
 
   /** Punkte für ein Event gemäß Config vergeben; liefert die vergebene Menge. */
   recordEvent(event: StudioEvent, cfg: PointsConfig): number {
-    if (!cfg.enabled || !event.user) return 0;
+    if (!event.user) return 0;
     let pts = 0;
     switch (event.type) {
       case 'chat':
@@ -135,8 +135,11 @@ export class PointsStore {
       default:
         return 0;
     }
+    // Aktivitäts-Statistik läuft IMMER — auch bei deaktiviertem Punkte-System.
+    // Sonst hängen Stammgast-Begrüßung/VIP-Karten (visitCount/likes/coins)
+    // heimlich am Punkte-Schalter und frieren ein.
     this.touchStats(event);
-    if (pts <= 0) return 0;
+    if (!cfg.enabled || pts <= 0) return 0;
     this.award(event.user.id, event.user.nickname, pts, event.user.profilePic);
     return pts;
   }

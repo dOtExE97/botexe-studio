@@ -960,7 +960,7 @@ export class Studio {
       case 'speak': {
         const tts = this.settings.get().tts;
         const clean = TTSService.sanitize(a.text, tts.maxTextLen);
-        if (clean) this.tts.speak(clean, a.voice || tts.voice);
+        if (clean && !this.moderationBlocked(clean)) this.tts.speak(clean, a.voice || tts.voice);
         return { ok: true };
       }
       case 'start_game': return this.startGame(a.game, a.config);
@@ -1160,7 +1160,7 @@ export class Studio {
       g.template.replace(/\{user\}/g, event.user.nickname).replace(/\{visits\}/g, String(visits)),
       tts.maxTextLen,
     );
-    if (text) this.tts.speak(text, tts.voice);
+    if (text && !this.moderationBlocked(text)) this.tts.speak(text, tts.voice);
   }
 
   getGreetReturning(): import('./settings-store').GreetReturningSettings { return this.settings.get().greetReturning; }
@@ -1425,7 +1425,7 @@ export class Studio {
     const tts = this.settings.get().tts;
     if (!tts.enabled) return;
     const text = TTSService.sanitize(renderSpeakTemplate(template, event), tts.maxTextLen);
-    if (!text) return;
+    if (!text || this.moderationBlocked(text)) return;
     const ownVoice = event.user ? this.points.voiceFor(event.user.id) : undefined;
     const voice =
       voiceOverride ||
@@ -1434,6 +1434,13 @@ export class Studio {
         ? this.tts.voiceForUser(event.user.id, tts.voice)
         : tts.voice);
     this.tts.speak(text, voice);
+  }
+
+  /** Zentraler Moderations-Wächter für ALLE TTS-Ausgaben — auch Ansagen/
+   *  Begrüßungen (dort fließt der Nickname ins Template; ein Slur im Namen
+   *  würde sonst laut vorgelesen). */
+  private moderationBlocked(text: string): boolean {
+    return containsBlockedWord(text, this.settings.peek().moderation?.blockedWords ?? []);
   }
 
   private maybeReadChat(event: StudioEvent): void {

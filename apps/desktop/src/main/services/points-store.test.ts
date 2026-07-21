@@ -122,6 +122,18 @@ test('recordEvent ohne user oder bei deaktiviert vergibt nichts', () => {
   );
 });
 
+test('Aktivitäts-Statistik läuft auch bei DEAKTIVIERTEM Punkte-System weiter', () => {
+  const s = new PointsStore(tmpDir());
+  const cfg = { ...DEFAULT_POINTS_CONFIG, enabled: false };
+  assert.equal(s.recordEvent({ type: 'chat', ts: 1, user: { id: 'u', nickname: 'U' }, text: 'hi' }, cfg), 0, 'keine Punkte');
+  s.recordEvent({ type: 'like', ts: 2, user: { id: 'u', nickname: 'U' }, likeCount: 3 }, cfg);
+  const e = s.get('u');
+  assert.equal(e?.points ?? 0, 0, 'Punkte bleiben 0');
+  assert.equal(e?.visitCount, 1, 'Besuch trotzdem gezählt (Stammgast-Erkennung)');
+  assert.equal(e?.totalChats, 1, 'Chat-Statistik trotzdem gepflegt');
+  assert.equal(e?.likes, 3, 'Like-Statistik trotzdem gepflegt');
+});
+
 test('persistenz: save + neu laden erhält punkte (atomar)', () => {
   const dir = tmpDir();
   const a = new PointsStore(dir);

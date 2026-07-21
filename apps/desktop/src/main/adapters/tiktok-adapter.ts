@@ -406,9 +406,11 @@ export class TikTokAdapter {
     on('chat', guard((d: Parameters<typeof normalizeChat>[0]) => { if (!dedup(d)) publish(normalizeChat(d, this.now())); }));
     on('gift', guard((d: Parameters<typeof normalizeGift>[0]) => { if (!dedup(d)) publish(normalizeGift(d, this.now())); }));
     on('like', guard((d: Parameters<typeof normalizeLike>[0]) => publish(normalizeLike(d, this.now()))));
-    on('follow', guard((d: Parameters<typeof normalizeSocial>[0]) => publish(normalizeSocial(d, 'follow', this.now()))));
-    on('share', guard((d: Parameters<typeof normalizeSocial>[0]) => publish(normalizeSocial(d, 'share', this.now()))));
-    on('member', guard((d: Parameters<typeof normalizeSocial>[0]) => publish(normalizeSocial(d, 'join', this.now()))));
+    // Auch Social-Events dedupen (WebcastSocialMessage hat eine stabile msgId) —
+    // sonst vergibt ein Reconnect-Replay doppelte Follow-Punkte + doppelte Ansage.
+    on('follow', guard((d: Parameters<typeof normalizeSocial>[0]) => { if (!dedup(d)) publish(normalizeSocial(d, 'follow', this.now())); }));
+    on('share', guard((d: Parameters<typeof normalizeSocial>[0]) => { if (!dedup(d)) publish(normalizeSocial(d, 'share', this.now())); }));
+    on('member', guard((d: Parameters<typeof normalizeSocial>[0]) => { if (!dedup(d)) publish(normalizeSocial(d, 'join', this.now())); }));
     on('roomUser', guard((d: Parameters<typeof normalizeViewerCount>[0]) => publish(normalizeViewerCount(d, this.now()))));
 
     on('streamEnd', guard(() => {

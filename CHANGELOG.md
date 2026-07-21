@@ -3,6 +3,29 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.7.0] — 2026-07-21
+
+### Behoben (aus Projekt-Audit mit 3 Agenten-Teams)
+- **Follows/Shares werden bei Reconnect nicht mehr doppelt gezählt** — nach kurzem Verbindungsabriss sendete der Server die letzten Events erneut → doppelte Punkte + doppelte TTS-Ansage. Jetzt dedupliziert wie Chat/Gifts.
+- **Stammgast-Erkennung läuft auch bei deaktiviertem Punkte-System** — „Punkte aus" schaltete heimlich Besuchs-Zähler, Stammgast-Begrüßung und VIP-Karten-Stats mit ab.
+- **Zahlen-Raten funktioniert jetzt auch mit Bereichen über 9999** (Tipps wurden vorher bei mehr als 4 Ziffern verworfen).
+- **TTS-Ansagen haben Vorrang** — bei viel Sound-Action (4 parallele Sounds) wurde auch mal eine Follow-/Gift-Ansage verschluckt. Ansagen werden nie mehr verworfen.
+
+### Einfacher bedienbar (Verbinden & Key)
+- **Ohne Key zeigt die Live-Seite jetzt „🔑 Zuerst Gratis-Key holen →"** statt eines Verbinden-Buttons, der in einen Fehler läuft — ein Klick führt direkt zur Key-Anleitung.
+- **Einstellungen umsortiert: TikTok-Verbindung (Key!) ist jetzt die ERSTE Karte** (war Position 8 von 14).
+- **Verbindungsfehler auf Deutsch** — statt „requires a Business plan" steht da jetzt, was zu tun ist.
+- **„Warte auf Live" auch am Button** — statt verwirrendem „MIT TIKTOK VERBINDEN" steht dort „WARTE AUF LIVE — ABBRECHEN".
+- **Trigger entschlackt**: Statt 11 Dropdowns auf einmal nur noch Alert + Sound + Ansage — der Rest hinter „+ Weitere Aktionen". Regeln mit erweiterten Aktionen bleiben automatisch aufgeklappt.
+- Erste-Schritte-Banner nennt jetzt Schritt 1: „Gratis-Key holen".
+
+### TTS-Moderation verstärkt 🛡️
+- **Auch nackte Domains werden nicht vorgelesen** („spam-seite.com" — bisher nur http://-Links).
+- **Blockliste gilt jetzt überall** — auch bei Follow-Ansagen und Stammgast-Begrüßungen (ein Slur im Nickname wurde bisher laut vorgelesen).
+- **„Standard-Blockliste laden"** (Einstellungen → Chat-Moderation): kuratierte Liste gängiger Beleidigungen (DE/EN) per Klick.
+
+---
+
 ## [0.6.0] — 2026-07-18
 
 ### Behoben

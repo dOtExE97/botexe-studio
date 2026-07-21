@@ -84,9 +84,11 @@ export default function SoundPlayer() {
       // Kanal stumm (gain 0) → gar nicht erst abspielen, aber TTS-Sequencing
       // freigeben, damit die Vorlese-Warteschlange nicht hängen bleibt.
       if (gain <= 0 && !isPreview) { window.studio.reportSoundEnded(cmd.soundId); return; }
-      if (playing.current >= MAX_PARALLEL) {
+      // Sound-Bombing deckeln — aber TTS-Ansagen haben VORRANG und werden nie
+      // verworfen (eine verschluckte Follow-/Gift-Ansage fällt sofort auf).
+      if (playing.current >= MAX_PARALLEL && !isTts) {
         window.studio.reportSoundEnded(cmd.soundId); // übersprungen → TTS nicht blockieren
-        return; // sound-bombing deckeln
+        return;
       }
 
       const audio = new Audio(cmd.url) as SinkAudio;

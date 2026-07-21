@@ -6,6 +6,7 @@ import ConfirmButton from '../components/ConfirmButton';
 import GreetReturningCard from '../components/GreetReturningCard';
 import ThirdPartyLicenses from '../components/ThirdPartyLicenses';
 import { toast } from '../components/ToastHost';
+import { DEFAULT_BLOCKLIST } from '../../shared/moderation';
 
 interface PointsConfig {
   enabled: boolean;
@@ -154,7 +155,7 @@ export default function SettingsPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-xl uppercase">Einstellungen</h1>
-          <p className="mt-1 text-xs text-studio-muted">Loyalty-Punkte, App-Infos und Daten.</p>
+          <p className="mt-1 text-xs text-studio-muted">TikTok-Verbindung (Key!), Audio, Punkte, Integrationen & Daten.</p>
         </div>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('bx-show-tour'))}
@@ -164,6 +165,108 @@ export default function SettingsPage() {
           <Rocket size={13} /> Tour erneut zeigen
         </button>
       </div>
+
+      {/* TikTok-Verbindung (Sign-Key) */}
+      <section className="bx-card p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+            <ShieldCheck size={15} /> TikTok-Verbindung (Sign-Key)
+          </h2>
+          <span className={`flex items-center gap-1.5 text-[11px] font-bold ${signKeySet ? 'text-emerald-300' : 'text-amber-300'}`}>
+            <span className={`h-2 w-2 rounded-full ${signKeySet ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+            {signKeySet ? 'Key gesetzt' : 'Kein Key'}
+          </span>
+        </div>
+        <p className="mb-2 text-[11px] text-studio-muted">
+          Zum Verbinden (Chat, Geschenke, Likes empfangen) braucht die App einen <b>kostenlosen API-Key</b> von eulerstream. <b className="text-amber-300">Ohne Key geht's nicht</b> — aber er ist gratis und in 2 Minuten geholt:
+        </p>
+        <ol className="mb-3 ml-4 list-decimal space-y-1 text-[11px] text-studio-muted">
+          <li>Unten auf <b>„Gratis-Key holen"</b> klicken → mit Google/GitHub/E-Mail registrieren.</li>
+          <li>Im Dashboard <span className="font-mono">Create Key</span> klicken und den <span className="font-mono">euler_…</span>-Key kopieren.</li>
+          <li>Hier ins Feld einfügen — fertig. Modus <b>„Cloud (gratis)"</b> lassen.</li>
+        </ol>
+        <button
+          onClick={() => void window.studio.openExternal('https://www.eulerstream.com/register')}
+          className="bx-btn-accent mb-3"
+        >
+          <KeyRound size={14} /> Gratis-Key holen <ExternalLink size={12} className="opacity-70" />
+        </button>
+        <input
+          type="password"
+          value={signKey}
+          onChange={(e) => setSignKey(e.target.value)}
+          onBlur={() => { if (signKey.trim()) { void window.studio.updateSettings({ tiktokSignApiKey: signKey.trim() }); setSignKeySet(true); toast('success', 'API-Key gespeichert.'); } }}
+          placeholder={signKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Euler API-Key (euler_… — kostenlos auf eulerstream.com)'}
+          className="bx-input w-full font-mono text-xs"
+        />
+        {/* Live-Format-Check: hilft, den richtigen Key zu erkennen. */}
+        {signKey.trim().length > 0 && (
+          signKey.trim().startsWith('euler_')
+            ? <p className="mt-1 text-[11px] text-emerald-300">✓ Sieht nach einem gültigen eulerstream-Key aus — Feld verlassen zum Speichern.</p>
+            : <p className="mt-1 text-[11px] text-amber-300">⚠ Ein eulerstream-Key beginnt normalerweise mit „euler_". Sicher, dass das der richtige ist? (Nicht dein TikTok-Passwort/-Login!)</p>
+        )}
+        {signKeySet && (
+          <button
+            onClick={() => { setSignKey(''); void window.studio.updateSettings({ tiktokSignApiKey: '' }); setSignKeySet(false); toast('info', 'API-Key gelöscht.'); }}
+            className="bx-pill mt-2 text-[11px] hover:text-studio-accent"
+          >
+            Key löschen
+          </button>
+        )}
+
+        <div className="mt-3 rounded-lg border border-studio-teal/30 bg-studio-teal/5 p-2.5 text-[11px] text-studio-muted">
+          💡 <b className="text-studio-fg">Gut zu wissen:</b> Nach dem Verbinden wartet die App, bis <b>du live gehst</b> — solange steht oben <span className="font-mono">„warte auf Live"</span>. Das ist <b>kein Fehler</b>: Sobald dein Live startet, verbindet sie sich automatisch. Den Key-Status siehst du oben rechts (<span className="text-emerald-300">Key gesetzt</span> / <span className="text-amber-300">Kein Key</span>).
+        </div>
+
+        {/* Verbindungs-Modus */}
+        <div className="mt-4 rounded-lg border border-studio-border/60 p-3">
+          <div className="mb-2 text-[11px] font-bold text-studio-fg">Verbindungs-Modus</div>
+          <label className="flex cursor-pointer items-start gap-2 text-[11px] text-studio-muted">
+            <input
+              type="radio" name="connectMode" checked={connectMode === 'cloud'}
+              onChange={() => { setConnectMode('cloud'); void window.studio.updateSettings({ tiktokConnectMode: 'cloud' }); }}
+              className="mt-0.5"
+            />
+            <span><b className="text-emerald-300">Cloud (gratis, empfohlen)</b> — Euler hostet die Verbindung. Funktioniert mit dem <b>kostenlosen Community-Key</b>. Empfängt Chat/Geschenke/Likes. (Chat-Senden geht hier nicht.)</span>
+          </label>
+          <label className="mt-2 flex cursor-pointer items-start gap-2 text-[11px] text-studio-muted">
+            <input
+              type="radio" name="connectMode" checked={connectMode === 'direct'}
+              onChange={() => { setConnectMode('direct'); void window.studio.updateSettings({ tiktokConnectMode: 'direct' }); }}
+              className="mt-0.5"
+            />
+            <span><b>Direkt</b> — App signiert selbst. Kann <b>auch Chat senden</b>, braucht aber einen <b>kostenpflichtigen Business-Key</b> (eulerstream „Webcast Signatures"). Nur wählen, wenn du den hast.</span>
+          </label>
+        </div>
+
+        <p className="mt-2 text-[10px] text-studio-muted/70">
+          Tipp: Bleib bei <b>Cloud</b> — das ist der Gratis-Weg. „Direkt" ohne Business-Key endet in „requires a Business plan".
+        </p>
+
+        {/* Auto-Live-Watch */}
+        <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-lg border border-studio-border/60 p-3 text-[11px] text-studio-muted">
+          <input
+            type="checkbox" checked={autoLiveWatch}
+            onChange={(e) => { setAutoLiveWatch(e.target.checked); void window.studio.updateSettings({ autoLiveWatch: e.target.checked }); }}
+            className="mt-0.5"
+          />
+          <span>
+            <b className="text-studio-fg">Automatisch verbinden, wenn ich live gehe</b> — die App beobachtet beim Start deinen zuletzt verbundenen Account und verbindet von selbst, sobald du auf TikTok live gehst (wie TikFinity). Nutzt einen sparsamen Live-Check (kein Sign-Kontingent).
+          </span>
+        </label>
+
+        {/* Autostart mit Windows */}
+        <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-studio-border/60 p-3 text-[11px] text-studio-muted">
+          <input
+            type="checkbox" checked={autostart}
+            onChange={(e) => { setAutostart(e.target.checked); void window.studio.updateSettings({ autostart: e.target.checked }); }}
+            className="mt-0.5"
+          />
+          <span>
+            <b className="text-studio-fg">Mit Windows automatisch starten</b> — behebt das „Browser-Quelle nach Neustart leer"-Problem: bOtExE Studio (und damit der Overlay-Server) läuft dann schon, <b>bevor</b> du OBS/TikTok Live Studio öffnest. So muss deine Browser-Quelle nie wieder neu eingefügt werden.
+          </span>
+        </label>
+      </section>
 
       {/* Loyalty-Punkte */}
       <section className="bx-card p-5">
@@ -434,107 +537,6 @@ export default function SettingsPage() {
         </p>
       </section>
 
-      {/* TikTok-Verbindung (Sign-Key) */}
-      <section className="bx-card p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
-            <ShieldCheck size={15} /> TikTok-Verbindung (Sign-Key)
-          </h2>
-          <span className={`flex items-center gap-1.5 text-[11px] font-bold ${signKeySet ? 'text-emerald-300' : 'text-amber-300'}`}>
-            <span className={`h-2 w-2 rounded-full ${signKeySet ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-            {signKeySet ? 'Key gesetzt' : 'Kein Key'}
-          </span>
-        </div>
-        <p className="mb-2 text-[11px] text-studio-muted">
-          Zum Verbinden (Chat, Geschenke, Likes empfangen) braucht die App einen <b>kostenlosen API-Key</b> von eulerstream. <b className="text-amber-300">Ohne Key geht's nicht</b> — aber er ist gratis und in 2 Minuten geholt:
-        </p>
-        <ol className="mb-3 ml-4 list-decimal space-y-1 text-[11px] text-studio-muted">
-          <li>Unten auf <b>„Gratis-Key holen"</b> klicken → mit Google/GitHub/E-Mail registrieren.</li>
-          <li>Im Dashboard <span className="font-mono">Create Key</span> klicken und den <span className="font-mono">euler_…</span>-Key kopieren.</li>
-          <li>Hier ins Feld einfügen — fertig. Modus <b>„Cloud (gratis)"</b> lassen.</li>
-        </ol>
-        <button
-          onClick={() => void window.studio.openExternal('https://www.eulerstream.com/register')}
-          className="bx-btn-accent mb-3"
-        >
-          <KeyRound size={14} /> Gratis-Key holen <ExternalLink size={12} className="opacity-70" />
-        </button>
-        <input
-          type="password"
-          value={signKey}
-          onChange={(e) => setSignKey(e.target.value)}
-          onBlur={() => { if (signKey.trim()) { void window.studio.updateSettings({ tiktokSignApiKey: signKey.trim() }); setSignKeySet(true); toast('success', 'API-Key gespeichert.'); } }}
-          placeholder={signKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Euler API-Key (euler_… — kostenlos auf eulerstream.com)'}
-          className="bx-input w-full font-mono text-xs"
-        />
-        {/* Live-Format-Check: hilft, den richtigen Key zu erkennen. */}
-        {signKey.trim().length > 0 && (
-          signKey.trim().startsWith('euler_')
-            ? <p className="mt-1 text-[11px] text-emerald-300">✓ Sieht nach einem gültigen eulerstream-Key aus — Feld verlassen zum Speichern.</p>
-            : <p className="mt-1 text-[11px] text-amber-300">⚠ Ein eulerstream-Key beginnt normalerweise mit „euler_". Sicher, dass das der richtige ist? (Nicht dein TikTok-Passwort/-Login!)</p>
-        )}
-        {signKeySet && (
-          <button
-            onClick={() => { setSignKey(''); void window.studio.updateSettings({ tiktokSignApiKey: '' }); setSignKeySet(false); toast('info', 'API-Key gelöscht.'); }}
-            className="bx-pill mt-2 text-[11px] hover:text-studio-accent"
-          >
-            Key löschen
-          </button>
-        )}
-
-        <div className="mt-3 rounded-lg border border-studio-teal/30 bg-studio-teal/5 p-2.5 text-[11px] text-studio-muted">
-          💡 <b className="text-studio-fg">Gut zu wissen:</b> Nach dem Verbinden wartet die App, bis <b>du live gehst</b> — solange steht oben <span className="font-mono">„warte auf Live"</span>. Das ist <b>kein Fehler</b>: Sobald dein Live startet, verbindet sie sich automatisch. Den Key-Status siehst du oben rechts (<span className="text-emerald-300">Key gesetzt</span> / <span className="text-amber-300">Kein Key</span>).
-        </div>
-
-        {/* Verbindungs-Modus */}
-        <div className="mt-4 rounded-lg border border-studio-border/60 p-3">
-          <div className="mb-2 text-[11px] font-bold text-studio-fg">Verbindungs-Modus</div>
-          <label className="flex cursor-pointer items-start gap-2 text-[11px] text-studio-muted">
-            <input
-              type="radio" name="connectMode" checked={connectMode === 'cloud'}
-              onChange={() => { setConnectMode('cloud'); void window.studio.updateSettings({ tiktokConnectMode: 'cloud' }); }}
-              className="mt-0.5"
-            />
-            <span><b className="text-emerald-300">Cloud (gratis, empfohlen)</b> — Euler hostet die Verbindung. Funktioniert mit dem <b>kostenlosen Community-Key</b>. Empfängt Chat/Geschenke/Likes. (Chat-Senden geht hier nicht.)</span>
-          </label>
-          <label className="mt-2 flex cursor-pointer items-start gap-2 text-[11px] text-studio-muted">
-            <input
-              type="radio" name="connectMode" checked={connectMode === 'direct'}
-              onChange={() => { setConnectMode('direct'); void window.studio.updateSettings({ tiktokConnectMode: 'direct' }); }}
-              className="mt-0.5"
-            />
-            <span><b>Direkt</b> — App signiert selbst. Kann <b>auch Chat senden</b>, braucht aber einen <b>kostenpflichtigen Business-Key</b> (eulerstream „Webcast Signatures"). Nur wählen, wenn du den hast.</span>
-          </label>
-        </div>
-
-        <p className="mt-2 text-[10px] text-studio-muted/70">
-          Tipp: Bleib bei <b>Cloud</b> — das ist der Gratis-Weg. „Direkt" ohne Business-Key endet in „requires a Business plan".
-        </p>
-
-        {/* Auto-Live-Watch */}
-        <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-lg border border-studio-border/60 p-3 text-[11px] text-studio-muted">
-          <input
-            type="checkbox" checked={autoLiveWatch}
-            onChange={(e) => { setAutoLiveWatch(e.target.checked); void window.studio.updateSettings({ autoLiveWatch: e.target.checked }); }}
-            className="mt-0.5"
-          />
-          <span>
-            <b className="text-studio-fg">Automatisch verbinden, wenn ich live gehe</b> — die App beobachtet beim Start deinen zuletzt verbundenen Account und verbindet von selbst, sobald du auf TikTok live gehst (wie TikFinity). Nutzt einen sparsamen Live-Check (kein Sign-Kontingent).
-          </span>
-        </label>
-
-        {/* Autostart mit Windows */}
-        <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-studio-border/60 p-3 text-[11px] text-studio-muted">
-          <input
-            type="checkbox" checked={autostart}
-            onChange={(e) => { setAutostart(e.target.checked); void window.studio.updateSettings({ autostart: e.target.checked }); }}
-            className="mt-0.5"
-          />
-          <span>
-            <b className="text-studio-fg">Mit Windows automatisch starten</b> — behebt das „Browser-Quelle nach Neustart leer"-Problem: bOtExE Studio (und damit der Overlay-Server) läuft dann schon, <b>bevor</b> du OBS/TikTok Live Studio öffnest. So muss deine Browser-Quelle nie wieder neu eingefügt werden.
-          </span>
-        </label>
-      </section>
 
       {/* TikTok-Chat senden */}
       <section className="bx-card p-5">
@@ -606,8 +608,23 @@ export default function SettingsPage() {
           className="bx-input mt-1.5 w-full font-mono text-xs"
         />
         <p className="mt-2 text-[10px] text-studio-muted/70">
-          Kommagetrennt. Nachrichten, die eines dieser Wörter enthalten, werden <b>nicht vorgelesen</b> (TTS). Teilwort-Treffer, Groß/klein egal.
+          Kommagetrennt. Nachrichten, die eines dieser Wörter enthalten, werden <b>nicht vorgelesen</b> (TTS) — gilt auch für Ansagen/Begrüßungen (z.B. Slur im Nickname). Teilwort-Treffer, Groß/klein egal. Links werden immer entfernt.
         </p>
+        <button
+          onClick={() => {
+            const merged = Array.from(new Set([
+              ...blockedWords.split(',').map((w) => w.trim()).filter(Boolean),
+              ...DEFAULT_BLOCKLIST,
+            ]));
+            setBlockedWords(merged.join(', '));
+            void window.studio.updateSettings({ moderation: { blockedWords: merged } });
+            toast('success', `Standard-Blockliste geladen (${merged.length} Einträge).`);
+          }}
+          className="bx-pill mt-2 text-[11px] hover:text-studio-accent"
+          title="Kuratierte Liste gängiger Beleidigungen/Slurs (DE/EN) zu deiner Liste hinzufügen"
+        >
+          <ShieldCheck size={12} /> Standard-Blockliste laden
+        </button>
       </section>
 
       {/* Updates */}

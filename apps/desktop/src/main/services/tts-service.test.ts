@@ -68,3 +68,11 @@ test('isTransientTtsError: permanente Fehler NICHT (kein sinnloser Retry)', () =
     'unauthorized 401',
   ]) assert.equal(isTransientTtsError(m), false, m);
 });
+
+test('sanitize entfernt auch NACKTE Domains (Scam-/Werbe-Links)', () => {
+  assert.equal(TTSService.sanitize('schaut mal auf spam-seite.com vorbei', 200), 'schaut mal auf vorbei');
+  assert.equal(TTSService.sanitize('www.billig-coins.de/free', 200), '');
+  assert.equal(TTSService.sanitize('krasse-seite.xyz/gewinn jetzt!', 200), 'jetzt!');
+  // Normale Sätze mit Punkt bleiben unangetastet.
+  assert.equal(TTSService.sanitize('Danke. Das war stark.', 200), 'Danke. Das war stark.');
+});

@@ -103,6 +103,18 @@ test('Reconnect-Replay: chat mit gleicher msgId wird nur EINMAL vorgelesen/verar
   assert.equal(chats.length, 2, 'Duplikat (gleiche msgId) verworfen, neue Nachricht durch');
 });
 
+test('Reconnect-Replay: follow mit gleicher msgId wird nur EINMAL verarbeitet (keine Doppel-Punkte/-Ansage)', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  const c = connections[0];
+  c?.emit('follow', { common: { msgId: 'f1' }, user: { uniqueId: 'ben' } });
+  c?.emit('follow', { common: { msgId: 'f1' }, user: { uniqueId: 'ben' } }); // Replay nach Reconnect
+  c?.emit('share', { common: { msgId: 's1' }, user: { uniqueId: 'ben' } });
+  c?.emit('share', { common: { msgId: 's1' }, user: { uniqueId: 'ben' } });
+  assert.equal(events.filter((e) => e.type === 'follow').length, 1, 'Follow-Duplikat verworfen');
+  assert.equal(events.filter((e) => e.type === 'share').length, 1, 'Share-Duplikat verworfen');
+});
+
 test('K2: auto-reconnect räumt alte connection ab (removeAllListeners + disconnect)', async () => {
   const { adapter, connections, statuses } = setup();
   await adapter.connect('testuser');

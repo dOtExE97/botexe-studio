@@ -63,6 +63,28 @@ const AVATARS = {
   liker: svgAvatar('L', '#db2777'),
 };
 
+/** Rohe (meist englische) Verbindungsfehler → deutscher Klartext mit nächstem
+ *  Schritt. Unbekannte Fehler laufen unverändert durch. */
+function friendlyConnectError(raw: string): string {
+  const r = raw.toLowerCase();
+  if (r.includes('business plan') || r.includes('sign') && r.includes('key')) {
+    return 'Der TikTok-Sign-Server verlangt einen Key. Hol dir den GRATIS Community-Key: Einstellungen → TikTok-Verbindung → „Gratis-Key holen".';
+  }
+  if (r.includes('unauthorized') || r.includes('invalid') && r.includes('key') || r.includes('api key')) {
+    return 'Dein eulerstream-Key wird nicht akzeptiert — prüfe unter Einstellungen → TikTok-Verbindung, ob er vollständig eingefügt ist (beginnt mit „euler_").';
+  }
+  if (r.includes("isn't live") || r.includes('not currently live') || r.includes('nicht live')) {
+    return 'Du bist gerade nicht live — kein Fehler: die App verbindet automatisch, sobald du live gehst.';
+  }
+  if (r.includes('user') && (r.includes('not found') || r.includes('not exist')) || r.includes('room not found')) {
+    return 'TikTok-Name nicht gefunden — prüfe die Schreibweise (der Nutzername ohne @, nicht der Anzeigename).';
+  }
+  if (r.includes('fetch failed') || r.includes('enotfound') || r.includes('network') || r.includes('timeout') || r.includes('eai_again')) {
+    return 'Keine Verbindung zum Server — prüfe deine Internet-Verbindung und versuch es nochmal.';
+  }
+  return raw;
+}
+
 export default function LivePage({ studio }: { studio: ReturnType<typeof useStudio> }) {
   const [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false);
@@ -93,16 +115,23 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
   }, []);
 
   const connected = studio.status.status === 'connected';
+  // „Warte auf Live" = die App verbindet von selbst — Button muss dieselbe
+  // Sprache sprechen wie die Status-Pille oben (sonst wirkt er wie „nochmal klicken").
+  const waitingForLive = studio.status.status === 'reconnecting' && studio.status.detail === 'warte auf Live';
 
   const toggleConnect = async () => {
     setBusy(true);
     setError('');
     try {
-      if (connected) {
+      if (connected || waitingForLive) {
         await window.studio.platformDisconnect();
       } else {
         const result = await window.studio.platformConnect(username.trim());
-        if (!result.ok) { setError(result.error ?? 'Verbindung fehlgeschlagen'); toast('error', `Verbindung fehlgeschlagen: ${result.error ?? 'unbekannt'}`); }
+        if (!result.ok) {
+          const msg = friendlyConnectError(result.error ?? 'Verbindung fehlgeschlagen');
+          setError(msg);
+          toast('error', msg);
+        }
       }
     } finally {
       setBusy(false);
@@ -118,9 +147,10 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
         <div className="bx-card flex items-center gap-4 px-5 py-3.5">
           <div className="flex flex-1 flex-wrap items-center gap-x-6 gap-y-2 text-xs">
             <span className="font-display text-[11px] uppercase tracking-[0.25em] text-studio-gold">So geht's los</span>
-            <span className="flex items-center gap-1.5"><LayoutPanelTop size={14} className="text-studio-accent" /> <b>1.</b> Unter „Overlay" Widgets platzieren & Link kopieren</span>
-            <span className="flex items-center gap-1.5"><Radio size={14} className="text-studio-accent" /> <b>2.</b> Link als Browser-Quelle in OBS / TikTok Live Studio einfügen</span>
-            <span className="flex items-center gap-1.5"><Zap size={14} className="text-studio-accent" /> <b>3.</b> Oben mit TikTok verbinden & unter „Trigger" Reaktionen bauen</span>
+            <span className="flex items-center gap-1.5">🔑 <b>1.</b> Einmalig: Gratis-Key holen (Einstellungen → TikTok-Verbindung)</span>
+            <span className="flex items-center gap-1.5"><LayoutPanelTop size={14} className="text-studio-accent" /> <b>2.</b> Unter „Overlay" Widgets platzieren & Link kopieren</span>
+            <span className="flex items-center gap-1.5"><Radio size={14} className="text-studio-accent" /> <b>3.</b> Link als Browser-Quelle in OBS / TikTok Live Studio einfügen</span>
+            <span className="flex items-center gap-1.5"><Zap size={14} className="text-studio-accent" /> <b>4.</b> Oben mit TikTok verbinden & unter „Trigger" Reaktionen bauen</span>
           </div>
           <button
             onClick={() => { setShowIntro(false); localStorage.setItem('bx-intro-dismissed', '1'); }}
@@ -159,22 +189,33 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
               className="w-52 bg-transparent py-2.5 pr-3 text-sm outline-none placeholder:text-studio-muted/50 disabled:opacity-60"
             />
           </div>
-          <button
-            onClick={() => void toggleConnect()}
-            disabled={busy || (!connected && !username.trim())}
-            className={
-              connected
-                ? 'bx-pill border-studio-border px-5 py-2.5 font-display text-sm tracking-wide hover:text-studio-text disabled:opacity-40'
-                : 'bx-btn-accent px-5 py-2.5 font-display text-sm tracking-wide disabled:opacity-40'
-            }
-          >
-            {connected ? <WifiOff size={15} /> : <Wifi size={15} />}
-            {busy ? '…' : connected ? 'TRENNEN' : 'MIT TIKTOK VERBINDEN'}
-          </button>
+          {!keySet && !connected && !waitingForLive ? (
+            // Ohne Key führt „Verbinden" garantiert in einen Fehler → stattdessen
+            // der EINE richtige nächste Schritt, direkt zur Key-Sektion.
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('bx-navigate', { detail: 'settings' }))}
+              className="bx-btn-accent px-5 py-2.5 font-display text-sm tracking-wide"
+            >
+              🔑 ZUERST GRATIS-KEY HOLEN →
+            </button>
+          ) : (
+            <button
+              onClick={() => void toggleConnect()}
+              disabled={busy || (!connected && !waitingForLive && !username.trim())}
+              className={
+                connected || waitingForLive
+                  ? 'bx-pill border-studio-border px-5 py-2.5 font-display text-sm tracking-wide hover:text-studio-text disabled:opacity-40'
+                  : 'bx-btn-accent px-5 py-2.5 font-display text-sm tracking-wide disabled:opacity-40'
+              }
+            >
+              {connected || waitingForLive ? <WifiOff size={15} /> : <Wifi size={15} />}
+              {busy ? '…' : connected ? 'TRENNEN' : waitingForLive ? 'WARTE AUF LIVE — ABBRECHEN' : 'MIT TIKTOK VERBINDEN'}
+            </button>
+          )}
         </div>
         {!keySet && !connected && (
           <p className="mt-2 text-[11px] text-amber-300">
-            ⚠ Zum Verbinden fehlt noch der <b>kostenlose eulerstream-Key</b> — hol ihn dir unter <b>Einstellungen → TikTok-Verbindung</b> („Gratis-Key holen", 2 Min). Ohne Key klappt die Verbindung nicht.
+            ⚠ Zum Verbinden brauchst du einmalig den <b>kostenlosen eulerstream-Key</b> (2 Min). Der Knopf oben bringt dich hin — danach verbindet die App automatisch.
           </p>
         )}
       </div>

@@ -132,6 +132,9 @@ export class TTSService {
   static sanitize(text: string, maxLen: number): string {
     let t = text
       .replace(/https?:\/\/\S+/gi, '') // links
+      // Auch NACKTE Domains nicht vorlesen ("xyz.com", "www.spam.de") —
+      // Werbe-/Scam-Links sind der Hauptgrund, warum Streamer TTS fürchten.
+      .replace(/\b(?:www\.)?[\w-]+\.(?:com|net|org|de|at|ch|tv|gg|io|me|app|xyz|shop|info|online|site|club|live|store|link|co|to|cc|biz|fun|top)(?:\/\S*)?\b/gi, '')
       .replace(/(\p{Extended_Pictographic})\1{2,}/gu, '$1') // emoji-fluten → eins
       .replace(/(.)\1{6,}/g, '$1$1$1') // zeichen-spam ("aaaaaaaa")
       .replace(/\s+/g, ' ')

@@ -78,6 +78,9 @@ export default function TriggersPage() {
   const [query, setQuery] = useState('');
   const [obsScenes, setObsScenes] = useState<string[]>([]);
   const [sbActions, setSbActions] = useState<{ id: string; name: string }[]>([]);
+  // Weitere Aktionen (Glücksrad/OBS/Spotify/…) pro Regel eingeklappt — die
+  // Dropdown-Wand überforderte; die 3 Kern-Aktionen reichen für 90% der Regeln.
+  const [moreActionsOpen, setMoreActionsOpen] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     void (async () => {
@@ -258,6 +261,11 @@ export default function TriggersPage() {
         const deadTargets = rule.actions.filter(
           (a) => 'targetId' in a && a.targetId && !layers.some((l) => l.id === a.targetId),
         );
+        // „Weitere Aktionen" offen, wenn manuell aufgeklappt ODER eine davon
+        // bereits konfiguriert ist (sonst wäre eine bestehende Regel unsichtbar).
+        const hasAdvanced = !!(spinAction?.targetId || mediaAction?.targetId || counterAction?.targetId
+          || obsAction?.scene || chatAction?.template || sbAction?.action || spoCtrl?.control || spoReq?.query);
+        const moreOpen = hasAdvanced || moreActionsOpen.has(rule.id);
         return (
           <div
             key={rule.id}
@@ -430,6 +438,15 @@ export default function TriggersPage() {
                   {speakAction?.template && (
                     <ActionDelay value={speakAction.delayMs ?? 0} onChange={(ms) => setActionDelay(rule, 'speak', ms)} />
                   )}
+                  {!moreOpen && (
+                    <button
+                      onClick={() => setMoreActionsOpen((prev) => new Set(prev).add(rule.id))}
+                      className="self-start text-[10px] font-bold uppercase tracking-wider text-studio-muted hover:text-studio-accent"
+                    >
+                      + Weitere Aktionen (Glücksrad, Medium, Counter, OBS, Chat, Spotify …)
+                    </button>
+                  )}
+                  {moreOpen && <>
                   {wheels.length === 0 && mediaLayers.length === 0 && counterLayers.length === 0 && (
                     <p className="text-[10px] leading-snug text-studio-muted/70">
                       💡 Aktionen wie Glücksrad drehen, Medium abspielen oder Counter ändern erscheinen hier, sobald du im <b>Overlay</b> ein passendes Widget anlegst.
@@ -533,6 +550,7 @@ export default function TriggersPage() {
                     placeholder="🎶 Song-Request (leer = aus) — Suchtext, z.B. {args} = Chat nach dem Befehl"
                     className="bx-input"
                   />
+                  </>}
                   {deadTargets.length > 0 && (
                     <p className="flex items-center gap-1 text-[10px] text-studio-accent">
                       <AlertTriangle size={11} /> {deadTargets.length} Aktion(en) zeigen auf ein gelöschtes Widget — bitte neu zuweisen.

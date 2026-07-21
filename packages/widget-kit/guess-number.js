@@ -109,7 +109,9 @@ export default class GuessNumberWidget {
   onEvent(event) {
     if (this.solved || event.type !== 'chat') return;
     const text = (event.text ?? '').trim();
-    if (!/^\d{1,4}$/.test(text)) return;
+    // So viele Ziffern zulassen, wie das Maximum hat — sonst wäre das Spiel bei
+    // Bereichen > 9999 unlösbar (korrekte Tipps würden vor dem Vergleich verworfen).
+    if (!new RegExp(`^\\d{1,${this.digits}}$`).test(text)) return;
     const guess = parseInt(text, 10);
     if (guess < this.min || guess > this.max) return;
 

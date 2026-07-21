@@ -68,6 +68,17 @@ export default function App() {
     void window.studio.getAppInfo().then((i: { version?: string }) => setVersion(i?.version ?? ''));
   }, []);
 
+  // Globales Navigations-Event: Seiten können gezielt woandershin springen
+  // (z.B. Live-Seite → „Gratis-Key holen" → Einstellungen).
+  useEffect(() => {
+    const onNav = (e: Event) => {
+      const target = (e as CustomEvent<string>).detail;
+      if (typeof target === 'string') setPage(target as Page);
+    };
+    window.addEventListener('bx-navigate', onNav);
+    return () => window.removeEventListener('bx-navigate', onNav);
+  }, []);
+
   // „Warte auf Live" ist KEIN Fehler — eigener ruhiger Zustand statt „RECONNECT… #4"
   // (das sah aus wie eine kaputte Fehlerschleife und war der Haupt-Frust neuer Nutzer).
   const waitingForLive = studio.status.status === 'reconnecting' && studio.status.detail === 'warte auf Live';
