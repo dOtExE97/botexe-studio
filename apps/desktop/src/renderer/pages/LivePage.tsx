@@ -4,7 +4,7 @@ import { useEffect, useState, type ComponentType } from 'react';
 import GiveawayCard from '../components/GiveawayCard';
 import GamesCard from '../components/GamesCard';
 import TriggerLogCard from '../components/TriggerLogCard';
-import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, RotateCcw } from 'lucide-react';
+import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import SetupChecklist from '../components/SetupChecklist';
 import type { useStudio } from '../hooks/useStudio';
 import ConfirmButton from '../components/ConfirmButton';
@@ -96,6 +96,9 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
   const [keySet, setKeySet] = useState(true); // default true → keine Warnung vor dem Laden
   const [range, setRange] = useState<'week' | 'month' | 'year'>('week');
   const [history, setHistory] = useState<{ coins: number; gifts: number; likes: number; chats: number; follows: number; sessions: number } | null>(null);
+  // Vor dem Verbinden sind Statistiken/Spiele/Giveaway nutzlos → offline
+  // eingeklappt, damit der Erst-Bildschirm auf „was tun" fokussiert. Aufklappbar.
+  const [liveToolsOpen, setLiveToolsOpen] = useState(false);
 
   // Zeitraum-Zusammenfassung laden (auch bei laufenden Stats aktualisieren).
   useEffect(() => {
@@ -198,12 +201,28 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
             </button>
           )}
         </div>
-        {!keySet && !connected && (
-          <p className="mt-2 text-[11px] text-amber-300">
-            ⚠ Zum Verbinden brauchst du einmalig den <b>kostenlosen eulerstream-Key</b> (2 Min). Der Knopf oben bringt dich hin — danach verbindet die App automatisch.
-          </p>
-        )}
       </div>
+
+      {/* Live-Werkzeuge (Statistiken, Spiele, Giveaway, Chat-Senden): offline
+          eingeklappt — vor dem Verbinden ohnehin ohne Funktion. Verbunden: immer offen. */}
+      {!connected && !liveToolsOpen ? (
+        <button
+          onClick={() => setLiveToolsOpen(true)}
+          className="flex items-center gap-2 rounded-lg border border-dashed border-studio-border bg-studio-raised/20 px-4 py-2.5 text-left text-xs text-studio-muted hover:border-studio-accent/40 hover:text-studio-text"
+        >
+          <ChevronDown size={14} className="flex-none" />
+          <span><b className="text-studio-text/80">Live-Werkzeuge</b> — Statistiken, Chat-Spiele, Giveaway &amp; Chat-Senden. Werden aktiv, sobald du verbunden bist. <span className="text-studio-muted/70">(zum Ansehen aufklappen)</span></span>
+        </button>
+      ) : (
+        <>
+          {!connected && (
+            <button
+              onClick={() => setLiveToolsOpen(false)}
+              className="flex items-center gap-2 self-start rounded-lg px-2 py-1 text-[11px] text-studio-muted hover:text-studio-text"
+            >
+              <ChevronUp size={13} /> Live-Werkzeuge einklappen <span className="text-studio-muted/60">(erst live nützlich)</span>
+            </button>
+          )}
 
       {/* Stats-Karten */}
       <div className="grid grid-cols-7 gap-3">
@@ -302,8 +321,11 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
         />
         <button type="submit" disabled={!tiktokIn} className="bx-pill px-4 hover:text-studio-teal disabled:opacity-40">Senden</button>
       </form>
+        </>
+      )}
 
-      {/* Event-Feed + Trigger-Protokoll + Test-Panel */}
+      {/* Event-Feed + Trigger-Protokoll + Test-Panel — auch offline nützlich
+          (Test-Events laufen durch die ganze Kette, Overlay reagiert ohne Live). */}
       <div className="grid min-h-0 flex-1 grid-cols-[1fr_1fr_280px] gap-4">
         <section className="bx-card flex min-h-0 flex-col overflow-hidden">
           <h2 className="border-b border-studio-border px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">

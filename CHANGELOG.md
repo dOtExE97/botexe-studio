@@ -3,6 +3,11 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.22.0] — 2026-07-21
+
+### Fokussierter Erst-Bildschirm 🎯
+Die Live-Seite war vor dem Verbinden überladen — 7 Null-Statistiken, Chat-Spiele, Giveaway, Stream-Boss standen gleichberechtigt neben dem einen, das zählt: „starte hier". Jetzt sind diese **Live-Werkzeuge offline eingeklappt** (eine Leiste „Werden aktiv, sobald du verbunden bist" — aufklappbar für Neugierige), sodass der **Startklar-Check der Held** ist. Verbunden klappt alles automatisch auf. Der redundante Key-Warn-Absatz ist raus (der Startklar-Check führt eh dorthin). Die Test-Werkzeuge bleiben sichtbar — die laufen auch ohne Live durch die ganze Kette. Ergebnis: klarer „mach zuerst das"-Erst-Eindruck für Umsteiger.
+
 ## [0.21.1] — 2026-07-21
 
 ### Fix: Geschenke-Galerie „Letztes Live" zeigte alle Gifts
