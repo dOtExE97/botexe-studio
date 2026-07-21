@@ -3,6 +3,30 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.9.0] — 2026-07-21
+
+### Widget-Großputz 🧹 (3 Agenten-Audits über alle ~45 Widgets)
+**Behoben:**
+- **Spiele-Tab zeigt jetzt ALLE Spiele** — Quiz, Galgenmännchen, Tic Tac Toe, 4 Gewinnt und Stream-Boss steckten fälschlich in „Ambient & Deko" (die halbe Spiele-Sammlung war unauffindbar!).
+- **Keine Geister-Alerts mehr nach Verbindungs-Blips** — bei jedem Reconnect wurden die letzten Events erneut zugestellt: alte Gift-/Follow-Alerts blitzten auf, Feuerwerk/Kanone/Herzen feuerten erneut, Feeds bekamen doppelte Zeilen und der **Geschenkzähler zählte doppelt** (persistent!). Jetzt sauber unterschieden zwischen Rehydrieren und echten Events.
+- **Bingo überlebt jetzt den Stream-Wechsel** — vorher zielten die Meilenstein-Felder nach „neuer Stream" auf die alten Zahlen und hakten sich nie mehr ab.
+- **Hype-Train & Subathon können nicht mehr „einfrieren"** (NaN-Schutz bei Gift-Events ohne Coin-Wert).
+- **Glücksrad zeigt auf allen Quellen (OBS + TikTok Studio) denselben Gewinner** — vorher würfelte jede Quelle ihr eigenes Ergebnis!
+- **Zahlen-Raten bleibt nach einem Reload synchron** (Rundenstand wird gemerkt).
+- **Tic-Tac-Toe-Siegesfeier funktioniert jetzt wirklich** (Aufleuchten beim Gewinn — war vorher ein No-Op).
+- Geschenke-Glas verliert seinen Füllstand nach Reconnect nicht mehr; Punkte-Liste schneidet bei kleiner Box keine Ränge mehr ab; Countdown startet nach Reload nicht mehr von vorn; Leaderboard-Platzhalter kehrt zurück; viele Widgets reagieren jetzt sauber auf „neuer Stream" (Galgenmännchen, 4 Gewinnt, Giveaway, Subathon, Action-Screen).
+
+**Übersichtlicher & mehr einstellbar:**
+- Beschreibungen der Widgets in **klarem Deutsch** (kein „Twitch-Style"/Insider-Sprech mehr).
+- **Neue Regler freigeschaltet**: Rundenpause bei Geschenk-Schlacht & Live-Umfrage, Akzentfarbe bei Like-Herzen & Geschenke-Kanone.
+- „Beliebt"-Tab: Like-Herzen (sofort-Effekt, null Konfiguration) statt Stream-Boss.
+
+### Key-Beschaffung weiter verbessert 🔑
+- **Key-Gesundheitscheck beim App-Start**: Wird dein gespeicherter Key ungültig (z.B. bei eulerstream gelöscht), warnt die App sofort — nicht erst beim kaputten Verbinden.
+- **Diagnose-Seite prüft den Key jetzt LIVE** („Key gültig ✓" statt nur „Key gesetzt").
+
+---
+
 ## [0.8.0] — 2026-07-21
 
 ### Neu: Key-Assistent 🔑 — die Euler-Hürde geführt statt allein

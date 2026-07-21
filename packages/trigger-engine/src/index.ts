@@ -60,6 +60,11 @@ export interface StudioEvent {
   /** true = Test-/Replay-Event (Vorschau) — löst Overlay/TTS aus, wird aber NICHT
    *  persistent verbucht (keine echten Punkte/Coins/Likes, kein Gift-Katalog). */
   synthetic?: boolean;
+  /** true = Sticky-Replay beim (Re-)Connect einer Overlay-Quelle: das letzte
+   *  Event pro Typ wird zum Rehydrieren erneut gesendet. Effekt-/Zähler-Widgets
+   *  MÜSSEN das überspringen (sonst Geister-Alerts + Doppelzählung); nur
+   *  idempotente Anzeigen (Top-Gift/Top-Streak) dürfen es verarbeiten. */
+  sticky?: boolean;
 }
 
 export type TriggerCondition =
@@ -82,7 +87,9 @@ export type TriggerActionKind =
   | { kind: 'hide_layer'; targetId: string }
   /** TTS-Ansage; template mit {user} {text} {gift} {count} {coins} platzhaltern. */
   | { kind: 'speak'; template: string; voice?: string }
-  | { kind: 'spin_wheel'; targetId: string; cost?: number }
+  /** roll (0..1) würfelt der SERVER beim Broadcast — alle Overlay-Quellen
+   *  (OBS + TTLS) zeigen so denselben Gewinner. segmentIndex = fester Zielwert. */
+  | { kind: 'spin_wheel'; targetId: string; cost?: number; segmentIndex?: number; roll?: number }
   /** Media-Widget abspielen (Bild einblenden / Video starten) — z.B. Begrüßungsclip. */
   | { kind: 'play_media'; targetId: string }
   /** Counter-Widget verändern (delta ±N, z.B. „Tode +1" per Hotkey/Befehl). */

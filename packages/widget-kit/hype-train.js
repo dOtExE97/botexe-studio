@@ -82,8 +82,9 @@ export default class HypeTrain {
   }
 
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     let pts = 0;
-    if (event.type === 'gift' && event.gift) pts = event.gift.totalCoins / this.coinsPerPoint;
+    if (event.type === 'gift' && event.gift) pts = (event.gift.totalCoins || 0) / this.coinsPerPoint; // || 0: NaN würde den Zug dauerhaft einfrieren
     else if (event.type === 'like') pts = (event.likeCount ?? 0) / this.likesPerPoint;
     if (pts <= 0) return;
     this.add(pts);

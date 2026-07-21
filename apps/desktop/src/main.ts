@@ -50,6 +50,26 @@ function pushUpdateStatus(next: typeof updateState): void {
   sendToRenderer(IPC.UPDATE_STATUS, next);
 }
 
+/** eulerstream-Key gegen die API prüfen (200 = gültig, 401 = ungültig). */
+async function testEulerKey(key: string): Promise<{ ok: boolean; reason?: string; message?: string }> {
+  const k = key.trim();
+  if (!k) return { ok: false, reason: 'empty' };
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
+    const res = await fetch(
+      `https://api.eulerstream.com/webcast/rate_limits?apiKey=${encodeURIComponent(k)}`,
+      { signal: ctl.signal },
+    );
+    clearTimeout(timer);
+    const body = (await res.json().catch(() => ({}))) as { code?: number; message?: string };
+    if (res.ok && body.code === 200) return { ok: true };
+    return { ok: false, reason: 'invalid', message: body.message ?? `HTTP ${res.status}` };
+  } catch {
+    return { ok: false, reason: 'offline' };
+  }
+}
+
 /** App mit dem Betriebssystem-Login starten (Windows/macOS). So läuft der
  *  Overlay-Server schon, bevor OBS/TTLS die Browser-Quelle lädt. Fehler nie
  *  eskalieren — die Funktion ist auf manchen Linux-Setups nicht verfügbar. */
@@ -320,24 +340,12 @@ function registerIpc(): void {
     const t = clipboard.readText().trim();
     return /^euler_[\w-]{8,}$/.test(t) ? t : '';
   });
-  // eulerstream-Key sofort prüfen: 200 = gültig, 401 = ungültig, sonst Netzfehler.
+  // eulerstream-Key prüfen: 200 = gültig, 401 = ungültig, sonst Netzfehler.
+  // Ohne Argument wird der GESPEICHERTE Key geprüft (für Diagnose/Start-Check),
+  // der rohe Key verlässt den Main-Prozess dabei nie.
   ipcMain.handle(IPC.SIGNKEY_TEST, async (_e, key: unknown) => {
-    const k = typeof key === 'string' ? key.trim() : '';
-    if (!k) return { ok: false, reason: 'empty' };
-    try {
-      const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), 8000);
-      const res = await fetch(
-        `https://api.eulerstream.com/webcast/rate_limits?apiKey=${encodeURIComponent(k)}`,
-        { signal: ctl.signal },
-      );
-      clearTimeout(timer);
-      const body = (await res.json().catch(() => ({}))) as { code?: number; message?: string };
-      if (res.ok && body.code === 200) return { ok: true };
-      return { ok: false, reason: 'invalid', message: body.message ?? `HTTP ${res.status}` };
-    } catch {
-      return { ok: false, reason: 'offline' };
-    }
+    const k = (typeof key === 'string' && key.trim()) || studio?.settings.get().tiktokSignApiKey || '';
+    return testEulerKey(k);
   });
   // Konfig-Backup: alles (Einstellungen/Trigger/Store/Panel/Overlays/Zuschauer)
   // in eine JSON-Datei sichern bzw. wieder einspielen.
@@ -986,6 +994,19 @@ app.whenReady().then(async () => {
   createMainWindow();
   // Autostart-Eintrag mit der gespeicherten Einstellung synchron halten.
   applyAutostart(studio.settings.get().autostart === true);
+  // Key-Gesundheitscheck: Ist der gespeicherte eulerstream-Key ungültig geworden
+  // (z.B. im Dashboard gelöscht), soll der Streamer das SOFORT erfahren — nicht
+  // erst beim fehlgeschlagenen Verbinden mitten im Go-Live. Netzfehler = still.
+  setTimeout(() => {
+    const key = studio?.settings.get().tiktokSignApiKey ?? '';
+    if (!key) return;
+    void testEulerKey(key).then((r) => {
+      if (r.reason === 'invalid') {
+        log.warn('TikTok', 'Gespeicherter eulerstream-Key wird nicht mehr akzeptiert (Start-Check).');
+        sendToRenderer(IPC.TOAST_SHOW, { type: 'error', message: 'Dein eulerstream-Key wird nicht mehr akzeptiert — hol dir unter Einstellungen → TikTok-Verbindung einen neuen (Key-Assistent).' });
+      }
+    });
+  }, 6000);
   setupAutoUpdate(); // Hintergrund-Update-Check + Event-Weiterleitung ans UI
 
   app.on('activate', () => {

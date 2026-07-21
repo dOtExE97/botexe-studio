@@ -108,7 +108,7 @@ const THEME_FIELD: PropField = {
     { value: 'glas', label: 'Glas (Standard)' },
     { value: 'neon', label: 'Neon (Cyberpunk)' },
     { value: 'synthwave', label: 'Synthwave (Retro-Pink)' },
-    { value: 'arcade', label: 'Arcade (fett, TikFinity-Look)' },
+    { value: 'arcade', label: 'Arcade (fett, mit Avataren)' },
     { value: 'luxus', label: 'Luxus (Schwarz/Gold, Serif)' },
     { value: 'midnight', label: 'Midnight (Tiefblau)' },
     { value: 'inferno', label: 'Inferno (Glut/Rot)' },
@@ -153,7 +153,7 @@ const WIDGET_TYPES: {
   fields: PropField[];
 }[] = [
   {
-    type: 'action-screen', label: 'Action-Screen (Momente)', desc: 'Unsichtbar im Idle — spielt kurze Premium-Momente ab: VIP-Welcome, Level-Up, Game-Win, Boss-Kill, Loot. Mehrere Instanzen per Kanal filtern (Mini links, Big mittig).',
+    type: 'action-screen', label: 'Action-Screen (Momente)', desc: 'Die Bühne für besondere Momente: Wenn ein VIP reinkommt, jemand ein Spiel gewinnt oder der Boss fällt, blendet sich automatisch eine schicke Karte ein — sonst unsichtbar.',
     w: 420, h: 240, props: { channels: '', types: '', sizeMode: 'standard', queueMode: 'priority', maxQueue: 6, minPriority: 0, dedupeMs: 1500, defaultSkin: 'premium', animation: 'pop', showAvatar: true, showStats: true, soundMode: 'moment', accent: '#ff5436' },
     fields: [
       { key: 'channels', label: 'Kanäle', type: 'text', hint: 'Leer = alle. Sonst kommagetrennt: vip, viewer, game, mastery, boss, loot, manual, clip.' },
@@ -218,7 +218,7 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'hype-train', label: 'Hype-Train', desc: 'Geschenke & Likes treiben einen Zug an, der in Stufen aufsteigt (Twitch-Style) — füllt sich live, verlängert den Timer, eskaliert die Farbe, Sound beim Level-Up.',
+    type: 'hype-train', label: 'Hype-Train', desc: 'Ein Hype-Balken, den Geschenke & Likes füllen: Stufe für Stufe steigt das Level, die Farben werden wilder, beim Aufstieg gibt es einen Sound. Perfekt, um den Chat anzuheizen.',
     w: 560, h: 150, props: { coinsPerPoint: 1, likesPerPoint: 10, levelStep: 200, maxLevels: 5, windowSec: 30, title: 'Hype-Train', levelSoundId: 'botexe-gewinn.wav', accent: '#ff4d2e' },
     fields: [
       { key: 'levelStep', label: 'Punkte pro Level', type: 'number', hint: 'Wie viele Punkte ein Level kostet. Punkte = Coins (÷ Coins/Punkt) + Likes (÷ Likes/Punkt).' },
@@ -233,7 +233,7 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'subathon', label: 'Subathon-Timer', desc: 'Countdown, den Geschenke & Follower VERLÄNGERN — hält den Stream am Laufen (Twitch-Klassiker). „+Xs" ploppt bei jedem Zuwachs auf.',
+    type: 'subathon', label: 'Subathon-Timer', desc: 'Ein Countdown, den deine Zuschauer verlängern: Jedes Geschenk und jeder neue Follower gibt Extra-Zeit — dein Publikum hält den Stream am Leben.',
     w: 440, h: 200, props: { startMinutes: 30, secondsPerCoin: 2, secondsPerFollow: 30, secondsPerLike: 0, maxMinutes: 600, title: 'Subathon', addSoundId: 'botexe-gewinn.wav', accent: '#28e0c4' },
     fields: [
       { key: 'startMinutes', label: 'Startzeit (Min.)', type: 'number', hint: 'Womit der Timer startet (beim Laden).' },
@@ -277,7 +277,7 @@ const WIDGET_TYPES: {
       { key: 'onReach', label: 'Bei Ziel', type: 'select', options: [
         { value: 'raise', label: 'Weiterzählen (nächstes Ziel)' },
         { value: 'keep', label: 'Stehenbleiben („erreicht")' },
-      ], hint: 'Weiterzählen = wie TikFinity, das Ziel wächst automatisch mit.' },
+      ], hint: 'Weiterzählen = das Ziel wächst automatisch mit.' },
       ACCENT_FIELD,
       ...STYLE_FIELDS,
     ],
@@ -300,14 +300,14 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'leaderboard', label: 'Top Gifter', desc: 'Die größten Gift-Supporter — TikFinity-Look (Avatare + Kronen) oder Box.',
+    type: 'leaderboard', label: 'Top Gifter', desc: 'Die größten Gift-Supporter — mit Avataren + Kronen oder Box.',
     w: 760, h: 180, props: { source: 'gifts', limit: 5, title: '', style: 'arcade', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'source', label: 'Quelle', type: 'select', options: [
         { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
       ] },
       styleField([
-        { value: 'arcade', label: 'Arcade (TikFinity-Look)' },
+        { value: 'arcade', label: 'Arcade (Avatare + Kronen)' },
         { value: 'glas', label: 'Glas (Panel)' },
         { value: 'neon', label: 'Neon (durchscheinend)' },
         { value: 'bars', label: 'Balken (minimal)' },
@@ -320,14 +320,14 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'leaderboard', label: 'Like-Liste', desc: 'Wer am fleißigsten liked — TikFinity-Look (Avatare + Kronen) oder Box.',
+    type: 'leaderboard', label: 'Like-Liste', desc: 'Wer am fleißigsten liked — mit Avataren + Kronen oder Box.',
     w: 760, h: 180, props: { source: 'likes', limit: 5, title: '', style: 'arcade', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'source', label: 'Quelle', type: 'select', options: [
         { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
       ] },
       styleField([
-        { value: 'arcade', label: 'Arcade (TikFinity-Look)' },
+        { value: 'arcade', label: 'Arcade (Avatare + Kronen)' },
         { value: 'glas', label: 'Glas (Panel)' },
         { value: 'neon', label: 'Neon (durchscheinend)' },
         { value: 'bars', label: 'Balken (minimal)' },
@@ -434,14 +434,14 @@ const WIDGET_TYPES: {
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift über dem Rad.' },
       { key: 'spinMs', label: 'Drehdauer', type: 'seconds', hint: 'Wie lange das Rad dreht, bis es stoppt.' },
       { key: 'autoShow', label: 'Auto ein-/ausblenden', type: 'boolean', hint: 'An: Rad erscheint beim Spin und verschwindet nach dem Ergebnis (deckt sonst nichts zu). Aus: dauerhaft sichtbar.' },
-      { key: 'showTrigger', label: 'Dreher-Banner', type: 'boolean', hint: 'Zeigt beim Start kurz, wer (womit) gedreht hat — TikFinity-Style. Lichter-Kette am Rand ist immer an.' },
+      { key: 'showTrigger', label: 'Dreher-Banner', type: 'boolean', hint: 'Zeigt beim Start kurz, wer (womit) gedreht hat — freistehend. Lichter-Kette am Rand ist immer an.' },
       { key: 'spinSoundId', label: 'Dreh-Sound', type: 'sound', hint: 'Spielt beim Start des Spins über die App.' },
       { key: 'resultSoundId', label: 'Gewinn-Sound', type: 'sound', hint: 'Spielt, wenn das Rad stehen bleibt.' },
       ACCENT_FIELD,
     ],
   },
   {
-    type: 'giveaway', label: 'Giveaway / Verlosung', desc: 'Zuschauer treten per !join bei (in Einstellungen → Giveaway aktivieren); auf der Live-Seite „Gewinner ziehen" → das Widget animiert die Ziehung und enthüllt den Gewinner.',
+    type: 'giveaway', label: 'Giveaway / Verlosung', desc: 'Verlosung: Zuschauer schreiben !join in den Chat und sind im Lostopf. Auf Knopfdruck zieht das Widget spannend animiert einen Gewinner.',
     w: 760, h: 240, props: { style: 'strip', title: 'Giveaway', soundId: '', winSoundId: 'botexe-gewinn.wav', accent: '#ff5436', theme: 'glas' },
     fields: [
       { key: 'title', label: 'Titel', type: 'text' },
@@ -457,7 +457,7 @@ const WIDGET_TYPES: {
   },
   {
     type: 'gift-battle', label: 'Geschenk-Schlacht', desc: 'Zwei Teams im Tauziehen — jedes Team ist Gifts zugeordnet, Zuschauer pushen ihr Team. Rundentimer, Sieger-Blitz, optional Auto-Runde. (Zwei Designs)',
-    w: 620, h: 220, props: { style: 'tug', teamA: 'Team Rosa', teamB: 'Team Blau', giftsA: 'rose', giftsB: 'heart', metric: 'coins', durationSec: 60, autoNewRound: true, winSoundId: 'botexe-gewinn.wav', accent: '#ff5436', theme: 'glas' },
+    w: 620, h: 220, props: { style: 'tug', teamA: 'Team Rosa', teamB: 'Team Blau', giftsA: 'rose', giftsB: 'heart', metric: 'coins', durationSec: 60, autoNewRound: true, roundDelayMs: 6000, winSoundId: 'botexe-gewinn.wav', accent: '#ff5436', theme: 'glas' },
     fields: [
       styleField([
         { value: 'tug', label: 'Tauziehen (Balken)' },
@@ -473,13 +473,14 @@ const WIDGET_TYPES: {
       ], hint: 'Womit gezogen wird.' },
       { key: 'durationSec', label: 'Rundenlänge (Sek.)', type: 'number', hint: 'Wie lange eine Schlacht dauert.' },
       { key: 'autoNewRound', label: 'Auto neue Runde', type: 'boolean', hint: 'Nach dem Sieger automatisch eine frische Runde starten.' },
+      { key: 'roundDelayMs', label: 'Pause bis zur neuen Runde', type: 'seconds', hint: 'Wie lange der Sieger gefeiert wird, bevor die nächste Runde startet.' },
       { key: 'winSoundId', label: 'Sieger-Sound', type: 'sound', hint: 'Spielt über die App, wenn ein Team gewinnt.' },
       ACCENT_FIELD, THEME_FIELD,
     ],
   },
   {
     type: 'live-poll', label: 'Live-Umfrage', desc: 'Frage + 2–4 Optionen. Zuschauer stimmen per Chat ab (Zahl tippen, z.B. „1") — eine Stimme pro Person. Balken füllen sich live, am Ende Sieger-Reveal. (Zwei Designs)',
-    w: 480, h: 280, props: { style: 'bars', question: 'Was sollen wir spielen?', options: 'Fortnite, Just Chatting, Zuschauer-Games', durationSec: 45, autoNewRound: false, revealSoundId: 'botexe-gewinn.wav', accent: '#7c5cff', theme: 'glas' },
+    w: 480, h: 280, props: { style: 'bars', question: 'Was sollen wir spielen?', options: 'Fortnite, Just Chatting, Zuschauer-Games', durationSec: 45, autoNewRound: false, roundDelayMs: 6000, revealSoundId: 'botexe-gewinn.wav', accent: '#7c5cff', theme: 'glas' },
     fields: [
       styleField([
         { value: 'bars', label: 'Balken (untereinander)' },
@@ -489,6 +490,7 @@ const WIDGET_TYPES: {
       { key: 'options', label: 'Optionen', type: 'text', hint: '2–4 Optionen, kommagetrennt. Zuschauer tippen die Zahl (1, 2, …) in den Chat.' },
       { key: 'durationSec', label: 'Abstimmdauer (Sek.)', type: 'number', hint: 'Wie lange abgestimmt werden kann, bis der Sieger enthüllt wird.' },
       { key: 'autoNewRound', label: 'Auto neue Runde', type: 'boolean', hint: 'Nach dem Reveal automatisch wieder offen für Stimmen.' },
+      { key: 'roundDelayMs', label: 'Pause bis zur neuen Runde', type: 'seconds', hint: 'Wie lange das Ergebnis stehen bleibt, bevor neu abgestimmt wird.' },
       { key: 'revealSoundId', label: 'Reveal-Sound', type: 'sound', hint: 'Spielt über die App beim Enthüllen des Siegers.' },
       ACCENT_FIELD, THEME_FIELD,
     ],
@@ -498,7 +500,7 @@ const WIDGET_TYPES: {
     w: 320, h: 320, props: { title: '', style: 'glas', accent: '#ffd23e', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Größtes Gift".' },
-      styleField([{ value: 'glas', label: 'Glas (Panel)' }, { value: 'sticker', label: 'Sticker (freistehend, TikFinity-Look)' }]),
+      styleField([{ value: 'glas', label: 'Glas (Panel)' }, { value: 'sticker', label: 'Sticker (freistehend, ohne Panel)' }]),
       ACCENT_FIELD, ...STYLE_FIELDS,
     ],
   },
@@ -507,7 +509,7 @@ const WIDGET_TYPES: {
     w: 340, h: 320, props: { title: '', style: 'glas', accent: '#ff5e8a', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Höchste Combo".' },
-      styleField([{ value: 'glas', label: 'Glas (Panel)' }, { value: 'sticker', label: 'Sticker (freistehend, TikFinity-Look)' }]),
+      styleField([{ value: 'glas', label: 'Glas (Panel)' }, { value: 'sticker', label: 'Sticker (freistehend, ohne Panel)' }]),
       ACCENT_FIELD, ...STYLE_FIELDS,
     ],
   },
@@ -532,16 +534,17 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'heart-rain', label: 'Like-Herzen', desc: 'Likes als bunte Herzen + Profilbilder, über die ganze Breite aufsteigend, sanft schwingend (TikFinity-Style).',
+    type: 'heart-rain', label: 'Like-Herzen', desc: 'Likes als bunte Herzen + Profilbilder, über die ganze Breite aufsteigend, sanft schwingend .',
     w: 1080, h: 1100, props: { emojis: '❤️,💖,💕,✨,🔥', maxPerBurst: 16, mode: 'fountain', avatars: true },
     fields: [
       { key: 'mode', label: 'Stil', type: 'select', options: [
         { value: 'fountain', label: 'Dicht (viele kleine Herzen)' },
         { value: 'rain', label: 'Locker (größere Herzen)' },
       ], hint: 'Beide steigen über die ganze Breite auf — „Dicht" wirft mehr kleinere Herzen, „Locker" weniger, größere.' },
-      { key: 'avatars', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Ab und zu steigt das echte Profilbild des Likers mit auf (wie bei TikFinity).' },
+      { key: 'avatars', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Ab und zu steigt das echte Profilbild des Likers mit auf.' },
       { key: 'emojis', label: 'Emojis', type: 'text', hint: 'Eigene Symbole, kommagetrennt (z.B. ❤️,💖,🔥). Leer/Default = edle bunte SVG-Herzen.' },
       { key: 'maxPerBurst', label: 'Max. pro Like-Schub', type: 'number', hint: 'Begrenzt, wie viele bei einer Like-Welle gleichzeitig kommen.' },
+      ACCENT_FIELD,
     ],
   },
   {
@@ -555,7 +558,7 @@ const WIDGET_TYPES: {
         { value: 'glow', label: 'Leuchten' }, { value: 'rainbow', label: 'Regenbogen' },
         { value: 'shimmer', label: 'Glanz-Sweep' },
       ] },
-      { key: 'outline', label: 'Dicke Kontur', type: 'boolean', hint: 'Schwarze Outline (TikFinity-Look). Aus = clean.' },
+      { key: 'outline', label: 'Dicke Kontur', type: 'boolean', hint: 'Schwarze Outline . Aus = clean.' },
       ACCENT_FIELD,
     ],
   },
@@ -580,7 +583,7 @@ const WIDGET_TYPES: {
     fields: [
       { key: 'channels', label: 'Kanäle', type: 'text', hint: 'Format „plattform:Name", mit | trennen. Plattformen: tiktok, instagram, youtube, discord, twitch, x, kick, snapchat, facebook.' },
       styleField([
-        { value: 'pill', label: 'Pille (hell, TikFinity-Look)' },
+        { value: 'pill', label: 'Pille (hell, freistehend)' },
         { value: 'glas', label: 'Glas' },
         { value: 'neon', label: 'Neon' },
       ]),
@@ -635,6 +638,7 @@ const WIDGET_TYPES: {
       { key: 'minCoins', label: 'Mindest-Coins', type: 'number', hint: 'Erst ab diesem Gift-Wert auslösen (0 = immer).' },
       { key: 'maxBalls', label: 'Max. Bälle', type: 'number', hint: 'Wie viele Bälle gleichzeitig im Bild bleiben (TTLS-schonend).' },
       { key: 'soundId', label: 'Schuss-Sound', type: 'sound', hint: 'Spielt beim Abschuss über die App.' },
+      ACCENT_FIELD,
     ],
   },
   {
@@ -643,7 +647,7 @@ const WIDGET_TYPES: {
     fields: [
       { key: 'target', label: 'Ziel (Coins)', type: 'number', hint: 'Bei diesem Wert ist das Glas voll.' },
       { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Text über dem Glas, leer = „Coin-Glas".' },
-      { key: 'showToast', label: 'Donation-Toasts', type: 'boolean', hint: 'Zeigt bei jedem Gift kurz „Name schickt Gift ×N" (TikFinity-Style).' },
+      { key: 'showToast', label: 'Donation-Toasts', type: 'boolean', hint: 'Zeigt bei jedem Gift kurz „Name schickt Gift ×N" .' },
       ACCENT_FIELD,
     ],
   },
@@ -668,7 +672,7 @@ const WIDGET_TYPES: {
     w: 900, h: 1200, props: { minCoins: 0, maxRockets: 12, comboMode: 'fan', burstScale: 1.5, showName: true, soundId: 'botexe-boom.wav', whistleSoundId: 'botexe-pfeife.wav', accent: '#ff5436' },
     fields: [
       { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Feuerwerk nur für Gifts ab diesem Wert. 0 = jedes.' },
-      { key: 'showName', label: 'Name im Burst (TikFinity-Style)', type: 'boolean', hint: 'Zeigt den Namen des Schenkenden als leuchtenden Neon-Schriftzug im Explosionszentrum.' },
+      { key: 'showName', label: 'Name im Burst (freistehend)', type: 'boolean', hint: 'Zeigt den Namen des Schenkenden als leuchtenden Neon-Schriftzug im Explosionszentrum.' },
       ACCENT_FIELD,
       { key: 'comboMode', label: 'Bei Combos (z.B. 10x Rose)', type: 'select', options: [
         { value: 'fan', label: 'Auffächern — eine Rakete pro Gift' },
@@ -706,7 +710,7 @@ const WIDGET_TYPES: {
       { key: 'slideSec', label: 'Slider-Wechsel (Sek.)', type: 'number', hint: 'Nur bei „Beides": Sekunden pro Seite, bevor zwischen Spiele/Tabelle gewechselt wird.' },
       { key: 'refreshSec', label: 'Aktualisieren alle … Sek.', type: 'number', hint: 'Mind. 15s. football-data Free erlaubt 10 Abrufe/Min.' },
       { key: 'goalSoundId', label: 'Tor-Sound', type: 'sound', hint: 'Spielt über die App, wenn ein Tor fällt.' },
-      { key: 'goalBanner', label: 'Tor-Feier (TikFinity-Style)', type: 'boolean', hint: 'Bei einem Tor läuft ein großer Text quer durch + das ganze Widget leuchtet grün.' },
+      { key: 'goalBanner', label: 'Tor-Feier (freistehend)', type: 'boolean', hint: 'Bei einem Tor läuft ein großer Text quer durch + das ganze Widget leuchtet grün.' },
       { key: 'goalText', label: 'Tor-Text', type: 'text', hint: 'Was bei einem Tor durchläuft (Standard: GOOOAAALLL).' },
       ACCENT_FIELD,
       THEME_FIELD,
@@ -762,17 +766,21 @@ const PALETTE_CATEGORIES: { id: string; label: string; icon: typeof Star }[] = [
   { id: 'media', label: 'Media', icon: Clapperboard },
 ];
 // „Beliebt": die typischen Einsteiger-/Stream-Basics, in sinnvoller Reihenfolge.
+// (heart-rain statt stream-boss: null Konfiguration, sofort sichtbarer Effekt.)
 const POPULAR_WIDGETS = [
   'gift-alert', 'follow-alert', 'stat-chips', 'goal-bar', 'leaderboard',
-  'chat-box', 'gift-feed', 'top-gift', 'stream-boss', 'wheel',
+  'chat-box', 'gift-feed', 'top-gift', 'heart-rain', 'wheel',
 ];
+// JEDES Widget MUSS hier stehen — fehlende fallen auf 'deko' zurück und sind
+// dann im falschen Tab unauffindbar (genau so verschwand mal die halbe
+// Spiele-Sammlung in „Ambient & Deko").
 const CATEGORY_OF: Record<string, string> = {
-  'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts',
+  'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts', 'gift-cannon': 'alerts', 'action-screen': 'alerts',
   bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele', giveaway: 'spiele', 'gift-battle': 'spiele', 'live-poll': 'spiele',
-  'gift-jar': 'gifts', 'gift-counter': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts',
-  'gift-cannon': 'alerts',
+  'quiz-game': 'spiele', 'hangman-game': 'spiele', 'tic-tac-toe-game': 'spiele', 'connect-four-game': 'spiele', 'stream-boss': 'spiele',
+  'gift-jar': 'gifts', 'gift-counter': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts', 'goal-countdown': 'gifts',
   'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',
-  'stat-chips': 'stats', counter: 'stats', 'goal-countdown': 'stats',
+  'stat-chips': 'stats', counter: 'stats',
   'heart-rain': 'deko', 'text-ticker': 'deko', 'social-rotator': 'deko', emojify: 'deko', 'command-carousel': 'deko', 'text-label': 'deko',
   media: 'media', 'spotify-now-playing': 'media',
 };

@@ -64,6 +64,7 @@ export default class Emojify {
   }
 
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'chat' || !event.text) return;
     const emojis = extractEmojis(event.text, this.max);
     emojis.forEach((emo, i) => {

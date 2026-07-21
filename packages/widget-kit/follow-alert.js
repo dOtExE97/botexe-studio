@@ -69,6 +69,7 @@ export default class FollowAlert {
     this.busy = false;
   }
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (!this.events.includes(event.type)) return;
     const preset = PRESETS[event.type];
     if (!preset) return;

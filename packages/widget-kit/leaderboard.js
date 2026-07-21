@@ -137,6 +137,14 @@ export default class Leaderboard {
       if (pic && g.profilePic) pic.style.backgroundImage = `url("${cssUrl(g.profilePic)}")`;
     });
     for (const [id, row] of this.rows) { if (!seen.has(id)) { row.remove(); this.rows.delete(id); } }
+    // Liste wieder leer (z.B. Session-Reset ohne Rebuild) → Platzhalter zurückholen,
+    // sonst bleibt ein komplett leeres Panel stehen.
+    if (items.length === 0 && !list.querySelector('.bx-lb-empty')) {
+      const ph = document.createElement('div');
+      ph.className = 'bx-lb-empty';
+      ph.textContent = this.source === 'likes' ? 'Noch keine Likes' : 'Noch keine Gifts';
+      list.appendChild(ph);
+    }
     if (this.style === 'arcade') {
       // DOM-reihenfolge = rang-reihenfolge (flexbox legt nebeneinander)
       items.forEach((g) => { const r = this.rows.get(g.id); if (r) list.appendChild(r); });

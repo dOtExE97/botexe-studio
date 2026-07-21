@@ -39,7 +39,8 @@ export default class Subathon {
     this.perLike = Math.max(0, Number(props.secondsPerLike ?? 0));
     this.maxMs = Math.max(1, Number(props.maxMinutes ?? 600)) * 60000;
     this.addSound = props.addSoundId || '';
-    this.remaining = Math.max(0, Number(props.startMinutes ?? 30)) * 60000;
+    this.startMs = Math.max(0, Number(props.startMinutes ?? 30)) * 60000;
+    this.remaining = this.startMs;
     this.lastT = 0;
 
     this.el = document.createElement('div');
@@ -53,8 +54,9 @@ export default class Subathon {
   }
 
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     let add = 0;
-    if (event.type === 'gift' && event.gift) add = event.gift.totalCoins * this.perCoin;
+    if (event.type === 'gift' && event.gift) add = (event.gift.totalCoins || 0) * this.perCoin; // || 0: NaN würde den Timer dauerhaft einfrieren
     else if (event.type === 'follow') add = this.perFollow;
     else if (event.type === 'like') add = (event.likeCount ?? 0) * this.perLike;
     if (add <= 0) return;
@@ -89,6 +91,13 @@ export default class Subathon {
     const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
     this.timeEl.textContent = h > 0 ? `${h}:${two(m)}:${two(s)}` : `${two(m)}:${two(s)}`;
     this.el.classList.toggle('low', this.remaining > 0 && this.remaining < 60000);
+  }
+
+  /** Neuer Stream: Timer zurück auf die Startzeit (alter Countdown gehört zur alten Session). */
+  onReset() {
+    this.remaining = this.startMs;
+    this.kick(); // Uhr läuft sicher (falls sie bei „VORBEI!" gestoppt wurde)
+    this.render();
   }
 
   destroy() { if (this.timer) { clearInterval(this.timer); this.timer = null; } this.el.remove(); }

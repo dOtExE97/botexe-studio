@@ -109,6 +109,7 @@ export default class GiftCounter {
   }
 
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'gift' || !event.gift) return;
     // Bestimmtes Gift ODER alle, wenn kein slug gesetzt. Normalisierter Vergleich
     // (giftKey) → unempfindlich gegen Apostroph/Leerzeichen/Schreibweise.

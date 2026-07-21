@@ -32,9 +32,18 @@ function Row({ ok, warn, label, hint }: { ok: boolean; warn?: boolean; label: st
 export default function DiagnosePage() {
   const [d, setD] = useState<Diag | null>(null);
   const [liveConnected, setLiveConnected] = useState<boolean | null>(null); // von Live-Events; null = noch keins
+  // Echte Key-Prüfung gegen die eulerstream-API (nicht nur „gesetzt").
+  const [keyCheck, setKeyCheck] = useState<'checking' | 'valid' | 'invalid' | 'offline' | 'none'>('checking');
 
   const load = useCallback(() => {
     void (window.studio.getDiagnostics() as Promise<Diag>).then(setD).catch(() => setD(null));
+  }, []);
+
+  useEffect(() => {
+    // Einmal beim Öffnen: gespeicherten Key live prüfen ('' = gespeicherten nutzen).
+    void window.studio.testSignKey('').then((r) => {
+      setKeyCheck(r.ok ? 'valid' : r.reason === 'empty' ? 'none' : r.reason === 'offline' ? 'offline' : 'invalid');
+    });
   }, []);
 
   useEffect(() => {
@@ -70,7 +79,24 @@ export default function DiagnosePage() {
             ? 'Mindestens ein OBS/TikTok-Live-Studio-Fenster hat dein Overlay offen. 👍'
             : 'DAS ist meist die Ursache: In OBS/TikTok Live Studio ist noch keine Browser-Quelle mit deinem Overlay-Link offen. Link unten kopieren und als Browser-Quelle einfügen.'}
         />
-        <Row ok={d.keySet} label={d.keySet ? 'eulerstream-Key gesetzt' : 'Kein eulerstream-Key'} hint={d.keySet ? 'Verbindung zu TikTok ist möglich.' : 'Ohne Key keine TikTok-Verbindung — Einstellungen → TikTok-Verbindung → „Gratis-Key holen".'} />
+        <Row
+          ok={keyCheck === 'valid'}
+          warn={keyCheck === 'checking' || keyCheck === 'offline' || (d.keySet && keyCheck === 'invalid')}
+          label={
+            keyCheck === 'valid' ? 'eulerstream-Key gültig (live geprüft)'
+            : keyCheck === 'checking' ? 'eulerstream-Key wird geprüft…'
+            : keyCheck === 'offline' ? 'eulerstream-Key gesetzt (Prüfung gerade nicht möglich)'
+            : keyCheck === 'invalid' ? 'eulerstream-Key wird ABGELEHNT'
+            : 'Kein eulerstream-Key'
+          }
+          hint={
+            keyCheck === 'valid' ? 'Der Key funktioniert — Verbindung zu TikTok ist möglich.'
+            : keyCheck === 'invalid' ? 'Der gespeicherte Key wird von eulerstream nicht akzeptiert — unter Einstellungen → TikTok-Verbindung neu holen (Key-Assistent).'
+            : keyCheck === 'offline' ? 'Kein Internet zur Prüf-API — wird beim Verbinden erneut getestet.'
+            : keyCheck === 'none' ? 'Ohne Key keine TikTok-Verbindung — Einstellungen → TikTok-Verbindung → „Gratis-Key holen".'
+            : 'Einen Moment…'
+          }
+        />
         <Row ok={connected} warn={!connected && d.keySet} label={connected ? 'Mit TikTok verbunden' : 'Nicht mit TikTok verbunden'} hint={connected ? `Live-Events kommen rein (${d.connectMode}).` : 'Auf der Live-Seite verbinden. Steht dort „Warte auf Live", ist das kein Fehler.'} />
         <Row ok={d.layoutCount > 0} label={`${d.layoutCount} Overlay-Layout(s)`} hint={d.layoutCount > 0 ? 'Du hast mindestens ein Overlay gebaut.' : 'Noch kein Overlay — auf der Overlay-Seite eins zusammenstellen.'} />
       </div>

@@ -124,5 +124,12 @@ export default class Giveaway {
     if (w) { w.textContent = `🎉 Gewinner: ${winner}`; w.classList.remove('show'); void w.offsetWidth; w.classList.add('show'); }
   }
 
+  /** Neuer Stream: laufende Ziehung/Timer abbrechen, zurück in den Wartezustand. */
+  onReset() {
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
+    this.renderIdle();
+  }
+
   destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

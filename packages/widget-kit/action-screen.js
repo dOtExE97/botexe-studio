@@ -238,7 +238,7 @@ export default class ActionScreen {
     const dur = Math.max(1200, Number(m.durationMs) || 4000);
     this._t = setTimeout(() => {
       card.classList.remove('show'); card.classList.add('out');
-      setTimeout(() => {
+      this._t2 = setTimeout(() => {
         card.remove();
         if (!this.queue.length) this.el.style.display = 'none';
         this.busy = false;
@@ -247,5 +247,16 @@ export default class ActionScreen {
     }, dur);
   }
 
-  destroy() { clearTimeout(this._t); clearTimeout(this._previewT); this.queue = []; this.recent.clear(); }
+  /** Neuer Stream: wartende Momente der alten Session verwerfen. */
+  onReset() {
+    clearTimeout(this._t);
+    clearTimeout(this._t2);
+    this.queue = [];
+    this.recent.clear();
+    this.busy = false;
+    this.el.style.display = 'none';
+    this.el.innerHTML = '';
+  }
+
+  destroy() { clearTimeout(this._t); clearTimeout(this._t2); clearTimeout(this._previewT); this.queue = []; this.recent.clear(); this.el.remove(); }
 }

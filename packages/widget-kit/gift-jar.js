@@ -112,6 +112,7 @@ export default class GiftJar {
     return { x: this.jar.cx + rx * (hw - 6), y };
   }
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'gift' || !event.gift) return;
     this.coinsValue += event.gift.totalCoins;
     this.el.querySelector('.bx-jar-badge .num').textContent = fmt(this.coinsValue);
@@ -239,6 +240,17 @@ export default class GiftJar {
     ctx.beginPath(); ctx.arc(x-r*0.32, y-r*0.32, r*0.26, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fill();
   }
   // Neuer Stream → Glas leeren, Coin-Zähler auf 0. WICHTIG: ausstehende Spawn-
+  /** Session-Coins aus den Server-Stats rehydrieren: Nach Reconnect/Neustart
+   *  wäre das Glas sonst leer, obwohl die Session längst gefüllt war. Nur
+   *  anheben (max) — Bälle spawnen dafür keine, nur Stand + Füllhöhe. */
+  onStats(stats) {
+    const coins = stats?.totals?.coins;
+    if (typeof coins !== 'number' || coins <= this.coinsValue) return;
+    this.coinsValue = coins;
+    const num = this.el.querySelector('.bx-jar-badge .num');
+    if (num) num.textContent = fmt(this.coinsValue);
+  }
+
   // Timer (Combo-Volley) clearen, sonst landen nach dem Reset noch Geister-Bälle
   // aus dem alten Stream im frisch geleerten Glas.
   onReset() {

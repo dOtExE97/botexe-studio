@@ -80,7 +80,11 @@ export default class Wheel {
   onAction(action) {
     if (action.kind !== 'spin_wheel' || this.spinning) return;
     const n = this.segments.length, seg = (Math.PI*2)/n;
-    const winner = typeof action.segmentIndex === 'number' ? ((action.segmentIndex%n)+n)%n : Math.floor(Math.random()*n);
+    // Gewinner: fester segmentIndex > Server-roll (gleich auf allen Quellen) >
+    // lokaler Zufall (nur Fallback, z.B. Editor-Vorschau ohne Server-roll).
+    const winner = typeof action.segmentIndex === 'number' ? ((action.segmentIndex%n)+n)%n
+      : typeof action.roll === 'number' ? Math.floor(Math.min(0.999999, Math.max(0, action.roll)) * n)
+      : Math.floor(Math.random()*n);
     const targetMid = winner*seg + seg/2;
     const base = (-Math.PI/2) - targetMid;
     const turns = 6 + Math.floor(Math.random()*3);

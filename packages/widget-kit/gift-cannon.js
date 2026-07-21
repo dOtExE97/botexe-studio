@@ -75,6 +75,7 @@ export default class GiftCannon {
   }
 
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'gift' || !event.gift) return;
     if ((event.gift.totalCoins ?? 0) < this.minCoins) return;
     const plan = comboPlan(event.gift, this.maxPerGift, {});

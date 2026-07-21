@@ -76,6 +76,9 @@ export default class PointsBoard {
     const list = this.el.querySelector('.bx-pb-list');
     const empty = list.querySelector('.bx-pb-empty');
     if (empty && items.length > 0) empty.remove();
+    // Zeilenhöhe aus der Box ableiten (wie leaderboard) — feste 48px schneiden
+    // bei kleiner Box/hohem Limit die unteren Ränge ab.
+    const rowH = Math.max(22, (list.clientHeight || this.limit * 48) / this.limit);
     const seen = new Set();
     items.forEach((g, i) => {
       seen.add(g.id);
@@ -88,7 +91,8 @@ export default class PointsBoard {
       }
       const rank = i + 1;
       row.dataset.rank = String(rank);
-      row.style.transform = `translateY(${i * 48}px)`;
+      row.style.height = `${rowH}px`;
+      row.style.transform = `translateY(${i * rowH}px)`;
       const rankEl = row.querySelector('.bx-pb-rank');
       // Krone (Inline-SVG) nur auf Platz 1; sonst keine — Badge zeigt die Rang-Zahl.
       rankEl.innerHTML = `${rank === 1 ? CROWN_SVG : ''}<span>${rank}</span>`;

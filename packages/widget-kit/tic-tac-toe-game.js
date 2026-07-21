@@ -47,6 +47,9 @@ const CSS = `
 .bx-ttt-cell.win { background:linear-gradient(165deg, color-mix(in srgb, var(--bx-gold, #ffd34d) 40%, transparent), rgba(255,255,255,.05));
   border-color:var(--bx-gold, #ffd34d); box-shadow:0 0 20px -4px var(--bx-gold, #ffd34d); animation:bx-ttt-flash .8s ease-in-out infinite alternate; }
 @keyframes bx-ttt-flash { from{box-shadow:0 0 12px -6px var(--bx-gold,#ffd34d)} to{box-shadow:0 0 26px -2px var(--bx-gold,#ffd34d)} }
+/* Sieg-Feier: kurzes Aufleuchten + Pop des ganzen Widgets (via onGameEvent 'win'). */
+.bx-ttt-cele { animation: bx-ttt-cele .9s cubic-bezier(.2,1.4,.4,1); }
+@keyframes bx-ttt-cele { 0%{filter:brightness(1);transform:scale(1)} 25%{filter:brightness(1.7);transform:scale(1.04)} 100%{filter:brightness(1);transform:scale(1)} }
 /* Status-Zeile */
 .bx-ttt-status { min-height:1.7em; font-family:var(--bx-font-display, inherit); font-weight:800; font-size:1.3em;
   line-height:1.25; letter-spacing:.04em; color:#fff; text-shadow:0 0 12px color-mix(in srgb, var(--bx-accent, #fff) 50%, transparent); }
@@ -152,11 +155,10 @@ export default class TicTacToeWidget {
   // Effekte (optional) — z.B. Konfetti bei Sieg.
   onGameEvent(msg) {
     if (!msg || msg.gameKind !== GAME_KIND) return;
-    if (msg.type === 'win') {
+    if (msg.type === 'win' || msg.event === 'win') {
       this.el.classList.remove('bx-ttt-cele');
       void this.el.offsetWidth;
       this.el.classList.add('bx-ttt-cele');
-      if (this.ctx.playSound && msg.soundId) this.ctx.playSound(msg.soundId);
     }
   }
 

@@ -120,7 +120,7 @@ export default class ConnectFourWidget {
   demoState() {
     const board = emptyBoard();
     board[5][3] = 'R'; board[5][2] = 'Y'; board[4][3] = 'Y';
-    board[5][3] = 'R'; board[5][4] = 'R'; board[4][2] = 'R';
+    board[5][0] = 'R'; board[5][4] = 'R'; board[4][2] = 'R';
     board[5][1] = 'Y'; board[3][3] = 'Y';
     return {
       board,
@@ -206,6 +206,9 @@ export default class ConnectFourWidget {
       }
     }
   }
+
+  /** Neuer Stream: letzten Spielstand nicht stehen lassen → in den Idle. */
+  onReset() { this.onGameState({ gameKind: GAME_KIND, state: null }); }
 
   destroy() {
     clearTimeout(this._flashT);

@@ -213,6 +213,9 @@ export default class HangmanGame {
     }
   }
 
+  /** Neuer Stream: letzten Spielstand nicht stehen lassen → in den Idle. */
+  onReset() { this.hide(); }
+
   destroy() {
     this._timers.forEach((t) => clearTimeout(t));
     this._timers = [];

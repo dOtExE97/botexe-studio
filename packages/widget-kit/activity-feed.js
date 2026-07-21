@@ -45,6 +45,7 @@ export default class ActivityFeed {
     this.timers = new Set();
   }
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     const def = TYPES[event.type];
     if (!def) return;
     const name = event.user?.nickname || 'Jemand';

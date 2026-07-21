@@ -68,6 +68,14 @@ export default class GuessNumberWidget {
     this.round = 0;
     this.solved = false;
     this.digits = String(this.max).length;
+    // Rundenstand pro Session merken: Nach einem Reload/Reconnect dieser Quelle
+    // würde round sonst wieder bei 1 starten — andere Quellen (OBS/TTLS) sind
+    // aber längst bei Runde N → andere Geheimzahl + kaputte Sieg-Dedup.
+    this.storeKey = `bx-gn-${this.ctx.layerId || 'guess'}`;
+    try {
+      const saved = JSON.parse(localStorage.getItem(this.storeKey) || 'null');
+      if (saved && saved.seed === (this.ctx.sessionSeed || '')) this.round = Number(saved.round) || 0;
+    } catch { /* korrupter Eintrag → Runde 0 */ }
 
     this.el = document.createElement('div');
     this.el.className = 'bx-gn';
@@ -87,6 +95,7 @@ export default class GuessNumberWidget {
   newRound(animate) {
     this.round++;
     this.solved = false;
+    try { localStorage.setItem(this.storeKey, JSON.stringify({ seed: this.ctx.sessionSeed || '', round: this.round })); } catch { /* voll/blockiert — egal */ }
     this.secret = rngInt(`${this.ctx.sessionSeed || ''}-${this.ctx.layerId || 'guess'}-${this.round}`, this.min, this.max);
     this.hintEl.textContent = '';
     this.subEl.textContent = `Schreib eine Zahl von ${this.min} bis ${this.max} in den Chat!`;
@@ -107,6 +116,7 @@ export default class GuessNumberWidget {
   }
 
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (this.solved || event.type !== 'chat') return;
     const text = (event.text ?? '').trim();
     // So viele Ziffern zulassen, wie das Maximum hat — sonst wäre das Spiel bei
@@ -171,6 +181,14 @@ export default class GuessNumberWidget {
       this.el.appendChild(c);
       setTimeout(() => c.remove(), 2000);
     }
+  }
+
+  /** Neuer Stream (neuer Session-Seed): Rundenzähler + gemerkten Stand leeren. */
+  onReset() {
+    if (this.roundTimer) clearTimeout(this.roundTimer);
+    try { localStorage.removeItem(this.storeKey); } catch { /* egal */ }
+    this.round = 0;
+    this.newRound(true);
   }
 
   destroy() {

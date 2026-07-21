@@ -39,6 +39,7 @@ export default class ChatBox {
     this.timers = new Set();
   }
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'chat' || !event.text) return;
     const msg = document.createElement('div');
     msg.className = 'bx-cb-msg';

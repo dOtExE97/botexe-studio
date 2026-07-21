@@ -32,10 +32,23 @@ const CSS = `
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 
 export default class Countdown {
-  constructor(root, props) {
+  constructor(root, props, ctx) {
     ensureStyle();
     root.style.setProperty('--bx-accent', props.accent || '#ff5436');
-    this.remaining = Math.max(0, Number(props.minutes ?? 5)) * 60;
+    this.minutes = Math.max(0, Number(props.minutes ?? 5));
+    this.remaining = this.minutes * 60;
+    // Deadline merken: Rebuild/Reconnect setzt den Timer sonst auf die volle
+    // Zeit zurück (und OBS-/TTLS-Quelle liefen auseinander). Gemerkt wird der
+    // Ziel-Zeitpunkt — läuft er noch, wird übernommen statt neu gestartet.
+    this.storeKey = `bx-cd-${(ctx && ctx.layerId) || 'countdown'}`;
+    try {
+      const saved = JSON.parse(localStorage.getItem(this.storeKey) || 'null');
+      if (saved && saved.minutes === this.minutes && saved.endAt > Date.now()) {
+        this.remaining = Math.ceil((saved.endAt - Date.now()) / 1000);
+      } else {
+        localStorage.setItem(this.storeKey, JSON.stringify({ minutes: this.minutes, endAt: Date.now() + this.remaining * 1000 }));
+      }
+    } catch { /* Storage blockiert → lokaler Timer reicht */ }
     this.doneText = props.doneText || 'LOS!';
     this.digits = [];          // { cell, roll, value } pro Ziffernstelle
     this.lastText = null;      // zuletzt gerendertes Ziffern-Muster (z.B. "0459")
@@ -123,6 +136,14 @@ export default class Countdown {
     for (let i = 0; i < 4; i++) this.setDigit(this.digits[i], text[i], animate);
     this.lastText = text;
     this.el.classList.toggle('urgent', this.remaining <= 10);
+  }
+
+  /** Neuer Stream: Countdown frisch von der eingestellten Zeit starten. */
+  onReset() {
+    this.remaining = this.minutes * 60;
+    this.showingDone = false;
+    try { localStorage.setItem(this.storeKey, JSON.stringify({ minutes: this.minutes, endAt: Date.now() + this.remaining * 1000 })); } catch { /* egal */ }
+    this.render(true);
   }
 
   destroy() { clearInterval(this.timer); this.el.remove(); }

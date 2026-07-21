@@ -136,6 +136,7 @@ export default class LivePoll {
   fmtClock(s) { const m = Math.floor(s / 60); const r = s % 60; return `${m}:${String(r).padStart(2, '0')}`; }
 
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (this.ended || event.type !== 'chat' || !event.user) return;
     const idx = voteIndex(event.text, this.options.length);
     if (idx < 0) return;

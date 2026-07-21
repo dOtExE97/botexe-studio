@@ -104,6 +104,7 @@ export default class HeartRain {
   }
 
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'like') return;
     const n = heartsForLike(event.likeCount, this.mode, this.maxPerBurst);
     const avatar = this.showAvatars ? event.user && event.user.profilePic : null;

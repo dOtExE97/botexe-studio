@@ -165,6 +165,7 @@ export default class GiftBattle {
   fmtClock(s) { const m = Math.floor(s / 60); const r = s % 60; return `${m}:${String(r).padStart(2, '0')}`; }
 
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (this.ended || event.type !== 'gift' || !event.gift) return;
     let team = matchTeam(event.gift.slug, this.listA, this.listB);
     // Beide Listen leer → Auto-Split nach Coin-Höhe (teuer vs. günstig wäre

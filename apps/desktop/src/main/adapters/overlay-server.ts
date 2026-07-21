@@ -636,7 +636,10 @@ export class OverlayServer {
       const spotify = this.options.getSpotifyState?.();
       if (spotify) this.sendTo(client, { kind: 'spotify', state: spotify }, true);
       for (const e of this.bus.getAllLastValues()) {
-        this.sendTo(client, { kind: 'event', event: e }, true);
+        // sticky markieren: Rehydrierungs-Replay, KEIN neues Live-Event.
+        // Effekt-/Zähler-Widgets überspringen sticky (sonst Geister-Alerts /
+        // Doppelzählung bei jedem Reconnect); Top-Gift & Co. rehydrieren damit.
+        this.sendTo(client, { kind: 'event', event: { ...e, sticky: true } }, true);
       }
     });
   }

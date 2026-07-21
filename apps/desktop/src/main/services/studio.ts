@@ -518,7 +518,9 @@ export class Studio {
       if (cost > 0 && event.user) {
         if (!this.points.spend(event.user.id, cost)) return; // nicht genug Punkte → kein Spin
       }
-      this.server.broadcast({ kind: 'action', ruleId, action });
+      // roll zentral würfeln: alle Overlay-Quellen (OBS + TTLS) zeigen denselben
+      // Gewinner — sonst würfelt jede Quelle lokal ein eigenes Ergebnis.
+      this.server.broadcast({ kind: 'action', ruleId, action: { ...action, roll: Math.random() } });
       // Stats anstoßen (gedeckelt) — auch beim Gratis-Spin, damit Overlay-Listen
       // konsistent bleiben statt einzufrieren.
       this.scheduleStatsBroadcast();

@@ -281,6 +281,7 @@ export default class BingoWidget {
   }
 
   onEvent(event) {
+    if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'gift' || !event.gift) return;
     const slug = event.gift.slug.toLowerCase();
     for (const cell of this.cells) {
@@ -311,6 +312,17 @@ export default class BingoWidget {
       const cur = this.lastStats[cell.kind] ?? 0;
       if (cur >= cell.target) this.markDone(cell);
     }
+  }
+
+  /** Neuer Stream: Meilenstein-Basis + Brett komplett neu — sonst zielen die
+   *  Zellen auf die ALTEN (hohen) Totals und haken sich nie wieder ab. */
+  onReset() {
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
+    this.baseStats = null;   // nächstes onStats setzt die neue Basis + würfelt neu
+    this.lastStats = null;
+    this.round = 0;
+    this.newRound(true);
   }
 
   destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
