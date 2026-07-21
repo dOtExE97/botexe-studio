@@ -3,6 +3,11 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.21.0] — 2026-07-21
+
+### Coin-Glas: Bälle stapeln sich jetzt physisch 🪙
+Die Geschenk-Bälle fallen nicht mehr an zufällige Stellen, sondern **sammeln sich als echter Haufen am Boden** — über eine Spalten-Höhenkarte, mit leichtem Abpraller beim Landen und Reinrollen in tiefere Lücken. Ergebnis: ein dichter, natürlich geformter Coin-Haufen wie bei TikFinity, aber ohne schwere Physik-Engine (läuft flüssig auch im OBS-/TikTok-Studio-Fenster). Größe pro Ball weiterhin nach Coin-Wert. Gilt für alle Glas-Formen.
+
 ## [0.20.0] — 2026-07-21
 
 ### Neu: Coin-Glas im TikFinity-Original-Look 🫙 (Umzugs-Welle 1)

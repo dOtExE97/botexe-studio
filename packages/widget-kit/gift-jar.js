@@ -38,6 +38,7 @@ function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=docum
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
 const FALLBACK = ['#ffd23e','#ff8a3d','#ff5436','#ff5e8a','#c45cff','#5c9dff','#28e0c4','#7dff8a'];
 const MAX_BALLS = 400;
+const COLS = 15; // Spalten der Höhenkarte — Bälle stapeln sich pro Spalte von unten
 
 const imageCache = new Map();
 function loadImage(url) {
@@ -88,6 +89,9 @@ export default class GiftJar {
     this.canvas.width = r.width * dpr; this.canvas.height = r.height * dpr;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.w = r.width; this.h = r.height;
+    // Höhenkarte (Füllstand je Spalte, in ry-Einheiten 0..1) — überlebt Resizes,
+    // weil ry auflösungsunabhängig ist. Nur einmal anlegen.
+    if (!this.heightmap) this.heightmap = new Array(COLS).fill(0);
     // TikFinity-Glas ist breiter & gerader (Mason-Zylinder) als unser Original-Glas.
     const jw = this.shape === 'tikfinity' ? Math.min(this.w * 0.82, this.h * 0.62) : Math.min(this.w * 0.92, this.h * 0.72);
     // Form-abhängige Geometrie: Pokal lässt unten Platz für Stiel+Fuß,
@@ -139,6 +143,8 @@ export default class GiftJar {
   }
   // Füllgrad aus kumulierter Ball-Fläche (von unten gefüllt)
   jarArea() { return this.jar.midW * (this.jar.bottom - this.jar.top) * 0.7; }
+  colOf(rx) { return Math.min(COLS - 1, Math.max(0, Math.floor((rx + 1) / 2 * COLS))); }
+  colRx(c) { return (c + 0.5) / COLS * 2 - 1; }
   coinPos(rx, ry) {
     const y = this.jar.bottom - ry * (this.jar.bottom - this.jar.top);
     const hw = this.halfW(y);
@@ -168,16 +174,18 @@ export default class GiftJar {
     // sonst Crash „reading 'top'".
     if (!this.jar) { this.resize(); if (!this.jar) return; }
     // Backpressure: bevorzugt fallende Bälle deckeln; ruhende nur entfernen, wenn
-    // der Boden-Stapel selbst voll ist (sonst „verschwinden" Bälle am Boden).
+    // der Boden-Stapel selbst voll ist (sonst „verschwinden" Bälle am Boden). Beim
+    // Entfernen die Spaltenhöhe zurücknehmen, sonst wächst der Haufen ins Unendliche.
     if (this.resting.length + this.falling.length >= MAX_BALLS) {
-      if (this.resting.length > 0) this.resting.shift(); else this.falling.shift();
+      if (this.resting.length > 0) {
+        const rem = this.resting.shift();
+        if (rem.col != null && this.heightmap) this.heightmap[rem.col] = Math.max(0, this.heightmap[rem.col] - 2 * rem.r / (this.jar.bottom - this.jar.top));
+      } else this.falling.shift();
     }
     const r = this.ballRadius(coins ?? gift.totalCoins);
-    // Füllhöhe = Fortschritt Richtung Ziel (coins), Bälle gleichmäßig von unten gestreut
-    const fill = Math.min(0.97, this.coinsValue / this.target);
-    const targetRy = 0.03 + Math.random() * Math.max(0.06, fill);
-    const rx = (Math.random() * 2 - 1) * 0.9;
-    this.falling.push({ rx, targetRy, r, y: this.jar.top - r - Math.random()*30, vy: 1.5 + Math.random()*1.6,
+    // Bälle fallen leicht gestreut ein und stapeln sich dann über die Höhenkarte.
+    const rx = (Math.random() * 2 - 1) * 0.82;
+    this.falling.push({ rx, r, y: this.jar.top - r - Math.random()*30, vy: 1.2 + Math.random()*1.1, bounces: 0,
       img: loadImage(gift.icon), color: FALLBACK[Math.floor(Math.random()*FALLBACK.length)] });
     this.kick();
   }
@@ -203,10 +211,26 @@ export default class GiftJar {
     // auch wenn das Overlay-Fenster gedrosselt wird (Bälle setzen sich trotzdem).
     const dt = Math.min(4, this.lastT ? (now - this.lastT) / 16.67 : 1);
     this.lastT = now;
+    const J = this.jar, span = J.bottom - J.top;
     for (const b of this.falling) {
-      b.vy += 0.3 * dt; b.y += b.vy * dt;
-      const landY = this.coinPos(b.rx, b.targetRy).y;
-      if (b.y >= landY) { b.y = landY; b.ry = b.targetRy; this.resting.push(b); b.dead = true; }
+      b.vy += 0.34 * dt; b.y += b.vy * dt;
+      const col = this.colOf(b.rx);
+      const ryR = b.r / span; // halbe Ball-Dicke in ry-Einheiten
+      const restRy = Math.min(0.96, this.heightmap[col] + ryR); // oben auf dem Stapel dieser Spalte
+      const landY = this.coinPos(b.rx, restRy).y;
+      if (b.y >= landY) {
+        // Leichter Abpraller (einmalig) — wie TikFinitys restitution 0.2, aber ohne Engine.
+        if (b.vy > 1.4 && b.bounces < 1) { b.y = landY; b.vy = -b.vy * 0.24; b.bounces++; continue; }
+        // In einen tieferen Nachbarn rollen → natürlicher Haufen statt Säulen.
+        let c = col;
+        const hL = col > 0 ? this.heightmap[col - 1] : Infinity;
+        const hR = col < COLS - 1 ? this.heightmap[col + 1] : Infinity;
+        if (Math.min(hL, hR) < this.heightmap[col] - ryR) c = (hL <= hR ? col - 1 : col + 1);
+        const finalRy = Math.min(0.96, this.heightmap[c] + ryR);
+        b.ry = finalRy; b.rx = this.colRx(c) + (Math.random() - 0.5) / COLS; b.col = c;
+        this.heightmap[c] = Math.min(0.99, finalRy + ryR);
+        this.resting.push(b); b.dead = true;
+      }
     }
     this.falling = this.falling.filter((b) => !b.dead);
     this.draw();
@@ -358,6 +382,7 @@ export default class GiftJar {
     if (this.pendingTimers) { for (const t of this.pendingTimers) clearTimeout(t); this.pendingTimers.clear(); }
     for (const t of this.toastTimers) clearTimeout(t); this.toastTimers.clear();
     this.coinsValue = 0; this.falling = []; this.resting = [];
+    if (this.heightmap) this.heightmap.fill(0);
     const num = this.el.querySelector('.bx-jar-badge .num'); if (num) num.textContent = '0';
     this.el.querySelectorAll('.bx-jar-toast').forEach((t) => t.remove());
     if (this.jar) this.draw();
