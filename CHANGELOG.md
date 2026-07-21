@@ -3,6 +3,14 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.12.0] — 2026-07-21
+
+### Neu: Coin-Glas in 4 Formen + 6 neue Design-Themes 🫙💜🏆🪙
+- **Coin-Glas**: Die Geschenke fallen jetzt wahlweise ins **Bonbon-Glas**, **Herz** (rosa getönt), einen **Gold-Pokal** (mit Henkeln, Stiel & Fuß) oder eine **Schatztruhe** (Holz, Golddeckel & Schloss). Eigenschaften → „Form".
+- **6 neue Themes für ALLE Widgets** (jetzt 23): **Frost** (helles Milchglas ☀️), **Carbon** (Kohlefaser, kantig), **Outline** (nur Kontur — ultraleicht überm Gameplay), **Chrome** (poliertes Metall ☀️), **Sticker** (Comic-Look, weiß mit Kontur ☀️), **Sunset** (warmer Abendhimmel-Verlauf).
+
+---
+
 ## [0.11.0] — 2026-07-21
 
 ### Neu: Ranglisten-Design-Kollektion 🏆

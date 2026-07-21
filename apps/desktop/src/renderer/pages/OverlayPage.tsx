@@ -122,6 +122,12 @@ const THEME_FIELD: PropField = {
     { value: 'aurora', label: 'Aurora (Polarlicht)' },
     { value: 'paper', label: 'Paper (Hell, Papier) ☀️' },
     { value: 'bubblegum', label: 'Bubblegum (Hell, Pink) ☀️' },
+    { value: 'frost', label: 'Frost (helles Milchglas) ☀️' },
+    { value: 'carbon', label: 'Carbon (Kohlefaser, kantig)' },
+    { value: 'outline', label: 'Outline (nur Kontur, ultraleicht)' },
+    { value: 'chrome', label: 'Chrome (poliertes Metall) ☀️' },
+    { value: 'sticker', label: 'Sticker (Comic, weiß + Kontur) ☀️' },
+    { value: 'sunset', label: 'Sunset (warmer Verlauf)' },
   ],
   hint: 'Edler Komplett-Look des Widgets — färbt Panel, Schatten, Radius, Schrift. Mit deiner Akzentfarbe kombinierbar.',
 };
@@ -673,10 +679,16 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'gift-jar', label: 'Coin-Glas', desc: 'Bonbon-Glas, das sich mit den Geschenken füllt — jedes Gift ein Ball mit Bild, größer bei mehr Coins.',
-    w: 440, h: 520, props: { target: 2000, label: '', showToast: true, accent: '#ffd23e' },
+    type: 'gift-jar', label: 'Coin-Glas', desc: 'Behälter, der sich mit den Geschenken füllt — jedes Gift ein Ball mit Bild, größer bei mehr Coins. Als Glas, Herz, Pokal oder Schatztruhe.',
+    w: 440, h: 520, props: { target: 2000, label: '', shape: 'glas', showToast: true, accent: '#ffd23e' },
     fields: [
-      { key: 'target', label: 'Ziel (Coins)', type: 'number', hint: 'Bei diesem Wert ist das Glas voll.' },
+      { key: 'shape', label: 'Form', type: 'select', options: [
+        { value: 'glas', label: '🫙 Bonbon-Glas (Standard)' },
+        { value: 'herz', label: '💜 Herz' },
+        { value: 'pokal', label: '🏆 Pokal (Gold-Henkel)' },
+        { value: 'truhe', label: '🪙 Schatztruhe' },
+      ], hint: 'In welchen Behälter die Geschenke fallen.' },
+      { key: 'target', label: 'Ziel (Coins)', type: 'number', hint: 'Bei diesem Wert ist der Behälter voll.' },
       { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Text über dem Glas, leer = „Coin-Glas".' },
       { key: 'showToast', label: 'Donation-Toasts', type: 'boolean', hint: 'Zeigt bei jedem Gift kurz „Name schickt Gift ×N" .' },
       ACCENT_FIELD,

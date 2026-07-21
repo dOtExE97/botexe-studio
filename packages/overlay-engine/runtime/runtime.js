@@ -170,6 +170,40 @@ const THEMES = {
     '--bx-ink': '#fbf7ee', '--bx-text-shadow': 'rgba(255,255,255,.7)',
     '--bx-font-display': "Georgia, 'Times New Roman', serif",
   },
+  // ── Material-Themes: das PANEL selbst ist anders (nicht nur die Farbe) ──
+  frost: { // helles Milchglas — clean & luftig, dunkle Schrift ☀️
+    '--bx-glass': 'linear-gradient(165deg, rgba(255,255,255,.82), rgba(240,245,252,.72))',
+    '--bx-shadow': '0 0 0 1px rgba(255,255,255,.85) inset, 0 18px 40px -18px rgba(30,50,90,.35)',
+    '--bx-radius': '18px', '--bx-text': '#1c2333', '--bx-muted': '#5c6a84',
+    '--bx-ink': '#ffffff', '--bx-text-shadow': 'rgba(255,255,255,.65)',
+  },
+  carbon: { // Kohlefaser: solide, kantig, feine Diagonal-Textur — Gamer/Tech
+    '--bx-glass': 'repeating-linear-gradient(45deg, #17181c 0 3px, #101114 3px 6px)',
+    '--bx-shadow': '0 0 0 1.5px #2a2c33 inset, 0 2px 0 color-mix(in srgb, var(--bx-accent) 80%, transparent), 0 16px 34px -14px rgba(0,0,0,.9)',
+    '--bx-radius': '6px', '--bx-text': '#e8eaf0', '--bx-muted': '#8b90a0',
+  },
+  outline: { // NUR Kontur — transparenter Body, ultraleicht überm Gameplay
+    '--bx-glass': 'rgba(6,8,12,.18)',
+    '--bx-shadow': '0 0 0 2px color-mix(in srgb, var(--bx-accent) 85%, transparent) inset, 0 0 18px -6px var(--bx-accent)',
+    '--bx-radius': '14px', '--bx-text': '#ffffff', '--bx-muted': '#c8cede',
+  },
+  chrome: { // poliertes Metall — silbrig glänzend, dunkle Schrift ☀️
+    '--bx-glass': 'linear-gradient(170deg, #f4f6fa 0%, #c9d0dc 38%, #aab3c2 50%, #d6dce6 64%, #eef1f6 100%)',
+    '--bx-shadow': '0 1px 0 rgba(255,255,255,.9) inset, 0 -2px 6px rgba(70,80,100,.35) inset, 0 16px 36px -14px rgba(40,50,70,.5)',
+    '--bx-radius': '12px', '--bx-text': '#1a1f2b', '--bx-muted': '#4e586c',
+    '--bx-ink': '#f6f8fb', '--bx-text-shadow': 'rgba(255,255,255,.55)',
+  },
+  sticker: { // Comic-Sticker: weißes Panel, dicke dunkle Kontur, Offset-Schatten ☀️
+    '--bx-glass': '#ffffff',
+    '--bx-shadow': '0 0 0 3px #14161f inset, 6px 6px 0 rgba(20,22,31,.85)',
+    '--bx-radius': '16px', '--bx-text': '#14161f', '--bx-muted': '#565d70',
+    '--bx-ink': '#ffffff', '--bx-text-shadow': 'rgba(255,255,255,.4)',
+  },
+  sunset: { // kräftiger Abendhimmel-Verlauf — warm, lebendig
+    '--bx-glass': 'linear-gradient(160deg, rgba(255,94,58,.88), rgba(199,44,111,.9) 55%, rgba(80,27,110,.92))',
+    '--bx-shadow': '0 0 0 1px rgba(255,255,255,.22) inset, 0 18px 40px -14px rgba(150,40,90,.6)',
+    '--bx-radius': '16px', '--bx-text': '#fff7f2', '--bx-muted': '#ffd9c9',
+  },
   bubblegum: {
     '--bx-glass': 'linear-gradient(160deg, rgba(255,240,250,.95), rgba(255,228,244,.93))',
     '--bx-shadow': '0 0 0 3px #3a1430, 6px 6px 0 rgba(58,20,48,.85)',

@@ -62,6 +62,8 @@ export default class GiftJar {
     this.resting = [];
     this.running = false;
     this.showToast = props.showToast !== false; // Donation-Toasts (TikFinity-Style)
+    // Behälter-Form: klassisches Glas, Herz, Pokal oder Schatztruhe.
+    this.shape = ['glas', 'herz', 'pokal', 'truhe'].includes(props.shape) ? props.shape : 'glas';
     this.toastTimers = new Set();
     this.el = document.createElement('div');
     this.el.className = 'bx-jar';
@@ -81,13 +83,30 @@ export default class GiftJar {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.w = r.width; this.h = r.height;
     const jw = Math.min(this.w * 0.92, this.h * 0.72);
-    this.jar = { cx: this.w/2, lidY: this.h*0.06, top: this.h*0.165, midY: this.h*0.52, bottom: this.h*0.93,
+    // Form-abhängige Geometrie: Pokal lässt unten Platz für Stiel+Fuß,
+    // Truhe oben für den gewölbten Deckel.
+    const bottom = this.shape === 'pokal' ? this.h * 0.74 : this.h * 0.93;
+    const top = this.shape === 'truhe' ? this.h * 0.24 : this.h * 0.165;
+    this.jar = { cx: this.w/2, lidY: this.h*0.06, top, midY: this.h*0.52, bottom,
       neckW: jw*0.5, midW: jw, botW: jw*0.74, lidW: jw*0.56 };
     this.unit = jw; // basis für ball-größen
     this.draw();
   }
   halfW(y) {
     const J = this.jar; const yc = Math.max(J.top, Math.min(J.bottom, y));
+    const tv = (yc - J.top) / (J.bottom - J.top); // 0 = oben, 1 = unten
+    if (this.shape === 'herz') {
+      // Herz: oben breit (Lappen), spitz zulaufend nach unten.
+      return (J.midW / 2) * Math.pow(Math.cos(tv * Math.PI / 2), 0.75) * (tv < 0.12 ? 0.86 + tv : 1);
+    }
+    if (this.shape === 'pokal') {
+      // Pokal-Schale: Halb-Ellipse — unten (Stiel) schmal.
+      return (J.midW / 2) * Math.sqrt(Math.max(0.02, 1 - tv * tv));
+    }
+    if (this.shape === 'truhe') {
+      return J.midW / 2; // Truhe: gerade Wände
+    }
+    // Klassisches Glas (Original): Hals → Bauch → Boden.
     if (yc <= J.midY) {
       // hals → bauch: weiche cosinus-kurve (gerundete schulter)
       const t = (yc - J.top) / (J.midY - J.top);
@@ -183,6 +202,21 @@ export default class GiftJar {
   jarPath(ctx, inset) {
     const J = this.jar; const k = inset || 0;
     const lx = (y)=>J.cx-this.halfW(y)+k, rx=(y)=>J.cx+this.halfW(y)-k;
+    if (this.shape === 'herz') {
+      // Echte Herzform (zwei Bögen oben, Spitze unten) — Bälle werden hineingeclippt.
+      const w = J.midW - k * 2, ch = J.bottom - J.top, cx = J.cx;
+      ctx.beginPath();
+      ctx.moveTo(cx, J.bottom - k);
+      ctx.bezierCurveTo(cx - w * 0.68, J.top + ch * 0.55, cx - w * 0.52, J.top - ch * 0.06 + k, cx, J.top + ch * 0.24);
+      ctx.bezierCurveTo(cx + w * 0.52, J.top - ch * 0.06 + k, cx + w * 0.68, J.top + ch * 0.55, cx, J.bottom - k);
+      ctx.closePath();
+      return;
+    }
+    if (this.shape === 'truhe') {
+      const w = J.midW - k * 2;
+      roundRect(ctx, J.cx - w / 2, J.top + k, w, (J.bottom - J.top) - k * 2, 10);
+      return;
+    }
     ctx.beginPath();
     ctx.moveTo(lx(J.top), J.top);
     // linke seite: hals → bauch → boden in feinen schritten (glatte kurve)
@@ -199,7 +233,9 @@ export default class GiftJar {
     // 1) getönte Glasfüllung (hinter den Bällen) → wirkt wie echtes Glas
     ctx.save(); this.jarPath(ctx, 0);
     const g = ctx.createLinearGradient(J.cx - J.midW/2, 0, J.cx + J.midW/2, 0);
-    g.addColorStop(0, 'rgba(120,150,190,.16)'); g.addColorStop(.5, 'rgba(150,180,220,.07)'); g.addColorStop(1, 'rgba(90,120,160,.18)');
+    if (this.shape === 'herz') { g.addColorStop(0, 'rgba(255,110,160,.2)'); g.addColorStop(.5, 'rgba(255,140,180,.1)'); g.addColorStop(1, 'rgba(220,70,130,.22)'); }
+    else if (this.shape === 'truhe') { g.addColorStop(0, 'rgba(120,84,40,.28)'); g.addColorStop(.5, 'rgba(90,60,30,.2)'); g.addColorStop(1, 'rgba(70,46,22,.3)'); }
+    else { g.addColorStop(0, 'rgba(120,150,190,.16)'); g.addColorStop(.5, 'rgba(150,180,220,.07)'); g.addColorStop(1, 'rgba(90,120,160,.18)'); }
     ctx.fillStyle = g; ctx.fill();
     // 2) Bälle (innerhalb des Glases geclippt)
     ctx.clip();
@@ -210,12 +246,41 @@ export default class GiftJar {
     this.jarPath(ctx, 0);
     ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(220,236,255,.66)'; ctx.lineJoin = 'round'; ctx.stroke();
     ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.22)'; this.jarPath(ctx, 3); ctx.stroke();
-    // 4) Deckel (gerundeter Schraubdeckel mit Glanz)
-    const lidH = (J.top - J.lidY) + 10;
-    const lg = ctx.createLinearGradient(0, J.lidY, 0, J.lidY + lidH);
-    lg.addColorStop(0, 'rgba(196,210,234,.96)'); lg.addColorStop(1, 'rgba(120,140,172,.95)');
-    ctx.fillStyle = lg; roundRect(ctx, J.cx-J.lidW/2, J.lidY, J.lidW, lidH, 10); ctx.fill();
-    ctx.fillStyle = 'rgba(230,240,255,.95)'; roundRect(ctx, J.cx-J.lidW/2-4, J.lidY, J.lidW+8, 11, 6); ctx.fill();
+    // 4) Form-Deko: Glas → Schraubdeckel · Pokal → Stiel/Fuß/Henkel · Truhe → Deckel
+    if (this.shape === 'glas') {
+      const lidH = (J.top - J.lidY) + 10;
+      const lg = ctx.createLinearGradient(0, J.lidY, 0, J.lidY + lidH);
+      lg.addColorStop(0, 'rgba(196,210,234,.96)'); lg.addColorStop(1, 'rgba(120,140,172,.95)');
+      ctx.fillStyle = lg; roundRect(ctx, J.cx-J.lidW/2, J.lidY, J.lidW, lidH, 10); ctx.fill();
+      ctx.fillStyle = 'rgba(230,240,255,.95)'; roundRect(ctx, J.cx-J.lidW/2-4, J.lidY, J.lidW+8, 11, 6); ctx.fill();
+    } else if (this.shape === 'pokal') {
+      // Stiel + Fuß + zwei Henkel in Gold
+      const gold = ctx.createLinearGradient(0, J.bottom, 0, this.h * 0.95);
+      gold.addColorStop(0, '#ffe88a'); gold.addColorStop(1, '#c9962c');
+      ctx.fillStyle = gold;
+      const stemW = J.midW * 0.12;
+      roundRect(ctx, J.cx - stemW/2, J.bottom - 4, stemW, this.h * 0.13, 4); ctx.fill();
+      roundRect(ctx, J.cx - J.midW * 0.28, this.h * 0.88, J.midW * 0.56, this.h * 0.055, 8); ctx.fill();
+      ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(255,215,80,.9)'; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(J.cx - J.midW * 0.56, J.top + (J.bottom-J.top)*0.28, J.midW * 0.14, Math.PI * 0.75, Math.PI * 1.85); ctx.stroke();
+      ctx.beginPath(); ctx.arc(J.cx + J.midW * 0.56, J.top + (J.bottom-J.top)*0.28, J.midW * 0.14, -Math.PI * 0.85, Math.PI * 0.25); ctx.stroke();
+      ctx.lineCap = 'butt';
+    } else if (this.shape === 'truhe') {
+      // Gewölbter Deckel + Metallband + Schloss
+      const lidTop = this.h * 0.075;
+      const wood = ctx.createLinearGradient(0, lidTop, 0, J.top);
+      wood.addColorStop(0, 'rgba(146,96,52,.97)'); wood.addColorStop(1, 'rgba(96,60,30,.97)');
+      ctx.fillStyle = wood;
+      ctx.beginPath();
+      ctx.moveTo(J.cx - J.midW/2, J.top);
+      ctx.quadraticCurveTo(J.cx, lidTop - 14, J.cx + J.midW/2, J.top);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255,214,90,.95)';
+      roundRect(ctx, J.cx - J.midW/2, J.top - 5, J.midW, 10, 4); ctx.fill();
+      roundRect(ctx, J.cx - 12, J.top - 2, 24, 26, 5); ctx.fill();
+      ctx.fillStyle = 'rgba(60,38,16,.9)';
+      ctx.beginPath(); ctx.arc(J.cx, J.top + 12, 4.5, 0, Math.PI * 2); ctx.fill();
+    }
     // 5) Reflexe (zwei glanz-streifen)
     const lx = (y)=>J.cx-this.halfW(y);
     ctx.lineCap='round';
