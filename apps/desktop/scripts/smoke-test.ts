@@ -123,6 +123,22 @@ async function main(): Promise<void> {
   if (mixerCheck.sliders < 5) problems.push({ page: 'Mixer', text: `Zu wenige Regler (${mixerCheck.sliders}, erwartet ≥5: Master + 4 Kanäle)` });
   if (!mixerCheck.eventOk) problems.push({ page: 'Mixer', text: 'bx-mixer-Event warf eine Exception' });
 
+  // Key-Assistent: öffnet sich das Modal, sind die 3 Schritte + Eingabefeld da?
+  current = 'KeyWizard';
+  const kw = (await evalJs(ws, `(async () => {
+    window.dispatchEvent(new CustomEvent('bx-key-wizard'));
+    await new Promise((r) => setTimeout(r, 400));
+    const modal = [...document.querySelectorAll('h2')].find((h) => /Gratis-Key holen/i.test(h.textContent || ''));
+    const steps = document.querySelectorAll('.fixed .rounded-full').length;
+    const input = !!document.querySelector('.fixed input[placeholder^="euler_"]');
+    const close = [...document.querySelectorAll('.fixed button')].find((b) => (b.getAttribute('title') || '') === 'Schließen');
+    close && close.click();
+    return { open: !!modal, steps, input };
+  })()`)) as { open: boolean; steps: number; input: boolean };
+  console.log(`  🔑 Key-Assistent: ${kw.open ? 'öffnet ✓' : 'FEHLT'}, Eingabefeld ${kw.input ? '✓' : '✗'}`);
+  if (!kw.open) problems.push({ page: 'KeyWizard', text: 'Modal öffnet nicht (bx-key-wizard)' });
+  if (!kw.input) problems.push({ page: 'KeyWizard', text: 'euler_-Eingabefeld fehlt' });
+
   // KI-/Steuer-API end-to-end: Token aus der laufenden App holen, dann von Node
   // aus (umgeht Renderer-CSP) Lesen + eine harmlose Aktion + Reject prüfen.
   current = 'API';

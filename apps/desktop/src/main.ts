@@ -313,6 +313,32 @@ function registerIpc(): void {
     }
     return { ok: false };
   });
+  // Zwischenablage lesen — NUR für den Key-Assistenten (erkennt kopierte
+  // euler_-Keys). Liefert bewusst nur Text, der wie ein Key aussieht — nie
+  // beliebige Clipboard-Inhalte an den Renderer geben.
+  ipcMain.handle(IPC.APP_CLIPBOARD_READ, () => {
+    const t = clipboard.readText().trim();
+    return /^euler_[\w-]{8,}$/.test(t) ? t : '';
+  });
+  // eulerstream-Key sofort prüfen: 200 = gültig, 401 = ungültig, sonst Netzfehler.
+  ipcMain.handle(IPC.SIGNKEY_TEST, async (_e, key: unknown) => {
+    const k = typeof key === 'string' ? key.trim() : '';
+    if (!k) return { ok: false, reason: 'empty' };
+    try {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 8000);
+      const res = await fetch(
+        `https://api.eulerstream.com/webcast/rate_limits?apiKey=${encodeURIComponent(k)}`,
+        { signal: ctl.signal },
+      );
+      clearTimeout(timer);
+      const body = (await res.json().catch(() => ({}))) as { code?: number; message?: string };
+      if (res.ok && body.code === 200) return { ok: true };
+      return { ok: false, reason: 'invalid', message: body.message ?? `HTTP ${res.status}` };
+    } catch {
+      return { ok: false, reason: 'offline' };
+    }
+  });
   // Konfig-Backup: alles (Einstellungen/Trigger/Store/Panel/Overlays/Zuschauer)
   // in eine JSON-Datei sichern bzw. wieder einspielen.
   ipcMain.handle(IPC.CONFIG_EXPORT, async () => {

@@ -112,6 +112,10 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
       setTiktokIn(!!s.tiktokLoggedIn);
       setKeySet(!!s.tiktokSignKeySet);
     });
+    // Key-Assistent hat gespeichert → Gate sofort freigeben (ohne Seitenwechsel).
+    const onKeySaved = () => setKeySet(true);
+    window.addEventListener('bx-key-saved', onKeySaved);
+    return () => window.removeEventListener('bx-key-saved', onKeySaved);
   }, []);
 
   const connected = studio.status.status === 'connected';
@@ -191,9 +195,9 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
           </div>
           {!keySet && !connected && !waitingForLive ? (
             // Ohne Key führt „Verbinden" garantiert in einen Fehler → stattdessen
-            // der EINE richtige nächste Schritt, direkt zur Key-Sektion.
+            // der EINE richtige nächste Schritt: der geführte Key-Assistent.
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent('bx-navigate', { detail: 'settings' }))}
+              onClick={() => window.dispatchEvent(new CustomEvent('bx-key-wizard'))}
               className="bx-btn-accent px-5 py-2.5 font-display text-sm tracking-wide"
             >
               🔑 ZUERST GRATIS-KEY HOLEN →

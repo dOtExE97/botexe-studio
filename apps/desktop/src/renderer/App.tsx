@@ -6,6 +6,7 @@ import ToastHost, { toast } from './components/ToastHost';
 import UpdateBanner from './components/UpdateBanner';
 import ProfileSwitcher from './components/ProfileSwitcher';
 import OnboardingTour from './components/OnboardingTour';
+import KeyWizard from './components/KeyWizard';
 import LivePage from './pages/LivePage';
 import OverlayPage from './pages/OverlayPage';
 import DiagnosePage from './pages/DiagnosePage';
@@ -110,7 +111,12 @@ export default function App() {
       <SoundPlayer />
       <ToastHost />
       <UpdateBanner />
-      <OnboardingTour onNavigate={(p) => setPage(p as Page)} />
+      <KeyWizard />
+      <OnboardingTour onNavigate={(p) => {
+        // Sonderziel 'key-wizard': öffnet den Key-Assistenten statt einer Seite.
+        if (p === 'key-wizard') window.dispatchEvent(new CustomEvent('bx-key-wizard'));
+        else setPage(p as Page);
+      }} />
 
       {/* Sidebar */}
       <aside className="flex w-52 flex-none flex-col border-r border-studio-border bg-studio-panel">

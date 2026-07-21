@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.8.0] — 2026-07-21
+
+### Neu: Key-Assistent 🔑 — die Euler-Hürde geführt statt allein
+Die Key-Beschaffung war DIE Stolperstelle für neue Streamer. Jetzt gibt es einen geführten Assistenten (öffnet sich über den „Gratis-Key holen"-Knopf auf der Live-Seite, in der Tour und in den Einstellungen):
+- **3 klare Schritte** in einem Fenster: Konto anlegen (mit „Habe schon ein Konto → direkt zur Key-Seite") → Key erstellen & kopieren → fertig.
+- **Zwischenablage-Automatik**: Sobald der Key auf der eulerstream-Seite kopiert wird, erscheint er automatisch in der App — kein Fenster-Gewechsel, kein Einfügen. (Die App liest die Zwischenablage NUR, solange der Assistent offen ist, und übernimmt ausschließlich Text im euler_-Format.)
+- **Sofort-Prüfung**: Der Key wird live gegen die eulerstream-API getestet — „✓ Key funktioniert & ist gespeichert!" sieht man im Assistenten, nicht erst beim fehlgeschlagenen Verbinden. Auch das manuelle Feld in den Einstellungen prüft jetzt sofort.
+- Direktlink zur Key-Seite (`dashboard/api-keys`) statt nur zur Registrierung.
+
+---
+
 ## [0.7.0] — 2026-07-21
 
 ### Behoben (aus Projekt-Audit mit 3 Agenten-Teams)

@@ -82,6 +82,11 @@ export const IPC = {
   /** Text in die Zwischenablage kopieren (Electron-nativ — navigator.clipboard
    *  ist im Renderer geblockt: „Write permission denied"). */
   APP_COPY: 'app:copy',
+  /** Zwischenablage LESEN — nur für den Key-Assistenten (erkennt kopierte
+   *  euler_-Keys automatisch, solange der Assistent offen ist). */
+  APP_CLIPBOARD_READ: 'app:clipboard-read',
+  /** eulerstream-Key sofort gegen die API prüfen (gültig/ungültig/offline). */
+  SIGNKEY_TEST: 'tiktok:signkey-test',
   CONFIG_EXPORT: 'config:export',
   CONFIG_IMPORT: 'config:import',
   // Profile (umschaltbare Konfigurations-Sets) + TikFinity-Import

@@ -80,7 +80,10 @@ export default function SettingsPage() {
     const offUpdate = window.studio.onUpdateStatus((s) => setUpdate(s));
     const offObs = window.studio.onObsStatus((s) => setObsStatus(s));
     const offSb = window.studio.onStreamerbotStatus((s) => setSbStatus(s));
-    return () => { offUpdate?.(); offObs?.(); offSb?.(); };
+    // Key-Assistent hat gespeichert → Status-Ampel sofort auf „Key gesetzt".
+    const onKeySaved = () => setSignKeySet(true);
+    window.addEventListener('bx-key-saved', onKeySaved);
+    return () => { offUpdate?.(); offObs?.(); offSb?.(); window.removeEventListener('bx-key-saved', onKeySaved); };
   }, []);
 
   // Spotify-Status (verbunden? + was läuft gerade) regelmäßig holen.
@@ -178,24 +181,33 @@ export default function SettingsPage() {
           </span>
         </div>
         <p className="mb-2 text-[11px] text-studio-muted">
-          Zum Verbinden (Chat, Geschenke, Likes empfangen) braucht die App einen <b>kostenlosen API-Key</b> von eulerstream. <b className="text-amber-300">Ohne Key geht's nicht</b> — aber er ist gratis und in 2 Minuten geholt:
+          Zum Verbinden (Chat, Geschenke, Likes empfangen) braucht die App einen <b>kostenlosen API-Key</b> von eulerstream. <b className="text-amber-300">Ohne Key geht's nicht</b> — aber er ist gratis und in 2 Minuten geholt. Am einfachsten mit dem Assistenten:
         </p>
-        <ol className="mb-3 ml-4 list-decimal space-y-1 text-[11px] text-studio-muted">
-          <li>Unten auf <b>„Gratis-Key holen"</b> klicken → mit Google/GitHub/E-Mail registrieren.</li>
-          <li>Im Dashboard <span className="font-mono">Create Key</span> klicken und den <span className="font-mono">euler_…</span>-Key kopieren.</li>
-          <li>Hier ins Feld einfügen — fertig. Modus <b>„Cloud (gratis)"</b> lassen.</li>
-        </ol>
         <button
-          onClick={() => void window.studio.openExternal('https://www.eulerstream.com/register')}
+          onClick={() => window.dispatchEvent(new CustomEvent('bx-key-wizard'))}
           className="bx-btn-accent mb-3"
         >
-          <KeyRound size={14} /> Gratis-Key holen <ExternalLink size={12} className="opacity-70" />
+          <KeyRound size={14} /> Key-Assistent öffnen (2 Min, geführt)
         </button>
+        <p className="mb-2 text-[10px] text-studio-muted/70">
+          Der Assistent führt dich durch Konto + Key, erkennt den kopierten Key automatisch und prüft ihn sofort. Alternativ hier manuell: <button onClick={() => void window.studio.openExternal('https://www.eulerstream.com/dashboard/api-keys')} className="underline hover:text-studio-accent">Key-Seite öffnen <ExternalLink size={9} className="inline opacity-70" /></button> und den Key unten einfügen.
+        </p>
         <input
           type="password"
           value={signKey}
           onChange={(e) => setSignKey(e.target.value)}
-          onBlur={() => { if (signKey.trim()) { void window.studio.updateSettings({ tiktokSignApiKey: signKey.trim() }); setSignKeySet(true); toast('success', 'API-Key gespeichert.'); } }}
+          onBlur={() => {
+            const k = signKey.trim();
+            if (!k) return;
+            void window.studio.updateSettings({ tiktokSignApiKey: k });
+            setSignKeySet(true);
+            // Sofort prüfen — „funktioniert" sieht man hier, nicht erst beim Verbinden.
+            void window.studio.testSignKey(k).then((r) => {
+              if (r.ok) toast('success', '✓ Key geprüft — funktioniert!');
+              else if (r.reason === 'invalid') toast('error', 'Key gespeichert, aber eulerstream lehnt ihn ab — bitte nochmal vollständig kopieren.');
+              else toast('info', 'Key gespeichert (Prüfung gerade nicht möglich — wird beim Verbinden getestet).');
+            });
+          }}
           placeholder={signKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Euler API-Key (euler_… — kostenlos auf eulerstream.com)'}
           className="bx-input w-full font-mono text-xs"
         />

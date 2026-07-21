@@ -87,6 +87,10 @@ const api = {
   spotifyLogout: () => ipcRenderer.invoke(IPC.SPOTIFY_LOGOUT),
   openExternal: (url: string) => ipcRenderer.invoke(IPC.APP_OPEN_EXTERNAL, url),
   copyText: (text: string) => ipcRenderer.invoke(IPC.APP_COPY, text),
+  /** Key-Assistent: kopierten euler_-Key aus der Zwischenablage lesen ('' wenn keiner). */
+  readClipboardKey: () => ipcRenderer.invoke(IPC.APP_CLIPBOARD_READ) as Promise<string>,
+  /** eulerstream-Key sofort prüfen (gültig/ungültig/offline). */
+  testSignKey: (key: string) => ipcRenderer.invoke(IPC.SIGNKEY_TEST, key) as Promise<{ ok: boolean; reason?: string; message?: string }>,
   // Konfig-Backup
   exportConfig: () => ipcRenderer.invoke(IPC.CONFIG_EXPORT),
   importConfig: () => ipcRenderer.invoke(IPC.CONFIG_IMPORT),
