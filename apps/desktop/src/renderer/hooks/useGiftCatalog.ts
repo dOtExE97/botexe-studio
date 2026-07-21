@@ -41,7 +41,7 @@ export function useGiftCatalog(): { gifts: GiftEntry[]; loaded: boolean; reload:
       // Alle übrigen aktuellen Gifts aus der Master-Liste — sofort wählbar inkl.
       // Bild (TikTok-CDN-URL), echten Coins und deutschem Namen.
       const extra: GiftEntry[] = MASTER.filter((m) => !seen.has(norm(m.name))).map((m) => ({
-        slug: m.name,
+        slug: m.name.trim(), // manche Master-Namen haben führende Leerzeichen
         coins: m.coins,
         count: 0,
         de: m.de,

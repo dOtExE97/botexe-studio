@@ -3,6 +3,11 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.21.1] — 2026-07-21
+
+### Fix: Geschenke-Galerie „Letztes Live" zeigte alle Gifts
+Die „Letztes Live"-Ansicht sammelte über mehrere Streams hinweg an — blieb die App zwischen zwei Lives offen (der neue Stream zählte als Reconnect), wurde die Markierung nie geleert, und irgendwann standen dort *alle* je erhaltenen Gifts. Jetzt hängt der Reset an der **Room-ID** (jeder Live = neuer Raum): Wechselt sie, wird „Letztes Live" geleert — robust gegen Reconnect und App-Neustart (gleicher Raum nach Neustart = Fortsetzung, kein versehentlicher Reset). Der angesammelte Zustand bereinigt sich beim nächsten Verbinden von selbst. Nebenbei: Master-Gift-Namen mit führenden Leerzeichen werden in der Anzeige getrimmt.
+
 ## [0.21.0] — 2026-07-21
 
 ### Coin-Glas: Bälle stapeln sich jetzt physisch 🪙

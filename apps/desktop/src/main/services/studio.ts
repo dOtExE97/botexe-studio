@@ -313,6 +313,16 @@ export class Studio {
             this.resetSession();
           }
         }
+        // „Letztes Live"-Gift-Markierung an der ROOM-ID festmachen (robust): jeder
+        // Live ist ein neuer Raum. Wechselt die Room-ID gegenüber dem persistierten
+        // Wert, ist es ein neuer Stream → Markierung leeren. So sammelt sich die
+        // Galerie NICHT über Streams an, auch wenn freshStream mal nicht feuert
+        // (App blieb offen, neuer Stream zählte als Reconnect). Gleiche Room-ID
+        // nach Neustart → kein Reset (Fortsetzung).
+        if (info.status === 'connected' && info.roomId && info.roomId !== this.settings.peek().lastLiveRoomId) {
+          this.giftCatalog.resetLastRoom();
+          this.settings.update({ lastLiveRoomId: info.roomId });
+        }
         if (info.status === 'connected') {
           const mode = this.settings.get().tiktokConnectMode ?? 'cloud';
           log.info('TikTok', `Verbindungsmodus: ${mode === 'cloud' ? 'Cloud (Euler)' : 'Direkt'}`);

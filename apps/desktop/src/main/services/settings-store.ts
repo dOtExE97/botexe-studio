@@ -41,6 +41,9 @@ export interface TTSSettings {
 export interface StudioSettings {
   schemaVersion: number;
   lastUsername: string;
+  /** Room-ID des zuletzt verbundenen Live — Wechsel = neuer Stream (setzt die
+   *  „Letztes Live"-Gift-Markierung zurück, robust gegen Reconnect/Neustart). */
+  lastLiveRoomId?: string;
   soundVolume: number;
   /** Audio-Ausgabegerät für lokale Sounds/TTS (deviceId), '' = Standard. */
   audioOutputId: string;

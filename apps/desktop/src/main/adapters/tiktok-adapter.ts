@@ -31,6 +31,9 @@ export interface AdapterStatusInfo {
    *  nach Stream-Ende) — NICHT bei einem Reconnect nach kurzem Verbindungsabriss.
    *  Signal für „Session zurücksetzen" (Zähler/Top-Listen im Overlay). */
   freshStream?: boolean;
+  /** Room-ID des Live (bei 'connected') — jeder Live hat eine neue. Wechsel =
+   *  neuer Stream, robuster als freshStream für den „Letztes Live"-Reset. */
+  roomId?: string;
 }
 
 /** Minimal-Interface der Live-Connection — in Tests durch Fake ersetzt. */
@@ -308,7 +311,7 @@ export class TikTokAdapter {
       const freshStream = !isReconnect || this.pendingFresh;
       this.pendingFresh = false;
       this.hasConnectedOnce = true;
-      this.emitStatus({ status: 'connected', isReconnect, freshStream });
+      this.emitStatus({ status: 'connected', isReconnect, freshStream, roomId: state.roomId != null ? String(state.roomId) : undefined });
       log.info('TikTok', `Verbunden mit @${this.username}${state.roomId ? ` (Room ${state.roomId})` : ''}`);
 
       // Gift-Katalog: komplette Gift-Liste (mit Bildern) abrufen — best-effort.
