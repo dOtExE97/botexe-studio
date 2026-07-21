@@ -896,6 +896,10 @@ export default function OverlayPage() {
   const [soundList, setSoundList] = useState<{ id: string; filename: string }[]>([]);
   const [paletteQuery, setPaletteQuery] = useState('');
   const [activeCat, setActiveCat] = useState('beliebt'); // aktiver Kategorie-Tab
+  // ✨ KI-Assistent: Wunsch-Text, Busy-Zustand + Layout-Sicherung für Rückgängig.
+  const [aiWish, setAiWish] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiPrev, setAiPrev] = useState<OverlayLayout | null>(null);
   // Schaufenster: Overlay-Basis-URL (für die Live-Vorschau-Iframes der Palette)
   // + An/Aus-Schalter (auf schwachen PCs abschaltbar).
   const [overlayBase, setOverlayBase] = useState<string | null>(null);
@@ -1085,6 +1089,37 @@ export default function OverlayPage() {
     pendingSave.current = null;
     await doSave(next);
   }, [doSave]);
+
+  // ✨ KI-Wunsch umsetzen: kompakten Widget-Katalog + aktuelles Layout an den
+  // Main-Prozess, KI liefert neue layers; gespeichert wird über den normalen
+  // Save-Pfad (ajv-Validierung inklusive). Vorher-Stand für „Rückgängig" sichern.
+  const runAiWish = useCallback(async () => {
+    if (!layout || aiBusy) return;
+    setAiBusy(true);
+    try {
+      const seen = new Set<string>();
+      const catalog = WIDGET_TYPES.filter((w) => (seen.has(w.type) ? false : (seen.add(w.type), true)))
+        .map((w) => ({ type: w.type, label: w.label, desc: w.desc, w: w.w, h: w.h, props: w.props }));
+      const result = await window.studio.aiWish({
+        wish: aiWish.trim(),
+        layout: { canvas: layout.canvas, layers: layout.layers },
+        catalog,
+      });
+      if (!result.ok || !Array.isArray(result.layers)) {
+        toast('error', result.error ?? 'KI-Wunsch fehlgeschlagen.');
+        return;
+      }
+      const before = layout;
+      const next = { ...layout, layers: result.layers as OverlayLayout['layers'] };
+      await persist(next);
+      setAiPrev(before);
+      setAiWish('');
+      toast('success', `✨ Umgesetzt — ${result.layers.length} Widgets. Nicht gut? „Rückgängig" ist daneben.`);
+    } finally {
+      setAiBusy(false);
+    }
+  }, [layout, aiBusy, aiWish, persist]);
+
 
   // Gebündeltes Speichern (~300ms) — für Prop-Edits beim Tippen. Ohne das löst
   // JEDER Tastendruck ein saveLayout + komplettes Overlay-Rebuild aus (Flackern,
@@ -1389,6 +1424,35 @@ export default function OverlayPage() {
                 <ConfirmButton onConfirm={() => void deleteProfile(layout.id)} className="flex items-center gap-1 text-[11px] text-studio-muted hover:text-studio-accent"><Trash2 size={12} /> Löschen</ConfirmButton>
               )}
             </>
+          )}
+        </div>
+
+        {/* ✨ KI-Assistent: Wunsch in natürlicher Sprache → Layout wird umgebaut */}
+        <div className="flex flex-none items-center gap-2 border-b border-studio-border bg-studio-panel/80 px-3 py-2">
+          <span className="flex-none text-sm" title="KI-Overlay-Assistent">✨</span>
+          <input
+            value={aiWish}
+            onChange={(e) => setAiWish(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !aiBusy && aiWish.trim() && void runAiWish()}
+            placeholder='Wünsch dir was… z.B. "Goal-Bar oben, Chat unten links, alles in Pink mit Herz-Glas"'
+            disabled={aiBusy}
+            className="bx-input flex-1 text-xs disabled:opacity-60"
+          />
+          <button
+            onClick={() => void runAiWish()}
+            disabled={aiBusy || !aiWish.trim()}
+            className="bx-btn-accent flex-none px-3 py-1.5 text-[11px] disabled:opacity-40"
+          >
+            {aiBusy ? 'KI baut…' : 'Umsetzen'}
+          </button>
+          {aiPrev && !aiBusy && (
+            <button
+              onClick={() => { const prev = aiPrev; setAiPrev(null); void persist(prev); toast('info', 'KI-Änderung rückgängig gemacht.'); }}
+              className="bx-pill flex-none text-[11px] hover:text-studio-accent"
+              title="Letzte KI-Änderung rückgängig machen"
+            >
+              ↩ Rückgängig
+            </button>
           )}
         </div>
 

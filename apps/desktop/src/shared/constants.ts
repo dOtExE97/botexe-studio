@@ -87,6 +87,8 @@ export const IPC = {
   APP_CLIPBOARD_READ: 'app:clipboard-read',
   /** eulerstream-Key sofort gegen die API prüfen (gültig/ungültig/offline). */
   SIGNKEY_TEST: 'tiktok:signkey-test',
+  /** KI-Overlay-Assistent: Wunsch → neue layers-Liste. */
+  AI_WISH: 'ai:wish',
   CONFIG_EXPORT: 'config:export',
   CONFIG_IMPORT: 'config:import',
   // Profile (umschaltbare Konfigurations-Sets) + TikFinity-Import

@@ -3,6 +3,18 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.13.0] — 2026-07-21
+
+### Neu: ✨ KI-Overlay-Assistent — „Wünsch dir was"
+Im Overlay-Editor gibt es jetzt eine ✨-Zeile: Beschreib in normalem Deutsch, was du willst („Goal-Bar oben, Chat unten links, alles in Pink mit dem Herz-Glas") → **die KI baut dein Overlay um.** Mit „Rückgängig", falls es nicht gefällt.
+- Die KI nutzt ausschließlich die vorhandenen ~45 Widgets und deren Einstellungen; jedes Ergebnis läuft durch dieselbe Prüfung wie handgebaute Layouts.
+- **KI-Anbindung** (Einstellungen → KI-Assistent): **Google Gemini** (kostenloser API-Key, Link in den Einstellungen) oder **Ollama** (läuft komplett lokal). Der Key bleibt auf deinem PC und wandert nie ins Backup.
+
+### Behoben: Updates kamen „nie an"
+- Update-Check jetzt **stündlich** statt alle 6 Stunden. Wichtig zu wissen: Ein fertig geladenes Update wird **beim nächsten App-Neustart** installiert (Banner „Jetzt neu starten" erscheint) — durch den Autostart lief die App oft tagelang durch, dadurch wirkte es wie „kein Update". Zusätzlich wird der Download jetzt im Log vermerkt.
+
+---
+
 ## [0.12.0] — 2026-07-21
 
 ### Neu: Coin-Glas in 4 Formen + 6 neue Design-Themes 🫙💜🏆🪙

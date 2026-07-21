@@ -83,6 +83,10 @@ export interface StudioSettings {
   /** Beim App-Start automatisch warten, bis der letzte Account live geht, und
    *  dann verbinden (wie TikFinity) — billiger Live-Check, kein Sign-Kontingent. */
   autoLiveWatch: boolean;
+  /** KI-Overlay-Assistent: Provider + Modell (Key separat als Secret). */
+  ai: { provider: 'gemini' | 'ollama'; model: string };
+  /** API-Key für den KI-Assistenten (Gemini) — Secret, nie exportieren. */
+  aiApiKey: string;
   /** App automatisch mit Windows starten — damit Overlay-Server läuft, BEVOR
    *  OBS/TTLS die Browser-Quelle lädt (sonst „Seite nicht erreichbar"). */
   autostart: boolean;
@@ -165,6 +169,8 @@ const DEFAULTS: StudioSettings = {
   tiktokConnectMode: 'cloud',
   autoLiveWatch: true,
   autostart: false,
+  ai: { provider: 'gemini', model: '' },
+  aiApiKey: '',
   streamerbot: { enabled: false, url: 'ws://127.0.0.1:8080/' },
   spotifyClientId: '',
   spotifyTokens: null,
@@ -248,6 +254,13 @@ export class SettingsStore {
       merged.audioOutputLabel = typeof raw.audioOutputLabel === 'string' ? raw.audioOutputLabel : '';
       // App-Mixer (additiv): fehlend/kaputt → Defaults, Zahlen geklemmt.
       merged.mixer = normalizeMixer(raw.mixer);
+      // KI-Assistent (additiv): defensiv mergen.
+      const rawAi = (typeof raw.ai === 'object' && raw.ai !== null ? raw.ai : {}) as Record<string, unknown>;
+      merged.ai = {
+        provider: rawAi.provider === 'ollama' ? 'ollama' : 'gemini',
+        model: typeof rawAi.model === 'string' ? rawAi.model.slice(0, 60) : '',
+      };
+      merged.aiApiKey = typeof raw.aiApiKey === 'string' ? raw.aiApiKey : '';
       const gw = raw.giveaway as Record<string, unknown> | undefined;
       merged.giveaway = {
         enabled: typeof gw?.enabled === 'boolean' ? gw.enabled : false,
@@ -314,6 +327,7 @@ export function redactSecretsForExport(settings: StudioSettings): Record<string,
   delete copy.ttsCredentials;
   delete copy.controlToken; // bleibt pro Maschine eigen
   delete copy.sportApiKey;
+  delete copy.aiApiKey; // KI-Key nie ins Backup
   delete copy.spotifyTokens; // OAuth-Tokens nie ins Backup
   if (copy.obs && typeof copy.obs === 'object') {
     delete (copy.obs as Record<string, unknown>).password;

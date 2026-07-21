@@ -56,6 +56,10 @@ export default function SettingsPage() {
   const [connectMode, setConnectMode] = useState<'cloud' | 'direct'>('cloud');
   const [autoLiveWatch, setAutoLiveWatch] = useState(true);
   const [autostart, setAutostart] = useState(false);
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'ollama'>('gemini');
+  const [aiModel, setAiModel] = useState('');
+  const [aiKey, setAiKey] = useState('');
+  const [aiKeySet, setAiKeySet] = useState(false);
   const [spotifyClientId, setSpotifyClientId] = useState('');
   const [spotify, setSpotify] = useState<{ connected: boolean; clientIdSet: boolean; redirectUri: string; nowPlaying: { title: string; artist: string; albumArt: string; isPlaying: boolean } | null }>({ connected: false, clientIdSet: false, redirectUri: '', nowPlaying: null });
 
@@ -70,6 +74,10 @@ export default function SettingsPage() {
       setConnectMode(s.tiktokConnectMode === 'direct' ? 'direct' : 'cloud');
       setAutoLiveWatch(s.autoLiveWatch !== false);
       setAutostart(s.autostart === true);
+      const sx = s as unknown as { ai?: { provider?: string; model?: string }; aiKeySet?: boolean };
+      setAiProvider(sx.ai?.provider === 'ollama' ? 'ollama' : 'gemini');
+      setAiModel(sx.ai?.model ?? '');
+      setAiKeySet(!!sx.aiKeySet);
       setSpotifyClientId(s.spotifyClientId ?? '');
       setObsPasswordSet(!!s.obsPasswordSet);
       if (s.obs) setObs({ enabled: s.obs.enabled, url: s.obs.url, password: '' });
@@ -604,6 +612,55 @@ export default function SettingsPage() {
 
       {/* Stammgast-Begrüßung */}
       <GreetReturningCard />
+
+      {/* ✨ KI-Assistent (Overlay-Wünsche) */}
+      <section className="bx-card p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+            <Sparkles size={15} /> KI-Assistent (Overlay-Wünsche)
+          </h2>
+          <span className={`flex items-center gap-1.5 text-[11px] font-bold ${(aiProvider === 'ollama' || aiKeySet) ? 'text-emerald-300' : 'text-studio-muted'}`}>
+            <span className={`h-2 w-2 rounded-full ${(aiProvider === 'ollama' || aiKeySet) ? 'bg-emerald-400' : 'bg-studio-muted'}`} />
+            {aiProvider === 'ollama' ? 'Ollama (lokal)' : aiKeySet ? 'Bereit' : 'Kein Key'}
+          </span>
+        </div>
+        <p className="mb-3 text-[11px] text-studio-muted">
+          Im <b>Overlay-Editor</b> gibt es die ✨-Zeile: Wunsch eintippen („Goal-Bar oben, Chat unten links, alles in Pink") → die KI baut dein Overlay um. Mit „Rückgängig", falls es nicht gefällt. Die KI nutzt nur die vorhandenen Widgets.
+        </p>
+        <div className="mb-3 flex flex-wrap gap-2">
+          <label className="flex cursor-pointer items-start gap-2 text-[11px] text-studio-muted">
+            <input type="radio" name="aiProvider" checked={aiProvider === 'gemini'}
+              onChange={() => { setAiProvider('gemini'); void window.studio.updateSettings({ ai: { provider: 'gemini', model: aiModel } }); }} className="mt-0.5" />
+            <span><b className="text-emerald-300">Google Gemini (gratis, empfohlen)</b> — kostenloser API-Key, 2 Minuten.</span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-2 text-[11px] text-studio-muted">
+            <input type="radio" name="aiProvider" checked={aiProvider === 'ollama'}
+              onChange={() => { setAiProvider('ollama'); void window.studio.updateSettings({ ai: { provider: 'ollama', model: aiModel } }); }} className="mt-0.5" />
+            <span><b>Ollama (lokal)</b> — läuft komplett auf deinem PC, braucht installiertes Ollama.</span>
+          </label>
+        </div>
+        {aiProvider === 'gemini' && (
+          <>
+            <button onClick={() => void window.studio.openExternal('https://aistudio.google.com/apikey')} className="bx-btn-accent mb-2 text-[11px]">
+              <KeyRound size={13} /> Gratis Gemini-Key holen <ExternalLink size={11} className="opacity-70" />
+            </button>
+            <input
+              type="password" value={aiKey}
+              onChange={(e) => setAiKey(e.target.value)}
+              onBlur={() => { const k = aiKey.trim(); if (k) { void window.studio.updateSettings({ aiApiKey: k }); setAiKeySet(true); toast('success', 'KI-Key gespeichert.'); } }}
+              placeholder={aiKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Gemini API-Key (AIza…) — gratis auf aistudio.google.com'}
+              className="bx-input w-full font-mono text-xs"
+            />
+          </>
+        )}
+        <input
+          value={aiModel}
+          onChange={(e) => setAiModel(e.target.value)}
+          onBlur={() => void window.studio.updateSettings({ ai: { provider: aiProvider, model: aiModel.trim() } })}
+          placeholder={aiProvider === 'ollama' ? 'Modell (leer = llama3.1)' : 'Modell (leer = gemini-2.0-flash)'}
+          className="bx-input mt-2 w-full font-mono text-xs"
+        />
+      </section>
 
       {/* Chat-Moderation */}
       <section className="bx-card p-5">

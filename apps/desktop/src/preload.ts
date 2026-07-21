@@ -91,6 +91,9 @@ const api = {
   readClipboardKey: () => ipcRenderer.invoke(IPC.APP_CLIPBOARD_READ) as Promise<string>,
   /** eulerstream-Key sofort prüfen (gültig/ungültig/offline). */
   testSignKey: (key: string) => ipcRenderer.invoke(IPC.SIGNKEY_TEST, key) as Promise<{ ok: boolean; reason?: string; message?: string }>,
+  /** KI-Overlay-Assistent: Wunsch → layers fürs aktuelle Layout. */
+  aiWish: (payload: { wish: string; layout: unknown; catalog: unknown[] }) =>
+    ipcRenderer.invoke(IPC.AI_WISH, payload) as Promise<{ ok: boolean; layers?: unknown[]; error?: string }>,
   // Konfig-Backup
   exportConfig: () => ipcRenderer.invoke(IPC.CONFIG_EXPORT),
   importConfig: () => ipcRenderer.invoke(IPC.CONFIG_IMPORT),

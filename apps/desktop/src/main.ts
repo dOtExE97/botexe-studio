@@ -10,6 +10,7 @@ import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
 import { log, initFileLogging, getLogDir, formatLocalStamp } from './main/core/logger';
+import { generateLayers, type AiCatalogEntry } from './main/services/ai-overlay';
 import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, uninstallHostsEntry, TTLS_HOST } from './main/services/ttls-link';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
@@ -99,7 +100,9 @@ function setupAutoUpdate(): void {
     // notifyUser:false → kein eigener Dialog der Lib; wir steuern das UI selbst.
     updateElectronApp({
       updateSource: { type: UpdateSourceType.ElectronPublicUpdateService, repo: UPDATE_REPO },
-      updateInterval: '6 hours',
+      // 1h statt 6h: die App läuft durch Autostart oft tagelang — mit langem
+      // Intervall + „Install erst beim Neustart" wirkten Updates wie „kommt nie".
+      updateInterval: '1 hour',
       notifyUser: false,
       logger: updLogger,
     });
@@ -109,6 +112,7 @@ function setupAutoUpdate(): void {
     autoUpdater.on('update-downloaded', (_e, _notes, name) => {
       // UI zeigt daraufhin ein persistentes Banner (UpdateBanner) mit
       // „Jetzt neu starten" / „Später" — kein flüchtiger Toast mehr nötig.
+      log.info('Update', `Update ${typeof name === 'string' ? name : ''} heruntergeladen — wird beim nächsten App-Neustart installiert.`);
       pushUpdateStatus({ state: 'downloaded', version: typeof name === 'string' ? name : undefined });
     });
     autoUpdater.on('error', (err) => {
@@ -340,6 +344,23 @@ function registerIpc(): void {
     const t = clipboard.readText().trim();
     return /^euler_[\w-]{8,}$/.test(t) ? t : '';
   });
+  // KI-Overlay-Assistent: Wunsch + aktuelles Layout + Widget-Katalog → layers.
+  // Provider/Key kommen aus den Settings (Key verlässt den Main-Prozess nie).
+  ipcMain.handle(IPC.AI_WISH, async (_e, payload: unknown) => {
+    const p = (payload ?? {}) as { wish?: unknown; layout?: unknown; catalog?: unknown };
+    const s = isStudio().settings.get();
+    const layout = p.layout as { canvas?: { width?: number; height?: number }; layers?: unknown[] } | undefined;
+    if (!layout?.canvas || !Array.isArray(p.catalog)) return { ok: false, error: 'Ungültige Anfrage.' };
+    return generateLayers({
+      wish: String(p.wish ?? ''),
+      layout: { canvas: { width: Number(layout.canvas.width) || 1080, height: Number(layout.canvas.height) || 1920 }, layers: layout.layers ?? [] },
+      catalog: p.catalog as AiCatalogEntry[],
+      provider: s.ai.provider,
+      apiKey: s.aiApiKey,
+      model: s.ai.model,
+    });
+  });
+
   // eulerstream-Key prüfen: 200 = gültig, 401 = ungültig, sonst Netzfehler.
   // Ohne Argument wird der GESPEICHERTE Key geprüft (für Diagnose/Start-Check),
   // der rohe Key verlässt den Main-Prozess dabei nie.
@@ -769,6 +790,8 @@ function registerIpc(): void {
     // stattdessen nur ein „ist gesetzt"-Flag, damit die UI „gesetzt" anzeigen kann.
     safe.sportKeySet = typeof safe.sportApiKey === 'string' && safe.sportApiKey.length > 0;
     delete safe.sportApiKey;       // football-data.org-Key
+    safe.aiKeySet = typeof safe.aiApiKey === 'string' && safe.aiApiKey.length > 0;
+    delete safe.aiApiKey;          // Gemini-Key
     delete safe.controlToken;      // Steuer-/Overlay-Token (Renderer braucht ihn nie)
     safe.spotifyConnected = !!(safe.spotifyTokens && typeof safe.spotifyTokens === 'object');
     delete safe.spotifyTokens;     // OAuth-Tokens nie an den Renderer
@@ -844,6 +867,14 @@ function registerIpc(): void {
       };
     }
     if (typeof p.sportApiKey === 'string') allowed.sportApiKey = p.sportApiKey.trim().slice(0, 120);
+    if (typeof p.aiApiKey === 'string') allowed.aiApiKey = p.aiApiKey.trim().slice(0, 200);
+    if (typeof p.ai === 'object' && p.ai !== null) {
+      const a = p.ai as Record<string, unknown>;
+      allowed.ai = {
+        provider: a.provider === 'ollama' ? 'ollama' : 'gemini',
+        model: typeof a.model === 'string' ? a.model.trim().slice(0, 60) : '',
+      };
+    }
     if (typeof p.tiktokSignApiKey === 'string') allowed.tiktokSignApiKey = p.tiktokSignApiKey.trim().slice(0, 200);
     if (p.tiktokConnectMode === 'cloud' || p.tiktokConnectMode === 'direct') allowed.tiktokConnectMode = p.tiktokConnectMode;
     if (typeof p.autoLiveWatch === 'boolean') allowed.autoLiveWatch = p.autoLiveWatch;
