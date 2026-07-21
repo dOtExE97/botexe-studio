@@ -1,4 +1,4 @@
-import { app, autoUpdater, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, session, shell } from 'electron';
+import { app, autoUpdater, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, session, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
@@ -192,6 +192,26 @@ function createMainWindow(): void {
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
   });
 
+  // Rechtsklick-Menü (Ausschneiden/Kopieren/Einfügen/Alles auswählen). Electron
+  // liefert das NICHT von selbst → ohne diesen Handler geht Einfügen nur per
+  // Strg+V, kein Rechtsklick-Menü in Eingabefeldern.
+  mainWindow.webContents.on('context-menu', (_e, params) => {
+    const f = params.editFlags;
+    const template: Electron.MenuItemConstructorOptions[] = [];
+    if (params.isEditable) {
+      template.push(
+        { role: 'cut', label: 'Ausschneiden', enabled: f.canCut },
+        { role: 'copy', label: 'Kopieren', enabled: f.canCopy },
+        { role: 'paste', label: 'Einfügen', enabled: f.canPaste },
+        { type: 'separator' },
+        { role: 'selectAll', label: 'Alles auswählen', enabled: f.canSelectAll },
+      );
+    } else if (params.selectionText) {
+      template.push({ role: 'copy', label: 'Kopieren', enabled: f.canCopy });
+    }
+    if (template.length && mainWindow) Menu.buildFromTemplate(template).popup({ window: mainWindow });
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -353,6 +373,8 @@ function registerIpc(): void {
     const t = clipboard.readText().trim();
     return /^euler_[\w-]{8,}$/.test(t) ? t : '';
   });
+  // Zwischenablage-Text für „Einfügen"-Knöpfe (nutzergestartet, an einem Feld).
+  ipcMain.handle(IPC.APP_CLIPBOARD_TEXT, () => clipboard.readText().trim());
   // KI-Overlay-Assistent: Wunsch + aktuelles Layout + Widget-Katalog → layers.
   // Provider/Key kommen aus den Settings (Key verlässt den Main-Prozess nie).
   ipcMain.handle(IPC.AI_WISH, async (_e, payload: unknown) => {

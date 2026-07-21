@@ -85,6 +85,8 @@ export const IPC = {
   /** Zwischenablage LESEN — nur für den Key-Assistenten (erkennt kopierte
    *  euler_-Keys automatisch, solange der Assistent offen ist). */
   APP_CLIPBOARD_READ: 'app:clipboard-read',
+  /** Zwischenablage-Text lesen (für „Einfügen"-Knöpfe an Eingabefeldern). */
+  APP_CLIPBOARD_TEXT: 'app:clipboard-text',
   /** eulerstream-Key sofort gegen die API prüfen (gültig/ungültig/offline). */
   SIGNKEY_TEST: 'tiktok:signkey-test',
   /** KI-Overlay-Assistent: Wunsch → neue layers-Liste. */

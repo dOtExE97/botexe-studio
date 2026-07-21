@@ -3,6 +3,11 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.23.1] — 2026-07-22
+
+### Fix: Einfügen ging nur mit Strg+V
+Electron liefert von Haus aus **kein Rechtsklick-Menü** — darum ging „Einfügen" in Eingabefeldern nur per Strg+V, nicht per Rechtsklick. Jetzt hat die App ein **app-weites Kontextmenü** (Ausschneiden / Kopieren / Einfügen / Alles auswählen) in allen Feldern. Zusätzlich haben die **Key-Felder** (eulerstream & KI) jetzt einen eigenen **„Einfügen"-Knopf**, der den Key direkt aus der Zwischenablage übernimmt & speichert.
+
 ## [0.23.0] — 2026-07-22
 
 ### Fix: KI-Assistent lief in einen „Abrechnung"-Fehler 🔧

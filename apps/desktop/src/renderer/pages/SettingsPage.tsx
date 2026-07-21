@@ -1,7 +1,7 @@
 // SettingsPage — App-Einstellungen: Loyalty-Punkte-Regeln, App-Infos,
 // Datenordner, Punkte-Reset.
 import { useEffect, useState } from 'react';
-import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket, Sparkles, KeyRound, ExternalLink, Music, Play, Pause, SkipForward, SkipBack } from 'lucide-react';
+import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket, Sparkles, KeyRound, ExternalLink, Music, Play, Pause, SkipForward, SkipBack, ClipboardPaste } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
 import GreetReturningCard from '../components/GreetReturningCard';
 import ThirdPartyLicenses from '../components/ThirdPartyLicenses';
@@ -76,6 +76,24 @@ export default function SettingsPage() {
     });
   };
   useEffect(() => { if (aiProvider === 'gemini' && aiKeySet) loadAiModels(); }, [aiProvider, aiKeySet]);
+
+  // eulerstream-Key speichern + sofort prüfen (von Blur UND „Einfügen" genutzt).
+  const commitSignKey = (k: string) => {
+    if (!k) return;
+    void window.studio.updateSettings({ tiktokSignApiKey: k });
+    setSignKeySet(true);
+    void window.studio.testSignKey(k).then((r) => {
+      if (r.ok) toast('success', '✓ Key geprüft — funktioniert!');
+      else if (r.reason === 'invalid') toast('error', 'Key gespeichert, aber eulerstream lehnt ihn ab — bitte nochmal vollständig kopieren.');
+      else toast('info', 'Key gespeichert (Prüfung gerade nicht möglich — wird beim Verbinden getestet).');
+    });
+  };
+  // KI-Key aus der Zwischenablage einfügen + speichern.
+  const pasteAiKey = () => void window.studio.readClipboardText().then((t) => {
+    const k = (t ?? '').trim();
+    if (!k) { toast('info', 'Zwischenablage ist leer.'); return; }
+    setAiKey(k); void window.studio.updateSettings({ aiApiKey: k }); setAiKeySet(true); toast('success', 'KI-Key eingefügt & gespeichert.');
+  });
   const [spotifyClientId, setSpotifyClientId] = useState('');
   const [spotify, setSpotify] = useState<{ connected: boolean; clientIdSet: boolean; redirectUri: string; nowPlaying: { title: string; artist: string; albumArt: string; isPlaying: boolean } | null }>({ connected: false, clientIdSet: false, redirectUri: '', nowPlaying: null });
 
@@ -238,25 +256,23 @@ export default function SettingsPage() {
         <p className="mb-2 text-[10px] text-studio-muted/70">
           Der Assistent führt dich durch Konto + Key, erkennt den kopierten Key automatisch und prüft ihn sofort. Alternativ hier manuell: <button onClick={() => void window.studio.openExternal('https://www.eulerstream.com/dashboard/api-keys')} className="underline hover:text-studio-accent">Key-Seite öffnen <ExternalLink size={9} className="inline opacity-70" /></button> und den Key unten einfügen.
         </p>
-        <input
-          type="password"
-          value={signKey}
-          onChange={(e) => setSignKey(e.target.value)}
-          onBlur={() => {
-            const k = signKey.trim();
-            if (!k) return;
-            void window.studio.updateSettings({ tiktokSignApiKey: k });
-            setSignKeySet(true);
-            // Sofort prüfen — „funktioniert" sieht man hier, nicht erst beim Verbinden.
-            void window.studio.testSignKey(k).then((r) => {
-              if (r.ok) toast('success', '✓ Key geprüft — funktioniert!');
-              else if (r.reason === 'invalid') toast('error', 'Key gespeichert, aber eulerstream lehnt ihn ab — bitte nochmal vollständig kopieren.');
-              else toast('info', 'Key gespeichert (Prüfung gerade nicht möglich — wird beim Verbinden getestet).');
-            });
-          }}
-          placeholder={signKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Euler API-Key (euler_… — kostenlos auf eulerstream.com)'}
-          className="bx-input w-full font-mono text-xs"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="password"
+            value={signKey}
+            onChange={(e) => setSignKey(e.target.value)}
+            onBlur={() => commitSignKey(signKey.trim())}
+            placeholder={signKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Euler API-Key (euler_… — kostenlos auf eulerstream.com)'}
+            className="bx-input flex-1 font-mono text-xs"
+          />
+          <button
+            onClick={() => void window.studio.readClipboardText().then((t) => { const k = (t ?? '').trim(); if (!k) { toast('info', 'Zwischenablage ist leer.'); return; } setSignKey(k); commitSignKey(k); })}
+            className="bx-pill flex-none text-[11px] hover:text-studio-accent"
+            title="Aus der Zwischenablage einfügen"
+          >
+            <ClipboardPaste size={13} /> Einfügen
+          </button>
+        </div>
         {/* Live-Format-Check: hilft, den richtigen Key zu erkennen. */}
         {signKey.trim().length > 0 && (
           signKey.trim().startsWith('euler_')
@@ -706,13 +722,18 @@ export default function SettingsPage() {
             <button onClick={() => void window.studio.openExternal('https://aistudio.google.com/apikey')} className="bx-btn-accent mb-2 text-[11px]">
               <KeyRound size={13} /> Gratis Gemini-Key holen <ExternalLink size={11} className="opacity-70" />
             </button>
-            <input
-              type="password" value={aiKey}
-              onChange={(e) => setAiKey(e.target.value)}
-              onBlur={() => { const k = aiKey.trim(); if (k) { void window.studio.updateSettings({ aiApiKey: k }); setAiKeySet(true); toast('success', 'KI-Key gespeichert.'); } }}
-              placeholder={aiKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Gemini API-Key (AIza…) — gratis auf aistudio.google.com'}
-              className="bx-input w-full font-mono text-xs"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="password" value={aiKey}
+                onChange={(e) => setAiKey(e.target.value)}
+                onBlur={() => { const k = aiKey.trim(); if (k) { void window.studio.updateSettings({ aiApiKey: k }); setAiKeySet(true); toast('success', 'KI-Key gespeichert.'); } }}
+                placeholder={aiKeySet ? '•••••••• (gesetzt — leer lassen zum Behalten)' : 'Gemini API-Key — gratis auf aistudio.google.com'}
+                className="bx-input flex-1 font-mono text-xs"
+              />
+              <button onClick={pasteAiKey} className="bx-pill flex-none text-[11px] hover:text-studio-accent" title="Aus der Zwischenablage einfügen">
+                <ClipboardPaste size={13} /> Einfügen
+              </button>
+            </div>
           </>
         )}
         {aiProvider === 'gemini' && aiModels.length > 0 ? (

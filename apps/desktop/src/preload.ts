@@ -89,6 +89,7 @@ const api = {
   copyText: (text: string) => ipcRenderer.invoke(IPC.APP_COPY, text),
   /** Key-Assistent: kopierten euler_-Key aus der Zwischenablage lesen ('' wenn keiner). */
   readClipboardKey: () => ipcRenderer.invoke(IPC.APP_CLIPBOARD_READ) as Promise<string>,
+  readClipboardText: () => ipcRenderer.invoke(IPC.APP_CLIPBOARD_TEXT) as Promise<string>,
   /** eulerstream-Key sofort prüfen (gültig/ungültig/offline). */
   testSignKey: (key: string) => ipcRenderer.invoke(IPC.SIGNKEY_TEST, key) as Promise<{ ok: boolean; reason?: string; message?: string }>,
   /** KI-Overlay-Assistent: Wunsch → layers fürs aktuelle Layout. */
