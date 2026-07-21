@@ -3,6 +3,16 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.20.0] — 2026-07-21
+
+### Neu: Coin-Glas im TikFinity-Original-Look 🫙 (Umzugs-Welle 1)
+Erste Welle „gleiche Optik wie bei TikFinity": Das **Coin-Glas** hat jetzt die Form **„Mason-Glas (TikFinity-Original)"** — originalgetreu nachgezeichnet (nicht ihre Grafik kopiert): breite Gewinde-Mündung, gerade Glaswände, gerundeter Boden, klares neutrales Glas und ihr Marken-Grau `rgba(40,40,40,.8)` als Badge/Toast-Pillen. Umsteiger finden ihr vertrautes Glas wieder — als Vektor sogar schärfer als das Original-PNG.
+
+- Wählbar bei jedem Coin-Glas über **Form → „Mason-Glas (TikFinity-Original)"**.
+- Der **TikFinity-Import** setzt diese Form automatisch aufs übernommene Coin-Glas → das importierte Overlay sieht sofort aus wie gewohnt.
+
+Weitere Widgets (Goal-Bar, Chat, Top-Liste, Rad …) folgen Welle für Welle.
+
 ## [0.19.0] — 2026-07-21
 
 ### TikFinity-Import runderneuert — jetzt mit v4-Dateien & vollem Widget-Design

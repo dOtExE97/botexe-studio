@@ -28,6 +28,11 @@ const CSS = `
 .bx-jar-toast .g { width:18px; height:18px; object-fit:contain; flex:none; }
 .bx-jar-toast b { color: var(--bx-gold); }
 @keyframes bx-jar-toast { 0%{opacity:0; transform:translateX(-16px)} 10%{opacity:1; transform:none} 82%{opacity:1} 100%{opacity:0; transform:translateY(-8px)} }
+/* TikFinity-Original: ihr Marken-Grau #282828cc als Pillen, Radius 1.6875rem. */
+.bx-jar--tf .bx-jar-badge, .bx-jar--tf .bx-jar-toast { background:#282828cc; border-radius:1.6875rem; box-shadow:0 4px 14px -6px rgba(0,0,0,.5); }
+.bx-jar--tf .bx-jar-badge .num { color:#ffd54a; -webkit-text-stroke:0; text-shadow:0 1px 2px rgba(0,0,0,.5); }
+.bx-jar--tf .bx-jar-label { color:#fff; -webkit-text-stroke:0; font-weight:800; text-shadow:0 2px 6px rgba(0,0,0,.55); }
+.bx-jar--tf .bx-jar-toast b { color:#ffd54a; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -62,11 +67,12 @@ export default class GiftJar {
     this.resting = [];
     this.running = false;
     this.showToast = props.showToast !== false; // Donation-Toasts (TikFinity-Style)
-    // Behälter-Form: klassisches Glas, Herz, Pokal oder Schatztruhe.
-    this.shape = ['glas', 'herz', 'pokal', 'truhe'].includes(props.shape) ? props.shape : 'glas';
+    // Behälter-Form: klassisches Glas, Herz, Pokal, Schatztruhe oder das
+    // originalgetreu nachgezeichnete TikFinity-Mason-Glas.
+    this.shape = ['glas', 'herz', 'pokal', 'truhe', 'tikfinity'].includes(props.shape) ? props.shape : 'glas';
     this.toastTimers = new Set();
     this.el = document.createElement('div');
-    this.el.className = 'bx-jar';
+    this.el.className = 'bx-jar' + (this.shape === 'tikfinity' ? ' bx-jar--tf' : '');
     this.el.innerHTML = `<canvas></canvas><div class="bx-jar-label"></div><div class="bx-jar-badge"><span class="ico">🪙</span><span class="num">0</span></div><div class="bx-jar-toasts"></div>`;
     this.el.querySelector('.bx-jar-label').textContent = props.label || 'Coin-Glas';
     root.appendChild(this.el);
@@ -82,13 +88,14 @@ export default class GiftJar {
     this.canvas.width = r.width * dpr; this.canvas.height = r.height * dpr;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.w = r.width; this.h = r.height;
-    const jw = Math.min(this.w * 0.92, this.h * 0.72);
+    // TikFinity-Glas ist breiter & gerader (Mason-Zylinder) als unser Original-Glas.
+    const jw = this.shape === 'tikfinity' ? Math.min(this.w * 0.82, this.h * 0.62) : Math.min(this.w * 0.92, this.h * 0.72);
     // Form-abhängige Geometrie: Pokal lässt unten Platz für Stiel+Fuß,
-    // Truhe oben für den gewölbten Deckel.
-    const bottom = this.shape === 'pokal' ? this.h * 0.74 : this.h * 0.93;
-    const top = this.shape === 'truhe' ? this.h * 0.24 : this.h * 0.165;
+    // Truhe oben für den gewölbten Deckel, TikFinity lässt oben Platz fürs Gewinde.
+    const bottom = this.shape === 'pokal' ? this.h * 0.74 : this.shape === 'tikfinity' ? this.h * 0.9 : this.h * 0.93;
+    const top = this.shape === 'truhe' ? this.h * 0.24 : this.shape === 'tikfinity' ? this.h * 0.17 : this.h * 0.165;
     this.jar = { cx: this.w/2, lidY: this.h*0.06, top, midY: this.h*0.52, bottom,
-      neckW: jw*0.5, midW: jw, botW: jw*0.74, lidW: jw*0.56 };
+      neckW: this.shape === 'tikfinity' ? jw : jw*0.5, midW: jw, botW: this.shape === 'tikfinity' ? jw*0.98 : jw*0.74, lidW: jw*0.56 };
     this.unit = jw; // basis für ball-größen
     this.draw();
   }
@@ -105,6 +112,13 @@ export default class GiftJar {
     }
     if (this.shape === 'truhe') {
       return J.midW / 2; // Truhe: gerade Wände
+    }
+    if (this.shape === 'tikfinity') {
+      // Mason-Glas: fast senkrechte Wände, minimal eingezogene Mündung, runder Boden.
+      let hw = J.midW / 2;
+      if (tv < 0.05) hw *= 0.93 + tv * 1.4;            // Mündung minimal enger als Rand
+      if (tv > 0.9) hw *= Math.sqrt(Math.max(0.04, 1 - Math.pow((tv - 0.9) / 0.1, 2))); // gerundeter Boden
+      return hw;
     }
     // Klassisches Glas (Original): Hals → Bauch → Boden.
     if (yc <= J.midY) {
@@ -235,6 +249,7 @@ export default class GiftJar {
     const g = ctx.createLinearGradient(J.cx - J.midW/2, 0, J.cx + J.midW/2, 0);
     if (this.shape === 'herz') { g.addColorStop(0, 'rgba(255,110,160,.2)'); g.addColorStop(.5, 'rgba(255,140,180,.1)'); g.addColorStop(1, 'rgba(220,70,130,.22)'); }
     else if (this.shape === 'truhe') { g.addColorStop(0, 'rgba(120,84,40,.28)'); g.addColorStop(.5, 'rgba(90,60,30,.2)'); g.addColorStop(1, 'rgba(70,46,22,.3)'); }
+    else if (this.shape === 'tikfinity') { g.addColorStop(0, 'rgba(236,240,246,.14)'); g.addColorStop(.5, 'rgba(255,255,255,.05)'); g.addColorStop(1, 'rgba(210,218,230,.16)'); } // klares, neutrales Glas
     else { g.addColorStop(0, 'rgba(120,150,190,.16)'); g.addColorStop(.5, 'rgba(150,180,220,.07)'); g.addColorStop(1, 'rgba(90,120,160,.18)'); }
     ctx.fillStyle = g; ctx.fill();
     // 2) Bälle (innerhalb des Glases geclippt)
@@ -242,12 +257,33 @@ export default class GiftJar {
     for (const b of this.resting) { const p = this.coinPos(b.rx, b.ry); this.drawBall(p.x, p.y, b.r, b); }
     for (const b of this.falling) { const x = J.cx + b.rx * (this.halfW(b.y) - 6); this.drawBall(x, b.y, b.r, b); }
     ctx.restore();
-    // 3) Glas-Outline
+    // 3) Glas-Outline — TikFinity: dünnes, klares Hellgrau (wie ihre PNG-Linie).
     this.jarPath(ctx, 0);
-    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(220,236,255,.66)'; ctx.lineJoin = 'round'; ctx.stroke();
-    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.22)'; this.jarPath(ctx, 3); ctx.stroke();
+    if (this.shape === 'tikfinity') {
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(214,220,230,.72)'; ctx.lineJoin = 'round'; ctx.stroke();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.3)'; this.jarPath(ctx, 2.5); ctx.stroke();
+    } else {
+      ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(220,236,255,.66)'; ctx.lineJoin = 'round'; ctx.stroke();
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.22)'; this.jarPath(ctx, 3); ctx.stroke();
+    }
     // 4) Form-Deko: Glas → Schraubdeckel · Pokal → Stiel/Fuß/Henkel · Truhe → Deckel
-    if (this.shape === 'glas') {
+    //    · TikFinity → Gewinde-Mündung (Mason-Rand)
+    if (this.shape === 'tikfinity') {
+      const mouthW = this.halfW(J.top) * 2;
+      const rimTop = J.top - this.h * 0.045;
+      // Gewinde-Ring (leicht überstehender Rand) + zwei Gewinde-Linien darunter.
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(214,220,230,.8)'; ctx.lineJoin = 'round';
+      roundRect(ctx, J.cx - mouthW/2 - 4, rimTop, mouthW + 8, this.h * 0.055, this.h * 0.02); ctx.stroke();
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(210,216,228,.55)'; ctx.lineCap = 'round';
+      for (let i = 1; i <= 2; i++) {
+        const yy = J.top + i * this.h * 0.028;
+        ctx.beginPath();
+        ctx.moveTo(J.cx - mouthW/2 + 6, yy);
+        ctx.quadraticCurveTo(J.cx, yy + this.h * 0.012, J.cx + mouthW/2 - 6, yy - this.h * 0.006);
+        ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
+    } else if (this.shape === 'glas') {
       const lidH = (J.top - J.lidY) + 10;
       const lg = ctx.createLinearGradient(0, J.lidY, 0, J.lidY + lidH);
       lg.addColorStop(0, 'rgba(196,210,234,.96)'); lg.addColorStop(1, 'rgba(120,140,172,.95)');

@@ -712,11 +712,12 @@ const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'gift-jar', label: 'Coin-Glas', desc: 'Behälter, der sich mit den Geschenken füllt — jedes Gift ein Ball mit Bild, größer bei mehr Coins. Als Glas, Herz, Pokal oder Schatztruhe.',
+    type: 'gift-jar', label: 'Coin-Glas', desc: 'Behälter, der sich mit den Geschenken füllt — jedes Gift ein Ball mit Bild, größer bei mehr Coins. Als Glas, Herz, Pokal, Schatztruhe oder im TikFinity-Original-Look.',
     w: 440, h: 520, props: { target: 2000, label: '', shape: 'glas', showToast: true, accent: '#ffd23e' },
     fields: [
       { key: 'shape', label: 'Form', type: 'select', options: [
         { value: 'glas', label: '🫙 Bonbon-Glas (Standard)' },
+        { value: 'tikfinity', label: '🫙 Mason-Glas (TikFinity-Original)' },
         { value: 'herz', label: '💜 Herz' },
         { value: 'pokal', label: '🏆 Pokal (Gold-Henkel)' },
         { value: 'truhe', label: '🪙 Schatztruhe' },

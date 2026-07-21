@@ -124,12 +124,13 @@ export function mapWidgets(config: TikfinityConfig, newId: () => string): { laye
     if (segments) { add('wheel', wheel.name || 'Glücksrad', 300, 680, 480, 560, { segments, title: wheel.name || 'Glücksrad', style: 'classic' }); report.push(`Glücksrad (${wheel.segments.length} Segmente)`); }
   }
 
-  // Coin-Glas („Tüte") — Signatur-Widget der Gift-Streamer, praktisch immer genutzt.
+  // Coin-Glas („Tüte") — Signatur-Widget der Gift-Streamer, praktisch immer
+  // genutzt. Import bringt das originalgetreue TikFinity-Mason-Glas mit.
   if ('widget_coinjar_gifttype' in ds || 'widget_coinjar_scale' in ds) {
     add('gift-jar', 'Coin-Glas', 620, 360, 440, 520, {
-      shape: 'glas', showToast: s('widget_coinjar_displayalert') !== 'false', label: '', accent: '#ffd23e',
+      shape: 'tikfinity', showToast: s('widget_coinjar_displayalert') !== 'false', label: '', accent: '#ffd23e',
     });
-    report.push('Coin-Glas (gift-jar)');
+    report.push('Coin-Glas (TikFinity-Look)');
   }
 
   // Chat-Box — Farben/Schrift übernehmen (nur wenn vorhanden).
