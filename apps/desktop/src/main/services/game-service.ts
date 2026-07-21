@@ -127,7 +127,21 @@ export class GameService {
   private resetIdle(): void {
     if (this.idleTimer) clearTimeout(this.idleTimer);
     if (this.autoMode) return;
-    this.idleTimer = setTimeout(() => this.stop(), this.idleMs);
+    this.idleTimer = setTimeout(() => this.onIdle(), this.idleMs);
+  }
+
+  /** Inaktivität abgelaufen: Duell-Spiele (Tic Tac Toe / 4 Gewinnt) NICHT beenden,
+   *  sondern eine frische Runde öffnen — so bleibt das Widget sichtbar und offen
+   *  für neue „!join", ohne dass man es manuell neu starten muss. Einzelspiele
+   *  (Galgenmännchen) enden wie bisher. */
+  private onIdle(): void {
+    const kind = this.active?.kind;
+    if (kind === 'tic-tac-toe' || kind === 'connect-four') {
+      log.info('Spiel', `${LABEL[kind]}: Inaktivität → frische Runde geöffnet (bleibt im Overlay)`);
+      this.start(kind); // öffnet neue Runde + re-armt den Idle-Timer
+    } else {
+      this.stop();
+    }
   }
 
   /** Quiz auflösen (eigener Schritt, da das Quiz nicht von selbst gewinnt). */

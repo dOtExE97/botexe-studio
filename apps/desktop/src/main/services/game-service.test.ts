@@ -60,6 +60,30 @@ test('Duell öffnet nach Sieg automatisch eine neue Runde (kein Freeze)', () => 
   }, 25));
 });
 
+test('Duell nach Inaktivität: frische Runde statt verschwinden (kein manueller Neustart)', () => {
+  const s = new GameService(() => { /* egal */ }, () => { /* egal */ });
+  (s as unknown as { idleMs: number }).idleMs = 8; // Idle-Timeout im Test raffen
+  s.start('connect-four');
+  s.handleChat({ type: 'chat', ts: 1, user: { id: 'x', nickname: 'X' }, text: '!join' });
+  return new Promise<void>((resolve) => setTimeout(() => {
+    const st = s.getState();
+    assert.equal(st?.kind, 'connect-four', '4 Gewinnt bleibt aktiv (verschwindet NICHT)');
+    assert.equal((st?.state as { status?: string })?.status, 'waiting', 'frische Runde, offen für neue !join');
+    s.stop();
+    resolve();
+  }, 30));
+});
+
+test('Einzelspiel (Galgenmännchen) endet nach Inaktivität wie gehabt', () => {
+  const s = new GameService(() => { /* egal */ }, () => { /* egal */ });
+  (s as unknown as { idleMs: number }).idleMs = 8;
+  s.start('hangman', { word: 'HALLO' });
+  return new Promise<void>((resolve) => setTimeout(() => {
+    assert.equal(s.getState(), null, 'Galgenmännchen wird nach Idle beendet (kein Dauer-Widget)');
+    resolve();
+  }, 30));
+});
+
 test('start() räumt ein laufendes Auto-Quiz auf (altes Spiel kapert das neue nicht)', () => {
   const s = new GameService(() => { /* egal */ }, () => { /* egal */ });
   s.startQuizAuto([{ q: '?', options: ['A', 'B', 'C', 'D'], correct: 0 }], { questionMs: 5, pauseMs: 5 });

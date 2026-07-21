@@ -3,6 +3,11 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.22.1] — 2026-07-21
+
+### Fix: 4 Gewinnt / Tic Tac Toe verschwanden nach Inaktivität
+Ein Duell-Spiel wurde nach 2 Minuten ohne Eingabe komplett beendet — das Widget verschwand aus dem Overlay und musste **manuell neu gestartet** werden. Jetzt öffnet Inaktivität stattdessen eine **frische Runde**: Das Spiel bleibt sichtbar und offen für neue „!join", ohne Handgriff. Einzelspiele (Galgenmännchen) enden nach Inaktivität wie bisher.
+
 ## [0.22.0] — 2026-07-21
 
 ### Fokussierter Erst-Bildschirm 🎯
