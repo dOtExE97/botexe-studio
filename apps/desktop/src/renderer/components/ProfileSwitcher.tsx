@@ -6,6 +6,11 @@ import { ChevronDown, Plus, Pencil, Trash2, Check, X, FolderSync, Download } fro
 import { toast } from './ToastHost';
 
 interface ProfileMeta { id: string; name: string; source?: string }
+interface ImportResult {
+  ok: boolean; profileId?: string; profileName?: string; error?: string;
+  summary?: { triggers: number; commands: number; sounds: number; widgets: number };
+  imported?: string[]; skipped?: string[];
+}
 
 export default function ProfileSwitcher() {
   const [profiles, setProfiles] = useState<ProfileMeta[]>([]);
@@ -15,6 +20,7 @@ export default function ProfileSwitcher() {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   const load = () =>
@@ -22,6 +28,13 @@ export default function ProfileSwitcher() {
       setProfiles(r.profiles); setActiveId(r.activeId);
     });
   useEffect(() => { load(); }, []);
+
+  // Import auch von außerhalb des Profil-Menüs auslösbar (Settings-Karte, Startklar).
+  useEffect(() => {
+    const onImport = () => void doImport();
+    window.addEventListener('bx-tikfinity-import', onImport);
+    return () => window.removeEventListener('bx-tikfinity-import', onImport);
+  }, [busy]);
 
   useEffect(() => {
     if (!open) return;
@@ -63,11 +76,18 @@ export default function ProfileSwitcher() {
   const doImport = async () => {
     if (busy) return;
     setBusy(true); setOpen(false);
-    toast('info', 'TikFinity-Import wird vorbereitet…');
-    const r = await window.studio.importTikfinity() as { ok: boolean; error?: string; report?: string; profileName?: string };
+    toast('info', 'TikFinity-Import läuft — Sounds werden geladen…');
+    const r = await window.studio.importTikfinity() as ImportResult;
     setBusy(false);
-    if (r?.ok) { toast('success', `Importiert als „${r.profileName}". ${r.report ?? ''}`.trim()); load(); }
+    if (r?.ok) { load(); setImportResult(r); }            // Ergebnis-Dialog statt flüchtigem Toast
     else if (r?.error !== 'abgebrochen') toast('error', r?.error ?? 'Import fehlgeschlagen');
+  };
+
+  // „Jetzt aktivieren" aus dem Ergebnis-Dialog: auf das importierte Profil wechseln.
+  const activateImported = () => {
+    const id = importResult?.profileId;
+    setImportResult(null);
+    if (id) void doSwitch(id);
   };
 
   return (
@@ -135,6 +155,63 @@ export default function ProfileSwitcher() {
           </button>
         </div>
       )}
+
+      {importResult?.ok && (
+        <ImportResultModal result={importResult} onActivate={activateImported} onClose={() => setImportResult(null)} />
+      )}
+    </div>
+  );
+}
+
+/** Ergebnis-Dialog nach dem TikFinity-Import: was kam rein, was nicht — und der
+ *  entscheidende „jetzt aktivieren"-Knopf (sonst denkt man, es sei nichts passiert). */
+function ImportResultModal({ result, onActivate, onClose }: { result: ImportResult; onActivate: () => void; onClose: () => void }) {
+  const s = result.summary;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6" onMouseDown={onClose}>
+      <div className="w-full max-w-md rounded-2xl border border-studio-border bg-studio-panel p-6 shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="mb-1 flex items-center gap-2">
+          <span className="text-2xl">✅</span>
+          <h2 className="font-display text-lg">TikFinity importiert</h2>
+        </div>
+        <p className="mb-4 text-xs text-studio-muted">
+          Als Profil <b className="text-studio-text">„{result.profileName}"</b> angelegt. Aktiviere es, um dein Setup zu übernehmen — dein aktuelles Profil bleibt unangetastet.
+        </p>
+
+        {s && (
+          <div className="mb-4 grid grid-cols-4 gap-2 text-center">
+            {[['Trigger', s.triggers], ['Befehle', s.commands], ['Sounds', s.sounds], ['Widgets', s.widgets]].map(([label, n]) => (
+              <div key={label as string} className="rounded-lg bg-studio-raised/50 py-2">
+                <div className="text-xl font-bold text-studio-text" style={{ fontFamily: 'var(--font-chunky)' }}>{n as number}</div>
+                <div className="text-[10px] uppercase tracking-wider text-studio-muted">{label as string}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!!result.imported?.length && (
+          <div className="mb-3">
+            <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-emerald-400">Übernommen</div>
+            <ul className="space-y-0.5 text-xs text-studio-text/90">
+              {result.imported.map((t, i) => <li key={i} className="flex gap-1.5"><span className="text-emerald-400">✓</span> {t}</li>)}
+            </ul>
+          </div>
+        )}
+
+        {!!result.skipped?.length && (
+          <div className="mb-4 rounded-lg border border-amber-400/30 bg-amber-400/5 p-2.5">
+            <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-amber-300">Nicht übernommen (manuell nachbauen)</div>
+            <ul className="space-y-0.5 text-[11px] text-studio-muted">
+              {result.skipped.map((t, i) => <li key={i} className="flex gap-1.5"><span className="text-amber-400">•</span> {t}</li>)}
+            </ul>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button onClick={onActivate} className="bx-btn-accent flex-1 py-2.5 font-display text-sm tracking-wide">Profil jetzt aktivieren →</button>
+          <button onClick={onClose} className="bx-pill px-4 text-xs hover:text-studio-text">Später</button>
+        </div>
+      </div>
     </div>
   );
 }

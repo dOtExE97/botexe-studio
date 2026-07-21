@@ -87,31 +87,106 @@ function mapAction(a: TfAction, soundIdForUrl: (url: string) => string | undefin
 interface TfWheelSeg { text?: string; order?: number }
 interface TfSocial { platform?: string; username?: string }
 
-/** Widgets mit ECHTEN exportierten Daten → Overlay-Layer. TikFinity exportiert
- *  Ziel-Werte/Gift-Bindungen der meisten Widgets NICHT (server-seitig) — voll
- *  übernehmbar sind daher v.a. Glücksrad-Segmente und Social-Media-Kanäle. */
+/** TikFinity-Schriftname → unser fontFamily-Options-Wert (leer = Standard). */
+const FONT_MAP: Record<string, string> = {
+  'luckiest guy': 'luckiest', 'bebas neue': 'bebas', 'anton': 'anton', 'bungee': 'bungee',
+  'lilita one': 'lilita', 'baloo 2': 'baloo', 'baloo': 'baloo', 'fredoka': 'fredoka', 'fredoka one': 'fredoka',
+  'russo one': 'russo', 'righteous': 'righteous', 'permanent marker': 'marker', 'pacifico': 'pacifico',
+  'press start 2p': 'pressstart',
+};
+const mapFont = (tf: unknown): string => FONT_MAP[String(tf ?? '').trim().toLowerCase()] ?? '';
+/** TikFinity-Titeleffekt → unser Theme, wo die Namen zusammenpassen (sonst glas). */
+const mapTheme = (effect: unknown): string => (String(effect ?? '').trim().toLowerCase() === 'aurora' ? 'aurora' : 'glas');
+
+// TikFinity-Standardtitel der Ziel-Widgets — nur ABWEICHENDE gelten als „genutzt".
+const DEFAULT_GOAL_TITLES = new Set(['your title', 'earned coins', 'earned points', 'follower', 'like goal', 'share goal', 'sub goal', 'viewer goal', '']);
+const EXO = 'exo 2'; // TikFinity-Standardschrift → Signal, dass ein Widget NICHT angefasst wurde
+
+/** Widgets → Overlay-Layer. TikFinity v4 exportiert die vollen Widget-Designs in
+ *  dynamicSettings (Schrift/Farben/Ziele) — wir übernehmen die Widgets mit klarem
+ *  Nutzungssignal (echte Inhalte oder vom Standard abweichende Gestaltung) und
+ *  platzieren sie in einem aufgeräumten Standard-Layout (TikFinity hat KEINE
+ *  Positionsdaten — dort ist jedes Widget eine eigene Browser-Quelle). */
 export function mapWidgets(config: TikfinityConfig, newId: () => string): { layers: OverlayLayer[]; report: string[] } {
   const ds = config.dynamicSettings ?? {};
   const layers: OverlayLayer[] = [];
   const report: string[] = [];
-  let z = 1;
-  const add = (widgetType: string, name: string, w: number, h: number, props: Record<string, unknown>) => {
-    layers.push({ id: newId(), widgetType, name, x: 60 + ((z - 1) % 2) * 80, y: 60 + (z - 1) * 120, w, h, z, visible: true, props });
-    z++;
+  const s = (key: string): string => { const v = ds[key]; return v == null ? '' : String(v); };
+  const add = (widgetType: string, name: string, x: number, y: number, w: number, h: number, props: Record<string, unknown>) => {
+    layers.push({ id: newId(), widgetType, name, x, y, w, h, z: layers.length + 1, visible: true, props });
   };
 
-  // Glücksrad: Segmente aus widget_wheelofactions_wheels (JSON-String)
+  // Glücksrad — Segmente aus widget_wheelofactions_wheels (JSON-String).
   const wheels = parseJson<Array<{ name?: string; segments?: TfWheelSeg[] }>>(ds.widget_wheelofactions_wheels, []);
   const wheel = wheels.find((w) => w.segments?.length);
   if (wheel?.segments?.length) {
-    const segments = [...wheel.segments].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((s) => String(s.text ?? '').trim()).filter(Boolean).join('|');
-    if (segments) { add('wheel', wheel.name || 'Glücksrad', 480, 560, { segments, title: wheel.name || 'Glücksrad' }); report.push(`Glücksrad (${wheel.segments.length} Segmente)`); }
+    const segments = [...wheel.segments].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((seg) => String(seg.text ?? '').trim()).filter(Boolean).join('|');
+    if (segments) { add('wheel', wheel.name || 'Glücksrad', 300, 680, 480, 560, { segments, title: wheel.name || 'Glücksrad', style: 'classic' }); report.push(`Glücksrad (${wheel.segments.length} Segmente)`); }
   }
 
-  // Social-Media-Rotator: Kanäle aus widget_socialmediarotator_socials (JSON-String)
+  // Coin-Glas („Tüte") — Signatur-Widget der Gift-Streamer, praktisch immer genutzt.
+  if ('widget_coinjar_gifttype' in ds || 'widget_coinjar_scale' in ds) {
+    add('gift-jar', 'Coin-Glas', 620, 360, 440, 520, {
+      shape: 'glas', showToast: s('widget_coinjar_displayalert') !== 'false', label: '', accent: '#ffd23e',
+    });
+    report.push('Coin-Glas (gift-jar)');
+  }
+
+  // Chat-Box — Farben/Schrift übernehmen (nur wenn vorhanden).
+  if ('widget_chat_backgroundnormal' in ds || 'widget_chat_usernamecolornormal' in ds) {
+    add('chat-box', 'Chat', 30, 1500, 420, 380, {
+      style: 'glas',
+      max: 8,
+      hideAfterMs: (Number(s('widget_chat_hideafter')) || 0) * 1000,
+      accent: s('widget_chat_usernamecolormod') || s('widget_chat_usernamecolornormal') || '#ff5436',
+      textColor: s('widget_chat_commentcolornormal') || '',
+      fontFamily: mapFont(s('widget_chat_fonttype')),
+    });
+    report.push('Chat-Box');
+  }
+
+  // Ziel-Balken — je konfiguriertem TikFinity-Ziel (Titel weicht vom Standard ab),
+  // gemappt auf unsere Metriken coins/likes/follows/gifts.
+  const GOALS: { tf: string; metric: string; label: string }[] = [
+    { tf: 'coins', metric: 'coins', label: 'Coins' },
+    { tf: 'likes', metric: 'likes', label: 'Likes' },
+    { tf: 'follows', metric: 'follows', label: 'Follower' },
+    { tf: 'shares', metric: 'gifts', label: 'Shares' },
+  ];
+  let goalY = 40;
+  for (const g of GOALS) {
+    const title = s(`goal_${g.tf}_title`).trim();
+    if (!title || DEFAULT_GOAL_TITLES.has(title.toLowerCase())) continue; // nur wirklich angepasste Ziele
+    if (g.metric === 'gifts') continue; // shares hat bei uns keine eigene Metrik → auslassen statt falsch mappen
+    const value = Number(s(`goal_${g.tf}_value`)) || 1000;
+    add('goal-bar', `Ziel: ${title}`, 260, goalY, 560, 80, {
+      style: 'glas', metric: g.metric, target: value, label: title,
+      accent: s(`widget_goal${g.tf}_progress1color`) || '#21a179',
+      textColor: s(`widget_goal${g.tf}_fontcolor`) || '',
+      theme: mapTheme(s(`widget_goal${g.tf}_titleeffect`)),
+      fontFamily: mapFont(s(`widget_goal${g.tf}_fonttype`)),
+    });
+    report.push(`Ziel-Balken „${title}"`);
+    goalY += 96;
+  }
+
+  // Top-Gifter-Liste — nur wenn gestalterisch angefasst (Schrift ≠ Standard).
+  const topFont = s('widget_topgifter_fonttype').toLowerCase();
+  if (topFont && topFont !== EXO) {
+    add('leaderboard', 'Top Gifter', 160, 160, 760, 180, {
+      source: 'gifts', limit: 5, title: '',
+      style: s('widget_topgifter_showcrown') !== 'false' ? 'royal' : 'arcade',
+      accent: s('widget_topgifter_pointscolor') || '#ffd23e',
+      textColor: s('widget_topgifter_usernamecolor') || '',
+      fontFamily: mapFont(s('widget_topgifter_fonttype')),
+    });
+    report.push('Top-Gifter-Liste');
+  }
+
+  // Social-Media-Rotator — Kanäle aus widget_socialmediarotator_socials.
   const socials = parseJson<TfSocial[]>(ds.widget_socialmediarotator_socials, []);
-  const channels = socials.filter((s) => s.platform && s.username).map((s) => `${s.platform}:${s.username}`).join(' | ');
-  if (channels) { add('social-rotator', 'Social-Media', 540, 120, { channels }); report.push(`Social-Rotator (${socials.length} Kanäle)`); }
+  const channels = socials.filter((sc) => sc.platform && sc.username).map((sc) => `${sc.platform}:${sc.username}`).join(' | ');
+  if (channels) { add('social-rotator', 'Social-Media', 270, 1780, 540, 120, { channels, style: 'pill' }); report.push(`Social-Rotator (${socials.length} Kanäle)`); }
 
   return { layers, report };
 }
@@ -135,6 +210,7 @@ export function mapTikfinity(
     const acts = (e.actionIds ?? []).map((id) => actionsById.get(id)).filter((a): a is TfAction => !!a);
     const mappedActions = acts.flatMap((a) => mapAction(a, soundIdForUrl, skipped));
     const cooldownMs = (acts[0]?.dynamicConfig?.cooldown ?? 0) * 1000 || undefined;
+    const userCooldownMs = (acts[0]?.dynamicConfig?.userCooldown ?? 0) * 1000 || undefined;
 
     // Befehl (triggerTypeId 2) → unser Chat-Befehls-System
     if (tt === 2 && e.chatCmd) {
@@ -158,7 +234,16 @@ export function mapTikfinity(
 
     const conditions: NonNullable<TriggerRule['conditions']> = [];
     if (tt === 3 && e.minBarsAmount) conditions.push({ kind: 'gift_coins_gte', value: e.minBarsAmount });
-    if (tt === 4 && (e.giftName || e.giftId != null)) conditions.push({ kind: 'gift_slug_is', value: e.giftName ?? String(e.giftId) });
+    // Bestimmtes Gift: über die STABILE giftId matchen (der giftName ist
+    // lokalisiert — „Goldenes Gamepad" würde gegen den englischen Slug nie
+    // greifen). giftName wandert in den Regelnamen als Klartext.
+    if (tt === 4) {
+      if (e.giftId != null) conditions.push({ kind: 'gift_id_is', value: e.giftId });
+      else if (e.giftName) conditions.push({ kind: 'gift_slug_is', value: e.giftName });
+    }
+    // Like-Schwelle: TikFinitys minLikesAmount → feuert beim KREUZEN der Schwelle
+    // (sonst würde die Regel bei jedem Like-Batch auslösen).
+    if (tt === 7 && e.minLikesAmount) conditions.push({ kind: 'like_count_gte', value: e.minLikesAmount });
     if (tt === 13) conditions.push({ kind: 'chat_first_time' });
 
     triggerRules.push({
@@ -168,6 +253,7 @@ export function mapTikfinity(
       ...(conditions.length ? { conditions } : {}),
       actions: mappedActions,
       ...(cooldownMs ? { cooldownMs } : {}),
+      ...(userCooldownMs ? { userCooldownMs } : {}),
       enabled: true,
     });
   }

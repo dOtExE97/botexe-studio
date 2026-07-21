@@ -71,6 +71,9 @@ export type TriggerCondition =
   | { kind: 'gift_coins_gte'; value: number }
   | { kind: 'gift_count_gte'; value: number }
   | { kind: 'gift_slug_is'; value: string }
+  /** Bestimmtes Gift über die STABILE TikTok-Gift-ID (sprachunabhängig — anders
+   *  als der lokalisierte Anzeigename). Fürs TikFinity-Import robust. */
+  | { kind: 'gift_id_is'; value: number }
   | { kind: 'chat_keyword'; value: string }
   /** Nachricht beginnt mit dem Befehl (z.B. '!hype'), optional mit Argumenten. */
   | { kind: 'chat_command'; value: string }
@@ -152,6 +155,9 @@ export interface TriggerRule {
   actions: TriggerAction[];
   /** Mindestabstand zwischen zwei Auslösungen dieser Regel (über event.ts gemessen). */
   cooldownMs?: number;
+  /** Mindestabstand PRO ZUSCHAUER (event.user.id) — begrenzt Spam durch einzelne
+   *  Nutzer, ohne die Regel global zu drosseln. Aus TikFinitys userCooldown. */
+  userCooldownMs?: number;
   enabled: boolean;
 }
 
@@ -164,6 +170,8 @@ export class TriggerEngine {
   private rules: TriggerRule[] = [];
   /** ruleId → event.ts der letzten Auslösung. Überlebt setRules() bewusst. */
   private lastFired = new Map<string, number>();
+  /** ruleId → (userId → event.ts) für den Cooldown pro Zuschauer. */
+  private lastFiredPerUser = new Map<string, Map<string, number>>();
 
   setRules(rules: TriggerRule[]): void {
     this.rules = rules;
@@ -177,6 +185,7 @@ export class TriggerEngine {
 
   resetCooldowns(): void {
     this.lastFired.clear();
+    this.lastFiredPerUser.clear();
   }
 
   evaluate(event: StudioEvent): TriggerMatch[] {
@@ -186,6 +195,16 @@ export class TriggerEngine {
       if (rule.event !== event.type) continue;
       if (rule.event === 'timer') continue; // Timer laufen über evaluateTimer
       if (!(rule.conditions ?? []).every((c) => conditionHolds(c, event))) continue;
+      // Cooldown pro Zuschauer VOR dem globalen prüfen (sonst würde ein
+      // gedrosselter Nutzer den globalen Timer trotzdem zurücksetzen).
+      const userId = event.user?.id;
+      if (rule.userCooldownMs !== undefined && userId) {
+        let perUser = this.lastFiredPerUser.get(rule.id);
+        const lastU = perUser?.get(userId);
+        if (lastU !== undefined && event.ts - lastU < rule.userCooldownMs) continue;
+        if (!perUser) { perUser = new Map(); this.lastFiredPerUser.set(rule.id, perUser); }
+        perUser.set(userId, event.ts);
+      }
       if (rule.cooldownMs !== undefined) {
         const last = this.lastFired.get(rule.id);
         if (last !== undefined && event.ts - last < rule.cooldownMs) continue;
@@ -290,6 +309,8 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       // Normalisiert (nur Buchstaben/Ziffern) — tolerant gegen Apostroph/Leer-
       // zeichen/Schreibweise, damit ein vorab gewähltes Gift sicher matcht.
       return event.gift !== undefined && giftKey(event.gift.slug) === giftKey(condition.value);
+    case 'gift_id_is':
+      return event.gift?.giftId === condition.value;
     case 'chat_keyword':
       return (event.text ?? '').toLowerCase().includes(condition.value.toLowerCase()) && condition.value !== '';
     case 'chat_command':

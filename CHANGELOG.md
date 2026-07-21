@@ -3,6 +3,22 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.19.0] — 2026-07-21
+
+### TikFinity-Import runderneuert — jetzt mit v4-Dateien & vollem Widget-Design
+Der Import war seit TikFinitys neuem Dateiformat (`encVersion 4`) komplett kaputt — **jede aktuell exportierte `.tfc` wurde abgewiesen**. Jetzt geht sie wieder auf, und der Import holt deutlich mehr rüber:
+
+- **v4-Entschlüsselung** ergänzt (v2/v3 laufen weiter). Aktuelle TikFinity-Exports importieren wieder.
+- **Volle Widget-Designs statt nur Glücksrad+Social:** TikFinity v4 exportiert die kompletten Widget-Einstellungen — wir übernehmen jetzt **Coin-Glas, Chat-Box (mit deinen Farben & Schrift), angepasste Ziel-Balken (Titel, Ziel, Farben, Theme, Font), Top-Gifter-Liste** und mehr, in einem aufgeräumten Standard-Layout.
+- **Gift-Trigger matchen jetzt zuverlässig:** über die stabile Gift-ID statt des lokalisierten Namens („Goldenes Gamepad" hätte nie ausgelöst).
+- **Like-Schwellen bleiben erhalten** (TikFinitys „ab X Likes" → unsere `like_count_gte`), ebenso der **Cooldown pro Zuschauer** (`userCooldown`).
+- **Eigene Sounds kommen mit:** neben myinstants.com jetzt auch deine auf TikFinitys CDN hochgeladenen Sounds.
+- **Ergebnis-Dialog statt flüchtigem Toast:** zeigt übersichtlich, was übernommen wurde und was du manuell nachbauen musst (Lottie-Animationen, Videos) — plus **„Profil jetzt aktivieren"**.
+- **Auffindbar gemacht:** eigene „Von TikFinity umziehen"-Karte in den Einstellungen samt Anleitung, wo du die `.tfc`-Datei exportierst.
+
+### Trigger-Engine
+- Neue Bedingung **`gift_id_is`** (Gift über die stabile TikTok-ID) und **`userCooldownMs`** (Cooldown pro Zuschauer, drosselt Spam einzelner Nutzer ohne die Regel global zu bremsen).
+
 ## [0.18.0] — 2026-07-21
 
 ### Neu: ✅ Startklar-Check — die Einrichtung hakt sich selbst ab

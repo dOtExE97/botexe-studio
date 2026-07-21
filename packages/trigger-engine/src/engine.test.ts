@@ -51,6 +51,23 @@ test('like_count_gte feuert genau beim Kreuzen der Schwelle', () => {
   assert.equal(engine.evaluate(like(1050, 40)).length, 0, 'weiter darüber → feuert NICHT nochmal');
 });
 
+test('gift_id_is matcht über die stabile Gift-ID (nicht den Slug)', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ conditions: [{ kind: 'gift_id_is', value: 16369 }] })]);
+  assert.equal(engine.evaluate(giftEvent({ gift: { slug: 'gold_gamepad', giftId: 16369, count: 1, coinsPerUnit: 1, totalCoins: 1 } })).length, 1, 'ID trifft');
+  assert.equal(engine.evaluate(giftEvent({ gift: { slug: 'gold_gamepad', giftId: 999, count: 1, coinsPerUnit: 1, totalCoins: 1 } })).length, 0, 'andere ID → kein Treffer');
+});
+
+test('userCooldownMs drosselt pro Zuschauer, andere Nutzer bleiben frei', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ userCooldownMs: 10_000 })]);
+  const gift = (uid: string, ts: number): StudioEvent => giftEvent({ ts, user: { id: uid, nickname: uid } });
+  assert.equal(engine.evaluate(gift('a', 1000)).length, 1, 'A erstes Mal → feuert');
+  assert.equal(engine.evaluate(gift('a', 5000)).length, 0, 'A innerhalb des Cooldowns → gedrosselt');
+  assert.equal(engine.evaluate(gift('b', 5000)).length, 1, 'B ist ein anderer Nutzer → feuert trotzdem');
+  assert.equal(engine.evaluate(gift('a', 12000)).length, 1, 'A nach Ablauf → feuert wieder');
+});
+
 test('regel mit anderem event-typ matcht nicht', () => {
   const engine = new TriggerEngine();
   engine.setRules([rule({ event: 'follow' })]);

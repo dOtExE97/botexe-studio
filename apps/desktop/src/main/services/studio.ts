@@ -27,7 +27,7 @@ import { GiftCatalog } from './gift-catalog';
 import { ProfileStore, type ProfileMeta } from './profile-store';
 import { decryptTfc } from './tikfinity-decrypt';
 import { mapTikfinity, collectSoundUrls, mapWidgets } from './tikfinity-map';
-import { downloadMyInstants, isAllowedMyInstantsMp3 } from './myinstants';
+import { downloadMyInstants, isAllowedImportSound } from './myinstants';
 import { didLevelUp, levelForWins, masteryMoment } from './game-mastery';
 import { ViewerCardService, type ViewerInfo } from './viewer-card';
 import { GameService, type GameKind } from './game-service';
@@ -1060,20 +1060,27 @@ export class Studio {
   }
 
   /** TikFinity-`.tfc` importieren → entschlüsseln, Sounds laden, übersetzen,
-   *  als neues Profil ablegen. Ändert das aktive Profil NICHT. */
-  async importTikfinity(fileContent: string): Promise<{ ok: boolean; profileName?: string; report?: string; error?: string }> {
+   *  als neues Profil ablegen. Ändert das aktive Profil NICHT (die UI bietet
+   *  „jetzt aktivieren" an). Liefert einen strukturierten Bericht für den Dialog. */
+  async importTikfinity(fileContent: string): Promise<{
+    ok: boolean; profileId?: string; profileName?: string; error?: string;
+    summary?: { triggers: number; commands: number; sounds: number; widgets: number };
+    imported?: string[]; skipped?: string[];
+  }> {
     let cfg;
     try { cfg = decryptTfc(fileContent); }
-    catch { return { ok: false, error: 'Keine gültige TikFinity-Profildatei (.tfc)' }; }
+    catch { return { ok: false, error: 'Keine gültige TikFinity-Profildatei (.tfc). Prüfe, ob es die richtige Datei ist (TikFinity → Einstellungen → Profil exportieren).' }; }
 
-    // Sounds vorab laden (nur myinstants.com — SSRF-Schutz). url → lokale Sound-ID.
+    // Sounds vorab laden: myinstants.com + eigene TikFinity-CDN-Uploads (SSRF-eng).
+    // url → lokale Sound-ID. Nicht ladbare landen im „skipped"-Bericht.
     const soundMap = new Map<string, string>();
+    const soundFails: string[] = [];
     for (const url of collectSoundUrls(cfg)) {
-      if (!isAllowedMyInstantsMp3(url)) continue;
+      if (!isAllowedImportSound(url)) { soundFails.push(url); continue; }
       try {
-        const name = await downloadMyInstants(url, decodeURIComponent(url.split('/').pop() ?? 'sound'), this.sounds.getDir());
+        const name = await downloadMyInstants(url, decodeURIComponent(url.split('/').pop() ?? 'sound'), this.sounds.getDir(), true);
         soundMap.set(url, name);
-      } catch { /* einzelner Sound nicht ladbar → wird im Mapping als skip vermerkt */ }
+      } catch { soundFails.push(url); }
     }
 
     const { triggerRules, chatCommands, report } = mapTikfinity(cfg, (u) => soundMap.get(u), () => crypto.randomUUID());
@@ -1089,12 +1096,17 @@ export class Studio {
     const bundle = { ...base, settings: { ...(base.settings as Record<string, unknown>), triggerRules, chatCommands }, layouts };
     const p = this.profiles.create('TikFinity-Import', bundle, Date.now(), 'tikfinity');
 
-    const parts = [`${report.triggers} Trigger`, `${report.commands} Befehle`, `${soundMap.size} Sounds`];
-    if (widgetReport.length) parts.push(`${layers.length} Widgets (${widgetReport.join(', ')})`);
-    if (report.skipped.length) parts.push(`${report.skipped.length} nicht unterstützt`);
-    const reportStr = parts.join(' · ');
-    log.info('Import', `TikFinity → Profil „${p.name}": ${reportStr}`);
-    return { ok: true, profileName: p.name, report: reportStr };
+    const imported = [
+      `${report.triggers} Trigger-Regeln`,
+      `${report.commands} Chat-Befehle`,
+      `${soundMap.size} Sounds`,
+      ...widgetReport,
+    ];
+    const skipped = [...report.skipped];
+    if (soundFails.length) skipped.push(`${soundFails.length} Sound(s) nicht ladbar (nicht mehr online?)`);
+    const summary = { triggers: report.triggers, commands: report.commands, sounds: soundMap.size, widgets: layers.length };
+    log.info('Import', `TikFinity → Profil „${p.name}": ${JSON.stringify(summary)}, ${skipped.length} übersprungen`);
+    return { ok: true, profileId: p.id, profileName: p.name, summary, imported, skipped };
   }
 
   /** Backup einspielen. Liefert, wie viele Overlays/Zuschauer übernommen wurden. */

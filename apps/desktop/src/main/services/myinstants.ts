@@ -210,13 +210,31 @@ function sanitizeFilename(name: string): string {
   return cleaned || `sound-${Date.now()}.mp3`;
 }
 
+/** Zusätzlich zu myinstants sind beim TikFinity-Import die eigenen Uploads des
+ *  Nutzers auf TikFinitys B2-CDN erlaubt (sonst gingen sie stumm verloren). Nur
+ *  dieser eine Host + HTTPS + Audio-Endung — SSRF bleibt eng. Fürs Vorhören
+ *  (streamPreview) wird das NICHT genutzt, dort gilt weiter isAllowedMyInstantsMp3. */
+const IMPORT_HOSTS = new Set([...ALLOWED_HOSTS, 'b2files.zerody.one']);
+export function isAllowedImportSound(url: string): boolean {
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return false; }
+  return (
+    parsed.protocol === 'https:' &&
+    IMPORT_HOSTS.has(parsed.hostname.toLowerCase()) &&
+    /\.(mp3|wav|ogg|m4a)$/i.test(parsed.pathname)
+  );
+}
+
 export async function downloadMyInstants(
   mp3Url: string,
   title: string,
   soundsDir: string,
+  /** true = erweiterte Import-Allowlist (myinstants + TikFinity-CDN). */
+  allowImportHosts = false,
 ): Promise<string> {
-  // SSRF-Schutz: nur myinstants.com-MP3s über HTTPS — vor jedem Netz-/Datei-Zugriff.
-  if (!isAllowedMyInstantsMp3(mp3Url)) throw new Error('Nur myinstants.com-MP3-Links sind erlaubt');
+  // SSRF-Schutz vor jedem Netz-/Datei-Zugriff.
+  const allowed = allowImportHosts ? isAllowedImportSound(mp3Url) : isAllowedMyInstantsMp3(mp3Url);
+  if (!allowed) throw new Error('Sound-Link nicht erlaubt (nur myinstants.com / TikFinity-CDN)');
   let safe = sanitizeFilename(title);
   if (!/\.(mp3|wav|ogg|m4a)$/i.test(safe)) safe += '.mp3';
 

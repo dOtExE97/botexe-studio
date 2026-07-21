@@ -184,6 +184,25 @@ export default function SettingsPage() {
         </button>
       </div>
 
+      {/* Von TikFinity umziehen — prominent, weil genau unsere Zielgruppe */}
+      <section className="bx-card border-studio-gold/30 p-5">
+        <h2 className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
+          <Download size={15} /> Von TikFinity umziehen
+        </h2>
+        <p className="mb-3 text-[11px] leading-relaxed text-studio-muted">
+          Kommst du von <b>TikFinity</b>? Bring dein komplettes Setup mit — <b className="text-studio-text">Trigger, Chat-Befehle, Sounds, Glücksrad und deine Widget-Designs</b> (Coin-Glas, Chat, Ziele, Top-Gifter …) werden übernommen. Es landet als eigenes Profil, dein aktueller Stand bleibt unangetastet.
+        </p>
+        <div className="mb-3 rounded-lg bg-studio-raised/40 px-3 py-2.5 text-[11px] text-studio-muted">
+          <b className="text-studio-text">So kommst du an die Datei:</b> In TikFinity → <i>Dashboard → Settings → „Export Profile"</i> → speichert eine <code className="rounded bg-studio-bg px-1 font-mono text-studio-teal">.tfc</code>-Datei. Die hier auswählen.
+        </div>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('bx-tikfinity-import'))}
+          className="bx-btn-accent"
+        >
+          <Download size={14} /> TikFinity-Datei (.tfc) importieren
+        </button>
+      </section>
+
       {/* TikTok-Verbindung (Sign-Key) */}
       <section className="bx-card p-5">
         <div className="mb-3 flex items-center justify-between">

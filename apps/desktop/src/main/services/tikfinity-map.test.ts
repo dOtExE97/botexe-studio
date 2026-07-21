@@ -38,6 +38,43 @@ test('min_coins-Trigger → gift_coins_gte', () => {
   assert.deepEqual(r.triggerRules[0]?.actions, [{ kind: 'send_chat', template: 'Wow!' }]);
 });
 
+test('bestimmtes Gift MIT giftId → gift_id_is (sprachunabhängig, nicht der lokalisierte Name)', () => {
+  n = 0;
+  const r = mapTikfinity(
+    cfg([{ active: true, triggerTypeId: 4, giftName: 'Goldenes Gamepad', giftId: 16369, actionIds: [1] }], [{ id: 1, message: 'Danke!' }]),
+    soundId, newId,
+  );
+  assert.deepEqual(r.triggerRules[0]?.conditions, [{ kind: 'gift_id_is', value: 16369 }]);
+  assert.ok(r.triggerRules[0]?.name.includes('Goldenes Gamepad'), 'Name bleibt im Regelnamen lesbar');
+});
+
+test('bestimmtes Gift OHNE giftId → gift_slug_is (Fallback auf Namen)', () => {
+  n = 0;
+  const r = mapTikfinity(
+    cfg([{ active: true, triggerTypeId: 4, giftName: 'Rose', actionIds: [1] }], [{ id: 1, message: 'Danke!' }]),
+    soundId, newId,
+  );
+  assert.deepEqual(r.triggerRules[0]?.conditions, [{ kind: 'gift_slug_is', value: 'Rose' }]);
+});
+
+test('Like-Trigger mit minLikesAmount → like_count_gte (Schwelle bleibt erhalten)', () => {
+  n = 0;
+  const r = mapTikfinity(
+    cfg([{ active: true, triggerTypeId: 7, minLikesAmount: 50, actionIds: [1] }], [{ id: 1, message: '50 Likes!' }]),
+    soundId, newId,
+  );
+  assert.deepEqual(r.triggerRules[0]?.conditions, [{ kind: 'like_count_gte', value: 50 }]);
+});
+
+test('userCooldown → userCooldownMs (Sekunden→ms)', () => {
+  n = 0;
+  const r = mapTikfinity(
+    cfg([{ active: true, triggerTypeId: 9, actionIds: [1] }], [{ id: 1, message: 'Hi', dynamicConfig: { userCooldown: 30 } }]),
+    soundId, newId,
+  );
+  assert.equal(r.triggerRules[0]?.userCooldownMs, 30000);
+});
+
 test('Befehl (triggerTypeId 2) → ChatCommand mit speak/sendToChat', () => {
   n = 0;
   const r = mapTikfinity(
@@ -97,6 +134,47 @@ test('mapWidgets: Glücksrad-Segmente (sortiert) + Social-Kanäle → Layer', ()
 
 test('mapWidgets: ohne Daten → keine Layer', () => {
   assert.equal(mapWidgets({ dynamicSettings: {} }, () => 'x').layers.length, 0);
+});
+
+test('mapWidgets: v4-Design-Import — Coin-Glas, angepasstes Ziel, Chat, Top-Gifter', () => {
+  n = 0;
+  const cfg = {
+    dynamicSettings: {
+      widget_coinjar_gifttype: 'allGifts',
+      widget_coinjar_displayalert: 'true',
+      widget_chat_usernamecolornormal: '#bfbfbf',
+      widget_chat_commentcolornormal: '#e8e8e8',
+      widget_chat_fonttype: 'Exo 2',
+      goal_likes_title: 'Like Ziel, bei erreichen = Tüte',
+      goal_likes_value: '20000',
+      widget_goallikes_fontcolor: '#3ed5f7',
+      widget_goallikes_progress1color: '#02f01e',
+      widget_goallikes_titleeffect: 'aurora',
+      widget_goallikes_fonttype: 'Luckiest Guy',
+      goal_coins_title: 'Earned Coins', // Standardtitel → NICHT importiert
+      goal_coins_value: '500',
+      widget_topgifter_fonttype: 'Luckiest Guy', // ≠ Exo 2 → importiert
+      widget_topgifter_pointscolor: '#f2da00',
+      widget_topgifter_showcrown: 'true',
+    },
+  };
+  const r = mapWidgets(cfg, () => `w-${++n}`);
+  const types = r.layers.map((l) => l.widgetType).sort();
+  assert.deepEqual(types, ['chat-box', 'gift-jar', 'goal-bar', 'leaderboard']);
+
+  const goal = r.layers.find((l) => l.widgetType === 'goal-bar');
+  assert.equal(goal?.props?.metric, 'likes');
+  assert.equal(goal?.props?.target, 20000);
+  assert.equal(goal?.props?.label, 'Like Ziel, bei erreichen = Tüte');
+  assert.equal(goal?.props?.theme, 'aurora', 'aurora-Effekt → aurora-Theme');
+  assert.equal(goal?.props?.fontFamily, 'luckiest', 'Luckiest Guy → luckiest');
+  assert.equal(goal?.props?.accent, '#02f01e');
+
+  const board = r.layers.find((l) => l.widgetType === 'leaderboard');
+  assert.equal(board?.props?.source, 'gifts');
+  assert.equal(board?.props?.style, 'royal', 'showcrown → royal');
+
+  assert.equal(r.layers.filter((l) => l.widgetType === 'goal-bar').length, 1, 'nur das angepasste Ziel, nicht das Standard-Coins-Ziel');
 });
 
 test('collectSoundUrls sammelt audioUrl + soundsdatasource', () => {

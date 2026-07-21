@@ -11,9 +11,14 @@ const LAYER1_PW = 'lolsurghwi378ukasfjsdf_s';
  *  Input wird mit einem Suffix base64-kodiert. Liefert 32-stelligen Hex-Key. */
 function shash(input: string, encVersion: number): string {
   const hashValues: [number, number, number, number] = [305419896, 2595938032, 4275878552, 2271363873];
+  // Pro Format-Version ein anderer Suffix vor der Base64-Kodierung (aus TikFinitys
+  // obfuskiertem app.js reverse-engineert; v4-Suffix unterscheidet sich von v3 nur
+  // im 7. Zeichen i→l — klassische Tarnung). Neue Version? → im JS-Bundle
+  // /combo/app.js die `shash`-Funktion suchen, die encVersion-Zweige lesen.
   let s = input;
   if (encVersion === 2) s = Buffer.from(input + 'Mozilla').toString('base64');
   else if (encVersion === 3) s = Buffer.from(input + 'dfgkjoi3kdjkfe').toString('base64');
+  else if (encVersion === 4) s = Buffer.from(input + 'dfgkjol3kdjkfe').toString('base64');
   hashValues[3] = 2271560481;
   hashValues[1] = 2596069104;
   const rotl = (x: number, c: number) => ((x << c) | (x >>> (32 - c))) >>> 0;
@@ -83,7 +88,8 @@ export function decryptTfc(fileContent: string): TikfinityConfig {
   const payload = parts[2] ?? '';
   // Layer 2: Key aus salt ableiten, getarntes Base64 zurück, AES entschlüsseln
   const key = shash(salt, version);
-  const std = version === 3 ? customToStd(payload) : payload;
+  // Getarntes Base64-Alphabet ab v3 (v4 nutzt dasselbe Alphabet wie v3).
+  const std = version >= 3 ? customToStd(payload) : payload;
   const inner = CryptoJS.AES.decrypt(std, key).toString(CryptoJS.enc.Utf8);
   if (!inner || inner.length < 5) throw new Error('Entschlüsselung fehlgeschlagen (Layer 2)');
   // Finale: b64RawData umkehren → base64 → uri-decode → JSON
