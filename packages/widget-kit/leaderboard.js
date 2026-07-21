@@ -75,10 +75,70 @@ const CSS = `
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
 .bx-st-arcade .bx-lb-val .arr { color: #59f08a; -webkit-text-stroke: 2px #0a0b12; }
 .bx-st-arcade.bx-lb-likes .bx-lb-val { color: #ff8ab0; }
+
+/* ── Stil „Podium" — Siegertreppchen: Platz 2 · 1 · 3 stehen auf Sockeln,
+   Avatare obenauf. Nur die Top 3 — das Denkmal für deine Supporter. */
+.bx-st-podium { background: none; box-shadow: none; padding: 2px; }
+.bx-st-podium::before { display: none; }
+.bx-st-podium .bx-lb-title { border: none; margin: 0 0 4px; text-align: center; }
+.bx-st-podium .bx-lb-list { display: flex; align-items: flex-end; justify-content: center; gap: 2%; }
+.bx-st-podium .bx-lb-row { position: static; height: auto; flex-direction: column; align-items: center; gap: 5px;
+  padding: 0; transform: none !important; flex: 1 1 0; min-width: 0; max-width: 30%; background: none; }
+.bx-st-podium .bx-lb-row[data-rank="1"] { order: 2; }
+.bx-st-podium .bx-lb-row[data-rank="2"] { order: 1; }
+.bx-st-podium .bx-lb-row[data-rank="3"] { order: 3; }
+.bx-st-podium .bx-lb-row[data-rank="4"], .bx-st-podium .bx-lb-row[data-rank="5"],
+.bx-st-podium .bx-lb-row[data-rank="6"], .bx-st-podium .bx-lb-row[data-rank="7"],
+.bx-st-podium .bx-lb-row[data-rank="8"], .bx-st-podium .bx-lb-row[data-rank="9"],
+.bx-st-podium .bx-lb-row[data-rank="10"] { display: none; }
+.bx-st-podium .bx-lb-pic { width: clamp(34px,20cqmin,72px); height: clamp(34px,20cqmin,72px); }
+.bx-st-podium .bx-lb-row[data-rank="1"] .bx-lb-pic { width: clamp(42px,25cqmin,88px); height: clamp(42px,25cqmin,88px);
+  box-shadow: 0 0 0 4px var(--bx-gold), 0 0 24px -2px var(--bx-gold); }
+.bx-st-podium .bx-lb-row[data-rank="2"] .bx-lb-pic { box-shadow: 0 0 0 3px #d7deec; }
+.bx-st-podium .bx-lb-row[data-rank="3"] .bx-lb-pic { box-shadow: 0 0 0 3px #f0a35a; }
+.bx-st-podium .bx-lb-name { flex: none; max-width: 100%; font-size: clamp(9px,5.5cqmin,15px); text-align: center; }
+.bx-st-podium .bx-lb-val { font-size: clamp(9px,5cqmin,14px); }
+/* Der Sockel: der Rang-Badge wird zum Podest-Block unter Name/Wert. */
+.bx-st-podium .bx-lb-rank { order: 10; width: 100%; border-radius: 8px 8px 0 0; font-size: clamp(15px,9cqmin,26px);
+  height: auto; box-shadow: inset 0 2px 0 rgba(255,255,255,.35), 0 8px 18px -8px rgba(0,0,0,.7); }
+.bx-st-podium .bx-lb-row[data-rank="1"] .bx-lb-rank { padding: clamp(12px,9cqmin,30px) 0; }
+.bx-st-podium .bx-lb-row[data-rank="2"] .bx-lb-rank { padding: clamp(7px,5.5cqmin,18px) 0; }
+.bx-st-podium .bx-lb-row[data-rank="3"] .bx-lb-rank { padding: clamp(4px,3.5cqmin,12px) 0; }
+
+/* ── Stil „Pills" — satte Akzent-Pillen mit dunkler Schrift (Familien-Look
+   zu Gift-Feed „Pills"): knallig, sitzt auch auf hellem Video. */
+.bx-st-pills { background: none; box-shadow: none; padding: 6px 4px; }
+.bx-st-pills::before { display: none; }
+.bx-st-pills .bx-lb-title { border: none; margin-bottom: 6px; }
+.bx-st-pills .bx-lb-row { background: linear-gradient(120deg, var(--bx-accent), var(--bx-accent-2));
+  border-radius: 999px; box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--bx-accent) 75%, transparent); }
+.bx-st-pills .bx-lb-row[data-rank="1"] { background: linear-gradient(120deg, #ffe88a, var(--bx-gold)); }
+.bx-st-pills .bx-lb-name { color: #0c0d14; text-shadow: none; }
+.bx-st-pills .bx-lb-val { color: #0c0d14; text-shadow: none; background: rgba(255,255,255,.72); border-radius: 999px; padding: 2px 10px; }
+.bx-st-pills .bx-lb-rank { background: rgba(12,13,20,.85); color: #fff; border-radius: 50%; }
+.bx-st-pills.bx-lb-likes .bx-lb-row { background: linear-gradient(120deg, var(--bx-pink), color-mix(in srgb, var(--bx-pink) 55%, #fff)); }
+
+/* ── Stil „Royal" — Luxus: tiefdunkler Samt, doppelte Goldkante, Gold-Divider.
+   Für edle Talk-/IRL-Overlays, die nach VIP-Lounge aussehen sollen. */
+.bx-st-royal { background: linear-gradient(170deg, rgba(16,13,8,.94), rgba(24,18,10,.9));
+  border-radius: 6px; border: 1px solid color-mix(in srgb, var(--bx-gold) 65%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--bx-gold) 25%, transparent); outline-offset: 3px;
+  box-shadow: 0 18px 40px -18px rgba(0,0,0,.85), inset 0 0 60px rgba(0,0,0,.5); }
+.bx-st-royal::before { display: none; }
+.bx-st-royal .bx-lb-title { color: var(--bx-gold); border-bottom: 1px solid color-mix(in srgb, var(--bx-gold) 45%, transparent);
+  letter-spacing: .44em; text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 40%, transparent); }
+.bx-st-royal .bx-lb-row { border-radius: 4px; }
+.bx-st-royal .bx-lb-row[data-rank="1"] { background: linear-gradient(100deg, color-mix(in srgb, var(--bx-gold) 22%, transparent), transparent 75%); }
+.bx-st-royal .bx-lb-rank { border-radius: 4px; background: #2a2418; color: var(--bx-gold); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bx-gold) 50%, transparent); }
+.bx-st-royal .bx-lb-row[data-rank="1"] .bx-lb-rank { background: linear-gradient(160deg,#ffe88a,#f5b914); color: #0a0b10; }
+.bx-st-royal .bx-lb-pic { box-shadow: 0 0 0 2px color-mix(in srgb, var(--bx-gold) 55%, transparent); border-radius: 4px; }
+.bx-st-royal .bx-lb-name { letter-spacing: .08em; }
+.bx-st-royal .bx-lb-val { color: var(--bx-gold); }
+.bx-st-royal.bx-lb-likes .bx-lb-title, .bx-st-royal.bx-lb-likes .bx-lb-val { color: var(--bx-gold); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
-const STYLES = new Set(['glas', 'neon', 'bars', 'arcade']);
+const STYLES = new Set(['glas', 'neon', 'bars', 'arcade', 'podium', 'pills', 'royal']);
 
 /** URL sicher in CSS url("…") einbetten — NUR Quotes escapen, nie
  *  (nach-)encodieren: data-URIs und vor-encodierte CDN-URLs blieben sonst kaputt. */

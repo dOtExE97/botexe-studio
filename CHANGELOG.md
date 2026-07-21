@@ -3,6 +3,16 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.11.0] — 2026-07-21
+
+### Neu: Ranglisten-Design-Kollektion 🏆
+Die Bestenlisten (das Herzstück vieler Overlays!) haben jetzt deutlich mehr Auswahl:
+- **Top Gifter / Like-Liste**: 3 neue Stile — **Podium** (Siegertreppchen: Platz 2·1·3 auf Sockeln mit Avataren obenauf!), **Bunte Pillen** und **Royal** (Gold & Samt, VIP-Lounge-Look). Insgesamt jetzt 7 Stile.
+- **Punkte-Bestenliste**: erstmals wählbare Stile — Glas · **Neon** (freistehend) · **Bunte Pillen**.
+- **Bestenliste (Wechsel)** (die kombinierte Liker/Coins-Liste): erstmals wählbare Stile — Glas · **Neon** · **Bunte Pillen**.
+
+---
+
 ## [0.10.0] — 2026-07-21
 
 ### Neu: 12 neue Widget-Designs 🎨

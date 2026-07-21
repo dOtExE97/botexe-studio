@@ -321,6 +321,9 @@ const WIDGET_TYPES: {
         { value: 'glas', label: 'Glas (Panel)' },
         { value: 'neon', label: 'Neon (durchscheinend)' },
         { value: 'bars', label: 'Balken (minimal)' },
+        { value: 'podium', label: 'Podium (Siegertreppchen Top 3)' },
+        { value: 'pills', label: 'Bunte Pillen' },
+        { value: 'royal', label: 'Royal (Gold & Samt, edel)' },
       ]),
       { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Zuschauer angezeigt werden (1–10).' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Gifter").' },
@@ -341,6 +344,9 @@ const WIDGET_TYPES: {
         { value: 'glas', label: 'Glas (Panel)' },
         { value: 'neon', label: 'Neon (durchscheinend)' },
         { value: 'bars', label: 'Balken (minimal)' },
+        { value: 'podium', label: 'Podium (Siegertreppchen Top 3)' },
+        { value: 'pills', label: 'Bunte Pillen' },
+        { value: 'royal', label: 'Royal (Gold & Samt, edel)' },
       ]),
       { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Zuschauer angezeigt werden (1–10).' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Likes").' },
@@ -351,8 +357,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'top-rotator', label: 'Bestenliste (Wechsel)', desc: 'Zeigt abwechselnd Top Gifter, Top Likes, Top Punkte — smooth übergeblendet, untereinander. Ideal fürs Hochformat.',
-    w: 460, h: 360, props: { sources: 'gifts,likes', interval: 5, limit: 5, accent: '', showPic: true, fontFamily: '', fontScale: 1, textColor: '' },
+    w: 460, h: 360, props: { sources: 'gifts,likes', interval: 5, limit: 5, style: 'glas', accent: '', showPic: true, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas (Panel)' },
+        { value: 'neon', label: 'Neon (freistehend)' },
+        { value: 'pills', label: 'Bunte Pillen' },
+      ]),
       { key: 'sources', label: 'Welche Listen', type: 'text', hint: 'Reihenfolge, kommagetrennt: gifts, likes, points, wins (Spiel-Siege).' },
       { key: 'interval', label: 'Sekunden pro Liste', type: 'number', hint: 'Wie lange jede Liste gezeigt wird, bevor gewechselt wird.' },
       { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Zuschauer pro Liste (1–8).' },
@@ -363,8 +374,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'points-board', label: 'Punkte-Bestenliste', desc: 'All-Time Top-Supporter nach gesammelten Loyalty-Punkten (über alle Streams).',
-    w: 360, h: 300, props: { source: 'points', limit: 5, title: '', accent: '#7c5cff', fontFamily: '', fontScale: 1, textColor: '' },
+    w: 360, h: 300, props: { source: 'points', limit: 5, title: '', style: 'glas', accent: '#7c5cff', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas (Panel)' },
+        { value: 'neon', label: 'Neon (freistehend)' },
+        { value: 'pills', label: 'Bunte Pillen' },
+      ]),
       { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Top-Supporter (1–10).' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Punkte").' },
       ACCENT_FIELD,

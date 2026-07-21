@@ -38,6 +38,23 @@ const CSS = `
 .bx-tr-val .arr { font-size: 15px; -webkit-text-stroke: 2px var(--bx-ink, #0a0b12); }
 .bx-tr-empty { display: flex; align-items: center; justify-content: center; height: 100%; font-family: var(--bx-font-display);
   font-size: 15px; letter-spacing: .1em; color: var(--bx-muted); text-transform: uppercase; }
+
+/* ── Stil „Neon" — freistehend ohne Panel, Glow pur. */
+.bx-tr-neon { background: none !important; box-shadow: none !important; border: none; }
+.bx-tr-neon::before { display: none; }
+.bx-tr-neon .bx-tr-row { background: none !important; }
+.bx-tr-neon .bx-tr-name { text-shadow: 0 1px 0 rgba(0,0,0,.95), 0 2px 8px rgba(0,0,0,.9); }
+.bx-tr-neon .bx-tr-val { text-shadow: 0 0 12px color-mix(in srgb, var(--bx-accent) 70%, transparent), 0 1px 0 rgba(0,0,0,.9); }
+
+/* ── Stil „Pills" — Akzent-Pillen mit dunkler Schrift. */
+.bx-tr-pills { background: none !important; box-shadow: none !important; }
+.bx-tr-pills::before { display: none; }
+.bx-tr-pills .bx-tr-row { background: linear-gradient(120deg, var(--bx-accent), var(--bx-accent-2)) !important;
+  border-radius: 999px; box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--bx-accent) 75%, transparent); margin-bottom: 6px; }
+.bx-tr-pills .bx-tr-row[data-rank="1"] { background: linear-gradient(120deg, #ffe88a, var(--bx-gold)) !important; }
+.bx-tr-pills .bx-tr-name { color: #0c0d14 !important; text-shadow: none; }
+.bx-tr-pills .bx-tr-val { color: #0c0d14 !important; text-shadow: none; background: rgba(255,255,255,.72); border-radius: 999px; padding: 2px 10px; }
+.bx-tr-pills .bx-tr-rank { background: rgba(12,13,20,.85) !important; color: #fff; border-radius: 50%; box-shadow: none !important; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -61,7 +78,8 @@ export default class TopRotator {
     this.idx = 0;
     this.stats = null;
     this.el = document.createElement('div');
-    this.el.className = 'bx-tr';
+    const style = ['glas', 'neon', 'pills'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-tr${style !== 'glas' ? ` bx-tr-${style}` : ''}`;
     this.el.innerHTML = `<div class="bx-tr-head"><div class="bx-tr-title"></div></div><div class="bx-tr-list in"></div>`;
     this.titleEl = this.el.querySelector('.bx-tr-title');
     this.listEl = this.el.querySelector('.bx-tr-list');

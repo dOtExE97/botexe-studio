@@ -50,6 +50,23 @@ const CSS = `
 .bx-pb-row[data-rank="1"] .bx-pb-val { color: var(--bx-gold); text-shadow: 0 0 10px color-mix(in srgb, var(--bx-gold) 45%, transparent); }
 .bx-pb-empty { display:flex; align-items:center; justify-content:center; height:100%; font-size:13px; letter-spacing:.2em; color: var(--bx-muted); text-transform:uppercase; }
 @keyframes bx-shimmer { 0%,55% { transform:translateX(0) skewX(-20deg); } 100% { transform:translateX(422%) skewX(-20deg); } }
+/* ── Stil „Neon" — freistehende Zeilen ohne Panel: Glow-Namen überm Gameplay. */
+.bx-pb-neon { background: none !important; box-shadow: none !important; border: none; }
+.bx-pb-neon::before { display: none; }
+.bx-pb-neon .bx-pb-row { background: none !important; }
+.bx-pb-neon .bx-pb-name { text-shadow: 0 1px 0 rgba(0,0,0,.95), 0 2px 8px rgba(0,0,0,.9); }
+.bx-pb-neon .bx-pb-val { text-shadow: 0 0 12px color-mix(in srgb, var(--bx-accent) 70%, transparent), 0 1px 0 rgba(0,0,0,.9); }
+.bx-pb-neon .bx-pb-title { border-bottom: none; text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 2px 6px rgba(0,0,0,.9); }
+
+/* ── Stil „Pills" — satte Akzent-Pillen, dunkle Schrift (Familien-Look). */
+.bx-pb-pills { background: none !important; box-shadow: none !important; }
+.bx-pb-pills::before { display: none; }
+.bx-pb-pills .bx-pb-row { background: linear-gradient(120deg, var(--bx-accent), var(--bx-accent-2)) !important;
+  border-radius: 999px; box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--bx-accent) 75%, transparent); }
+.bx-pb-pills .bx-pb-row[data-rank="1"] { background: linear-gradient(120deg, #ffe88a, var(--bx-gold)) !important; }
+.bx-pb-pills .bx-pb-name { color: #0c0d14 !important; text-shadow: none; }
+.bx-pb-pills .bx-pb-val { color: #0c0d14 !important; text-shadow: none; background: rgba(255,255,255,.72); border-radius: 999px; padding: 2px 10px; }
+.bx-pb-pills .bx-pb-rank { background: rgba(12,13,20,.85) !important; color: #fff; border-radius: 50%; box-shadow: none !important; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -64,7 +81,8 @@ export default class PointsBoard {
     this.limit = Math.min(10, Math.max(1, Number(props.limit ?? 5)));
     this.title = props.title || '';
     this.el = document.createElement('div');
-    this.el.className = 'bx-pb';
+    const style = ['glas', 'neon', 'pills'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-pb${style !== 'glas' ? ` bx-pb-${style}` : ''}`;
     this.el.innerHTML = `<div class="bx-pb-title"></div><div class="bx-pb-list"><div class="bx-pb-empty">Noch keine Punkte</div></div>`;
     this.el.querySelector('.bx-pb-title').textContent = this.title || 'Top Supporter';
     root.appendChild(this.el);
