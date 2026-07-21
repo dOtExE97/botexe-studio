@@ -87,10 +87,19 @@ export default function App() {
     ? { label: 'WARTE AUF LIVE', cls: 'text-studio-teal border-studio-teal/40 bg-studio-teal/10', dot: 'bg-studio-teal animate-pulse' }
     : STATUS_STYLE[studio.status.status] ?? STATUS_FALLBACK;
 
+  // Kopieren klappt immer — aber bei leerem Overlay wüsste der User sonst nicht,
+  // warum die Browser-Quelle nur Transparenz zeigt („Link kaputt?").
+  const warnIfOverlayEmpty = () => {
+    void (window.studio.getDiagnostics() as Promise<{ activeLayers?: number }>).then((d) => {
+      if ((d.activeLayers ?? 1) === 0) toast('warn', 'Hinweis: Dein Overlay ist noch leer — die Quelle bleibt unsichtbar, bis du unter „Overlay" Widgets hinzufügst.');
+    }).catch(() => { /* Diagnose optional */ });
+  };
+
   const copyLink = () => {
     void window.studio.copyText(studio.overlayUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
+      warnIfOverlayEmpty();
     });
   };
 
@@ -104,6 +113,7 @@ export default function App() {
     } else {
       toast('warn', 'Link kopiert — einmalige Einrichtung fehlt noch: Einstellungen → TikTok Live Studio.');
     }
+    warnIfOverlayEmpty();
   };
 
   return (

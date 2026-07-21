@@ -3,6 +3,21 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.18.0] — 2026-07-21
+
+### Neu: ✅ Startklar-Check — die Einrichtung hakt sich selbst ab
+Auf der Live-Seite ersetzt eine **echte Checkliste** den alten Hinweis-Text: Key gespeichert? Widgets im Overlay? Browser-Quelle in OBS/Live Studio verbunden? Mit TikTok verbunden? Jeder Schritt **prüft sich alle paar Sekunden selbst** und hakt sich automatisch ab — und jeder offene Schritt hat genau den einen Knopf, der ihn löst (Key-Assistent, Zum Overlay, Link kopieren). Bei 4/4 steht da „✓ Alles startklar!".
+
+### Neu: 🚨 Live-Wächter — „Dein Overlay ist im Stream nicht sichtbar!"
+Der häufigste stille Fehler: verbunden und am Streamen, aber **keine Browser-Quelle offen** (z.B. nach PC-Neustart) — Zuschauer sehen keine Alerts, und man merkt es nicht. Jetzt schlägt die Live-Seite rot Alarm, mit „Link kopieren" und „Diagnose öffnen" direkt daneben.
+
+### Neu: 🎮 Spiel-Wächter mit Ein-Klick-Einbau
+Quiz, Galgenmännchen, Tic Tac Toe, 4 Gewinnt oder Stream-Boss gestartet, aber das **Widget liegt gar nicht im Overlay**? Warn-Toast mit **„Jetzt einbauen"** — ein Klick legt das passende Widget automatisch ins Overlay (das Spiel läuft dabei weiter).
+
+### Kleinere Schutznetze
+- **OBS-/TikTok-Studio-Link kopiert, Overlay aber leer** → Hinweis, dass die Quelle bis zum ersten Widget unsichtbar bleibt (sonst wirkt der Link „kaputt").
+- Diagnose kennt jetzt auch die Widgets im aktiven Layout (`activeLayers`/`activeWidgetTypes`) — Grundlage für die Wächter.
+
 ## [0.17.0] — 2026-07-21
 
 ### Neu: ✨ KI-Trigger — Regeln in normalem Deutsch

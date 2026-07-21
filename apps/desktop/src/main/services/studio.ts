@@ -942,6 +942,15 @@ export class Studio {
       username: s.lastUsername ?? '',
       layoutCount: this.layouts.list().length,
       activeLayoutId: s.activeLayoutId ?? '',
+      // Für Startklar-Check + Spiel-Wächter: Was liegt wirklich im aktiven Layout?
+      ...(() => {
+        const all = this.layouts.list();
+        const active = all.find((l) => l.id === s.activeLayoutId) ?? all[0];
+        return {
+          activeLayers: active?.layers.length ?? 0,
+          activeWidgetTypes: [...new Set((active?.layers ?? []).map((l) => l.widgetType))],
+        };
+      })(),
       // Verbindungsstatus als Snapshot (nicht auf ein Live-Event angewiesen).
       platformStatus: this.lastPlatformStatus.status,
       platformConnected: this.lastPlatformStatus.status === 'connected',

@@ -4,7 +4,8 @@ import { useEffect, useState, type ComponentType } from 'react';
 import GiveawayCard from '../components/GiveawayCard';
 import GamesCard from '../components/GamesCard';
 import TriggerLogCard from '../components/TriggerLogCard';
-import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, X, LayoutPanelTop, Zap, RotateCcw } from 'lucide-react';
+import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, RotateCcw } from 'lucide-react';
+import SetupChecklist from '../components/SetupChecklist';
 import type { useStudio } from '../hooks/useStudio';
 import ConfirmButton from '../components/ConfirmButton';
 import { toast } from '../components/ToastHost';
@@ -93,7 +94,6 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
   const [chatText, setChatText] = useState('');
   const [tiktokIn, setTiktokIn] = useState(false);
   const [keySet, setKeySet] = useState(true); // default true → keine Warnung vor dem Laden
-  const [showIntro, setShowIntro] = useState(() => localStorage.getItem('bx-intro-dismissed') !== '1');
   const [range, setRange] = useState<'week' | 'month' | 'year'>('week');
   const [history, setHistory] = useState<{ coins: number; gifts: number; likes: number; chats: number; follows: number; sessions: number } | null>(null);
 
@@ -146,39 +146,20 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
 
   return (
     <div className="flex h-full flex-col gap-5 p-6">
-      {/* First-Run: die 3 Schritte zum laufenden Overlay (dismissbar) */}
-      {showIntro && (
-        <div className="bx-card flex items-center gap-4 px-5 py-3.5">
-          <div className="flex flex-1 flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-            <span className="font-display text-[11px] uppercase tracking-[0.25em] text-studio-gold">So geht's los</span>
-            <span className="flex items-center gap-1.5">🔑 <b>1.</b> Einmalig: Gratis-Key holen (Einstellungen → TikTok-Verbindung)</span>
-            <span className="flex items-center gap-1.5"><LayoutPanelTop size={14} className="text-studio-accent" /> <b>2.</b> Unter „Overlay" Widgets platzieren & Link kopieren</span>
-            <span className="flex items-center gap-1.5"><Radio size={14} className="text-studio-accent" /> <b>3.</b> Link als Browser-Quelle in OBS / TikTok Live Studio einfügen</span>
-            <span className="flex items-center gap-1.5"><Zap size={14} className="text-studio-accent" /> <b>4.</b> Oben mit TikTok verbinden & unter „Trigger" Reaktionen bauen</span>
-          </div>
-          <button
-            onClick={() => { setShowIntro(false); localStorage.setItem('bx-intro-dismissed', '1'); }}
-            title="Hinweis ausblenden"
-            className="flex-none text-studio-muted hover:text-studio-text"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
+      {/* Startklar-Check: die 4 Schritte prüfen sich selbst ab + Live-Alarm bei unsichtbarem Overlay */}
+      <SetupChecklist connected={connected} />
 
       {/* Kopfzeile + Connect */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 font-display text-xl uppercase">
           <Radio size={20} className="text-studio-accent" /> Live-Cockpit
-          {!showIntro && (
-            <button
-              onClick={() => { setShowIntro(true); localStorage.removeItem('bx-intro-dismissed'); }}
-              title="Erste-Schritte-Hilfe wieder einblenden"
-              className="grid h-5 w-5 place-items-center rounded-full border border-studio-border text-[11px] text-studio-muted hover:border-studio-accent hover:text-studio-accent"
-            >
-              ?
-            </button>
-          )}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('bx-setup-show'))}
+            title="Startklar-Check wieder einblenden"
+            className="grid h-5 w-5 place-items-center rounded-full border border-studio-border text-[11px] text-studio-muted hover:border-studio-accent hover:text-studio-accent"
+          >
+            ?
+          </button>
         </h1>
         <div className="flex flex-wrap items-center gap-3">
           {error && <span className="text-xs text-studio-accent">{error}</span>}

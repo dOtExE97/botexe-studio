@@ -3,7 +3,7 @@
 // (Frage → Sammelzeit → Auflösen → nächste), Antworten kommen per Chat (A/B/C/D).
 import { useEffect, useState } from 'react';
 import { Gamepad2, Play, Square, Sparkles, Skull } from 'lucide-react';
-import { toast } from './ToastHost';
+import { toast, toastAction } from './ToastHost';
 
 type Kind = 'quiz' | 'hangman' | 'tic-tac-toe' | 'connect-four';
 type Theme = { id: string; label: string; count: number };
@@ -19,7 +19,24 @@ export default function GamesCard() {
 
   const toggleBoss = async () => {
     if (bossOn) { await window.studio.stopBoss(); setBossOn(false); toast('info', 'Boss-Modus aus'); }
-    else { await window.studio.startBoss(); setBossOn(true); toast('success', 'Boss-Modus an — Gifts = Schaden! 💀'); }
+    else { await window.studio.startBoss(); setBossOn(true); toast('success', 'Boss-Modus an — Gifts = Schaden! 💀'); void warnIfWidgetMissing('stream-boss', 'Stream-Boss'); }
+  };
+
+  // Wächter: Spiel läuft, aber das Widget liegt nicht im aktiven Overlay →
+  // Zuschauer sehen NICHTS. Ein Klick legt es ein (OverlayPage baut es beim
+  // Öffnen über sessionStorage-Auftrag ein — Spiel läuft dabei weiter).
+  const warnIfWidgetMissing = async (widgetType: string, label: string) => {
+    try {
+      const d = await window.studio.getDiagnostics() as { activeWidgetTypes?: string[] };
+      if ((d.activeWidgetTypes ?? []).includes(widgetType)) return;
+      toastAction('warn', `⚠ Das ${label}-Widget liegt nicht in deinem Overlay — Zuschauer sehen das Spiel nicht!`, {
+        label: 'Jetzt einbauen',
+        onClick: () => {
+          sessionStorage.setItem('bx-add-widget', widgetType);
+          window.dispatchEvent(new CustomEvent('bx-navigate', { detail: 'overlay' }));
+        },
+      });
+    } catch { /* Diagnose optional — Spiel läuft trotzdem */ }
   };
 
   useEffect(() => {
@@ -38,14 +55,14 @@ export default function GamesCard() {
 
   const start = async (kind: Kind, config?: unknown) => {
     const r = await window.studio.startGame(kind, config) as { ok: boolean; error?: string };
-    if (r.ok) { setActive(kind); toast('success', `${LABEL[kind]} gestartet`); }
+    if (r.ok) { setActive(kind); toast('success', `${LABEL[kind]} gestartet`); void warnIfWidgetMissing(GAME_WIDGET[kind], LABEL[kind]); }
     else toast('error', r.error ?? 'Start fehlgeschlagen');
   };
   const stop = async () => { await window.studio.stopGame(); setActive(null); toast('info', 'Spiel beendet'); };
 
   const startQuiz = async () => {
     const r = await window.studio.startQuizAuto(theme, { rounds, questionMs: seconds * 1000 }) as { ok: boolean; error?: string };
-    if (r.ok) { setActive('quiz'); toast('success', `Auto-Quiz „${themes.find((t) => t.id === theme)?.label ?? theme}" läuft`); }
+    if (r.ok) { setActive('quiz'); toast('success', `Auto-Quiz „${themes.find((t) => t.id === theme)?.label ?? theme}" läuft`); void warnIfWidgetMissing('quiz-game', 'Quiz'); }
     else toast('error', r.error ?? 'Quiz konnte nicht starten');
   };
 
@@ -103,3 +120,5 @@ export default function GamesCard() {
 }
 
 const LABEL: Record<Kind, string> = { quiz: 'Quiz', hangman: 'Galgenmännchen', 'tic-tac-toe': 'Tic Tac Toe', 'connect-four': '4 Gewinnt' };
+// Welches Overlay-Widget zeigt welches Spiel — für den „Widget fehlt"-Wächter.
+const GAME_WIDGET: Record<Kind, string> = { quiz: 'quiz-game', hangman: 'hangman-game', 'tic-tac-toe': 'tic-tac-toe-game', 'connect-four': 'connect-four-game' };

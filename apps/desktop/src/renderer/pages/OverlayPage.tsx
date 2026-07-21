@@ -1244,6 +1244,24 @@ export default function OverlayPage() {
     toast('success', `„${typeDef.label}" hinzugefügt`);
   };
 
+  // Einbau-Auftrag von anderen Seiten (z.B. Spiel-Wächter „Jetzt einbauen"):
+  // sessionStorage nennt den Widget-Typ, wir legen ihn beim Öffnen direkt ein.
+  // MUSS nach addWidget/persist stehen (TDZ). Läuft erst, wenn das Layout da ist.
+  const pendingAddDone = useRef(false);
+  useEffect(() => {
+    if (!layout || pendingAddDone.current) return;
+    const wanted = sessionStorage.getItem('bx-add-widget');
+    if (!wanted) return;
+    pendingAddDone.current = true;
+    sessionStorage.removeItem('bx-add-widget');
+    const def = WIDGET_TYPES.find((wt) => wt.type === wanted);
+    if (!def) return;
+    // Doppelt einbauen vermeiden, falls das Widget inzwischen doch schon da ist.
+    const existing = layout.layers.find((l) => l.widgetType === wanted);
+    if (existing) { setSelectedId(existing.id); return; }
+    addWidget(def);
+  }, [layout]);
+
   const removeLayer = (id: string) => {
     if (!layout) return;
     const removed = layout.layers.find((l) => l.id === id);
