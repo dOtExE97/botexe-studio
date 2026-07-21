@@ -122,6 +122,12 @@ function setupAutoUpdate(): void {
         pushUpdateStatus({ state: 'none' });
         return;
       }
+      // „Läuft schon"-Meldungen von Squirrel (Check/Download parallel) sind
+      // KEIN Fehler für den Nutzer — Zustand einfach beibehalten.
+      if (/in progress|already|downloading|applying/i.test(String(err?.message ?? ''))) {
+        log.info('Update', `Update-Vorgang läuft bereits: ${firstLine(err?.message)}`);
+        return;
+      }
       log.warn('Update', 'Auto-Update-Fehler', firstLine(err?.message ?? err));
       pushUpdateStatus({ state: 'error', message: firstLine(err?.message ?? 'unbekannt') });
     });
@@ -454,11 +460,29 @@ function registerIpc(): void {
   // Auto-Update: manuell prüfen + installieren (Settings).
   ipcMain.handle(IPC.UPDATE_CHECK, () => {
     if (!app.isPackaged) return { state: 'dev' };
+    // Squirrel wirft, wenn parallel geprüft wird ODER bereits ein Update fertig
+    // gestaged ist (der Dauerzustand bei laufender Autostart-App!) → diese
+    // Zustände NICHT erneut anstoßen, sondern sauber zurückmelden.
+    if (updateState.state === 'downloaded') {
+      pushUpdateStatus(updateState); // UI zeigt „installieren & neu starten"
+      return updateState;
+    }
+    if (updateState.state === 'checking' || updateState.state === 'available') {
+      return updateState; // läuft schon — kein Doppel-Check
+    }
     try {
       pushUpdateStatus({ state: 'checking' });
       autoUpdater.checkForUpdates();
     } catch (err) {
-      pushUpdateStatus({ state: 'error', message: (err as Error).message });
+      const msg = (err as Error).message ?? '';
+      // Transiente Squirrel-Meldungen (Check/Download läuft schon) nicht als
+      // Fehler in die UI drücken — freundlich auf „checking" bleiben.
+      if (/in progress|already|downloading|applying/i.test(msg)) {
+        log.info('Update', `Manueller Check übersprungen (läuft bereits): ${msg}`);
+        return updateState;
+      }
+      log.warn('Update', 'Manueller Check fehlgeschlagen', msg);
+      pushUpdateStatus({ state: 'error', message: msg });
     }
     return updateState;
   });

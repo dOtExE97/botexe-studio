@@ -720,7 +720,7 @@ export default function SettingsPage() {
             {update.state === 'available' && 'Update gefunden — wird im Hintergrund geladen…'}
             {update.state === 'downloaded' && `Update ${update.version ? `(${update.version}) ` : ''}bereit.`}
             {update.state === 'none' && 'Du hast die neueste Version. ✅'}
-            {update.state === 'error' && `Update-Check fehlgeschlagen: ${update.message ?? 'unbekannt'}`}
+            {update.state === 'error' && `Update-Check gerade nicht möglich (${update.message ?? 'unbekannt'}) — kein Problem, die App prüft stündlich automatisch weiter.`}
             {update.state === 'dev' && 'Auto-Update läuft nur in der installierten App.'}
             {(update.state === 'idle') && 'Updates werden automatisch im Hintergrund geprüft.'}
           </span>

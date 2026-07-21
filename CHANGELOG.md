@@ -3,6 +3,13 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.13.1] — 2026-07-21
+
+### Behoben
+- **„Nach Updates suchen" wirft keinen Fehler mehr** — der Knopf kollidierte mit dem automatischen Hintergrund-Check bzw. einem bereits fertig geladenen Update (dann meckerte der Updater „läuft schon"). Jetzt: Läuft schon ein Check → einfach Status zeigen; Update schon bereit → direkt „installieren & neu starten" anbieten. Echte Fehler werden freundlich erklärt („die App prüft stündlich automatisch weiter").
+
+---
+
 ## [0.13.0] — 2026-07-21
 
 ### Neu: ✨ KI-Overlay-Assistent — „Wünsch dir was"
