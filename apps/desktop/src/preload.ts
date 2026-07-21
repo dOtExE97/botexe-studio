@@ -94,6 +94,9 @@ const api = {
   /** KI-Overlay-Assistent: Wunsch → layers fürs aktuelle Layout. */
   aiWish: (payload: { wish: string; layout: unknown; catalog: unknown[] }) =>
     ipcRenderer.invoke(IPC.AI_WISH, payload) as Promise<{ ok: boolean; layers?: unknown[]; error?: string }>,
+  /** KI-Trigger: Wunsch → neue Regel(n) (nur echte Sound-/Widget-IDs). */
+  aiTrigger: (payload: { wish: string; ctx: { sounds: unknown[]; layers: unknown[] } }) =>
+    ipcRenderer.invoke(IPC.AI_TRIGGER, payload) as Promise<{ ok: boolean; rules?: unknown[]; error?: string }>,
   // Konfig-Backup
   exportConfig: () => ipcRenderer.invoke(IPC.CONFIG_EXPORT),
   importConfig: () => ipcRenderer.invoke(IPC.CONFIG_IMPORT),

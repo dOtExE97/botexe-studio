@@ -185,3 +185,109 @@ export async function generateLayers(req: AiWishRequest): Promise<{ ok: true; la
     return { ok: false, error: `KI-Fehler: ${msg.slice(0, 140)}` };
   }
 }
+
+// ── KI-Trigger: „bei Rose Sound X" in natürlicher Sprache → TriggerRule ──────
+
+export interface AiTriggerContext {
+  sounds: Array<{ id: string; filename: string }>;
+  layers: Array<{ id: string; name: string; widgetType: string }>;
+}
+
+const RULE_EVENTS = new Set(['gift', 'follow', 'sub', 'join', 'share', 'chat', 'like', 'viewer_count', 'timer']);
+const RULE_CONDITIONS = new Set(['gift_coins_gte', 'gift_count_gte', 'gift_slug_is', 'chat_keyword', 'chat_command', 'chat_first_time', 'follow_first_time', 'like_count_gte', 'viewer_count_gte']);
+const RULE_ACTIONS = new Set(['play_sound', 'fire_alert', 'speak', 'spin_wheel', 'play_media', 'counter_add', 'send_chat']);
+
+/** Rohe KI-Regeln → bereinigte TriggerRule-Liste. Nur bekannte Typen; Sound-/
+ *  Layer-IDs müssen real existieren (sonst fliegt die Aktion raus). */
+export function sanitizeRules(raw: unknown, ctx: AiTriggerContext): Array<Record<string, unknown>> | null {
+  const arr = Array.isArray(raw) ? raw : (raw as { rules?: unknown[] } | null)?.rules;
+  if (!Array.isArray(arr)) return null;
+  const soundIds = new Set(ctx.sounds.map((s) => s.id));
+  const layerIds = new Set(ctx.layers.map((l) => l.id));
+  const out: Array<Record<string, unknown>> = [];
+  for (const item of arr.slice(0, 5)) {
+    if (!item || typeof item !== 'object') continue;
+    const r = item as Record<string, unknown>;
+    const event = String(r.event ?? '');
+    if (!RULE_EVENTS.has(event)) continue;
+    const conditions = (Array.isArray(r.conditions) ? r.conditions : []).slice(0, 3).filter((c) => {
+      if (!c || typeof c !== 'object') return false;
+      const k = String((c as { kind?: unknown }).kind ?? '');
+      return RULE_CONDITIONS.has(k);
+    }).map((c) => {
+      const cc = c as { kind: string; value?: unknown };
+      return cc.value === undefined ? { kind: cc.kind } : { kind: cc.kind, value: typeof cc.value === 'number' ? cc.value : String(cc.value).slice(0, 60) };
+    });
+    const actions = (Array.isArray(r.actions) ? r.actions : []).slice(0, 5).filter((a) => {
+      if (!a || typeof a !== 'object') return false;
+      const aa = a as { kind?: unknown; soundId?: unknown; targetId?: unknown };
+      const k = String(aa.kind ?? '');
+      if (!RULE_ACTIONS.has(k)) return false;
+      if (k === 'play_sound') return typeof aa.soundId === 'string' && soundIds.has(aa.soundId);
+      if (k === 'fire_alert' || k === 'spin_wheel' || k === 'play_media' || k === 'counter_add') {
+        return typeof aa.targetId === 'string' && layerIds.has(aa.targetId);
+      }
+      return true; // speak / send_chat brauchen nur ihr Template
+    });
+    if (actions.length === 0) continue; // Regel ohne Wirkung → sinnlos
+    out.push({
+      id: `rule-ai-${Math.random().toString(36).slice(2, 9)}`,
+      name: typeof r.name === 'string' && r.name ? r.name.slice(0, 60) : 'KI-Regel',
+      event, conditions, actions,
+      cooldownMs: Number.isFinite(Number(r.cooldownMs)) ? Math.max(0, Math.min(3_600_000, Number(r.cooldownMs))) : 0,
+      enabled: true,
+    });
+  }
+  return out.length > 0 ? out : null;
+}
+
+export function buildTriggerPrompt(wish: string, ctx: AiTriggerContext): string {
+  const soundList = ctx.sounds.slice(0, 80).map((s) => `- id "${s.id}": ${s.filename}`).join('\n') || '(keine Sounds vorhanden)';
+  const layerList = ctx.layers.slice(0, 60).map((l) => `- id "${l.id}": ${l.name} (${l.widgetType})`).join('\n') || '(keine Widgets vorhanden)';
+  return `Du baust Trigger-Regeln für bOtExE Studio (TikTok-Live-App). Eine Regel: WENN Event (+Bedingung) DANN Aktionen.
+
+ANTWORTE NUR MIT JSON: {"rules":[{ "name", "event", "conditions":[...], "actions":[...], "cooldownMs" }]}
+
+EVENTS: gift, follow, sub, join, share, chat, like, viewer_count, timer (timer = wiederkehrend, Abstand über cooldownMs in ms).
+CONDITIONS (optional, UND-verknüpft): {"kind":"gift_coins_gte","value":100} | {"kind":"gift_count_gte","value":10} | {"kind":"gift_slug_is","value":"Rose"} | {"kind":"chat_keyword","value":"hype"} | {"kind":"chat_command","value":"!befehl"} | {"kind":"chat_first_time"} | {"kind":"follow_first_time"} | {"kind":"like_count_gte","value":1000}
+AKTIONEN: {"kind":"play_sound","soundId":"<echte id aus der Liste>"} | {"kind":"fire_alert","targetId":"<echte Layer-id>"} | {"kind":"speak","template":"{user} schickt {gift}!"} | {"kind":"spin_wheel","targetId":"<Rad-Layer-id>"} | {"kind":"play_media","targetId":"<Media-Layer-id>"} | {"kind":"counter_add","targetId":"<Counter-Layer-id>","delta":1} | {"kind":"send_chat","template":"..."}
+REGELN: Nur ids aus den Listen unten verwenden — NIE erfinden. Passt kein Sound, nimm stattdessen speak. Platzhalter in Templates: {user}, {gift}. Deutsch texten. Maximal 3 Regeln.
+
+VORHANDENE SOUNDS:
+${soundList}
+
+VORHANDENE OVERLAY-WIDGETS:
+${layerList}
+
+WUNSCH DES STREAMERS:
+"${wish.slice(0, 400)}"`;
+}
+
+/** Wunsch → Trigger-Regeln (oder verständlicher Fehler). */
+export async function generateRules(req: {
+  wish: string; ctx: AiTriggerContext;
+  provider: 'gemini' | 'ollama'; apiKey: string; model: string;
+}): Promise<{ ok: true; rules: Array<Record<string, unknown>> } | { ok: false; error: string }> {
+  const wish = req.wish.trim();
+  if (!wish) return { ok: false, error: 'Kein Wunsch angegeben.' };
+  if (req.provider === 'gemini' && !req.apiKey) {
+    return { ok: false, error: 'Kein Gemini-Key hinterlegt — Einstellungen → KI-Assistent.' };
+  }
+  const prompt = buildTriggerPrompt(wish, req.ctx);
+  try {
+    const raw = req.provider === 'ollama' ? await callOllama(prompt, req.model) : await callGemini(prompt, req.apiKey, req.model);
+    const json = extractJson(raw);
+    if (!json) return { ok: false, error: 'Die KI hat keine verwertbare Regel geliefert — formuliere den Wunsch konkreter.' };
+    let parsed: unknown;
+    try { parsed = JSON.parse(json); } catch { return { ok: false, error: 'KI-Antwort war kein gültiges JSON — bitte nochmal versuchen.' }; }
+    const rules = sanitizeRules(parsed, req.ctx);
+    if (!rules) return { ok: false, error: 'Keine gültige Regel dabei (evtl. fehlt der passende Sound/das Widget) — Wunsch anpassen.' };
+    log.info('KI', `Trigger-Wunsch umgesetzt: ${rules.length} Regel(n) („${wish.slice(0, 60)}…")`);
+    return { ok: true, rules };
+  } catch (err) {
+    const msg = (err as Error).message ?? 'unbekannt';
+    if (/abort/i.test(msg)) return { ok: false, error: 'Zeitüberschreitung — nochmal versuchen.' };
+    if (/API key|401|403/i.test(msg)) return { ok: false, error: 'Der KI-Key wird abgelehnt — Einstellungen → KI-Assistent prüfen.' };
+    return { ok: false, error: `KI-Fehler: ${msg.slice(0, 140)}` };
+  }
+}

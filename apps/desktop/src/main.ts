@@ -10,7 +10,7 @@ import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
 import { log, initFileLogging, getLogDir, formatLocalStamp } from './main/core/logger';
-import { generateLayers, type AiCatalogEntry } from './main/services/ai-overlay';
+import { generateLayers, generateRules, type AiCatalogEntry, type AiTriggerContext } from './main/services/ai-overlay';
 import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, uninstallHostsEntry, TTLS_HOST } from './main/services/ttls-link';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
@@ -368,6 +368,15 @@ function registerIpc(): void {
       apiKey: s.aiApiKey,
       model: s.ai.model,
     });
+  });
+
+  // KI-Trigger: Wunsch + vorhandene Sounds/Widgets → validierte Regel(n).
+  ipcMain.handle(IPC.AI_TRIGGER, async (_e, payload: unknown) => {
+    const p = (payload ?? {}) as { wish?: unknown; ctx?: unknown };
+    const s = isStudio().settings.get();
+    const ctx = p.ctx as AiTriggerContext | undefined;
+    if (!ctx || !Array.isArray(ctx.sounds) || !Array.isArray(ctx.layers)) return { ok: false, error: 'Ungültige Anfrage.' };
+    return generateRules({ wish: String(p.wish ?? ''), ctx, provider: s.ai.provider, apiKey: s.aiApiKey, model: s.ai.model });
   });
 
   // eulerstream-Key prüfen: 200 = gültig, 401 = ungültig, sonst Netzfehler.

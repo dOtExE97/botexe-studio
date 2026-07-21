@@ -89,6 +89,8 @@ export const IPC = {
   SIGNKEY_TEST: 'tiktok:signkey-test',
   /** KI-Overlay-Assistent: Wunsch → neue layers-Liste. */
   AI_WISH: 'ai:wish',
+  /** KI-Trigger: Wunsch → neue Trigger-Regel(n). */
+  AI_TRIGGER: 'ai:trigger',
   CONFIG_EXPORT: 'config:export',
   CONFIG_IMPORT: 'config:import',
   // Profile (umschaltbare Konfigurations-Sets) + TikFinity-Import

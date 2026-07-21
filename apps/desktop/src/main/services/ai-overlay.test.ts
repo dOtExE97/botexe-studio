@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { extractJson, sanitizeLayers, buildPrompt } from './ai-overlay';
+import { extractJson, sanitizeLayers, buildPrompt, sanitizeRules } from './ai-overlay';
 
 test('extractJson: schält JSON aus Fences/Text, null bei Müll', () => {
   assert.equal(extractJson('```json\n{"layers":[]}\n```'), '{"layers":[]}');
@@ -44,4 +44,18 @@ test('buildPrompt: enthält Regeln, Katalog, Layout und Wunsch', () => {
   assert.ok(p.includes('Chat in pink unten links'));
   assert.ok(p.includes('HOCHFORMAT'), 'Hochformat-Hinweis bei 1080×1920');
   assert.ok(p.includes('"l1"'), 'aktuelles Layout eingebettet');
+});
+
+test('sanitizeRules: nur echte Sound-/Layer-IDs, unbekannte Kinds fliegen raus', () => {
+  const ctx = { sounds: [{ id: 's1', filename: 'airhorn.mp3' }], layers: [{ id: 'l1', name: 'Alert', widgetType: 'gift-alert' }] };
+  const rules = sanitizeRules({ rules: [
+    { name: 'Rose', event: 'gift', conditions: [{ kind: 'gift_slug_is', value: 'Rose' }],
+      actions: [{ kind: 'play_sound', soundId: 's1' }, { kind: 'play_sound', soundId: 'erfunden' }, { kind: 'hack_pc' }] },
+    { name: 'Kaputt', event: 'quatsch', actions: [{ kind: 'speak', template: 'x' }] },
+    { name: 'Leer', event: 'gift', actions: [{ kind: 'fire_alert', targetId: 'gibtsnicht' }] },
+  ] }, ctx);
+  assert.ok(rules);
+  assert.equal(rules.length, 1, 'nur die Rose-Regel überlebt');
+  assert.equal((rules[0]?.actions as unknown[]).length, 1, 'erfundene soundId + hack_pc entfernt');
+  assert.equal(rules[0]?.enabled, true);
 });

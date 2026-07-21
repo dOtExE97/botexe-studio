@@ -943,6 +943,8 @@ export default function OverlayPage() {
   const [aiWish, setAiWish] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
   const [aiPrev, setAiPrev] = useState<OverlayLayout | null>(null);
+  // 🎨 Design-Galerie: Grundformen des ausgewählten Widgets als Live-Vorschau.
+  const [galleryOpen, setGalleryOpen] = useState(false);
   // Bereit = Ollama gewählt ODER Gemini-Key gesetzt — sonst Einrichtungs-Hinweis statt Feld.
   const [aiReady, setAiReady] = useState(true);
   useEffect(() => {
@@ -1752,7 +1754,18 @@ export default function OverlayPage() {
 
             {selectedDef && selectedDef.fields.length > 0 && (
               <div className="mt-1 border-t border-studio-border pt-3">
-                <h3 className="mb-2 text-[10px] uppercase tracking-[0.3em] text-studio-muted">Widget-Einstellungen</h3>
+                <h3 className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-studio-muted">
+                  <span>Widget-Einstellungen</span>
+                  {selectedDef.fields.some((f) => f.key === 'style' || f.key === 'shape') && (
+                    <button
+                      onClick={() => setGalleryOpen(true)}
+                      className="normal-case tracking-normal text-[10px] font-bold text-studio-teal hover:text-studio-accent"
+                      title="Alle Grundformen dieses Widgets als Live-Vorschau durchblättern"
+                    >
+                      🎨 Design-Galerie
+                    </button>
+                  )}
+                </h3>
                 <div className="flex flex-col gap-2.5">
                   {/* Felder + universell angehängte Stil-Felder (Schrift/Größe/Farbe,
                       dedupliziert) + „Rahmen ausblenden". */}
@@ -1938,6 +1951,98 @@ export default function OverlayPage() {
           </div>
         )}
       </aside>
+
+      {galleryOpen && selected && selectedDef && (
+        <DesignGalleryModal
+          def={selectedDef}
+          layer={selected}
+          overlayBase={overlayBase}
+          onPick={(key, v) => updateLayer(selected.id, { props: { ...selected.props, [key]: v } }, true)}
+          onClose={() => setGalleryOpen(false)}
+        />
+      )}
     </div>
+  );
+}
+
+/** 🎨 Design-Galerie: alle Grundformen/Stile des Widgets als LIVE-Vorschau —
+ *  klicken = anwenden (Modal bleibt offen zum Durchprobieren). */
+function DesignGalleryModal({ def, layer, overlayBase, onPick, onClose }: {
+  def: (typeof WIDGET_TYPES)[number];
+  layer: OverlayLayout['layers'][number];
+  overlayBase: string | null;
+  onPick: (key: string, value: string) => void;
+  onClose: () => void;
+}) {
+  const styleFields = def.fields.filter((fld) => (fld.key === 'style' || fld.key === 'shape') && fld.options);
+  return (
+    <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div className="bx-card max-h-[86vh] w-[min(880px,94vw)] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-display text-lg">🎨 Design-Galerie — {def.label}</h2>
+          <button onClick={onClose} className="bx-pill text-xs hover:text-studio-accent">Fertig</button>
+        </div>
+        {styleFields.map((fld) => (
+          <div key={fld.key} className="mb-4">
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.3em] text-studio-muted">{fld.label}</div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              {(fld.options ?? []).map((opt) => {
+                const active = String(layer.props?.[fld.key] ?? (def.props as Record<string, unknown>)[fld.key] ?? '') === opt.value;
+                return (
+                  <GalleryCell
+                    key={opt.value}
+                    type={def.type}
+                    w={def.w}
+                    h={def.h}
+                    props={{ ...def.props, ...layer.props, [fld.key]: opt.value }}
+                    overlayBase={overlayBase}
+                    label={opt.label}
+                    active={active}
+                    onPick={() => onPick(fld.key, opt.value)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        <p className="text-[10px] text-studio-muted/70">Klick auf eine Karte wendet den Look sofort an — du siehst ihn direkt im Overlay. Farb-Designs (Themes) & Akzentfarbe stellst du zusätzlich rechts im Panel ein.</p>
+      </div>
+    </div>
+  );
+}
+
+/** Eine Live-Vorschau-Zelle der Galerie (gleiches Single-Widget-Prinzip wie die Palette). */
+function GalleryCell({ type, w, h, props, overlayBase, label, active, onPick }: {
+  type: string; w: number; h: number; props: Record<string, unknown>;
+  overlayBase: string | null; label: string; active: boolean; onPick: () => void;
+}) {
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  useEffect(() => {
+    const onMsg = (ev: MessageEvent) => {
+      const cw = frameRef.current?.contentWindow;
+      if (ev.source !== cw) return;
+      const d = ev.data as { type?: string } | null;
+      if (d?.type === 'bx-preview-ready') {
+        cw?.postMessage({
+          type: 'bx-preview-mount',
+          layer: { id: 'preview', widgetType: type, x: 0, y: 0, w, h, z: 0, opacity: 1, visible: true, props },
+          canvas: { width: w, height: h },
+        }, '*');
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [type, w, h, props]);
+  const src = overlayBase ? `${overlayBase}&preview=1&perf=1&single=1` : '';
+  return (
+    <button
+      onClick={onPick}
+      className={`overflow-hidden rounded-lg border text-left transition-colors ${active ? 'border-studio-accent ring-1 ring-studio-accent' : 'border-studio-border hover:border-studio-accent/60'}`}
+    >
+      <div className="relative h-[120px] w-full" style={{ background: '#0b0d13' }}>
+        {src ? <iframe ref={frameRef} src={src} title={label} className="pointer-events-none h-full w-full border-0" scrolling="no" /> : null}
+      </div>
+      <div className={`px-2 py-1.5 text-[11px] font-bold ${active ? 'text-studio-accent' : 'text-studio-text'}`}>{active ? '✓ ' : ''}{label}</div>
+    </button>
   );
 }

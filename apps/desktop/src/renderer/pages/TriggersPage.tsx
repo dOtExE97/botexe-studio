@@ -156,6 +156,38 @@ export default function TriggersPage() {
   const [loaded, setLoaded] = useState(false);
   const [query, setQuery] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
+  // ✨ KI-Trigger: „bei Rose Sound X" in Worten → fertige Regel(n).
+  const [aiTriggerWish, setAiTriggerWish] = useState('');
+  const [aiTriggerBusy, setAiTriggerBusy] = useState(false);
+
+  const runAiTrigger = async () => {
+    if (aiTriggerBusy || !aiTriggerWish.trim()) return;
+    setAiTriggerBusy(true);
+    try {
+      const result = await window.studio.aiTrigger({
+        wish: aiTriggerWish.trim(),
+        ctx: { sounds, layers },
+      });
+      if (!result.ok || !Array.isArray(result.rules) || result.rules.length === 0) {
+        toast('error', result.error ?? 'KI-Regel fehlgeschlagen.');
+        return;
+      }
+      const created = result.rules as TriggerRule[];
+      save([...rules, ...created]);
+      setAiTriggerWish('');
+      toastAction('success', `✨ ${created.length} Regel(n) gebaut — unten prüfen & anpassen.`, {
+        label: 'Rückgängig',
+        onClick: () => setRules((cur) => {
+          const ids = new Set(created.map((r) => r.id));
+          const next = cur.filter((r) => !ids.has(r.id));
+          void window.studio.setRules(next as unknown as unknown[]);
+          return next;
+        }),
+      });
+    } finally {
+      setAiTriggerBusy(false);
+    }
+  };
   const [obsScenes, setObsScenes] = useState<string[]>([]);
   const [sbActions, setSbActions] = useState<{ id: string; name: string }[]>([]);
   // Weitere Aktionen (Glücksrad/OBS/Spotify/…) pro Regel eingeklappt — die
@@ -203,10 +235,49 @@ export default function TriggersPage() {
 
   // Regel testen: alle Aktionen einmal durch dieselbe Auslöse-Kette schicken
   // (wie ein echtes Event), ohne dass ein Zuschauer/Event nötig ist.
+  /** Baut ein Test-Event, das die Bedingungen dieser Regel ERFÜLLT — der Test
+   *  läuft dann durch die ECHTE Kette (Engine + Bedingungen + Cooldown), statt
+   *  die Aktionen blind zu feuern. So prüft man wirklich „greift meine Regel?". */
+  const eventForRule = (rule: TriggerRule): Record<string, unknown> | null => {
+    const c = rule.conditions?.[0] as (TriggerCondition & { value?: string | number }) | undefined;
+    const user = { id: `test-${Date.now().toString(36)}`, nickname: 'Test-Zuschauer' };
+    switch (rule.event) {
+      case 'gift': {
+        const slug = c?.kind === 'gift_slug_is' ? String(c.value || 'Rose') : 'Rose';
+        const count = c?.kind === 'gift_count_gte' ? Number(c.value) || 1 : 1;
+        const coins = c?.kind === 'gift_coins_gte' ? Number(c.value) || 1 : 100;
+        return { type: 'gift', user, gift: { slug, count, coinsPerUnit: Math.max(1, Math.ceil(coins / count)), totalCoins: Math.max(coins, count) } };
+      }
+      case 'chat': {
+        const text = c?.kind === 'chat_command' ? String(c.value || '!test')
+          : c?.kind === 'chat_keyword' ? `Test mit ${String(c.value || 'hype')}` : 'Test-Nachricht';
+        return { type: 'chat', user, text };
+      }
+      case 'follow': return { type: 'follow', user };
+      case 'sub': return { type: 'sub', user };
+      case 'share': return { type: 'share', user };
+      case 'join': return { type: 'join', user };
+      case 'like': {
+        const v = c?.kind === 'like_count_gte' ? Number(c.value) || 100 : 100;
+        return { type: 'like', user, likeCount: Math.max(1, v), totalLikes: v };
+      }
+      case 'viewer_count': return { type: 'viewer_count', viewerCount: c?.kind === 'viewer_count_gte' ? Number(c.value) || 1 : 100 };
+      default: return null; // timer: hat kein Event — direkt feuern
+    }
+  };
+
   const testRule = (rule: TriggerRule) => {
     if (rule.actions.length === 0) { toast('warn', 'Diese Regel hat noch keine Aktion.'); return; }
-    for (const a of rule.actions) void window.studio.firePanel(a);
-    toast('success', `„${rule.name}" getestet — ${rule.actions.length} Aktion(en) ausgelöst.`);
+    const ev = eventForRule(rule);
+    if (!ev) {
+      // Timer-Regel: kein Event konstruierbar → Aktionen direkt auslösen.
+      for (const a of rule.actions) void window.studio.firePanel(a);
+      toast('success', `„${rule.name}" getestet — ${rule.actions.length} Aktion(en) direkt ausgelöst.`);
+      return;
+    }
+    if (!rule.enabled) { toast('warn', 'Regel ist AUS — zum Testen erst aktivieren.'); return; }
+    void window.studio.sendTestEvent(ev);
+    toast('success', `Test-Event geschickt — läuft durch die ECHTE Kette (inkl. Bedingung & Cooldown). Nichts passiert? Dann greift die Regel so nicht.`);
   };
 
   const setSoundAction = (rule: TriggerRule, soundId: string) => {
@@ -301,10 +372,35 @@ export default function TriggersPage() {
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Regel suchen…" className="bg-transparent text-sm outline-none" style={{ width: '9rem' }} />
             </label>
           )}
+          <button onClick={() => setShowTemplates((v) => !v)} className="bx-pill hover:text-studio-teal" title="Fertige Regel-Vorlagen (ein Klick)">
+            <Zap size={13} /> Vorlagen
+          </button>
           <button onClick={() => save([...rules, newRule()])} className="bx-btn-accent">
             <Plus size={15} /> Neue Regel
           </button>
         </div>
+      </div>
+
+      {/* ✨ KI-Trigger: Regel in normalem Deutsch beschreiben */}
+      <div className="flex items-center gap-2 rounded-xl border border-studio-border bg-studio-panel/80 px-3 py-2">
+        <span className="flex-none text-[10px] font-bold uppercase tracking-[0.2em] text-studio-teal" title="Beschreib die Regel in normalen Worten — die KI baut sie (nur mit deinen echten Sounds/Widgets).">
+          ✨ KI-Trigger
+        </span>
+        <input
+          value={aiTriggerWish}
+          onChange={(e) => setAiTriggerWish(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && !aiTriggerBusy && aiTriggerWish.trim() && void runAiTrigger()}
+          placeholder='z.B. "wenn jemand eine Rose schickt, spiel den Airhorn-Sound und bedank dich per Ansage"'
+          disabled={aiTriggerBusy}
+          className="bx-input flex-1 text-xs disabled:opacity-60"
+        />
+        <button
+          onClick={() => void runAiTrigger()}
+          disabled={aiTriggerBusy || !aiTriggerWish.trim()}
+          className="bx-btn-accent flex-none px-3 py-1.5 text-[11px] disabled:opacity-40"
+        >
+          {aiTriggerBusy ? 'KI baut…' : 'Regel bauen'}
+        </button>
       </div>
 
       {(rules.length === 0 || showTemplates) && (
@@ -362,6 +458,14 @@ export default function TriggersPage() {
         const deadTargets = rule.actions.filter(
           (a) => 'targetId' in a && a.targetId && !layers.some((l) => l.id === a.targetId),
         );
+        // Konflikt-Check: feuern weitere AKTIVE Regeln auf dasselbe Gift?
+        // (z.B. Galerie-Regel + manuelle Regel → doppelter Alert/Sound)
+        const myCond = rule.conditions?.[0] as { kind?: string; value?: string } | undefined;
+        const giftConflicts = rule.enabled && rule.event === 'gift' && myCond?.kind === 'gift_slug_is'
+          ? rules.filter((r) => r.id !== rule.id && r.enabled && r.event === 'gift'
+              && (r.conditions?.[0] as { kind?: string; value?: string } | undefined)?.kind === 'gift_slug_is'
+              && String((r.conditions?.[0] as { value?: string }).value ?? '').trim().toLowerCase() === String(myCond.value ?? '').trim().toLowerCase())
+          : [];
         // „Weitere Aktionen" offen, wenn manuell aufgeklappt ODER eine davon
         // bereits konfiguriert ist (sonst wäre eine bestehende Regel unsichtbar).
         const hasAdvanced = !!(spinAction?.targetId || mediaAction?.targetId || counterAction?.targetId
@@ -422,6 +526,11 @@ export default function TriggersPage() {
             {/* Die Regel als Satz — Laien-Führung + macht „feuert immer"-Fallen sichtbar. */}
             <div className="border-b border-studio-border/60 bg-studio-raised/30 px-4 py-1.5 text-[11px] text-studio-muted">
               {ruleToSentence(rule, (id) => layers.find((l) => l.id === id)?.name ?? '?', (id) => sounds.find((s) => s.id === id)?.filename?.replace(/\.[a-z0-9]+$/i, '') ?? '?')}
+              {giftConflicts.length > 0 && (
+                <span className="ml-2 text-amber-300">
+                  ⚠ {giftConflicts.length} weitere aktive Regel(n) feuern ebenfalls auf „{String(myCond?.value ?? '')}" — doppelte Alerts/Sounds möglich.
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-[1fr_1fr_1fr] gap-4 p-4">

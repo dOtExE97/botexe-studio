@@ -3,6 +3,21 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.17.0] — 2026-07-21
+
+### Neu: ✨ KI-Trigger — Regeln in normalem Deutsch
+Auf der Trigger-Seite: *„wenn jemand eine Rose schickt, spiel den Airhorn-Sound und bedank dich per Ansage"* → **die KI baut die fertige Regel** (nutzt nur deine echten Sounds & Widgets — sie erfindet nichts). Mit „Rückgängig" im Toast.
+
+### Neu: 🎨 Design-Galerie
+Im Overlay-Editor bei Widgets mit mehreren Grundformen: **„🎨 Design-Galerie"** (über den Widget-Einstellungen) zeigt **alle Looks als Live-Vorschau nebeneinander** — Coin-Glas als Glas/Herz/Pokal/Truhe, das Glücksrad als Bunt/Casino/Neon … Klick = sofort angewendet, durchprobieren erwünscht.
+
+### Trigger-Feinschliff
+- **Der „Test"-Knopf testet jetzt ECHT**: Er schickt ein passendes Test-Event durch die komplette Kette (inklusive Bedingung & Cooldown) — passiert nichts, greift die Regel wirklich nicht. Vorher wurden die Aktionen blind gefeuert.
+- **Konflikt-Warnung**: Feuern zwei aktive Regeln aufs selbe Gift, warnt die Karte („⚠ … doppelte Alerts möglich") — die klassische Galerie+Trigger-Doppel-Falle.
+- „Vorlagen"-Knopf oben — die 8 Ein-Klick-Vorlagen sind jederzeit erreichbar.
+
+---
+
 ## [0.16.0] — 2026-07-21
 
 ### Neu: Das Einstellungs-Paket ⚙️
