@@ -28,6 +28,18 @@ const CSS = `
 .bx-gco-prog { font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size: clamp(18px, 9cqmin, 44px);
   color: var(--bx-gold); -webkit-text-stroke: 2.5px var(--bx-ink,#0a0b12); paint-order: stroke fill; }
 .bx-gco.done .bx-gco-prog { color: var(--bx-teal); }
+
+/* ── Stil „Neon" — freistehend: Icon + Zahlen mit Glow, kein Panel. */
+.bx-gco-neon { background: none !important; box-shadow: none !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bx-gco-neon::before { display: none; }
+.bx-gco-neon .bx-gco-count, .bx-gco-neon .bx-gco-label { text-shadow: 0 0 16px var(--bx-accent), 0 2px 4px rgba(0,0,0,.9); }
+
+/* ── Stil „Medaille" — Gold-Auszeichnung: Icon im gravierten Goldring. */
+.bx-gco-medaille { background: linear-gradient(170deg, rgba(30,24,10,.95), rgba(16,12,6,.96)) !important;
+  border: 1px solid color-mix(in srgb, var(--bx-gold) 65%, transparent); border-radius: 14px;
+  box-shadow: 0 0 30px -8px var(--bx-gold), inset 0 0 40px rgba(0,0,0,.5) !important; }
+.bx-gco-medaille .bx-gco-icon, .bx-gco-medaille img { filter: drop-shadow(0 0 12px var(--bx-gold)); }
+.bx-gco-medaille .bx-gco-count { color: var(--bx-gold); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 60%, transparent); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
@@ -75,7 +87,8 @@ export default class GiftCounter {
     this.lastIcon = saved.icon || '';
 
     this.el = document.createElement('div');
-    this.el.className = 'bx-gco';
+    this.style = ['glas', 'neon', 'medaille'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-gco${this.style !== 'glas' ? ` bx-gco-${this.style}` : ''}`;
     this.el.innerHTML = `<div class="bx-gco-iconwrap"><div class="bx-gco-ring"></div><div class="bx-gco-icon"></div></div>
       <div class="bx-gco-title"></div><div class="bx-gco-prog"></div>`;
     this.el.querySelector('.bx-gco-title').textContent = this.label;

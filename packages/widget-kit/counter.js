@@ -19,6 +19,21 @@ const CSS = `
 .bx-cnt-value.pop { animation: bx-cnt-pop 380ms cubic-bezier(.2,1.5,.35,1); }
 @keyframes bx-cnt-pop { 0% { transform: scale(1); } 45% { transform: scale(1.22); } 100% { transform: scale(1); } }
 .bx-cnt-value.neg { color: var(--bx-accent); }
+
+/* ── Stil „LED" — Arcade-Score: dunkle Kapsel, Mono-Ziffern mit Glow. */
+.bx-cnt-led { background: #0a0c0a !important; border-radius: 8px !important;
+  box-shadow: 0 0 0 3px #1c201c, 0 10px 26px -10px rgba(0,0,0,.85) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.bx-cnt-led .bx-cnt-value { font-family: var(--bx-font-mono) !important; color: #59f08a !important;
+  text-shadow: 0 0 12px rgba(89,240,138,.7) !important; }
+.bx-cnt-led .bx-cnt-label { font-family: var(--bx-font-mono); letter-spacing: .4em; }
+
+/* ── Stil „Sticker" — Comic: weiße schräge Kachel, dunkle dicke Schrift. */
+.bx-cnt-sticker { background: #fff !important; border-radius: 14px !important; transform: rotate(-2deg);
+  box-shadow: 0 0 0 3px #14161f inset, 5px 5px 0 rgba(20,22,31,.85) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.bx-cnt-sticker .bx-cnt-value { color: #14161f !important; text-shadow: none !important; }
+.bx-cnt-sticker .bx-cnt-label { color: #565d70 !important; text-shadow: none !important; }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {
@@ -38,7 +53,8 @@ export default class CounterWidget {
     this.value = this.load(this.start);
 
     this.el = document.createElement('div');
-    this.el.className = 'bx-cnt';
+    this.style = ['glas', 'led', 'sticker'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-cnt${this.style !== 'glas' ? ` bx-cnt-${this.style}` : ''}`;
     this.el.innerHTML = `
       <div class="bx-cnt-label"></div>
       <div class="bx-cnt-value"></div>`;

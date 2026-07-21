@@ -56,6 +56,8 @@ export default class Wheel {
     this.autoShow = props.autoShow !== false;
     this.showTrigger = props.showTrigger !== false; // Banner „wer hat gedreht" (TikFinity-Style)
     this.title = props.title || 'Glücksrad';
+    // Rad-Look: klassisch bunt · Casino (Gold) · Neon-Arcade (freistehend, Glow).
+    this.style = ['classic', 'casino', 'neon'].includes(props.style) ? props.style : 'classic';
     this.angle = 0; this.spinning = false; this.pointerDefl = 0; this.lastAngle = 0;
     this.el = document.createElement('div');
     this.el.className = 'bx-wh' + (this.autoShow ? ' hidden' : '');
@@ -135,11 +137,14 @@ export default class Wheel {
   draw() {
     const ctx = this.ctx, n = this.segments.length, seg = (Math.PI*2)/n, R = this.radius;
     ctx.clearRect(0,0,this.w,this.h);
-    // ── Standfuß (hinter dem Rad) ──
+    const casino = this.style === 'casino', neon = this.style === 'neon';
+    // ── Standfuß (hinter dem Rad) — Neon: freistehend, kein Fuß ──
+    if (!neon) {
     const baseY = this.cy + R + (this.h - (this.cy+R))*0.5;
     const footW = R*1.1, footH = (this.h-(this.cy+R))*0.34;
     const ng = ctx.createLinearGradient(0, this.cy, 0, baseY+footH);
-    ng.addColorStop(0,'#3a4055'); ng.addColorStop(1,'#1a1d28');
+    if (casino) { ng.addColorStop(0,'#8a6a20'); ng.addColorStop(1,'#4a3810'); }
+    else { ng.addColorStop(0,'#3a4055'); ng.addColorStop(1,'#1a1d28'); }
     ctx.fillStyle = ng;
     // post
     ctx.beginPath(); ctx.moveTo(this.cx-R*0.1, this.cy+R*0.5); ctx.lineTo(this.cx-R*0.16, baseY);
@@ -148,24 +153,41 @@ export default class Wheel {
     ctx.beginPath(); ctx.moveTo(this.cx-footW/2, baseY+footH); ctx.lineTo(this.cx-footW*0.32, baseY);
     ctx.lineTo(this.cx+footW*0.32, baseY); ctx.lineTo(this.cx+footW/2, baseY+footH); ctx.closePath();
     ctx.fill(); ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=2; ctx.stroke();
+    }
     // ── Rad ──
     ctx.save(); ctx.translate(this.cx, this.cy); ctx.rotate(this.angle);
     for (let i=0;i<n;i++) {
       ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R, i*seg, (i+1)*seg); ctx.closePath();
-      ctx.fillStyle = COLORS[i%COLORS.length]; ctx.fill();
-      ctx.strokeStyle='rgba(10,11,18,.55)'; ctx.lineWidth=2; ctx.stroke();
-      ctx.save(); ctx.rotate(i*seg+seg/2); ctx.textAlign='right'; ctx.fillStyle='#0a0b12';
+      if (neon) { ctx.fillStyle = i % 2 === 0 ? 'rgba(14,16,26,.92)' : 'rgba(24,26,40,.92)'; }
+      else if (casino) { ctx.fillStyle = i % 2 === 0 ? '#a3131f' : '#14161f'; }
+      else { ctx.fillStyle = COLORS[i%COLORS.length]; }
+      ctx.fill();
+      if (neon) { ctx.strokeStyle = this.accent; ctx.lineWidth = 2.5; ctx.shadowColor = this.accent; ctx.shadowBlur = 12; ctx.stroke(); ctx.shadowBlur = 0; }
+      else if (casino) { ctx.strokeStyle = '#ffd23e'; ctx.lineWidth = 2.5; ctx.stroke(); }
+      else { ctx.strokeStyle='rgba(10,11,18,.55)'; ctx.lineWidth=2; ctx.stroke(); }
+      ctx.save(); ctx.rotate(i*seg+seg/2); ctx.textAlign='right';
+      ctx.fillStyle = neon ? '#eafffb' : casino ? '#ffe9b0' : '#0a0b12';
       ctx.font = `${Math.max(12, R*0.115)}px 'Lilita One', sans-serif`;
       const txt = this.segments[i].length>13 ? this.segments[i].slice(0,12)+'…' : this.segments[i];
       ctx.fillText(txt, R*0.9, R*0.04); ctx.restore();
     }
     ctx.restore();
     // Rand
-    ctx.beginPath(); ctx.arc(this.cx,this.cy,R,0,Math.PI*2); ctx.lineWidth=7; ctx.strokeStyle='rgba(255,255,255,.42)'; ctx.stroke();
-    ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(this.cx,this.cy,R-4,0,Math.PI*2); ctx.stroke();
+    if (casino) {
+      const rim = ctx.createLinearGradient(this.cx-R, this.cy-R, this.cx+R, this.cy+R);
+      rim.addColorStop(0,'#ffe88a'); rim.addColorStop(.5,'#c9962c'); rim.addColorStop(1,'#ffe88a');
+      ctx.beginPath(); ctx.arc(this.cx,this.cy,R+2,0,Math.PI*2); ctx.lineWidth=12; ctx.strokeStyle=rim; ctx.stroke();
+      ctx.beginPath(); ctx.arc(this.cx,this.cy,R-6,0,Math.PI*2); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,232,138,.8)'; ctx.stroke();
+    } else if (neon) {
+      ctx.beginPath(); ctx.arc(this.cx,this.cy,R+1,0,Math.PI*2); ctx.lineWidth=5; ctx.strokeStyle=this.accent;
+      ctx.shadowColor=this.accent; ctx.shadowBlur=22; ctx.stroke(); ctx.shadowBlur=0;
+    } else {
+      ctx.beginPath(); ctx.arc(this.cx,this.cy,R,0,Math.PI*2); ctx.lineWidth=7; ctx.strokeStyle='rgba(255,255,255,.42)'; ctx.stroke();
+      ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(this.cx,this.cy,R-4,0,Math.PI*2); ctx.stroke();
+    }
     // Glühbirnen-Kette am Rand (fest, rotiert NICHT mit) — Casino/Jahrmarkt-Look.
     // Läuft während des Spins (Phase aus der Zeit), idle = schön alternierend.
-    const bulbs = 24;
+    const bulbs = neon ? 0 : 24;
     const phase = this.spinning ? Math.floor(performance.now() / 90) : 0;
     for (let i = 0; i < bulbs; i++) {
       const a = (i / bulbs) * Math.PI * 2 - Math.PI / 2;
@@ -180,8 +202,18 @@ export default class Wheel {
     // Nabe
     ctx.beginPath(); ctx.arc(this.cx,this.cy,R*0.14,0,Math.PI*2);
     const hg=ctx.createRadialGradient(this.cx-4,this.cy-4,2,this.cx,this.cy,R*0.14);
-    hg.addColorStop(0,'#454d68'); hg.addColorStop(1,'#14161f');
-    ctx.fillStyle=hg; ctx.fill(); ctx.lineWidth=4; ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.stroke();
+    if (casino) { hg.addColorStop(0,'#ffe88a'); hg.addColorStop(1,'#a97c1e'); }
+    else if (neon) { hg.addColorStop(0,'#232636'); hg.addColorStop(1,'#0c0d16'); }
+    else { hg.addColorStop(0,'#454d68'); hg.addColorStop(1,'#14161f'); }
+    ctx.fillStyle=hg; ctx.fill(); ctx.lineWidth=4;
+    ctx.strokeStyle = casino ? '#8a6a20' : neon ? this.accent : 'rgba(255,255,255,.5)';
+    ctx.stroke();
+    if (casino) { // Riffelung der Gold-Nabe
+      ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(120,90,20,.6)';
+      for (let k = 0; k < 8; k++) { const a2 = (k/8)*Math.PI*2; ctx.beginPath();
+        ctx.moveTo(this.cx+Math.cos(a2)*R*0.05, this.cy+Math.sin(a2)*R*0.05);
+        ctx.lineTo(this.cx+Math.cos(a2)*R*0.12, this.cy+Math.sin(a2)*R*0.12); ctx.stroke(); }
+    }
     // ── Zeiger (klick-flap am oberen Rand) ──
     ctx.save(); ctx.translate(this.cx, this.cy - R - 2); ctx.rotate(this.pointerDefl);
     ctx.beginPath(); ctx.moveTo(-13,-14); ctx.lineTo(13,-14); ctx.lineTo(0,10); ctx.closePath();

@@ -3,6 +3,21 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.14.0] — 2026-07-21
+
+### Neu: Design-Schwung 3 — 16 radikale Widget-Varianten 🎰🚀💥
+Wie beim Coin-Glas: nicht nur andere Farben, sondern **ganz andere Objekte**:
+- **Glücksrad** 🎡: **Casino** (Gold-Rand, geriffelte Gold-Nabe, Rot-Schwarz) · **Neon-Arcade** (freistehend, leuchtende Trennlinien, kein Standfuß)
+- **Hype-Train** 🚂 → **Rakete** 🚀 (mit Flammen-Schweif und Schub-Balken) oder **LED-Anzeigetafel**
+- **Feuerwerk** 🎆 explodiert jetzt wahlweise als **Herz** 💜 oder **Stern** ⭐ am Himmel
+- **Meilenstein-Feier**: **Funken steigen auf** (statt Konfetti-Regen) oder **Comic-POW** (Sticker-Explosion mit Zacken)
+- **Stream-Boss**: **Arcade** (segmentierter LED-Lebensbalken) · **Düster** (Dark-Fantasy, blutrotes Glühen)
+- **Subathon-Timer** → **Zeitbombe** 🧨 (mit Zündschnur!) oder **LED-Tafel**
+- **Geschenkzähler**: **Neon** · **Gold-Medaille** 🥇
+- **Counter**: **LED-Score** (grüne Arcade-Ziffern) · **Comic-Sticker**
+
+---
+
 ## [0.13.1] — 2026-07-21
 
 ### Behoben

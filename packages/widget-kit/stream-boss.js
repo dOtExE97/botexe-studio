@@ -58,6 +58,25 @@ const CSS = `
   text-shadow: 0 0 24px var(--bx-boss-color, var(--bx-accent)); opacity:0; }
 .bx-boss.defeated .bx-boss-slain { animation: bx-boss-slain-in .9s ease; }
 @keyframes bx-boss-slain-in { 0%{ opacity:0; transform:scale(.6) } 30%{ opacity:1; transform:scale(1.1) } 70%{ opacity:1; transform:scale(1) } 100%{ opacity:0 } }
+
+/* ── Stil „Arcade" — Retro-Bosskampf: segmentierte LED-HP-Bar, Pixel-Charakter. */
+.bx-boss-arcade { background: #101214; border-radius: 6px;
+  box-shadow: 0 0 0 3px #2a2c33, 0 0 0 6px #101214, 0 14px 30px -12px rgba(0,0,0,.85);
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bx-boss-arcade .bx-boss-fill { -webkit-mask: repeating-linear-gradient(90deg, #000 0 12px, transparent 12px 15px);
+  mask: repeating-linear-gradient(90deg, #000 0 12px, transparent 12px 15px); }
+.bx-boss-arcade .bx-boss-name { font-family: var(--bx-font-mono); letter-spacing: .2em; }
+.bx-boss-arcade .bx-boss-ava { border-radius: 6px; }
+
+/* ── Stil „Düster" — Dark-Fantasy: schwarz-rotes Glühen, Blut-HP, bedrohliche Aura. */
+.bx-boss-duester { background: linear-gradient(170deg, rgba(18,8,10,.96), rgba(8,4,6,.97));
+  border: 1px solid rgba(200,30,40,.55); border-radius: 4px;
+  box-shadow: 0 0 40px -8px rgba(200,20,30,.55), inset 0 0 50px rgba(120,0,10,.35);
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bx-boss-duester .bx-boss-fill { background: linear-gradient(90deg, #7a0a12, #c81e28 60%, #ff4a3a) !important;
+  box-shadow: 0 0 18px #c81e28; }
+.bx-boss-duester .bx-boss-name { color: #ffd9d0; text-shadow: 0 0 18px rgba(255,60,50,.8), 0 2px 4px #000; }
+.bx-boss-duester .bx-boss-ava { border-color: #c81e28; box-shadow: 0 0 20px -2px #c81e28; border-radius: 4px; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(Math.round(n)));
@@ -82,7 +101,8 @@ export default class StreamBoss {
     this.defeated = false;
 
     this.el = document.createElement('div');
-    this.el.className = 'bx-boss';
+    this.style = ['glas', 'arcade', 'duester'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-boss${this.style !== 'glas' ? ` bx-boss-${this.style}` : ''}`;
     this.el.innerHTML = `<div class="bx-boss-head">
         <div class="bx-boss-ava"></div>
         <div class="bx-boss-name"></div>

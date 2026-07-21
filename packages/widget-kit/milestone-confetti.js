@@ -32,6 +32,26 @@ const CSS = `
 .bx-mc-piece { position:absolute; top:-8%; width: 1.4cqmin; height: 2.2cqmin; border-radius:1px;
   animation: bx-mc-fall var(--d) linear forwards; }
 @keyframes bx-mc-fall { 0%{opacity:1; transform: translateY(0) rotate(0)} 100%{opacity:0; transform: translateY(120cqh) rotate(720deg)} }
+
+/* ── Stil „Feuerwerk" — Partikel steigen als Funken AUF statt zu fallen,
+   Banner freistehend mit Glow (die Feier zeigt in den Himmel). */
+.bx-mc-feuerwerk .bx-mc-banner { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bx-mc-feuerwerk .bx-mc-banner::before { display: none; }
+.bx-mc-feuerwerk .bx-mc-num { text-shadow: 0 0 34px var(--bx-accent), 0 0 70px color-mix(in srgb, var(--bx-accent) 50%, transparent); }
+.bx-mc-feuerwerk .bx-mc-piece { border-radius: 50%; top: auto; bottom: -3%;
+  animation-name: bx-mc-rise !important; box-shadow: 0 0 8px currentColor; }
+@keyframes bx-mc-rise { 0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-120cqh) scale(.35); } }
+
+/* ── Stil „POW" — Comic-Explosion: Banner als schräger Sticker mit Zacken-
+   Kontur, dunkle Schrift auf Weiß. */
+.bx-mc-pow .bx-mc-banner { background: #fff; transform: rotate(-3deg);
+  clip-path: polygon(2% 12%, 10% 2%, 22% 10%, 34% 0%, 45% 9%, 58% 1%, 69% 10%, 82% 3%, 92% 12%, 100% 26%, 94% 42%, 100% 58%, 93% 74%, 99% 88%, 86% 97%, 72% 91%, 58% 99%, 44% 92%, 30% 100%, 18% 91%, 6% 97%, 0% 82%, 5% 65%, 0% 46%, 6% 28%);
+  box-shadow: 8px 8px 0 rgba(20,22,31,.85); padding: 8% 12%; }
+.bx-mc-pow .bx-mc-banner::before { display: none; }
+.bx-mc-pow .bx-mc-label { color: #c72c6f; text-shadow: none; }
+.bx-mc-pow .bx-mc-num { color: #14161f; -webkit-text-stroke: 0; text-shadow: none; }
+.bx-mc-pow .bx-mc-msg { color: #14161f; text-shadow: none; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const METRICS = ['coins', 'likes', 'follows', 'gifts'];
@@ -67,7 +87,8 @@ export default class MilestoneConfetti {
     this.lastSeen = null; // bekannter Stand; erst gesetzt → kein Burst beim Mount
 
     this.el = document.createElement('div');
-    this.el.className = 'bx-mc';
+    this.style = ['konfetti', 'feuerwerk', 'pow'].includes(props.style) ? props.style : 'konfetti';
+    this.el.className = `bx-mc${this.style !== 'konfetti' ? ` bx-mc-${this.style}` : ''}`;
     this.el.innerHTML = `<div class="bx-mc-banner">
       <div class="bx-mc-label"></div><div class="bx-mc-num">0</div><div class="bx-mc-msg"></div></div>`;
     this.banner = this.el.querySelector('.bx-mc-banner');

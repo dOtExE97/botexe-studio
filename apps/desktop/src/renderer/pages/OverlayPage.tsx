@@ -196,12 +196,17 @@ const WIDGET_TYPES: {
   },
   {
     type: 'stream-boss', label: 'Stream-Boss', desc: 'Gemeinsamer Boss mit HP-Leiste — Gifts fügen Schaden zu (nach Coins). Top-Schadensliste, Level-Aufstieg, Kill-Moment. Boss-Modus auf der Live-Seite an.',
-    w: 440, h: 190, props: { accent: '#ff3b6b', showDamagers: true }, fields: [ACCENT_FIELD],
+    w: 440, h: 190, props: { style: 'glas', accent: '#ff3b6b', showDamagers: true }, fields: [ACCENT_FIELD],
   },
   {
     type: 'gift-alert', label: 'Gift-Alert', desc: 'Großer Alert mitten im Bild, wenn ein Gift kommt — mit Gift-Bild und Profilfoto.',
     w: 760, h: 380, props: { style: 'glas', minCoins: 0, durationMs: 5000, soundId: 'botexe-alert.wav' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas (Standard)' },
+        { value: 'arcade', label: '🕹️ Arcade (LED-Lebensbalken)' },
+        { value: 'duester', label: '🩸 Düster (Dark-Fantasy, rot)' },
+      ]),
       styleField([
         { value: 'glas', label: 'Glas-Karte (Standard)' },
         { value: 'neon', label: 'Neon (freistehend, riesig)' },
@@ -230,8 +235,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'hype-train', label: 'Hype-Train', desc: 'Ein Hype-Balken, den Geschenke & Likes füllen: Stufe für Stufe steigt das Level, die Farben werden wilder, beim Aufstieg gibt es einen Sound. Perfekt, um den Chat anzuheizen.',
-    w: 560, h: 150, props: { coinsPerPoint: 1, likesPerPoint: 10, levelStep: 200, maxLevels: 5, windowSec: 30, title: 'Hype-Train', levelSoundId: 'botexe-gewinn.wav', accent: '#ff4d2e' },
+    w: 560, h: 150, props: { style: 'zug', coinsPerPoint: 1, likesPerPoint: 10, levelStep: 200, maxLevels: 5, windowSec: 30, title: 'Hype-Train', levelSoundId: 'botexe-gewinn.wav', accent: '#ff4d2e' },
     fields: [
+      styleField([
+        { value: 'zug', label: '🚂 Zug (Standard)' },
+        { value: 'rakete', label: '🚀 Rakete (Boost mit Flammen)' },
+        { value: 'led', label: '📟 LED-Anzeigetafel' },
+      ]),
       { key: 'levelStep', label: 'Punkte pro Level', type: 'number', hint: 'Wie viele Punkte ein Level kostet. Punkte = Coins (÷ Coins/Punkt) + Likes (÷ Likes/Punkt).' },
       { key: 'maxLevels', label: 'Max. Level', type: 'number', hint: '2–6. Bei MAX flippt der Zug auf Feuer-Modus.' },
       { key: 'windowSec', label: 'Zeitfenster (Sek.)', type: 'number', hint: 'So lange darf zwischen zwei Beiträgen vergehen, sonst endet der Zug. Jeder Beitrag verlängert.' },
@@ -245,8 +255,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'subathon', label: 'Subathon-Timer', desc: 'Ein Countdown, den deine Zuschauer verlängern: Jedes Geschenk und jeder neue Follower gibt Extra-Zeit — dein Publikum hält den Stream am Leben.',
-    w: 440, h: 200, props: { startMinutes: 30, secondsPerCoin: 2, secondsPerFollow: 30, secondsPerLike: 0, maxMinutes: 600, title: 'Subathon', addSoundId: 'botexe-gewinn.wav', accent: '#28e0c4' },
+    w: 440, h: 200, props: { style: 'glas', startMinutes: 30, secondsPerCoin: 2, secondsPerFollow: 30, secondsPerLike: 0, maxMinutes: 600, title: 'Subathon', addSoundId: 'botexe-gewinn.wav', accent: '#28e0c4' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas (Standard)' },
+        { value: 'bombe', label: '🧨 Zeitbombe (Comic)' },
+        { value: 'led', label: '📟 LED-Anzeigetafel' },
+      ]),
       { key: 'startMinutes', label: 'Startzeit (Min.)', type: 'number', hint: 'Womit der Timer startet (beim Laden).' },
       { key: 'secondsPerCoin', label: 'Sek. pro Coin', type: 'number', hint: 'Jeder Gift-Coin verlängert um so viele Sekunden.' },
       { key: 'secondsPerFollow', label: 'Sek. pro Follower', type: 'number' },
@@ -300,8 +315,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'milestone-confetti', label: 'Meilenstein-Konfetti', desc: 'Feiert erreichte Marken (z.B. alle 100 Follower) mit Konfetti-Burst + Glow-Banner.',
-    w: 520, h: 320, props: { metric: 'follows', step: 100, milestones: '', label: '', message: 'Meilenstein! 🎉', soundId: 'botexe-gewinn.wav', accent: '#ffd23e', theme: 'glas' },
+    w: 520, h: 320, props: { style: 'konfetti', metric: 'follows', step: 100, milestones: '', label: '', message: 'Meilenstein! 🎉', soundId: 'botexe-gewinn.wav', accent: '#ffd23e', theme: 'glas' },
     fields: [
+      styleField([
+        { value: 'konfetti', label: '🎊 Konfetti-Regen (Standard)' },
+        { value: 'feuerwerk', label: '🎆 Funken steigen auf' },
+        { value: 'pow', label: '💥 Comic-POW (Sticker-Explosion)' },
+      ]),
       { key: 'metric', label: 'Metrik', type: 'select', options: [
         { value: 'follows', label: 'Follower' }, { value: 'coins', label: 'Coins' },
         { value: 'likes', label: 'Likes' }, { value: 'gifts', label: 'Gifts' },
@@ -445,8 +465,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'counter', label: 'Counter', desc: 'Manueller Zähler („Tode: 7") — hoch/runter per Panel-Klick, Hotkey oder Chat-Befehl. Wert überlebt Overlay-Reloads.',
-    w: 320, h: 160, props: { label: 'Tode', start: 0, accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
+    w: 320, h: 160, props: { style: 'glas', label: 'Tode', start: 0, accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas (Standard)' },
+        { value: 'led', label: '📟 LED-Score (Arcade)' },
+        { value: 'sticker', label: '🏷️ Sticker (Comic, weiß)' },
+      ]),
       { key: 'label', label: 'Beschriftung', type: 'text', hint: 'Was gezählt wird, z.B. „Tode", „Wins", „Schreie".' },
       { key: 'start', label: 'Startwert', type: 'number', hint: 'Nur beim allerersten Laden — danach merkt sich der Counter seinen Stand.' },
       ACCENT_FIELD,
@@ -465,8 +490,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'wheel', label: 'Glücksrad', desc: 'Dreht bei einer Trigger-Aktion (z.B. !spin gegen Punkte) und zeigt den Gewinn. Preise frei wählbar.',
-    w: 480, h: 560, props: { segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', spinMs: 5000, accent: '#ff5436', autoShow: true, showTrigger: true, title: 'Glücksrad', spinSoundId: 'botexe-rad.wav', resultSoundId: 'botexe-gewinn.wav' },
+    w: 480, h: 560, props: { style: 'classic', segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', spinMs: 5000, accent: '#ff5436', autoShow: true, showTrigger: true, title: 'Glücksrad', spinSoundId: 'botexe-rad.wav', resultSoundId: 'botexe-gewinn.wav' },
     fields: [
+      styleField([
+        { value: 'classic', label: '🎡 Bunt (Standard)' },
+        { value: 'casino', label: '🎰 Casino (Gold & Rot-Schwarz)' },
+        { value: 'neon', label: '⚡ Neon-Arcade (freistehend, Glow)' },
+      ]),
       { key: 'segments', label: 'Preise', type: 'text', hint: 'Mit | trennen — jeder Eintrag ein Segment, z.B. „100 Coins|Nichts|VIP".' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift über dem Rad.' },
       { key: 'spinMs', label: 'Drehdauer', type: 'seconds', hint: 'Wie lange das Rad dreht, bis es stoppt.' },
@@ -696,8 +726,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'gift-counter', label: 'Geschenkzähler', desc: 'Zählt ein bestimmtes Gift (oder alle) Richtung Ziel — großes animiertes Gift-Icon, „aktuell / Ziel", Aktion bei Erreichen.',
-    w: 340, h: 360, props: { giftSlug: '', target: 15, label: 'Geschenk-Ziel', onReach: 'raise', accent: '#ffd23e', theme: 'glas' },
+    w: 340, h: 360, props: { style: 'glas', giftSlug: '', target: 15, label: 'Geschenk-Ziel', onReach: 'raise', accent: '#ffd23e', theme: 'glas' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas (Standard)' },
+        { value: 'neon', label: '⚡ Neon (freistehend)' },
+        { value: 'medaille', label: '🥇 Gold-Medaille' },
+      ]),
       { key: 'giftSlug', label: 'Gift zählen', type: 'gift', hint: 'Welches Gift gezählt wird — durchsuchbar auswählen (leer = ALLE Gifts).' },
       { key: 'target', label: 'Ziel', type: 'number', hint: 'Wie viele bis zum Ziel.' },
       { key: 'onReach', label: 'Bei Zielerreichung', type: 'select', options: [
@@ -712,8 +747,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'gift-fireworks', label: 'Gift-Feuerwerk', desc: 'Jedes Gift steigt als Rakete auf und explodiert — bei Combos (z.B. 10x Rose) fächert es in mehrere Raketen.',
-    w: 900, h: 1200, props: { minCoins: 0, maxRockets: 12, comboMode: 'fan', burstScale: 1.5, showName: true, soundId: 'botexe-boom.wav', whistleSoundId: 'botexe-pfeife.wav', accent: '#ff5436' },
+    w: 900, h: 1200, props: { shape: 'kreis', minCoins: 0, maxRockets: 12, comboMode: 'fan', burstScale: 1.5, showName: true, soundId: 'botexe-boom.wav', whistleSoundId: 'botexe-pfeife.wav', accent: '#ff5436' },
     fields: [
+      { key: 'shape', label: 'Burst-Form', type: 'select', options: [
+        { value: 'kreis', label: '🎆 Kugel (Standard)' },
+        { value: 'herz', label: '💜 Herz-Explosion' },
+        { value: 'stern', label: '⭐ Stern-Explosion' },
+      ], hint: 'In welcher Form die Rakete am Himmel explodiert.' },
       { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Feuerwerk nur für Gifts ab diesem Wert. 0 = jedes.' },
       { key: 'showName', label: 'Name im Burst (freistehend)', type: 'boolean', hint: 'Zeigt den Namen des Schenkenden als leuchtenden Neon-Schriftzug im Explosionszentrum.' },
       ACCENT_FIELD,

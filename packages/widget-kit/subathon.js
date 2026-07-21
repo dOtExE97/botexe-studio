@@ -25,6 +25,24 @@ const CSS = `
   animation: bx-sub-add 1200ms cubic-bezier(.2,1,.3,1) forwards; pointer-events:none; }
 @keyframes bx-sub-add { 0%{opacity:0; transform: translateY(14px) scale(.7)} 18%{opacity:1; transform:none}
   100%{opacity:0; transform: translateY(-26px)} }
+
+/* ── Stil „Bombe" — Comic-Zeitbombe: Zündschnur-Emoji, rot-pulsierend, Sticker-Look. */
+.bx-sub-bombe .bx-sub-time { background: #14161f; border-radius: 50% / 42%;
+  box-shadow: 0 0 0 3px #000, 0 10px 24px -8px rgba(0,0,0,.8), inset 0 -8px 20px rgba(0,0,0,.6);
+  color: #ffd23e; position: relative; }
+.bx-sub-bombe .bx-sub-time::before { content: '🧨'; position: absolute; top: -0.7em; right: -0.35em;
+  font-size: .55em; transform: rotate(30deg); animation: bx-sub-fuse .5s ease-in-out infinite alternate; }
+@keyframes bx-sub-fuse { from { transform: rotate(26deg) scale(.95); } to { transform: rotate(34deg) scale(1.08); } }
+.bx-sub-bombe .bx-sub-label { -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; color: #fff; }
+
+/* ── Stil „LED" — Anzeigetafel: dunkle Tafel, Bernstein-Ziffern, Scanlines. */
+.bx-sub-led .bx-sub-time { background: #0a0c0a; border-radius: 8px;
+  box-shadow: 0 0 0 3px #1c201c, 0 12px 30px -10px rgba(0,0,0,.8), inset 0 0 24px rgba(0,0,0,.9);
+  color: var(--bx-gold); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 70%, transparent); position: relative;
+  font-family: var(--bx-font-mono); }
+.bx-sub-led .bx-sub-time::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.28) 2px 4px); }
+.bx-sub-led .bx-sub-label { font-family: var(--bx-font-mono); letter-spacing: .5em; color: var(--bx-gold); opacity: .8; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const two = (n) => String(n).padStart(2, '0');
@@ -44,7 +62,8 @@ export default class Subathon {
     this.lastT = 0;
 
     this.el = document.createElement('div');
-    this.el.className = 'bx-sub';
+    this.style = ['glas', 'bombe', 'led'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-sub${this.style !== 'glas' ? ` bx-sub-${this.style}` : ''}`;
     this.el.innerHTML = `<div class="bx-sub-label"></div><div class="bx-sub-time">00:00</div>`;
     this.el.querySelector('.bx-sub-label').textContent = props.title || 'Subathon';
     this.timeEl = this.el.querySelector('.bx-sub-time');

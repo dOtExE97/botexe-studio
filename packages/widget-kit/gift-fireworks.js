@@ -102,6 +102,8 @@ export default class GiftFireworks {
     // Im Editor einstellbar: Combo-Verhalten + Burst-Größe.
     this.comboMode = props.comboMode === 'single' ? 'single' : 'fan';
     this.burstScale = Number(props.burstScale ?? 1) || 1;
+    // Burst-Form: klassischer Kugel-Burst · Herz · Stern (Explosion entlang der Form).
+    this.shape = ['kreis', 'herz', 'stern'].includes(props.shape) ? props.shape : 'kreis';
     // Neon-Name des Schenkenden im Explosionszentrum (TikFinity-Style), default an.
     this.showName = props.showName !== false;
     // Harte Obergrenze gleichzeitig fliegender Raketen (Gift-Bombing-sicher).
@@ -243,6 +245,24 @@ export default class GiftFireworks {
 
   // Ein Burst: farbiger Außenring (zwei Paletten gemischt) + heller Kern +
   // funkelnde Glitzer-Sterne. amount skaliert Anzahl (für Nach-Bursts kleiner).
+  /** Richtungs-Vektor für Ring-Partikel i/n je nach Burst-Form. Herz/Stern:
+   *  Radius folgt der Kurve — die Explosion zeichnet die Form in den Himmel. */
+  ringVector(i, n) {
+    const t = (Math.PI * 2 * i) / n + Math.random() * 0.08;
+    if (this.shape === 'herz') {
+      // Parametrische Herzkurve (klassisch), normiert auf ~1.
+      const hx = 16 * Math.pow(Math.sin(t), 3);
+      const hy = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+      return { dx: hx / 17, dy: -hy / 17 };
+    }
+    if (this.shape === 'stern') {
+      // 5-zackiger Stern: Radius pulsiert zwischen Spitze (1) und Kerbe (0.45).
+      const rr = 0.45 + 0.55 * Math.abs(Math.cos(2.5 * t));
+      return { dx: Math.cos(t) * rr, dy: Math.sin(t) * rr };
+    }
+    return { dx: Math.cos(t), dy: Math.sin(t) };
+  }
+
   burst(x, y, power, palA, palB, amount) {
     const scale = (this.perf ? 0.6 : 1) * amount;
     const ring = Math.round((60 + 150 * power) * scale);
@@ -251,11 +271,14 @@ export default class GiftFireworks {
     let free = () => this.particleCap - this.particles.length;
 
     for (let i = 0; i < Math.min(ring, free()); i++) {
-      const angle = (Math.PI * 2 * i) / ring + Math.random() * 0.14;
-      const speed = (3.6 + Math.random() * 6.4) * (0.9 + power * 1.6);
+      const v = this.ringVector(i, ring);
+      // Bei Formen weniger Streuung in der Geschwindigkeit — sonst verschmiert die Kontur.
+      const speed = this.shape === 'kreis'
+        ? (3.6 + Math.random() * 6.4) * (0.9 + power * 1.6)
+        : (5.2 + Math.random() * 1.6) * (0.9 + power * 1.4);
       const pal = i % 2 === 0 ? palA : palB; // zwei Farben pro Ring
       this.particles.push({
-        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        x, y, vx: v.dx * speed, vy: v.dy * speed,
         life: 1, decay: 0.007 + Math.random() * 0.008,
         color: pal[i % pal.length], r: 2 + Math.random() * 2.6 + power * 2.2,
       });

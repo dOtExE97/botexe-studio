@@ -39,6 +39,31 @@ const CSS = `
   opacity:0; }
 .bx-ht.levelup .bx-ht-burst { animation: bx-ht-flash .6s ease; }
 @keyframes bx-ht-flash { 0%{opacity:0} 25%{opacity:1} 100%{opacity:0} }
+
+/* ── Stil „Rakete" — Boost-Metapher statt Zug: Rakete mit Flammen-Schweif,
+   freistehend ohne Panel. Der Balken wird zur Schubanzeige. */
+.bx-ht-rakete { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bx-ht-rakete .bx-ht-track { border-radius: 6px; transform: skewX(-12deg);
+  background: rgba(8,10,18,.72); border-color: color-mix(in srgb, var(--bx-ht-color, var(--bx-accent)) 50%, transparent); }
+.bx-ht-rakete .bx-ht-fill { background: linear-gradient(90deg, #ff8a3d, #ffd23e 55%, #fff); box-shadow: 0 0 22px #ff8a3d; }
+.bx-ht-rakete .bx-ht-loco { font-size: clamp(18px, 8cqmin, 34px); transform: translate(-50%,-50%) rotate(45deg); }
+.bx-ht-rakete .bx-ht-loco::after { content: '🔥'; position: absolute; left: -0.75em; top: 0.55em;
+  font-size: 0.62em; transform: rotate(-45deg); filter: blur(0.4px); animation: bx-ht-flame .3s ease-in-out infinite alternate; }
+@keyframes bx-ht-flame { from { opacity: .75; transform: rotate(-45deg) scale(.85); } to { opacity: 1; transform: rotate(-45deg) scale(1.15); } }
+.bx-ht-rakete .bx-ht-title { -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Stil „LED" — Anzeigetafel: dunkle Tafel, segmentierter Balken, Scanlines. */
+.bx-ht-led { background: #0a0c0a; border-radius: 8px;
+  box-shadow: 0 0 0 3px #1c201c, 0 12px 30px -10px rgba(0,0,0,.8), inset 0 0 24px rgba(0,0,0,.9);
+  -webkit-backdrop-filter: none; backdrop-filter: none; position: relative; }
+.bx-ht-led::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.26) 2px 4px); }
+.bx-ht-led .bx-ht-track { border-radius: 4px; }
+.bx-ht-led .bx-ht-fill { -webkit-mask: repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 18px);
+  mask: repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 18px); }
+.bx-ht-led .bx-ht-loco { display: none; }
+.bx-ht-led .bx-ht-title { font-family: var(--bx-font-mono); letter-spacing: .4em; color: var(--bx-gold); text-shadow: 0 0 12px color-mix(in srgb, var(--bx-gold) 60%, transparent); }
+.bx-ht-led .bx-ht-lvl { font-family: var(--bx-font-mono); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(Math.round(n)));
@@ -63,16 +88,18 @@ export default class HypeTrain {
     this.contributors = 0;
     this.lastT = 0;
 
+    this.style = ['zug', 'rakete', 'led'].includes(props.style) ? props.style : 'zug';
     this.el = document.createElement('div');
-    this.el.className = 'bx-ht';
+    this.el.className = `bx-ht${this.style !== 'zug' ? ` bx-ht-${this.style}` : ''}`;
     this.el.innerHTML = `<div class="bx-ht-burst"></div>
       <div class="bx-ht-head"><span class="bx-ht-title"></span><span class="bx-ht-lvl"></span></div>
-      <div class="bx-ht-track"><div class="bx-ht-fill"></div><div class="bx-ht-loco">🚂</div></div>
+      <div class="bx-ht-track"><div class="bx-ht-fill"></div><div class="bx-ht-loco"></div></div>
       <div class="bx-ht-foot"><span class="goal"></span><span class="time"></span></div>
       <div class="bx-ht-timer"><i></i></div>`;
     this.el.querySelector('.bx-ht-title').textContent = this.title;
     this.fillEl = this.el.querySelector('.bx-ht-fill');
     this.locoEl = this.el.querySelector('.bx-ht-loco');
+    this.locoEl.textContent = this.style === 'rakete' ? '🚀' : '🚂';
     this.lvlEl = this.el.querySelector('.bx-ht-lvl');
     this.goalEl = this.el.querySelector('.goal');
     this.timeEl = this.el.querySelector('.time');
