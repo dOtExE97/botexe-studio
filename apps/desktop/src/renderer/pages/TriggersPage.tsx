@@ -20,6 +20,11 @@ const EVENT_OPTIONS: { value: StudioEventType; label: string }[] = [
   { value: 'timer', label: 'Timer (wiederkehrend)' },
 ];
 
+/** Sinnvolle Start-Werte für Zahlen-Bedingungen (0 = „feuert immer"-Falle). */
+const NUM_DEFAULT: Record<string, number> = {
+  gift_coins_gte: 100, gift_count_gte: 10, viewer_count_gte: 50, like_count_gte: 100,
+};
+
 const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label: string; valueType?: 'number' | 'text' }[]> = {
   gift: [
     { value: 'gift_coins_gte', label: 'Gift-Wert mindestens … Coins', valueType: 'number' },
@@ -33,6 +38,9 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
   ],
   follow: [
     { value: 'follow_first_time', label: 'Nur beim ERSTEN Follow (kein Re-Follow)' },
+  ],
+  like: [
+    { value: 'like_count_gte', label: 'Like-Meilenstein erreicht (bei … Likes)', valueType: 'number' },
   ],
   viewer_count: [{ value: 'viewer_count_gte', label: 'Mindestens … Zuschauer', valueType: 'number' }],
 };
@@ -58,6 +66,77 @@ function ActionDelay({ value, onChange }: { value: number; onChange: (ms: number
   );
 }
 
+
+/** Regel als lesbarer deutscher Satz — „WENN … DANN …". Führt Laien durch die
+ *  Karte und macht Fallen sichtbar („bei JEDEM Gift" statt vermeintlichem Filter). */
+function ruleToSentence(rule: TriggerRule, layerName: (id: string) => string, soundName: (id: string) => string): string {
+  const ev = EVENT_OPTIONS.find((o) => o.value === rule.event)?.label ?? rule.event;
+  const c = rule.conditions?.[0] as (TriggerCondition & { value?: string | number }) | undefined;
+  let wenn = ev;
+  if (rule.event === 'timer') wenn = `alle ${Math.max(1, Math.round((rule.cooldownMs ?? 0) / 1000))} Sek.`;
+  else if (c) {
+    switch (c.kind) {
+      case 'gift_coins_gte': wenn = `Gift im Wert von mind. ${c.value} Coins`; break;
+      case 'gift_count_gte': wenn = `Gift-Combo mit mind. ${c.value} Stück`; break;
+      case 'gift_slug_is': wenn = `das Gift „${c.value}" reinkommt`; break;
+      case 'chat_keyword': wenn = `eine Nachricht „${c.value}" enthält`; break;
+      case 'chat_command': wenn = `jemand „${c.value}" schreibt`; break;
+      case 'chat_first_time': wenn = 'jemand zum ALLERERSTEN Mal schreibt'; break;
+      case 'follow_first_time': wenn = 'jemand zum ERSTEN Mal folgt'; break;
+      case 'like_count_gte': wenn = `die Likes ${c.value} erreichen`; break;
+      case 'viewer_count_gte': wenn = `mind. ${c.value} Zuschauer da sind`; break;
+    }
+  } else if (rule.event === 'gift') wenn = 'IRGENDEIN Gift reinkommt';
+  const parts: string[] = [];
+  for (const a of rule.actions) {
+    switch (a.kind) {
+      case 'play_sound': parts.push(`spiele „${soundName(a.soundId)}"`); break;
+      case 'fire_alert': parts.push(`zeige Alert auf „${layerName(a.targetId)}"`); break;
+      case 'speak': parts.push(`sage „${(a.template ?? '').slice(0, 32)}${(a.template ?? '').length > 32 ? '…' : ''}"`); break;
+      case 'spin_wheel': parts.push('drehe das Glücksrad'); break;
+      case 'play_media': parts.push(`spiele Medium „${layerName(a.targetId)}"`); break;
+      case 'counter_add': parts.push(`Counter ${((a as { delta?: number }).delta ?? 1) >= 0 ? '+' : ''}${(a as { delta?: number }).delta ?? 1}`); break;
+      case 'obs_scene': parts.push(`OBS-Szene „${(a as { scene?: string }).scene}"`); break;
+      case 'send_chat': parts.push('schreibe in den Chat'); break;
+      case 'streamerbot_action': parts.push('Streamer.bot-Aktion'); break;
+      case 'spotify_control': parts.push(`Spotify ${(a as { control?: string }).control}`); break;
+      case 'spotify_request': parts.push('Song-Request'); break;
+      default: parts.push(a.kind);
+    }
+  }
+  const dann = parts.length ? parts.join(' + ') : '⚠ noch KEINE Aktion (Regel tut nichts)';
+  return `WENN ${wenn} → DANN ${dann}`;
+}
+
+/** Ein-Klick-Vorlagen: die 8 häufigsten Streamer-Wünsche, sofort startklar.
+ *  Assets (Sound/Alert-Layer) werden beim Anlegen aus dem Vorhandenen gewählt. */
+const RULE_TEMPLATES: { icon: string; name: string; desc: string; build: (ctx: { firstSound?: string; alertLayer?: string }) => Omit<TriggerRule, 'id'> }[] = [
+  { icon: '💎', name: 'Großes Gift feiern', desc: 'Ab 100 Coins: Alert + Danke-Ansage',
+    build: (x) => ({ name: 'Großes Gift feiern', event: 'gift', conditions: [{ kind: 'gift_coins_gte', value: 100 }],
+      actions: [...(x.alertLayer ? [{ kind: 'fire_alert', targetId: x.alertLayer } as TriggerAction] : []), { kind: 'speak', template: '{user} schickt {gift} — DANKE! 🔥' }], cooldownMs: 0, enabled: true }) },
+  { icon: '🌹', name: 'Rose → Sound', desc: 'Bei jeder Rose einen Sound abspielen',
+    build: (x) => ({ name: 'Rose → Sound', event: 'gift', conditions: [{ kind: 'gift_slug_is', value: 'Rose' }],
+      actions: x.firstSound ? [{ kind: 'play_sound', soundId: x.firstSound }] : [{ kind: 'speak', template: 'Danke für die Rose, {user}! 🌹' }], cooldownMs: 0, enabled: true }) },
+  { icon: '👻', name: 'Erster Follow', desc: 'Nur beim ERSTEN Follow: Sound + Ansage',
+    build: (x) => ({ name: 'Erster Follow', event: 'follow', conditions: [{ kind: 'follow_first_time' }],
+      actions: [...(x.firstSound ? [{ kind: 'play_sound', soundId: x.firstSound } as TriggerAction] : []), { kind: 'speak', template: '{user} folgt jetzt — willkommen an Bord! ❤️' }], cooldownMs: 0, enabled: true }) },
+  { icon: '💜', name: 'Neuer Sub (Teamherz)', desc: 'Danke-Ansage bei jedem neuen Teamherz',
+    build: () => ({ name: 'Neuer Sub', event: 'sub', conditions: [],
+      actions: [{ kind: 'speak', template: 'WOW — {user} ist jetzt Teamherz! Tausend Dank! 💜' }], cooldownMs: 0, enabled: true }) },
+  { icon: '🔥', name: '!hype-Befehl', desc: 'Chat schreibt !hype → Sound/Alert',
+    build: (x) => ({ name: '!hype', event: 'chat', conditions: [{ kind: 'chat_command', value: '!hype' }],
+      actions: x.firstSound ? [{ kind: 'play_sound', soundId: x.firstSound }] : [{ kind: 'speak', template: 'HYPE HYPE HYPE! 🔥' }], cooldownMs: 10000, enabled: true }) },
+  { icon: '👋', name: 'Neue Zuschauer begrüßen', desc: 'Erste Nachricht überhaupt → Willkommens-Ansage',
+    build: () => ({ name: 'Neue begrüßen', event: 'chat', conditions: [{ kind: 'chat_first_time' }],
+      actions: [{ kind: 'speak', template: 'Willkommen im Stream, {user}! 👋' }], cooldownMs: 0, enabled: true }) },
+  { icon: '❤️', name: 'Like-Meilenstein', desc: 'Bei 1000 Likes: Feier-Ansage (+Sound)',
+    build: (x) => ({ name: 'Like-Meilenstein', event: 'like', conditions: [{ kind: 'like_count_gte', value: 1000 }],
+      actions: [...(x.firstSound ? [{ kind: 'play_sound', soundId: x.firstSound } as TriggerAction] : []), { kind: 'speak', template: 'Ihr habt das Like-Ziel geknackt — ihr seid die BESTEN! ❤️' }], cooldownMs: 0, enabled: true }) },
+  { icon: '⏰', name: 'Regelmäßige Erinnerung', desc: 'Alle 10 Min: Hinweis vorlesen (Follow/Discord…)',
+    build: () => ({ name: 'Erinnerung', event: 'timer', conditions: [],
+      actions: [{ kind: 'speak', template: 'Wenn dir der Stream gefällt: Follow dalassen! 🙌' }], cooldownMs: 600000, enabled: true }) },
+];
+
 function newRule(): TriggerRule {
   return {
     id: `rule-${Date.now().toString(36)}`,
@@ -76,6 +155,7 @@ export default function TriggersPage() {
   const [layers, setLayers] = useState<{ id: string; name: string; widgetType: string }[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [query, setQuery] = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
   const [obsScenes, setObsScenes] = useState<string[]>([]);
   const [sbActions, setSbActions] = useState<{ id: string; name: string }[]>([]);
   // Weitere Aktionen (Glücksrad/OBS/Spotify/…) pro Regel eingeklappt — die
@@ -227,9 +307,30 @@ export default function TriggersPage() {
         </div>
       </div>
 
-      {rules.length === 0 && (
-        <div className="border border-dashed border-studio-border p-10 text-center text-sm text-studio-muted">
-          Noch keine Regeln. Beispiel: „Gift ≥ 100 Coins → Gift-Alert + Sound".
+      {(rules.length === 0 || showTemplates) && (
+        <div className="bx-card p-4">
+          <div className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+            <Zap size={14} /> Vorlagen — ein Klick, fertig eingerichtet
+          </div>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            {RULE_TEMPLATES.map((t) => (
+              <button
+                key={t.name}
+                onClick={() => {
+                  const firstSound = sounds[0]?.id;
+                  const alertLayer = layers.find((l) => l.widgetType === 'gift-alert')?.id;
+                  const built = { id: `rule-${Date.now().toString(36)}`, ...t.build({ firstSound, alertLayer }) } as TriggerRule;
+                  save([...rules, built]);
+                  setShowTemplates(false);
+                  toast('success', `Vorlage „${t.name}" angelegt — unten anpassen, falls gewünscht.`);
+                }}
+                className="clip-slant rounded-lg border border-studio-border bg-studio-raised p-2.5 text-left transition-colors hover:border-studio-accent/60"
+              >
+                <div className="text-sm">{t.icon} <b className="text-xs">{t.name}</b></div>
+                <div className="mt-0.5 text-[10px] leading-snug text-studio-muted">{t.desc}</div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
       {rules.length > 0 && shownRules.length === 0 && (
@@ -318,6 +419,11 @@ export default function TriggersPage() {
               </ConfirmButton>
             </div>
 
+            {/* Die Regel als Satz — Laien-Führung + macht „feuert immer"-Fallen sichtbar. */}
+            <div className="border-b border-studio-border/60 bg-studio-raised/30 px-4 py-1.5 text-[11px] text-studio-muted">
+              {ruleToSentence(rule, (id) => layers.find((l) => l.id === id)?.name ?? '?', (id) => sounds.find((s) => s.id === id)?.filename?.replace(/\.[a-z0-9]+$/i, '') ?? '?')}
+            </div>
+
             <div className="grid grid-cols-[1fr_1fr_1fr] gap-4 p-4">
               {/* WENN */}
               <div>
@@ -363,7 +469,9 @@ export default function TriggersPage() {
                         patchRule(rule.id, {
                           conditions: def
                             ? [(def.valueType
-                                ? { kind: def.value, value: def.valueType === 'number' ? 0 : '' }
+                                // Sinnvoller Zahlen-Default statt 0: „mindestens 0" würde bei
+                                // JEDEM Event feuern — der Streamer glaubt aber, er filtert.
+                                ? { kind: def.value, value: def.valueType === 'number' ? (NUM_DEFAULT[def.value] ?? 10) : '' }
                                 : { kind: def.value }) as TriggerCondition]
                             : [],
                         });

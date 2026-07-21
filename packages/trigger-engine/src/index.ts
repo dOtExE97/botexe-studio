@@ -78,6 +78,9 @@ export type TriggerCondition =
   | { kind: 'chat_first_time' }
   /** Erst-Follow (kein Re-Follow) — z.B. Jumpscare nur beim ersten Mal. */
   | { kind: 'follow_first_time' }
+  /** Raumweite Like-Meilensteine: feuert, wenn totalLikes die Schwelle KREUZT
+   *  (nicht bei jedem Batch darüber) — für „bei 1000 Likes Feuerwerk". */
+  | { kind: 'like_count_gte'; value: number }
   | { kind: 'viewer_count_gte'; value: number };
 
 export type TriggerActionKind =
@@ -295,6 +298,13 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return event.firstOfUser === true;
     case 'follow_first_time':
       return event.firstFollow === true;
+    case 'like_count_gte': {
+      // Feuert genau beim KREUZEN der Schwelle (vorher darunter, jetzt darüber) —
+      // nicht bei jedem weiteren Like-Batch oberhalb (sonst Alert-Spam).
+      if (event.totalLikes === undefined) return false;
+      const before = event.totalLikes - (event.likeCount ?? 0);
+      return event.totalLikes >= condition.value && before < condition.value;
+    }
     case 'viewer_count_gte':
       return event.viewerCount !== undefined && event.viewerCount >= condition.value;
   }

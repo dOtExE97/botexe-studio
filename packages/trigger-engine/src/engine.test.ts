@@ -42,6 +42,15 @@ test('follow_first_time matcht nur beim Erst-Follow (kein Re-Follow)', () => {
   assert.equal(engine.evaluate(followEvent(false)).length, 0, 'Re-Follow → feuert nicht');
 });
 
+test('like_count_gte feuert genau beim Kreuzen der Schwelle', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ event: 'like', conditions: [{ kind: 'like_count_gte', value: 1000 }], actions: [{ kind: 'fire_alert', targetId: 'fw' }] })]);
+  const like = (totalLikes: number, likeCount: number): StudioEvent => ({ type: 'like', ts: 1, user: { id: 'u', nickname: 'U' }, likeCount, totalLikes });
+  assert.equal(engine.evaluate(like(980, 30)).length, 0, 'noch unter der Schwelle');
+  assert.equal(engine.evaluate(like(1010, 40)).length, 1, 'kreuzt 1000 → feuert');
+  assert.equal(engine.evaluate(like(1050, 40)).length, 0, 'weiter darüber → feuert NICHT nochmal');
+});
+
 test('regel mit anderem event-typ matcht nicht', () => {
   const engine = new TriggerEngine();
   engine.setRules([rule({ event: 'follow' })]);

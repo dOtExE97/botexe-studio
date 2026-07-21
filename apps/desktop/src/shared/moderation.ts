@@ -9,7 +9,7 @@ export const DEFAULT_BLOCKLIST: string[] = [
   'hurensohn', 'hurentochter', 'wichser', 'fotze', 'schlampe', 'missgeburt',
   'arschloch', 'verpiss dich', 'fick dich', 'neger',
   // Englisch
-  'nigger', 'nigga', 'faggot', 'retard', 'cunt', 'kill yourself', 'kys',
+  'nigger', 'nigga', 'faggot', 'retard', 'cunt', 'kill yourself',
   // NS-Bezug
   'sieg heil', 'heil hitler',
 ];

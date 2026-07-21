@@ -168,7 +168,10 @@ export default class Leaderboard {
     const maxVal = Math.max(1, ...items.map((g) => (this.source === 'likes' ? g.likes : g.coins)));
     // Zeilenhöhe aus der tatsächlichen Box ableiten (statt fix 48px) → beim
     // Verkleinern werden die Zeilen enger statt unten abgeschnitten.
-    const rowH = this.style !== 'arcade'
+    // arcade + podium layouten per Flexbox (height:auto) — Fixhöhe würde die
+    // Podest-Spalten abschneiden.
+    const flexStyle = this.style === 'arcade' || this.style === 'podium';
+    const rowH = !flexStyle
       ? Math.max(22, (list.clientHeight || this.limit * 48) / this.limit)
       : 0;
     const seen = new Set();
@@ -183,7 +186,7 @@ export default class Leaderboard {
       }
       const val = this.source === 'likes' ? g.likes : g.coins;
       row.dataset.rank = String(i + 1);
-      if (this.style !== 'arcade') { row.style.height = `${rowH}px`; row.style.transform = `translateY(${i * rowH}px)`; }
+      if (!flexStyle) { row.style.height = `${rowH}px`; row.style.transform = `translateY(${i * rowH}px)`; }
       if (this.style === 'bars') row.style.setProperty('--bar', `${Math.max(8, (val / maxVal) * 100)}%`);
       row.querySelector('.bx-lb-rank').textContent = String(i + 1);
       row.querySelector('.bx-lb-name').textContent = g.nickname;

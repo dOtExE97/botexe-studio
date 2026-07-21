@@ -116,6 +116,9 @@ function setupAutoUpdate(): void {
       pushUpdateStatus({ state: 'downloaded', version: typeof name === 'string' ? name : undefined });
     });
     autoUpdater.on('error', (err) => {
+      // Fertig geladenes Update NIE wieder „wegnehmen" — das Neustart-Banner
+      // soll stehen bleiben, auch wenn ein späterer Check transient scheitert.
+      if (updateState.state === 'downloaded') return;
       // 404 = noch kein öffentliches Release → harmloser Normalzustand, nur knapp + leise.
       if (isNoRelease(err?.message)) {
         log.info('Update', 'Kein Update verfügbar (noch kein öffentliches Release)');

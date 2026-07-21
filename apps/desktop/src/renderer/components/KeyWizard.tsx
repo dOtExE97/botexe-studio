@@ -44,15 +44,22 @@ export default function KeyWizard() {
 
   // Zwischenablage-Wächter: NUR solange der Assistent offen ist. Der Main-
   // Prozess liefert ausschließlich Text im euler_-Format zurück.
+  // WICHTIG: Jeder Clipboard-Wert wird nur EINMAL übernommen (seenClip) und
+  // nie über eine manuelle Eingabe „drübergebügelt" — sonst kämpft der Nutzer
+  // beim Tippen sekündlich gegen den Poll an.
+  const seenClip = useRef('');
   useEffect(() => {
     if (!open || saved) return;
     const iv = setInterval(() => {
       void window.studio.readClipboardKey().then((k) => {
-        if (k && k !== key) { setKey(k); void validate(k); }
+        if (!k || k === seenClip.current) return;
+        seenClip.current = k;
+        setKey(k);
+        void validate(k);
       });
     }, 1000);
     return () => clearInterval(iv);
-  }, [open, saved, key, validate]);
+  }, [open, saved, validate]);
 
   if (!open) return null;
 

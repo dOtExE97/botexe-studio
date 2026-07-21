@@ -74,9 +74,14 @@ export default class Wheel {
     const dpr = Math.min(window.devicePixelRatio||1,2);
     this.canvas.width=r.width*dpr; this.canvas.height=r.height*dpr; this.ctx.setTransform(dpr,0,0,dpr,0,0);
     this.w=r.width; this.h=r.height;
-    // Rad oben, Standfuß darunter
-    this.radius = Math.min(r.width*0.42, r.height*0.34);
-    this.cx = r.width/2; this.cy = this.radius*1.18 + r.height*0.06;
+    // Rad oben, Standfuß darunter — Neon hat keinen Fuß → mittig + größer.
+    if (this.style === 'neon') {
+      this.radius = Math.min(r.width*0.42, r.height*0.4);
+      this.cx = r.width/2; this.cy = r.height*0.52;
+    } else {
+      this.radius = Math.min(r.width*0.42, r.height*0.34);
+      this.cx = r.width/2; this.cy = this.radius*1.18 + r.height*0.06;
+    }
     this.draw();
   }
   onAction(action) {

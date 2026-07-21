@@ -33,7 +33,7 @@ const SLIDES: Slide[] = [
     icon: LayoutPanelTop,
     title: '2. Overlay bauen',
     body: (
-      <>Auf der <b>Overlay</b>-Seite siehst du jedes Widget schon <b>live in der Liste</b>. <b>▶ Test</b> zeigt die Aktion, <b>➕ Hinzufügen</b> legt es aufs Bild — rechts einstellen (Farbe, Sound, Design …).</>
+      <>Auf der <b>Overlay</b>-Seite siehst du jedes Widget schon <b>live in der Liste</b>. <b>▶ Test</b> zeigt die Aktion, <b>➕ Hinzufügen</b> legt es aufs Bild — rechts einstellen: <b>45+ Grundformen</b> (z.B. Coin-Glas als Herz/Pokal/Truhe, Casino-Glücksrad) + <b>23 Farb-Designs</b>.<br /><br />💡 <b className="text-studio-teal">Oder sag's einfach der KI:</b> In der ✨-Zeile oben beschreibst du dein Wunsch-Overlay in normalen Worten — sie baut es.</>
     ),
     cta: { label: 'Zur Overlay-Seite', page: 'overlay' },
   },
@@ -48,7 +48,7 @@ const SLIDES: Slide[] = [
     icon: Sparkles,
     title: '4. Mehr entdecken',
     body: (
-      <>In der Seitenleiste: <b>Trigger</b> (wenn Gift → tu was), <b>Sounds</b>, <b>TTS</b> (Chat vorlesen), <b>Punkte &amp; Store</b>, <b>Befehle</b>, Spiele &amp; Glücksrad. Viel Spaß beim Streamen! 🎉 <br /><span className="text-studio-muted">Diese Tour gibt's jederzeit wieder unter Einstellungen → Tour.</span></>
+      <>In der Seitenleiste: <b>Trigger</b> (wenn Gift → tu was, mit Ein-Klick-Vorlagen!), <b>Sounds</b> &amp; <b>Mixer</b> (Lautstärke pro Quelle), <b>Stimme</b> (Chat vorlesen), <b>Punkte &amp; Store</b>, <b>Befehle</b>, Spiele &amp; Glücksrad — und bei Problemen die <b>Diagnose</b>-Seite. Viel Spaß beim Streamen! 🎉 <br /><span className="text-studio-muted">Diese Tour gibt's jederzeit wieder unter Einstellungen → Tour.</span></>
     ),
   },
 ];

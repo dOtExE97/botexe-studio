@@ -57,7 +57,7 @@ const ACCENT_FIELD: PropField = {
 };
 
 function styleField(options: { value: string; label: string }[]): PropField {
-  return { key: 'style', label: 'Stil', type: 'select', options };
+  return { key: 'style', label: 'Grundform / Stil', type: 'select', options };
 }
 
 // Pro-Widget-Typografie (B2.1): Schriftart + Größe + Textfarbe. Wirkt über
@@ -103,7 +103,7 @@ const TEXTCOLOR_FIELD: PropField = {
 /** Premium-Design ("Skin") — kuratierte Looks, durchwählbar. Akzentfarbe bleibt
  *  separat (Theme + eigene Brand-Farbe kombinierbar). */
 const THEME_FIELD: PropField = {
-  key: 'theme', label: 'Design', type: 'select',
+  key: 'theme', label: 'Farb-Design (Theme)', type: 'select',
   options: [
     { value: 'glas', label: 'Glas (Standard)' },
     { value: 'neon', label: 'Neon (Cyberpunk)' },
@@ -196,17 +196,20 @@ const WIDGET_TYPES: {
   },
   {
     type: 'stream-boss', label: 'Stream-Boss', desc: 'Gemeinsamer Boss mit HP-Leiste — Gifts fügen Schaden zu (nach Coins). Top-Schadensliste, Level-Aufstieg, Kill-Moment. Boss-Modus auf der Live-Seite an.',
-    w: 440, h: 190, props: { style: 'glas', accent: '#ff3b6b', showDamagers: true }, fields: [ACCENT_FIELD],
-  },
-  {
-    type: 'gift-alert', label: 'Gift-Alert', desc: 'Großer Alert mitten im Bild, wenn ein Gift kommt — mit Gift-Bild und Profilfoto.',
-    w: 760, h: 380, props: { style: 'glas', minCoins: 0, durationMs: 5000, soundId: 'botexe-alert.wav' },
+    w: 440, h: 190, props: { style: 'glas', accent: '#ff3b6b', showDamagers: true },
     fields: [
       styleField([
         { value: 'glas', label: 'Glas (Standard)' },
         { value: 'arcade', label: '🕹️ Arcade (LED-Lebensbalken)' },
         { value: 'duester', label: '🩸 Düster (Dark-Fantasy, rot)' },
       ]),
+      ACCENT_FIELD,
+    ],
+  },
+  {
+    type: 'gift-alert', label: 'Gift-Alert', desc: 'Großer Alert mitten im Bild, wenn ein Gift kommt — mit Gift-Bild und Profilfoto.',
+    w: 760, h: 380, props: { style: 'glas', minCoins: 0, durationMs: 5000, soundId: 'botexe-alert.wav' },
+    fields: [
       styleField([
         { value: 'glas', label: 'Glas-Karte (Standard)' },
         { value: 'neon', label: 'Neon (freistehend, riesig)' },
@@ -940,6 +943,13 @@ export default function OverlayPage() {
   const [aiWish, setAiWish] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
   const [aiPrev, setAiPrev] = useState<OverlayLayout | null>(null);
+  // Bereit = Ollama gewählt ODER Gemini-Key gesetzt — sonst Einrichtungs-Hinweis statt Feld.
+  const [aiReady, setAiReady] = useState(true);
+  useEffect(() => {
+    void window.studio.getSettings().then((s: { ai?: { provider?: string }; aiKeySet?: boolean }) => {
+      setAiReady(s.ai?.provider === 'ollama' || !!s.aiKeySet);
+    });
+  }, []);
   // Schaufenster: Overlay-Basis-URL (für die Live-Vorschau-Iframes der Palette)
   // + An/Aus-Schalter (auf schwachen PCs abschaltbar).
   const [overlayBase, setOverlayBase] = useState<string | null>(null);
@@ -1469,7 +1479,22 @@ export default function OverlayPage() {
 
         {/* ✨ KI-Assistent: Wunsch in natürlicher Sprache → Layout wird umgebaut */}
         <div className="flex flex-none items-center gap-2 border-b border-studio-border bg-studio-panel/80 px-3 py-2">
-          <span className="flex-none text-sm" title="KI-Overlay-Assistent">✨</span>
+          <span className="flex-none text-[10px] font-bold uppercase tracking-[0.2em] text-studio-teal" title="Beschreib in normalen Worten, wie dein Overlay aussehen soll — die KI baut es um.">
+            ✨ KI-Assistent
+          </span>
+          {!aiReady ? (
+            <>
+              <span className="flex-1 text-[11px] text-studio-muted">
+                Beschreib dein Overlay einfach in Worten („Goal-Bar oben, Chat in Pink") — einmalig gratis einrichten:
+              </span>
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('bx-navigate', { detail: 'settings' }))}
+                className="bx-btn-accent flex-none px-3 py-1.5 text-[11px]"
+              >
+                KI einrichten (gratis, 2 Min) →
+              </button>
+            </>
+          ) : (<>
           <input
             value={aiWish}
             onChange={(e) => setAiWish(e.target.value)}
@@ -1494,6 +1519,7 @@ export default function OverlayPage() {
               ↩ Rückgängig
             </button>
           )}
+          </>)}
         </div>
 
         {/* Canvas-Toolbar */}

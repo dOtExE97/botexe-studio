@@ -3,6 +3,29 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.15.0] — 2026-07-21
+
+### Trigger sind jetzt VIEL einfacher 🪄 (aus Voll-Audit mit 3 Agenten-Teams)
+- **8 Ein-Klick-Vorlagen** („Großes Gift feiern", „Rose → Sound", „Erster Follow", „!hype", „Neue begrüßen", „Like-Meilenstein", „Erinnerung alle 10 Min" …) — Klick, fertig eingerichtet, danach anpassbar.
+- **Jede Regel zeigt sich als deutscher Satz**: „WENN Gift im Wert von mind. 100 Coins → DANN spiele ‚airhorn' + sage ‚{user} danke'". Auch Fallen werden sichtbar („WENN IRGENDEIN Gift…", „⚠ noch KEINE Aktion").
+- **Neu: Like-Meilenstein-Trigger** ❤️ — feuert genau beim Erreichen von z.B. 1000 Likes (nicht bei jedem Like danach).
+- Zahlen-Bedingungen starten mit sinnvollen Werten (100 Coins statt 0 = „feuert immer"-Falle).
+
+### Behoben (Audit-Funde)
+- **Stream-Boss hatte seine neuen Looks (Arcade/Düster) verloren** — die Stil-Auswahl war versehentlich beim Gift-Alert gelandet (der doppelt eine hatte). Beides korrigiert.
+- **Ranglisten-Podium** wurde bei mehr als 3 Plätzen gestaucht.
+- **Key-Assistent**: Zwischenablage überschreibt keine manuelle Eingabe mehr.
+- **Neon-Glücksrad** hängt nicht mehr oben im Bild (zentriert + größer).
+- Update-Banner „Jetzt neu starten" kann nicht mehr von einem späteren Fehl-Check verdrängt werden.
+- Standard-Blockliste: „kys" entfernt (traf harmlose Wörter wie „monkys").
+
+### Klarer benannt & besser erklärt
+- ✨-Zeile heißt jetzt sichtbar **„KI-Assistent"**; ohne eingerichtete KI führt ein Knopf direkt zur Gratis-Einrichtung.
+- **„Grundform / Stil"** vs. **„Farb-Design (Theme)"** — die zwei Design-Ebenen sind jetzt unterscheidbar benannt.
+- Onboarding-Tour zeigt jetzt auch KI-Assistent, Design-Vielfalt, Mixer, Vorlagen & Diagnose.
+
+---
+
 ## [0.14.0] — 2026-07-21
 
 ### Neu: Design-Schwung 3 — 16 radikale Widget-Varianten 🎰🚀💥
