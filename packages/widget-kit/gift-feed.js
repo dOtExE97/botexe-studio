@@ -19,6 +19,25 @@ const CSS = `
   text-shadow: 0 0 10px color-mix(in srgb, var(--bx-gold) 40%, transparent); flex: none; }
 @keyframes bx-gf-in { to { transform: translateX(0); } }
 @keyframes bx-gf-out { to { transform: translateX(-115%); opacity: 0; } }
+
+/* ── Stil „Neon" — freistehende Zeilen ohne Panel: Name + Gift mit Glow und
+   harter Schattenkante, minimaler Footprint überm Gameplay. */
+.bx-gf-neon .bx-gf-item { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+  padding: 2px 4px; border-radius: 0; }
+.bx-gf-neon .bx-gf-text { color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.95), 0 2px 8px rgba(0,0,0,.9); }
+.bx-gf-neon .bx-gf-text b { color: var(--bx-accent); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 70%, transparent), 0 1px 0 rgba(0,0,0,.9); }
+.bx-gf-neon .bx-gf-pic { box-shadow: 0 0 0 2px var(--bx-accent), 0 2px 6px rgba(0,0,0,.7); }
+
+/* ── Stil „Pills" — satte Akzent-Pillen mit dunkler Schrift: knallig-bunter
+   Feed, der auch auf hellem Video-Hintergrund sitzt. */
+.bx-gf-pills .bx-gf-item { background: linear-gradient(120deg, var(--bx-accent), var(--bx-accent-2));
+  border-radius: 999px; box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--bx-accent) 75%, transparent);
+  -webkit-backdrop-filter: none; backdrop-filter: none; padding: 6px 16px 6px 8px; }
+.bx-gf-pills .bx-gf-text { color: #0c0d14; text-shadow: none; font-weight: 600; }
+.bx-gf-pills .bx-gf-text b { color: #0c0d14; text-shadow: none; }
+.bx-gf-pills .bx-gf-coins { color: #0c0d14; text-shadow: none; background: rgba(255,255,255,.75);
+  border-radius: 999px; padding: 2px 10px; }
+.bx-gf-pills .bx-gf-pic { box-shadow: 0 0 0 2px rgba(255,255,255,.8); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
@@ -33,7 +52,8 @@ export default class GiftFeed {
     this.max = Math.min(10, Math.max(1, Number(props.max ?? 5)));
     this.ttlMs = Number(props.ttlMs ?? 25000);
     this.el = document.createElement('div');
-    this.el.className = 'bx-gf';
+    const style = ['glas', 'neon', 'pills'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-gf${style !== 'glas' ? ` bx-gf-${style}` : ''}`;
     root.appendChild(this.el);
     this.timers = new Set();
   }

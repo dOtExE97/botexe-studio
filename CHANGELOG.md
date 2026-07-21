@@ -3,6 +3,19 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.10.0] — 2026-07-21
+
+### Neu: 12 neue Widget-Designs 🎨
+Die sechs sichtbarsten Widgets haben jetzt je **drei wählbare Looks** (Eigenschaften → „Stil"; kombinierbar mit allen 17 Farb-Themes):
+- **Gift-Alert**: Glas-Karte · **Neon** (freistehend, riesiger Kontur-Name mit Glow) · **Banner** (schmale Lower-Third-Leiste, slidet von links — für alle, denen der Vollformat-Alert zu viel ist)
+- **Chat-Box**: Glas-Bubbles · **Clean** (nur Text mit Schattenkante, klassischer Gamer-Chat) · **Sticker** (helle Comic-Bubbles mit dunkler Schrift, verspielt)
+- **Gift-Feed**: Glas-Zeilen · **Neon** (freistehend) · **Bunte Pillen** (satte Akzent-Pillen)
+- **Goal-Bar**: Glas · **Arcade** (LED-Segmentblöcke, Retro) · **Slim** (hauchdünne Linie, edel-minimal)
+- **Live-Zähler**: Glas-Chips · **Badges** (schräge Esports-Plaketten) · **Minimal** (frei, ohne Hintergrund)
+- **Countdown**: Glas-Kapsel · **Neon** (Riesen-Ziffern mit Glow) · **LED-Anzeigetafel** (Stadion-Board mit Scanlines)
+
+---
+
 ## [0.9.0] — 2026-07-21
 
 ### Widget-Großputz 🧹 (3 Agenten-Audits über alle ~45 Widgets)

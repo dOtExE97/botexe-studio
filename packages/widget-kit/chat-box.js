@@ -20,6 +20,24 @@ const CSS = `
   word-break: break-word; overflow-wrap: anywhere; }
 @keyframes bx-cb-in { to { transform: translateY(0); opacity: 1; } }
 @keyframes bx-cb-out { to { opacity: 0; } }
+
+/* ── Stil „Clean" — keine Bubbles: pure Textzeilen mit harter Schattenkante,
+   minimaler Footprint (klassischer Gamer-Chat direkt überm Gameplay). */
+.bx-cb-clean .bx-cb-msg { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+  padding: 2px 4px; border-radius: 0; }
+.bx-cb-clean .bx-cb-pic { box-shadow: 0 2px 6px rgba(0,0,0,.7); }
+.bx-cb-clean .bx-cb-name { text-shadow: 0 1px 0 rgba(0,0,0,.9), 0 2px 6px rgba(0,0,0,.9); }
+.bx-cb-clean .bx-cb-text { color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.95), 0 2px 8px rgba(0,0,0,.9); }
+
+/* ── Stil „Sticker" — helle Comic-Bubbles mit dunkler Schrift und Akzent-Nase,
+   leicht abwechselnd gekippt: verspielter Cute-Pop-Look. */
+.bx-cb-sticker .bx-cb-msg { background: rgba(255,255,255,.94); border-radius: 16px 16px 16px 4px;
+  box-shadow: 0 6px 16px -6px rgba(0,0,0,.55), 0 0 0 2.5px var(--bx-accent);
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bx-cb-sticker .bx-cb-msg:nth-child(odd) { transform-origin: left bottom; rotate: -0.6deg; }
+.bx-cb-sticker .bx-cb-msg:nth-child(even) { transform-origin: left bottom; rotate: 0.5deg; }
+.bx-cb-sticker .bx-cb-text { color: #14161f; text-shadow: none; font-weight: 600; }
+.bx-cb-sticker .bx-cb-name { text-shadow: none; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 function nameColor(name) { let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0; return `hsl(${Math.abs(h) % 360} 88% 70%)`; }
@@ -33,8 +51,9 @@ export default class ChatBox {
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.max = Math.min(30, Math.max(3, Number(props.max ?? 8)));
     this.hideAfterMs = Number(props.hideAfterMs ?? 0);
+    this.style = ['glas', 'clean', 'sticker'].includes(props.style) ? props.style : 'glas';
     this.el = document.createElement('div');
-    this.el.className = 'bx-cb';
+    this.el.className = `bx-cb${this.style !== 'glas' ? ` bx-cb-${this.style}` : ''}`;
     root.appendChild(this.el);
     this.timers = new Set();
   }
@@ -47,7 +66,8 @@ export default class ChatBox {
     const name = event.user?.nickname || 'Anonym';
     const nameEl = msg.querySelector('.bx-cb-name');
     nameEl.textContent = name;
-    nameEl.style.color = nameColor(name);
+    // Sticker-Stil hat helle Bubbles → dunklere Namensfarbe, sonst unlesbar.
+    nameEl.style.color = this.style === 'sticker' ? nameColor(name).replace('88% 70%', '80% 34%') : nameColor(name);
     msg.querySelector('.bx-cb-text').textContent = event.text;
     if (event.user?.profilePic) msg.querySelector('.bx-cb-pic').style.backgroundImage = `url("${cssUrl(event.user.profilePic)}")`;
     this.el.appendChild(msg);

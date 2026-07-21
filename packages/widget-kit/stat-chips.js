@@ -15,6 +15,22 @@ const CSS = `
 .bx-sc-chip.pulse .bx-sc-icon { animation: bx-sc-glow 440ms ease; }
 @keyframes bx-sc-pop { 50% { transform: scale(1.25); color: var(--bx-gold); } }
 @keyframes bx-sc-glow { 50% { color: var(--bx-gold); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--bx-gold) 75%, transparent)); } }
+
+/* ── Stil „Badges" — schräge, satte Akzent-Plaketten mit dunkler Schrift:
+   fetter Esports-Look, jede Zahl ein Statement. */
+.bx-sc-badges .bx-sc-chip { border-radius: 0; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  background: linear-gradient(120deg, var(--bx-accent), var(--bx-accent-2));
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--bx-accent) 80%, transparent);
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bx-sc-badges .bx-sc-icon { color: #0c0d14; filter: none; }
+.bx-sc-badges .bx-sc-value { color: #0c0d14; text-shadow: none; font-family: var(--bx-font-display); }
+
+/* ── Stil „Minimal" — kein Chip-Hintergrund: Icon + Zahl frei mit harter
+   Schattenkante. Unsichtbar-leicht für cleane IRL-Overlays. */
+.bx-sc-minimal .bx-sc-chip { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+  padding: 4px 8px; }
+.bx-sc-minimal .bx-sc-value { text-shadow: 0 1px 0 rgba(0,0,0,.95), 0 2px 8px rgba(0,0,0,.9); }
+.bx-sc-minimal .bx-sc-icon { filter: drop-shadow(0 1px 2px rgba(0,0,0,.9)); }
 `;
 // Monochrome Inline-SVG-Icons (24×24, currentColor) — bewusst schlicht, edel.
 const ICON = {
@@ -43,7 +59,8 @@ export default class StatChips {
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     const wanted = String(props.metrics || 'viewers,likes,follows').split(',').map((m) => m.trim()).filter((m) => METRICS[m]);
     this.el = document.createElement('div');
-    this.el.className = 'bx-sc';
+    const style = ['glas', 'badges', 'minimal'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-sc${style !== 'glas' ? ` bx-sc-${style}` : ''}`;
     this.chips = new Map();
     for (const m of wanted) {
       const chip = document.createElement('div');

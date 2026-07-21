@@ -26,6 +26,26 @@ const CSS = `
 .bx-gb.done .bx-gb-track { animation: bx-gb-pulse 900ms ease-in-out 3; }
 @keyframes bx-gb-stripes { to { transform: translateX(26px); } }
 @keyframes bx-gb-pulse { 50% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--bx-teal) 80%, transparent) inset, 0 0 36px 0 color-mix(in srgb, var(--bx-teal) 65%, transparent); } }
+
+/* ── Stil „Arcade" — LED-Segmentblöcke statt fließendem Balken: eckig, blockig,
+   Retro-Spielhallen-Energie. Füllung springt sichtbar Block für Block. */
+.bx-gb-arcade .bx-gb-track { border-radius: 6px; }
+.bx-gb-arcade .bx-gb-fill { border-radius: 4px;
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 22px, transparent 22px 27px);
+  mask: repeating-linear-gradient(90deg, #000 0 22px, transparent 22px 27px); }
+.bx-gb-arcade .bx-gb-fill::after { display: none; }
+.bx-gb-arcade .bx-gb-tick { display: none; }
+.bx-gb-arcade .bx-gb-label { letter-spacing: .4em; }
+
+/* ── Stil „Slim" — hauchdünne Linie, Zahlen frei darüber: edel-minimal für
+   cleane IRL-/Talk-Overlays. Kein Chrome, nur Information. */
+.bx-gb-slim .bx-gb-track { height: 7px; border-radius: 999px;
+  background: rgba(255,255,255,.14); box-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.bx-gb-slim .bx-gb-fill { box-shadow: 0 0 14px 0 color-mix(in srgb, var(--bx-accent) 80%, transparent); }
+.bx-gb-slim .bx-gb-fill::after { display: none; }
+.bx-gb-slim .bx-gb-tick { display: none; }
+.bx-gb-slim .bx-gb-pct { display: none; }
+.bx-gb-slim .bx-gb-label { letter-spacing: .3em; font-size: clamp(9px,7cqmin,14px); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 const LABELS = { coins: 'Coin-Goal', likes: 'Like-Goal', follows: 'Follower-Goal', gifts: 'Gift-Goal' };
@@ -39,7 +59,8 @@ export default class GoalBar {
     this.target = Math.max(1, Number(props.target ?? 1000));
     this.label = props.label || LABELS[this.metric];
     this.el = document.createElement('div');
-    this.el.className = 'bx-gb';
+    const style = ['glas', 'arcade', 'slim'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-gb${style !== 'glas' ? ` bx-gb-${style}` : ''}`;
     this.el.innerHTML = `
       <div class="bx-gb-head"><div class="bx-gb-label"></div><div class="bx-gb-nums">0 / ${fmt(this.target)}</div></div>
       <div class="bx-gb-track">

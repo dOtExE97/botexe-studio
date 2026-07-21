@@ -194,8 +194,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'gift-alert', label: 'Gift-Alert', desc: 'Großer Alert mitten im Bild, wenn ein Gift kommt — mit Gift-Bild und Profilfoto.',
-    w: 760, h: 380, props: { minCoins: 0, durationMs: 5000, soundId: 'botexe-alert.wav' },
+    w: 760, h: 380, props: { style: 'glas', minCoins: 0, durationMs: 5000, soundId: 'botexe-alert.wav' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas-Karte (Standard)' },
+        { value: 'neon', label: 'Neon (freistehend, riesig)' },
+        { value: 'banner', label: 'Banner (schmale Leiste unten)' },
+      ]),
       { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Kleinere Gifts lösen keinen großen Alert aus. 0 = jedes Gift.' },
       { key: 'durationMs', label: 'Anzeigedauer', type: 'seconds', hint: 'Wie lange der Alert sichtbar bleibt.' },
       { key: 'soundId', label: 'Alert-Sound', type: 'sound', hint: 'Spielt beim Alert über die App (läuft über dein Desktop-Audio in den Stream).' },
@@ -249,8 +254,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'goal-bar', label: 'Goal-Bar', desc: 'Fortschrittsbalken Richtung Session-Ziel.',
-    w: 560, h: 80, props: { metric: 'coins', target: 1000, label: '', fontFamily: '', fontScale: 1, textColor: '' },
+    w: 560, h: 80, props: { style: 'glas', metric: 'coins', target: 1000, label: '', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas (Standard)' },
+        { value: 'arcade', label: 'Arcade (LED-Segmente)' },
+        { value: 'slim', label: 'Slim (dünne Linie, minimal)' },
+      ]),
       { key: 'metric', label: 'Metrik', type: 'select', options: [
         { value: 'coins', label: 'Coins' }, { value: 'likes', label: 'Likes' },
         { value: 'follows', label: 'Follower' }, { value: 'gifts', label: 'Gifts' },
@@ -363,8 +373,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'countdown', label: 'Countdown', desc: 'Zähler nach unten — z.B. „Stream startet in" oder Pausen-Timer.',
-    w: 460, h: 200, props: { minutes: 5, label: 'Countdown', doneText: 'LOS!', fontFamily: '', fontScale: 1, textColor: '' },
+    w: 460, h: 200, props: { style: 'glas', minutes: 5, label: 'Countdown', doneText: 'LOS!', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas-Kapsel (Standard)' },
+        { value: 'neon', label: 'Neon (freistehend, groß)' },
+        { value: 'led', label: 'LED-Anzeigetafel' },
+      ]),
       { key: 'minutes', label: 'Startzeit (Minuten)', type: 'number', hint: 'Von hier zählt der Timer runter (beim Laden der Quelle).' },
       { key: 'label', label: 'Beschriftung', type: 'text', hint: 'Text über dem Timer, z.B. „Stream-Start in".' },
       { key: 'doneText', label: 'Text bei 0', type: 'text', hint: 'Was angezeigt wird, wenn der Timer abläuft.' },
@@ -718,8 +733,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'gift-feed', label: 'Gift-Feed', desc: 'Ticker der letzten Gifts mit Gift-Bildern.',
-    w: 380, h: 240, props: { max: 5, ttlMs: 25000, fontFamily: '', fontScale: 1, textColor: '' },
+    w: 380, h: 240, props: { style: 'glas', max: 5, ttlMs: 25000, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas-Zeilen (Standard)' },
+        { value: 'neon', label: 'Neon (freistehend)' },
+        { value: 'pills', label: 'Bunte Pillen' },
+      ]),
       { key: 'max', label: 'Max. Einträge', type: 'number', hint: 'So viele letzte Gifts bleiben sichtbar.' },
       { key: 'ttlMs', label: 'Verschwinden nach', type: 'seconds', hint: 'Wie lange ein Gift im Ticker bleibt.' },
       ACCENT_FIELD,
@@ -728,8 +748,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'stat-chips', label: 'Live-Zähler', desc: 'Kompakte Chips für Viewer, Likes, Follower & Co. — mit Puls bei jeder Änderung.',
-    w: 540, h: 60, props: { metrics: 'viewers,likes,follows', fontFamily: '', fontScale: 1, textColor: '' },
+    w: 540, h: 60, props: { style: 'glas', metrics: 'viewers,likes,follows', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas-Chips (Standard)' },
+        { value: 'badges', label: 'Badges (schräg, satt)' },
+        { value: 'minimal', label: 'Minimal (ohne Hintergrund)' },
+      ]),
       { key: 'metrics', label: 'Welche Zähler', type: 'text', hint: 'Kommagetrennt, Reihenfolge zählt: viewers, uniqueViewers (gesamt dabei), likes, follows, coins, gifts, shares.' },
       ACCENT_FIELD,
       ...STYLE_FIELDS,
@@ -742,8 +767,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'chat-box', label: 'Chat-Box', desc: 'Der Live-Chat direkt im Overlay.',
-    w: 420, h: 360, props: { max: 8, hideAfterMs: 0, accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
+    w: 420, h: 360, props: { style: 'glas', max: 8, hideAfterMs: 0, accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas-Bubbles (Standard)' },
+        { value: 'clean', label: 'Clean (nur Text, Gamer-Look)' },
+        { value: 'sticker', label: 'Sticker (helle Comic-Bubbles)' },
+      ]),
       { key: 'max', label: 'Max. Nachrichten', type: 'number', hint: 'So viele Chat-Zeilen bleiben gleichzeitig sichtbar.' },
       { key: 'hideAfterMs', label: 'Ausblenden nach', type: 'seconds', hint: 'Einzelne Nachrichten verschwinden danach. 0 = bleiben.' },
       ACCENT_FIELD,

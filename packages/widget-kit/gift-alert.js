@@ -45,6 +45,38 @@ const CSS = `
 @keyframes bx-ga-in { 0% { opacity: 0; transform: scale(.7) translateY(14px); } 60% { opacity: 1; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
 @keyframes bx-ga-out { to { opacity: 0; transform: scale(.88) translateY(20px); } }
 @keyframes bx-ga-particle { 0% { opacity: 1; transform: translate(0,0) scale(1) rotate(0); } 100% { opacity: 0; transform: translate(var(--dx),var(--dy)) scale(.3) rotate(180deg); } }
+
+/* ── Stil „Neon" — freistehend, ohne Panel: riesiger Kontur-Name mit hartem
+   Glow, Gift-Bild groß. Gemacht für Overlays direkt über dem Gameplay. */
+.bx-ga-neon .bx-ga-card { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding: 10px 20px; }
+.bx-ga-neon .bx-ga-card::before, .bx-ga-neon .bx-ga-card::after { display: none; }
+.bx-ga-neon .bx-ga-kicker { display: inline-block; padding: 4px 22px; transform: rotate(-2deg);
+  background: linear-gradient(120deg, var(--bx-accent), var(--bx-accent-2)); color: #0a0b10;
+  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%); text-shadow: none; letter-spacing: .34em; }
+.bx-ga-neon .bx-ga-name { font-size: 64px; -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 0 34px var(--bx-accent), 0 6px 0 rgba(0,0,0,.35); max-width: none; }
+.bx-ga-neon .bx-ga-img { height: 130px; }
+.bx-ga-neon .bx-ga-coins { font-size: 38px; -webkit-text-stroke: 2px var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Stil „Banner" — Lower-Third-Leiste: schmale Zeile, schräge Kanten, slidet
+   von links. Dezent für Streamer, denen der Vollformat-Alert zu viel ist. */
+.bx-ga-banner { align-items: flex-end; justify-content: flex-start; padding-bottom: 4%; }
+.bx-ga-banner.show { animation: bx-ga-slide-in 420ms cubic-bezier(.2,1.4,.3,1) forwards; }
+.bx-ga-banner.hide { animation: bx-ga-slide-out 300ms ease-in forwards; }
+.bx-ga-banner .bx-ga-card { display: flex; align-items: center; gap: 16px; text-align: left;
+  min-width: 0; max-width: 96%; padding: 12px 34px 12px 14px; border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 18px) 100%, 0 100%);
+  background: linear-gradient(105deg, rgba(9,10,16,.95), rgba(14,16,26,.88) 70%, color-mix(in srgb, var(--bx-accent) 30%, rgba(14,16,26,.85)));
+  border-left: 5px solid var(--bx-accent); }
+.bx-ga-banner .bx-ga-card::before { display: none; }
+.bx-ga-banner .bx-ga-kicker { display: none; }
+.bx-ga-banner .bx-ga-pic { width: 52px; height: 52px; margin: 0; }
+.bx-ga-banner .bx-ga-name { font-size: 26px; margin: 0; max-width: 340px; }
+.bx-ga-banner .bx-ga-img { height: 48px; margin: 0; }
+.bx-ga-banner .bx-ga-gift { margin: 0; font-size: 16px; padding: 4px 16px; }
+.bx-ga-banner .bx-ga-coins { margin: 0 0 0 4px; font-size: 22px; }
+@keyframes bx-ga-slide-in { 0% { opacity: 0; transform: translateX(-60px); } 100% { opacity: 1; transform: translateX(0); } }
+@keyframes bx-ga-slide-out { to { opacity: 0; transform: translateX(-40px); } }
 `;
 
 function ensureStyle() {
@@ -70,7 +102,8 @@ export default class GiftAlert {
     this.queue = [];
     this.busy = false;
     this.el = document.createElement('div');
-    this.el.className = 'bx-ga';
+    const style = ['glas', 'neon', 'banner'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-ga${style !== 'glas' ? ` bx-ga-${style}` : ''}`;
     root.appendChild(this.el);
   }
 

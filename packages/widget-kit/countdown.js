@@ -28,6 +28,23 @@ const CSS = `
 @keyframes bx-cd-pulse { 50% { transform: scale(1.05); } }
 @keyframes bx-cd-pop { 0% { transform: scale(.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
 @keyframes bx-cd-blink { 50% { opacity: .25; } }
+
+/* ── Stil „Neon" — freistehende Riesen-Ziffern ohne Kapsel: purer Glow. */
+.bx-cd-neon .bx-cd-time { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
+  font-size: 84px; padding: 0;
+  text-shadow: 0 0 30px var(--bx-accent), 0 0 60px color-mix(in srgb, var(--bx-accent) 50%, transparent), 0 3px 0 rgba(0,0,0,.5); }
+.bx-cd-neon .bx-cd-label { color: var(--bx-text, #fff); text-shadow: 0 0 12px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 2px 6px rgba(0,0,0,.8); }
+
+/* ── Stil „LED" — dunkle Anzeigetafel mit Scanlines und Bernstein-Ziffern:
+   Flughafen-/Stadion-Board-Ästhetik. */
+.bx-cd-led .bx-cd-time { border-radius: 8px; background: #0a0c0a;
+  box-shadow: 0 0 0 3px #1c201c, 0 12px 30px -10px rgba(0,0,0,.8), inset 0 0 24px rgba(0,0,0,.9);
+  color: var(--bx-gold); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 70%, transparent);
+  position: relative; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.bx-cd-led .bx-cd-time::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.28) 2px 4px); }
+.bx-cd-led .bx-cd-label { font-family: var(--bx-font-mono); letter-spacing: .5em; color: var(--bx-gold); opacity: .75; }
+.bx-cd-led.urgent .bx-cd-time { color: var(--bx-accent); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 
@@ -54,7 +71,8 @@ export default class Countdown {
     this.lastText = null;      // zuletzt gerendertes Ziffern-Muster (z.B. "0459")
     this.showingDone = false;
     this.el = document.createElement('div');
-    this.el.className = 'bx-cd';
+    const style = ['glas', 'neon', 'led'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-cd${style !== 'glas' ? ` bx-cd-${style}` : ''}`;
     this.el.innerHTML = `<div class="bx-cd-label"></div><div class="bx-cd-time"></div>`;
     this.el.querySelector('.bx-cd-label').textContent = props.label || 'Countdown';
     this.timeEl = this.el.querySelector('.bx-cd-time');
