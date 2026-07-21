@@ -9,7 +9,7 @@ Ein freier **TikFinity-Ersatz** für Windows: Geschenke, Alerts, Overlays, Sound
 &nbsp;
 [![Status: Alpha](https://img.shields.io/badge/Status-ALPHA_(früher_Test)-f59e0b?style=for-the-badge)](#)
 
-![bOtExE Studio Overlay](docs/e2e-overlay.png)
+![bOtExE Studio](docs/hero.png)
 
 > ⚠️ **ALPHA — das ist KEINE fertige Software!** bOtExE Studio ist eine **frühe Testversion**: Vieles läuft schon, aber es können Fehler auftreten, Sachen sich ändern oder mal abstürzen. Wer's ausprobiert, ist quasi **Test-Pilot** 🧑‍✈️ — und genau dafür gibt's den Knopf *Einstellungen → Fehler melden / Funktion wünschen*. Jedes Feedback & jede Widget-Idee hilft enorm. 🙏 Nutze es vorerst auf eigene Verantwortung, gerne parallel zu deinem bisherigen Setup.
 >
@@ -31,6 +31,7 @@ Dein TikTok-Live  →  bOtExE Studio (auf deinem PC)  →  ein Overlay-Link  →
 ```
 
 ## Was kann es?
+- 🔄 **Von TikFinity umziehen — 1:1:** Import deiner `.tfc`-Datei — **Trigger, Chat-Befehle, Sounds, Glücksrad und Widget-Designs** (inkl. Coin-Glas im Original-Look) kommen automatisch mit. Landet als eigenes Profil, dein aktuelles Setup bleibt unangetastet.
 - 🎁 **Geschenk-Alerts & -Feeds** mit echten TikTok-Gift-Bildern + Profilfotos
 - 🏆 **Bestenlisten** (Top-Gifter, Top-Likes, Punkte) im TikFinity-Look
 - 🎯 **Trigger**: „Wenn Gift X → spiele Sound / zeig Alert / dreh Glücksrad / …"
