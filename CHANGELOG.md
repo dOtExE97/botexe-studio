@@ -3,6 +3,16 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.16.0] — 2026-07-21
+
+### Neu: Das Einstellungs-Paket ⚙️
+- **Gift-Sound-Bremse** 🌹 (Einstellungen → Gift-Sound-Bremse): Bestimme, wie oft Geschenke denselben Sound auslösen dürfen — 0 = jedes Geschenk (wie bisher), z.B. 10 = höchstens alle 10 Sekunden. Rettet dich beim Rosen-Regen! Zusätzlich in der **Geschenke-Galerie pro Gift** einstellbar („Höchstens alle X Sek.").
+- **TTS-Tempo & Tonhöhe** 🗣️ (Stimme-Seite): Sprechgeschwindigkeit (−50%…+50%) und Tonhöhe der Standard-Stimmen regeln.
+- **Punkte für Zuschauzeit** ⏱️ (Einstellungen → Loyalty-Punkte → „pro Minute dabei"): belohnt alle, die gerade aktiv im Stream sind, jede Minute automatisch.
+- **Tägliches Auto-Backup** 💾 (standardmäßig AN): sichert die Konfiguration 1×/Tag automatisch in den Datenordner (die letzten 7 bleiben) — schützt Punkte, Overlays & Trigger vor Crash/PC-Wechsel.
+
+---
+
 ## [0.15.0] — 2026-07-21
 
 ### Trigger sind jetzt VIEL einfacher 🪄 (aus Voll-Audit mit 3 Agenten-Teams)

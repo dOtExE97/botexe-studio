@@ -220,3 +220,16 @@ test('isNewVisit: nach langer Pause neuer Besuch, im selben Stream nicht', () =>
   assert.equal(isNewVisit(1000, 1000 + 5 * 3600 * 1000, gap), true);  // 5h später → neuer Besuch
   assert.equal(isNewVisit(1000, 1000 + 1 * 3600 * 1000, gap), false); // 1h später → gleicher Stream
 });
+
+test('awardWatchTime belohnt nur kürzlich aktive Zuschauer', () => {
+  const s = new PointsStore(tmpDir());
+  const cfg = { ...DEFAULT_POINTS_CONFIG, enabled: true, perMinute: 5 };
+  const now = 1_000_000;
+  s.recordEvent({ type: 'chat', ts: now - 60_000, user: { id: 'aktiv', nickname: 'Aktiv' }, text: 'hi' }, cfg);
+  s.recordEvent({ type: 'chat', ts: now - 30 * 60_000, user: { id: 'weg', nickname: 'Weg' }, text: 'hi' }, cfg);
+  const rewarded = s.awardWatchTime(cfg, now);
+  assert.equal(rewarded, 1, 'nur der aktive Zuschauer');
+  assert.equal(s.get('aktiv')?.points, 1 + 5, 'Chat-Punkt + Watch-Time');
+  assert.equal(s.get('weg')?.points, 1, 'inaktiver bekommt nichts dazu');
+  assert.equal(s.awardWatchTime({ ...cfg, perMinute: 0 }, now), 0, 'aus = keine Vergabe');
+});

@@ -19,6 +19,10 @@ export interface TTSSettings {
   readChat: boolean;
   /** 'fixed' = eine Stimme für alle · 'perUser' = stabile Zufalls-Stimme pro User */
   chatVoiceMode: 'fixed' | 'perUser';
+  /** Sprech-Tempo in % (-50..+50, 0 = normal) — wirkt bei den Edge-Stimmen. */
+  rate: number;
+  /** Tonhöhe in Hz-Versatz (-20..+20, 0 = normal) — wirkt bei den Edge-Stimmen. */
+  pitch: number;
   /** Nachrichten, die mit ! beginnen, nicht vorlesen (Befehle). */
   skipCommands: boolean;
   maxTextLen: number;
@@ -87,6 +91,11 @@ export interface StudioSettings {
   ai: { provider: 'gemini' | 'ollama'; model: string };
   /** API-Key für den KI-Assistenten (Gemini) — Secret, nie exportieren. */
   aiApiKey: string;
+  /** Gift-Sound-Bremse: frühestens alle N Sekunden derselbe Gift-Sound
+   *  (0 = jedes Geschenk triggert). Schützt vor „Rosen-Regen"-Sound-Spam. */
+  giftSoundGapSec: number;
+  /** Tägliches Auto-Backup der Konfiguration (userData/backups, letzte 7). */
+  autoBackup: boolean;
   /** App automatisch mit Windows starten — damit Overlay-Server läuft, BEVOR
    *  OBS/TTLS die Browser-Quelle lädt (sonst „Seite nicht erreichbar"). */
   autostart: boolean;
@@ -133,6 +142,8 @@ const TTS_DEFAULTS: TTSSettings = {
   volume: 0.8,
   readChat: false,
   chatVoiceMode: 'perUser',
+  rate: 0,
+  pitch: 0,
   skipCommands: true,
   maxTextLen: 200,
   chatTemplate: '{user} sagt: {text}',
@@ -169,6 +180,8 @@ const DEFAULTS: StudioSettings = {
   tiktokConnectMode: 'cloud',
   autoLiveWatch: true,
   autostart: false,
+  giftSoundGapSec: 0,
+  autoBackup: true,
   ai: { provider: 'gemini', model: '' },
   aiApiKey: '',
   streamerbot: { enabled: false, url: 'ws://127.0.0.1:8080/' },

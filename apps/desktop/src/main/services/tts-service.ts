@@ -63,12 +63,15 @@ export class TTSService {
 
   private getCredentials: () => Record<string, ByokCredentials>;
   private readonly onError?: (message: string) => void;
+  /** Tempo/Tonhöhe aus den Settings (nur Edge-Stimmen werten es aus). */
+  private readonly getTuning?: () => { rate: number; pitch: number };
 
   constructor(
     userDataDir: string,
     onAudio: (playback: TTSPlayback) => void,
     getCredentials: () => Record<string, ByokCredentials> = () => ({}),
     onError?: (message: string) => void,
+    getTuning?: () => { rate: number; pitch: number },
   ) {
     this.cacheDir = path.join(userDataDir, 'tts-cache');
     fs.mkdirSync(this.cacheDir, { recursive: true });
@@ -76,6 +79,7 @@ export class TTSService {
     this.getCredentials = getCredentials;
     this.onAudio = onAudio;
     this.onError = onError;
+    this.getTuning = getTuning;
     // Alte Cache-Files vom letzten Lauf wegräumen
     for (const f of fs.readdirSync(this.cacheDir)) {
       fsp.unlink(path.join(this.cacheDir, f)).catch(() => undefined);
@@ -239,7 +243,7 @@ export class TTSService {
           this.getCredentials()[ns] ?? {},
           target,
         )
-      : synthesizeWith(this.piper, text, voice, target);
+      : synthesizeWith(this.piper, text, voice, target, this.getTuning?.());
 
     await Promise.race([
       work,

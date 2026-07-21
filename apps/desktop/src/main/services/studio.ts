@@ -184,6 +184,10 @@ export class Studio {
   private loggedFollowerOnce = false;
   /** Drossel für TTS-Entscheidungs-Logs (vorgelesen/übersprungen). */
   private lastTtsDecisionLogAt = 0;
+  /** soundId → letzter Gift-Sound (Gift-Sound-Bremse, settings.giftSoundGapSec). */
+  private giftSoundLastAt = new Map<string, number>();
+  /** Watch-Time-Tick (1×/Minute solange verbunden): Zuschauzeit-Punkte. */
+  private watchTimeTimer: ReturnType<typeof setInterval> | null = null;
   /** Periodische Stream-Eckdaten ins Log. */
   private statsLogTimer: ReturnType<typeof setInterval> | null = null;
   /** redemptionId → event.ts der letzten Einlösung (globaler Cooldown). */
@@ -217,6 +221,7 @@ export class Studio {
       },
       () => this.settings.get().ttsCredentials,
       (message) => this.hooks.onToast?.({ type: 'error', message }),
+      () => ({ rate: this.settings.peek().tts.rate ?? 0, pitch: this.settings.peek().tts.pitch ?? 0 }),
     );
 
     this.server = new OverlayServer(this.bus, {
@@ -287,6 +292,17 @@ export class Studio {
         // UND Overlay-Zähler/Top-Listen zurücksetzen. Bei einem Reconnect nach
         // kurzem Abriss (freshStream=false) bleibt alles stehen (Leaderboard
         // übersteht Drops).
+        // Watch-Time: Tick läuft nur, solange verbunden.
+        if (info.status === 'connected' && !this.watchTimeTimer) {
+          this.watchTimeTimer = setInterval(() => {
+            const cfg = this.settings.peek().points;
+            const n = this.points.awardWatchTime(cfg, Date.now());
+            if (n > 0) this.scheduleStatsBroadcast();
+          }, 60_000);
+        } else if (info.status !== 'connected' && this.watchTimeTimer) {
+          clearInterval(this.watchTimeTimer);
+          this.watchTimeTimer = null;
+        }
         if (info.status === 'connected' && info.freshStream) {
           if (this.restoredStatsValid) {
             // App wurde mitten in der Session neugestartet (Update) → fortsetzen,
@@ -400,6 +416,11 @@ export class Studio {
           sender: e.user ? { id: e.user.id, nickname: e.user.nickname } : undefined,
         });
         for (const soundId of collectGiftSounds(this.layouts.list(), e.gift.totalCoins)) {
+          // Gift-Sound-Bremse: bei „Rosen-Regen" nicht 50× denselben Sound feuern.
+          const gapMs = (this.settings.peek().giftSoundGapSec ?? 0) * 1000;
+          const last = this.giftSoundLastAt.get(soundId) ?? 0;
+          if (gapMs > 0 && e.ts - last < gapMs) continue;
+          this.giftSoundLastAt.set(soundId, e.ts);
           this.playSound(soundId, undefined, 'alert');
         }
         this.maybeAnnounceGift(e); // TTS-Ansage ab Coin-Schwelle

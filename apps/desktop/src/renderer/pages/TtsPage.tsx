@@ -36,6 +36,8 @@ interface TtsSettings {
   enabled: boolean;
   voice: string;
   volume: number;
+  rate?: number;
+  pitch?: number;
   readChat: boolean;
   chatVoiceMode: 'fixed' | 'perUser';
   skipCommands: boolean;
@@ -286,6 +288,24 @@ export default function TtsPage() {
               className="flex-1 accent-[#21e6c1]"
             />
             <span className="w-9 font-mono">{Math.round(tts.volume * 100)}%</span>
+          </label>
+          <label className="flex w-56 items-center gap-2 text-xs text-studio-muted" title="Sprech-Tempo — wirkt bei den Edge-Stimmen (Standard-Stimmen).">
+            Tempo
+            <input
+              type="range" min={-50} max={50} step={5} value={tts.rate ?? 0}
+              onChange={(e) => update({ rate: Number(e.target.value) })}
+              className="flex-1 accent-[#21e6c1]"
+            />
+            <span className="w-9 font-mono">{(tts.rate ?? 0) >= 0 ? '+' : ''}{tts.rate ?? 0}%</span>
+          </label>
+          <label className="flex w-56 items-center gap-2 text-xs text-studio-muted" title="Tonhöhe — wirkt bei den Edge-Stimmen.">
+            Tonhöhe
+            <input
+              type="range" min={-20} max={20} step={2} value={tts.pitch ?? 0}
+              onChange={(e) => update({ pitch: Number(e.target.value) })}
+              className="flex-1 accent-[#21e6c1]"
+            />
+            <span className="w-9 font-mono">{(tts.pitch ?? 0) >= 0 ? '+' : ''}{tts.pitch ?? 0}</span>
           </label>
         </div>
         {!needsPiperSetup && selectedVoice?.ready && (

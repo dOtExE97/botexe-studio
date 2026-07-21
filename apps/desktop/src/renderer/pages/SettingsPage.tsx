@@ -14,6 +14,7 @@ interface PointsConfig {
   perFollow: number;
   perLike: number;
   perCoin: number;
+  perMinute: number;
   currencyName: string;
 }
 
@@ -32,6 +33,7 @@ const RULE_ICON: Record<string, typeof Coins> = {
   perFollow: UserPlus,
   perCoin: Gift,
   perLike: Heart,
+  perMinute: Check,
 };
 
 export default function SettingsPage() {
@@ -56,6 +58,8 @@ export default function SettingsPage() {
   const [connectMode, setConnectMode] = useState<'cloud' | 'direct'>('cloud');
   const [autoLiveWatch, setAutoLiveWatch] = useState(true);
   const [autostart, setAutostart] = useState(false);
+  const [giftSoundGap, setGiftSoundGap] = useState(0);
+  const [autoBackup, setAutoBackup] = useState(true);
   const [aiProvider, setAiProvider] = useState<'gemini' | 'ollama'>('gemini');
   const [aiModel, setAiModel] = useState('');
   const [aiKey, setAiKey] = useState('');
@@ -74,6 +78,9 @@ export default function SettingsPage() {
       setConnectMode(s.tiktokConnectMode === 'direct' ? 'direct' : 'cloud');
       setAutoLiveWatch(s.autoLiveWatch !== false);
       setAutostart(s.autostart === true);
+      const sy = s as unknown as { giftSoundGapSec?: number; autoBackup?: boolean };
+      setGiftSoundGap(sy.giftSoundGapSec ?? 0);
+      setAutoBackup(sy.autoBackup !== false);
       const sx = s as unknown as { ai?: { provider?: string; model?: string }; aiKeySet?: boolean };
       setAiProvider(sx.ai?.provider === 'ollama' ? 'ollama' : 'gemini');
       setAiModel(sx.ai?.model ?? '');
@@ -321,6 +328,7 @@ export default function SettingsPage() {
             {numField('perFollow', 'pro Follow / Share')}
             {numField('perCoin', 'pro Gift-Coin', 'z.B. 1 = ein Punkt je Coin')}
             {numField('perLike', 'pro Like', '0 = Likes geben nichts')}
+            {numField('perMinute', 'pro Minute dabei', 'Zuschauzeit belohnen: Punkte je Minute für alle, die gerade aktiv sind (Chat/Like/Gift). 0 = aus')}
           </div>
         )}
         <div className="mt-4">
@@ -388,7 +396,7 @@ export default function SettingsPage() {
       {/* Audio-Ausgabe */}
       <section className="bx-card p-5">
         <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-teal">
-          <Speaker size={15} /> Audio-Ausgabe
+          <Speaker size={15} /> Audio-Ausgabe & Sound-Bremse
         </h2>
         <p className="mb-3 text-[12px] leading-relaxed text-studio-muted">
           Wohin Sounds & TTS abgespielt werden. <b>Standard</b> reicht für die meisten — OBS nimmt den Desktop-Ton mit.
@@ -406,6 +414,29 @@ export default function SettingsPage() {
         {outputs.length === 0 && (
           <p className="mt-2 text-[10px] text-studio-muted/70">Keine Geräte gefunden — Standard wird genutzt.</p>
         )}
+      </section>
+
+      {/* Gift-Sound-Bremse (Anti-Spam) */}
+      <section className="bx-card p-5">
+        <h2 className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <Gift size={15} /> Gift-Sound-Bremse
+        </h2>
+        <p className="mb-2 text-[11px] text-studio-muted">
+          Wie oft dürfen Geschenke denselben Sound auslösen? Bei <b>0</b> triggert <b>jedes</b> Geschenk (Standard). Mit z.B. <b>10</b> spielt derselbe Sound höchstens alle 10 Sekunden — rettet dich beim „Rosen-Regen". 🌹🌹🌹
+        </p>
+        <label className="flex w-72 items-center gap-2 text-xs text-studio-muted">
+          Frühestens alle
+          <input
+            type="number" min={0} max={600} value={giftSoundGap}
+            onChange={(e) => setGiftSoundGap(Math.max(0, Number(e.target.value)))}
+            onBlur={() => void window.studio.updateSettings({ giftSoundGapSec: giftSoundGap })}
+            className="bx-input w-20 font-mono"
+          />
+          Sekunden <span className="text-studio-muted/60">(0 = jedes Gift)</span>
+        </label>
+        <p className="mt-2 text-[10px] text-studio-muted/70">
+          Gilt für die Sounds der Gift-Widgets (Alert & Co.). Trigger-Regeln haben zusätzlich ihren eigenen Cooldown — auch in der Geschenke-Galerie einstellbar.
+        </p>
       </section>
 
       {/* Spotify */}
@@ -808,6 +839,16 @@ export default function SettingsPage() {
         <p className="mt-2 text-[10px] text-studio-muted/70">
           Backup sichert Einstellungen, Trigger, Store, Panel, Overlays & Zuschauer-Punkte in eine Datei (für PC-Wechsel / Sicherheit). Sounds & Medien liegen separat im Datenordner.
         </p>
+        <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-studio-border/60 p-3 text-[11px] text-studio-muted">
+          <input
+            type="checkbox" checked={autoBackup}
+            onChange={(e) => { setAutoBackup(e.target.checked); void window.studio.updateSettings({ autoBackup: e.target.checked }); }}
+            className="mt-0.5"
+          />
+          <span>
+            <b className="text-studio-fg">Tägliches Auto-Backup</b> — sichert die Konfiguration automatisch 1×/Tag in den Datenordner (Unterordner „backups", die letzten 7 bleiben). Empfohlen.
+          </span>
+        </label>
         <p className="mt-2 text-[10px] text-studio-muted/70">
           Bei Problemen: „Logs öffnen" — dort liegt für jeden App-Start eine Datei mit allem, was passiert/failt.
         </p>

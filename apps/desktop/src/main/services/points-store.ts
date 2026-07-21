@@ -16,6 +16,10 @@ export interface PointsConfig {
   perLike: number;
   /** Punkte pro Coin eines Gifts. */
   perCoin: number;
+  /** Punkte pro Minute Zuschauzeit (0 = aus). Zählt für Zuschauer, die in den
+   *  letzten Minuten aktiv waren (Chat/Like/Gift) — reine Lurker ohne jede
+   *  Interaktion kann TikTok uns nicht nennen. */
+  perMinute: number;
   /** Anzeigename der Währung (z.B. „Punkte", „Coins", „XP"). */
   currencyName: string;
 }
@@ -26,6 +30,7 @@ export const DEFAULT_POINTS_CONFIG: PointsConfig = {
   perFollow: 50,
   perLike: 0,
   perCoin: 1,
+  perMinute: 0,
   currencyName: 'Punkte',
 };
 
@@ -168,6 +173,22 @@ export class PointsStore {
     }
     this.viewers.set(user.id, e);
     this.scheduleSave();
+  }
+
+  /** Zuschauzeit belohnen: perMinute Punkte an alle, die in den letzten
+   *  activeWindowMs aktiv waren (Chat/Like/Gift). Vom Studio 1×/Minute
+   *  aufgerufen, solange der Stream verbunden ist. Liefert Anzahl Belohnter. */
+  awardWatchTime(cfg: PointsConfig, now: number, activeWindowMs = 5 * 60_000): number {
+    if (!cfg.enabled || cfg.perMinute <= 0) return 0;
+    let n = 0;
+    for (const e of this.viewers.values()) {
+      if (e.lastSeen !== undefined && now - e.lastSeen <= activeWindowMs) {
+        e.points = Math.max(0, e.points + cfg.perMinute);
+        n++;
+      }
+    }
+    if (n > 0) this.scheduleSave();
+    return n;
   }
 
   setFlag(userId: string, flag: ViewerFlag, value: boolean): void {

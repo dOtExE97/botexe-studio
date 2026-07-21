@@ -4,7 +4,7 @@
 // legt im Hintergrund eine Trigger-Regel an (wie bei TikFinity). Der Erst-
 // Schenker jedes Gifts ist mit Datum verewigt. 🏆
 import { useEffect, useMemo, useState } from 'react';
-import { Gift, Search, Crown, Coins, Volume2, Sparkles, Mic, Plus, Trash2, Play, X, Star } from 'lucide-react';
+import { Gift, Search, Crown, Coins, Volume2, Sparkles, Mic, Plus, Trash2, Play, X, Star, Clock } from 'lucide-react';
 import type { TriggerRule, TriggerAction } from '@botexe/trigger-engine';
 import { findGiftRule, upsertGiftRule, otherGiftRules } from '@botexe/trigger-engine';
 import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
@@ -321,6 +321,21 @@ function GiftActionPanel({
         ))}
       </div>
 
+      {rule && actions.length > 0 && (
+        <label className="flex items-center gap-2 text-[11px] text-studio-muted" title="Wie oft dieses Gift seine Aktionen maximal auslöst. 0 = jedes Mal. Rettet bei Gift-Spam (z.B. Rosen-Regen).">
+          <Clock size={12} /> Höchstens alle
+          <input
+            type="number" min={0} max={600}
+            value={Math.round((rule.cooldownMs ?? 0) / 1000)}
+            onChange={(e) => {
+              const sec = Math.max(0, Math.min(600, Number(e.target.value) || 0));
+              onSaveRules(rules.map((r) => (r.id === rule.id ? { ...r, cooldownMs: sec * 1000 } : r)));
+            }}
+            className="bx-input w-16 font-mono text-xs"
+          />
+          Sek. <span className="text-studio-muted/60">(0 = jedes Gift)</span>
+        </label>
+      )}
       {others.length > 0 && (
         <p className="mt-1 text-[10px] text-studio-muted">
           + {others.length} weitere eigene Regel(n) auf der Trigger-Seite nutzen dieses Gift.

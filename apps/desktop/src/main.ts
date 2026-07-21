@@ -850,6 +850,7 @@ function registerIpc(): void {
         ...(typeof pc.perFollow === 'number' ? { perFollow: Math.max(0, pc.perFollow) } : {}),
         ...(typeof pc.perLike === 'number' ? { perLike: Math.max(0, pc.perLike) } : {}),
         ...(typeof pc.perCoin === 'number' ? { perCoin: Math.max(0, pc.perCoin) } : {}),
+        ...(typeof pc.perMinute === 'number' ? { perMinute: Math.max(0, pc.perMinute) } : {}),
         ...(typeof pc.currencyName === 'string' ? { currencyName: pc.currencyName.slice(0, 24) } : {}),
       };
     }
@@ -866,6 +867,8 @@ function registerIpc(): void {
         ...(typeof t.skipCommands === 'boolean' ? { skipCommands: t.skipCommands } : {}),
         ...(typeof t.maxTextLen === 'number' ? { maxTextLen: Math.min(500, Math.max(20, t.maxTextLen)) } : {}),
         ...(typeof t.chatTemplate === 'string' ? { chatTemplate: t.chatTemplate } : {}),
+        ...(typeof t.rate === 'number' ? { rate: Math.min(50, Math.max(-50, Math.round(t.rate))) } : {}),
+        ...(typeof t.pitch === 'number' ? { pitch: Math.min(20, Math.max(-20, Math.round(t.pitch))) } : {}),
         ...(Array.isArray(t.readGroups)
           ? {
               readGroups: (t.readGroups as unknown[]).filter(
@@ -906,6 +909,8 @@ function registerIpc(): void {
     if (p.tiktokConnectMode === 'cloud' || p.tiktokConnectMode === 'direct') allowed.tiktokConnectMode = p.tiktokConnectMode;
     if (typeof p.autoLiveWatch === 'boolean') allowed.autoLiveWatch = p.autoLiveWatch;
     if (typeof p.autostart === 'boolean') allowed.autostart = p.autostart;
+    if (typeof p.giftSoundGapSec === 'number') allowed.giftSoundGapSec = Math.min(600, Math.max(0, Math.round(p.giftSoundGapSec)));
+    if (typeof p.autoBackup === 'boolean') allowed.autoBackup = p.autoBackup;
     if (typeof p.spotifyClientId === 'string') allowed.spotifyClientId = p.spotifyClientId.trim().slice(0, 100);
     if (typeof p.moderation === 'object' && p.moderation !== null) {
       const m = p.moderation as Record<string, unknown>;
@@ -1066,6 +1071,28 @@ app.whenReady().then(async () => {
     });
   }, 6000);
   setupAutoUpdate(); // Hintergrund-Update-Check + Event-Weiterleitung ans UI
+  // Auto-Backup: 1×/Tag die (secret-freie) Konfiguration nach userData/backups
+  // sichern — schützt Punkte/Overlays/Trigger vor Crash & PC-Wechsel.
+  const runAutoBackup = () => {
+    try {
+      if (!studio || studio.settings.get().autoBackup === false) return;
+      const dir = path.join(app.getPath('userData'), 'backups');
+      fs.mkdirSync(dir, { recursive: true });
+      const stamp = new Date().toISOString().slice(0, 10);
+      const file = path.join(dir, `botexe-auto-backup-${stamp}.json`);
+      if (fs.existsSync(file)) return; // heute schon gesichert
+      const bundle = { app: app.getVersion(), exportedAt: new Date().toISOString(), ...studio.exportConfig() };
+      fs.writeFileSync(file, JSON.stringify(bundle), 'utf-8');
+      // Nur die letzten 7 behalten.
+      const old = fs.readdirSync(dir).filter((f2) => f2.startsWith('botexe-auto-backup-')).sort();
+      for (const f2 of old.slice(0, -7)) fs.unlinkSync(path.join(dir, f2));
+      log.info('Backup', `Auto-Backup gespeichert: ${file}`);
+    } catch (err) {
+      log.warn('Backup', 'Auto-Backup fehlgeschlagen', (err as Error).message);
+    }
+  };
+  setTimeout(runAutoBackup, 20_000);
+  setInterval(runAutoBackup, 24 * 3600 * 1000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

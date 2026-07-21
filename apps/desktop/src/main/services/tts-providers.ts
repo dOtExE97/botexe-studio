@@ -47,9 +47,15 @@ const EDGE_VOICES: Array<[string, string, 'de' | 'en']> = [
   ['en-GB-RyanNeural', 'Ryan (EN-GB, Mann)', 'en'],
 ];
 
-async function edgeSynthesize(text: string, voiceId: string, target: string): Promise<void> {
+async function edgeSynthesize(text: string, voiceId: string, target: string, tuning?: { rate?: number; pitch?: number }): Promise<void> {
   const lang = voiceId.split('-').slice(0, 2).join('-');
-  const engine = new EdgeTTS({ voice: voiceId, lang, volume: '+0%' });
+  const fmtSigned = (n: number, unit: string) => `${n >= 0 ? '+' : ''}${Math.round(n)}${unit}`;
+  const engine = new EdgeTTS({
+    voice: voiceId, lang, volume: '+0%',
+    // Tempo/Tonhöhe aus den Einstellungen (0 = neutral).
+    rate: fmtSigned(Math.max(-50, Math.min(50, tuning?.rate ?? 0)), '%'),
+    pitch: fmtSigned(Math.max(-20, Math.min(20, tuning?.pitch ?? 0)), 'Hz'),
+  });
   await engine.ttsPromise(text, target);
 }
 
@@ -235,12 +241,13 @@ export async function synthesizeWith(
   text: string,
   voice: string,
   target: string,
+  tuning?: { rate?: number; pitch?: number },
 ): Promise<void> {
   const normalized = normalizeVoiceId(voice);
   const [ns, id] = normalized.split(':', 2) as [string, string];
   switch (ns) {
     case 'edge':
-      return edgeSynthesize(text, id, target);
+      return edgeSynthesize(text, id, target, tuning); // Tempo/Pitch nur bei Edge
     case 'piper':
       return piper.synthesize(text, id, target);
     case 'gtts':
