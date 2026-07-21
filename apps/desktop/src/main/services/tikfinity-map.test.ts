@@ -124,7 +124,8 @@ test('mapWidgets: Glücksrad-Segmente (sortiert) + Social-Kanäle → Layer', ()
     },
   };
   const r = mapWidgets(cfg, () => `w-${++n}`);
-  assert.equal(r.layers.length, 2);
+  // 2 Alert-Widgets (immer) + Rad + Social.
+  assert.equal(r.layers.length, 4);
   const wheel = r.layers.find((l) => l.widgetType === 'wheel');
   assert.equal(wheel?.props?.segments, 'A|B', 'nach order sortiert, leere raus');
   assert.equal(wheel?.props?.title, 'Mein Rad');
@@ -132,8 +133,36 @@ test('mapWidgets: Glücksrad-Segmente (sortiert) + Social-Kanäle → Layer', ()
   assert.equal(social?.props?.channels, 'tiktok:exe | discord:link');
 });
 
-test('mapWidgets: ohne Daten → keine Layer', () => {
-  assert.equal(mapWidgets({ dynamicSettings: {} }, () => 'x').layers.length, 0);
+test('visueller Gift-Trigger (nur Animation) → fire_alert auf unseren Gift-Alert statt wegfallen', () => {
+  n = 0;
+  const r = mapTikfinity(
+    cfg(
+      [{ active: true, triggerTypeId: 4, giftName: 'Rose', giftId: 5655, actionIds: [1] }],
+      [{ id: 1, animationUrl: '/assets/lotties/x.json', name: 'Rosen-Effekt' }], // NUR Animation, kein Sound/TTS
+    ),
+    soundId, newId,
+    { gift: 'alert-1', follow: 'alert-2' },
+  );
+  assert.equal(r.triggerRules.length, 1, 'Regel fällt NICHT weg (früher: „ohne Aktion")');
+  const rule = r.triggerRules[0]!;
+  assert.deepEqual(rule.actions, [{ kind: 'fire_alert', targetId: 'alert-1' }], 'Animation → unser Gift-Alert');
+});
+
+test('Gift-Trigger mit Sound + Animation → Sound bleibt, Alert kommt dazu', () => {
+  n = 0;
+  const r = mapTikfinity(
+    cfg([{ active: true, triggerTypeId: 9, actionIds: [1] }], [{ id: 1, audioUrl: 'https://x/applepay.mp3', animationUrl: '/assets/lotties/y.json' }]),
+    soundId, newId, { follow: 'alert-f' },
+  );
+  const acts = r.triggerRules[0]?.actions ?? [];
+  assert.ok(acts.some((a) => a.kind === 'play_sound'), 'Sound bleibt');
+  assert.ok(acts.some((a) => a.kind === 'fire_alert' && (a as { targetId: string }).targetId === 'alert-f'), 'Follow-Alert kommt dazu');
+});
+
+test('mapWidgets: immer Gift-/Follow-Alert für die Trigger-Ersetzung', () => {
+  const r = mapWidgets({ dynamicSettings: {} }, () => 'x');
+  const types = r.layers.map((l) => l.widgetType).sort();
+  assert.deepEqual(types, ['follow-alert', 'gift-alert'], 'ohne genutzte Widgets bleiben nur die Alert-Ziele');
 });
 
 test('mapWidgets: v4-Design-Import — Coin-Glas, angepasstes Ziel, Chat, Top-Gifter', () => {
@@ -159,7 +188,8 @@ test('mapWidgets: v4-Design-Import — Coin-Glas, angepasstes Ziel, Chat, Top-Gi
     },
   };
   const r = mapWidgets(cfg, () => `w-${++n}`);
-  const types = r.layers.map((l) => l.widgetType).sort();
+  // Alert-Widgets kommen immer dazu → nur die inhaltlichen Widgets prüfen.
+  const types = r.layers.map((l) => l.widgetType).filter((t) => t !== 'gift-alert' && t !== 'follow-alert').sort();
   assert.deepEqual(types, ['chat-box', 'gift-jar', 'goal-bar', 'leaderboard']);
 
   const goal = r.layers.find((l) => l.widgetType === 'goal-bar');

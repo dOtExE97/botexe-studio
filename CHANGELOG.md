@@ -3,6 +3,13 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.24.0] — 2026-07-22
+
+### TikFinity-Import: Overlay & Trigger kommen jetzt wirklich rüber 🔧
+Zwei echte Probleme beim realen Import behoben:
+- **Leeres Overlay nach dem Import:** Das importierte Layout wurde zwar angelegt, aber nicht als *aktiv* gesetzt (`activeLayoutId` zeigte noch aufs alte Profil) → das neue Profil zeigte nichts. Jetzt wird das TikFinity-Overlay direkt aktiviert.
+- **Trigger „reagierten nicht sichtbar":** Deine TikFinity-Trigger waren oft *„Gift → zeig diese Animation/dieses Video"*. Die Grafiken sind TikFinity-Eigentum (nicht kopierbar), also gingen die Trigger vorher ihre sichtbare Wirkung verloren — manche fielen ganz weg. Jetzt liefert der Import **immer einen Gift- und Follow-Alert** mit, und solche Trigger feuern **stattdessen unseren Alert** (Gift-Bild + Spender). So macht „Gift → Reaktion" wieder etwas Sichtbares.
+
 ## [0.23.1] — 2026-07-22
 
 ### Fix: Einfügen ging nur mit Strg+V

@@ -1093,17 +1093,37 @@ export class Studio {
       } catch { soundFails.push(url); }
     }
 
-    const { triggerRules, chatCommands, report } = mapTikfinity(cfg, (u) => soundMap.get(u), () => crypto.randomUUID());
+    // Widgets ZUERST — mapWidgets legt u.a. Gift-/Follow-Alert an; deren Layer-
+    // IDs brauchen die Trigger, um visuelle TikFinity-Aktionen durch unseren
+    // Alert zu ersetzen (sonst „connecten" die Gift-Trigger nicht sichtbar).
     const { layers, report: widgetReport } = mapWidgets(cfg, () => crypto.randomUUID());
+    const alerts = {
+      gift: layers.find((l) => l.widgetType === 'gift-alert')?.id,
+      follow: layers.find((l) => l.widgetType === 'follow-alert')?.id,
+    };
+    const { triggerRules, chatCommands, report } = mapTikfinity(cfg, (u) => soundMap.get(u), () => crypto.randomUUID(), alerts);
 
     // Bundle = aktueller Stand als valide Basis, mit den importierten Regeln/
     // Befehlen + (falls vorhanden) einem Overlay aus den übernehmbaren Widgets.
     const base = this.exportConfig();
     const now = new Date().toISOString();
+    const importLayoutId = crypto.randomUUID();
     const layouts = layers.length
-      ? [{ schemaVersion: 1 as const, id: crypto.randomUUID(), name: 'TikFinity Overlay', canvas: { width: 1080, height: 1920, background: 'transparent' as const }, layers, createdAt: now, updatedAt: now }]
+      ? [{ schemaVersion: 1 as const, id: importLayoutId, name: 'TikFinity Overlay', canvas: { width: 1080, height: 1920, background: 'transparent' as const }, layers, createdAt: now, updatedAt: now }]
       : (base.layouts as unknown[]);
-    const bundle = { ...base, settings: { ...(base.settings as Record<string, unknown>), triggerRules, chatCommands }, layouts };
+    // WICHTIG: das importierte Layout auch AKTIV setzen — sonst zeigt das neue
+    // Profil ein leeres Overlay (activeLayoutId zeigte sonst auf ein Layout des
+    // alten Profils, das hier gar nicht existiert).
+    const bundle = {
+      ...base,
+      settings: {
+        ...(base.settings as Record<string, unknown>),
+        triggerRules,
+        chatCommands,
+        ...(layers.length ? { activeLayoutId: importLayoutId } : {}),
+      },
+      layouts,
+    };
     const p = this.profiles.create('TikFinity-Import', bundle, Date.now(), 'tikfinity');
 
     const imported = [

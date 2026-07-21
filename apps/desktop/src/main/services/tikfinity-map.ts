@@ -77,11 +77,17 @@ function mapAction(a: TfAction, soundIdForUrl: (url: string) => string | undefin
   }
   if (a.obsSceneId) out.push({ kind: 'obs_scene', scene: a.obsSceneId });
   if (a.streamerbotActionId) out.push({ kind: 'streamerbot_action', action: a.streamerbotActionId });
-  // Nicht abbildbar:
-  if (a.animationUrl && !/^https?:\/\//i.test(a.animationUrl)) skipped.push(`Overlay-Animation „${a.name ?? ''}" (TikFinity-eigen)`);
-  if (a.videoUrl) skipped.push(`Video-Overlay „${a.name ?? ''}" (manuell neu anlegen)`);
+  // Visuelle TikFinity-Aktionen: die Original-Grafik/das Video können wir nicht
+  // 1:1 holen (proprietär) — der Aufrufer ersetzt sie durch unseren Alert.
+  if (a.animationUrl && !/^https?:\/\//i.test(a.animationUrl)) skipped.push(`Overlay-Animation „${a.name ?? ''}" → durch unseren Alert ersetzt`);
+  if (a.videoUrl) skipped.push(`Video „${a.name ?? ''}" → durch unseren Alert ersetzt (Video ggf. manuell)`);
   if (a.keystrokes?.trim()) skipped.push(`Tastendruck-Aktion „${a.name ?? ''}" (nicht unterstützt)`);
   return out;
+}
+
+/** Hatte die Original-Aktion ein visuelles Overlay (Lottie/Video)? */
+function actHasVisual(a: TfAction): boolean {
+  return (!!a.animationUrl && !/^https?:\/\//i.test(a.animationUrl)) || !!a.videoUrl;
 }
 
 interface TfWheelSeg { text?: string; order?: number }
@@ -115,6 +121,13 @@ export function mapWidgets(config: TikfinityConfig, newId: () => string): { laye
   const add = (widgetType: string, name: string, x: number, y: number, w: number, h: number, props: Record<string, unknown>) => {
     layers.push({ id: newId(), widgetType, name, x, y, w, h, z: layers.length + 1, visible: true, props });
   };
+
+  // Alert-Widgets IMMER mitliefern — TikFinitys visuelle Trigger („Gift → zeig
+  // Animation/Video") können wir nicht 1:1 holen, aber die Trigger feuern beim
+  // Import stattdessen UNSEREN Gift-/Follow-Alert (siehe mapTikfinity). Ohne diese
+  // Widgets hätten die ersetzten Trigger kein Ziel. Idle sind sie unsichtbar.
+  add('gift-alert', 'Gift-Alert', 300, 400, 480, 360, { minCoins: 0 });
+  add('follow-alert', 'Follow-Alert', 60, 60, 460, 90, {});
 
   // Glücksrad — Segmente aus widget_wheelofactions_wheels (JSON-String).
   const wheels = parseJson<Array<{ name?: string; segments?: TfWheelSeg[] }>>(ds.widget_wheelofactions_wheels, []);
@@ -196,6 +209,8 @@ export function mapTikfinity(
   config: TikfinityConfig,
   soundIdForUrl: (url: string) => string | undefined,
   newId: () => string,
+  /** Ziel-Layer-IDs für die Alert-Ersetzung visueller TikFinity-Trigger. */
+  alerts?: { gift?: string; follow?: string },
 ): { triggerRules: TriggerRule[]; chatCommands: ChatCommand[]; report: ImportReport } {
   const actionsById = new Map<number, TfAction>();
   for (const a of (config.actions ?? []) as TfAction[]) if (a.id != null) actionsById.set(a.id, a);
@@ -231,6 +246,15 @@ export function mapTikfinity(
 
     const event = EVENT_BY_TRIGGER[tt];
     if (!event) { skipped.push(`Trigger „${TRIGGER_LABEL[tt] ?? tt}" (kein Gegenstück)`); continue; }
+
+    // Zeigte der Original-Trigger ein visuelles Overlay (Lottie/Video)? Dann
+    // unseren Alert feuern lassen — so bleibt der Trigger sichtbar (und fällt
+    // nicht als „ohne Aktion" weg). Gift→Gift-Alert, Follow→Follow-Alert.
+    const alertId = event === 'gift' ? alerts?.gift : event === 'follow' ? alerts?.follow : undefined;
+    if (acts.some(actHasVisual) && alertId && !mappedActions.some((x) => x.kind === 'fire_alert')) {
+      mappedActions.push({ kind: 'fire_alert', targetId: alertId });
+    }
+
     if (mappedActions.length === 0) { skipped.push(`„${TRIGGER_LABEL[tt] ?? tt}" ohne übernehmbare Aktion`); continue; }
 
     const conditions: NonNullable<TriggerRule['conditions']> = [];
