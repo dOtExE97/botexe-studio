@@ -64,6 +64,18 @@ export default function SettingsPage() {
   const [aiModel, setAiModel] = useState('');
   const [aiKey, setAiKey] = useState('');
   const [aiKeySet, setAiKeySet] = useState(false);
+  const [aiModels, setAiModels] = useState<{ id: string; label: string }[]>([]);
+  const [aiModelsLoading, setAiModelsLoading] = useState(false);
+
+  // Verfügbare Gemini-Modelle vom hinterlegten Key laden (fürs Dropdown).
+  const loadAiModels = () => {
+    setAiModelsLoading(true);
+    void window.studio.listAiModels().then((r) => {
+      setAiModels(r.ok && r.models ? r.models : []);
+      setAiModelsLoading(false);
+    });
+  };
+  useEffect(() => { if (aiProvider === 'gemini' && aiKeySet) loadAiModels(); }, [aiProvider, aiKeySet]);
   const [spotifyClientId, setSpotifyClientId] = useState('');
   const [spotify, setSpotify] = useState<{ connected: boolean; clientIdSet: boolean; redirectUri: string; nowPlaying: { title: string; artist: string; albumArt: string; isPlaying: boolean } | null }>({ connected: false, clientIdSet: false, redirectUri: '', nowPlaying: null });
 
@@ -703,13 +715,29 @@ export default function SettingsPage() {
             />
           </>
         )}
-        <input
-          value={aiModel}
-          onChange={(e) => setAiModel(e.target.value)}
-          onBlur={() => void window.studio.updateSettings({ ai: { provider: aiProvider, model: aiModel.trim() } })}
-          placeholder={aiProvider === 'ollama' ? 'Modell (leer = llama3.1)' : 'Modell (leer = gemini-2.0-flash)'}
-          className="bx-input mt-2 w-full font-mono text-xs"
-        />
+        {aiProvider === 'gemini' && aiModels.length > 0 ? (
+          // Dropdown mit den echten, für den Key verfügbaren Modellen.
+          <div className="mt-2 flex items-center gap-2">
+            <select
+              value={aiModels.some((m) => m.id === aiModel) ? aiModel : ''}
+              onChange={(e) => { const v = e.target.value; setAiModel(v); void window.studio.updateSettings({ ai: { provider: 'gemini', model: v } }); }}
+              className="bx-select flex-1 text-xs"
+            >
+              <option value="">✨ Automatisch (aktuelles Gratis-Modell — empfohlen)</option>
+              {aiModels.map((m) => <option key={m.id} value={m.id}>{m.label} ({m.id})</option>)}
+            </select>
+            <button onClick={loadAiModels} title="Modell-Liste neu laden" className="bx-pill flex-none text-[11px] hover:text-studio-accent"><RefreshCw size={12} className={aiModelsLoading ? 'animate-spin' : ''} /></button>
+          </div>
+        ) : (
+          // Ollama oder (noch) keine Liste ladbar → Freitext.
+          <input
+            value={aiModel}
+            onChange={(e) => setAiModel(e.target.value)}
+            onBlur={() => void window.studio.updateSettings({ ai: { provider: aiProvider, model: aiModel.trim() } })}
+            placeholder={aiProvider === 'ollama' ? 'Modell (leer = llama3.1)' : aiModelsLoading ? 'Lade Modelle…' : 'Modell (leer = aktuelles Gratis-Modell, empfohlen)'}
+            className="bx-input mt-2 w-full font-mono text-xs"
+          />
+        )}
       </section>
 
       {/* Chat-Moderation */}

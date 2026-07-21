@@ -91,6 +91,8 @@ export const IPC = {
   AI_WISH: 'ai:wish',
   /** KI-Trigger: Wunsch → neue Trigger-Regel(n). */
   AI_TRIGGER: 'ai:trigger',
+  /** Verfügbare KI-Modelle für den hinterlegten Key auflisten (Dropdown). */
+  AI_MODELS: 'ai:models',
   CONFIG_EXPORT: 'config:export',
   CONFIG_IMPORT: 'config:import',
   // Profile (umschaltbare Konfigurations-Sets) + TikFinity-Import

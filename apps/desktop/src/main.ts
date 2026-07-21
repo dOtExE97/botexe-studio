@@ -10,7 +10,7 @@ import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
 import { log, initFileLogging, getLogDir, formatLocalStamp } from './main/core/logger';
-import { generateLayers, generateRules, type AiCatalogEntry, type AiTriggerContext } from './main/services/ai-overlay';
+import { generateLayers, generateRules, listGeminiModels, type AiCatalogEntry, type AiTriggerContext } from './main/services/ai-overlay';
 import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, uninstallHostsEntry, TTLS_HOST } from './main/services/ttls-link';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
@@ -378,6 +378,8 @@ function registerIpc(): void {
     if (!ctx || !Array.isArray(ctx.sounds) || !Array.isArray(ctx.layers)) return { ok: false, error: 'Ungültige Anfrage.' };
     return generateRules({ wish: String(p.wish ?? ''), ctx, provider: s.ai.provider, apiKey: s.aiApiKey, model: s.ai.model });
   });
+  // Verfügbare Gemini-Modelle für den gespeicherten Key (Modell-Dropdown).
+  ipcMain.handle(IPC.AI_MODELS, () => listGeminiModels(isStudio().settings.get().aiApiKey));
 
   // eulerstream-Key prüfen: 200 = gültig, 401 = ungültig, sonst Netzfehler.
   // Ohne Argument wird der GESPEICHERTE Key geprüft (für Diagnose/Start-Check),

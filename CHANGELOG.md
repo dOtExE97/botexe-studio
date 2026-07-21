@@ -3,6 +3,14 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.23.0] — 2026-07-22
+
+### Fix: KI-Assistent lief in einen „Abrechnung"-Fehler 🔧
+Google hat das bisherige Standard-Modell `gemini-2.0-flash` aus dem Gratis-Tier genommen (Kontingent = 0 → 429 „billing"-Fehler) und ältere 2.5-Modelle für neue Nutzer gesperrt. Dadurch bekam **jeder** KI-Wunsch diesen Fehler, obwohl der Key gültig war. Jetzt nutzt die App standardmäßig **`gemini-flash-latest`** (Alias aufs jeweils aktuelle Gratis-Flash-Modell), migriert alte gespeicherte Modellwerte automatisch, und zeigt bei Kontingent-Fehlern eine klare Meldung statt des kryptischen Google-Texts.
+
+### Neu: Modell direkt in der App wählen 🤖
+Beim Gemini-Assistenten gibt's jetzt ein **Dropdown mit den Modellen, die dein Key wirklich kann** (live abgerufen, auf die Text-Modelle gefiltert, „-latest"-Aliase oben) — kein Abtippen mehr. Standard bleibt **„✨ Automatisch (aktuelles Gratis-Modell)"** für den sorglosen Weg; wer will, wählt gezielt ein anderes.
+
 ## [0.22.1] — 2026-07-21
 
 ### Fix: 4 Gewinnt / Tic Tac Toe verschwanden nach Inaktivität

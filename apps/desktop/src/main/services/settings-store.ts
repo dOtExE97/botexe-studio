@@ -272,9 +272,14 @@ export class SettingsStore {
       merged.mixer = normalizeMixer(raw.mixer);
       // KI-Assistent (additiv): defensiv mergen.
       const rawAi = (typeof raw.ai === 'object' && raw.ai !== null ? raw.ai : {}) as Record<string, unknown>;
+      let aiModel = typeof rawAi.model === 'string' ? rawAi.model.slice(0, 60) : '';
+      // Migration: die alten Gemini-Modelle haben kein Gratis-Kontingent mehr
+      // (gemini-2.0-flash → limit:0/429, gemini-2.5-flash → 404 für neue Nutzer).
+      // Gespeicherte Altwerte auf leer setzen → Fallback nutzt gemini-flash-latest.
+      if (/^gemini-2\.(0|5)-flash/i.test(aiModel)) aiModel = '';
       merged.ai = {
         provider: rawAi.provider === 'ollama' ? 'ollama' : 'gemini',
-        model: typeof rawAi.model === 'string' ? rawAi.model.slice(0, 60) : '',
+        model: aiModel,
       };
       merged.aiApiKey = typeof raw.aiApiKey === 'string' ? raw.aiApiKey : '';
       const gw = raw.giveaway as Record<string, unknown> | undefined;

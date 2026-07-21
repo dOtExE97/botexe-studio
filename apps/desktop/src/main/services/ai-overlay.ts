@@ -105,7 +105,10 @@ WUNSCH DES STREAMERS:
 }
 
 async function callGemini(prompt: string, apiKey: string, model: string): Promise<string> {
-  const m = model || 'gemini-2.0-flash';
+  // gemini-flash-latest = stabiler Alias aufs aktuelle Gratis-Flash-Modell.
+  // (gemini-2.0-flash hat KEIN Gratis-Kontingent mehr — limit:0 → 429; 2.5-flash
+  //  ist für neue Nutzer gesperrt → 404. -latest bleibt automatisch aktuell.)
+  const m = model || 'gemini-flash-latest';
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 45_000);
   try {
@@ -129,6 +132,37 @@ async function callGemini(prompt: string, apiKey: string, model: string): Promis
     const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
     if (!text) throw new Error('Leere Antwort von Gemini');
     return text;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Verfügbare Gemini-Modelle für den Key laden (nur die, die generateContent
+ *  können) — fürs Modell-Dropdown in den Einstellungen. Neueste zuerst. */
+export async function listGeminiModels(apiKey: string): Promise<{ ok: true; models: { id: string; label: string }[] } | { ok: false; error: string }> {
+  if (!apiKey) return { ok: false, error: 'Kein KI-Key hinterlegt.' };
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 15_000);
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=200`, { signal: ctl.signal });
+    const body = (await res.json().catch(() => ({}))) as {
+      models?: Array<{ name?: string; displayName?: string; supportedGenerationMethods?: string[] }>;
+      error?: { message?: string };
+    };
+    if (!res.ok) throw new Error(body.error?.message ?? `Gemini HTTP ${res.status}`);
+    const models = (body.models ?? [])
+      .filter((m) => m.name && (m.supportedGenerationMethods ?? []).includes('generateContent'))
+      // „…-latest"-Aliase + neuere zuerst; Vorschau/experimental nach hinten.
+      .map((m) => ({ id: (m.name ?? '').replace(/^models\//, ''), label: m.displayName || (m.name ?? '').replace(/^models\//, '') }))
+      // Nur Text-Modelle (gemini/gemma) — Bild/Audio/Robotik/Embedding raus.
+      .filter((m) => /^(gemini|gemma)/i.test(m.id) && !/embedding|aqa|imagen|veo|tts|image|audio|lyria|nano-banana|robotics/i.test(m.id))
+      .sort((a, b) => Number(/latest/.test(b.id)) - Number(/latest/.test(a.id)) || b.id.localeCompare(a.id));
+    return { ok: true, models };
+  } catch (err) {
+    const msg = (err as Error).message ?? 'unbekannt';
+    if (/API key|401|403|permission/i.test(msg)) return { ok: false, error: 'Key wird abgelehnt.' };
+    if (/abort/i.test(msg)) return { ok: false, error: 'Zeitüberschreitung.' };
+    return { ok: false, error: msg.slice(0, 120) };
   } finally {
     clearTimeout(timer);
   }
@@ -178,6 +212,7 @@ export async function generateLayers(req: AiWishRequest): Promise<{ ok: true; la
     const msg = (err as Error).message ?? 'unbekannt';
     if (/abort/i.test(msg)) return { ok: false, error: 'Zeitüberschreitung — die KI hat zu lange gebraucht. Nochmal versuchen.' };
     if (/API key|401|403|permission/i.test(msg)) return { ok: false, error: 'Der KI-Key wird abgelehnt — prüfe ihn unter Einstellungen → KI-Assistent.' };
+    if (/429|quota|billing/i.test(msg)) return { ok: false, error: 'KI-Gratis-Kontingent gerade erschöpft (oder das Modell hat keins mehr). Lass das Modell-Feld leer (nutzt automatisch das aktuelle Gratis-Modell) oder versuch es später nochmal.' };
     if (/fetch failed|ENOTFOUND|ECONNREFUSED/i.test(msg)) {
       return { ok: false, error: req.provider === 'ollama' ? 'Ollama nicht erreichbar — läuft es auf diesem PC (Port 11434)?' : 'Keine Verbindung zur KI — Internet prüfen.' };
     }
@@ -288,6 +323,7 @@ export async function generateRules(req: {
     const msg = (err as Error).message ?? 'unbekannt';
     if (/abort/i.test(msg)) return { ok: false, error: 'Zeitüberschreitung — nochmal versuchen.' };
     if (/API key|401|403/i.test(msg)) return { ok: false, error: 'Der KI-Key wird abgelehnt — Einstellungen → KI-Assistent prüfen.' };
+    if (/429|quota|billing/i.test(msg)) return { ok: false, error: 'KI-Gratis-Kontingent gerade erschöpft (oder das Modell hat keins mehr). Modell-Feld leer lassen (nutzt das aktuelle Gratis-Modell) oder später nochmal.' };
     return { ok: false, error: `KI-Fehler: ${msg.slice(0, 140)}` };
   }
 }

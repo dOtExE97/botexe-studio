@@ -97,6 +97,8 @@ const api = {
   /** KI-Trigger: Wunsch → neue Regel(n) (nur echte Sound-/Widget-IDs). */
   aiTrigger: (payload: { wish: string; ctx: { sounds: unknown[]; layers: unknown[] } }) =>
     ipcRenderer.invoke(IPC.AI_TRIGGER, payload) as Promise<{ ok: boolean; rules?: unknown[]; error?: string }>,
+  listAiModels: () =>
+    ipcRenderer.invoke(IPC.AI_MODELS) as Promise<{ ok: boolean; models?: { id: string; label: string }[]; error?: string }>,
   // Konfig-Backup
   exportConfig: () => ipcRenderer.invoke(IPC.CONFIG_EXPORT),
   importConfig: () => ipcRenderer.invoke(IPC.CONFIG_IMPORT),
