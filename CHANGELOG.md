@@ -3,6 +3,15 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.25.0] — 2026-07-22
+
+### Frische, wirklich unterschiedliche Widget-Designs 🎨
+Die Themes sahen sich zu ähnlich (fast alle „dunkle Karte, andere Tönung"). Jetzt hat **jedes Theme einen eigenen Charakter** — eigene Form, Rand, Schriftart und Farbwelt statt nur Farbe:
+- **Neon** (Cyber-Glow + Bungee), **Synthwave** (Retro-Pink/Lila), **Inferno** (Glut/Orange + Anton), **Terminal** (grün, Pixel-Schrift) — NEU
+- **Sticker** (Comic + harte Kontur + Luckiest Guy), **Carbon** (harte schwarze Kante), **Holo** (echt irisierend), **Chrome** (poliertes Metall)
+- Helle Themes **Mint, Vapor, Paper (Marker-Schrift), Bubblegum, Frost** — sauber lesbar
+- Insgesamt **24 Themes**, jedes klar erkennbar. Im Dropdown mit Emoji + Kurzbeschreibung, dazu die Live-Design-Galerie.
+
 ## [0.24.0] — 2026-07-22
 
 ### TikFinity-Import: Overlay & Trigger kommen jetzt wirklich rüber 🔧
