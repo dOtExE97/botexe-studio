@@ -103,7 +103,7 @@ export default class GiftFireworks {
     this.comboMode = props.comboMode === 'single' ? 'single' : 'fan';
     this.burstScale = Number(props.burstScale ?? 1) || 1;
     // Burst-Form: klassischer Kugel-Burst · Herz · Stern (Explosion entlang der Form).
-    this.shape = ['kreis', 'herz', 'stern'].includes(props.shape) ? props.shape : 'kreis';
+    this.shape = ['kreis', 'herz', 'stern', 'spirale', 'blume'].includes(props.shape) ? props.shape : 'kreis';
     // Neon-Name des Schenkenden im Explosionszentrum (TikFinity-Style), default an.
     this.showName = props.showName !== false;
     // Harte Obergrenze gleichzeitig fliegender Raketen (Gift-Bombing-sicher).
@@ -258,6 +258,17 @@ export default class GiftFireworks {
     if (this.shape === 'stern') {
       // 5-zackiger Stern: Radius pulsiert zwischen Spitze (1) und Kerbe (0.45).
       const rr = 0.45 + 0.55 * Math.abs(Math.cos(2.5 * t));
+      return { dx: Math.cos(t) * rr, dy: Math.sin(t) * rr };
+    }
+    if (this.shape === 'spirale') {
+      // Galaxie-Spirale: Radius wächst mit dem Index, Winkel dreht mehrfach.
+      const rr = 0.2 + 0.8 * (i / n);
+      const a = t * 3;
+      return { dx: Math.cos(a) * rr, dy: Math.sin(a) * rr };
+    }
+    if (this.shape === 'blume') {
+      // Blüte: 6 Blütenblätter (Rosenkurve).
+      const rr = 0.4 + 0.6 * Math.abs(Math.cos(3 * t));
       return { dx: Math.cos(t) * rr, dy: Math.sin(t) * rr };
     }
     return { dx: Math.cos(t), dy: Math.sin(t) };

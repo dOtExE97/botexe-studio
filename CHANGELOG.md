@@ -3,6 +3,12 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.26.0] — 2026-07-23
+
+### Mehr Listen- & Effekt-Designs 🪜🎆
+- **Bestenlisten** (Top-Gifter / Top-Likes) haben zwei neue Stile: **Treppe** (jede Platzierung als eingerückter Balken — echte absteigende Treppe, Rang 1 in Gold ganz breit) und **Nummern** (reduziert, riesige Rang-Ziffern, kein Panel).
+- **Feuerwerk** hat zwei neue Burst-Formen: **Spirale** (dreht sich wie eine Galaxie auswärts) und **Blume** (6 Blütenblätter) — zusätzlich zu Kugel/Herz/Stern.
+
 ## [0.25.0] — 2026-07-22
 
 ### Frische, wirklich unterschiedliche Widget-Designs 🎨

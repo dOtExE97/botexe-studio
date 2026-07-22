@@ -135,10 +135,37 @@ const CSS = `
 .bx-st-royal .bx-lb-name { letter-spacing: .08em; }
 .bx-st-royal .bx-lb-val { color: var(--bx-gold); }
 .bx-st-royal.bx-lb-likes .bx-lb-title, .bx-st-royal.bx-lb-likes .bx-lb-val { color: var(--bx-gold); }
+
+/* ── Stil „Treppe" — jede Platzierung als eingerückter Balken, wie eine nach
+   rechts absteigende Treppe. Rang 1 oben in Gold, ganz breit; jede Stufe schmaler. */
+.bx-st-treppe { background: none; box-shadow: none; padding: 4px 2px; }
+.bx-st-treppe::before { display: none; }
+.bx-st-treppe .bx-lb-title { border: none; margin-bottom: 6px; }
+.bx-st-treppe .bx-lb-row { border-radius: 8px 12px 12px 8px;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--bx-accent) 82%, transparent), color-mix(in srgb, var(--bx-accent) 26%, transparent));
+  box-shadow: 0 6px 16px -8px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.18); }
+.bx-st-treppe .bx-lb-row[data-rank="1"] { background: linear-gradient(100deg, #ffe88a, var(--bx-gold)); }
+.bx-st-treppe .bx-lb-name { color: #0c0d14; text-shadow: none; font-weight: 800; }
+.bx-st-treppe .bx-lb-val { color: #0c0d14; text-shadow: none; background: rgba(255,255,255,.7); border-radius: 999px; padding: 2px 10px; }
+.bx-st-treppe .bx-lb-rank { background: rgba(12,13,20,.82); color: #fff; }
+.bx-st-treppe.bx-lb-likes .bx-lb-row { background: linear-gradient(100deg, color-mix(in srgb, var(--bx-pink) 82%, transparent), color-mix(in srgb, var(--bx-pink) 26%, transparent)); }
+.bx-st-treppe.bx-lb-likes .bx-lb-row[data-rank="1"] { background: linear-gradient(100deg, #ffd0e8, var(--bx-pink)); }
+
+/* ── Stil „Nummern" — reduziert & typografisch: riesige Rang-Ziffer, Name, Wert.
+   Kein Panel, sitzt luftig auf jedem Hintergrund. */
+.bx-st-nummern { background: none; box-shadow: none; }
+.bx-st-nummern::before { display: none; }
+.bx-st-nummern .bx-lb-title { border: none; }
+.bx-st-nummern .bx-lb-row { background: none; box-shadow: none; gap: 14px; }
+.bx-st-nummern .bx-lb-rank { background: none; box-shadow: none; width: auto; min-width: 1.2em; color: color-mix(in srgb, var(--bx-text, #fff) 40%, transparent);
+  font-family: var(--bx-font-num, var(--bx-font-display)); font-size: clamp(20px, 15cqmin, 46px); font-weight: 900; }
+.bx-st-nummern .bx-lb-row[data-rank="1"] .bx-lb-rank { color: var(--bx-gold); }
+.bx-st-nummern .bx-lb-name { font-weight: 800; }
+.bx-st-nummern .bx-lb-val { font-family: var(--bx-font-num, var(--bx-font-display)); font-weight: 800; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
-const STYLES = new Set(['glas', 'neon', 'bars', 'arcade', 'podium', 'pills', 'royal']);
+const STYLES = new Set(['glas', 'neon', 'bars', 'arcade', 'podium', 'pills', 'royal', 'treppe', 'nummern']);
 
 /** URL sicher in CSS url("…") einbetten — NUR Quotes escapen, nie
  *  (nach-)encodieren: data-URIs und vor-encodierte CDN-URLs blieben sonst kaputt. */
@@ -188,6 +215,11 @@ export default class Leaderboard {
       row.dataset.rank = String(i + 1);
       if (!flexStyle) { row.style.height = `${rowH}px`; row.style.transform = `translateY(${i * rowH}px)`; }
       if (this.style === 'bars') row.style.setProperty('--bar', `${Math.max(8, (val / maxVal) * 100)}%`);
+      // Treppe: jede Stufe weiter eingerückt + schmaler → absteigende Treppe.
+      if (this.style === 'treppe') {
+        const ind = Math.min(54, i * 9); // % Einrückung pro Platz (gedeckelt)
+        row.style.left = `${ind}%`; row.style.right = 'auto'; row.style.width = `${100 - ind}%`;
+      }
       row.querySelector('.bx-lb-rank').textContent = String(i + 1);
       row.querySelector('.bx-lb-name').textContent = g.nickname;
       const valEl = row.querySelector('.bx-lb-val');
