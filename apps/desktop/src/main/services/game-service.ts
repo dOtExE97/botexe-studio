@@ -45,6 +45,11 @@ export class GameService {
    *  Duell automatisch eine neue Runde öffnet (bzw. Einzelspiele enden). */
   private resultMs = 12000;
   private autoMode = false;
+  /** Hat seit dem (Neu-)Start jemand mitgespielt? Steuert, ob ein Duell bei
+   *  Inaktivität eine frische Runde öffnet — ein NIE benutztes Brett soll NICHT
+   *  endlos alle 2 Min neu starten (Log-Spam + Overlay-Reset), sondern einfach
+   *  sichtbar warten bleiben. */
+  private activitySinceStart = false;
 
   constructor(private readonly broadcast: Broadcast, private readonly onWin: (user: WinUser) => void) {}
 
@@ -115,6 +120,7 @@ export class GameService {
     this.resetPending(); // alte Timer/Auto-Quiz-Queue weg, bevor das neue Spiel aktiv wird
     this.active = { kind, game };
     this.winReported = false;
+    this.activitySinceStart = false; // frisches Brett — noch keine Mitspieler
     this.resetIdle();
     this.push();
     const duell = kind === 'tic-tac-toe' || kind === 'connect-four';
@@ -137,8 +143,13 @@ export class GameService {
   private onIdle(): void {
     const kind = this.active?.kind;
     if (kind === 'tic-tac-toe' || kind === 'connect-four') {
-      log.info('Spiel', `${LABEL[kind]}: Inaktivität → frische Runde geöffnet (bleibt im Overlay)`);
-      this.start(kind); // öffnet neue Runde + re-armt den Idle-Timer
+      // Nur neu öffnen, wenn wirklich gespielt wurde (Runde abgebrochen) — ein nie
+      // benutztes Brett bleibt einfach sichtbar warten (kein Endlos-Neustart).
+      if (this.activitySinceStart) {
+        log.info('Spiel', `${LABEL[kind]}: Runde inaktiv → frische Runde geöffnet`);
+        this.start(kind); // öffnet neue Runde (setzt activitySinceStart=false), re-armt Idle
+      }
+      // sonst: nichts tun, kein Re-Arm → das leere Brett wartet ruhig weiter.
     } else {
       this.stop();
     }
@@ -189,6 +200,7 @@ export class GameService {
       }
       return;
     }
+    this.activitySinceStart = true; // jemand hat mitgespielt → Idle darf neu öffnen
     this.resetIdle();
     this.push();
     if (r.event === 'join') log.info('Spiel', `${LABEL[kind]}: ${event.user.nickname} macht mit`);

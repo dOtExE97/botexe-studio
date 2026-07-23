@@ -3,6 +3,14 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.26.1] — 2026-07-23
+
+### Fix: Duell-Spiel startete sich endlos neu (aus echtem Stream-Log)
+Ein Duell (4 Gewinnt / Tic Tac Toe), das offen rumstand, öffnete alle 2 Minuten eine „frische Runde" — auch wenn nie jemand mitspielte. Über einen langen Stream summierte sich das zu hunderten unnötigen Neustarts (Log-Spam + ständiges Overlay-Reset). Jetzt öffnet ein Duell nur dann automatisch neu, wenn **wirklich jemand mitgespielt** hat (Runde abgebrochen). Ein nie benutztes Brett bleibt einfach sichtbar warten.
+
+### Besser: gefeuerte Trigger landen jetzt auch im Datei-Log
+Bisher waren ausgelöste Trigger nur in der Live-Karte sichtbar, nicht im Log. Damit man bei einer späteren Diagnose sieht, ob/welche Trigger live gefeuert haben, wird jede Auslösung jetzt auch ins Datei-Log geschrieben.
+
 ## [0.26.0] — 2026-07-23
 
 ### Mehr Listen- & Effekt-Designs 🪜🎆

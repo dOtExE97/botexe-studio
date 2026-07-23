@@ -74,6 +74,21 @@ test('Duell nach Inaktivität: frische Runde statt verschwinden (kein manueller 
   }, 30));
 });
 
+test('Duell OHNE Mitspieler startet sich NICHT endlos neu (bleibt sichtbar warten)', () => {
+  let broadcasts = 0;
+  const s = new GameService(() => { broadcasts += 1; }, () => { /* egal */ });
+  (s as unknown as { idleMs: number }).idleMs = 8;
+  s.start('connect-four'); // niemand macht „!join"
+  const afterStart = broadcasts;
+  return new Promise<void>((resolve) => setTimeout(() => {
+    assert.equal(s.getState()?.kind, 'connect-four', 'Brett bleibt sichtbar (nicht beendet)');
+    // Kein Neustart-Broadcast-Sturm: nach dem Start kamen ~keine weiteren Spiel-Broadcasts.
+    assert.ok(broadcasts - afterStart <= 1, `kein Neustart-Loop (Broadcasts nach Start: ${broadcasts - afterStart})`);
+    s.stop();
+    resolve();
+  }, 40)); // 40ms ≫ 8ms idle → früher wären das mehrere Neustarts gewesen
+});
+
 test('Einzelspiel (Galgenmännchen) endet nach Inaktivität wie gehabt', () => {
   const s = new GameService(() => { /* egal */ }, () => { /* egal */ });
   (s as unknown as { idleMs: number }).idleMs = 8;

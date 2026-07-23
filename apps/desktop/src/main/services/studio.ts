@@ -459,6 +459,9 @@ export class Studio {
 
   /** Eine gefeuerte Aktion ins Live-Protokoll schreiben (Live-Seite). */
   private logTrigger(ruleId: string, action: import('@botexe/trigger-engine').TriggerAction, event: StudioEvent): void {
+    // Auch ins Datei-Log — so ist bei einer späteren Diagnose sichtbar, ob und
+    // welche Trigger live gefeuert haben (nicht nur in der UI-Karte).
+    log.info('Trigger', `„${this.ruleLabel(ruleId)}" → ${ACTION_LABELS[action.kind] ?? action.kind} (${this.eventReason(event)})`);
     if (!this.hooks.onTriggerLog) return;
     this.hooks.onTriggerLog({
       id: `tl-${Date.now().toString(36)}-${this.triggerLogSeq++}`,
