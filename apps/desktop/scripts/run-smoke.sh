@@ -29,7 +29,11 @@ cleanup() {
 trap cleanup EXIT
 
 echo "🚀 Starte App headless (xvfb, Debug-Port $PORT)…"
-xvfb-run -a "$BIN" --no-sandbox --disable-gpu --disable-software-rasterizer \
+# WICHTIG: KEIN --disable-gpu! Das schaltet den Compositor ab → es entstehen nie
+# Frames, und Page.captureScreenshot hängt endlos (Screenshots waren dadurch
+# monatelang unmöglich). Mit SwiftShader (Software-GL) rendert Chromium normal
+# weiter und Screenshots kommen in <1s.
+xvfb-run -a "$BIN" --no-sandbox --enable-unsafe-swiftshader \
   --remote-debugging-port="$PORT" > /tmp/botexe-smoke-app.log 2>&1 &
 APP_PID=$!
 
