@@ -29,7 +29,9 @@ const CSS = `
 .bx-boss-avawrap { position:relative; flex:0 0 auto;
   width: clamp(18px, min(11cqi, 24cqh), 132px); height: clamp(18px, min(11cqi, 24cqh), 132px); }
 /* font-size hier ist die Bezugsgröße für die Initiale des .bx-av-Fallbacks
-   (widget-base.css zeichnet sie mit 52% der Elementschrift). */
+   (widget-base.css zeichnet sie mit 52% der Elementschrift). Bewusst OHNE
+   --bx-fs: der Buchstabe sitzt in einem Kreis fester Größe und würde sonst
+   herauslaufen — die Textgrößen-Einstellung wirkt auf echte Texte. */
 .bx-boss-ava { width:100%; height:100%; border-radius:50%; overflow:hidden;
   font-size: clamp(14px, min(9cqi, 20cqh), 110px);
   border:2px solid var(--bx-boss-accent); box-shadow: 0 0 16px -2px var(--bx-boss-accent); }
@@ -41,10 +43,10 @@ const CSS = `
   box-shadow: 0 0 0 2px var(--bx-boss-accent), 0 2px 6px rgba(0,0,0,.6); }
 .bx-boss-crest svg { width:70%; height:70%; color: var(--bx-boss-accent); }
 .bx-boss-name { flex:1 1 auto; min-width:0; font-family: var(--bx-font-display);
-  font-size: clamp(9px, min(6cqi, 15cqh), 46px); letter-spacing:.04em; text-transform:uppercase; line-height:1.1;
+  font-size: calc(clamp(9px, min(6cqi, 15cqh), 46px) * var(--bx-fs, 1)); letter-spacing:.04em; text-transform:uppercase; line-height:1.1;
   color: var(--bx-text, #fff); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   text-shadow: 0 0 16px var(--bx-boss-accent); }
-.bx-boss-lvl { flex:0 0 auto; font-family: var(--bx-font-display); font-size: clamp(7px, min(3.6cqi, 9cqh), 30px);
+.bx-boss-lvl { flex:0 0 auto; font-family: var(--bx-font-display); font-size: calc(clamp(7px, min(3.6cqi, 9cqh), 30px) * var(--bx-fs, 1));
   padding: .18em .7em; border-radius: 999px; letter-spacing:.1em; text-transform:uppercase;
   color:#0a0b12; background: var(--bx-boss-accent);
   box-shadow: 0 0 14px -2px var(--bx-boss-accent); }
@@ -54,22 +56,29 @@ const CSS = `
   background: linear-gradient(90deg, color-mix(in srgb, var(--bx-boss-color, var(--bx-accent)) 70%, #000), var(--bx-boss-color, var(--bx-accent)));
   box-shadow: 0 0 18px var(--bx-boss-color, var(--bx-accent)); transition: width .4s cubic-bezier(.2,1,.3,1), background .4s; }
 .bx-boss-hptxt { position:absolute; inset:0; display:grid; place-items:center;
-  font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size: clamp(7px, min(3.4cqi, 8.5cqh), 26px);
+  font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size: calc(clamp(7px, min(3.4cqi, 8.5cqh), 26px) * var(--bx-fs, 1));
   color:#fff; -webkit-text-stroke: 2px #0a0b12; paint-order: stroke fill; }
-.bx-boss-dmg { display:flex; flex-direction:column; gap:.25em; font-size: clamp(6px, min(2.9cqi, 7cqh), 24px); }
-.bx-boss-dmg-row { display:flex; align-items:center; gap:.5em; color: var(--bx-muted); }
+.bx-boss-dmg { display:flex; flex-direction:column; gap:.25em; font-size: calc(clamp(8px, min(3.4cqi, 8cqh), 28px) * var(--bx-fs, 1)); }
+.bx-boss-dmg-row { display:flex; align-items:center; gap:.5em; color: #c3cadd; }
 .bx-boss-dmg-rank { flex:0 0 auto; width: 2.4em; text-align:center;
   font-family: var(--bx-font-display); color: var(--bx-boss-accent); }
 .bx-boss-dmg-name { flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   color: var(--bx-text, #fff); }
 .bx-boss-dmg-val { flex:0 0 auto; font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:700;
   color: var(--bx-boss-accent); }
+/* In sehr flachen Kästchen passen Kopfzeile, HP-Balken UND Schadensliste nicht
+   mehr übereinander — mit hochgedrehter Textgröße erst recht nicht. Dann lieber
+   WENIGER zeigen als abschneiden: die Schadensliste fällt weg, Boss und HP
+   bleiben. (Die Liste war dort ohnehin nur noch ein 6-px-Strich.) */
+@container (max-height: 125px) {
+  .bx-boss-dmg { display: none; }
+}
 .bx-boss.hit .bx-boss-track { animation: bx-boss-shake .35s ease; }
 @keyframes bx-boss-shake { 0%,100%{ transform:translateX(0) } 25%{ transform:translateX(-3px) } 75%{ transform:translateX(3px) } }
 .bx-boss.defeated { animation: bx-boss-defeat 1.1s ease forwards; }
 @keyframes bx-boss-defeat { 0%{ transform:none; filter:none } 20%{ transform:scale(1.04); filter: brightness(1.6) } 100%{ transform:scale(.9) rotate(-1deg); filter: grayscale(1) brightness(.5); opacity:0 } }
 .bx-boss-slain { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none;
-  font-family: var(--bx-font-display); font-size: clamp(22px, min(9cqi, 22cqh), 96px); letter-spacing:.08em;
+  font-family: var(--bx-font-display); font-size: calc(clamp(22px, min(9cqi, 22cqh), 96px) * var(--bx-fs, 1)); letter-spacing:.08em;
   color:#fff; -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill;
   text-shadow: 0 0 24px var(--bx-boss-accent); opacity:0; }
 .bx-boss.defeated .bx-boss-slain { animation: bx-boss-slain-in .9s ease; }
@@ -94,6 +103,20 @@ const CSS = `
 .bx-boss-duester .bx-boss-name { color: #ffd9d0; text-shadow: 0 0 18px rgba(255,60,50,.8), 0 2px 4px #000; }
 .bx-boss-duester { --bx-boss-accent: #c81e28; }
 .bx-boss-duester .bx-boss-ava { border-radius: 4px; }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Balken und Level-Chip haben eigene Flächen. Frei auf dem Video stehen der
+   Bossname und die Schadensliste — beide weiß bzw. blass und auf heller Szene
+   unsichtbar. Kontur deshalb nur dort.
+   Bei arcade/duester bleibt der eigene Gehäuse-Schatten stehen: er IST die Form
+   des Stils, „Rahmen ausblenden" ist dort gegenstandslos. */
+.bx-frameless .bx-boss:not(.bx-boss-arcade):not(.bx-boss-duester) { box-shadow: none; }
+/* Der Düster-Stil zeichnet seinen Rahmen als border — die globale
+   frameless-Regel hätte ihn ersatzlos gelöscht. */
+.bx-frameless .bx-boss-duester { border-color: rgba(200,30,40,.55) !important; }
+.bx-frameless .bx-boss-name, .bx-frameless .bx-boss-dmg, .bx-frameless .bx-boss-slain {
+  -webkit-text-stroke: max(1.5px, .075em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(Math.round(n)));

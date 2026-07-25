@@ -9,13 +9,17 @@ const GAME_KIND = 'hangman';
 const STYLE_ID = 'bx-hm-style';
 const CSS = `
 .bx-hm { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:.55em; container-type:size; font-family: var(--bx-font-display, var(--bx-font-body, sans-serif));
-  font-size: clamp(6px, 9cqmin, 64px); --bx-hm-accent: var(--bx-accent, #ff5436); }
+  gap:.45em; container-type:size; font-family: var(--bx-font-display, var(--bx-font-body, sans-serif));
+  /* Basisschrift × eingestellte Textgröße — aber gedeckelt durch die Boxhöhe:
+     die Karte braucht rund 8,8 Zeilenhöhen. Ohne den Deckel schob 1,5×
+     Textgröße die Karte unten aus dem Kästchen. Bei Standardgröße greift der
+     Deckel nicht, das normale Aussehen bleibt unverändert. */
+  font-size: min(calc(clamp(6px, 9cqmin, 64px) * var(--bx-fs, 1)), 11cqh); --bx-hm-accent: var(--bx-accent, #ff5436); }
 /* idle → kein Spiel aktiv: komplett unsichtbar, nimmt keine Klicks an */
 .bx-hm.is-idle { opacity:0; pointer-events:none; }
 /* Karte mit fester Zielgröße ~380x150 — skaliert mit, wenn der Layer gezoomt wird */
-.bx-hm-card { width: 96cqi; max-width:100%; padding: .9em 1em; border-radius: .9em; box-sizing:border-box;
-  display:flex; flex-direction:column; align-items:center; gap:.5em;
+.bx-hm-card { width: 96cqi; max-width:100%; padding: .7em .9em; border-radius: .9em; box-sizing:border-box;
+  display:flex; flex-direction:column; align-items:center; gap:.4em;
   background: linear-gradient(160deg, rgba(18,18,26,.96), rgba(10,10,16,.96)); color:#fff;
   border:1px solid color-mix(in srgb, var(--bx-hm-accent) 50%, transparent);
   box-shadow: 0 10px 40px rgba(0,0,0,.5), 0 0 30px color-mix(in srgb, var(--bx-hm-accent) 28%, transparent);
@@ -27,7 +31,7 @@ const CSS = `
 /* Wort-Zeile: jeder Slot eine Box */
 .bx-hm-word { display:flex; flex-wrap:wrap; justify-content:center; gap:.28em; }
 .bx-hm-slot { min-width:1.15em; height:1.5em; padding:0 .2em; display:grid; place-items:center;
-  font-weight:800; font-size:clamp(9px, 10.5cqmin, 96px); line-height:1; border-radius:.22em;
+  font-weight:800; font-size:1.17em; line-height:1; border-radius:.22em;
   background:rgba(10,11,18,.55); border-bottom:.14em solid rgba(255,255,255,.45); color:#fff8;
   text-transform:uppercase; transition: color .2s ease, background .2s ease, border-color .2s ease; }
 .bx-hm-slot.filled { color:#fff; background:color-mix(in srgb, var(--bx-hm-accent) 28%, transparent);
@@ -55,16 +59,16 @@ const CSS = `
 .bx-hm.lost .bx-hm-gallow .part.on { stroke:#ff6b6b; }
 .bx-hm.won .bx-hm-gallow .part.on { stroke: var(--bx-teal,#2ee6a6); }
 /* Fehlversuch-Leiste (Herzen) */
-.bx-hm-hearts { display:flex; gap:.2em; font-size:clamp(8px, 7.8cqmin, 72px); line-height:1; }
+.bx-hm-hearts { display:flex; gap:.2em; font-size:.87em; line-height:1; }
 .bx-hm-heart { opacity:1; transition: transform .2s ease, opacity .2s ease; }
 .bx-hm-heart.lost { opacity:.28; filter:grayscale(1); transform:scale(.85); }
 /* Reihe der geratenen Buchstaben */
 .bx-hm-guessed { display:flex; flex-wrap:wrap; justify-content:center; gap:.24em;
-  font-size:clamp(7px, 5.8cqmin, 52px); }
+  font-size:.64em; }
 .bx-hm-g { padding:.08em .34em; border-radius:.3em; font-weight:700; text-transform:uppercase;
   background:rgba(10,11,18,.6); color:#fff; }
 .bx-hm-g.wrong { background:rgba(255,77,77,.18); color:#ff8a8a; text-decoration:line-through; }
-.bx-hm-status { font-size:clamp(7px, 6.7cqmin, 60px); font-weight:800; letter-spacing:.02em;
+.bx-hm-status { font-size:.74em; font-weight:800; letter-spacing:.02em;
   text-shadow:0 1px 3px rgba(0,0,0,.55); }
 .bx-hm.won .bx-hm-status { color: var(--bx-teal,#2ee6a6); }
 .bx-hm.lost .bx-hm-status { color:#ff6b6b; }
@@ -72,6 +76,16 @@ const CSS = `
 .bx-hm-confetti { position:absolute; top:0; left:50%; width:.5em; height:.8em; border-radius:1px;
   pointer-events:none; animation: bx-hm-fall 1.2s ease-in forwards; }
 @keyframes bx-hm-fall { 0%{transform:translate(-50%,-10%) rotate(0);opacity:1} 100%{transform:translate(var(--bx-hm-dx,0),120cqh) rotate(540deg);opacity:0} }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   die Karte bringt ihren eigenen dunklen Hintergrund mit — der fällt hier weg.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-hm-card { background: none; box-shadow: none; }
+html .bx-frameless .bx-hm-slot { -webkit-text-stroke: max(1.5px, .07em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-hm-status { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-hm-guessed { -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {

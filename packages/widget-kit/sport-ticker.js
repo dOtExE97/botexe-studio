@@ -12,10 +12,10 @@ const CSS = `
   box-shadow: var(--bx-shadow), 0 0 44px -16px var(--bx-accent); overflow:hidden;
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 .bx-sp-title { display:flex; align-items:center; gap:.5em; font-family: var(--bx-font-display);
-  font-size: clamp(8px, 5cqmin, 52px); letter-spacing:.16em; text-transform:uppercase; color: var(--bx-text, #fff);
+  font-size: calc(clamp(8px, 5cqmin, 52px) * var(--bx-fs, 1)); letter-spacing:.16em; text-transform:uppercase; color: var(--bx-text, #fff);
   text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
 .bx-sp-title .dot { flex:none; width:.36em; height:.36em; border-radius:50%; background:#ff3b3b; box-shadow:0 0 10px #ff3b3b; animation: bx-sp-blink 1.4s infinite; }
-.bx-sp-title .tab { margin-left:auto; font-size: clamp(6px,2.8cqmin,28px); letter-spacing:.14em; color: var(--bx-teal); opacity:.9; }
+.bx-sp-title .tab { margin-left:auto; font-size: calc(clamp(6px,2.8cqmin,28px) * var(--bx-fs, 1)); letter-spacing:.14em; color: var(--bx-teal); opacity:.9; }
 @keyframes bx-sp-blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 .bx-sp-list { display:flex; flex-direction:column; gap:1.6cqmin; overflow:hidden; flex:1; }
 /* Zeilen brauchen einen kräftigen eigenen Grund: auf hellem Video verschwindet
@@ -26,35 +26,35 @@ const CSS = `
 .bx-sp-team { display:flex; align-items:center; gap:.4em; min-width:0; }
 .bx-sp-team.away { flex-direction:row-reverse; text-align:right; }
 .bx-sp-team img { width: clamp(9px, 5cqmin, 56px); height: clamp(9px, 5cqmin, 56px); object-fit:contain; flex:none; }
-.bx-sp-team span { font-family: var(--bx-font-display); font-size: clamp(7px, 3.4cqmin, 36px); color:#fff;
+.bx-sp-team span { font-family: var(--bx-font-display); font-size: calc(clamp(9px, 4.1cqmin, 42px) * var(--bx-fs, 1)); color:#fff;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 3px rgba(0,0,0,.75); }
-.bx-sp-score { font-family: var(--bx-font-display); font-size: clamp(8px, 4.6cqmin, 48px); color: var(--bx-gold);
+.bx-sp-score { font-family: var(--bx-font-display); font-size: calc(clamp(10px, 5.2cqmin, 54px) * var(--bx-fs, 1)); color: var(--bx-gold);
   -webkit-text-stroke: max(2px,.07em) #0a0b12; paint-order: stroke fill; min-width: 2.6em; text-align:center; }
-.bx-sp-min { font-family: var(--bx-font-mono); font-size: clamp(6px, 2.6cqmin, 26px); text-align:center; margin-top:2px; }
-.bx-sp-min.live { color:#ff5b5b; } .bx-sp-min.fin { color: var(--bx-muted); } .bx-sp-min.sched { color: var(--bx-teal); }
+.bx-sp-min { font-family: var(--bx-font-mono); font-size: calc(clamp(8px, 3.1cqmin, 30px) * var(--bx-fs, 1)); text-align:center; margin-top:2px; }
+.bx-sp-min.live { color:#ff5b5b; } .bx-sp-min.fin { color: #c3cadd; } .bx-sp-min.sched { color: var(--bx-teal); }
 .bx-sp-row.goal { animation: bx-sp-goal 1.4s ease; }
 @keyframes bx-sp-goal {
   0% { background: rgba(8,10,18,.42); }
   15% { background: color-mix(in srgb, var(--bx-gold) 55%, transparent); transform: scale(1.04); }
   100% { background: rgba(8,10,18,.42); transform: scale(1); } }
 .bx-sp-empty { display:flex; flex:1; align-items:center; justify-content:center; text-align:center;
-  font-size: clamp(7px, 3.2cqmin, 30px); letter-spacing:.12em; color: var(--bx-muted); padding: 10px; }
+  font-size: calc(clamp(7px, 3.2cqmin, 30px) * var(--bx-fs, 1)); letter-spacing:.12em; color: var(--bx-muted); padding: 10px; }
 /* — Tabelle — */
 .bx-sp-table { display:flex; flex-direction:column; gap:.8cqmin; overflow:hidden; flex:1; }
-.bx-sp-grp { font-family: var(--bx-font-display); font-size: clamp(7px,3cqmin,30px); letter-spacing:.14em;
+.bx-sp-grp { font-family: var(--bx-font-display); font-size: calc(clamp(7px,3cqmin,30px) * var(--bx-fs, 1)); letter-spacing:.14em;
   text-transform:uppercase; color: var(--bx-teal); margin:.3em .15em .1em; }
 .bx-sp-trow { display:grid; grid-template-columns: 1.6em 1fr 2.2em 2.4em 2.4em; align-items:center; gap:.4em;
   padding:.28em .55em; border-radius:.5em; background: rgba(8,10,18,.66); border:1px solid rgba(255,255,255,.14);
-  font-size: clamp(7px, 3cqmin, 32px); }
+  font-size: calc(clamp(9px, 3.5cqmin, 36px) * var(--bx-fs, 1)); }
 .bx-sp-trow.me { border-color: var(--bx-gold); box-shadow: 0 0 14px -4px var(--bx-gold) inset; }
-.bx-sp-trow .pos { font-family: var(--bx-font-mono); color: var(--bx-muted); text-align:center; }
+.bx-sp-trow .pos { font-family: var(--bx-font-mono); color: #c3cadd; text-align:center; }
 .bx-sp-trow .tm { display:flex; align-items:center; gap:6px; min-width:0; }
 .bx-sp-trow .tm img { width: clamp(8px,4cqmin,44px); height: clamp(8px,4cqmin,44px); object-fit:contain; flex:none; }
 .bx-sp-trow .tm span { font-family: var(--bx-font-display); color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bx-sp-trow .sp, .bx-sp-trow .gd { font-family: var(--bx-font-mono); text-align:center; color: var(--bx-muted); }
+.bx-sp-trow .sp, .bx-sp-trow .gd { font-family: var(--bx-font-mono); text-align:center; color: #c3cadd; }
 .bx-sp-trow .pt { font-family: var(--bx-font-display); text-align:center; color: var(--bx-gold); }
 .bx-sp-thead { display:grid; grid-template-columns: 1.6em 1fr 2.2em 2.4em 2.4em; gap:.4em; padding:0 .55em;
-  font-family: var(--bx-font-mono); font-size: clamp(6px,2.4cqmin,24px); letter-spacing:.06em; color: var(--bx-muted); opacity:.85; }
+  font-family: var(--bx-font-mono); font-size: calc(clamp(8px,2.9cqmin,28px) * var(--bx-fs, 1)); letter-spacing:.06em; color: #c3cadd; opacity:1; }
 .bx-sp-page { display:flex; flex-direction:column; flex:1; min-height:0; }
 .bx-sp-page.hide { display:none; }
 /* Zeile passt nicht mehr ganz in die Box → ausblenden statt unten abschneiden. */
@@ -63,10 +63,19 @@ const CSS = `
 .bx-sp.goalflash { box-shadow: var(--bx-shadow), 0 0 60px -4px #2bff88, 0 0 0 2.5px #2bff88 inset !important; }
 .bx-sp-goal-banner { position:absolute; inset:0; display:flex; align-items:center; overflow:hidden; pointer-events:none; opacity:0; }
 .bx-sp.goalflash .bx-sp-goal-banner { opacity:1; }
-.bx-sp-goal-banner span { font-family: var(--bx-font-display); font-size: clamp(30px, 26cqmin, 96px); white-space:nowrap;
+.bx-sp-goal-banner span { font-family: var(--bx-font-display); font-size: calc(clamp(30px, 26cqmin, 96px) * var(--bx-fs, 1)); white-space:nowrap;
   color:#3dff97; -webkit-text-stroke: 3px #064; paint-order: stroke fill; text-shadow: 0 0 26px #2bff88; will-change: transform;
   animation: bx-sp-goalrun 2.2s linear; }
 @keyframes bx-sp-goalrun { from { transform: translateX(100%); } to { transform: translateX(-130%); } }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Die Spielzeilen bringen ihre eigene dunkle Fläche mit und bleiben lesbar.
+   Frei auf dem Video stehen nur Titel, Gruppenzeile und der Leer-Hinweis —
+   die bekommen hier eine Kontur, sonst nichts. */
+.bx-frameless .bx-sp { box-shadow: none; }
+.bx-frameless .bx-sp-title, .bx-frameless .bx-sp-grp, .bx-frameless .bx-sp-empty {
+  -webkit-text-stroke: max(1.5px, .075em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

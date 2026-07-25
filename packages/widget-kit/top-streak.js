@@ -5,9 +5,11 @@
 const STYLE_ID = 'bx-ts-style';
 // --u = „1px bei Standardgröße" (340×320): alle Größen sind Vielfache davon,
 // damit die Karte beim Größerziehen wirklich mitwächst statt leer zu wirken.
+// --bx-fs ist die Textgrößen-Einstellung (Faktor, Standard 1) und wird hier an
+// der EINEN Basisgröße eingerechnet — dadurch wirkt der Regler auf alles.
 const CSS = `
 .bx-ts { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  container-type: size; --u: min(0.294cqi, 0.3125cqh);
+  container-type: size; --u: calc(min(0.294cqi, 0.3125cqh) * var(--bx-fs, 1));
   font-family: var(--bx-font-body); padding: 4.2%; text-align: center; background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow), 0 0 44px -16px var(--bx-accent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); overflow: hidden; }
 .bx-ts::before { content:''; position:absolute; inset:0; border-radius:inherit; padding:1.5px;
@@ -149,6 +151,31 @@ const CSS = `
 .bx-ts-comic .bx-ts-av { border-color: rgba(20,16,12,.55); }
 .bx-ts-comic .bx-ts-empty { color: #46320a; text-shadow: none; }
 .bx-ts-comic .bx-ts-fire { color: #46320a; opacity: .75; }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Ohne Panel steht der helle Text direkt auf dem Videobild und verschwand auf
+   hellen Szenen. Kontur deshalb NUR im frameless-Fall — mit Panel bleibt alles
+   unverändert. Stärke in em, damit sie mit der Textgrößen-Einstellung wächst.
+   BEWUSST AUSGENOMMEN: flamme, bon, comic. Die drei bringen ihre eigene Fläche
+   mit (Feuersäule, Kassenbon-Papier, Comic-Stern) und sind darauf schon
+   lesbar; eine zusätzliche Kontur würde die Form zerschlagen. Für sie ist
+   „Rahmen ausblenden" ohnehin gegenstandslos — sie haben nie ein Glas-Panel. */
+.bx-frameless .bx-ts { box-shadow: none; }
+/* Nur die Glas-Haarlinie der Standardkarte wegnehmen. Bei flamme/bon/comic ist
+   ::before die Deko selbst (Feuersäule, Bonpapier, Comic-Stern) — die bleibt. */
+.bx-frameless .bx-ts:not(.bx-ts-flamme):not(.bx-ts-bon):not(.bx-ts-comic)::before { display: none; }
+.bx-frameless .bx-ts:not(.bx-ts-flamme):not(.bx-ts-bon):not(.bx-ts-comic) .bx-ts-kicker,
+.bx-frameless .bx-ts:not(.bx-ts-flamme):not(.bx-ts-bon):not(.bx-ts-comic) .bx-ts-gift,
+.bx-frameless .bx-ts:not(.bx-ts-flamme):not(.bx-ts-bon):not(.bx-ts-comic) .bx-ts-empty,
+.bx-frameless .bx-ts:not(.bx-ts-flamme):not(.bx-ts-bon):not(.bx-ts-comic) .bx-ts-by {
+  -webkit-text-stroke: max(1.5px, .085em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.55); }
+.bx-frameless .bx-ts:not(.bx-ts-flamme):not(.bx-ts-bon):not(.bx-ts-comic) .bx-ts-img {
+  filter: drop-shadow(0 0 1.5px rgba(10,11,18,.9)) drop-shadow(0 5px 12px rgba(0,0,0,.5)); }
+/* Der Kassenbon zeichnet seine Trennlinien als border — die globale
+   frameless-Regel hätte sie transparent gesetzt und den Bon entkernt. */
+.bx-frameless .bx-ts-bon .bx-ts-kicker { border-bottom-color: #b9ad90 !important; }
+.bx-frameless .bx-ts-bon .bx-ts-row { border-bottom-color: #c3b79a !important; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const FIRE_SVG = '<svg class="bx-ts-fire" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s4 4 4 8a4 4 0 0 1-8 0c0-1 .5-2 .5-2S6 10 6 13a6 6 0 0 0 12 0c0-5-6-11-6-11Z"/></svg>';

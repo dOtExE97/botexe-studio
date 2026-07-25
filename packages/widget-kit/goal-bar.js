@@ -7,7 +7,7 @@ const STYLE_ID = 'bx-gb-style';
    hochkant/quadratisch und bekommen weiter unten ein eigenes --u. */
 const CSS = `
 .bx-gb { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center;
-  font-family: var(--bx-font-body); container-type: size; --u: min(0.1786cqi, 1.25cqh);
+  font-family: var(--bx-font-body); container-type: size; --u: calc((min(0.1786cqi, 1.25cqh)) * var(--bx-fs, 1));
   padding: 0.7% 0.35%; }
 .bx-gb-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0 calc(var(--u) * 4) calc(var(--u) * 8); }
 .bx-gb-label { font-family: var(--bx-font-display); font-size: clamp(8px, calc(var(--u) * 13), 64px); letter-spacing: .26em; color: var(--bx-text,#fff);
@@ -59,7 +59,7 @@ const CSS = `
 /* ── THERMOMETER — senkrecht: füllt sich von unten nach oben. Spart Breite und
    passt damit deutlich besser ins TikTok-Hochformat als ein Querbalken. */
 .bx-gb-thermo { flex-direction: column; align-items: center; gap: 2%;
-  --u: 0.5cqmin; /* hochkant: hier ist die kurze Seite das richtige Maß */ }
+  --u: calc((0.5cqmin) * var(--bx-fs, 1)); /* hochkant: hier ist die kurze Seite das richtige Maß */ }
 .bx-gb-thermo .bx-gb-head { flex-direction: column; align-items: center; gap: 2px; margin: 0 0 4px; text-align: center; }
 .bx-gb-thermo .bx-gb-track { flex: 1; width: clamp(22px, 26cqmin, 54px); height: auto; min-height: 0;
   border-radius: 999px; overflow: hidden; }
@@ -102,8 +102,15 @@ const CSS = `
 .bx-gb-ring .bx-gb-track::after { content:''; position:absolute; inset: 14%; border-radius: 50%;
   background: rgba(10,11,18,.92); }
 .bx-gb-ring .bx-gb-fill, .bx-gb-ring .bx-gb-tick { display: none; }
-.bx-gb-ring .bx-gb-pct { z-index: 1; font-size: clamp(13px, 15cqmin, 34px); letter-spacing: .04em; }
+.bx-gb-ring .bx-gb-pct { z-index: 1; font-size: calc((clamp(13px, 15cqmin, 34px)) * var(--bx-fs, 1)); letter-spacing: .04em; }
 .bx-gb-ring.done .bx-gb-track { animation: bx-gb-pulse 900ms ease-in-out 3; }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   Beschriftung und Zahlen haben bereits eine Kontur — hier nur die Prozentzahl.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-gb-pct { -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 const LABELS = { coins: 'Coin-Ziel', likes: 'Like-Ziel', follows: 'Follower-Ziel', gifts: 'Geschenk-Ziel' };

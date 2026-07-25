@@ -17,11 +17,11 @@ const CSS = `
 .bx-gf-pic { width: clamp(18px,min(8cqi,9cqh),52px); aspect-ratio: 1/1; height: auto; border-radius: 50%; flex: none; container-type: size;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
 .bx-gf-pic::after { font-size: 52cqmin; }
-.bx-gf-text { font-size: clamp(12px,min(5.2cqi,7cqh),34px); color: var(--bx-text, #e9ebf4); text-shadow: 0 1px 2px rgba(0,0,0,.6);
+.bx-gf-text { font-size: calc((clamp(12px,min(5.2cqi,7cqh),34px)) * var(--bx-fs, 1)); color: var(--bx-text, #e9ebf4); text-shadow: 0 1px 2px rgba(0,0,0,.6);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bx-gf-text b { font-family: var(--bx-font-display); color: var(--bx-text,#fff); text-transform: uppercase; font-weight: 700; }
 .bx-gf-img { height: clamp(16px,min(7cqi,8cqh),46px); flex: none; filter: drop-shadow(0 2px 5px rgba(0,0,0,.5)); }
-.bx-gf-coins { margin-left: auto; font-family: var(--bx-font-mono); font-weight: 700; font-size: clamp(11px,min(4.8cqi,6.4cqh),32px); color: var(--bx-gold);
+.bx-gf-coins { margin-left: auto; font-family: var(--bx-font-mono); font-weight: 700; font-size: calc((clamp(11px,min(4.8cqi,6.4cqh),32px)) * var(--bx-fs, 1)); color: var(--bx-gold);
   text-shadow: 0 0 10px color-mix(in srgb, var(--bx-gold) 40%, transparent); flex: none; }
 @keyframes bx-gf-in { to { transform: translateX(0); } }
 @keyframes bx-gf-out { to { transform: translateX(-115%); opacity: 0; } }
@@ -44,6 +44,15 @@ const CSS = `
 .bx-gf-pills .bx-gf-coins { color: #0c0d14; text-shadow: none; background: rgba(255,255,255,.75);
   border-radius: 999px; padding: 2px 10px; }
 .bx-gf-pills .bx-gf-pic { box-shadow: 0 0 0 2px rgba(255,255,255,.8); }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur. Der Zeilen-Schatten war ohne Panel ein grauer Klecks.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-gf-item { box-shadow: none; }
+html .bx-frameless .bx-gf:not(.bx-gf-pills) .bx-gf-text { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 6px rgba(0,0,0,.55); }
+html .bx-frameless .bx-gf:not(.bx-gf-pills) .bx-gf-coins { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));

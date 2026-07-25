@@ -10,7 +10,7 @@ const STYLE_ID = 'bx-gco-style';
 // damit Icon und Zahlen mitwachsen, wenn das Widget größer gezogen wird.
 const CSS = `
 .bx-gco { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:1%; container-type:size; --u: min(0.294cqi, 0.278cqh); font-family: var(--bx-font-body); text-align:center; }
+  gap:1%; container-type:size; --u: calc((min(0.294cqi, 0.278cqh)) * var(--bx-fs, 1)); font-family: var(--bx-font-body); text-align:center; }
 .bx-gco-iconwrap { position:relative; display:grid; place-items:center;
   width: clamp(40px, calc(var(--u) * 143), 560px); height: clamp(40px, calc(var(--u) * 143), 560px); margin-bottom: calc(var(--u) * 7); }
 /* Fortschrittsring: zeigt den ECHTEN Stand (--pct wird in render() gesetzt) —
@@ -50,6 +50,13 @@ const CSS = `
   box-shadow: 0 0 30px -8px var(--bx-gold), inset 0 0 40px rgba(0,0,0,.5) !important; }
 .bx-gco-medaille .bx-gco-icon, .bx-gco-medaille img { filter: drop-shadow(0 0 12px var(--bx-gold)); }
 .bx-gco-medaille .bx-gco-count { color: var(--bx-gold); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 60%, transparent); }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   Titel und Zähler haben bereits eine Kontur — hier reicht ein satterer Schatten.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow: 0 3px 10px rgba(0,0,0,.55); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

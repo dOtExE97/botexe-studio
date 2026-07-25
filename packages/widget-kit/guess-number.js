@@ -14,7 +14,7 @@ const CSS = `
    die Karte winzig in der Mitte stehen. Jetzt hängt eine einzige Basisgröße
    (font-size auf .bx-gn) an der Box, alles darunter ist in em ausgedrückt. */
 .bx-gn { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  container-type:size; font-size: clamp(9px, 5.6cqmin, 64px);
+  container-type:size; font-size: calc((clamp(9px, 5.6cqmin, 64px)) * var(--bx-fs, 1));
   gap:.62em; padding:.9em; font-family: var(--bx-font-body); background: var(--bx-glass);
   border-radius: var(--bx-radius); box-shadow: var(--bx-shadow), 0 0 44px -16px var(--bx-accent);
   overflow:hidden; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
@@ -45,6 +45,17 @@ const CSS = `
   animation: bx-gn-conf var(--dur,1.4s) ease-out forwards; }
 @keyframes bx-gn-conf { 0% { transform: translate(0,0) rotate(0); opacity:1; }
   100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity:0; } }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur an Titel, Kacheln, Hinweis und Hilfstext.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-gn-title { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-gn-tile { -webkit-text-stroke: max(1.5px, .06em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-gn-hint { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-gn-sub { color: #fff; -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-gn-win .who { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {

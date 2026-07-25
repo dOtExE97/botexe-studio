@@ -6,9 +6,11 @@
 const STYLE_ID = 'bx-sub-style';
 // --u = „1px bei Standardgröße" (440×200). cqmin (kurze Seite) hielt die Uhr in
 // breiten Boxen klein — jetzt zählt die Breite, gedeckelt durch die Höhe.
+// --bx-fs (Textgrößen-Einstellung, Faktor, Standard 1) steckt in dieser einen
+// Basisgröße; alle Schriftgrößen sind Vielfache von --u.
 const CSS = `
 .bx-sub { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:2%; container-type:size; --u: min(0.227cqi, 0.5cqh); font-family: var(--bx-font-body); background: var(--bx-glass);
+  gap:2%; container-type:size; --u: calc(min(0.227cqi, 0.5cqh) * var(--bx-fs, 1)); font-family: var(--bx-font-body); background: var(--bx-glass);
   border-radius: var(--bx-radius); box-shadow: var(--bx-shadow), 0 0 46px -16px var(--bx-accent);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); overflow:hidden; }
 .bx-sub::before { content:''; position:absolute; inset:0; border-radius:inherit; padding:1.5px;
@@ -45,6 +47,17 @@ const CSS = `
 .bx-sub-led .bx-sub-time::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.28) 2px 4px); }
 .bx-sub-led .bx-sub-label { font-family: var(--bx-font-mono); letter-spacing: .5em; color: var(--bx-gold); opacity: .8; }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Die Uhr hat schon eine Kontur. Die Beschriftung darüber war ein blasses Grau
+   und verschwand ohne Panel auf hellen Szenen — hier wird sie weiß mit Kontur.
+   AUSGENOMMEN led/bombe: beide zeichnen ihre eigene Tafel bzw. Bombe hinter der
+   Uhr; dort ist „Rahmen ausblenden" gegenstandslos. */
+.bx-frameless .bx-sub { box-shadow: none; }
+.bx-frameless .bx-sub::before { display: none; }
+.bx-frameless .bx-sub:not(.bx-sub-led):not(.bx-sub-bombe) .bx-sub-label {
+  color: #fff; -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const two = (n) => String(n).padStart(2, '0');

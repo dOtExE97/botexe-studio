@@ -12,7 +12,7 @@ const CSS = `
   font-family: var(--bx-font-display); transition: opacity .45s ease, transform .45s cubic-bezier(.2,1.3,.3,1); }
 .bx-wh.hidden { opacity: 0; transform: scale(.8) translateY(20px); pointer-events: none; }
 .bx-wh canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.bx-wh-title { position: absolute; left: 0; right: 0; top: 1%; text-align: center; font-size: clamp(14px, min(5cqi, 5cqh), 44px);
+.bx-wh-title { position: absolute; left: 0; right: 0; top: 1%; text-align: center; font-size: calc(clamp(14px, min(5cqi, 5cqh), 44px) * var(--bx-fs, 1));
   letter-spacing: .08em; text-transform: uppercase; color: #fff;
   -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill;
   text-shadow: 0 0 16px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 3px 5px rgba(0,0,0,.5); }
@@ -21,9 +21,9 @@ const CSS = `
   background: var(--bx-glass); box-shadow: var(--bx-shadow), 0 0 60px -10px var(--bx-accent);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
 .bx-wh-result.show { animation: bx-wh-pop 3s cubic-bezier(.2,1.5,.3,1) forwards; }
-.bx-wh-result .k { font-size: clamp(10px, min(3cqi, 3cqh), 26px); letter-spacing: .34em; color: var(--bx-gold); text-transform: uppercase; }
-.bx-wh-result .v { font-size: clamp(20px, min(7.2cqi, 7.2cqh), 66px); color: #fff; -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; margin-top: 5px; }
-.bx-wh-result .w { font-size: clamp(11px, min(3.2cqi, 3.2cqh), 30px); color: var(--bx-teal); margin-top: 4px; }
+.bx-wh-result .k { font-size: calc(clamp(10px, min(3cqi, 3cqh), 26px) * var(--bx-fs, 1)); letter-spacing: .34em; color: var(--bx-gold); text-transform: uppercase; }
+.bx-wh-result .v { font-size: calc(clamp(20px, min(7.2cqi, 7.2cqh), 66px) * var(--bx-fs, 1)); color: #fff; -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; margin-top: 5px; }
+.bx-wh-result .w { font-size: calc(clamp(11px, min(3.2cqi, 3.2cqh), 30px) * var(--bx-fs, 1)); color: var(--bx-teal); margin-top: 4px; }
 @keyframes bx-wh-pop { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.45); } 12% { opacity: 1; transform: translate(-50%,-50%) scale(1.1); }
   26% { transform: translate(-50%,-50%) scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(.92); } }
 /* Trigger-Banner (TikFinity-Style): zeigt beim Dreh-Start, wer ausgelöst hat. */
@@ -31,10 +31,20 @@ const CSS = `
   font-family: var(--bx-font-display); opacity: 0; }
 .bx-wh-trigger.show { animation: bx-wh-trig 2.6s ease forwards; }
 @keyframes bx-wh-trig { 0% { opacity: 0; transform: translateY(-12px) scale(.9); } 12% { opacity: 1; transform: none; } 78% { opacity: 1; } 100% { opacity: 0; } }
-.bx-wh-trigger .who { display: inline-block; padding: 1.5cqh 3.4cqh; border-radius: 999px; font-size: clamp(12px, min(3.6cqi, 3.6cqh), 32px); color: #fff;
+.bx-wh-trigger .who { display: inline-block; padding: 1.5cqh 3.4cqh; border-radius: 999px; font-size: calc(clamp(12px, min(3.6cqi, 3.6cqh), 32px) * var(--bx-fs, 1)); color: #fff;
   background: var(--bx-glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   box-shadow: 0 0 24px -6px var(--bx-accent); -webkit-text-stroke: 0; }
 .bx-wh-trigger .who b { color: var(--bx-gold); }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Das Rad selbst ist Canvas und bleibt unberührt. Frei auf dem Video stehen
+   danach das Gewinn-Fenster und das „wer hat gedreht"-Band — beide bezogen ihre
+   Fläche aus --bx-glass und waren dann heller Text auf hellem Video. */
+.bx-frameless .bx-wh-result, .bx-frameless .bx-wh-trigger .who { box-shadow: none; }
+.bx-frameless .bx-wh-result .k, .bx-frameless .bx-wh-result .v,
+.bx-frameless .bx-wh-result .w, .bx-frameless .bx-wh-trigger .who {
+  -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
 `;
 const COLORS = ['#ff5436','#ffd23e','#28e0c4','#5c9dff','#c45cff','#ff5e8a','#7dff8a','#ff8a3d'];
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
@@ -87,6 +97,11 @@ export default class Wheel {
     const dpr = Math.min(window.devicePixelRatio||1,2);
     this.canvas.width=r.width*dpr; this.canvas.height=r.height*dpr; this.ctx.setTransform(dpr,0,0,dpr,0,0);
     this.w=r.width; this.h=r.height;
+    // Textgrößen-Einstellung: die Segment-Beschriftung liegt im Canvas, dort
+    // greift kein CSS. Deshalb den Faktor --bx-fs von der Box abholen und in
+    // draw() in die Schriftgröße rechnen (sonst wäre das Rad das einzige
+    // Element des Widgets, das der Regler nicht erreicht).
+    this.fs = Number(getComputedStyle(this.el).getPropertyValue('--bx-fs')) || 1;
     // Rad oben, Standfuß darunter — Neon hat keinen Fuß → mittig + größer.
     if (this.style === 'neon') {
       this.radius = Math.min(r.width*0.42, r.height*0.4);
@@ -197,7 +212,10 @@ export default class Wheel {
       if (flip) { ctx.rotate(Math.PI); ctx.textAlign = 'left'; } else { ctx.textAlign = 'right'; }
       ctx.textBaseline = 'middle';
       ctx.fillStyle = neon ? '#eafffb' : casino ? '#ffe9b0' : '#0a0b12';
-      ctx.font = `${Math.max(12, R*0.115)}px 'Lilita One', sans-serif`;
+      // Deckel seg*R*0.42: so hoch ist ein Segment auf halbem Radius. Ohne den
+      // Deckel würden bei vielen Segmenten die Labels ineinanderlaufen, sobald
+      // der Nutzer die Textgröße hochdreht.
+      ctx.font = `${Math.max(12, Math.min(R*0.115*(this.fs||1), seg*R*0.42))}px 'Lilita One', sans-serif`;
       const txt = this.segments[i].length>13 ? this.segments[i].slice(0,12)+'…' : this.segments[i];
       ctx.fillText(txt, flip ? -R*0.9 : R*0.9, 0); ctx.restore();
     }

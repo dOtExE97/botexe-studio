@@ -143,6 +143,33 @@ function setupAutoUpdate(): void {
 let mainWindow: BrowserWindow | null = null;
 let studio: Studio | null = null;
 
+/** Zoomstufen der App-Oberfläche. Bewusst grob und begrenzt: 60 % ist noch
+ *  bedienbar, 200 % hilft auf großen Fernsehern und bei schlechten Augen. */
+const UI_ZOOM_STEPS = [0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
+
+function saveUiZoom(): void {
+  const f = mainWindow?.webContents.getZoomFactor() ?? 1;
+  studio?.settings.update({ uiZoom: Math.round(f * 100) / 100 });
+}
+
+/** dir: +1 größer, -1 kleiner, 0 zurücksetzen. */
+function setUiZoom(dir: 1 | -1 | 0): void {
+  const wc = mainWindow?.webContents;
+  if (!wc) return;
+  if (dir === 0) {
+    wc.setZoomFactor(1);
+  } else {
+    const cur = wc.getZoomFactor();
+    // Nächste Stufe in der gewünschten Richtung (Rundungsfehler tolerieren).
+    const i = UI_ZOOM_STEPS.findIndex((s) => s > cur + 0.001);
+    const at = dir === 1
+      ? (i === -1 ? UI_ZOOM_STEPS.length - 1 : i)
+      : Math.max(0, (i === -1 ? UI_ZOOM_STEPS.length : i) - 2);
+    wc.setZoomFactor(UI_ZOOM_STEPS[at] ?? 1);
+  }
+  saveUiZoom();
+}
+
 function sendToRenderer(channel: string, payload: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(channel, payload);
@@ -169,6 +196,17 @@ function createMainWindow(): void {
   });
 
   mainWindow.once('ready-to-show', () => mainWindow?.show());
+
+  // Zoomstufe merken. Strg +/- (bzw. Ansicht → Größer/Kleiner) hat die
+  // Oberfläche bisher nur bis zum Neustart vergrößert — wer die App dauerhaft
+  // größer braucht, musste das bei JEDEM Start neu machen. Beim Laden wieder
+  // herstellen, bei jeder Änderung speichern (entprellt, damit gedrückt
+  // gehaltenes Strg+ nicht bei jedem Schritt auf die Platte schreibt).
+  mainWindow.webContents.on('did-finish-load', () => {
+    const z = Number(studio?.settings.get().uiZoom ?? 1) || 1;
+    if (Math.abs(z - 1) > 0.001) mainWindow?.webContents.setZoomFactor(z);
+  });
+  mainWindow.webContents.on('zoom-changed', () => saveUiZoom());
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -1063,9 +1101,13 @@ function installAppMenu(): void {
         { role: 'reload', label: 'Neu laden' },
         { role: 'togglefullscreen', label: 'Vollbild' },
         { type: 'separator' },
-        { role: 'resetZoom', label: 'Zoom zurücksetzen' },
-        { role: 'zoomIn', label: 'Größer' },
-        { role: 'zoomOut', label: 'Kleiner' },
+        // Bewusst KEINE Electron-Rollen: die Rollen verstellen den Zoom zwar,
+        // lösen aber kein 'zoom-changed' aus (das feuert nur bei Strg+Mausrad).
+        // Über die Rollen wäre die Stufe also nie gespeichert worden — und
+        // genau Menü und Tastenkürzel sind der Weg, den Nutzer gehen.
+        { label: 'Schrift größer', accelerator: 'CommandOrControl+Plus', click: () => setUiZoom(+1) },
+        { label: 'Schrift kleiner', accelerator: 'CommandOrControl+-', click: () => setUiZoom(-1) },
+        { label: 'Schriftgröße zurücksetzen', accelerator: 'CommandOrControl+0', click: () => setUiZoom(0) },
         { type: 'separator' },
         { role: 'toggleDevTools', label: 'Entwickler-Werkzeuge' },
       ],

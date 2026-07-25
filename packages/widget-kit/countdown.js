@@ -8,7 +8,7 @@ const STYLE_ID = 'bx-cd-style';
 // sind Vielfache davon und wachsen mit, wenn das Widget größer gezogen wird.
 const CSS = `
 .bx-cd { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  container-type: size; --u: min(0.2174cqi, 0.5cqh);
+  container-type: size; --u: calc((min(0.2174cqi, 0.5cqh)) * var(--bx-fs, 1));
   font-family: var(--bx-font-body); gap: 3%; }
 .bx-cd-label { font-family: var(--bx-font-display); font-size: clamp(9px, calc(var(--u) * 15), 60px); letter-spacing: .34em; text-transform: uppercase;
   color: #c9cfe2; text-shadow: 0 2px 6px rgba(0,0,0,.85); }
@@ -49,6 +49,14 @@ const CSS = `
   background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.28) 2px 4px); }
 .bx-cd-led .bx-cd-label { font-family: var(--bx-font-mono); letter-spacing: .5em; color: var(--bx-gold); opacity: .75; }
 .bx-cd-led.urgent .bx-cd-time { color: var(--bx-accent); }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur um Beschriftung und Ziffern.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-cd-label { color: #fff; -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-cd-time { -webkit-text-stroke: max(1.5px, .06em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 

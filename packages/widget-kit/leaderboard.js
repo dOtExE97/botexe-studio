@@ -6,7 +6,7 @@ const CSS = `
   padding: clamp(6px,4.5cqh,26px) clamp(8px,2.2cqi,30px) clamp(5px,3.5cqh,22px); overflow: hidden; container-type: size; }
 /* Schrift skaliert mit BEIDEN Achsen: min(cqi,cqh) — cqmin allein macht in
    breiten, flachen Boxen (760x180) winzige Buchstaben. */
-.bx-lb-title { position: relative; overflow: hidden; font-family: var(--bx-font-display); font-size: clamp(11px,min(3.6cqi,10cqh),24px); letter-spacing: .3em;
+.bx-lb-title { position: relative; overflow: hidden; font-family: var(--bx-font-display); font-size: calc((clamp(11px,min(3.6cqi,10cqh),24px)) * var(--bx-fs, 1)); letter-spacing: .3em;
   text-transform: uppercase; color: var(--bx-accent); text-shadow: 0 0 12px color-mix(in srgb, var(--bx-accent) 45%, transparent);
   padding-bottom: clamp(3px,2.6cqh,14px); margin-bottom: clamp(3px,2.6cqh,14px); border-bottom: 1px solid color-mix(in srgb, var(--bx-accent) 45%, transparent); }
 .bx-lb-title::after { content:''; position:absolute; top:0; bottom:0; left:-60%; width:45%; transform:translateX(0) skewX(-20deg);
@@ -16,7 +16,7 @@ const CSS = `
    an der ZEILENHÖHE — so wächst alles mit, wenn das Widget größer gezogen wird. */
 .bx-lb-row { position: absolute; left:0; right:0; height:46px; display:flex; align-items:center; gap:clamp(4px,2.2cqi,20px); padding:0 clamp(3px,1.2cqi,14px); border-radius:12px;
   container-type: size; transition: transform 520ms cubic-bezier(.25,1,.35,1), opacity 320ms; }
-.bx-lb-rank { height:62%; aspect-ratio:1/1; width:auto; flex:none; display:flex; align-items:center; justify-content:center; font-family: var(--bx-font-display); font-size:clamp(9px,34cqh,30px); color:#0a0b10; border-radius:22%; background:#4a5066; }
+.bx-lb-rank { height:62%; aspect-ratio:1/1; width:auto; flex:none; display:flex; align-items:center; justify-content:center; font-family: var(--bx-font-display); font-size:calc((clamp(9px,34cqh,30px)) * var(--bx-fs, 1)); color:#0a0b10; border-radius:22%; background:#4a5066; }
 .bx-lb-row[data-rank="1"] .bx-lb-rank { background: linear-gradient(160deg,#ffe88a,#f5b914); box-shadow: 0 0 16px -2px var(--bx-gold); }
 .bx-lb-row[data-rank="2"] .bx-lb-rank { background: linear-gradient(160deg,#eef2fb,#b9c2d8); }
 .bx-lb-row[data-rank="3"] .bx-lb-rank { background: linear-gradient(160deg,#f0b487,#c9763c); }
@@ -25,11 +25,11 @@ const CSS = `
    in cqmin mitwächst statt an einer geerbten Schriftgröße zu kleben. */
 .bx-lb-pic { height:78%; aspect-ratio:1/1; width:auto; border-radius:50%; flex:none; container-type:size; box-shadow:0 0 0 2px rgba(255,255,255,.12); }
 .bx-lb-pic::after { font-size:52cqmin; }
-.bx-lb-name { flex:1; font-family: var(--bx-font-display); font-size:clamp(10px,min(46cqh,5.5cqi),36px); color:var(--bx-text,#fff); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 2px 4px rgba(0,0,0,.5); }
-.bx-lb-val { font-family: var(--bx-font-mono); font-weight:700; font-size:clamp(10px,min(40cqh,4.6cqi),30px); color: var(--bx-gold); text-shadow: 0 0 10px color-mix(in srgb, var(--bx-gold) 40%, transparent); }
+.bx-lb-name { flex:1; font-family: var(--bx-font-display); font-size:calc((clamp(10px,min(46cqh,5.5cqi),36px)) * var(--bx-fs, 1)); color:var(--bx-text,#fff); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 2px 4px rgba(0,0,0,.5); }
+.bx-lb-val { font-family: var(--bx-font-mono); font-weight:700; font-size:calc((clamp(10px,min(40cqh,4.6cqi),30px)) * var(--bx-fs, 1)); color: var(--bx-gold); text-shadow: 0 0 10px color-mix(in srgb, var(--bx-gold) 40%, transparent); }
 .bx-lb-likes .bx-lb-title, .bx-lb-likes .bx-lb-val { color: var(--bx-pink); }
 .bx-lb-likes .bx-lb-title { border-bottom-color: color-mix(in srgb, var(--bx-pink) 45%, transparent); }
-.bx-lb-empty { display:flex; align-items:center; justify-content:center; height:100%; font-size:clamp(11px,min(3cqi,11cqh),22px); letter-spacing:.2em; color: var(--bx-muted); text-transform:uppercase; }
+.bx-lb-empty { display:flex; align-items:center; justify-content:center; height:100%; font-size:calc((clamp(11px,min(3cqi,11cqh),22px)) * var(--bx-fs, 1)); letter-spacing:.2em; color: var(--bx-muted); text-transform:uppercase; }
 @keyframes bx-shimmer { 0%,55% { transform:translateX(0) skewX(-20deg); } 100% { transform:translateX(422%) skewX(-20deg); } }
 
 /* — GLAS — */
@@ -60,7 +60,7 @@ const CSS = `
 /* — ARCADE (TikFinity-Look) — keine box, große avatare in reihe, kronen, runde fette schrift */
 .bx-st-arcade { background: none; box-shadow: none; padding: 2px; }
 .bx-st-arcade::before { display: none; }
-.bx-st-arcade .bx-lb-title { border: none; margin: 0 0 clamp(2px,3.4cqh,6px); text-align: center; font-size: clamp(8px,9.5cqh,17px); color: var(--bx-text,#fff);
+.bx-st-arcade .bx-lb-title { border: none; margin: 0 0 clamp(2px,3.4cqh,6px); text-align: center; font-size: calc((clamp(8px,9.5cqh,17px)) * var(--bx-fs, 1)); color: var(--bx-text,#fff);
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 3px 5px rgba(0,0,0,.5); }
 .bx-st-arcade .bx-lb-title::after { display: none; }
 .bx-st-arcade .bx-lb-list { display: flex; align-items: flex-start; justify-content: center; gap: 3%; flex-wrap: nowrap; }
@@ -74,15 +74,15 @@ const CSS = `
 .bx-st-arcade .bx-lb-row[data-rank="3"] .bx-lb-pic { box-shadow: 0 0 0 4px #f0a35a, 0 6px 14px rgba(0,0,0,.55); }
 .bx-st-arcade .bx-lb-row::after { content: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2226%22%20height%3D%2220%22%20viewBox%3D%220%200%2024%2018%22%3E%3Cpath%20d%3D%22M2%206.2l3.6%203.1L9.4%203l2.6%204.2L14.6%203l3.8%206.3L22%206.2l-1.7%209.3a1%201%200%200%201-1%20.8H4.7a1%201%200%200%201-1-.8L2%206.2Z%22%20fill%3D%22%23ffd23e%22%20stroke%3D%22rgba%280%2C0%2C0%2C.55%29%22%20stroke-width%3D%22.8%22%20stroke-linejoin%3D%22round%22%2F%3E%3Ccircle%20cx%3D%222%22%20cy%3D%226.2%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%222.4%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%226.2%22%20r%3D%221.4%22%20fill%3D%22%23ffd23e%22%2F%3E%3C%2Fsvg%3E'); position: static; order: -1; margin-bottom: -8px; z-index: 2;
   transform: rotate(-8deg); filter: drop-shadow(0 2px 3px rgba(0,0,0,.7));
-  width: clamp(10px,14cqmin,26px); height: auto; font-size: clamp(6px,20cqh,26px); }
+  width: clamp(10px,14cqmin,26px); height: auto; font-size: calc((clamp(6px,20cqh,26px)) * var(--bx-fs, 1)); }
 .bx-st-arcade .bx-lb-row[data-rank="1"]::after { font-size: clamp(8px,20cqh,36px); margin-bottom: clamp(-10px,-4cqh,-3px); transform: rotate(0); }
 .bx-st-arcade .bx-lb-row[data-rank="4"]::after, .bx-st-arcade .bx-lb-row[data-rank="5"]::after { content: ''; }
-.bx-st-arcade .bx-lb-name { flex: none; max-width: 100%; font-size: clamp(7px,8.5cqmin,24px); text-align: center; line-height: 1.05; color: #8dffa0;
+.bx-st-arcade .bx-lb-name { flex: none; max-width: 100%; font-size: calc((clamp(7px,8.5cqmin,24px)) * var(--bx-fs, 1)); text-align: center; line-height: 1.05; color: #8dffa0;
   -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
-.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-name { font-size: clamp(7px,8cqmin,20px); color: #ffd23e; }
+.bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-name { font-size: calc((clamp(7px,8cqmin,20px)) * var(--bx-fs, 1)); color: #ffd23e; }
 .bx-st-arcade .bx-lb-row[data-rank="2"] .bx-lb-name { color: #f0f4ff; }
 .bx-st-arcade .bx-lb-row[data-rank="3"] .bx-lb-name { color: #ffb05a; }
-.bx-st-arcade .bx-lb-val { font-family: var(--bx-font-display); font-size: clamp(7px,8cqmin,24px); color: var(--bx-text,#fff);
+.bx-st-arcade .bx-lb-val { font-family: var(--bx-font-display); font-size: calc((clamp(7px,8cqmin,24px)) * var(--bx-fs, 1)); color: var(--bx-text,#fff);
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
 .bx-st-arcade .bx-lb-val .arr { color: #59f08a; -webkit-text-stroke: 2px #0a0b12; }
 .bx-st-arcade.bx-lb-likes .bx-lb-val { color: #ff8ab0; }
@@ -107,10 +107,10 @@ const CSS = `
   box-shadow: 0 0 0 4px var(--bx-gold), 0 0 24px -2px var(--bx-gold); }
 .bx-st-podium .bx-lb-row[data-rank="2"] .bx-lb-pic { box-shadow: 0 0 0 3px #d7deec; }
 .bx-st-podium .bx-lb-row[data-rank="3"] .bx-lb-pic { box-shadow: 0 0 0 3px #f0a35a; }
-.bx-st-podium .bx-lb-name { flex: none; max-width: 100%; font-size: clamp(9px,5.5cqmin,15px); text-align: center; }
-.bx-st-podium .bx-lb-val { font-size: clamp(9px,5cqmin,14px); }
+.bx-st-podium .bx-lb-name { flex: none; max-width: 100%; font-size: calc((clamp(9px,5.5cqmin,15px)) * var(--bx-fs, 1)); text-align: center; }
+.bx-st-podium .bx-lb-val { font-size: calc((clamp(9px,5cqmin,14px)) * var(--bx-fs, 1)); }
 /* Der Sockel: der Rang-Badge wird zum Podest-Block unter Name/Wert. */
-.bx-st-podium .bx-lb-rank { order: 10; width: 100%; border-radius: 8px 8px 0 0; font-size: clamp(15px,9cqmin,26px);
+.bx-st-podium .bx-lb-rank { order: 10; width: 100%; border-radius: 8px 8px 0 0; font-size: calc((clamp(15px,9cqmin,26px)) * var(--bx-fs, 1));
   height: auto; aspect-ratio: auto; box-shadow: inset 0 2px 0 rgba(255,255,255,.35), 0 8px 18px -8px rgba(0,0,0,.7); }
 .bx-st-podium .bx-lb-row[data-rank="1"] .bx-lb-rank { padding: clamp(12px,9cqmin,30px) 0; }
 .bx-st-podium .bx-lb-row[data-rank="2"] .bx-lb-rank { padding: clamp(7px,5.5cqmin,18px) 0; }
@@ -172,10 +172,19 @@ const CSS = `
    ausdrücklich abschalten, sonst klebt ein Goldklotz hinter der Ziffer. */
 .bx-st-nummern .bx-lb-row .bx-lb-rank { background: none !important; box-shadow: none !important; width: auto; height: auto; aspect-ratio: auto; min-width: 1.2em; line-height: 1;
   color: color-mix(in srgb, var(--bx-text, #fff) 40%, transparent);
-  font-family: var(--bx-font-num, var(--bx-font-display)); font-size: clamp(16px, 66cqh, 52px); font-weight: 900; }
+  font-family: var(--bx-font-num, var(--bx-font-display)); font-size: calc((clamp(16px, 66cqh, 52px)) * var(--bx-fs, 1)); font-weight: 900; }
 .bx-st-nummern .bx-lb-row[data-rank="1"] .bx-lb-rank { color: var(--bx-gold); }
 .bx-st-nummern .bx-lb-name { font-weight: 800; }
 .bx-st-nummern .bx-lb-val { font-family: var(--bx-font-num, var(--bx-font-display)); font-weight: 800; }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur — außer bei den Stilen mit dunkler Schrift auf heller Pille.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-lb-title { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-lb:not(.bx-st-pills):not(.bx-st-treppe) .bx-lb-name { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-lb:not(.bx-st-pills):not(.bx-st-treppe) .bx-lb-val { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));

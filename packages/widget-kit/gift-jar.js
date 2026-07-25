@@ -9,7 +9,11 @@ const STYLE_ID = 'bx-jar-style';
 // --u = „1px bei Standardgröße" (440×520): Badge, Label und Toasts sind
 // Vielfache davon und wachsen mit, wenn das Glas größer gezogen wird.
 const CSS = `
-.bx-jar { position: absolute; inset: 0; font-family: var(--bx-font-display); container-type: size; --u: min(0.227cqi, 0.192cqh); }
+.bx-jar { position: absolute; inset: 0; font-family: var(--bx-font-display); container-type: size; /* --u treibt hier NUR Abzeichen, Zielbalken, Beschriftung und die
+   Einblendungen — Glasform und Baelle liegen auf dem Canvas und bleiben
+   davon unberuehrt. Deshalb darf die Textgroessen-Einstellung (--bx-fs)
+   hier direkt an der Quelle einmultipliziert werden. */
+  --u: calc(min(0.227cqi, 0.192cqh) * var(--bx-fs, 1)); }
 .bx-jar canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .bx-jar-badge { position: absolute; right: 5%; top: 3%; overflow: hidden; display: flex; align-items: center; gap: calc(var(--u) * 6);
   padding: calc(var(--u) * 5) calc(var(--u) * 14) calc(var(--u) * 9) calc(var(--u) * 10);

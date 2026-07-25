@@ -206,9 +206,12 @@ export default class ActionScreen {
     // Breite & Schrift wachsen mit der Layer-Größe mit (Referenz REF_W×REF_H),
     // bleiben aber in einem lesbaren Korridor. cqi/cqh statt cqmin: in einer
     // breiten, flachen Box wäre cqmin winzig.
-    const f = size.font * (Number(this.p.fontScale) || 1);
+    // Die eingestellte Textgröße kommt als Faktor --bx-fs von der Layer-Box
+    // (siehe applyWidgetStyle im Runtime) und wird AUSSEN um das clamp gelegt —
+    // innen würde die Obergrenze den Zuwachs wieder wegdeckeln.
+    const f = size.font;
     card.style.width = `min(96%, ${(size.w / REF_W * 100).toFixed(1)}cqw)`;
-    card.style.fontSize = `clamp(${(f * 0.62).toFixed(1)}px, min(${(f / REF_W * 100).toFixed(2)}cqi, ${(f / REF_H * 100).toFixed(2)}cqh), ${(f * 2.6).toFixed(0)}px)`;
+    card.style.fontSize = `calc(clamp(${(f * 0.62).toFixed(1)}px, min(${(f / REF_W * 100).toFixed(2)}cqi, ${(f / REF_H * 100).toFixed(2)}cqh), ${(f * 2.6).toFixed(0)}px) * var(--bx-fs, 1))`;
     if (this.p.textColor) card.style.color = this.p.textColor;
 
     const head = document.createElement('div');

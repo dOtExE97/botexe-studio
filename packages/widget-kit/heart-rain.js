@@ -12,7 +12,7 @@ const CSS = `
 /* Schriftgröße wächst mit der Box mit (Referenz: 1000px kurze Seite ⇒ 3.4cqmin
    ≈ die früheren 34px), bleibt aber lesbar gedeckelt. */
 .bx-hr-e { position: absolute; bottom: -6%; opacity: 0;
-  font-size: clamp(18px, 3.4cqmin, 96px); line-height: 1; display: block;
+  font-size: calc(clamp(18px, 3.4cqmin, 96px) * var(--bx-fs, 1)); line-height: 1; display: block;
   filter: drop-shadow(0 0 9px var(--bx-glow, rgba(255,94,138,.6))) drop-shadow(0 2px 6px rgba(0,0,0,.4));
   animation: bx-hr-rise var(--dur,5s) cubic-bezier(.33,.32,.36,1) forwards; }
 .bx-hr-e svg { display: block; width: 100%; height: 100%; overflow: visible; }

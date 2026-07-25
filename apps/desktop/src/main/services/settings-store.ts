@@ -44,6 +44,10 @@ export interface StudioSettings {
   /** Room-ID des zuletzt verbundenen Live — Wechsel = neuer Stream (setzt die
    *  „Letztes Live"-Gift-Markierung zurück, robust gegen Reconnect/Neustart). */
   lastLiveRoomId?: string;
+  /** Zoomstufe der App-Oberfläche (1 = normal). Strg +/- verstellte sie bisher
+   *  nur bis zum nächsten Start — wer größere Schrift braucht, musste sie jedes
+   *  Mal neu einstellen. Wird jetzt gemerkt. */
+  uiZoom?: number;
   soundVolume: number;
   /** Audio-Ausgabegerät für lokale Sounds/TTS (deviceId), '' = Standard. */
   audioOutputId: string;

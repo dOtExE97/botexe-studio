@@ -3,9 +3,11 @@
 const STYLE_ID = 'bx-sc-style';
 // --u = „1px bei Standardgröße" (540×60): Chips, Icons und Zahlen sind
 // Vielfache davon und wachsen mit, wenn der Nutzer das Widget größer zieht.
+// --bx-fs (Textgrößen-Einstellung, Faktor, Standard 1) steckt in dieser einen
+// Basisgröße — sonst hätte der Regler bei cq-Einheiten keinerlei Wirkung.
 const CSS = `
 .bx-sc { position: absolute; inset: 0; display: flex; align-items: center; gap: 1.85%; flex-wrap: wrap;
-  container-type: size; --u: min(0.185cqi, 1.667cqh); font-family: var(--bx-font-body); }
+  container-type: size; --u: calc(min(0.185cqi, 1.667cqh) * var(--bx-fs, 1)); font-family: var(--bx-font-body); }
 .bx-sc-chip { display: flex; align-items: center; gap: calc(var(--u) * 9);
   padding: calc(var(--u) * 9) calc(var(--u) * 18) calc(var(--u) * 9) calc(var(--u) * 12); border-radius: 999px;
   background: var(--bx-glass); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
@@ -36,6 +38,16 @@ const CSS = `
   padding: calc(var(--u) * 4) calc(var(--u) * 8); }
 .bx-sc-minimal .bx-sc-value { text-shadow: 0 1px 0 rgba(0,0,0,.95), 0 2px 8px rgba(0,0,0,.9); }
 .bx-sc-minimal .bx-sc-icon { filter: drop-shadow(0 1px 2px rgba(0,0,0,.9)); }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Die Pille IST hier der Rahmen: ihr Hintergrund kommt über --bx-glass (wird
+   transparent), der Ring blieb aber als box-shadow stehen. Beides weg, dafür
+   Kontur an Zahl und Icon, sonst steht Weiß auf hellem Video. */
+.bx-frameless .bx-sc-chip { box-shadow: none; }
+.bx-frameless .bx-sc-value {
+  -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
+.bx-frameless .bx-sc-icon { filter: drop-shadow(0 0 1.5px rgba(10,11,18,.95)) drop-shadow(0 2px 4px rgba(0,0,0,.7)); }
 `;
 // Monochrome Inline-SVG-Icons (24×24, currentColor) — bewusst schlicht, edel.
 const ICON = {

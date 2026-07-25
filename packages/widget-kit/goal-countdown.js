@@ -12,7 +12,7 @@ const CSS = `
    die Zeile verlor sich in der Fläche. Jetzt bestimmt die Breite die Größe
    (cqi), gedeckelt durch die Höhe (cqh), damit nichts überläuft. */
 .bx-gcd { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center;
-  font-family: var(--bx-font-display); container-type:size; --u: min(0.1316cqi, 0.769cqh);
+  font-family: var(--bx-font-display); container-type:size; --u: calc((min(0.1316cqi, 0.769cqh)) * var(--bx-fs, 1));
   padding: 0.8% 1.6%; }
 .bx-gcd-text { font-size: clamp(12px, calc(var(--u) * 46), 200px); line-height:1.08; color: var(--bx-text,#fff);
   overflow-wrap: anywhere;
@@ -22,6 +22,13 @@ const CSS = `
 .bx-gcd.done .bx-gcd-text, .bx-gcd.done .bx-gcd-n { color: var(--bx-teal); }
 .bx-gcd.pop { animation: bx-gcd-pop 380ms cubic-bezier(.2,1.5,.35,1); }
 @keyframes bx-gcd-pop { 0%{transform:scale(1)} 45%{transform:scale(1.07)} 100%{transform:scale(1)} }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   der Text hat bereits eine Kontur — hier reicht ein kräftigerer Schatten.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-gcd-text { text-shadow: 0 3px 10px rgba(0,0,0,.6); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

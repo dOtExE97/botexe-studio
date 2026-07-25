@@ -36,9 +36,13 @@ const CSS = `
   box-shadow: var(--bx-shadow), 0 0 44px -18px var(--bx-accent); overflow:hidden;
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 .bx-pl-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
-.bx-pl-q { font-family: var(--bx-font-display); font-size: clamp(13px,5.4cqmin,56px); letter-spacing:.04em;
+/* min(cqi,cqh) statt cqmin: cqmin misst die KURZE Seite — in der 480×280-Umfrage
+   also die Höhe. Frage und Antwort-Beschriftungen klebten dadurch am unteren
+   clamp-Rand (12 px neben fingerdicken Balken) und waren im Stream kaum zu
+   lesen. Jetzt führt die Breite, die Höhe deckelt. */
+.bx-pl-q { font-family: var(--bx-font-display); font-size: calc((clamp(13px,min(4.4cqi,9cqh),56px)) * var(--bx-fs, 1)); letter-spacing:.04em;
   color: var(--bx-text,#fff); text-shadow: 0 2px 8px rgba(0,0,0,.7); line-height:1.1; }
-.bx-pl-clock { font-family: var(--bx-font-mono); font-weight:800; font-size: clamp(12px,4.4cqmin,46px); color: var(--bx-gold);
+.bx-pl-clock { font-family: var(--bx-font-mono); font-weight:800; font-size: calc((clamp(12px,min(3.6cqi,7.5cqh),46px)) * var(--bx-fs, 1)); color: var(--bx-gold);
   text-shadow: 0 0 12px color-mix(in srgb, var(--bx-gold) 50%, transparent); min-width:3ch; text-align:right; }
 .bx-pl-opts { flex:1; display:flex; flex-direction:column; gap:2.2cqmin; min-height:0; }
 /* — bars — */
@@ -47,11 +51,11 @@ const CSS = `
 .bx-pl-fill { position:absolute; left:0; top:0; bottom:0; width:0%; opacity:.85;
   background: var(--c); box-shadow: 0 0 22px -4px var(--c); transition: width 500ms cubic-bezier(.25,1,.35,1); }
 .bx-pl-bar .bx-pl-row { position:relative; z-index:2; display:flex; align-items:center; gap:.45em; width:100%; padding:0 .7em; }
-.bx-pl-key { font-family: var(--bx-font-display); font-size: clamp(12px,4cqmin,40px); color:#0a0b12; background:var(--c);
+.bx-pl-key { font-family: var(--bx-font-display); font-size: calc((clamp(12px,min(3.3cqi,7cqh),40px)) * var(--bx-fs, 1)); color:#0a0b12; background:var(--c);
   border-radius:.35em; min-width:1.6em; text-align:center; padding:.05em .34em; -webkit-text-stroke:0; }
-.bx-pl-label { flex:1; font-family: var(--bx-font-display); font-size: clamp(12px,4.2cqmin,44px); color:#fff;
+.bx-pl-label { flex:1; font-family: var(--bx-font-display); font-size: calc((clamp(12px,min(3.6cqi,7.5cqh),44px)) * var(--bx-fs, 1)); color:#fff;
   -webkit-text-stroke:max(2px,.09em) #0a0b12; paint-order:stroke fill; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bx-pl-pct { font-family: var(--bx-font-mono); font-weight:800; font-size: clamp(12px,4.4cqmin,46px); color:#fff;
+.bx-pl-pct { font-family: var(--bx-font-mono); font-weight:800; font-size: calc((clamp(12px,min(3.6cqi,7.5cqh),46px)) * var(--bx-fs, 1)); color:#fff;
   text-shadow:0 1px 4px rgba(0,0,0,.9); }
 /* — cards — */
 .bx-pl.cards .bx-pl-opts { flex-direction:row; }
@@ -63,8 +67,16 @@ const CSS = `
 /* Gewinner */
 .bx-pl-bar.win { box-shadow: inset 0 0 0 2px var(--bx-gold), 0 0 26px -4px var(--bx-gold); animation: bx-pl-win .8s ease-in-out 2; }
 @keyframes bx-pl-win { 0%,100%{ transform: scale(1); } 50%{ transform: scale(1.03); } }
-.bx-pl-foot { font-family: var(--bx-font-display); font-size: clamp(10px,3.2cqmin,30px); color: var(--bx-muted);
+.bx-pl-foot { font-family: var(--bx-font-display); font-size: calc((clamp(10px,min(2.6cqi,5.5cqh),30px)) * var(--bx-fs, 1)); color: #cfd6e6;
   text-align:center; letter-spacing:.08em; }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur an Frage und Fußzeile. Die Balken bringen eigene Farbe mit.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-pl-q { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-pl-foot { color: #fff; -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const STYLES = new Set(['bars', 'cards']);

@@ -114,7 +114,21 @@ npm install            # einmalig
 npm run dev:desktop    # Dev-Modus
 npm test               # alle Tests (node:test + tsx)
 npm run lint           # eslint   ·   npm run typecheck   ·   npm run build:desktop
+npm run widget-check   # Überlauf-Prüfung aller Widgets (headless Chrome)
 ```
+
+**Widget-Überlauf-Prüfung** (`npm run widget-check`, in der CI als eigener Job):
+baut jedes Widget aus dem Katalog headless in sechs Boxgrößen (winzig bis sehr
+schmal-hoch) und misst, ob der Inhalt über die eingestellte Box hinausragt. Sie
+existiert wegen des Fehlers aus v0.32.0: Widgets setzen `container-type` auf
+ihrer eigenen Wurzel und benutzen cq-Einheiten in derselben Regel — die maßen
+dadurch den Viewport statt der Widget-Box, der Inhalt wurde abgeschnitten. Das
+betraf 32 von 43 Widgets und fiel erst im Livestream auf. Rot wird nur
+„RAGT-RAUS" (Inhalt steht sichtbar über der Box); „abgeschnitten" ist nur ein
+Bericht, weil das bei Laufbändern und einfliegenden Alerts Absicht ist.
+Einzelne Widgets prüfen: `npm run widget-check --workspace apps/desktop -- chat-box`.
+Der Katalog kommt aus `apps/desktop/src/renderer/pages/widget-types.ts` — dem
+gleichen Modul, aus dem der Editor seine Widget-Palette baut.
 
 ```
 apps/desktop/src/{main,renderer,shared}   ← Electron-App (Logik · UI · Typen)

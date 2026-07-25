@@ -9,7 +9,7 @@ const STYLE_ID = 'bx-counter-style';
 // nichts läuft über. Voraussetzung: container-type: size auf der Wurzel.
 const CSS = `
 .bx-cnt { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  container-type: size; --u: min(0.3125cqi, 0.625cqh);
+  container-type: size; --u: calc((min(0.3125cqi, 0.625cqh)) * var(--bx-fs, 1));
   gap: 1.2%; font-family: var(--bx-font-body); background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow), 0 0 40px -18px var(--bx-accent);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); overflow:hidden; }
@@ -39,6 +39,15 @@ const CSS = `
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 .bx-cnt-sticker .bx-cnt-value { color: #14161f !important; text-shadow: none !important; }
 .bx-cnt-sticker .bx-cnt-label { color: #565d70 !important; text-shadow: none !important; }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur. Die Gradient-Hairline (::before) blieb sonst als Bogen stehen.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-cnt::before { display: none; }
+html .bx-frameless .bx-cnt:not(.bx-cnt-sticker) .bx-cnt-label { color: #fff; -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-cnt:not(.bx-cnt-sticker) .bx-cnt-value { -webkit-text-stroke: max(1.5px, .07em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {

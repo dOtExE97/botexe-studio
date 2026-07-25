@@ -6,7 +6,11 @@ const STYLE_ID = 'bx-spo-style';
 const CSS = `
 .bx-spo { position:absolute; inset:0; display:flex; align-items:center; gap:3cqmin; padding:3cqmin 4cqmin;
   font-family: var(--bx-font-body); container-type:size; overflow:hidden;
-  font-size: clamp(10px, min(24cqh, 5cqi), 96px);
+  /* EINE Basisgröße: Titel/Künstler/EQ/Balken hängen in em daran. Der Faktor
+     --bx-fs (Textgrößen-Einstellung) steht AUSSEN um das clamp, sonst würde die
+     Obergrenze den Zuwachs wegdeckeln. Das Cover bleibt bewusst an der Box
+     (es ist ein Bild, keine Schrift). */
+  font-size: calc(clamp(10px, min(24cqh, 5cqi), 96px) * var(--bx-fs, 1));
   background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   transition: opacity .4s; }
@@ -35,10 +39,21 @@ const CSS = `
 .bx-spo.empty .bx-spo-eq i { animation-play-state: paused; }
 .bx-spo-title { font-family: var(--bx-font-display); font-size:1em; color: var(--bx-text,#fff);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bx-spo-artist { font-size:.62em; color: var(--bx-muted,#aab0c4);
+.bx-spo-artist { font-size:.68em; color: #cbd2e4;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bx-spo-bar { height:max(4px,.16em); border-radius:99px; background: rgba(255,255,255,.28); overflow:hidden; margin-top:1cqmin; }
 .bx-spo-fill { height:100%; width:0%; border-radius:99px; background: var(--bx-accent,#1db954); }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Ohne Panel standen weißer Titel und blasser Künstlername direkt auf dem
+   Video — auf hellen Szenen unlesbar. Kontur nur im frameless-Fall. */
+.bx-frameless .bx-spo { box-shadow: none; }
+.bx-frameless .bx-spo-title, .bx-frameless .bx-spo-artist {
+  -webkit-text-stroke: max(1.5px, .075em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
+.bx-frameless .bx-spo-artist { color: #eef1f8; }
+/* Der Fortschrittsbalken war eine helle Spur auf hellem Video → dunkle Spur. */
+.bx-frameless .bx-spo-bar { background: rgba(0,0,0,.45); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 
@@ -77,7 +92,12 @@ export default class SpotifyNowPlaying {
       this.titleEl.textContent = s.title;
       this.artistEl.textContent = s.artist || '';
       const art = s.albumArt ? String(s.albumArt).replace(/["\\]/g, '') : '';
-      this.art.style.backgroundImage = art ? `url("${art}")` : 'none';
+      // Ohne Cover die Inline-Angabe LÖSCHEN statt auf 'none' zu setzen: 'none'
+      // hat auch den dunklen Verlauf aus dem CSS mit erschlagen — übrig blieb
+      // ein durchsichtiges Quadrat, in dem die weiße Note auf hellem Video
+      // unsichtbar war.
+      if (art) this.art.style.backgroundImage = `url("${art}")`;
+      else this.art.style.removeProperty('background-image');
       this.art.classList.toggle('has-art', !!art);
     }
     this.dur = Number(s.durationMs) || 0;

@@ -18,10 +18,16 @@ const COLS = 7;
 const CSS = `
 .bx-c4 { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:.5em; container-type:size; font-family: var(--bx-font-body); color:#fff; text-align:center;
-  font-size: clamp(6px, 4.6cqmin, 60px);
-  --bx-c4-accent: var(--bx-accent,#ff5436); --bx-c4-r:#ff4757; --bx-c4-y:#ffd32a; }
+  font-size: calc((clamp(6px, 4.6cqmin, 60px)) * var(--bx-fs, 1));
+  --bx-c4-accent: var(--bx-accent,#ff5436); --bx-c4-r:#ff4757; --bx-c4-y:#ffd32a;
+  /* Brettbreite: normalerweise 78cqmin — aber gedeckelt durch die Höhe, die
+     nach Kopfzeile, Status und Spaltennummern übrig bleibt (~7.6em Textzeilen).
+     Ohne diesen Deckel schob eine größere Textgröße (--bx-fs 1.5) das Brett
+     unten aus der Box. Das Brett ist 7 Spalten breit und 6 Reihen hoch, daher
+     der Faktor 7/6 von Resthöhe auf Breite. */
+  --bx-c4-w: min(78cqmin, calc(max(0px, 100cqh - 7.6em) * 7 / 6)); }
 /* Kopfzeile: beide Spieler, der Aktive leuchtet */
-.bx-c4-players { display:flex; align-items:center; justify-content:center; gap:.6em; font-size: clamp(8px, 5.8cqmin, 62px);
+.bx-c4-players { display:flex; align-items:center; justify-content:center; gap:.6em; font-size: calc((clamp(8px, 5.8cqmin, 62px)) * var(--bx-fs, 1));
   font-family: var(--bx-font-display, inherit); font-weight:800; line-height:1.1; max-width:96%; }
 .bx-c4-pl { display:flex; align-items:center; gap:.35em; padding:.18em .5em; border-radius:.6em; opacity:.62;
   text-shadow:0 1px 3px rgba(0,0,0,.8);
@@ -31,15 +37,15 @@ const CSS = `
 .bx-c4-dot.R { background:var(--bx-c4-r); } .bx-c4-dot.Y { background:var(--bx-c4-y); }
 .bx-c4-vs { font-size:.78em; opacity:.6; }
 /* Status-Zeile */
-.bx-c4-status { font-size: clamp(8px, 5.6cqmin, 60px); font-weight:700; min-height:1.3em;
+.bx-c4-status { font-size: calc((clamp(8px, 5.6cqmin, 60px)) * var(--bx-fs, 1)); font-weight:700; min-height:1.3em;
   color: color-mix(in srgb, var(--bx-c4-accent) 60%, #fff); text-shadow:0 1px 4px rgba(0,0,0,.85), 0 0 .6em rgba(0,0,0,.55); }
 .bx-c4.won .bx-c4-status { color: var(--bx-gold,#ffd700); }
 /* Spielfeld: blaues Brett mit Loch-Rastern */
 .bx-c4-grid { display:grid; grid-template-columns:repeat(${COLS}, 1fr); gap: 1.2cqmin;
   padding: 1.4cqmin; border-radius: 2cqmin; background:linear-gradient(160deg,#2b4cdb,#1b2f8f);
-  box-shadow:0 8px 26px rgba(0,0,0,.45), inset 0 0 18px rgba(0,0,0,.3); width: 78cqmin; max-width:96%; }
-.bx-c4-colhdr { display:grid; grid-template-columns:repeat(${COLS}, 1fr); gap:1.2cqmin; width:78cqmin; max-width:96%; padding:0 1.4cqmin;
-  font-size: clamp(7px, 4.2cqmin, 48px); font-weight:800; color:#fff;
+  box-shadow:0 8px 26px rgba(0,0,0,.45), inset 0 0 18px rgba(0,0,0,.3); width: var(--bx-c4-w); max-width:96%; }
+.bx-c4-colhdr { display:grid; grid-template-columns:repeat(${COLS}, 1fr); gap:1.2cqmin; width: var(--bx-c4-w); max-width:96%; padding:0 1.4cqmin;
+  font-size: calc((clamp(7px, 4.2cqmin, 48px)) * var(--bx-fs, 1)); font-weight:800; color:#fff;
   text-shadow:0 1px 3px rgba(0,0,0,.85), 0 0 .5em rgba(0,0,0,.7); }
 .bx-c4-cell { aspect-ratio:1/1; border-radius:50%; background:radial-gradient(circle at 35% 30%, #0c1430, #060a1c);
   box-shadow:inset 0 2px 5px rgba(0,0,0,.6); display:grid; place-items:center; }
@@ -50,6 +56,14 @@ const CSS = `
 .bx-c4-cell.win .pc { animation: bx-c4-glow 1s ease-in-out infinite; }
 @keyframes bx-c4-glow { 0%,100% { box-shadow:0 0 0 rgba(255,255,255,.0); filter:brightness(1); }
   50% { box-shadow:0 0 14px 4px rgba(255,255,255,.85); filter:brightness(1.35); } }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur an Spaltenzahlen und Statuszeile (das Brett bleibt sichtbar).
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-c4-colhdr { -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-c4-status { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {

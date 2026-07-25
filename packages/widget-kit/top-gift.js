@@ -4,9 +4,11 @@ const STYLE_ID = 'bx-tg-style';
 // --u = „1px bei Standardgröße" (320×320): alle Größen sind Vielfache davon,
 // damit Schrift/Gift-Bild mitwachsen, wenn das Widget größer gezogen wird.
 // min(cqi, cqh) verhindert Überlauf in schmalen bzw. flachen Boxen.
+// --bx-fs ist die Textgrößen-Einstellung (Faktor, Standard 1) und wird hier an
+// der EINEN Basisgröße eingerechnet — dadurch wirkt der Regler auf alles.
 const CSS = `
 .bx-tg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  container-type: size; --u: min(0.3125cqi, 0.3125cqh);
+  container-type: size; --u: calc(min(0.3125cqi, 0.3125cqh) * var(--bx-fs, 1));
   font-family: var(--bx-font-body); padding: 4.4%; text-align: center; background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow), 0 0 44px -16px var(--bx-accent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); overflow: hidden; }
 .bx-tg::before { content:''; position:absolute; inset:0; border-radius:inherit; padding:1.5px;
@@ -134,6 +136,40 @@ const CSS = `
 .bx-tg-neonschild .bx-tg-coins { color: #fff9d8;
   text-shadow: 0 0 6px #fff, 0 0 16px var(--bx-gold), 0 0 32px color-mix(in srgb, var(--bx-gold) 70%, transparent); }
 .bx-tg-neonschild .bx-tg-empty { color: #dfe3f2; }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Ohne Panel steht der helle Text direkt auf dem Videobild. Auf einer hellen
+   Szene (Schnee, Whiteboard, Tageslicht) verschwand er komplett — genau der
+   Fall, den der Nutzer will: „nur das Geschenk schick und den Text".
+   Deshalb hier NUR im frameless-Fall eine Kontur; das normale Aussehen mit
+   Panel bleibt Zeichen für Zeichen unverändert.
+   Die Konturstärke ist in em angegeben → sie wächst mit der Textgrößen-
+   Einstellung mit, statt bei 1,5× zum Haarstrich zu werden.
+   BEWUSST AUSGENOMMEN: podest, vitrine, neonschild. Diese Stile bringen ihre
+   eigene Fläche mit (Lichtkegel + Podest, Messing-Schaukasten, Leuchtblende)
+   und tragen ihre Lesbarkeit selbst; eine zusätzliche Kontur würde ihre Form
+   zerschlagen. Für sie ist „Rahmen ausblenden" ohnehin sinnlos — sie SIND der
+   Rahmen. */
+.bx-frameless .bx-tg:not(.bx-tg-vitrine):not(.bx-tg-neonschild) { box-shadow: none; }
+/* Nur die Glas-Haarlinie der Standardkarte wegnehmen. Bei vitrine/neonschild
+   ist ::before die Deko selbst (Messingrahmen, innere Neonröhre) — die bleibt. */
+.bx-frameless .bx-tg:not(.bx-tg-vitrine):not(.bx-tg-neonschild)::before { display: none; }
+.bx-frameless .bx-tg:not(.bx-tg-podest):not(.bx-tg-vitrine):not(.bx-tg-neonschild) .bx-tg-kicker,
+.bx-frameless .bx-tg:not(.bx-tg-podest):not(.bx-tg-vitrine):not(.bx-tg-neonschild) .bx-tg-gift,
+.bx-frameless .bx-tg:not(.bx-tg-podest):not(.bx-tg-vitrine):not(.bx-tg-neonschild) .bx-tg-coins,
+.bx-frameless .bx-tg:not(.bx-tg-podest):not(.bx-tg-vitrine):not(.bx-tg-neonschild) .bx-tg-empty,
+.bx-frameless .bx-tg:not(.bx-tg-podest):not(.bx-tg-vitrine):not(.bx-tg-neonschild) .bx-tg-by {
+  -webkit-text-stroke: max(1.5px, .085em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.55); }
+/* Das Gift selbst bekommt einen dunklen Saum, sonst schwimmt ein helles
+   Gold-Icon auf heller Szene. */
+.bx-frameless .bx-tg:not(.bx-tg-podest):not(.bx-tg-vitrine):not(.bx-tg-neonschild) .bx-tg-svg,
+.bx-frameless .bx-tg:not(.bx-tg-podest):not(.bx-tg-vitrine):not(.bx-tg-neonschild) .bx-tg-img {
+  filter: drop-shadow(0 0 1.5px rgba(10,11,18,.9)) drop-shadow(0 5px 12px rgba(0,0,0,.5)); }
+/* Neonschild: die Leuchtröhre IST ein border — die globale frameless-Regel
+   (border-color: transparent) hätte sie ersatzlos ausgeknipst. */
+.bx-frameless .bx-tg.bx-tg-neonschild { border-color: color-mix(in srgb, var(--bx-accent) 85%, white) !important; }
+.bx-frameless .bx-tg.bx-tg-neonschild::before { border-color: color-mix(in srgb, var(--bx-accent) 55%, white) !important; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));

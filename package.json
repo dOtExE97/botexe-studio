@@ -1,6 +1,6 @@
 {
   "name": "botexe-studio",
-  "version": "0.32.0",
+  "version": "0.33.0",
   "private": true,
   "description": "Lokales TikTok-Live Overlay-Studio — TikFinity/TikTory-Ersatz (MVP Pur-Kern: Events → Trigger → Overlays/Alerts/Sounds)",
   "license": "SEE LICENSE IN LICENSE",
@@ -14,6 +14,7 @@
     "lint": "npm --workspaces --if-present run lint",
     "typecheck": "npm --workspaces --if-present run typecheck",
     "test": "npm --workspaces --if-present run test",
+    "widget-check": "npm --workspace apps/desktop run widget-check",
     "licenses": "node scripts/build-licenses.mjs"
   }
 }

@@ -3,6 +3,49 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.33.0] — 2026-07-25
+
+### Die Textgrößen-Einstellung wirkt endlich
+Sie war **komplett wirkungslos** — nachgemessen: 52,0 px auf dem Bildschirm bei 0,7×, 1,0× und 1,5×. Der Zoom rendert(e) den Inhalt in umgekehrter Größe und skalierte ihn zurück; seit die Widgets ihre Schrift an ihrer Box messen (v0.32.0), hoben sich beide Effekte exakt auf.
+
+Jetzt ist die Größe ein **Faktor**, den jedes Widget in seine Basisgröße multipliziert — der kann sich nicht selbst aufheben. Umgesetzt in allen 38 Widgets mit Textanteil, beim Glücksrad bis in die gezeichnete Segmentschrift. Beispiel Zähler: 36,4 / 52,0 / 78,0 px statt dreimal 52,0.
+
+Zwei Widgets bekommen den Regler neu, weil sie sehr wohl Text zeigen: **Herz-Regen** (Namen an den Herzen) und **Coin-Glas** (Coin-Anzeige, Zielbalken). Bei Feuerwerk und Kanone bleibt er bewusst weg — deren Text liegt auf Canvas.
+
+Bei 1,5× lief anfangs an zehn Stellen etwas über. Behoben, indem die Widgets weniger zeigen statt abzuschneiden: das **4-Gewinnt**-Brett schrumpft, wenn die Textzeilen wachsen, das **Galgenmännchen** deckelt seine Karte, und der **Stream-Boss** blendet in sehr flachen Kästchen die Schadensliste aus.
+
+### Zoomstufe der App bleibt erhalten
+Strg +/− vergrößerte die Oberfläche bisher nur bis zum nächsten Start. Jetzt wird sie gemerkt, in zehn Stufen von 60 % bis 200 %. (Die eingebauten Zoom-Befehle von Electron lösen kein Änderungs-Ereignis aus — über sie wäre nie etwas gespeichert worden, ausgerechnet bei Menü und Tastenkürzel. Deshalb steuert die App die Stufen jetzt selbst.)
+
+### „Rahmen ausblenden" taugt jetzt wirklich etwas
+Die Einstellung gab es schon, aber ohne Panel stand heller Text auf hellem Videobild und verschwand. Jedes Widget wurde in diesem Zustand auf hellem Hintergrund geprüft und bekommt dort, wo nötig, eine Textkontur — nur im rahmenlosen Fall, das normale Aussehen ändert sich nicht.
+
+Dabei kam heraus, dass eine globale Regel *alle* Rahmen löschte und damit auch die, die die **Form tragen**: Neonröhre, Kassenbon-Trennlinien, Automatenrahmen. Zurückgeholt. Bei Stilen, bei denen die Fläche die Gestaltung IST (Podest, Vitrine, Neonschild, Flammensäule, Quittung, Comic-Knall, Arcade, Highscore), bleibt „Rahmen ausblenden" bewusst außen vor.
+
+Repariert wurde außerdem, was ohne Panel als Rest stehen blieb: graue Schatten-Kleckse bei Chat, Gift-Feed und Activity-Feed, ein roter Bogen beim Zähler, und beim Galgenmännchen hatte die Einstellung gar keine Wirkung.
+
+### Geschenk-Menü überarbeitet
+Die drei Optiken sind jetzt echte Entwürfe statt schlichter Boxen:
+- **Sammelkarte** — Kartenblatt mit Innenrahmen, Akzent-Ecken, wanderndem Hologramm-Glanz und geprägtem Gold-Preis.
+- **Preistafel** — Kreidetafel im Holzrahmen: Name links, gepunktete Führungslinie, Preis rechts wie auf einer Speisekarte.
+- **Leuchtreklame** — dunkle Blende mit doppelter Neonröhre, glühender Schrift und leichtem Flackern.
+
+Das **Laufband** zeigt keine langen Pillen mehr, sondern kompakte Kacheln (Geschenk links, Name und Wirkung zweizeilig rechts) auf einem durchgehenden Banner, über das ein Lichtstreif wandert. Dadurch sind mehrere Einträge gleichzeitig zu sehen statt eineinhalb.
+
+**Neu: eine Auslöse-Animation.** Schickt jemand wirklich eines der Geschenke, springt die Tafel auf diesen Eintrag, er ploppt auf, bekommt Leuchtrand und Lichtstreif, und oben erscheint „von <Name>". Vorher war die Tafel ein reiner Aushang und reagierte gar nicht.
+
+### Bedienung des Geschenk-Menüs
+Die Eigenschaften-Spalte ist nur ~230 px breit; Geschenk-Auswahl und Textfeld standen nebeneinander, sodass vom Platzhalter nur „Auslöser/Te" übrig blieb. Jede Zeile hat jetzt zwei Ebenen — Auswahl oben, Text darunter, beide über die volle Breite — plus **Pfeile zum Umsortieren** (die Reihenfolge bestimmt, wie die Tafel durchwechselt) und eine Zeilennummer.
+
+### Neu: Überlauf-Prüfer in der CI
+Der Fehler aus v0.32.0 saß in 32 von 43 Widgets und fiel erst im Livestream auf. `npm run widget-check` misst jetzt jedes Widget in sechs Boxgrößen und läuft bei jedem Bau mit (~26 s). Rot wird nur, was sichtbar aus der Box ragt; bauartbedingtes Abschneiden (Laufbänder, einfliegende Alerts) wird nur berichtet. Er fängt auch Syntaxfehler in Widget-Dateien — die rutschten bisher durch Lint und Typecheck hindurch.
+
+### Kleinigkeiten
+- **Umfrage:** maß ihre Schrift an der kurzen Seite — Frage 14 px neben fingerdicken Balken. Jetzt 20 px, Antworten 16,5 px.
+- **Sport-Ticker, Quiz, Stream-Boss, Spotify:** zu blasse Grautöne und zu kleine Deckel angehoben.
+- **Spotify:** der Cover-Platzhalter aus v0.32.0 war kaputt — die Note war unsichtbar, weil das JS den CSS-Verlauf überschrieb.
+- **Geschenk-Menü im Laufband:** der Name schrumpfte auf null und war unsichtbar.
+
 ## [0.32.0] — 2026-07-25
 
 ### Widgets halten sich endlich an ihr Kästchen

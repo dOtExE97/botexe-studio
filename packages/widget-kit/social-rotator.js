@@ -35,9 +35,11 @@ const CSS = `
 /* Ohne container-type liefen die cq-Einheiten unten ins Leere — die Pille blieb
    beim Vergrößern winzig. Die Pille ist ein BREITES Element: ihre Größe hängt an
    der HÖHE der Box (cqh); cqi deckelt nur in sehr schmalen Boxen. Alles im
-   Inneren ist in em ausgedrückt und wächst damit automatisch mit. */
+   Inneren ist in em ausgedrückt und wächst damit automatisch mit.
+   Der Faktor --bx-fs (Textgrößen-Einstellung) steht AUSSEN um das clamp, sonst
+   deckelt die Obergrenze den Zuwachs weg. */
 .bx-sr { position:absolute; inset:0; display:flex; align-items:center; justify-content:flex-start; font-family: var(--bx-font-body); overflow:hidden;
-  container-type:size; font-size: clamp(13px, min(36cqh, 7.5cqi), 130px); }
+  container-type:size; font-size: calc(clamp(13px, min(36cqh, 7.5cqi), 130px) * var(--bx-fs, 1)); }
 .bx-sr-pill { display:flex; align-items:center; gap:.32em; padding:.22em .22em .22em .28em; border-radius:999px; max-width:100%;
   opacity:0; transform: translateX(-24px) scale(.92); }
 .bx-sr.show .bx-sr-pill { animation: bx-sr-in 520ms cubic-bezier(.2,1.3,.35,1) forwards; }
@@ -60,14 +62,27 @@ const CSS = `
 /* — Style: glas (unser Glas-Look) — */
 .bx-st-glas .bx-sr-pill { background: var(--bx-glass); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   box-shadow: var(--bx-shadow), 0 0 30px -12px var(--bx-accent); }
-.bx-st-glas .bx-sr-plat { color: var(--bx-muted); }
+.bx-st-glas .bx-sr-plat { color: #c3cadd; }
 .bx-st-glas .bx-sr-name { color: var(--bx-text,#fff); }
 .bx-st-glas .bx-sr-btn { color:#fff; }
 /* — Style: neon (transparent + Akzent-Glow) — */
 .bx-st-neon .bx-sr-pill { background: rgba(8,9,14,.55); border:max(1.5px,.05em) solid var(--bx-accent); box-shadow:0 0 22px -4px var(--bx-accent); }
-.bx-st-neon .bx-sr-plat { color: var(--bx-muted); }
+.bx-st-neon .bx-sr-plat { color: #c3cadd; }
 .bx-st-neon .bx-sr-name { color:#fff; text-shadow:0 0 10px var(--bx-accent); }
 .bx-st-neon .bx-sr-btn { color:#fff; }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Der Stil „pill" bringt seine eigene weiße Pille mit und bleibt lesbar. Bei
+   „glas" fällt die Fläche weg (--bx-glass wird transparent) und bei „neon"
+   bleibt nur ein schwacher Schleier — dort standen Plattform und Name frei auf
+   dem Video. Kontur deshalb nur für diese beiden. */
+.bx-frameless .bx-st-glas .bx-sr-plat, .bx-frameless .bx-st-glas .bx-sr-name,
+.bx-frameless .bx-st-neon .bx-sr-plat, .bx-frameless .bx-st-neon .bx-sr-name {
+  color: #fff; -webkit-text-stroke: max(1.5px, .075em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
+/* Die Neon-Röhre der Pille ist ein border — die globale frameless-Regel hätte
+   sie gelöscht und den Stil damit auf „nichts" reduziert. */
+.bx-frameless .bx-st-neon .bx-sr-pill { border-color: var(--bx-accent) !important; }
 `;
 
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }

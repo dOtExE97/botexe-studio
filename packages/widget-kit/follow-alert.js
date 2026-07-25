@@ -9,8 +9,8 @@ const CSS = `
   transform: translateX(-130%); animation: bx-fa-in 440ms cubic-bezier(.2,1.5,.35,1) forwards, bx-fa-out 340ms ease-in forwards var(--stay,3600ms); }
 .bx-fa-icon { width: clamp(18px,min(9.1cqi,46cqh),82px); aspect-ratio: 1/1; height: auto; display: flex; align-items: center; justify-content: center; flex: none; }
 .bx-fa-icon svg { width: 56%; height: 56%; display: block; }
-.bx-fa-label { font-family: var(--bx-font-display); font-size: clamp(8px,min(2.6cqi,13cqh),24px); letter-spacing: .3em; text-transform: uppercase; color: var(--bx-accent); }
-.bx-fa-name { font-family: var(--bx-font-display); font-size: clamp(12px,min(5cqi,26cqh),46px); color: var(--bx-text,#fff); text-transform: uppercase;
+.bx-fa-label { font-family: var(--bx-font-display); font-size: calc((clamp(8px,min(2.6cqi,13cqh),24px)) * var(--bx-fs, 1)); letter-spacing: .3em; text-transform: uppercase; color: var(--bx-accent); }
+.bx-fa-name { font-family: var(--bx-font-display); font-size: calc((clamp(12px,min(5cqi,26cqh),46px)) * var(--bx-fs, 1)); color: var(--bx-text,#fff); text-transform: uppercase;
   text-shadow: 0 2px 6px rgba(0,0,0,.6); max-width: 74cqi; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @keyframes bx-fa-in { to { transform: translateX(0); } }
 @keyframes bx-fa-out { to { transform: translateX(-130%); opacity: 0; } }
@@ -34,15 +34,23 @@ const CSS = `
   background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent) 26%, transparent), transparent 90%);
   border-left: 3px solid var(--bx-accent); }
 .bx-st-minimal .bx-fa-icon { width: clamp(12px,min(5.6cqi,29cqh),52px); color: var(--bx-accent); }
-.bx-st-minimal .bx-fa-label { font-size: clamp(7px,min(2.2cqi,11cqh),20px); }
-.bx-st-minimal .bx-fa-name { font-size: clamp(10px,min(3.9cqi,20cqh),36px); }
+.bx-st-minimal .bx-fa-label { font-size: calc((clamp(7px,min(2.2cqi,11cqh),20px)) * var(--bx-fs, 1)); }
+.bx-st-minimal .bx-fa-name { font-size: calc((clamp(10px,min(3.9cqi,20cqh),36px)) * var(--bx-fs, 1)); }
 
 /* — HYPE — fette Gradient-Füllung, groß */
 .bx-st-hype .bx-fa-pill { border-radius: 14px; padding: clamp(5px,17cqh,30px) clamp(12px,7.4cqi,64px) clamp(5px,17cqh,30px) clamp(6px,3.9cqi,34px);
   background: linear-gradient(120deg, var(--bx-accent), var(--bx-accent-2)); box-shadow: 0 14px 34px -10px var(--bx-accent); }
 .bx-st-hype .bx-fa-icon { width: clamp(20px,min(10.9cqi,55cqh),96px); border-radius: 14px; color: var(--bx-accent); background: rgba(0,0,0,.25); }
 .bx-st-hype .bx-fa-label { color: rgba(0,0,0,.6); }
-.bx-st-hype .bx-fa-name { font-size: clamp(13px,min(6.1cqi,31cqh),56px); color: #0a0b10; text-shadow: 0 1px 0 rgba(255,255,255,.25); }
+.bx-st-hype .bx-fa-name { font-size: calc((clamp(13px,min(6.1cqi,31cqh),56px)) * var(--bx-fs, 1)); color: #0a0b10; text-shadow: 0 1px 0 rgba(255,255,255,.25); }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur an Beschriftung und Name (Hype-Stil hat dunkle Schrift).
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-fa:not(.bx-st-hype) .bx-fa-label { -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-fa:not(.bx-st-hype) .bx-fa-name { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 // Monochrome Inline-SVG-Icons, eingefärbt via currentColor (.bx-fa-icon color je Stil).
 const ICONS = {

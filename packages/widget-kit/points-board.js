@@ -15,7 +15,7 @@ const CSS = `
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; pointer-events:none; }
 /* Schrift skaliert über BEIDE Achsen (min(cqi,cqh)) — reines cqmin macht in
    breiten, flachen Boxen Mini-Schrift. */
-.bx-pb-title { position: relative; overflow: hidden; font-family: var(--bx-font-display); font-size: clamp(11px,min(4cqi,9cqh),24px); letter-spacing: .3em;
+.bx-pb-title { position: relative; overflow: hidden; font-family: var(--bx-font-display); font-size: calc(clamp(11px,min(4cqi,9cqh),24px) * var(--bx-fs, 1)); letter-spacing: .3em;
   text-transform: uppercase; color: var(--bx-accent); text-shadow: 0 0 12px color-mix(in srgb, var(--bx-accent) 45%, transparent);
   padding-bottom: clamp(3px,2.6cqh,14px); margin-bottom: clamp(3px,2.6cqh,14px); border-bottom: 1px solid color-mix(in srgb, var(--bx-accent) 45%, transparent); }
 .bx-pb-title::after { content:''; position:absolute; top:0; bottom:0; left:-60%; width:45%; transform:translateX(0) skewX(-20deg);
@@ -29,7 +29,7 @@ const CSS = `
 
 /* — Rang-Badge: Default schlicht, Platz 1–3 als Medaillen — */
 .bx-pb-rank { position: relative; height:62%; aspect-ratio:1/1; width:auto; flex:none; display:flex; align-items:center; justify-content:center;
-  font-family: var(--bx-font-display); font-size:clamp(9px,34cqh,30px); color:#0a0b10; border-radius:50%; background:#4a5066;
+  font-family: var(--bx-font-display); font-size:calc(clamp(9px,34cqh,30px) * var(--bx-fs, 1)); color:#0a0b10; border-radius:50%; background:#4a5066;
   box-shadow: 0 2px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.18); }
 .bx-pb-row[data-rank="1"] .bx-pb-rank { background: linear-gradient(160deg,#ffe88a,#f5b914); box-shadow: 0 0 16px -2px var(--bx-gold), 0 2px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.45); }
 .bx-pb-row[data-rank="2"] .bx-pb-rank { background: linear-gradient(160deg,#eef2fb,#b9c2d8); box-shadow: 0 0 12px -3px #d7deec, 0 2px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.5); }
@@ -49,13 +49,13 @@ const CSS = `
 .bx-pb-row[data-rank="2"] .bx-pb-pic { box-shadow: 0 0 0 2px #d7deec; }
 .bx-pb-row[data-rank="3"] .bx-pb-pic { box-shadow: 0 0 0 2px #f0a35a; }
 
-.bx-pb-name { flex:1; font-family: var(--bx-font-display); font-size:clamp(10px,min(46cqh,5.5cqi),36px); color:var(--bx-text,#fff); text-transform:uppercase;
+.bx-pb-name { flex:1; font-family: var(--bx-font-display); font-size:calc(clamp(10px,min(46cqh,5.5cqi),36px) * var(--bx-fs, 1)); color:var(--bx-text,#fff); text-transform:uppercase;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 2px 4px rgba(0,0,0,.5); }
 .bx-pb-row[data-rank="1"] .bx-pb-name { color: var(--bx-gold); }
-.bx-pb-val { font-family: var(--bx-font-mono); font-weight:700; font-size:clamp(10px,min(40cqh,4.6cqi),30px); color: var(--bx-accent);
+.bx-pb-val { font-family: var(--bx-font-mono); font-weight:700; font-size:calc(clamp(10px,min(40cqh,4.6cqi),30px) * var(--bx-fs, 1)); color: var(--bx-accent);
   text-shadow: 0 0 10px color-mix(in srgb, var(--bx-accent) 40%, transparent); }
 .bx-pb-row[data-rank="1"] .bx-pb-val { color: var(--bx-gold); text-shadow: 0 0 10px color-mix(in srgb, var(--bx-gold) 45%, transparent); }
-.bx-pb-empty { display:flex; align-items:center; justify-content:center; height:100%; font-size:clamp(11px,min(3.2cqi,11cqh),22px); letter-spacing:.2em; color: var(--bx-muted); text-transform:uppercase; }
+.bx-pb-empty { display:flex; align-items:center; justify-content:center; height:100%; font-size:calc(clamp(11px,min(3.2cqi,11cqh),22px) * var(--bx-fs, 1)); letter-spacing:.2em; color: #c3cadd; text-transform:uppercase; }
 @keyframes bx-shimmer { 0%,55% { transform:translateX(0) skewX(-20deg); } 100% { transform:translateX(422%) skewX(-20deg); } }
 /* ── Stil „Neon" — freistehende Zeilen ohne Panel: Glow-Namen überm Gameplay. */
 .bx-pb-neon { background: none !important; box-shadow: none !important; border: none; }
@@ -98,14 +98,37 @@ const CSS = `
   box-shadow: 0 0 26px -8px #37ff6a, inset 0 0 40px rgba(55,255,106,.06); }
 .bx-pb-highscore::before { display: none; }
 .bx-pb-highscore .bx-pb-title { color: #eaff8d; border-bottom: 2px solid rgba(55,255,106,.5);
-  font-family: 'Press Start 2P', monospace; font-size: clamp(8px,min(2.4cqi,6cqh),20px); letter-spacing: .1em; text-shadow: 0 0 10px #37ff6a; }
+  font-family: 'Press Start 2P', monospace; font-size: calc(clamp(8px,min(2.4cqi,6cqh),20px) * var(--bx-fs, 1)); letter-spacing: .1em; text-shadow: 0 0 10px #37ff6a; }
 .bx-pb-highscore .bx-pb-title::after { display: none; }
 .bx-pb-highscore .bx-pb-row { background: none !important; border-radius: 0; }
-.bx-pb-highscore .bx-pb-name { color: #8dffab; font-family: 'Press Start 2P', monospace; font-size: clamp(8px,min(30cqh,3.2cqi),22px); letter-spacing: 0; }
-.bx-pb-highscore .bx-pb-val { color: #eaff8d; font-family: 'Press Start 2P', monospace; font-size: clamp(8px,min(30cqh,3.2cqi),22px); }
+.bx-pb-highscore .bx-pb-name { color: #8dffab; font-family: 'Press Start 2P', monospace; font-size: calc(clamp(8px,min(30cqh,3.2cqi),22px) * var(--bx-fs, 1)); letter-spacing: 0; }
+.bx-pb-highscore .bx-pb-val { color: #eaff8d; font-family: 'Press Start 2P', monospace; font-size: calc(clamp(8px,min(30cqh,3.2cqi),22px) * var(--bx-fs, 1)); }
 .bx-pb-highscore .bx-pb-rank { background: none !important; box-shadow: none !important; color: #37ff6a;
-  font-family: 'Press Start 2P', monospace; font-size: clamp(7px,26cqh,18px); }
+  font-family: 'Press Start 2P', monospace; font-size: calc(clamp(7px,26cqh,18px) * var(--bx-fs, 1)); }
 .bx-pb-highscore .bx-pb-pic { border-radius: 0; box-shadow: 0 0 0 2px #37ff6a; }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Ohne Panel stehen Titel, Namen und Werte direkt auf dem Videobild; auf einer
+   hellen Szene waren die weißen Namen praktisch unsichtbar. Kontur deshalb NUR
+   im frameless-Fall — mit Panel bleibt das Aussehen unverändert. Stärke in em,
+   damit sie mit der Textgrößen-Einstellung mitwächst.
+   AUSGENOMMEN pills/bon/highscore: die drei bringen eigene Flächen mit (Akzent-
+   Pille, Bonpapier, schwarzer Automat) und setzen dunkle bzw. eigene Textfarben
+   — eine Kontur würde dort nur verschmieren. */
+/* Glas-Haarlinie weg — beim Bon ist ::before die Zackenkante des Papiers. */
+.bx-frameless .bx-pb:not(.bx-pb-bon)::before { display: none; }
+.bx-frameless .bx-pb:not(.bx-pb-pills):not(.bx-pb-bon):not(.bx-pb-highscore) .bx-pb-title,
+.bx-frameless .bx-pb:not(.bx-pb-pills):not(.bx-pb-bon):not(.bx-pb-highscore) .bx-pb-name,
+.bx-frameless .bx-pb:not(.bx-pb-pills):not(.bx-pb-bon):not(.bx-pb-highscore) .bx-pb-val,
+.bx-frameless .bx-pb:not(.bx-pb-pills):not(.bx-pb-bon):not(.bx-pb-highscore) .bx-pb-empty {
+  -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.55); }
+/* Bon und Highscore zeichnen ihre Struktur als border — die globale
+   frameless-Regel hätte Trennlinien bzw. Automatenrahmen ersatzlos gelöscht. */
+.bx-frameless .bx-pb-bon .bx-pb-title { border-bottom-color: #b9ad90 !important; }
+.bx-frameless .bx-pb-bon .bx-pb-row { border-bottom-color: #d5cbb2 !important; }
+.bx-frameless .bx-pb-highscore { border-color: #37ff6a !important; }
+.bx-frameless .bx-pb-highscore .bx-pb-title { border-bottom-color: rgba(55,255,106,.5) !important; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));

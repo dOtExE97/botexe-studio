@@ -11,7 +11,7 @@ const CSS = `
    falsch: die Kachelgröße hängt an der HÖHE des Bandes (cqh), cqi deckelt
    sie nur zusätzlich in sehr schmalen Boxen. */
 .bx-cc { position:absolute; inset:0; display:flex; align-items:center; overflow:hidden; font-family: var(--bx-font-body);
-  container-type:size; font-size: clamp(10px, min(38cqh, 6cqi), 120px); }
+  container-type:size; font-size: calc((clamp(10px, min(38cqh, 6cqi), 120px)) * var(--bx-fs, 1)); }
 .bx-cc-track { display:inline-flex; align-items:center; gap:.42em; white-space:nowrap; will-change:transform;
   animation: bx-cc-scroll var(--dur,22s) linear infinite; padding:0 .22em; }
 @keyframes bx-cc-scroll { to { transform: translateX(-50%); } }
@@ -30,6 +30,15 @@ const CSS = `
   border:max(1px, .05em) solid color-mix(in srgb, var(--bx-accent) 35%, transparent); box-shadow: var(--bx-shadow); }
 .bx-st-neon .bx-cc-chip { color:#fff; background: rgba(8,9,14,.55); border:max(1.5px, .07em) solid var(--bx-accent);
   box-shadow: 0 0 16px -3px var(--bx-accent); text-shadow:0 0 10px var(--bx-accent); }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   der Sticker-Stil hat schon eine Kontur — Glas und Neon bekommen sie hier.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-st-glas .bx-cc-chip,
+html .bx-frameless .bx-st-neon .bx-cc-chip { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-cc-emo { -webkit-text-stroke: 0; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const STYLES = new Set(['sticker', 'glas', 'neon']);

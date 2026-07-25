@@ -8,10 +8,14 @@ const CSS = `
 .bx-tl { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center;
   container-type:size; padding:4px 10px; overflow:hidden; }
 .bx-tl-t { font-family: var(--bx-font-display); font-weight:800; line-height:1.06; color: var(--bx-text,#fff);
-  font-size: clamp(12px, 42cqmin, 240px); white-space:pre-wrap; word-break:break-word;
+  /* EINE Basisgröße. Der Faktor --bx-fs (Textgrößen-Einstellung) steht AUSSEN um
+     das clamp, sonst deckelt die Obergrenze den Zuwachs weg. fit() unten geht
+     von genau diesem Wert aus und verkleinert nur, wenn der umgebrochene Text
+     sonst aus der Box liefe — der Faktor wirkt also, solange Platz da ist. */
+  font-size: calc(clamp(12px, 42cqmin, 240px) * var(--bx-fs, 1)); white-space:pre-wrap; word-break:break-word;
   text-shadow: 0 3px 10px rgba(0,0,0,.45); }
 /* Dicke Kontur (TikFinity-Signatur) */
-.bx-tl.outline .bx-tl-t { -webkit-text-stroke: max(2px, 4.5cqmin) var(--bx-ink,#0a0b12); paint-order: stroke fill;
+.bx-tl.outline .bx-tl-t { -webkit-text-stroke: calc(max(2px, 4.5cqmin) * var(--bx-fs, 1)) var(--bx-ink,#0a0b12); paint-order: stroke fill;
   text-shadow: 0 3px 0 rgba(0,0,0,.4); }
 /* Effekte/Animationen */
 .bx-tl.glow .bx-tl-t { text-shadow: 0 0 16px var(--bx-accent,#ff5436), 0 0 34px var(--bx-accent,#ff5436); animation: bx-tl-glow 2s ease-in-out infinite; }
@@ -51,7 +55,7 @@ export default class TextLabel {
     this.el.appendChild(t);
     root.appendChild(this.el);
     this.t = t;
-    // Die CSS-Größe (42cqmin) kennt die Zeilenumbrüche nicht: in schmalen, hohen
+    // Die CSS-Größe (42cqmin × --bx-fs) kennt die Zeilenumbrüche nicht: in schmalen, hohen
     // Kästchen bricht der Text auf mehrere Zeilen und wächst damit über die Box
     // hinaus. Deshalb nach dem Layout nachmessen und nur bei Bedarf verkleinern.
     this.ro = new ResizeObserver(() => this.fit());

@@ -236,7 +236,7 @@ const THEMES = {
 
 /** Setzt Stil-Vars auf den Layer-Root und legt bei Bedarf einen Zoom-Wrapper
  *  an (skaliert den Inhalt = Schrift + Abstände). Liefert das Mount-Element. */
-function applyWidgetStyle(el, props, w, h) {
+function applyWidgetStyle(el, props) {
   // Theme zuerst — eigene Schrift/Farbe (unten) gewinnt darüber.
   const theme = THEMES[props.theme];
   if (theme) for (const k in theme) el.style.setProperty(k, theme[k]);
@@ -278,23 +278,18 @@ function applyWidgetStyle(el, props, w, h) {
   // wurde oben und unten abgeschnitten.
   el.style.containerType = 'size';
 
+  // Textgröße als FAKTOR, den die Widgets in ihre Basisgröße multiplizieren.
+  //
+  // Vorher wurde der Inhalt in umgekehrter Größe gerendert und per transform
+  // zurückskaliert. Das funktionierte nur, solange die Widgets ihre Schrift
+  // NICHT aus ihrer Box ableiteten. Seit sie das tun (Container-Fix oben),
+  // hoben sich beide Effekte exakt auf: gemessen 52,0 px auf dem Bildschirm bei
+  // 0,7× / 1,0× / 1,5× — der Regler war komplett wirkungslos.
+  // Ein Faktor kann sich nicht selbst aufheben; die Widgets lesen ihn über
+  // --bx-fs und multiplizieren ihn in ihre eine Basisgröße.
   const scale = Number(props.fontScale ?? 1) || 1;
-  if (Math.abs(scale - 1) < 0.01) return el;
-  // Inhalt im inversen Maß rendern und zurückskalieren → Box bleibt gleich,
-  // alles drin (Schrift/Abstände/Bilder) wird um `scale` größer/kleiner.
-  const inner = document.createElement('div');
-  inner.style.position = 'absolute';
-  inner.style.top = '0';
-  inner.style.left = '0';
-  inner.style.width = `${w / scale}px`;
-  inner.style.height = `${h / scale}px`;
-  inner.style.transformOrigin = 'top left';
-  inner.style.transform = `scale(${scale})`;
-  // Bei aktivem Inhalt-Zoom ist DIESES Element die maßgebliche Box (es rendert
-  // im inversen Maß), also wandert der Container mit hierher.
-  inner.style.containerType = 'size';
-  el.appendChild(inner);
-  return inner;
+  el.style.setProperty('--bx-fs', String(scale));
+  return el;
 }
 
 // ── Stage / Layout ─────────────────────────────────────────────────────────
@@ -364,7 +359,7 @@ async function renderLayout(layout) {
 
     // Pro-Widget-Stil: Schriftart + Textfarbe als CSS-Vars (kaskadieren in den
     // Widget-Baum), Größe per Inhalt-Zoom (skaliert Schrift + Abstände).
-    const mountEl = applyWidgetStyle(el, layer.props || {}, layer.w, layer.h);
+    const mountEl = applyWidgetStyle(el, layer.props || {});
 
     const entry = { el, widget: null };
     liveLayers.set(layer.id, entry);

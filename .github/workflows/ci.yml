@@ -40,3 +40,26 @@ jobs:
         run: npm run package --workspace apps/desktop
       - name: Smoke-Test (alle Seiten)
         run: SKIP_BUILD=1 npm run smoke --workspace apps/desktop
+
+  widget-check:
+    # Überlauf-Prüfung: jedes Widget wird headless in sechs Boxgrößen gemessen.
+    # Rot wird der Job NUR bei „RAGT-RAUS" (Inhalt steht sichtbar über der Box —
+    # genau der container-type/cq-Fehler aus v0.32.0). „abgeschnitten" wird nur
+    # berichtet: bei Laufbändern und einfliegenden Alerts ist das Absicht, sonst
+    # wäre der Job dauerhaft rot und würde ignoriert.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Browser prüfen (Chrome ist im ubuntu-latest-Image vorinstalliert)
+        # Bewusst ohne Fallback-Installation: fehlt der Browser, soll der Job
+        # laut scheitern statt still nichts zu messen. Lokal/anderswo kann der
+        # Prüfer per CHROME_BIN auf ein beliebiges Chromium gezeigt werden.
+        run: google-chrome --version
+      - name: Widget-Überlauf-Prüfung
+        run: npm run widget-check --workspace apps/desktop

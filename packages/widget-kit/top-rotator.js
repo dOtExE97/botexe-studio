@@ -7,7 +7,7 @@ const CSS = `
   container-type: size; }
 .bx-tr-head { position: relative; height: clamp(16px,9.5cqh,64px); margin-bottom: clamp(3px,1.6cqh,12px); flex: none; }
 .bx-tr-title { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-family: var(--bx-font-display); font-size: clamp(12px,min(4.4cqi,7cqh),38px); letter-spacing: .08em; text-transform: uppercase; color: var(--bx-text,#fff);
+  font-family: var(--bx-font-display); font-size: calc(clamp(12px,min(4.4cqi,7cqh),38px) * var(--bx-fs, 1)); letter-spacing: .08em; text-transform: uppercase; color: var(--bx-text,#fff);
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 3px 5px rgba(0,0,0,.5);
   transition: opacity .35s, transform .35s; }
@@ -20,7 +20,7 @@ const CSS = `
 .bx-tr-row { display: flex; align-items: center; gap: clamp(4px,2.4cqi,22px); height: 54px; padding: 0 clamp(3px,1.4cqi,16px);
   flex: 1 1 0; min-height: 0; container-type: size; transition: opacity .3s, transform .3s; }
 .bx-tr-rank { height: 54%; aspect-ratio: 1/1; width: auto; flex: none; display: flex; align-items: center; justify-content: center;
-  font-family: var(--bx-font-display); font-size: clamp(10px,27cqh,34px); color: #0a0b12; border-radius: 22%; background: #525873;
+  font-family: var(--bx-font-display); font-size: calc(clamp(10px,27cqh,34px) * var(--bx-fs, 1)); color: #0a0b12; border-radius: 22%; background: #525873;
   -webkit-text-stroke: 0; box-shadow: 0 3px 8px rgba(0,0,0,.4); }
 .bx-tr-row[data-rank="1"] .bx-tr-rank { background: linear-gradient(160deg,#ffe88a,#f5b914); box-shadow: 0 0 16px -2px var(--bx-gold), 0 3px 8px rgba(0,0,0,.4); }
 .bx-tr-row[data-rank="2"] .bx-tr-rank { background: linear-gradient(160deg,#eef2fb,#b9c2d8); }
@@ -35,15 +35,15 @@ const CSS = `
 .bx-tr-crown { position: absolute; margin-top: -66cqh; margin-left: 34cqh; transform: rotate(-12deg); line-height: 0;
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
 .bx-tr-crown svg { width: clamp(12px,36cqh,44px); height: auto; display: block; }
-.bx-tr-name { flex: 1; min-width: 0; font-family: var(--bx-font-display); font-size: clamp(11px,min(33cqh,5.4cqi),44px); color: var(--bx-text,#fff); text-transform: uppercase;
+.bx-tr-name { flex: 1; min-width: 0; font-family: var(--bx-font-display); font-size: calc(clamp(11px,min(33cqh,5.4cqi),44px) * var(--bx-fs, 1)); color: var(--bx-text,#fff); text-transform: uppercase;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
 .bx-tr-row[data-rank="1"] .bx-tr-name { color: var(--bx-gold); }
-.bx-tr-val { flex: none; font-family: var(--bx-font-display); font-size: clamp(11px,min(33cqh,5cqi),44px); color: var(--bx-text,#fff);
+.bx-tr-val { flex: none; font-family: var(--bx-font-display); font-size: calc(clamp(11px,min(33cqh,5cqi),44px) * var(--bx-fs, 1)); color: var(--bx-text,#fff);
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
-.bx-tr-val .arr { font-size: clamp(9px,23cqh,30px); -webkit-text-stroke: 2px var(--bx-ink, #0a0b12); }
+.bx-tr-val .arr { font-size: calc(clamp(9px,23cqh,30px) * var(--bx-fs, 1)); -webkit-text-stroke: 2px var(--bx-ink, #0a0b12); }
 .bx-tr-empty { display: flex; align-items: center; justify-content: center; height: 100%; font-family: var(--bx-font-display);
-  font-size: clamp(11px,min(3.4cqi,10cqh),24px); letter-spacing: .1em; color: var(--bx-muted); text-transform: uppercase; }
+  font-size: calc(clamp(11px,min(3.4cqi,10cqh),24px) * var(--bx-fs, 1)); letter-spacing: .1em; color: #c3cadd; text-transform: uppercase; }
 
 /* ── Stil „Neon" — freistehend ohne Panel, Glow pur. */
 .bx-tr-neon { background: none !important; box-shadow: none !important; border: none; }
@@ -73,10 +73,10 @@ const CSS = `
   border-left: 6px solid var(--bx-accent); animation: bx-tr-slide .45s cubic-bezier(.2,1.1,.3,1) backwards; }
 @keyframes bx-tr-slide { from { opacity:0; transform: translateX(-26px); } }
 .bx-tr-banner .bx-tr-rank { width: clamp(22px,74cqh,90px); height: 100%; aspect-ratio: auto; border-radius: 0; flex: none;
-  background: var(--bx-accent) !important; box-shadow: none !important; color: #0c0d14; font-size: clamp(12px,34cqh,42px); }
+  background: var(--bx-accent) !important; box-shadow: none !important; color: #0c0d14; font-size: calc(clamp(12px,34cqh,42px) * var(--bx-fs, 1)); }
 .bx-tr-banner .bx-tr-row[data-rank="1"] .bx-tr-rank { background: linear-gradient(160deg,#ffe88a,#f5b914) !important; }
 .bx-tr-banner .bx-tr-pic { margin-left: clamp(4px,16cqh,20px); }
-.bx-tr-banner .bx-tr-name { margin-left: clamp(5px,20cqh,24px); font-size: clamp(12px,min(38cqh,5.6cqi),46px); letter-spacing: .02em; }
+.bx-tr-banner .bx-tr-name { margin-left: clamp(5px,20cqh,24px); font-size: calc(clamp(12px,min(38cqh,5.6cqi),46px) * var(--bx-fs, 1)); letter-spacing: .02em; }
 .bx-tr-banner .bx-tr-val { margin-right: clamp(5px,20cqh,24px); background: rgba(255,255,255,.10); border-radius: 999px; padding: 3px 14px; }
 .bx-tr-banner .bx-tr-crown { margin-left: 118cqh; }
 
@@ -90,10 +90,10 @@ const CSS = `
   border: 1px solid color-mix(in srgb, var(--bx-accent) 30%, transparent); }
 .bx-tr-karte .bx-tr-row[data-rank="1"] { border-color: color-mix(in srgb, var(--bx-gold) 60%, transparent);
   box-shadow: 0 10px 26px -10px rgba(0,0,0,.85), 0 0 22px -8px var(--bx-gold), inset 0 1px 0 rgba(255,255,255,.09); }
-.bx-tr-karte .bx-tr-rank { height: 40%; width: auto; font-size: clamp(9px,21cqh,26px); border-radius: 22%; }
+.bx-tr-karte .bx-tr-rank { height: 40%; width: auto; font-size: calc(clamp(9px,21cqh,26px) * var(--bx-fs, 1)); border-radius: 22%; }
 .bx-tr-karte .bx-tr-pic { height: 78%; width: auto; border-radius: 22%; }
-.bx-tr-karte .bx-tr-name { font-size: clamp(11px,min(34cqh,5.6cqi),46px); }
-.bx-tr-karte .bx-tr-val { font-size: clamp(11px,min(34cqh,5cqi),46px); }
+.bx-tr-karte .bx-tr-name { font-size: calc(clamp(11px,min(34cqh,5.6cqi),46px) * var(--bx-fs, 1)); }
+.bx-tr-karte .bx-tr-val { font-size: calc(clamp(11px,min(34cqh,5cqi),46px) * var(--bx-fs, 1)); }
 .bx-tr-karte .bx-tr-crown { margin-top: -62cqh; margin-left: 68cqh; }
 
 
@@ -109,8 +109,8 @@ const CSS = `
 .bx-tr-siegel .bx-tr-row[data-rank="1"] { box-shadow: 0 0 0 4px var(--bx-gold), 0 0 26px -6px var(--bx-gold), 0 10px 24px -10px rgba(0,0,0,.85); }
 .bx-tr-siegel .bx-tr-rank { display: none; }
 .bx-tr-siegel .bx-tr-pic { width: 46%; height: auto; aspect-ratio: 1/1; }
-.bx-tr-siegel .bx-tr-name { flex: none; font-size: clamp(10px, 15cqmin, 30px); text-align: center; max-width: 100%; }
-.bx-tr-siegel .bx-tr-val { font-size: clamp(9px, 13cqmin, 26px); }
+.bx-tr-siegel .bx-tr-name { flex: none; font-size: calc(clamp(10px, 15cqmin, 30px) * var(--bx-fs, 1)); text-align: center; max-width: 100%; }
+.bx-tr-siegel .bx-tr-val { font-size: calc(clamp(9px, 13cqmin, 26px) * var(--bx-fs, 1)); }
 .bx-tr-siegel .bx-tr-crown { margin-top: -30cqh; margin-left: 0; }
 
 /* ── KASSETTE — Retro-Tape: Gehäuse mit zwei Spulen, Name auf dem Klebeetikett. */
@@ -119,15 +119,23 @@ const CSS = `
 .bx-tr-kassette .bx-tr-row { margin-bottom: clamp(3px,2cqh,14px); border-radius: 8px; padding: 0 clamp(4px,16cqh,20px);
   background: linear-gradient(180deg, #2a2d3c, #14161f); border: 2px solid #0a0b12;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 6px 16px -8px rgba(0,0,0,.8); }
-.bx-tr-kassette .bx-tr-rank { border-radius: 50%; height: 42%; width: auto; font-size: clamp(9px,21cqh,26px);
+.bx-tr-kassette .bx-tr-rank { border-radius: 50%; height: 42%; width: auto; font-size: calc(clamp(9px,21cqh,26px) * var(--bx-fs, 1));
   background: #0a0b12 !important; color: var(--bx-gold); box-shadow: inset 0 0 0 2px #4a5066 !important; }
 .bx-tr-kassette .bx-tr-pic { border-radius: 50%; height: 55%; width: auto;
   box-shadow: 0 0 0 3px #0a0b12, 0 0 0 5px #4a5066 !important; }
 .bx-tr-kassette .bx-tr-name { background: #f6f0e2; color: #2c2416 !important; text-shadow: none;
-  border-radius: 3px; padding: 3px clamp(4px,14cqh,18px); font-size: clamp(10px,min(27cqh,4.4cqi),36px); margin: 0 clamp(3px,12cqh,16px); flex: 1;
+  border-radius: 3px; padding: 3px clamp(4px,14cqh,18px); font-size: calc(clamp(10px,min(27cqh,4.4cqi),36px) * var(--bx-fs, 1)); margin: 0 clamp(3px,12cqh,16px); flex: 1;
   box-shadow: inset 0 -1px 0 rgba(0,0,0,.15); -webkit-text-stroke: 0; }
-.bx-tr-kassette .bx-tr-val { font-size: clamp(10px,min(27cqh,4cqi),36px); color: var(--bx-gold) !important; }
+.bx-tr-kassette .bx-tr-val { font-size: calc(clamp(10px,min(27cqh,4cqi),36px) * var(--bx-fs, 1)); color: var(--bx-gold) !important; }
 .bx-tr-kassette .bx-tr-crown { margin-top: -50cqh; margin-left: 32cqh; }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Namen und Werte tragen schon von Haus aus eine Kontur und bleiben auch ohne
+   Panel lesbar. Nur der Leer-Hinweis war ein blasses Grau, das ohne Fläche auf
+   hellem Video verschwand. */
+.bx-frameless .bx-tr-empty { color: #fff;
+  -webkit-text-stroke: max(1.5px, .075em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));

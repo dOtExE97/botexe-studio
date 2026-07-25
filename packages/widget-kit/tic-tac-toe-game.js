@@ -18,7 +18,10 @@ const STYLE_ID = 'bx-ttt-style';
 const CSS = `
 .bx-ttt { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:.7em; padding:.8em; container-type:size; font-family: var(--bx-font-body);
-  font-size: clamp(9px, 5.2cqmin, 68px); text-align:center;
+  /* EINE Basisgröße — alles darunter rechnet in em. Der Faktor --bx-fs
+     (Textgrößen-Einstellung) steht AUSSEN um das clamp, sonst deckelt die
+     Obergrenze den Zuwachs weg. */
+  font-size: calc(clamp(9px, 5.2cqmin, 68px) * var(--bx-fs, 1)); text-align:center;
   --bx-x: var(--bx-accent, #ff5436); --bx-o: var(--bx-teal, #2ad4c8); }
 /* Spieler-Leiste */
 .bx-ttt-players { display:flex; align-items:stretch; gap:.5em; width:100%; max-width:20em; flex:none; }
@@ -61,6 +64,18 @@ const CSS = `
   animation:bx-ttt-pop .5s cubic-bezier(.2,1.5,.35,1); }
 .bx-ttt-status.draw { color:var(--bx-muted, #9aa0ac); }
 .bx-ttt-status.waiting { color:var(--bx-gold, #ffd34d); }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Spielfeld und Spielerkarten haben eigene dunkle Flächen und bleiben lesbar.
+   Frei auf dem Video steht nur die Statuszeile — die bekommt eine Kontur.
+   Die Zellenränder sind border und wären sonst weg (das Gitter zerfiele). */
+.bx-frameless .bx-ttt-status {
+  -webkit-text-stroke: max(1.5px, .07em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
+.bx-frameless .bx-ttt-cell { border-color: color-mix(in srgb, var(--bx-accent, #fff) 55%, transparent) !important; }
+.bx-frameless .bx-ttt-cell.win { border-color: var(--bx-gold, #ffd34d) !important; }
+.bx-frameless .bx-ttt-p.x.active { border-color: var(--bx-x) !important; }
+.bx-frameless .bx-ttt-p.o.active { border-color: var(--bx-o) !important; }
 `;
 
 function ensureStyle() {

@@ -20,7 +20,7 @@ const CSS = `
 .bx-af-badge { position: absolute; right: -10%; bottom: -10%; width: 56%; height: 56%; display: flex; align-items: center; justify-content: center;
   border-radius: 50%; color: #0a0b10; box-shadow: 0 0 0 2px rgba(10,11,18,.85); }
 .bx-af-badge svg { width: 62%; height: 62%; display: block; }
-.bx-af-text { font-size: clamp(11px,min(4.2cqi,7cqh),30px); color: #e9ebf4; text-shadow: 0 1px 2px rgba(0,0,0,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bx-af-text { font-size: calc((clamp(11px,min(4.2cqi,7cqh),30px)) * var(--bx-fs, 1)); color: #e9ebf4; text-shadow: 0 1px 2px rgba(0,0,0,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bx-af-text b { font-family: var(--bx-font-display); color: var(--bx-text,#fff); text-transform: uppercase; }
 @keyframes bx-af-in { to { transform: translateX(0); } }
 @keyframes bx-af-out { to { transform: translateX(-115%); opacity: 0; } }
@@ -47,6 +47,14 @@ const CSS = `
   background: inherit; border-radius: 0 0 0 4px; transform: rotate(45deg) skew(6deg,6deg); }
 .bx-af-bubbles .bx-af-item:nth-child(even)::after { left: auto; right: 6px; border-radius: 0 0 4px 0; }
 .bx-af-bubbles .bx-af-av { border-radius: 50%; }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur. Der Zeilen-Schatten war ohne Panel ein grauer Klecks.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-af-item { box-shadow: none; }
+html .bx-frameless .bx-af-text { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 6px rgba(0,0,0,.55); }
 `;
 // Monochrome Inline-SVG-Icons (currentColor = dunkle Badge-Schrift auf hellem Gradient).
 const ICONS = {

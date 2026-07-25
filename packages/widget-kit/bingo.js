@@ -19,7 +19,7 @@ const CSS = `
 /* Titel an der BREITE messen (cqi), gedeckelt durch die Höhe (cqh): in einem
    breiten, flachen Brett wäre reines cqmin winzig. */
 .bx-bg-title { text-align:center; font-family: var(--bx-font-display);
-  font-size: clamp(13px, min(5.5cqi, 9cqh), 38px); letter-spacing:.22em;
+  font-size: calc((clamp(13px, min(5.5cqi, 9cqh), 38px)) * var(--bx-fs, 1)); letter-spacing:.22em;
   text-transform:uppercase; color: var(--bx-text, #fff); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
 .bx-bg-grid { position:relative; flex:1; display:grid; gap: 1.4cqmin; --n: 3; }
 /* Zell-Schrift & Bildgröße skalieren mit Brettgröße: --n = Spaltenzahl.
@@ -35,9 +35,9 @@ const CSS = `
      overflow-wrap statt word-break bricht ausserdem nur dann INNERHALB eines
      Wortes, wenn es allein in keine Zeile passt — bei „+2.0K Likes" wird also
      weiterhin sauber am Leerzeichen umbrochen. */
-  font-size: clamp(9px, calc(34cqmin / var(--n)), 22px);
+  font-size: calc((clamp(9px, calc(34cqmin / var(--n)), 22px)) * var(--bx-fs, 1));
   text-transform:uppercase; overflow-wrap:break-word; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
-.bx-bg-cell.gift .lbl { font-size: clamp(8px, calc(24cqmin / var(--n)), 18px); opacity:.92; }
+.bx-bg-cell.gift .lbl { font-size: calc((clamp(8px, calc(24cqmin / var(--n)), 18px)) * var(--bx-fs, 1)); opacity:.92; }
 .bx-bg-cell.done { background: color-mix(in srgb, var(--bx-teal) 32%, rgba(8,10,18,.5));
   border-color: var(--bx-teal); }
 /* Erfülltes Feld: man muss weiter LESEN können, WAS erfüllt wurde. Darum bleibt
@@ -66,7 +66,7 @@ const CSS = `
    Jubel für 1,7 s überdecken. Die Kapsel blendet ihn sauber aus. */
 .bx-bg-banner { position:absolute; inset:0 0 auto 0; display:flex; align-items:flex-start; justify-content:center;
   pointer-events:none; z-index:4; }
-.bx-bg-banner span { font-family: var(--bx-font-display); font-size: clamp(22px, 11cqmin, 56px); color: var(--bx-gold);
+.bx-bg-banner span { font-family: var(--bx-font-display); font-size: calc((clamp(22px, 11cqmin, 56px)) * var(--bx-fs, 1)); color: var(--bx-gold);
   padding: .06em .5em .12em; border-radius: 999px;
   background: linear-gradient(160deg, rgba(18,20,30,.96), rgba(8,9,16,.98));
   box-shadow: 0 6px 22px -6px rgba(0,0,0,.9), 0 0 0 2px color-mix(in srgb, var(--bx-gold) 55%, transparent);
@@ -77,6 +77,13 @@ const CSS = `
   80% { transform: scale(1); opacity:1; } 100% { transform: scale(1.3); opacity:0; } }
 .bx-bg-grid.newround { animation: bx-bg-shuffle 600ms ease; }
 @keyframes bx-bg-shuffle { 0% { opacity:1; transform: rotateX(0); } 50% { opacity:0; transform: rotateX(90deg); } 100% { opacity:1; transform: rotateX(0); } }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur am Titel. Die Felder bringen ihren eigenen Hintergrund mit.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-bg-title { -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {

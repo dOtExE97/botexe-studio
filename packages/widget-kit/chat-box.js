@@ -18,9 +18,9 @@ const CSS = `
   container-type: size; box-shadow: 0 0 0 2px rgba(255,255,255,.12); }
 .bx-cb-pic::after { font-size: 52cqmin; }
 .bx-cb-body { min-width: 0; }
-.bx-cb-name { font-family: var(--bx-font-display); font-size: clamp(9px,min(3.4cqi,4.2cqh),22px); text-transform: uppercase; letter-spacing: .03em;
+.bx-cb-name { font-family: var(--bx-font-display); font-size: calc((clamp(9px,min(3.4cqi,4.2cqh),22px)) * var(--bx-fs, 1)); text-transform: uppercase; letter-spacing: .03em;
   text-shadow: 0 1px 3px rgba(0,0,0,.8); }
-.bx-cb-text { font-size: clamp(11px,min(4.4cqi,5.4cqh),28px); line-height: 1.28; color: var(--bx-text,#f2f3f8); text-shadow: 0 1px 2px rgba(0,0,0,.6);
+.bx-cb-text { font-size: calc((clamp(11px,min(4.4cqi,5.4cqh),28px)) * var(--bx-fs, 1)); line-height: 1.28; color: var(--bx-text,#f2f3f8); text-shadow: 0 1px 2px rgba(0,0,0,.6);
   word-break: break-word; overflow-wrap: anywhere; }
 @keyframes bx-cb-in { to { transform: translateY(0); opacity: 1; } }
 @keyframes bx-cb-out { to { opacity: 0; } }
@@ -42,6 +42,15 @@ const CSS = `
 .bx-cb-sticker .bx-cb-msg:nth-child(even) { transform-origin: left bottom; rotate: 0.5deg; }
 .bx-cb-sticker .bx-cb-text { color: #14161f; text-shadow: none; font-weight: 600; }
 .bx-cb-sticker .bx-cb-name { text-shadow: none; }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur. Der Bubble-Schatten war ohne Panel ein grauer Klecks.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-cb-msg { box-shadow: none; }
+html .bx-frameless .bx-cb:not(.bx-cb-sticker) .bx-cb-name { -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-cb:not(.bx-cb-sticker) .bx-cb-text { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 6px rgba(0,0,0,.55); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 function nameColor(name) { let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0; return `hsl(${Math.abs(h) % 360} 88% 70%)`; }

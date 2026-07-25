@@ -30,7 +30,7 @@ const CSS = `
 .bx-qz.is-idle { opacity:0; pointer-events:none; }
 /* Frage */
 .bx-qz-q { flex:none; font-family: var(--bx-font-display); line-height:1.1;
-  font-size: clamp(17px, 8.4cqmin, 88px); color: var(--bx-text,#fff);
+  font-size: calc(clamp(17px, 8.4cqmin, 88px) * var(--bx-fs, 1)); color: var(--bx-text,#fff);
   -webkit-text-stroke: 2.5px var(--bx-ink,#0a0b12); paint-order: stroke fill;
   text-shadow: 0 2px 10px rgba(0,0,0,.6); }
 /* Optionsliste */
@@ -47,14 +47,14 @@ const CSS = `
   width:100%; padding:0 3cqmin; }
 .bx-qz-badge { flex:none; display:grid; place-items:center; min-width:2.1em; height:2.1em;
   border-radius:9px; font-family: var(--bx-font-display); font-weight:800;
-  font-size: clamp(15px, 5.8cqmin, 58px); color:#0a0b12; background: var(--c);
+  font-size: calc(clamp(15px, 5.8cqmin, 58px) * var(--bx-fs, 1)); color:#0a0b12; background: var(--c);
   box-shadow: 0 2px 8px rgba(0,0,0,.4); }
 .bx-qz-text { flex:1; font-family: var(--bx-font-display);
-  font-size: clamp(15px, 6cqmin, 60px); color:#fff;
+  font-size: calc(clamp(15px, 6cqmin, 60px) * var(--bx-fs, 1)); color:#fff;
   -webkit-text-stroke: 2px var(--bx-ink,#0a0b12); paint-order: stroke fill;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bx-qz-pct { flex:none; font-family: var(--bx-font-mono, var(--bx-font-display));
-  font-weight:800; font-size: clamp(15px, 6cqmin, 60px); color:#fff;
+  font-weight:800; font-size: calc(clamp(15px, 6cqmin, 60px) * var(--bx-fs, 1)); color:#fff;
   text-shadow: 0 1px 4px rgba(0,0,0,.9); min-width:3.2ch; text-align:right; }
 .bx-qz.no-votes .bx-qz-fill, .bx-qz.no-votes .bx-qz-pct { display:none; }
 /* reveal — richtige Option grün, falsche abdunkeln */
@@ -66,7 +66,7 @@ const CSS = `
 @keyframes bx-qz-pop { 0%,100%{ transform: scale(1); } 50%{ transform: scale(1.025); } }
 /* Gewinner-Zeile (nur reveal) */
 .bx-qz-winner { flex:none; display:flex; align-items:center; justify-content:center; gap:1.6cqmin;
-  font-family: var(--bx-font-display); font-size: clamp(14px, 5.4cqmin, 54px);
+  font-family: var(--bx-font-display); font-size: calc(clamp(14px, 5.4cqmin, 54px) * var(--bx-fs, 1));
   color: var(--bx-text,#fff); letter-spacing:.04em;
   max-height:0; opacity:0; overflow:hidden; transition: max-height .35s ease, opacity .35s ease; }
 .bx-qz-winner.show { max-height:3.2em; opacity:1; }
@@ -75,10 +75,21 @@ const CSS = `
   text-shadow: 0 0 12px color-mix(in srgb, var(--bx-gold,#ffd23e) 50%, transparent); }
 /* dezenter Hinweis im question/locked-State */
 .bx-qz-foot { flex:none; text-align:center; font-family: var(--bx-font-display);
-  font-size: clamp(12px, 3.9cqmin, 38px); color: var(--bx-muted,#ffffff88); letter-spacing:.06em;
+  font-size: calc(clamp(13px, 4.3cqmin, 42px) * var(--bx-fs, 1)); color: #d3daea; letter-spacing:.06em;
   max-height:2.4em; opacity:1; overflow:hidden; transition: max-height .3s ease, opacity .3s ease; }
 .bx-qz-foot.hide { max-height:0; opacity:0; }
 .bx-qz.is-locked .bx-qz-foot::after { content:''; }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Die Antwortzeilen haben eigene dunkle Flächen und bleiben lesbar; Frage,
+   Gewinnerzeile und Hinweis standen ohne Panel frei auf dem Video und
+   verschwanden auf hellen Szenen. Kontur deshalb nur für diese drei. */
+.bx-frameless .bx-qz { box-shadow: none; }
+.bx-frameless .bx-qz-q, .bx-frameless .bx-qz-winner, .bx-frameless .bx-qz-foot {
+  -webkit-text-stroke: max(1.5px, .075em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.55); }
+/* Der Hinweis war schon mit Panel arg blass (44 % Weiß) — ohne Panel hoffnungslos. */
+.bx-frameless .bx-qz-foot { color: #ffffffe0; }
 `;
 
 function ensureStyle() {

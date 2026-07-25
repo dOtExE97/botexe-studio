@@ -12,7 +12,7 @@ const LEVEL_COLORS = ['#28e0c4', '#7cc8ff', '#ffd23e', '#ff9d2e', '#ff4d2e', '#c
 // Breite (cqi), die Höhe (cqh) deckelt, damit nichts überläuft.
 const CSS = `
 .bx-ht { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; gap:4%;
-  padding:2.5% 3.2%; container-type:size; --u: min(0.1786cqi, 0.667cqh); font-family: var(--bx-font-body);
+  padding:2.5% 3.2%; container-type:size; --u: calc((min(0.1786cqi, 0.667cqh)) * var(--bx-fs, 1)); font-family: var(--bx-font-body);
   background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow), 0 0 50px -14px var(--bx-ht-color, var(--bx-accent));
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
@@ -67,6 +67,15 @@ const CSS = `
 .bx-ht-led .bx-ht-loco { display: none; }
 .bx-ht-led .bx-ht-title { font-family: var(--bx-font-mono); letter-spacing: .4em; color: var(--bx-gold); text-shadow: 0 0 12px color-mix(in srgb, var(--bx-gold) 60%, transparent); }
 .bx-ht-led .bx-ht-lvl { font-family: var(--bx-font-mono); }
+
+/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
+   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
+   darum Kontur an Titel, Level und Fußzeile.
+   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
+   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
+html .bx-frameless .bx-ht-title { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-ht-lvl { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+html .bx-frameless .bx-ht-foot { color: #fff; -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(Math.round(n)));

@@ -22,12 +22,12 @@ const CSS = `
 .bx-mc.hide .bx-mc-banner { animation: bx-mc-out 420ms ease forwards; }
 @keyframes bx-mc-pop { 0%{opacity:0; transform: scale(.6) translateY(14px)} 60%{opacity:1; transform: scale(1.06)} 100%{opacity:1; transform: scale(1)} }
 @keyframes bx-mc-out { to { opacity:0; transform: scale(.9) translateY(-10px) } }
-.bx-mc-label { font-family: var(--bx-font-display); font-size: clamp(11px, min(4.5cqi, 7.4cqh), 30px); letter-spacing:.24em;
-  text-transform:uppercase; color: var(--bx-muted); }
-.bx-mc-num { font-family: var(--bx-font-num); font-weight:800; line-height:1; font-size: clamp(28px, min(11cqi, 18cqh), 130px);
+.bx-mc-label { font-family: var(--bx-font-display); font-size: calc(clamp(11px, min(4.5cqi, 7.4cqh), 30px) * var(--bx-fs, 1)); letter-spacing:.24em;
+  text-transform:uppercase; color: #d3daea; }
+.bx-mc-num { font-family: var(--bx-font-num); font-weight:800; line-height:1; font-size: calc(clamp(28px, min(11cqi, 18cqh), 130px) * var(--bx-fs, 1));
   color: var(--bx-gold); -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill;
   text-shadow: 0 0 26px color-mix(in srgb, var(--bx-gold) 60%, transparent); }
-.bx-mc-msg { font-family: var(--bx-font-display); font-size: clamp(12px, min(5cqi, 8.2cqh), 34px); color: var(--bx-text,#fff);
+.bx-mc-msg { font-family: var(--bx-font-display); font-size: calc(clamp(12px, min(5cqi, 8.2cqh), 34px) * var(--bx-fs, 1)); color: var(--bx-text,#fff);
   text-shadow: 0 2px 6px rgba(0,0,0,.6); }
 .bx-mc-piece { position:absolute; top:-8%; width: clamp(3px, 1.4cqmin, 14px); height: clamp(5px, 2.2cqmin, 22px); border-radius:1px;
   animation: bx-mc-fall var(--d) linear forwards; }
@@ -52,6 +52,22 @@ const CSS = `
 .bx-mc-pow .bx-mc-label { color: #c72c6f; text-shadow: none; }
 .bx-mc-pow .bx-mc-num { color: #14161f; -webkit-text-stroke: 0; text-shadow: none; }
 .bx-mc-pow .bx-mc-msg { color: #14161f; text-shadow: none; }
+
+/* ── „Rahmen ausblenden" (bx-frameless) ───────────────────────────────────
+   Ohne Panel steht der Meilenstein direkt auf dem Videobild — Label (grau) und
+   Nachricht (weiß) waren auf hellen Szenen kaum zu lesen. Kontur + kräftigeres
+   Label NUR im frameless-Fall; mit Panel bleibt alles wie bisher.
+   AUSGENOMMEN „POW": das ist ein weißer Comic-Sticker mit dunkler Schrift und
+   eigener Zackenform — dort wäre eine schwarze Kontur Matsch und der versetzte
+   Comic-Schatten gehört zur Form. */
+.bx-frameless .bx-mc:not(.bx-mc-pow) .bx-mc-banner { box-shadow: none; }
+.bx-frameless .bx-mc:not(.bx-mc-pow) .bx-mc-banner::before { display: none; }
+.bx-frameless .bx-mc:not(.bx-mc-pow) .bx-mc-label,
+.bx-frameless .bx-mc:not(.bx-mc-pow) .bx-mc-num,
+.bx-frameless .bx-mc:not(.bx-mc-pow) .bx-mc-msg {
+  -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.55); }
+.bx-frameless .bx-mc:not(.bx-mc-pow) .bx-mc-label { color: #fff; opacity: 1; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const METRICS = ['coins', 'likes', 'follows', 'gifts'];

@@ -84,7 +84,15 @@
   backdrop-filter: none !important;
   /* harte Rand-Linien weg (z.B. Zahl-Raten 1.5px, Top-Gift 2px). Ringe um
      Profilbilder/Ränge sind box-shadow (kein border) → bleiben erhalten.
-     border-color:transparent statt border:none → keine Layout-Sprünge. */
+     border-color:transparent statt border:none → keine Layout-Sprünge.
+
+     ACHTUNG, bekannte Falle: Diese Regel trifft mit `*` und `!important` ALLES.
+     Stile, deren FORM im Rahmen steckt (Neonröhre, Kassenbon-Trennlinien,
+     Automaten- und Gitterrahmen), verlieren dadurch ihr Aussehen, sobald der
+     Nutzer „Rahmen ausblenden" anhakt. Solche Stile müssen ihren Rand im
+     eigenen Widget gezielt zurückholen — mit `.bx-frameless .mein-stil { … }`
+     und ebenfalls `!important`. Das ist mehrfach passiert; erst prüfen, wie
+     ein neuer Stil MIT bx-frameless aussieht, dann ausliefern. */
   border-color: transparent !important;
 }
 /* Panel-Hintergrund + Panel-Schatten der Standard-Glas-Klassen weg.
