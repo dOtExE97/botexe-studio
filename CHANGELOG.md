@@ -3,6 +3,15 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.30.1] — 2026-07-25
+
+### Deutsches Anwendungsmenü
+Oben in der Fensterleiste stand bisher Electrons englisches Standard-Menü (*File · Edit · View · Window · Help*) mitten in einer deutschen App. Jetzt heißt es **Datei · Bearbeiten · Ansicht · Hilfe** — mit „Daten-Ordner öffnen", den Zwischenablage-Befehlen (an denen Strg+C/V hängen), Zoom/Vollbild und Direktlinks zu „Fehler melden" und den Neuerungen.
+
+### Zwei gefährliche Klicks abgesichert
+- **„Key löschen"** fragt jetzt nach — vorher war die komplette TikTok-Verbindung mit einem einzigen Klick weg, unwiederbringlich.
+- **Verlosung zurücksetzen** fragt jetzt mit Teilnehmerzahl nach („12 Teilnehmer verwerfen?") — der Knopf sitzt direkt neben „Gewinner ziehen".
+
 ## [0.30.0] — 2026-07-25
 
 ### ✨ Starter-Overlay mit einem Klick

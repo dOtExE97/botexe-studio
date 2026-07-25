@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { Gift, Dices, RotateCcw } from 'lucide-react';
 import { toast } from './ToastHost';
+import ConfirmButton from './ConfirmButton';
 
 interface State { enabled: boolean; joinWord: string; entryCost: number; count: number; lastWinner: string }
 
@@ -66,10 +67,14 @@ export default function GiveawayCard() {
           className="bx-pill flex items-center gap-2 px-4 py-2 font-display hover:text-studio-gold disabled:opacity-40">
           <Dices size={16} /> Gewinner ziehen
         </button>
-        <button onClick={reset} title="Teilnehmer zurücksetzen"
-          className="bx-pill flex items-center gap-2 px-3 py-2 hover:text-studio-accent">
+        <ConfirmButton
+          onConfirm={reset}
+          confirmLabel={`${st.count} Teilnehmer verwerfen?`}
+          title="Teilnehmerliste leeren"
+          className="bx-pill flex items-center gap-2 px-3 py-2 hover:text-studio-accent"
+        >
           <RotateCcw size={15} />
-        </button>
+        </ConfirmButton>
       </div>
 
       {st.lastWinner && <p className="mt-2 text-xs text-studio-muted">Letzter Gewinner: <b className="text-studio-gold">{st.lastWinner}</b></p>}

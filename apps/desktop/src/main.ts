@@ -1032,12 +1032,62 @@ app.on('second-instance', () => {
   }
 });
 
+/** Deutsches Anwendungsmenü. Ohne das zeigt Electron sein englisches Standard-
+ *  Menü („File/Edit/View/Window/Help") — mitten in einer deutschen App. Die
+ *  Bearbeiten-Rollen bleiben drin, weil Strg+C/V daran hängen. */
+function installAppMenu(): void {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'Datei',
+      submenu: [
+        { label: 'Daten-Ordner öffnen', click: () => void shell.openPath(app.getPath('userData')) },
+        { type: 'separator' },
+        { role: 'quit', label: 'Beenden' },
+      ],
+    },
+    {
+      label: 'Bearbeiten',
+      submenu: [
+        { role: 'undo', label: 'Rückgängig' },
+        { role: 'redo', label: 'Wiederholen' },
+        { type: 'separator' },
+        { role: 'cut', label: 'Ausschneiden' },
+        { role: 'copy', label: 'Kopieren' },
+        { role: 'paste', label: 'Einfügen' },
+        { role: 'selectAll', label: 'Alles auswählen' },
+      ],
+    },
+    {
+      label: 'Ansicht',
+      submenu: [
+        { role: 'reload', label: 'Neu laden' },
+        { role: 'togglefullscreen', label: 'Vollbild' },
+        { type: 'separator' },
+        { role: 'resetZoom', label: 'Zoom zurücksetzen' },
+        { role: 'zoomIn', label: 'Größer' },
+        { role: 'zoomOut', label: 'Kleiner' },
+        { type: 'separator' },
+        { role: 'toggleDevTools', label: 'Entwickler-Werkzeuge' },
+      ],
+    },
+    {
+      label: 'Hilfe',
+      submenu: [
+        { label: 'Fehler melden / Idee vorschlagen', click: () => void shell.openExternal('https://github.com/dOtExE97/botexe-studio/issues/new/choose') },
+        { label: 'Alle Versionen & Neuerungen', click: () => void shell.openExternal('https://github.com/dOtExE97/botexe-studio/releases') },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 app.whenReady().then(async () => {
   // Zweitinstanz (Single-Instance-Lock verloren): nichts starten — sonst
   // loggt/bindet ein Geister-Studio kurz mit, bevor quit() greift.
   if (!gotLock) return;
   // Datei-Logging zuerst — damit ALLE Start-Logs/Fehler in die Datei wandern.
   initFileLogging(app.getPath('userData'), formatLocalStamp(new Date()));
+  installAppMenu(); // deutsches Menü statt Electrons englischem Standard
 
   // Media-Permission auto-gewähren: ohne sie maskiert Chromium die Audio-Geräte-
   // IDs (leer/instabil über Neustarts) → die gewählte Ausgabe (setSinkId) „verfällt"

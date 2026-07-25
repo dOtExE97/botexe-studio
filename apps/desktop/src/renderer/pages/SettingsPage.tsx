@@ -280,12 +280,14 @@ export default function SettingsPage() {
             : <p className="mt-1 text-[11px] text-amber-300">⚠ Ein eulerstream-Key beginnt normalerweise mit „euler_". Sicher, dass das der richtige ist? (Nicht dein TikTok-Passwort/-Login!)</p>
         )}
         {signKeySet && (
-          <button
-            onClick={() => { setSignKey(''); void window.studio.updateSettings({ tiktokSignApiKey: '' }); setSignKeySet(false); toast('info', 'API-Key gelöscht.'); }}
+          <ConfirmButton
+            onConfirm={() => { setSignKey(''); void window.studio.updateSettings({ tiktokSignApiKey: '' }); setSignKeySet(false); toast('info', 'API-Key gelöscht.'); }}
+            confirmLabel="Key wirklich löschen? Ohne Key keine TikTok-Verbindung!"
             className="bx-pill mt-2 text-[11px] hover:text-studio-accent"
+            title="Gespeicherten eulerstream-Key entfernen"
           >
             Key löschen
-          </button>
+          </ConfirmButton>
         )}
 
         <div className="mt-3 rounded-lg border border-studio-teal/30 bg-studio-teal/5 p-2.5 text-[11px] text-studio-muted">
