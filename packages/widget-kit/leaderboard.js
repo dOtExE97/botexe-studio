@@ -66,12 +66,12 @@ const CSS = `
   transform: rotate(-8deg); filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
 .bx-st-arcade .bx-lb-row[data-rank="1"]::after { font-size: 36px; margin-bottom: -10px; transform: rotate(0); }
 .bx-st-arcade .bx-lb-row[data-rank="4"]::after, .bx-st-arcade .bx-lb-row[data-rank="5"]::after { content: ''; }
-.bx-st-arcade .bx-lb-name { flex: none; max-width: 100%; font-size: clamp(10px,7cqmin,17px); text-align: center; line-height: 1.05; color: #8dffa0;
+.bx-st-arcade .bx-lb-name { flex: none; max-width: 100%; font-size: clamp(12px,8.5cqmin,24px); text-align: center; line-height: 1.05; color: #8dffa0;
   -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
 .bx-st-arcade .bx-lb-row[data-rank="1"] .bx-lb-name { font-size: clamp(11px,8cqmin,20px); color: #ffd23e; }
 .bx-st-arcade .bx-lb-row[data-rank="2"] .bx-lb-name { color: #f0f4ff; }
 .bx-st-arcade .bx-lb-row[data-rank="3"] .bx-lb-name { color: #ffb05a; }
-.bx-st-arcade .bx-lb-val { font-family: var(--bx-font-display); font-size: clamp(10px,7cqmin,19px); color: var(--bx-text,#fff);
+.bx-st-arcade .bx-lb-val { font-family: var(--bx-font-display); font-size: clamp(12px,8cqmin,24px); color: var(--bx-text,#fff);
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
 .bx-st-arcade .bx-lb-val .arr { color: #59f08a; -webkit-text-stroke: 2px #0a0b12; }
 .bx-st-arcade.bx-lb-likes .bx-lb-val { color: #ff8ab0; }

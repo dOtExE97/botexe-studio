@@ -22,7 +22,7 @@ const CSS = `
 /* Spieler-Leiste */
 .bx-ttt-players { display:flex; align-items:stretch; gap:.5em; width:100%; max-width:20em; }
 .bx-ttt-p { flex:1; display:flex; flex-direction:column; gap:.1em; padding:.45em .5em; border-radius:.7em;
-  background:linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
+  background:linear-gradient(160deg, rgba(14,16,26,.80), rgba(8,9,16,.86));
   border:2px solid transparent; min-width:0; transition:border-color .2s ease, box-shadow .2s ease; }
 .bx-ttt-p .mark { font-family:var(--bx-font-display, inherit); font-weight:800; font-size:2em; line-height:1; }
 .bx-ttt-p.x .mark { color:var(--bx-x); text-shadow:0 0 12px color-mix(in srgb, var(--bx-x) 60%, transparent); }
@@ -33,12 +33,14 @@ const CSS = `
 .bx-ttt-p.active .name { font-weight:700; }
 /* Gitter */
 .bx-ttt-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.45em; width:100%; max-width:18em; aspect-ratio:1/1; }
+/* Zellen brauchen einen EIGENEN dunklen Grund — ein fast durchsichtiges Weiß
+   (vorher rgba(255,255,255,.12)) verschwindet auf hellem Video komplett. */
 .bx-ttt-cell { position:relative; display:flex; align-items:center; justify-content:center; border-radius:.6em;
-  background:linear-gradient(165deg, rgba(255,255,255,.12), rgba(255,255,255,.03));
-  border:1.5px solid color-mix(in srgb, var(--bx-accent, #fff) 35%, transparent);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.08); overflow:hidden; }
+  background:linear-gradient(165deg, rgba(14,16,26,.82), rgba(8,9,16,.88));
+  border:1.5px solid color-mix(in srgb, var(--bx-accent, #fff) 55%, transparent);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10), 0 4px 12px -6px rgba(0,0,0,.6); overflow:hidden; }
 .bx-ttt-cell .num { font-family:var(--bx-font-num, var(--bx-font-display, inherit)); font-weight:700;
-  font-size:1.45em; color:#ffffff40; }
+  font-size:1.45em; color:rgba(255,255,255,.62); }
 .bx-ttt-cell .pick { font-family:var(--bx-font-display, inherit); font-weight:800; font-size:3.4em; line-height:1;
   animation:bx-ttt-pop .35s cubic-bezier(.2,1.5,.35,1); }
 .bx-ttt-cell .pick.x { color:var(--bx-x); text-shadow:0 0 14px color-mix(in srgb, var(--bx-x) 65%, transparent); }

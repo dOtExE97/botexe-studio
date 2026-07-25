@@ -3,6 +3,18 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.27.0] — 2026-07-25
+
+### Visueller Durchgang: alle 44 Widgets angeschaut — 6 Fixes
+Erstmals konnten alle Widgets wirklich *angesehen* werden (auf Greenscreen-Hintergrund, also so wie sie über echtem Video wirken). Ergebnis:
+
+- **Tic Tac Toe war fast unsichtbar** — Felder und Zahlen lagen als schwach durchscheinendes Weiß auf dem Video. Jetzt haben die Felder einen eigenen dunklen Grund und klar lesbare Zahlen.
+- **Spotify & Giveaway zeigten im Editor nichts** — beide haben jetzt eine Vorschau-Demo (laufender Song bzw. Teilnehmer-Karten), damit man sie beim Platzieren überhaupt sieht. (Im echten Overlay bleiben sie im Leerlauf weiterhin unsichtbar — das ist so gewollt.)
+- **„Rahmen ausblenden" zeigte immer „an"**, obwohl der Rahmen da war. Der Schalter kennt jetzt seinen echten Standard.
+- **Gift-Feed und Bestenliste (Arcade)** hatten zu kleine Schrift für den Stream — Namen, Werte und Texte sind jetzt deutlich größer.
+- **„Coin-Goal" → „Coin-Ziel"** (auch Like-, Follower- und Geschenk-Ziel) — kein Denglisch mehr im Overlay.
+- Im Overlay-Editor heißen die Felder jetzt **„Abstand links/oben", „Breite", „Höhe"** statt `x`, `y`, `w`, `h`.
+
 ## [0.26.1] — 2026-07-23
 
 ### Fix: Duell-Spiel startete sich endlos neu (aus echtem Stream-Log)

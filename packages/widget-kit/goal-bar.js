@@ -48,7 +48,7 @@ const CSS = `
 .bx-gb-slim .bx-gb-label { letter-spacing: .3em; font-size: clamp(9px,7cqmin,14px); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
-const LABELS = { coins: 'Coin-Goal', likes: 'Like-Goal', follows: 'Follower-Goal', gifts: 'Gift-Goal' };
+const LABELS = { coins: 'Coin-Ziel', likes: 'Like-Ziel', follows: 'Follower-Ziel', gifts: 'Geschenk-Ziel' };
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
 
 export default class GoalBar {

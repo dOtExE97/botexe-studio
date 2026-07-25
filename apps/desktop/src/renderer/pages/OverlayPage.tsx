@@ -47,6 +47,12 @@ interface PropField {
   type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound' | 'gift-list' | 'gift' | 'gift-command-list';
   options?: { value: string; label: string }[];
   hint?: string;
+  /** Nur boolean: Zustand, wenn die Prop (noch) NICHT gesetzt ist. Die meisten
+   *  Widgets lesen `props.x !== false`, behandeln „nicht gesetzt" also als AN —
+   *  darum ist true der Standard. Felder, die ohne Wert AUS sind (z.B.
+   *  „Rahmen ausblenden"), setzen hier false, sonst zeigt der Schalter „an",
+   *  obwohl nichts passiert. */
+  uncheckedDefault?: boolean;
 }
 
 const ACCENT_FIELD: PropField = {
@@ -138,7 +144,7 @@ const STYLE_FIELDS: PropField[] = [THEME_FIELD, FONT_FIELD, SIZE_FIELD, TEXTCOLO
 /** „Rahmen ausblenden" — entfernt das Panel (Glas-Hintergrund + Schatten), zeigt
  *  nur den Inhalt. Wird universell für alle Panel-Widgets eingeblendet (s.u.). */
 const FRAME_FIELD: PropField = {
-  key: 'frameless', label: 'Rahmen ausblenden', type: 'boolean',
+  key: 'frameless', label: 'Rahmen ausblenden', type: 'boolean', uncheckedDefault: false,
   hint: 'Entfernt Hintergrund-Panel + Schatten — zeigt nur den Inhalt (transparent, wie eine reine Liste). Ideal, wenn das Widget sonst zu viel Fläche deckt.',
 };
 /** Reine Effekt-/Vollbild-Widgets ohne Panel — da bringt „Rahmen ausblenden" nichts. */
@@ -291,7 +297,7 @@ const WIDGET_TYPES: {
         { value: 'follows', label: 'Follower' }, { value: 'gifts', label: 'Gifts' },
       ] },
       { key: 'target', label: 'Ziel', type: 'number', hint: 'Bei diesem Wert ist der Balken voll.' },
-      { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Leer = automatisch (z.B. „Coin-Goal").' },
+      { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Leer = automatisch (z.B. „Coin-Ziel").' },
       ACCENT_FIELD,
       ...STYLE_FIELDS,
     ],
@@ -1757,7 +1763,7 @@ export default function OverlayPage() {
             <div className="grid grid-cols-2 gap-2">
               {(['x', 'y', 'w', 'h'] as const).map((k) => (
                 <label key={k} className="text-[10px] uppercase tracking-widest text-studio-muted">
-                  {k}
+                  {{ x: 'Abstand links', y: 'Abstand oben', w: 'Breite', h: 'Höhe' }[k]}
                   <input
                     type="number"
                     value={selected[k]}
@@ -1918,7 +1924,7 @@ export default function OverlayPage() {
                         <label key={field.key} className="flex cursor-pointer items-start gap-2 text-xs text-studio-text">
                           <input
                             type="checkbox"
-                            checked={value !== false}
+                            checked={value === '' || value === undefined ? (field.uncheckedDefault ?? true) : value !== false}
                             onChange={(e) => setProp(e.target.checked)}
                             className="mt-0.5 accent-[#ff4d2e]"
                           />

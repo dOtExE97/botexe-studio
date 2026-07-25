@@ -57,6 +57,24 @@ export default class Giveaway {
     this.el.className = 'bx-gv';
     this.renderIdle();
     root.appendChild(this.el);
+    // Editor-Vorschau: Teilnehmer-Karten zeigen — sonst sieht man im Editor nur
+    // einen leeren Streifen und weiß nicht, was das Widget später darstellt.
+    if (this.host.preview) this.renderDemo();
+  }
+
+  /** Statische Demo für den Editor (keine Animation, keine Timer). */
+  renderDemo() {
+    const names = ['Mia', 'LeonGG', 'Nova', 'BigBen', 'Sara_99', 'ExE'];
+    if (this.style === 'spotlight') {
+      const spot = this.el.querySelector('.bx-gv-spot');
+      if (spot) spot.textContent = `${names.length} dabei · !join`;
+      return;
+    }
+    const track = this.el.querySelector('.bx-gv-track');
+    if (!track) return;
+    const cards = [];
+    for (let i = 0; i < 14; i++) cards.push(names[i % names.length]);
+    track.innerHTML = cards.map((n, i) => `<div class="bx-gv-card${i === 7 ? ' win' : ''}">${esc(n)}</div>`).join('');
   }
 
   renderIdle() {

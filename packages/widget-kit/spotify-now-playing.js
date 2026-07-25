@@ -33,8 +33,9 @@ const CSS = `
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 
 export default class SpotifyNowPlaying {
-  constructor(root, props) {
+  constructor(root, props, ctx) {
     ensureStyle();
+    this.ctx = ctx || {};
     root.style.setProperty('--bx-accent', (props.accent && String(props.accent).trim()) || '#1db954');
     this.el = document.createElement('div');
     this.el.className = 'bx-spo empty';
@@ -49,6 +50,12 @@ export default class SpotifyNowPlaying {
     root.appendChild(this.el);
     this.dur = 0; this.prog = 0; this.playing = false; this.trackId = '';
     this.tick = setInterval(() => this.advance(), 1000);
+    // Editor-Vorschau: Demo-Song zeigen — sonst ist die Karte im Editor komplett
+    // unsichtbar (im echten Overlay ist „leer = unsichtbar" richtig, im Editor
+    // kann man das Widget dann aber weder sehen noch platzieren).
+    if (this.ctx.preview) {
+      this.onSpotify({ trackId: 'demo', title: 'Blinding Lights', artist: 'The Weeknd', durationMs: 200000, progressMs: 74000, isPlaying: true });
+    }
   }
 
   onSpotify(s) {
