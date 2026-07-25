@@ -11,16 +11,16 @@ import ConfirmButton from '../components/ConfirmButton';
 import { toast } from '../components/ToastHost';
 import type { StudioEvent } from '@botexe/trigger-engine';
 
-const BADGE_FALLBACK = { label: 'EVENT', cls: 'bg-studio-raised text-studio-muted' };
+const BADGE_FALLBACK = { label: 'EREIGNIS', cls: 'bg-studio-raised text-studio-muted' };
 
 const EVENT_BADGE: Record<string, { label: string; cls: string }> = {
   chat: { label: 'CHAT', cls: 'bg-studio-raised text-studio-muted' },
-  gift: { label: 'GIFT', cls: 'bg-studio-accent/20 text-studio-accent' },
+  gift: { label: 'GESCHENK', cls: 'bg-studio-accent/20 text-studio-accent' },
   follow: { label: 'FOLLOW', cls: 'bg-studio-teal/20 text-studio-teal' },
-  sub: { label: 'SUB', cls: 'bg-studio-gold/20 text-studio-gold' },
+  sub: { label: 'TEAMHERZ', cls: 'bg-studio-gold/20 text-studio-gold' },
   like: { label: 'LIKE', cls: 'bg-pink-500/20 text-pink-400' },
-  share: { label: 'SHARE', cls: 'bg-sky-500/20 text-sky-400' },
-  viewer_count: { label: 'VIEWER', cls: 'bg-studio-raised text-studio-muted' },
+  share: { label: 'GETEILT', cls: 'bg-sky-500/20 text-sky-400' },
+  viewer_count: { label: 'ZUSCHAUER', cls: 'bg-studio-raised text-studio-muted' },
 };
 
 function describeEvent(e: StudioEvent): string {
@@ -33,7 +33,7 @@ function describeEvent(e: StudioEvent): string {
     case 'follow':
       return `${who} folgt jetzt`;
     case 'sub':
-      return `${who} hat subscribed`;
+      return `${who} hat ein Teamherz vergeben`;
     case 'like':
       return `${who} liked (+${e.likeCount}) — gesamt ${e.totalLikes}`;
     case 'share':

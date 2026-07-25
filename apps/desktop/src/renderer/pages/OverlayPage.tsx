@@ -292,6 +292,8 @@ const WIDGET_TYPES: {
         { value: 'arcade', label: 'Arcade (LED-Segmente)' },
         { value: 'slim', label: 'Slim (dünne Linie, minimal)' },
         { value: 'thermo', label: '🌡️ Thermometer (senkrecht, spart Breite)' },
+        { value: 'akku', label: '🔋 Akku (Batterie, blitzt bei 100%)' },
+        { value: 'ring', label: '⭕ Ring (kreisförmig, sehr kompakt)' },
       ]),
       { key: 'metric', label: 'Metrik', type: 'select', options: [
         { value: 'coins', label: 'Coins' }, { value: 'likes', label: 'Likes' },
@@ -406,6 +408,8 @@ const WIDGET_TYPES: {
         { value: 'pills', label: 'Bunte Pillen' },
         { value: 'banner', label: '🎬 Bauchbinde (TV-Unterzeile)' },
         { value: 'karte', label: '🃏 Karte (Kontaktkarten)' },
+        { value: 'siegel', label: '🏅 Siegel (rundes Wappen)' },
+        { value: 'kassette', label: '📼 Kassette (Retro-Tape)' },
       ]),
       { key: 'sources', label: 'Welche Listen', type: 'text', hint: 'Reihenfolge, kommagetrennt: gifts, likes, points, wins (Spiel-Siege).' },
       { key: 'interval', label: 'Sekunden pro Liste', type: 'number', hint: 'Wie lange jede Liste gezeigt wird, bevor gewechselt wird.' },
@@ -423,6 +427,8 @@ const WIDGET_TYPES: {
         { value: 'glas', label: 'Glas (Panel)' },
         { value: 'neon', label: 'Neon (freistehend)' },
         { value: 'pills', label: 'Bunte Pillen' },
+        { value: 'bon', label: '🧾 Kassenbon (Papier, Perforation)' },
+        { value: 'highscore', label: '🕹️ Highscore (Arcade, Pixelschrift)' },
       ]),
       { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Top-Supporter (1–10).' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Punkte").' },
@@ -497,8 +503,13 @@ const WIDGET_TYPES: {
   },
   {
     type: 'activity-feed', label: 'Activity-Feed', desc: 'Alle Events gemischt (Follow, Sub, Share, Gift) als Live-Ticker.',
-    w: 420, h: 320, props: { max: 6, ttlMs: 60000, fontFamily: '', fontScale: 1, textColor: '' },
+    w: 420, h: 320, props: { style: 'glas', max: 6, ttlMs: 60000, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
+      styleField([
+        { value: 'glas', label: 'Glas (Standard)' },
+        { value: 'timeline', label: '⏱️ Zeitstrahl (Linie mit Punkten)' },
+        { value: 'bubbles', label: '💬 Sprechblasen (versetzt)' },
+      ]),
       { key: 'max', label: 'Max. Einträge', type: 'number', hint: 'So viele Events bleiben gleichzeitig sichtbar.' },
       { key: 'ttlMs', label: 'Verschwinden nach', type: 'seconds', hint: 'Wie lange ein Eintrag stehen bleibt (0 = nie).' },
       ACCENT_FIELD,

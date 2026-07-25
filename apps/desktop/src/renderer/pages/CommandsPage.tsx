@@ -83,7 +83,7 @@ export default function CommandsPage() {
                 </select>
               </label>
               <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-studio-muted">
-                Cooldown (s)
+                Höchstens alle … Sek.
                 <input type="number" min={0} value={(c.cooldownMs ?? 0) / 1000} onChange={(e) => patch(c.id, { cooldownMs: Math.max(0, Number(e.target.value)) * 1000 })} className="bx-input font-mono" style={{ width: '4.5rem' }} />
               </label>
             </div>

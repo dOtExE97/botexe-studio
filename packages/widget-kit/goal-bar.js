@@ -66,6 +66,34 @@ const CSS = `
 .bx-gb-thermo .bx-gb-tick:nth-of-type(3) { bottom: 50%; }
 .bx-gb-thermo .bx-gb-tick:nth-of-type(4) { bottom: 75%; }
 .bx-gb-thermo .bx-gb-pct { writing-mode: horizontal-tb; align-items: flex-start; padding-top: 6px; }
+
+/* ── AKKU — Batterie-Metapher: eckiges Gehäuse mit Pluspol rechts, füllt sich
+   in Blöcken. Bei 100% blitzt es. */
+.bx-gb-akku .bx-gb-track { border-radius: 6px; border: 2.5px solid rgba(255,255,255,.75);
+  box-shadow: 0 4px 14px -6px rgba(0,0,0,.7); overflow: visible; }
+.bx-gb-akku .bx-gb-track::after { content:''; position:absolute; right:-9px; top:28%; bottom:28%; width:6px;
+  border-radius: 0 3px 3px 0; background: rgba(255,255,255,.75); }
+.bx-gb-akku .bx-gb-fill { border-radius: 3px; margin: 3px;
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 16px, transparent 16px 21px);
+  mask: repeating-linear-gradient(90deg, #000 0 16px, transparent 16px 21px); }
+.bx-gb-akku .bx-gb-fill::after { display: none; }
+.bx-gb-akku .bx-gb-tick { display: none; }
+.bx-gb-akku.done .bx-gb-track { animation: bx-gb-flash 700ms ease-in-out infinite; }
+@keyframes bx-gb-flash { 50% { border-color: var(--bx-teal); box-shadow: 0 0 24px 0 var(--bx-teal); } }
+
+/* ── RING — kreisförmiger Fortschritt mit Prozent in der Mitte. Braucht kaum
+   Fläche und liest sich auf einen Blick. */
+.bx-gb-ring { align-items: center; justify-content: center; }
+.bx-gb-ring .bx-gb-head { position: absolute; top: 2px; left: 0; right: 0; flex-direction: column;
+  align-items: center; gap: 0; margin: 0; }
+.bx-gb-ring .bx-gb-track { position: relative; width: clamp(60px, 62cqmin, 200px); height: clamp(60px, 62cqmin, 200px);
+  border-radius: 50%; background: conic-gradient(var(--bx-accent) 0, var(--bx-gold) var(--pct, 0%), rgba(255,255,255,.12) var(--pct, 0%));
+  box-shadow: 0 8px 22px -10px rgba(0,0,0,.75); overflow: visible; }
+.bx-gb-ring .bx-gb-track::after { content:''; position:absolute; inset: 14%; border-radius: 50%;
+  background: rgba(10,11,18,.92); }
+.bx-gb-ring .bx-gb-fill, .bx-gb-ring .bx-gb-tick { display: none; }
+.bx-gb-ring .bx-gb-pct { z-index: 1; font-size: clamp(13px, 15cqmin, 34px); letter-spacing: .04em; }
+.bx-gb-ring.done .bx-gb-track { animation: bx-gb-pulse 900ms ease-in-out 3; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 const LABELS = { coins: 'Coin-Ziel', likes: 'Like-Ziel', follows: 'Follower-Ziel', gifts: 'Geschenk-Ziel' };
@@ -79,7 +107,7 @@ export default class GoalBar {
     this.target = Math.max(1, Number(props.target ?? 1000));
     this.label = props.label || LABELS[this.metric];
     this.el = document.createElement('div');
-    const style = ['glas', 'arcade', 'slim', 'thermo'].includes(props.style) ? props.style : 'glas';
+    const style = ['glas', 'arcade', 'slim', 'thermo', 'akku', 'ring'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-gb${style !== 'glas' ? ` bx-gb-${style}` : ''}`;
     this.el.innerHTML = `
       <div class="bx-gb-head"><div class="bx-gb-label"></div><div class="bx-gb-nums">0 / ${fmt(this.target)}</div></div>

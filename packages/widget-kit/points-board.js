@@ -3,7 +3,8 @@
 // mit Medaillen-Rängen (Gold/Silber/Bronze) + Krone (Inline-SVG) auf Platz 1.
 const STYLE_ID = 'bx-pb-style';
 // Krone als Inline-SVG (KEIN Emoji) — currentColor folgt der Goldfarbe der Krone.
-const CROWN_SVG = `<svg class="bx-pb-crown" viewBox="0 0 24 18" aria-hidden="true"><path d="M2 6.2l3.6 3.1L9.4 3l2.6 4.2L14.6 3l3.8 6.3L22 6.2l-1.7 9.3a1 1 0 0 1-1 .8H4.7a1 1 0 0 1-1-.8L2 6.2Z" fill="currentColor" stroke="rgba(0,0,0,.55)" stroke-width=".8" stroke-linejoin="round"/><circle cx="2" cy="6.2" r="1.4" fill="currentColor"/><circle cx="12" cy="2.4" r="1.4" fill="currentColor"/><circle cx="22" cy="6.2" r="1.4" fill="currentColor"/></svg>`;
+const CROWN_SVG = `<svg class="bx-pb-crown" viewBox="0 0 24 18" aria-hidden="true"><path d="M2 6.2l3.6 3.1L9.4 3l2.6 4.2L14.6 3l3.8 6.3L22 6.2l-1.7 9.3a1 1 0 0 1-1 .8H4.7a1 1 0 0 1-1-.8L2 6.2Z" fill="currentColor" stroke="rgba(0,0,0,.55)" stroke-width=".8" stroke-linejoin="round"/><circle cx="2" cy="6.2" r="1.4" fill="currentColor"/><circle cx="12" cy="2.4" r="1.4" fill="currentColor"/><circle cx="22" cy="6.2" r="1.4" fill="currentColor"/></svg>
+`;
 const CSS = `
 .bx-pb { position: absolute; inset: 0; display: flex; flex-direction: column; font-family: var(--bx-font-body);
   padding: 16px 18px 14px; overflow: hidden; background: var(--bx-glass); border-radius: var(--bx-radius);
@@ -67,6 +68,38 @@ const CSS = `
 .bx-pb-pills .bx-pb-name { color: #0c0d14 !important; text-shadow: none; }
 .bx-pb-pills .bx-pb-val { color: #0c0d14 !important; text-shadow: none; background: rgba(255,255,255,.72); border-radius: 999px; padding: 2px 10px; }
 .bx-pb-pills .bx-pb-rank { background: rgba(12,13,20,.85) !important; color: #fff; border-radius: 50%; box-shadow: none !important; }
+
+/* ── KASSENBON — Papierstreifen mit Zackenkante unten, Schreibmaschinen-Schrift
+   und gestrichelten Trennlinien. Wirkt wie ein ausgedruckter Beleg. */
+.bx-pb-bon { background: #f6f0e2; box-shadow: 0 10px 26px -12px rgba(0,0,0,.7); border-radius: 3px 3px 0 0;
+  color: #2c2416; font-family: 'Courier New', monospace; padding-bottom: 18px; }
+.bx-pb-bon::before { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 10px;
+  background: linear-gradient(-45deg, transparent 50%, #f6f0e2 50%) 0 0/12px 12px repeat-x;
+  -webkit-mask: none; mask: none; padding: 0; }
+.bx-pb-bon .bx-pb-title { color: #2c2416; border-bottom: 2px dashed #b9ad90; letter-spacing: .18em;
+  font-family: 'Courier New', monospace; text-shadow: none; }
+.bx-pb-bon .bx-pb-title::after { display: none; }
+.bx-pb-bon .bx-pb-row { background: none !important; border-bottom: 1px dashed #d5cbb2; border-radius: 0; }
+.bx-pb-bon .bx-pb-name, .bx-pb-bon .bx-pb-val { color: #2c2416 !important; text-shadow: none; font-family: 'Courier New', monospace; }
+.bx-pb-bon .bx-pb-rank { background: #2c2416 !important; color: #f6f0e2; border-radius: 3px; box-shadow: none !important; }
+.bx-pb-bon .bx-pb-pic { box-shadow: 0 0 0 2px #b9ad90; }
+.bx-pb-bon .bx-pb-crown { color: #c0392b; }
+
+
+/* ── HIGHSCORE — Spielhallen-Automat: Pixelschrift, harte Kanten, Neon auf
+   Schwarz, Rang als „1ST"-Marke. */
+.bx-pb-highscore { background: #05060a; border: 2px solid #37ff6a; border-radius: 3px;
+  box-shadow: 0 0 26px -8px #37ff6a, inset 0 0 40px rgba(55,255,106,.06); }
+.bx-pb-highscore::before { display: none; }
+.bx-pb-highscore .bx-pb-title { color: #eaff8d; border-bottom: 2px solid rgba(55,255,106,.5);
+  font-family: 'Press Start 2P', monospace; font-size: 11px; letter-spacing: .1em; text-shadow: 0 0 10px #37ff6a; }
+.bx-pb-highscore .bx-pb-title::after { display: none; }
+.bx-pb-highscore .bx-pb-row { background: none !important; border-radius: 0; }
+.bx-pb-highscore .bx-pb-name { color: #8dffab; font-family: 'Press Start 2P', monospace; font-size: 11px; letter-spacing: 0; }
+.bx-pb-highscore .bx-pb-val { color: #eaff8d; font-family: 'Press Start 2P', monospace; font-size: 11px; }
+.bx-pb-highscore .bx-pb-rank { background: none !important; box-shadow: none !important; color: #37ff6a;
+  font-family: 'Press Start 2P', monospace; font-size: 10px; }
+.bx-pb-highscore .bx-pb-pic { border-radius: 0; box-shadow: 0 0 0 2px #37ff6a; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -81,7 +114,7 @@ export default class PointsBoard {
     this.limit = Math.min(10, Math.max(1, Number(props.limit ?? 5)));
     this.title = props.title || '';
     this.el = document.createElement('div');
-    const style = ['glas', 'neon', 'pills'].includes(props.style) ? props.style : 'glas';
+    const style = ['glas', 'neon', 'pills', 'bon', 'highscore'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-pb${style !== 'glas' ? ` bx-pb-${style}` : ''}`;
     this.el.innerHTML = `<div class="bx-pb-title"></div><div class="bx-pb-list"><div class="bx-pb-empty">Noch keine Punkte</div></div>`;
     this.el.querySelector('.bx-pb-title').textContent = this.title || 'Top Supporter';

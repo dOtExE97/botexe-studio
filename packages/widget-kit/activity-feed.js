@@ -16,6 +16,29 @@ const CSS = `
 .bx-af-text b { font-family: var(--bx-font-display); color: var(--bx-text,#fff); text-transform: uppercase; }
 @keyframes bx-af-in { to { transform: translateX(0); } }
 @keyframes bx-af-out { to { transform: translateX(-115%); opacity: 0; } }
+
+/* ── ZEITSTRAHL — senkrechte Linie mit Punkten und Uhrzeit: wirkt wie ein
+   Protokoll statt wie eine Liste. */
+.bx-af-timeline .bx-af-item { background: none !important; box-shadow: none !important; border-radius: 0;
+  padding: 6px 8px 6px 26px; position: relative; }
+.bx-af-timeline .bx-af-item::before { content:''; position:absolute; left:11px; top:0; bottom:0; width:2px;
+  background: color-mix(in srgb, var(--bx-accent) 45%, transparent); }
+.bx-af-timeline .bx-af-item::after { content:''; position:absolute; left:6px; top:50%; width:12px; height:12px;
+  margin-top:-6px; border-radius:50%; background: var(--bx-accent);
+  box-shadow: 0 0 0 3px rgba(10,11,18,.9), 0 0 12px -2px var(--bx-accent); }
+.bx-af-timeline .bx-af-badge { width: 26px; height: 26px; border-radius: 8px; }
+.bx-af-timeline .bx-af-text { text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+
+/* ── SPRECHBLASEN — jedes Ereignis als Blase mit kleinem Zipfel, abwechselnd
+   eingerückt. Verspielt und locker. */
+.bx-af-bubbles .bx-af-item { border-radius: 18px 18px 18px 6px; position: relative;
+  background: linear-gradient(150deg, rgba(28,30,44,.95), rgba(14,15,24,.92));
+  box-shadow: 0 8px 18px -9px rgba(0,0,0,.75); margin-bottom: 8px; align-self: flex-start; max-width: 94%; }
+.bx-af-bubbles .bx-af-item:nth-child(even) { border-radius: 18px 18px 6px 18px; margin-left: 6%; }
+.bx-af-bubbles .bx-af-item::after { content:''; position:absolute; left:6px; bottom:-5px; width:12px; height:12px;
+  background: inherit; border-radius: 0 0 0 4px; transform: rotate(45deg) skew(6deg,6deg); }
+.bx-af-bubbles .bx-af-item:nth-child(even)::after { left: auto; right: 6px; border-radius: 0 0 4px 0; }
+.bx-af-bubbles .bx-af-badge { border-radius: 50%; }
 `;
 // Monochrome Inline-SVG-Icons (currentColor = dunkle Badge-Schrift auf hellem Gradient).
 const ICONS = {
@@ -40,7 +63,8 @@ export default class ActivityFeed {
     this.max = Math.min(12, Math.max(1, Number(props.max ?? 6)));
     this.ttlMs = Number(props.ttlMs ?? 60000);
     this.el = document.createElement('div');
-    this.el.className = 'bx-af';
+    const style = ['glas', 'timeline', 'bubbles'].includes(props.style) ? props.style : 'glas';
+    this.el.className = `bx-af${style !== 'glas' ? ` bx-af-${style}` : ''}`;
     root.appendChild(this.el);
     this.timers = new Set();
   }

@@ -780,7 +780,7 @@ export default function TriggersPage() {
                   )}
                   {rule.event !== 'timer' && (
                     <label className="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-widest text-studio-muted">
-                      Cooldown (s)
+                      Höchstens alle … Sek.
                       <input
                         type="number"
                         value={(rule.cooldownMs ?? 0) / 1000}

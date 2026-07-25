@@ -3,6 +3,17 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.29.0] — 2026-07-25
+
+### Acht weitere Optiken 🧾🕹️🔋⭕🏅📼⏱️💬
+- **Punkte-Bestenliste**: „Kassenbon" (Papierstreifen mit Zackenkante, Schreibmaschinen-Schrift, gestrichelte Trennlinien) und „Highscore" (Spielhallen-Automat, schwarz mit Neon-Grün).
+- **Ziel-Balken**: „Akku" (Batterie mit Pluspol, füllt sich in Blöcken, blitzt bei 100%) und „Ring" (kreisförmig mit Prozent in der Mitte — braucht kaum Fläche).
+- **Bestenlisten-Wechsler**: „Siegel" (runde Wappen, Platz 1 in Gold) und „Kassette" (Retro-Tape mit Klebeetikett).
+- **Activity-Feed** hatte bisher gar keine Stil-Wahl — jetzt „Zeitstrahl" (senkrechte Linie mit Punkten) und „Sprechblasen" (versetzte Blasen mit Zipfel).
+
+### Deutsch statt Denglisch
+Die Ereignis-Marken im Live-Feed heißen jetzt **GESCHENK, TEAMHERZ, GETEILT, ZUSCHAUER** statt GIFT/SUB/SHARE/VIEWER, „hat subscribed" wurde zu „hat ein Teamherz vergeben", und das kryptische **„Cooldown (s)"** heißt bei Triggern, Befehlen und Store jetzt einheitlich **„Höchstens alle … Sek."** — dieselbe Formulierung, die die Geschenke-Galerie schon nutzte.
+
 ## [0.28.0] — 2026-07-25
 
 ### Drei neue Optiken 🎬🃏🌡️

@@ -90,6 +90,38 @@ const CSS = `
 .bx-tr-karte .bx-tr-val { font-size: 22px; }
 .bx-tr-karte .bx-tr-crown { margin-top: -40px; margin-left: 44px; }
 
+
+/* ── SIEGEL — rundes Wappen: Profilbild im Kreis, Name darunter, Wert als
+   Gravur. Nur Platz 1 groß, der Rest klein daneben. */
+.bx-tr-siegel { background: none; box-shadow: none; }
+.bx-tr-siegel::before { display: none; }
+.bx-tr-siegel .bx-tr-list { display: flex; align-items: center; justify-content: center; gap: 4%; }
+.bx-tr-siegel .bx-tr-row { position: static; height: auto; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px; flex: 1 1 0; min-width: 0; border-radius: 50%; aspect-ratio: 1/1; justify-content: center;
+  background: radial-gradient(circle at 50% 30%, rgba(30,32,46,.96), rgba(10,11,18,.96));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bx-accent) 55%, transparent), 0 10px 24px -10px rgba(0,0,0,.8); }
+.bx-tr-siegel .bx-tr-row[data-rank="1"] { box-shadow: 0 0 0 4px var(--bx-gold), 0 0 26px -6px var(--bx-gold), 0 10px 24px -10px rgba(0,0,0,.85); }
+.bx-tr-siegel .bx-tr-rank { display: none; }
+.bx-tr-siegel .bx-tr-pic { width: clamp(30px, 30cqmin, 70px); height: clamp(30px, 30cqmin, 70px); }
+.bx-tr-siegel .bx-tr-name { flex: none; font-size: clamp(11px, 9cqmin, 19px); text-align: center; max-width: 100%; }
+.bx-tr-siegel .bx-tr-val { font-size: clamp(10px, 8cqmin, 17px); }
+.bx-tr-siegel .bx-tr-crown { margin-top: -18px; margin-left: 0; }
+
+/* ── KASSETTE — Retro-Tape: Gehäuse mit zwei Spulen, Name auf dem Klebeetikett. */
+.bx-tr-kassette { background: none; box-shadow: none; }
+.bx-tr-kassette::before { display: none; }
+.bx-tr-kassette .bx-tr-row { height: 62px; margin-bottom: 8px; border-radius: 8px; padding: 0 10px;
+  background: linear-gradient(180deg, #2a2d3c, #14161f); border: 2px solid #0a0b12;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 6px 16px -8px rgba(0,0,0,.8); }
+.bx-tr-kassette .bx-tr-rank { border-radius: 50%; width: 26px; height: 26px; font-size: 13px;
+  background: #0a0b12 !important; color: var(--bx-gold); box-shadow: inset 0 0 0 2px #4a5066 !important; }
+.bx-tr-kassette .bx-tr-pic { border-radius: 50%; width: 34px; height: 34px;
+  box-shadow: 0 0 0 3px #0a0b12, 0 0 0 5px #4a5066 !important; }
+.bx-tr-kassette .bx-tr-name { background: #f6f0e2; color: #2c2416 !important; text-shadow: none;
+  border-radius: 3px; padding: 3px 10px; font-size: 17px; margin: 0 8px; flex: 1;
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.15); }
+.bx-tr-kassette .bx-tr-val { font-size: 17px; color: var(--bx-gold) !important; }
+.bx-tr-kassette .bx-tr-crown { margin-top: -30px; margin-left: 20px; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -113,7 +145,7 @@ export default class TopRotator {
     this.idx = 0;
     this.stats = null;
     this.el = document.createElement('div');
-    const style = ['glas', 'neon', 'pills', 'banner', 'karte'].includes(props.style) ? props.style : 'glas';
+    const style = ['glas', 'neon', 'pills', 'banner', 'karte', 'siegel', 'kassette'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-tr${style !== 'glas' ? ` bx-tr-${style}` : ''}`;
     this.el.innerHTML = `<div class="bx-tr-head"><div class="bx-tr-title"></div></div><div class="bx-tr-list in"></div>`;
     this.titleEl = this.el.querySelector('.bx-tr-title');
