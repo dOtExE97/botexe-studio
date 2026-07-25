@@ -1,7 +1,7 @@
 {
   "name": "botexe-studio-desktop",
   "productName": "bOtExE Studio",
-  "version": "0.34.0",
+  "version": "0.35.0",
   "description": "Lokales TikTok-Live Overlay-Studio — TikFinity-Ersatz",
   "main": ".vite/build/main.js",
   "private": true,
@@ -48,6 +48,7 @@
   "dependencies": {
     "@botexe/overlay-engine": "*",
     "@botexe/trigger-engine": "*",
+    "@sentry/electron": "^7.16.0",
     "@types/crypto-js": "^4.2.2",
     "ajv": "^8.17.1",
     "crypto-js": "^4.2.0",

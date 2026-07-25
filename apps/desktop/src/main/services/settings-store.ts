@@ -48,6 +48,10 @@ export interface StudioSettings {
    *  nur bis zum nächsten Start — wer größere Schrift braucht, musste sie jedes
    *  Mal neu einstellen. Wird jetzt gemerkt. */
   uiZoom?: number;
+  /** Absturzberichte (Sentry): 'unset' = noch nie gefragt (Erststart zeigt die
+   *  Nachfrage), 'on' = zugestimmt, 'off' = abgelehnt. Ohne 'on' wird Sentry
+   *  gar nicht initialisiert — es geht nichts raus. */
+  telemetry?: 'unset' | 'on' | 'off';
   soundVolume: number;
   /** Audio-Ausgabegerät für lokale Sounds/TTS (deviceId), '' = Standard. */
   audioOutputId: string;
@@ -163,6 +167,7 @@ const TTS_DEFAULTS: TTSSettings = {
 const DEFAULTS: StudioSettings = {
   schemaVersion: SETTINGS_SCHEMA_VERSION,
   lastUsername: '',
+  telemetry: 'unset',
   soundVolume: 0.7,
   audioOutputId: '',
   audioOutputLabel: '',

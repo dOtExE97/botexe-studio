@@ -4,6 +4,7 @@ import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
 import ToastHost, { toast } from './components/ToastHost';
 import UpdateBanner from './components/UpdateBanner';
+import TelemetryConsent from './components/TelemetryConsent';
 import ProfileSwitcher from './components/ProfileSwitcher';
 import OnboardingTour from './components/OnboardingTour';
 import KeyWizard from './components/KeyWizard';
@@ -121,6 +122,7 @@ export default function App() {
       <SoundPlayer />
       <ToastHost />
       <UpdateBanner />
+      <TelemetryConsent />
       <KeyWizard />
       <OnboardingTour onNavigate={(p) => {
         // Sonderziel 'key-wizard': öffnet den Key-Assistenten statt einer Seite.

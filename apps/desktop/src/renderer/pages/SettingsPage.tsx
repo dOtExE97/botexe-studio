@@ -60,6 +60,7 @@ export default function SettingsPage() {
   const [autostart, setAutostart] = useState(false);
   const [giftSoundGap, setGiftSoundGap] = useState(0);
   const [autoBackup, setAutoBackup] = useState(true);
+  const [telemetry, setTelemetry] = useState<'unset' | 'on' | 'off'>('unset');
   const [aiProvider, setAiProvider] = useState<'gemini' | 'ollama'>('gemini');
   const [aiModel, setAiModel] = useState('');
   const [aiKey, setAiKey] = useState('');
@@ -108,9 +109,10 @@ export default function SettingsPage() {
       setConnectMode(s.tiktokConnectMode === 'direct' ? 'direct' : 'cloud');
       setAutoLiveWatch(s.autoLiveWatch !== false);
       setAutostart(s.autostart === true);
-      const sy = s as unknown as { giftSoundGapSec?: number; autoBackup?: boolean };
+      const sy = s as unknown as { giftSoundGapSec?: number; autoBackup?: boolean; telemetry?: 'unset' | 'on' | 'off' };
       setGiftSoundGap(sy.giftSoundGapSec ?? 0);
       setAutoBackup(sy.autoBackup !== false);
+      setTelemetry(sy.telemetry ?? 'unset');
       const sx = s as unknown as { ai?: { provider?: string; model?: string }; aiKeySet?: boolean };
       setAiProvider(sx.ai?.provider === 'ollama' ? 'ollama' : 'gemini');
       setAiModel(sx.ai?.model ?? '');
@@ -861,6 +863,26 @@ export default function SettingsPage() {
             <Sparkles size={13} /> Funktion wünschen
           </button>
         </div>
+
+        <label className="mt-4 flex cursor-pointer items-start gap-2 border-t border-studio-border pt-3 text-xs">
+          <input
+            type="checkbox"
+            checked={telemetry === 'on'}
+            onChange={(e) => {
+              const v = e.target.checked ? 'on' : 'off';
+              setTelemetry(v);
+              void window.studio.updateSettings({ telemetry: v });
+              toast('info', 'Gespeichert — wirkt beim nächsten App-Start.');
+            }}
+            className="mt-0.5 accent-[#ff4d2e]"
+          />
+          <span>
+            Anonyme Absturzberichte senden
+            <span className="mt-0.5 block text-[11px] text-studio-muted/80">
+              Hilft mir, Fehler zu finden, die sonst niemand meldet. <b>Keine persönlichen Daten, keine Keys</b> — alles Sensible wird vorher entfernt. Jederzeit hier ausschaltbar. (Wirkt beim nächsten Start.)
+            </span>
+          </span>
+        </label>
       </section>
 
       {/* App-Info */}

@@ -3,6 +3,15 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.35.0] — 2026-07-26
+
+### Neu: anonyme Absturzberichte (Sentry) — mit Zustimmung, ohne Geheimnisse
+Stürzt bei dir etwas ab, kann die App jetzt eine anonyme Meldung senden (was, wo, welche Version) — damit Fehler auffallen, die sonst niemand meldet. Wichtig:
+- **Nur mit deiner Zustimmung.** Beim ersten Start fragt die App einmal; ohne „Ja" wird das Fehler-System gar nicht erst geladen, es geht nichts raus. Jederzeit unter *Einstellungen → Feedback & Fehler melden* umschaltbar.
+- **Keine persönlichen Daten, keine Keys.** Ein Filter entfernt vor dem Senden alles Sensible — Nutzer-Identität, Zugangsdaten und alles, was wie ein Schlüssel aussieht (eulerstream-, Google/Gemini-, OpenAI-Keys, Tokens). Das ist mit festen Tests abgesichert, damit es nie aufweicht.
+
+Für Entwickler: `@sentry/electron`, Haupt- und Renderer-Prozess über einen gemeinsamen Geheimnis-Filter (`scrubEvent`), Zustimmung im Einstellungs-Schema (`telemetry`), gated beim Start.
+
 ## [0.34.0] — 2026-07-25
 
 ### Neu: Premium-Effekte für jedes Widget (ein Häkchen)

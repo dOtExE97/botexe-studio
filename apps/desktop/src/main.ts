@@ -192,6 +192,8 @@ function createMainWindow(): void {
       // Stream-Tool: auch wenn das Fenster verdeckt ist, nicht drosseln
       // (Events/Sounds laufen weiter, CDP-Captures hängen nicht).
       backgroundThrottling: false,
+      // Zustimmungs-Flag an den Renderer: nur mit 'on' startet er Sentry.
+      additionalArguments: [`--bx-telemetry=${studio?.settings.get().telemetry === 'on' ? '1' : '0'}`],
     },
   });
 
@@ -1162,6 +1164,20 @@ app.whenReady().then(async () => {
   }
 
   studio = setupStudio();
+
+  // Absturzberichte (Sentry) — NUR wenn der Nutzer zugestimmt hat. Ohne 'on'
+  // wird Sentry gar nicht erst geladen, es geht nichts raus. Änderung der
+  // Einstellung wirkt beim nächsten Start (Konsens vor jedem Senden).
+  if (studio.settings.get().telemetry === 'on') {
+    try {
+      const { initMainTelemetry } = await import('./main/telemetry-main');
+      initMainTelemetry(app.getVersion(), app.isPackaged);
+      log.info('Main', 'Absturzberichte aktiv (Sentry) — mit Geheimnis-Filter');
+    } catch (e) {
+      log.warn('Main', 'Sentry-Init fehlgeschlagen', (e as Error).message);
+    }
+  }
+
   registerIpc();
   try {
     await studio.start();

@@ -176,3 +176,10 @@ const api = {
 export type StudioApi = typeof api;
 
 contextBridge.exposeInMainWorld('studio', api);
+
+// Telemetrie-Zustimmung: der Haupt-Prozess hängt --bx-telemetry=1|0 an die
+// Argumente (nur bei 'on'). Der Renderer startet Sentry nur, wenn hier true.
+contextBridge.exposeInMainWorld(
+  'bxTelemetryEnabled',
+  process.argv.some((a) => a === '--bx-telemetry=1'),
+);
