@@ -6,7 +6,8 @@
 // props: { mediaId, mediaUrl, kind?, mode, fit, durationMs, loop, muted, frame }
 const STYLE_ID = 'bx-media-style';
 const CSS = `
-.bx-media { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.bx-media { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; overflow:hidden;
+  container-type:size; }
 .bx-media-el { width:100%; height:100%; display:block; }
 .bx-media.frame .bx-media-el { border-radius: var(--bx-radius); box-shadow: var(--bx-shadow), 0 0 50px -18px var(--bx-accent); }
 .bx-media-hidden { opacity:0; pointer-events:none; }
@@ -14,11 +15,13 @@ const CSS = `
 @keyframes bx-media-in { 0% { opacity:0; transform: scale(.82); } 100% { opacity:1; transform: scale(1); } }
 .bx-media-out { animation: bx-media-out 380ms ease forwards; }
 @keyframes bx-media-out { to { opacity:0; transform: scale(.96); } }
-.bx-media-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; width:100%; height:100%;
-  border:2px dashed color-mix(in srgb, var(--bx-accent) 50%, transparent); border-radius: var(--bx-radius);
+/* Platzhalter skaliert mit der Box mit (vorher feste 14px/34px → in einem
+   großen Media-Rahmen kaum zu sehen). */
+.bx-media-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.55em; width:100%; height:100%;
+  border:max(2px,.14em) dashed color-mix(in srgb, var(--bx-accent) 50%, transparent); border-radius: var(--bx-radius);
   background: var(--bx-glass); color: var(--bx-muted); font-family: var(--bx-font-display);
-  font-size:14px; letter-spacing:.12em; text-transform:uppercase; text-align:center; padding:12px; }
-.bx-media-empty span { font-size:34px; }
+  font-size: clamp(11px, 4.4cqmin, 46px); letter-spacing:.12em; text-transform:uppercase; text-align:center; padding:.85em; }
+.bx-media-empty span { font-size:2.4em; }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {
@@ -63,8 +66,16 @@ export default class MediaWidget {
     this.media = this.buildMedia();
     this.el.appendChild(this.media);
 
-    if (this.mode === 'static') {
-      if (this.kind === 'video') this.media.play?.().catch(() => {});
+    // Editor-Schaufenster: ein Trigger-Medium ist im Overlay zurecht unsichtbar,
+    // im Editor wäre es aber eine leere Box — man könnte es weder sehen noch
+    // platzieren. Deshalb in der Vorschau dauerhaft zeigen (Video stumm in
+    // Schleife), im echten Overlay bleibt alles wie gehabt.
+    this.preview = !!(ctx && ctx.preview);
+    if (this.mode === 'static' || this.preview) {
+      if (this.kind === 'video') {
+        if (this.preview) { this.media.loop = true; this.media.muted = true; }
+        this.media.play?.().catch(() => {});
+      }
     } else {
       this.el.classList.add('bx-media-hidden'); // wartet auf play_media
     }
@@ -129,6 +140,7 @@ export default class MediaWidget {
 
   hide() {
     if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
+    if (this.preview) return; // im Editor sichtbar lassen
     if (this.outTimer) { clearTimeout(this.outTimer); this.outTimer = null; }
     this.el.classList.add('bx-media-out');
     // Ausblend-Timer verfolgen, damit destroy() ihn killt — sonst greift der

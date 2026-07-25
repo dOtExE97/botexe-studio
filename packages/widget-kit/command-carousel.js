@@ -6,24 +6,29 @@
 //   Legacy (weiter unterstützt): "🔥 !feuer | 🎵 Musik"  (führendes Emoji + Text)
 const STYLE_ID = 'bx-cc-style';
 const CSS = `
-.bx-cc { position:absolute; inset:0; display:flex; align-items:center; overflow:hidden; font-family: var(--bx-font-body); }
-.bx-cc-track { display:inline-flex; align-items:center; gap:14px; white-space:nowrap; will-change:transform;
-  animation: bx-cc-scroll var(--dur,22s) linear infinite; padding:0 7px; }
+/* Die Sticker-Leiste ist ein BREITES Band. Ohne container-type liefen die
+   cq-Einheiten vorher ins Leere (immer Minimalwert). Und cqmin wäre hier
+   falsch: die Kachelgröße hängt an der HÖHE des Bandes (cqh), cqi deckelt
+   sie nur zusätzlich in sehr schmalen Boxen. */
+.bx-cc { position:absolute; inset:0; display:flex; align-items:center; overflow:hidden; font-family: var(--bx-font-body);
+  container-type:size; font-size: clamp(10px, min(38cqh, 6cqi), 120px); }
+.bx-cc-track { display:inline-flex; align-items:center; gap:.42em; white-space:nowrap; will-change:transform;
+  animation: bx-cc-scroll var(--dur,22s) linear infinite; padding:0 .22em; }
 @keyframes bx-cc-scroll { to { transform: translateX(-50%); } }
-.bx-cc-chip { display:inline-flex; align-items:center; gap:9px; padding:9px 18px; border-radius:16px;
-  font-family: var(--bx-font-display); font-size: clamp(15px,6cqmin,26px); text-transform:uppercase; letter-spacing:.02em; flex:none; }
+.bx-cc-chip { display:inline-flex; align-items:center; gap:.28em; padding:.28em .55em; border-radius:.5em;
+  font-family: var(--bx-font-display); font-size:1em; text-transform:uppercase; letter-spacing:.02em; flex:none; }
 .bx-cc-emo { font-size:1.25em; line-height:1; -webkit-text-stroke:0; filter: drop-shadow(0 2px 3px rgba(0,0,0,.4)); }
 .bx-cc-gift { width:1.5em; height:1.5em; object-fit:contain; flex:none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
 /* Gift-Bild kommt async aus dem Katalog — bis dahin (oder wenn unbekannt) nicht anzeigen. */
 .bx-cc-gift:not([src]) { display:none; }
 /* — sticker: bunte 3D-Kachel + dicke weiße Outline (TikFinity-Look) — */
-.bx-st-sticker .bx-cc-chip { color:#fff; -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill;
-  box-shadow: 0 6px 0 rgba(0,0,0,.25), 0 8px 18px -6px rgba(0,0,0,.5), inset 0 2px 0 rgba(255,255,255,.35);
-  border: 2px solid rgba(255,255,255,.5); }
+.bx-st-sticker .bx-cc-chip { color:#fff; -webkit-text-stroke: max(2px, .11em) #0a0b12; paint-order: stroke fill;
+  box-shadow: 0 .2em 0 rgba(0,0,0,.25), 0 .3em .6em -.2em rgba(0,0,0,.5), inset 0 .07em 0 rgba(255,255,255,.35);
+  border: max(1.5px, .07em) solid rgba(255,255,255,.5); }
 .bx-st-glas .bx-cc-chip { color: var(--bx-text,#fff); background: var(--bx-glass);
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  border:1px solid color-mix(in srgb, var(--bx-accent) 35%, transparent); box-shadow: var(--bx-shadow); }
-.bx-st-neon .bx-cc-chip { color:#fff; background: rgba(8,9,14,.55); border:1.5px solid var(--bx-accent);
+  border:max(1px, .05em) solid color-mix(in srgb, var(--bx-accent) 35%, transparent); box-shadow: var(--bx-shadow); }
+.bx-st-neon .bx-cc-chip { color:#fff; background: rgba(8,9,14,.55); border:max(1.5px, .07em) solid var(--bx-accent);
   box-shadow: 0 0 16px -3px var(--bx-accent); text-shadow:0 0 10px var(--bx-accent); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }

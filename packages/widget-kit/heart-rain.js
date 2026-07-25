@@ -9,14 +9,16 @@ const STYLE_ID = 'bx-hr-style';
 const DEFAULT_EMOJIS = '❤️,💖,💕,✨,🔥';
 const CSS = `
 .bx-hr { position: absolute; inset: 0; overflow: hidden; pointer-events: none; container-type: size; }
+/* Schriftgröße wächst mit der Box mit (Referenz: 1000px kurze Seite ⇒ 3.4cqmin
+   ≈ die früheren 34px), bleibt aber lesbar gedeckelt. */
 .bx-hr-e { position: absolute; bottom: -6%; opacity: 0;
-  font-size: 34px; line-height: 1; display: block;
+  font-size: clamp(18px, 3.4cqmin, 96px); line-height: 1; display: block;
   filter: drop-shadow(0 0 9px var(--bx-glow, rgba(255,94,138,.6))) drop-shadow(0 2px 6px rgba(0,0,0,.4));
   animation: bx-hr-rise var(--dur,5s) cubic-bezier(.33,.32,.36,1) forwards; }
 .bx-hr-e svg { display: block; width: 100%; height: 100%; overflow: visible; }
-/* Profilbild des Likers — runde Scheibe mit Akzent-Ring. */
-.bx-hr-pb { border-radius: 50%; background: #1a1c28 center/cover no-repeat;
-  box-shadow: 0 0 0 2.5px var(--bx-pbring, #ff5e8a), 0 0 16px -2px var(--bx-pbring, #ff5e8a); }
+/* Profilbild des Likers — runde Scheibe mit Akzent-Ring. Baut auf .bx-av aus
+   widget-base.css auf (Initiale + Farbton als Fallback), ergänzt nur den Ring. */
+.bx-hr-pb { box-shadow: 0 0 0 2.5px var(--bx-pbring, #ff5e8a), 0 0 16px -2px var(--bx-pbring, #ff5e8a); }
 /* Aufstieg in cqh = relativ zur WIDGET-Höhe (nicht zur Herz-Größe!) → die Herzen
    steigen über die ganze Box hinaus, nicht nur 1-2 cm. */
 @keyframes bx-hr-rise {
@@ -75,9 +77,23 @@ function sparkSVG(id, base, accent) {
 
 function cssUrl(u) { return String(u || '').replace(/["\\]/g, ''); }
 
+/** Farbton/Initiale für den .bx-av-Fallback (kein Profilbild vorhanden).
+ *  Bewusst lokal dupliziert — die Widgets haben kein gemeinsames JS-Modul. */
+function bxAvHue(name) {
+  const s = String(name || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; // streut besser als eine reine Summe
+  return h;
+}
+function bxAvInitial(name) {
+  const s = String(name || '').trim();
+  return (s ? s[0] : '?').toUpperCase();
+}
+
 export default class HeartRain {
-  constructor(root, props) {
+  constructor(root, props, ctx) {
     ensureStyle();
+    this.host = ctx || {};
     const raw = props.emojis == null ? '' : String(props.emojis);
     const trimmed = raw.trim();
     this.useEmojis = trimmed !== '' && trimmed !== DEFAULT_EMOJIS;
@@ -101,19 +117,32 @@ export default class HeartRain {
     root.appendChild(this.el);
     this.live = 0;
     this.timers = new Set();
+
+    // Editor-Vorschau: laufend Likes simulieren, sonst ist die Box leer und man
+    // sieht weder Größe der Herzen noch die Steighöhe.
+    if (this.host.preview) {
+      const names = ['Mia', 'LeonGG', 'Nova', 'ExE', 'BigBen'];
+      let i = 0;
+      const tick = () => this.onEvent({ type: 'like', likeCount: 12, user: { nickname: names[i++ % names.length] } });
+      const t0 = setTimeout(tick, 200); this.timers.add(t0);
+      this.demoInterval = setInterval(tick, 900);
+    }
   }
 
   onEvent(event) {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'like') return;
     const n = heartsForLike(event.likeCount, this.mode, this.maxPerBurst);
-    const avatar = this.showAvatars ? event.user && event.user.profilePic : null;
+    const name = (event.user && event.user.nickname) || '';
+    // Auch OHNE Profilbild-URL eine Scheibe mitschicken: der .bx-av-Fallback
+    // (Farbton aus dem Namen + Initiale) ist besser als gar kein Liker-Zeichen.
+    const avatar = this.showAvatars ? ((event.user && event.user.profilePic) || '') : null;
     // Über die ganze Breite, leicht zeitlich versetzt (kleiner Gap → dichter Strom).
     const gap = 38;
     for (let i = 0; i < n; i++) {
       // Pro Schwung ~1 Profilbild des Likers (wenn vorhanden) mitsteigen lassen.
-      const withPb = avatar && i === Math.floor(n / 2);
-      const t = setTimeout(() => { this.timers.delete(t); this.spawn(withPb ? avatar : null); }, i * gap);
+      const withPb = avatar !== null && i === Math.floor(n / 2);
+      const t = setTimeout(() => { this.timers.delete(t); this.spawn(withPb ? { url: avatar, name } : null); }, i * gap);
       this.timers.add(t);
     }
   }
@@ -145,21 +174,30 @@ export default class HeartRain {
     e.style.setProperty('--rot', `${(Math.random() - 0.5) * 36}deg`);
 
     if (avatar) {
-      const size = 52 + Math.random() * 14;
-      e.classList.add('bx-hr-pb');
-      e.style.width = `${size}px`;
-      e.style.height = `${size}px`;
-      e.style.backgroundImage = `url("${cssUrl(avatar)}")`;
+      // Größen in cqmin statt px → wachsen mit der Widget-Box mit (Referenz:
+      // 1000px kurze Seite entspricht den früheren 52–66px).
+      const size = (5.2 + Math.random() * 1.4).toFixed(2);
+      e.classList.add('bx-av', 'bx-hr-pb');
+      e.style.width = `clamp(26px, ${size}cqmin, 150px)`;
+      e.style.height = e.style.width;
+      e.style.setProperty('--bx-av-h', String(bxAvHue(avatar.name)));
+      e.setAttribute('data-initial', bxAvInitial(avatar.name));
+      // Hintergrundbild NUR, wenn es wirklich eine URL gibt — sonst bleibt der
+      // .bx-av-Fallback (Farbton + Initiale) sichtbar statt einer leeren Scheibe.
+      if (avatar.url) {
+        e.classList.add('bx-av-img');
+        e.style.backgroundImage = `url("${cssUrl(avatar.url)}")`;
+      }
       const ring = this.accent ? 'var(--bx-accent)' : HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)];
       e.style.setProperty('--bx-pbring', ring);
     } else {
-      const size = 24 + Math.random() * 24;
+      const size = (2.4 + Math.random() * 2.4).toFixed(2);
       if (this.useEmojis) {
         e.textContent = this.emojis[Math.floor(Math.random() * this.emojis.length)] || '❤️';
-        e.style.fontSize = `${size}px`;
+        e.style.fontSize = `clamp(14px, ${size}cqmin, 110px)`;
       } else {
-        e.style.width = `${size}px`;
-        e.style.height = `${size}px`;
+        e.style.width = `clamp(14px, ${size}cqmin, 110px)`;
+        e.style.height = e.style.width;
         e.innerHTML = this.spriteHtml();
       }
     }
@@ -170,6 +208,7 @@ export default class HeartRain {
   }
 
   destroy() {
+    clearInterval(this.demoInterval);
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
     this.el.remove();

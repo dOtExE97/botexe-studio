@@ -7,9 +7,15 @@ const STYLE_ID = 'bx-gcd-style';
 const LABELS = { likes: 'Likes', follows: 'Follower', shares: 'Shares', gifts: 'Geschenke', coins: 'Coins', viewers: 'Zuschauer', uniqueViewers: 'Zuschauer gesamt' };
 const METRICS = Object.keys(LABELS);
 const CSS = `
+/* --u = „1px bei Standardgröße" (760×130). Vorher stand hier cqmin — das misst
+   die KURZE Seite, in einer 760×130-Box also die Höhe: 11cqmin waren ~14px und
+   die Zeile verlor sich in der Fläche. Jetzt bestimmt die Breite die Größe
+   (cqi), gedeckelt durch die Höhe (cqh), damit nichts überläuft. */
 .bx-gcd { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center;
-  font-family: var(--bx-font-display); container-type:size; padding:6px 12px; }
-.bx-gcd-text { font-size: clamp(14px, 11cqmin, 56px); line-height:1.08; color: var(--bx-text,#fff);
+  font-family: var(--bx-font-display); container-type:size; --u: min(0.1316cqi, 0.769cqh);
+  padding: 0.8% 1.6%; }
+.bx-gcd-text { font-size: clamp(12px, calc(var(--u) * 46), 200px); line-height:1.08; color: var(--bx-text,#fff);
+  overflow-wrap: anywhere;
   text-transform:uppercase; -webkit-text-stroke: 3px var(--bx-ink,#0a0b12); paint-order: stroke fill;
   text-shadow: 0 3px 0 rgba(0,0,0,.3), 0 0 18px color-mix(in srgb, var(--bx-accent) 45%, transparent); }
 .bx-gcd-n { color: var(--bx-accent); }
@@ -51,7 +57,28 @@ export default class GoalCountdown {
     this.el.innerHTML = '<div class="bx-gcd-text"></div>';
     this.textEl = this.el.querySelector('.bx-gcd-text');
     root.appendChild(this.el);
+    // Sicherheitsnetz zur CSS-Skalierung: sehr lange Vorlagen dürfen die Box
+    // nicht sprengen. Nach jedem Render und bei jeder Größenänderung anpassen.
+    try {
+      this.observer = new ResizeObserver(() => this.fit());
+      this.observer.observe(root);
+    } catch { /* alte Engine ohne ResizeObserver → CSS reicht */ }
     this.render(false);
+  }
+
+  /** Verkleinert die Schrift so lange, bis der Text in die Höhe passt
+   *  (Umbruch fängt die Breite bereits ab). Vergrößern macht das CSS. */
+  fit() {
+    const t = this.textEl;
+    if (!t) return;
+    t.style.fontSize = '';
+    const maxH = this.el.clientHeight - 4;
+    if (maxH <= 0) return;
+    let size = parseFloat(getComputedStyle(t).fontSize) || 0;
+    for (let i = 0; i < 16 && size > 8 && t.scrollHeight > maxH; i++) {
+      size *= 0.9;
+      t.style.fontSize = `${size}px`;
+    }
   }
 
   onStats(stats) {
@@ -71,9 +98,10 @@ export default class GoalCountdown {
     const v = goalCountdownView(this.cur, this.target, this.template, this.label, this.doneText);
     this.textEl.innerHTML = v.html;
     this.el.classList.toggle('done', v.done);
+    this.fit();
     if (animate) { this.el.classList.remove('pop'); void this.el.offsetWidth; this.el.classList.add('pop'); }
   }
 
   onReset() { this.cur = 0; this.target = this.step; this.render(false); }
-  destroy() { this.el.remove(); }
+  destroy() { if (this.observer) { this.observer.disconnect(); this.observer = null; } this.el.remove(); }
 }

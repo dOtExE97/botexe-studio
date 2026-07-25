@@ -32,23 +32,27 @@ export function battleWinner(scoreA, scoreB) {
 
 const STYLE_ID = 'bx-bt-style';
 const CSS = `
-.bx-bt { position:absolute; inset:0; display:flex; flex-direction:column; gap:8px; padding:10px 12px;
+/* justify-content:center — sonst klebt der Inhalt oben und unten bleibt bei
+   hohen Boxen ein toter Streifen. */
+.bx-bt { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; gap:clamp(3px,3cqh,16px); padding:clamp(4px,3.6cqh,20px) clamp(6px,2cqi,26px);
   container-type:size; font-family: var(--bx-font-body); overflow:hidden; }
 .bx-bt-head { display:flex; align-items:center; justify-content:center; gap:10px; }
-.bx-bt-title { font-family: var(--bx-font-display); font-size: clamp(13px,5cqmin,24px); letter-spacing:.16em;
+/* min(cqi,cqh) statt cqmin: in einer breiten 620x220-Box misst cqmin nur die
+   kurze Seite — die Schrift bliebe unnötig klein. */
+.bx-bt-title { font-family: var(--bx-font-display); font-size: clamp(12px,min(3cqi,8.5cqh),38px); letter-spacing:.16em;
   text-transform:uppercase; color: var(--bx-text,#fff); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 55%, transparent); }
-.bx-bt-clock { font-family: var(--bx-font-mono); font-weight:800; font-size: clamp(13px,4.6cqmin,22px); color: var(--bx-gold);
+.bx-bt-clock { font-family: var(--bx-font-mono); font-weight:800; font-size: clamp(12px,min(2.8cqi,8cqh),36px); color: var(--bx-gold);
   text-shadow: 0 0 12px color-mix(in srgb, var(--bx-gold) 50%, transparent); min-width:3ch; text-align:center; }
 .bx-bt-teams { display:flex; justify-content:space-between; align-items:flex-end; gap:8px; }
 .bx-bt-team { display:flex; flex-direction:column; align-items:center; min-width:0; }
-.bx-bt-name { font-family: var(--bx-font-display); font-size: clamp(12px,4cqmin,20px); -webkit-text-stroke:2px #0a0b12;
+.bx-bt-name { font-family: var(--bx-font-display); font-size: clamp(11px,min(2.8cqi,8cqh),38px); -webkit-text-stroke:2px #0a0b12;
   paint-order:stroke fill; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width: 42cqw; }
 .bx-bt-team.a .bx-bt-name { color: var(--bx-a, #ff5e8a); }
 .bx-bt-team.b .bx-bt-name { color: var(--bx-b, #4ea8ff); }
-.bx-bt-score { font-family: var(--bx-font-mono); font-weight:800; font-size: clamp(13px,5cqmin,26px); color:#fff;
+.bx-bt-score { font-family: var(--bx-font-mono); font-weight:800; font-size: clamp(12px,min(3.4cqi,10cqh),46px); color:#fff;
   text-shadow: 0 2px 6px rgba(0,0,0,.7); }
 /* — tug: Tauzieh-Balken, Mitte = Knoten, schiebt sich zur stärkeren Seite — */
-.bx-bt-tug { position:relative; height: clamp(26px,16cqmin,52px); border-radius:999px; overflow:hidden;
+.bx-bt-tug { position:relative; flex:none; height: clamp(24px,min(9cqi,30cqh),120px); border-radius:999px; overflow:hidden;
   background: linear-gradient(180deg, rgba(8,9,14,.92), rgba(18,20,28,.92));
   box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.08), 0 10px 24px -8px rgba(0,0,0,.7); }
 .bx-bt-side { position:absolute; top:0; bottom:0; transition: width 600ms cubic-bezier(.25,1,.35,1); }
@@ -68,7 +72,7 @@ const CSS = `
 .bx-bt-colfill { position:absolute; left:0; right:0; bottom:0; height:50%; transition: height 600ms cubic-bezier(.25,1,.35,1); }
 .bx-bt-col.a .bx-bt-colfill { background: linear-gradient(0deg, var(--bx-a,#ff5e8a), color-mix(in srgb, var(--bx-a,#ff5e8a) 30%, transparent)); }
 .bx-bt-col.b .bx-bt-colfill { background: linear-gradient(0deg, var(--bx-b,#4ea8ff), color-mix(in srgb, var(--bx-b,#4ea8ff) 30%, transparent)); }
-.bx-bt-vs { align-self:center; font-family: var(--bx-font-display); font-size: clamp(16px,7cqmin,34px); color:#fff;
+.bx-bt-vs { align-self:center; font-family: var(--bx-font-display); font-size: clamp(15px,min(4.2cqi,12cqh),54px); color:#fff;
   -webkit-text-stroke:3px #0a0b12; paint-order:stroke fill; text-shadow:0 0 18px var(--bx-accent); }
 /* Sieg-Blitz */
 .bx-bt.win-a .bx-bt-team.a, .bx-bt.win-b .bx-bt-team.b { animation: bx-bt-win 1s ease-in-out 2; }
@@ -76,7 +80,7 @@ const CSS = `
 .bx-bt.win-a .bx-bt-col.a, .bx-bt.win-b .bx-bt-col.b { box-shadow: 0 0 30px -2px var(--bx-gold), inset 0 0 0 2px var(--bx-gold); }
 @keyframes bx-bt-win { 0%,100%{ transform: scale(1); } 50%{ transform: scale(1.12); } }
 .bx-bt-banner { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(.6); z-index:5; opacity:0;
-  font-family: var(--bx-font-display); font-size: clamp(16px,9cqmin,42px); color: var(--bx-gold); -webkit-text-stroke:3px #0a0b12;
+  font-family: var(--bx-font-display); font-size: clamp(15px,min(5.4cqi,15cqh),64px); color: var(--bx-gold); -webkit-text-stroke:3px #0a0b12;
   paint-order:stroke fill; text-shadow:0 0 24px var(--bx-gold); pointer-events:none; white-space:nowrap; }
 .bx-bt-banner.show { animation: bx-bt-banner 2.4s cubic-bezier(.2,1.5,.3,1) forwards; }
 @keyframes bx-bt-banner { 0%{opacity:0; transform:translate(-50%,-50%) scale(.5);} 15%{opacity:1; transform:translate(-50%,-50%) scale(1);}

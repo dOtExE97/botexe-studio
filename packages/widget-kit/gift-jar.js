@@ -6,26 +6,45 @@
 import { comboPlan } from './combo.js';
 
 const STYLE_ID = 'bx-jar-style';
+// --u = „1px bei Standardgröße" (440×520): Badge, Label und Toasts sind
+// Vielfache davon und wachsen mit, wenn das Glas größer gezogen wird.
 const CSS = `
-.bx-jar { position: absolute; inset: 0; font-family: var(--bx-font-display); }
+.bx-jar { position: absolute; inset: 0; font-family: var(--bx-font-display); container-type: size; --u: min(0.227cqi, 0.192cqh); }
 .bx-jar canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.bx-jar-badge { position: absolute; right: 5%; top: 3%; display: flex; align-items: center; gap: 6px;
-  padding: 5px 14px 5px 10px; border-radius: 999px; background: linear-gradient(160deg, rgba(28,30,42,.94), rgba(13,14,20,.92));
+.bx-jar-badge { position: absolute; right: 5%; top: 3%; overflow: hidden; display: flex; align-items: center; gap: calc(var(--u) * 6);
+  padding: calc(var(--u) * 5) calc(var(--u) * 14) calc(var(--u) * 9) calc(var(--u) * 10);
+  border-radius: 999px; background: linear-gradient(160deg, rgba(28,30,42,.94), rgba(13,14,20,.92));
   box-shadow: 0 6px 16px -6px rgba(0,0,0,.6), 0 0 0 1.5px color-mix(in srgb, var(--bx-gold) 50%, transparent) inset; }
-.bx-jar-badge .ico { font-size: 18px; }
-.bx-jar-badge .num { font-family: var(--bx-font-display); font-size: 20px; color: var(--bx-gold);
-  -webkit-text-stroke: 2.5px #0a0b12; paint-order: stroke fill; }
+.bx-jar-badge .ico { font-size: clamp(9px, calc(var(--u) * 15), 60px); }
+.bx-jar-badge .tgt { font-family: var(--bx-font-display); font-size: clamp(8px, calc(var(--u) * 12), 48px); color: #d9deee; opacity: .85; white-space: nowrap; }
+.bx-jar-badge .num { font-family: var(--bx-font-display); font-size: clamp(10px, calc(var(--u) * 16), 64px); color: var(--bx-gold);
+  -webkit-text-stroke: 2.5px #0a0b12; paint-order: stroke fill; white-space: nowrap; }
+/* Ziel-Fortschritt: dünne Leiste am unteren Rand des Badges. Macht die
+   Property „target" sichtbar — vorher wurde sie gesetzt und nie benutzt.
+   Im Badge statt am Glas, damit sie mit keiner Behälter-Form kollidiert. */
+.bx-jar-goal { position:absolute; left:6%; right:6%; bottom: 12%; height: clamp(2px, calc(var(--u) * 4), 16px);
+  border-radius:999px; background: rgba(255,255,255,.16); overflow:hidden; }
+.bx-jar-goal > i { display:block; height:100%; width:0%; border-radius:999px;
+  background: linear-gradient(90deg, var(--bx-gold), #ff9d3d); box-shadow: 0 0 12px -2px var(--bx-gold);
+  transition: width 600ms cubic-bezier(.25,1,.35,1); }
+.bx-jar.done .bx-jar-goal > i { background: linear-gradient(90deg, var(--bx-teal), #7dffe9); box-shadow: 0 0 14px -2px var(--bx-teal); }
+/* Ziel erreicht → Badge pulsiert kurz in Türkis. */
+.bx-jar.done .bx-jar-badge { box-shadow: 0 6px 16px -6px rgba(0,0,0,.6), 0 0 0 2px var(--bx-teal) inset, 0 0 22px -4px var(--bx-teal);
+  animation: bx-jar-done 1.1s ease-in-out infinite; }
+.bx-jar.done .bx-jar-badge .num { color: var(--bx-teal); }
+@keyframes bx-jar-done { 50% { transform: scale(1.06); } }
 .bx-jar-label { position: absolute; left: 0; right: 0; top: 3%; text-align: center;
-  font-family: var(--bx-font-display); font-size: 20px; letter-spacing: .04em; color: #fff;
+  font-family: var(--bx-font-display); font-size: clamp(11px, calc(var(--u) * 20), 80px); letter-spacing: .04em; color: #fff;
   -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 50%, transparent), 0 3px 5px rgba(0,0,0,.5); }
 /* Donation-Toasts (TikFinity-Style): „Name schickt Gift ×N" fliegt links oben ein. */
-.bx-jar-toasts { position:absolute; left:4%; top:13%; right:4%; display:flex; flex-direction:column; gap:5px; pointer-events:none; }
-.bx-jar-toast { display:flex; align-items:center; gap:7px; align-self:flex-start; max-width:100%;
-  padding:5px 12px 5px 6px; border-radius:999px; font-family: var(--bx-font-body); font-size:13px; color:#fff; white-space:nowrap;
+.bx-jar-toasts { position:absolute; left:4%; top:13%; right:4%; display:flex; flex-direction:column; gap: calc(var(--u) * 5); pointer-events:none; }
+.bx-jar-toast { display:flex; align-items:center; gap: calc(var(--u) * 7); align-self:flex-start; max-width:100%;
+  padding: calc(var(--u) * 5) calc(var(--u) * 12) calc(var(--u) * 5) calc(var(--u) * 6);
+  border-radius:999px; font-family: var(--bx-font-body); font-size: clamp(9px, calc(var(--u) * 13), 52px); color:#fff; white-space:nowrap;
   background: linear-gradient(160deg, rgba(28,30,42,.95), rgba(13,14,20,.92)); box-shadow: 0 6px 16px -6px rgba(0,0,0,.6);
   overflow:hidden; text-overflow:ellipsis; animation: bx-jar-toast 3s ease forwards; }
-.bx-jar-toast img { width:22px; height:22px; border-radius:50%; object-fit:cover; flex:none; }
-.bx-jar-toast .g { width:18px; height:18px; object-fit:contain; flex:none; }
+.bx-jar-toast img { width: calc(var(--u) * 22); height: calc(var(--u) * 22); border-radius:50%; object-fit:cover; flex:none; }
+.bx-jar-toast .g { width: calc(var(--u) * 18); height: calc(var(--u) * 18); object-fit:contain; flex:none; }
 .bx-jar-toast b { color: var(--bx-gold); }
 @keyframes bx-jar-toast { 0%{opacity:0; transform:translateX(-16px)} 10%{opacity:1; transform:none} 82%{opacity:1} 100%{opacity:0; transform:translateY(-8px)} }
 /* TikFinity-Original: ihr Marken-Grau #282828cc als Pillen, Radius 1.6875rem. */
@@ -59,7 +78,7 @@ function scheduleFrame(cb) {
 }
 
 export default class GiftJar {
-  constructor(root, props) {
+  constructor(root, props, ctx) {
     ensureStyle();
     root.style.setProperty('--bx-accent', props.accent || '#ffd23e');
     this.target = Math.max(1, Number(props.target ?? 1000));
@@ -74,7 +93,7 @@ export default class GiftJar {
     this.toastTimers = new Set();
     this.el = document.createElement('div');
     this.el.className = 'bx-jar' + (this.shape === 'tikfinity' ? ' bx-jar--tf' : '');
-    this.el.innerHTML = `<canvas></canvas><div class="bx-jar-label"></div><div class="bx-jar-badge"><span class="ico">🪙</span><span class="num">0</span></div><div class="bx-jar-toasts"></div>`;
+    this.el.innerHTML = `<canvas></canvas><div class="bx-jar-label"></div><div class="bx-jar-badge"><span class="ico">🪙</span><span class="num">0</span><span class="tgt"></span><span class="bx-jar-goal"><i></i></span></div><div class="bx-jar-toasts"></div>`;
     this.el.querySelector('.bx-jar-label').textContent = props.label || 'Coin-Glas';
     root.appendChild(this.el);
     this.canvas = this.el.querySelector('canvas');
@@ -82,6 +101,33 @@ export default class GiftJar {
     this.resize = this.resize.bind(this); this.frame = this.frame.bind(this);
     this.observer = new ResizeObserver(this.resize); this.observer.observe(root);
     this.resize();
+    this.updateBadge();
+    // Editor-Vorschau: ein paar Beispiel-Bälle, sonst steht dort ein leeres Glas
+    // und man kann Größe/Position nicht beurteilen.
+    if (ctx && ctx.preview) this.demo();
+  }
+
+  /** Stand + Ziel im Badge („1.7K / 2K") und Ziel-Zustand. Das Ziel war vorher
+   *  eine tote Property: gesetzt, aber nirgends benutzt. */
+  updateBadge() {
+    const num = this.el.querySelector('.bx-jar-badge .num');
+    if (num) num.textContent = fmt(this.coinsValue);
+    const tgt = this.el.querySelector('.bx-jar-badge .tgt');
+    if (tgt) tgt.textContent = `/ ${fmt(this.target)}`;
+    const bar = this.el.querySelector('.bx-jar-goal > i');
+    if (bar) bar.style.width = `${Math.max(0, Math.min(100, (this.coinsValue / this.target) * 100))}%`;
+    this.el.classList.toggle('done', this.coinsValue >= this.target);
+  }
+
+  /** Beispiel-Füllung für den Editor (keine Dauer-Animation, nur einmal). */
+  demo() {
+    this.coinsValue = Math.round(this.target * 0.45);
+    this.updateBadge();
+    const gift = { slug: 'Rose', count: 1, coinsPerUnit: 10, totalCoins: 10, icon: '' };
+    for (let i = 0; i < 16; i++) {
+      const t = setTimeout(() => { this.pendingTimers?.delete(t); this.spawn(gift, 5 + i * 45); }, i * 70);
+      (this.pendingTimers ??= new Set()).add(t);
+    }
   }
   resize() {
     const r = this.el.getBoundingClientRect(); if (r.width === 0) return;
@@ -154,7 +200,7 @@ export default class GiftJar {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'gift' || !event.gift) return;
     this.coinsValue += event.gift.totalCoins;
-    this.el.querySelector('.bx-jar-badge .num').textContent = fmt(this.coinsValue);
+    this.updateBadge();
     if (this.showToast) this.addToast(event);
     // Combo (z.B. 10x Rose) wirft EINEN Ball pro Gift — nicht nur einen für die
     // ganze Combo. Anzahl gedeckelt, Ballgröße aus dem Einzel-Coin-Wert.
@@ -372,8 +418,8 @@ export default class GiftJar {
     const coins = stats?.totals?.coins;
     if (typeof coins !== 'number' || coins <= this.coinsValue) return;
     this.coinsValue = coins;
-    const num = this.el.querySelector('.bx-jar-badge .num');
-    if (num) num.textContent = fmt(this.coinsValue);
+    this.updateBadge();
+    if (this.jar) this.draw();
   }
 
   // Timer (Combo-Volley) clearen, sonst landen nach dem Reset noch Geister-Bälle
@@ -383,7 +429,7 @@ export default class GiftJar {
     for (const t of this.toastTimers) clearTimeout(t); this.toastTimers.clear();
     this.coinsValue = 0; this.falling = []; this.resting = [];
     if (this.heightmap) this.heightmap.fill(0);
-    const num = this.el.querySelector('.bx-jar-badge .num'); if (num) num.textContent = '0';
+    this.updateBadge();
     this.el.querySelectorAll('.bx-jar-toast').forEach((t) => t.remove());
     if (this.jar) this.draw();
   }

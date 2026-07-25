@@ -3,18 +3,23 @@
 // z.B. chat_command „!death" → +1). Wert überlebt Overlay-Reloads via
 // localStorage (pro Layer). props: { label?, start?, accent? }
 const STYLE_ID = 'bx-counter-style';
+// --u = „1px bei Standardgröße" (320×160). Alle Schriftgrößen sind Vielfache
+// davon, also wächst die Schrift mit, wenn der Nutzer das Widget größer zieht.
+// min(cqi, cqh): in schmalen Boxen begrenzt die Breite, in flachen die Höhe →
+// nichts läuft über. Voraussetzung: container-type: size auf der Wurzel.
 const CSS = `
 .bx-cnt { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:2px; font-family: var(--bx-font-body); background: var(--bx-glass); border-radius: var(--bx-radius);
+  container-type: size; --u: min(0.3125cqi, 0.625cqh);
+  gap: 1.2%; font-family: var(--bx-font-body); background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow), 0 0 40px -18px var(--bx-accent);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); overflow:hidden; }
 .bx-cnt::before { content:''; position:absolute; inset:0; border-radius:inherit; padding:1.5px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--bx-accent) 70%, white), transparent 50%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; pointer-events:none; }
-.bx-cnt-label { font-family: var(--bx-font-display); font-size: 14px; letter-spacing:.32em; text-transform:uppercase;
-  color: var(--bx-muted); }
-.bx-cnt-value { font-family: var(--bx-font-num); font-weight: 800; font-size: 52px; line-height:1; color:var(--bx-text,#fff);
+.bx-cnt-label { font-family: var(--bx-font-display); font-size: clamp(9px, calc(var(--u) * 14), 44px); letter-spacing:.32em; text-transform:uppercase;
+  color: #c9cfe2; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.bx-cnt-value { font-family: var(--bx-font-num); font-weight: 800; font-size: clamp(20px, calc(var(--u) * 52), 200px); line-height:1; color:var(--bx-text,#fff);
   text-shadow: 0 0 22px color-mix(in srgb, var(--bx-accent) 55%, transparent), 0 2px 8px rgba(0,0,0,.6); }
 .bx-cnt-value.pop { animation: bx-cnt-pop 380ms cubic-bezier(.2,1.5,.35,1); }
 @keyframes bx-cnt-pop { 0% { transform: scale(1); } 45% { transform: scale(1.22); } 100% { transform: scale(1); } }

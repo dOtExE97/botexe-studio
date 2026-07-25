@@ -6,28 +6,38 @@ const STYLE_ID = 'bx-spo-style';
 const CSS = `
 .bx-spo { position:absolute; inset:0; display:flex; align-items:center; gap:3cqmin; padding:3cqmin 4cqmin;
   font-family: var(--bx-font-body); container-type:size; overflow:hidden;
+  font-size: clamp(10px, min(24cqh, 5cqi), 96px);
   background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   transition: opacity .4s; }
 .bx-spo.empty { opacity:0; }
-.bx-spo-art { width:64cqmin; height:64cqmin; flex:none; border-radius:8px; background:#1a1c28 center/cover no-repeat;
+/* Ohne Cover-URL stand hier bisher ein leeres graues Quadrat — dasselbe Loch
+   wie bei den fehlenden Profilbildern in den Listen. Spotify liefert das Cover
+   nicht immer sofort mit, deshalb ein gezeichneter Platzhalter (Note auf
+   Verlauf), der verschwindet, sobald ein echtes Bild da ist. */
+.bx-spo-art { position:relative; width:min(76cqh, 26cqi); aspect-ratio:1/1; height:auto; flex:none; border-radius:.28em;
+  background:linear-gradient(150deg,#2a2f45,#171a28) center/cover no-repeat;
   box-shadow: 0 6px 16px -6px rgba(0,0,0,.65); }
+.bx-spo-art::after { content:'♪'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:min(42cqh, 14cqi); line-height:1; color:rgba(255,255,255,.5); }
+.bx-spo-art.has-art { background-color:#1a1c28; }
+.bx-spo-art.has-art::after { content:none; }
 .bx-spo-body { min-width:0; flex:1; display:flex; flex-direction:column; gap:1.5cqmin; }
-.bx-spo-row { display:flex; align-items:center; gap:6px; min-width:0; }
+.bx-spo-row { display:flex; align-items:center; gap:.24em; min-width:0; }
 .bx-spo-eq { display:inline-flex; gap:2px; align-items:flex-end; height:.9em; flex:none; }
 /* scaleY statt height: GPU-compositet (kein Layout-Reflow pro Frame). */
-.bx-spo-eq i { width:3px; height:100%; transform:scaleY(.35); transform-origin:bottom;
+.bx-spo-eq i { width:max(2px,.09em); height:100%; transform:scaleY(.35); transform-origin:bottom;
   background: var(--bx-accent,#1db954); border-radius:2px; animation: bx-spo-eq .9s ease-in-out infinite; }
 .bx-spo-eq i:nth-child(2){ animation-delay:.25s } .bx-spo-eq i:nth-child(3){ animation-delay:.5s }
 @keyframes bx-spo-eq { 0%,100%{ transform:scaleY(.35) } 50%{ transform:scaleY(1) } }
 .bx-spo.paused .bx-spo-eq i { animation-play-state: paused; opacity:.4; }
 /* Kein Song → Widget unsichtbar: EQ-Animation anhalten (spart Dauer-Compositing). */
 .bx-spo.empty .bx-spo-eq i { animation-play-state: paused; }
-.bx-spo-title { font-family: var(--bx-font-display); font-size: clamp(12px, 11cqmin, 32px); color: var(--bx-text,#fff);
+.bx-spo-title { font-family: var(--bx-font-display); font-size:1em; color: var(--bx-text,#fff);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bx-spo-artist { font-size: clamp(9px, 7cqmin, 19px); color: var(--bx-muted,#aab0c4);
+.bx-spo-artist { font-size:.62em; color: var(--bx-muted,#aab0c4);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bx-spo-bar { height:5px; border-radius:99px; background: rgba(255,255,255,.16); overflow:hidden; margin-top:1cqmin; }
+.bx-spo-bar { height:max(4px,.16em); border-radius:99px; background: rgba(255,255,255,.28); overflow:hidden; margin-top:1cqmin; }
 .bx-spo-fill { height:100%; width:0%; border-radius:99px; background: var(--bx-accent,#1db954); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
@@ -66,7 +76,9 @@ export default class SpotifyNowPlaying {
       this.trackId = s.trackId;
       this.titleEl.textContent = s.title;
       this.artistEl.textContent = s.artist || '';
-      this.art.style.backgroundImage = s.albumArt ? `url("${String(s.albumArt).replace(/["\\]/g, '')}")` : 'none';
+      const art = s.albumArt ? String(s.albumArt).replace(/["\\]/g, '') : '';
+      this.art.style.backgroundImage = art ? `url("${art}")` : 'none';
+      this.art.classList.toggle('has-art', !!art);
     }
     this.dur = Number(s.durationMs) || 0;
     this.prog = Number(s.progressMs) || 0;

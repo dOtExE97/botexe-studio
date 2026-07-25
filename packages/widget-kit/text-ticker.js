@@ -2,18 +2,23 @@
 // deckt kaum etwas zu. props: { messages? (| getrennt), speed?, accent?, style?: 'glas'|'solid'|'neon' }
 const STYLE_ID = 'bx-tt-style';
 const CSS = `
-.bx-tt { position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; font-family: var(--bx-font-body); }
+/* container-type ist Pflicht, sonst greifen cq*-Einheiten ins Leere.
+   Ein Lauftext ist ein BREITES Band: die Schrift darf nur an der HÖHE hängen
+   (cqh) — sonst wird sie in einer 1600px breiten Leiste absurd groß. Der
+   cqi-Anteil deckelt sie zusätzlich in sehr schmalen Boxen. */
+.bx-tt { position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; font-family: var(--bx-font-body);
+  container-type: size; font-size: clamp(9px, min(46cqh, 9cqi), 130px); }
 .bx-tt-track { display: inline-flex; align-items: center; white-space: nowrap; will-change: transform; animation: bx-tt-scroll var(--dur,18s) linear infinite; }
-.bx-tt-item { font-family: var(--bx-font-display); font-size: 22px; text-transform: uppercase; letter-spacing: .06em; color: var(--bx-text,#fff);
-  padding: 0 32px; text-shadow: 0 2px 6px rgba(0,0,0,.7); }
-.bx-tt-sep { color: var(--bx-accent); font-size: 14px; }
+.bx-tt-item { font-family: var(--bx-font-display); font-size: 1em; text-transform: uppercase; letter-spacing: .06em; color: var(--bx-text,#fff);
+  padding: 0 1.45em; text-shadow: 0 2px 6px rgba(0,0,0,.7); }
+.bx-tt-sep { color: var(--bx-accent); font-size: .62em; }
 @keyframes bx-tt-scroll { to { transform: translateX(-50%); } }
-.bx-st-glas { background: var(--bx-glass); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-radius: 12px;
+.bx-st-glas { background: var(--bx-glass); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-radius: .5em;
   box-shadow: 0 8px 22px -10px rgba(0,0,0,.6), 0 0 0 1px color-mix(in srgb, var(--bx-accent) 30%, transparent) inset; }
-.bx-st-solid { background: linear-gradient(90deg, var(--bx-accent), var(--bx-accent-2)); border-radius: 10px; }
+.bx-st-solid { background: linear-gradient(90deg, var(--bx-accent), var(--bx-accent-2)); border-radius: .42em; }
 .bx-st-solid .bx-tt-item { color: #0a0b10; text-shadow: 0 1px 0 rgba(255,255,255,.2); }
 .bx-st-solid .bx-tt-sep { color: rgba(0,0,0,.5); }
-.bx-st-neon { background: rgba(8,9,14,.6); border-radius: 10px; border: 1.5px solid var(--bx-accent); box-shadow: 0 0 18px -4px var(--bx-accent); }
+.bx-st-neon { background: rgba(8,9,14,.6); border-radius: .42em; border: max(1.5px, .06em) solid var(--bx-accent); box-shadow: 0 0 18px -4px var(--bx-accent); }
 .bx-st-neon .bx-tt-item { color: var(--bx-accent); text-shadow: 0 0 12px var(--bx-accent); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }

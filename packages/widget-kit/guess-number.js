@@ -10,31 +10,38 @@
 //          title?, accent? }
 const STYLE_ID = 'bx-gn-style';
 const CSS = `
+/* Alles hier war vorher in festen Pixeln — beim Vergrößern des Widgets blieb
+   die Karte winzig in der Mitte stehen. Jetzt hängt eine einzige Basisgröße
+   (font-size auf .bx-gn) an der Box, alles darunter ist in em ausgedrückt. */
 .bx-gn { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:10px; padding:14px; font-family: var(--bx-font-body); background: var(--bx-glass);
+  container-type:size; font-size: clamp(9px, 5.6cqmin, 64px);
+  gap:.62em; padding:.9em; font-family: var(--bx-font-body); background: var(--bx-glass);
   border-radius: var(--bx-radius); box-shadow: var(--bx-shadow), 0 0 44px -16px var(--bx-accent);
   overflow:hidden; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
-.bx-gn-title { font-family: var(--bx-font-display); font-size:16px; letter-spacing:.26em; text-transform:uppercase;
+.bx-gn-title { font-family: var(--bx-font-display); font-size:1em; letter-spacing:.26em; text-transform:uppercase;
   color: var(--bx-text, #fff); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); text-align:center; }
-.bx-gn-tiles { display:flex; gap:8px; perspective: 500px; }
-.bx-gn-tile { width:62px; height:78px; border-radius:12px; display:flex; align-items:center; justify-content:center;
-  font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size:44px; color: var(--bx-text, #fff);
+.bx-gn-tiles { display:flex; gap:.5em; perspective: 500px; }
+/* Achtung: die Kachel setzt selbst font-size:2.75em — alle weiteren em in
+   DIESER Regel beziehen sich deshalb auf die Kachelschrift, nicht auf die
+   Basisgröße. 1.41em/1.77em entsprechen den früheren 62x78px bei 44px Schrift. */
+.bx-gn-tile { width:1.41em; height:1.77em; border-radius:.28em; display:flex; align-items:center; justify-content:center;
+  font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size:2.75em; color: var(--bx-text, #fff);
   background: linear-gradient(165deg, rgba(255,255,255,.14), rgba(255,255,255,.04));
-  border:1.5px solid color-mix(in srgb, var(--bx-accent) 55%, transparent);
-  box-shadow: 0 6px 16px rgba(0,0,0,.45), 0 0 22px -8px var(--bx-accent);
+  border:max(1.5px,.035em) solid color-mix(in srgb, var(--bx-accent) 55%, transparent);
+  box-shadow: 0 .13em .36em rgba(0,0,0,.45), 0 0 .5em -.18em var(--bx-accent);
   text-shadow: 0 0 16px color-mix(in srgb, var(--bx-accent) 70%, transparent); }
 .bx-gn-tile.flip { animation: bx-gn-flip 600ms cubic-bezier(.2,1.2,.3,1); }
 @keyframes bx-gn-flip { 0% { transform: rotateX(0); } 50% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
-.bx-gn-hint { min-height:20px; font-family: var(--bx-font-display); font-size:14px; letter-spacing:.1em;
+.bx-gn-hint { min-height:1.25em; font-family: var(--bx-font-display); font-size:.88em; letter-spacing:.1em;
   text-transform:uppercase; color: var(--bx-gold); text-shadow: 0 1px 4px rgba(0,0,0,.6); }
 .bx-gn-hint.pulse { animation: bx-gn-pulse 450ms cubic-bezier(.2,1.4,.4,1); }
 @keyframes bx-gn-pulse { 0% { transform: scale(.7); opacity:0; } 100% { transform: scale(1); opacity:1; } }
-.bx-gn-sub { font-size:12px; color: var(--bx-muted); }
-.bx-gn-win { display:flex; align-items:center; gap:10px; animation: bx-gn-pulse 500ms cubic-bezier(.2,1.5,.35,1); }
-.bx-gn-win img { width:44px; height:44px; border-radius:50%; box-shadow: 0 0 0 3px var(--bx-gold), 0 0 18px var(--bx-gold); }
-.bx-gn-win .who { font-family: var(--bx-font-display); font-size:20px; color: var(--bx-gold);
+.bx-gn-sub { font-size:.75em; color: var(--bx-muted); text-align:center; }
+.bx-gn-win { display:flex; align-items:center; gap:.62em; animation: bx-gn-pulse 500ms cubic-bezier(.2,1.5,.35,1); }
+.bx-gn-win img { width:2.75em; height:2.75em; border-radius:50%; box-shadow: 0 0 0 .19em var(--bx-gold), 0 0 1.1em var(--bx-gold); }
+.bx-gn-win .who { font-family: var(--bx-font-display); font-size:1.25em; color: var(--bx-gold);
   text-transform:uppercase; text-shadow: 0 0 14px var(--bx-gold); }
-.bx-gn-confetti { position:absolute; width:9px; height:9px; border-radius:2px; pointer-events:none;
+.bx-gn-confetti { position:absolute; width:.56em; height:.56em; border-radius:2px; pointer-events:none;
   animation: bx-gn-conf var(--dur,1.4s) ease-out forwards; }
 @keyframes bx-gn-conf { 0% { transform: translate(0,0) rotate(0); opacity:1; }
   100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity:0; } }
@@ -90,6 +97,29 @@ export default class GuessNumberWidget {
     this.subEl = this.el.querySelector('.bx-gn-sub');
     root.appendChild(this.el);
     this.newRound(false);
+    // Editor-Schaufenster: laufende Runde andeuten, damit die Hinweiszeile nicht
+    // tot wirkt. Bewusst OHNE win() — das würde einen Fake-Sieg ans Spiel-
+    // Leaderboard melden.
+    if (this.ctx.preview) this.startPreview();
+  }
+
+  startPreview() {
+    const mid = Math.floor((this.min + this.max) / 2);
+    const demo = [
+      `${this.min} — höher! ▲`,
+      `${this.max} — niedriger! ▼`,
+      `${mid} — höher! ▲`,
+    ];
+    let i = 0;
+    const show = () => {
+      this.hintEl.textContent = demo[i % demo.length];
+      this.hintEl.classList.remove('pulse');
+      void this.hintEl.offsetWidth;
+      this.hintEl.classList.add('pulse');
+      i += 1;
+    };
+    show();
+    this.previewTimer = setInterval(show, 2200);
   }
 
   newRound(animate) {
@@ -189,10 +219,12 @@ export default class GuessNumberWidget {
     try { localStorage.removeItem(this.storeKey); } catch { /* egal */ }
     this.round = 0;
     this.newRound(true);
+    if (this.ctx.preview && !this.previewTimer) this.startPreview();
   }
 
   destroy() {
     if (this.roundTimer) clearTimeout(this.roundTimer);
+    if (this.previewTimer) clearInterval(this.previewTimer);
     this.el.remove();
   }
 }

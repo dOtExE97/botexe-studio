@@ -7,30 +7,33 @@
 //          title?, levelSoundId?, accent? }
 const STYLE_ID = 'bx-ht-style';
 const LEVEL_COLORS = ['#28e0c4', '#7cc8ff', '#ffd23e', '#ff9d2e', '#ff4d2e', '#c45cff'];
+// --u = „1px bei Standardgröße" (560×150). cqmin (kurze Seite) hielt Titel und
+// Balken in dem flachen, breiten Widget am Minimum kleben — jetzt führt die
+// Breite (cqi), die Höhe (cqh) deckelt, damit nichts überläuft.
 const CSS = `
-.bx-ht { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; gap:8px;
-  padding:14px 18px; container-type:size; font-family: var(--bx-font-body);
+.bx-ht { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; gap:4%;
+  padding:2.5% 3.2%; container-type:size; --u: min(0.1786cqi, 0.667cqh); font-family: var(--bx-font-body);
   background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow), 0 0 50px -14px var(--bx-ht-color, var(--bx-accent));
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   opacity:0; transform: translateY(12px) scale(.97); transition: opacity .4s, transform .4s; }
 .bx-ht.on { opacity:1; transform:none; }
 .bx-ht-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
-.bx-ht-title { font-family: var(--bx-font-display); font-size: clamp(14px, 5cqmin, 28px); letter-spacing:.14em;
+.bx-ht-title { font-family: var(--bx-font-display); font-size: clamp(11px, calc(var(--u) * 20), 80px); letter-spacing:.14em;
   text-transform:uppercase; color: var(--bx-text, #fff); text-shadow: 0 0 16px var(--bx-ht-color, var(--bx-accent)); }
-.bx-ht-lvl { font-family: var(--bx-font-display); font-size: clamp(13px, 4.6cqmin, 24px);
+.bx-ht-lvl { font-family: var(--bx-font-display); font-size: clamp(10px, calc(var(--u) * 17), 68px);
   color: var(--bx-ht-color, var(--bx-accent)); -webkit-text-stroke: 2px #0a0b12; paint-order: stroke fill; }
-.bx-ht-track { position:relative; height: clamp(16px, 7cqmin, 30px); border-radius: 999px;
+.bx-ht-track { position:relative; height: clamp(8px, calc(var(--u) * 26), 104px); border-radius: 999px;
   background: rgba(8,10,18,.55); overflow:hidden; border:1px solid rgba(255,255,255,.12); }
 .bx-ht-fill { position:absolute; inset:0 auto 0 0; width:0%;
   background: linear-gradient(90deg, var(--bx-ht-color, var(--bx-accent)), color-mix(in srgb, var(--bx-ht-color, var(--bx-accent)) 40%, #fff));
   box-shadow: 0 0 18px var(--bx-ht-color, var(--bx-accent)); transition: width .35s cubic-bezier(.2,1,.3,1); }
-.bx-ht-loco { position:absolute; top:50%; transform: translate(-50%,-50%); font-size: clamp(14px, 6cqmin, 26px);
+.bx-ht-loco { position:absolute; top:50%; transform: translate(-50%,-50%); font-size: clamp(11px, calc(var(--u) * 20), 80px);
   transition: left .35s cubic-bezier(.2,1,.3,1); filter: drop-shadow(0 2px 4px rgba(0,0,0,.6)); }
 .bx-ht-foot { display:flex; align-items:center; justify-content:space-between; gap:10px;
-  font-size: clamp(10px, 3cqmin, 15px); color: var(--bx-muted); }
+  font-size: clamp(9px, calc(var(--u) * 13), 52px); color: #c2c9dc; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
 .bx-ht-foot b { color: var(--bx-text, #fff); }
-.bx-ht-timer { height:5px; border-radius:3px; background: rgba(255,255,255,.12); overflow:hidden; }
+.bx-ht-timer { height: clamp(3px, calc(var(--u) * 5), 20px); border-radius:3px; background: rgba(255,255,255,.12); overflow:hidden; }
 .bx-ht-timer > i { display:block; height:100%; width:100%; background: var(--bx-ht-color, var(--bx-accent)); transition: width .25s linear; }
 .bx-ht.levelup .bx-ht-track { animation: bx-ht-pump .5s ease; }
 @keyframes bx-ht-pump { 0%,100%{ transform:scale(1) } 40%{ transform:scale(1.06) } }
@@ -46,7 +49,7 @@ const CSS = `
 .bx-ht-rakete .bx-ht-track { border-radius: 6px; transform: skewX(-12deg);
   background: rgba(8,10,18,.72); border-color: color-mix(in srgb, var(--bx-ht-color, var(--bx-accent)) 50%, transparent); }
 .bx-ht-rakete .bx-ht-fill { background: linear-gradient(90deg, #ff8a3d, #ffd23e 55%, #fff); box-shadow: 0 0 22px #ff8a3d; }
-.bx-ht-rakete .bx-ht-loco { font-size: clamp(18px, 8cqmin, 34px); transform: translate(-50%,-50%) rotate(45deg); }
+.bx-ht-rakete .bx-ht-loco { font-size: clamp(13px, calc(var(--u) * 26), 104px); transform: translate(-50%,-50%) rotate(45deg); }
 .bx-ht-rakete .bx-ht-loco::after { content: '🔥'; position: absolute; left: -0.75em; top: 0.55em;
   font-size: 0.62em; transform: rotate(-45deg); filter: blur(0.4px); animation: bx-ht-flame .3s ease-in-out infinite alternate; }
 @keyframes bx-ht-flame { from { opacity: .75; transform: rotate(-45deg) scale(.85); } to { opacity: 1; transform: rotate(-45deg) scale(1.15); } }
@@ -106,6 +109,23 @@ export default class HypeTrain {
     this.timerEl = this.el.querySelector('.bx-ht-timer > i');
     root.appendChild(this.el);
     this.now = () => performance.now();
+    // Editor-Vorschau: Der Zug ist normalerweise unsichtbar (opacity 0), bis
+    // Gifts kommen — im Editor sähe man nur eine leere Box. Darum ein
+    // eingefrorener Beispiel-Zustand, ganz ohne Timer.
+    if (this.host.preview) this.demo();
+  }
+
+  /** Statische Demo für den Editor: Level 2, Balken halb voll, kein Timer.
+   *  Das erste echte Event ruft start() und setzt alles sauber zurück. */
+  demo() {
+    this.active = false;
+    this.points = this.levelStep * 1.55;
+    this.level = Math.min(this.maxLevels, 2);
+    this.contributors = 7;
+    this.el.classList.add('on');
+    this.render();
+    this.timerEl.style.width = '62%';
+    this.timeEl.textContent = '18s';
   }
 
   onEvent(event) {

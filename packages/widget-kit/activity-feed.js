@@ -2,17 +2,23 @@
 // Glas-Zeilen mit Icon-Badge je Typ. props: { max?, ttlMs?, accent? }
 const STYLE_ID = 'bx-af-style';
 const CSS = `
-.bx-af { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 7px;
-  overflow: hidden; font-family: var(--bx-font-body); }
-.bx-af-item { display: flex; align-items: center; gap: 11px; padding: 8px 16px 8px 8px; border-radius: 14px;
+.bx-af { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: clamp(3px,1.6cqh,12px);
+  overflow: hidden; font-family: var(--bx-font-body); container-type: size; }
+.bx-af-item { display: flex; align-items: center; gap: clamp(5px,2.4cqi,20px); padding: clamp(3px,1.6cqh,12px) clamp(8px,3.2cqi,24px) clamp(3px,1.6cqh,12px) clamp(4px,1.6cqi,14px); border-radius: 14px;
   background: var(--bx-glass); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   box-shadow: 0 8px 22px -8px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset;
   transform: translateX(-115%); animation: bx-af-in 380ms cubic-bezier(.2,1.4,.4,1) forwards; }
 .bx-af-item.old { animation: bx-af-out 320ms ease-in forwards; }
-.bx-af-badge { width: 34px; height: 34px; flex: none; display: flex; align-items: center; justify-content: center;
-  border-radius: 11px; color: #0a0b10; }
-.bx-af-badge svg { width: 19px; height: 19px; display: block; }
-.bx-af-text { font-size: 15px; color: #e9ebf4; text-shadow: 0 1px 2px rgba(0,0,0,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Profilbild mit Typ-Marke: der Kreis zeigt das Bild — oder, wenn TikTok keins
+   liefert, den Anfangsbuchstaben (.bx-av). Die kleine Marke unten rechts sagt,
+   um welches Ereignis es geht. */
+.bx-af-ava { position: relative; flex: none; width: clamp(20px,min(9cqi,10cqh),58px); aspect-ratio: 1/1; }
+.bx-af-av { position: absolute; inset: 0; border-radius: 50%; container-type: size; box-shadow: 0 0 0 2px rgba(255,255,255,.14); }
+.bx-af-av::after { font-size: 52cqmin; }
+.bx-af-badge { position: absolute; right: -10%; bottom: -10%; width: 56%; height: 56%; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; color: #0a0b10; box-shadow: 0 0 0 2px rgba(10,11,18,.85); }
+.bx-af-badge svg { width: 62%; height: 62%; display: block; }
+.bx-af-text { font-size: clamp(11px,min(4.2cqi,7cqh),30px); color: #e9ebf4; text-shadow: 0 1px 2px rgba(0,0,0,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bx-af-text b { font-family: var(--bx-font-display); color: var(--bx-text,#fff); text-transform: uppercase; }
 @keyframes bx-af-in { to { transform: translateX(0); } }
 @keyframes bx-af-out { to { transform: translateX(-115%); opacity: 0; } }
@@ -21,12 +27,12 @@ const CSS = `
    Protokoll statt wie eine Liste. */
 .bx-af-timeline .bx-af-item { background: none !important; box-shadow: none !important; border-radius: 0;
   padding: 6px 8px 6px 26px; position: relative; }
-.bx-af-timeline .bx-af-item::before { content:''; position:absolute; left:11px; top:0; bottom:0; width:2px;
+.bx-af-timeline .bx-af-item::before { content:''; position:absolute; left:11px; z-index:1; top:0; bottom:0; width:2px;
   background: color-mix(in srgb, var(--bx-accent) 45%, transparent); }
-.bx-af-timeline .bx-af-item::after { content:''; position:absolute; left:6px; top:50%; width:12px; height:12px;
+.bx-af-timeline .bx-af-item::after { content:''; position:absolute; left:6px; top:50%; z-index:1; width:12px; height:12px;
   margin-top:-6px; border-radius:50%; background: var(--bx-accent);
   box-shadow: 0 0 0 3px rgba(10,11,18,.9), 0 0 12px -2px var(--bx-accent); }
-.bx-af-timeline .bx-af-badge { width: 26px; height: 26px; border-radius: 8px; }
+.bx-af-timeline .bx-af-ava { width: clamp(18px,min(8cqi,9cqh),50px); }
 .bx-af-timeline .bx-af-text { text-shadow: 0 1px 3px rgba(0,0,0,.9); }
 
 /* ── SPRECHBLASEN — jedes Ereignis als Blase mit kleinem Zipfel, abwechselnd
@@ -38,7 +44,7 @@ const CSS = `
 .bx-af-bubbles .bx-af-item::after { content:''; position:absolute; left:6px; bottom:-5px; width:12px; height:12px;
   background: inherit; border-radius: 0 0 0 4px; transform: rotate(45deg) skew(6deg,6deg); }
 .bx-af-bubbles .bx-af-item:nth-child(even)::after { left: auto; right: 6px; border-radius: 0 0 4px 0; }
-.bx-af-bubbles .bx-af-badge { border-radius: 50%; }
+.bx-af-bubbles .bx-af-av { border-radius: 50%; }
 `;
 // Monochrome Inline-SVG-Icons (currentColor = dunkle Badge-Schrift auf hellem Gradient).
 const ICONS = {
@@ -49,15 +55,41 @@ const ICONS = {
 };
 const TYPES = {
   follow: { icon: ICONS.follow, txt: 'folgt jetzt', col: '#28e0c4' },
-  sub: { icon: ICONS.sub, txt: 'hat subscribed', col: '#ffd23e' },
+  sub: { icon: ICONS.sub, txt: 'hat abonniert', col: '#ffd23e' },
   share: { icon: ICONS.share, txt: 'hat geteilt', col: '#ff5436' },
   gift: { icon: ICONS.gift, txt: '', col: '#ff5e8a' },
 };
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
 
+/* ── Avatar-Fallback (bewusst je Widget dupliziert, kein gemeinsames JS-Modul):
+   ohne Bild — oder wenn das Laden scheitert — erscheint der Anfangsbuchstabe
+   auf einem aus dem Namen abgeleiteten Farbton statt eines schwarzen Kreises. */
+function avHue(name) { const s = String(name || ''); let h = 0; for (let i = 0; i < s.length; i++) h += s.charCodeAt(i); return h % 360; }
+/** URL sicher in CSS url("…") einbetten — nur Quotes escapen, nie nachencodieren. */
+function cssUrl(u) { return String(u).replace(/[\\"']/g, '\\$&').replace(/[\n\r]/g, ''); }
+function avSet(el, name, url) {
+  if (!el) return;
+  const s = String(name || '').trim();
+  el.classList.add('bx-av');
+  el.dataset.initial = (s[0] || '?').toUpperCase();
+  el.style.setProperty('--bx-av-h', String(avHue(s)));
+  if (!url) return;
+  const img = new Image();
+  img.onload = () => { if (el.isConnected) { el.style.backgroundImage = `url("${cssUrl(url)}")`; el.classList.add('bx-av-img'); } };
+  img.src = url;
+}
+/** Demo-Ereignisse für die Editor-Vorschau — sonst bleibt der Ticker dort leer. */
+const DEMO = [
+  { type: 'follow', user: { id: 'd1', nickname: 'Pia' } },
+  { type: 'gift', user: { id: 'd2', nickname: 'Kaan' }, gift: { slug: 'Rose', count: 3, totalCoins: 3 } },
+  { type: 'share', user: { id: 'd3', nickname: 'Nova' } },
+  { type: 'sub', user: { id: 'd4', nickname: 'LeonGG' } },
+  { type: 'gift', user: { id: 'd5', nickname: 'Mia' }, gift: { slug: 'Galaxy', count: 1, totalCoins: 1000 } },
+  { type: 'follow', user: { id: 'd6', nickname: 'BigBen' } },
+];
 export default class ActivityFeed {
-  constructor(root, props) {
+  constructor(root, props, ctx) {
     ensureStyle();
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.max = Math.min(12, Math.max(1, Number(props.max ?? 6)));
@@ -67,6 +99,7 @@ export default class ActivityFeed {
     this.el.className = `bx-af${style !== 'glas' ? ` bx-af-${style}` : ''}`;
     root.appendChild(this.el);
     this.timers = new Set();
+    if (ctx?.preview) for (const e of DEMO.slice(-this.max)) this.onEvent({ ...e, ts: Date.now() });
   }
   onEvent(event) {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
@@ -81,7 +114,8 @@ export default class ActivityFeed {
     }
     const item = document.createElement('div');
     item.className = 'bx-af-item';
-    item.innerHTML = `<div class="bx-af-badge" style="background:linear-gradient(150deg,${def.col},color-mix(in srgb,${def.col} 60%,#000))">${def.icon}</div><div class="bx-af-text">${line}</div>`;
+    item.innerHTML = `<div class="bx-af-ava"><div class="bx-af-av"></div><div class="bx-af-badge" style="background:linear-gradient(150deg,${def.col},color-mix(in srgb,${def.col} 60%,#000))">${def.icon}</div></div><div class="bx-af-text">${line}</div>`;
+    avSet(item.querySelector('.bx-af-av'), name, event.user?.profilePic);
     this.el.appendChild(item);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();
     const t = setTimeout(() => { this.timers.delete(t); item.classList.add('old'); setTimeout(() => item.remove(), 320); }, this.ttlMs);

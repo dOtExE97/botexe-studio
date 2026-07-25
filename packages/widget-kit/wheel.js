@@ -5,30 +5,33 @@
 //   autoShow?, title? }. rAF nur während der Show (TTLS-schonend).
 const STYLE_ID = 'bx-wh-style';
 const CSS = `
+/* container-type: size → alle Schriftgrößen unten dürfen mit cq* rechnen und
+   wachsen so mit der Fenstergröße mit (statt in festen px zu kleben). */
 .bx-wh { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  container-type: size;
   font-family: var(--bx-font-display); transition: opacity .45s ease, transform .45s cubic-bezier(.2,1.3,.3,1); }
 .bx-wh.hidden { opacity: 0; transform: scale(.8) translateY(20px); pointer-events: none; }
 .bx-wh canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.bx-wh-title { position: absolute; left: 0; right: 0; top: 1%; text-align: center; font-size: 22px;
+.bx-wh-title { position: absolute; left: 0; right: 0; top: 1%; text-align: center; font-size: clamp(14px, min(5cqi, 5cqh), 44px);
   letter-spacing: .08em; text-transform: uppercase; color: #fff;
   -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill;
   text-shadow: 0 0 16px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 3px 5px rgba(0,0,0,.5); }
 .bx-wh-result { position: absolute; left: 50%; top: 44%; transform: translate(-50%,-50%) scale(.5); opacity: 0;
-  padding: 16px 34px; border-radius: 18px; text-align: center; pointer-events: none; z-index: 4;
+  padding: min(3.4cqi, 3.4cqh) min(7cqi, 7cqh); border-radius: 18px; text-align: center; pointer-events: none; z-index: 4;
   background: var(--bx-glass); box-shadow: var(--bx-shadow), 0 0 60px -10px var(--bx-accent);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
 .bx-wh-result.show { animation: bx-wh-pop 3s cubic-bezier(.2,1.5,.3,1) forwards; }
-.bx-wh-result .k { font-size: 14px; letter-spacing: .34em; color: var(--bx-gold); text-transform: uppercase; }
-.bx-wh-result .v { font-size: 34px; color: #fff; -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; margin-top: 5px; }
-.bx-wh-result .w { font-size: 15px; color: var(--bx-teal); margin-top: 4px; }
+.bx-wh-result .k { font-size: clamp(10px, min(3cqi, 3cqh), 26px); letter-spacing: .34em; color: var(--bx-gold); text-transform: uppercase; }
+.bx-wh-result .v { font-size: clamp(20px, min(7.2cqi, 7.2cqh), 66px); color: #fff; -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill; margin-top: 5px; }
+.bx-wh-result .w { font-size: clamp(11px, min(3.2cqi, 3.2cqh), 30px); color: var(--bx-teal); margin-top: 4px; }
 @keyframes bx-wh-pop { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.45); } 12% { opacity: 1; transform: translate(-50%,-50%) scale(1.1); }
   26% { transform: translate(-50%,-50%) scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(.92); } }
 /* Trigger-Banner (TikFinity-Style): zeigt beim Dreh-Start, wer ausgelöst hat. */
-.bx-wh-trigger { position: absolute; left: 0; right: 0; top: 5%; text-align: center; pointer-events: none; z-index: 5;
+.bx-wh-trigger { position: absolute; left: 0; right: 0; top: 7.5%; text-align: center; pointer-events: none; z-index: 5;
   font-family: var(--bx-font-display); opacity: 0; }
 .bx-wh-trigger.show { animation: bx-wh-trig 2.6s ease forwards; }
 @keyframes bx-wh-trig { 0% { opacity: 0; transform: translateY(-12px) scale(.9); } 12% { opacity: 1; transform: none; } 78% { opacity: 1; } 100% { opacity: 0; } }
-.bx-wh-trigger .who { display: inline-block; padding: 7px 16px; border-radius: 999px; font-size: 17px; color: #fff;
+.bx-wh-trigger .who { display: inline-block; padding: 1.5cqh 3.4cqh; border-radius: 999px; font-size: clamp(12px, min(3.6cqi, 3.6cqh), 32px); color: #fff;
   background: var(--bx-glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   box-shadow: 0 0 24px -6px var(--bx-accent); -webkit-text-stroke: 0; }
 .bx-wh-trigger .who b { color: var(--bx-gold); }
@@ -45,8 +48,9 @@ function scheduleFrame(cb) {
 }
 
 export default class Wheel {
-  constructor(root, props) {
+  constructor(root, props, ctx) {
     ensureStyle();
+    this.host = ctx || {};
     this.accent = props.accent || '#ff5436';
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.segments = String(props.segments || '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech')
@@ -60,7 +64,10 @@ export default class Wheel {
     this.style = ['classic', 'casino', 'neon'].includes(props.style) ? props.style : 'classic';
     this.angle = 0; this.spinning = false; this.pointerDefl = 0; this.lastAngle = 0;
     this.el = document.createElement('div');
-    this.el.className = 'bx-wh' + (this.autoShow ? ' hidden' : '');
+    // Editor-Vorschau: nie versteckt starten — sonst ist die Box im Editor leer
+    // und man kann Größe/Position des Rades nicht beurteilen.
+    this.preview = !!this.host.preview;
+    this.el.className = 'bx-wh' + (this.autoShow && !this.preview ? ' hidden' : '');
     this.el.innerHTML = `<canvas></canvas><div class="bx-wh-title"></div><div class="bx-wh-trigger"><span class="who"></span></div><div class="bx-wh-result"><div class="k">Gewinn</div><div class="v"></div><div class="w"></div></div>`;
     this.el.querySelector('.bx-wh-title').textContent = this.title;
     root.appendChild(this.el);
@@ -68,6 +75,12 @@ export default class Wheel {
     this.resize = this.resize.bind(this); this.frame = this.frame.bind(this);
     this.observer = new ResizeObserver(this.resize); this.observer.observe(root);
     this.resize();
+    // …und im Editor von selbst drehen, damit man Anlauf, Zeiger und Gewinn-Popup sieht.
+    if (this.preview) {
+      const demo = () => this.onAction({ kind: 'spin_wheel', params: { name: 'Mia', gift: 'Rose' } });
+      this.demoT = setTimeout(demo, 600);
+      this.demoInterval = setInterval(demo, Math.max(9000, this.spinMs + 5000));
+    }
   }
   resize() {
     const r = this.el.getBoundingClientRect(); if (r.width===0) return;
@@ -113,7 +126,10 @@ export default class Wheel {
   frame(now) {
     now = now || performance.now();
     if (!this.startT) { this.startT = now; this.lastAngle = this.fromAngle; }
-    const t = Math.min(1, (now-this.startT)/this.spinMs);
+    // max(0,…): rAF und der Fallback-Timer aus scheduleFrame liefern Zeitstempel
+    // aus verschiedenen Quellen — ohne die Schranke könnte t negativ werden und
+    // das Rad einen Sprung rückwärts machen.
+    const t = Math.max(0, Math.min(1, (now-this.startT)/this.spinMs));
     // Anlauf: erst kurz zurück (anticipation), dann beschleunigen, dann ease-out
     let p;
     if (t < 0.12) { p = -0.04 * Math.sin((t/0.12)*Math.PI); } // wind-up rückwärts
@@ -137,7 +153,7 @@ export default class Wheel {
     res.classList.remove('show'); void res.offsetWidth; res.classList.add('show');
     // nach dem ergebnis wieder ausblenden
     clearTimeout(this.hideT);
-    if (this.autoShow) this.hideT = setTimeout(() => this.el.classList.add('hidden'), 3200);
+    if (this.autoShow && !this.preview) this.hideT = setTimeout(() => this.el.classList.add('hidden'), 3200);
   }
   draw() {
     const ctx = this.ctx, n = this.segments.length, seg = (Math.PI*2)/n, R = this.radius;
@@ -170,11 +186,20 @@ export default class Wheel {
       if (neon) { ctx.strokeStyle = this.accent; ctx.lineWidth = 2.5; ctx.shadowColor = this.accent; ctx.shadowBlur = 12; ctx.stroke(); ctx.shadowBlur = 0; }
       else if (casino) { ctx.strokeStyle = '#ffd23e'; ctx.lineWidth = 2.5; ctx.stroke(); }
       else { ctx.strokeStyle='rgba(10,11,18,.55)'; ctx.lineWidth=2; ctx.stroke(); }
-      ctx.save(); ctx.rotate(i*seg+seg/2); ctx.textAlign='right';
+      // Segment-Beschriftung. Der Text läuft vom Rand zur Nabe; auf der linken
+      // Radhälfte (Segmentwinkel 90°–270°) stünde er dadurch auf dem Kopf. Dort
+      // das Label um 180° nachdrehen und die Ausrichtung spiegeln (rechtsbündig
+      // am Rand → linksbündig am gespiegelten Rand), dann liest es sich überall.
+      const mid = i*seg + seg/2;
+      const deg = ((mid * 180 / Math.PI) % 360 + 360) % 360;
+      const flip = deg > 90 && deg < 270;
+      ctx.save(); ctx.rotate(mid);
+      if (flip) { ctx.rotate(Math.PI); ctx.textAlign = 'left'; } else { ctx.textAlign = 'right'; }
+      ctx.textBaseline = 'middle';
       ctx.fillStyle = neon ? '#eafffb' : casino ? '#ffe9b0' : '#0a0b12';
       ctx.font = `${Math.max(12, R*0.115)}px 'Lilita One', sans-serif`;
       const txt = this.segments[i].length>13 ? this.segments[i].slice(0,12)+'…' : this.segments[i];
-      ctx.fillText(txt, R*0.9, R*0.04); ctx.restore();
+      ctx.fillText(txt, flip ? -R*0.9 : R*0.9, 0); ctx.restore();
     }
     ctx.restore();
     // Rand
@@ -225,6 +250,6 @@ export default class Wheel {
     ctx.fillStyle = this.accent; ctx.fill(); ctx.strokeStyle='#0a0b12'; ctx.lineWidth=2.5; ctx.stroke();
     ctx.restore();
   }
-  destroy() { if (this.cancelFrame) this.cancelFrame(); clearTimeout(this.hideT); this.observer.disconnect(); this.el.remove(); }
+  destroy() { if (this.cancelFrame) this.cancelFrame(); clearTimeout(this.hideT); clearTimeout(this.demoT); clearInterval(this.demoInterval); this.observer.disconnect(); this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

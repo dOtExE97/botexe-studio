@@ -7,11 +7,13 @@ const CARD_W = 150; // px, Streifen-Karten
 const CSS = `
 .bx-gv { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:10px; container-type:size; font-family: var(--bx-font-body); overflow:hidden; }
-.bx-gv-title { font-family: var(--bx-font-display); font-size: clamp(14px,5cqmin,28px); letter-spacing:.18em;
+/* min(cqi,cqh) statt cqmin: in einer breiten 760x240-Box misst cqmin nur die
+   kurze Seite — die Schrift bliebe unnötig klein. */
+.bx-gv-title { font-family: var(--bx-font-display); font-size: clamp(13px,min(2.6cqi,8cqh),42px); letter-spacing:.18em;
   text-transform:uppercase; color: var(--bx-text,#fff); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
-.bx-gv-sub { font-family: var(--bx-font-display); font-size: clamp(11px,3.4cqmin,16px); color: var(--bx-muted); margin-top:-4px; }
+.bx-gv-sub { font-family: var(--bx-font-display); font-size: clamp(10px,min(1.8cqi,5.5cqh),26px); color: var(--bx-muted); margin-top:-4px; }
 /* — strip: CSGO-Case-Stil, Karten scrollen horizontal, Marker in der Mitte — */
-.bx-gv-strip { position:relative; width:96%; height: clamp(60px,30cqmin,120px); border-radius: var(--bx-radius);
+.bx-gv-strip { position:relative; width:96%; height: clamp(50px,min(11cqi,42cqh),210px); border-radius: var(--bx-radius);
   background: var(--bx-glass); box-shadow: var(--bx-shadow), inset 0 0 40px -10px rgba(0,0,0,.6); overflow:hidden; }
 .bx-gv-marker { position:absolute; left:50%; top:0; bottom:0; width:3px; transform:translateX(-50%); z-index:3;
   background: var(--bx-accent); box-shadow:0 0 14px var(--bx-accent); }
@@ -22,19 +24,19 @@ const CSS = `
 .bx-gv-track { position:absolute; top:0; bottom:0; left:0; display:flex; align-items:center; will-change:transform; }
 .bx-gv-card { width:${CARD_W}px; flex:none; margin:0 4px; height:78%; display:flex; align-items:center; justify-content:center;
   border-radius:12px; background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
-  border:1px solid rgba(255,255,255,.12); font-family: var(--bx-font-display); font-size: clamp(13px,4.2cqmin,20px);
+  border:1px solid rgba(255,255,255,.12); font-family: var(--bx-font-display); font-size: clamp(12px,min(2.4cqi,8cqh),34px);
   color:#fff; -webkit-text-stroke:2px #0a0b12; paint-order:stroke fill; text-align:center; padding:0 8px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bx-gv-card.win { background: linear-gradient(160deg, color-mix(in srgb, var(--bx-gold) 60%, transparent), color-mix(in srgb, var(--bx-accent) 35%, transparent));
   border-color: var(--bx-gold); box-shadow:0 0 26px -2px var(--bx-gold); animation: bx-gv-winpulse 1s ease-in-out 2; }
 @keyframes bx-gv-winpulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
 /* — spotlight: ein großes Feld, Namen flackern durch, verlangsamen, Reveal — */
-.bx-gv-spot { display:flex; align-items:center; justify-content:center; width:90%; height: clamp(60px,32cqmin,130px);
+.bx-gv-spot { display:flex; align-items:center; justify-content:center; width:90%; height: clamp(50px,min(12cqi,45cqh),220px);
   border-radius: var(--bx-radius); background: var(--bx-glass); box-shadow: var(--bx-shadow), 0 0 50px -14px var(--bx-accent);
-  font-family: var(--bx-font-display); font-size: clamp(20px,11cqmin,56px); color:#fff; -webkit-text-stroke:3px #0a0b12;
+  font-family: var(--bx-font-display); font-size: clamp(18px,min(6cqi,22cqh),92px); color:#fff; -webkit-text-stroke:3px #0a0b12;
   paint-order:stroke fill; text-align:center; padding:0 12px; white-space:nowrap; overflow:hidden; }
 .bx-gv-spot.win { color: var(--bx-gold); text-shadow:0 0 28px var(--bx-gold); animation: bx-gv-winpulse .8s ease 3; }
-.bx-gv-winner { font-family: var(--bx-font-display); font-size: clamp(13px,4.6cqmin,22px); color: var(--bx-gold);
+.bx-gv-winner { font-family: var(--bx-font-display); font-size: clamp(12px,min(2.6cqi,9cqh),40px); color: var(--bx-gold);
   -webkit-text-stroke:2px #0a0b12; paint-order:stroke fill; opacity:0; }
 .bx-gv-winner.show { animation: bx-gv-reveal 600ms cubic-bezier(.2,1.6,.4,1) forwards; }
 @keyframes bx-gv-reveal { 0%{opacity:0; transform:scale(.6)} 100%{opacity:1; transform:scale(1)} }

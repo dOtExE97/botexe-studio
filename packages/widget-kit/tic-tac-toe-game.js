@@ -17,10 +17,11 @@ const GAME_KIND = 'tic-tac-toe';
 const STYLE_ID = 'bx-ttt-style';
 const CSS = `
 .bx-ttt { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:.7em; padding:.8em; container-type:size; font-family: var(--bx-font-body); font-size:16px; text-align:center;
+  gap:.7em; padding:.8em; container-type:size; font-family: var(--bx-font-body);
+  font-size: clamp(9px, 5.2cqmin, 68px); text-align:center;
   --bx-x: var(--bx-accent, #ff5436); --bx-o: var(--bx-teal, #2ad4c8); }
 /* Spieler-Leiste */
-.bx-ttt-players { display:flex; align-items:stretch; gap:.5em; width:100%; max-width:20em; }
+.bx-ttt-players { display:flex; align-items:stretch; gap:.5em; width:100%; max-width:20em; flex:none; }
 .bx-ttt-p { flex:1; display:flex; flex-direction:column; gap:.1em; padding:.45em .5em; border-radius:.7em;
   background:linear-gradient(160deg, rgba(14,16,26,.80), rgba(8,9,16,.86));
   border:2px solid transparent; min-width:0; transition:border-color .2s ease, box-shadow .2s ease; }
@@ -32,7 +33,8 @@ const CSS = `
 .bx-ttt-p.o.active { border-color:var(--bx-o); box-shadow:0 0 18px -4px var(--bx-o); }
 .bx-ttt-p.active .name { font-weight:700; }
 /* Gitter */
-.bx-ttt-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.45em; width:100%; max-width:18em; aspect-ratio:1/1; }
+.bx-ttt-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.45em; flex:1 1 auto; min-height:0;
+  height:100%; width:auto; max-width:100%; aspect-ratio:1/1; }
 /* Zellen brauchen einen EIGENEN dunklen Grund — ein fast durchsichtiges Weiß
    (vorher rgba(255,255,255,.12)) verschwindet auf hellem Video komplett. */
 .bx-ttt-cell { position:relative; display:flex; align-items:center; justify-content:center; border-radius:.6em;

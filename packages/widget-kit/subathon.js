@@ -4,23 +4,25 @@
 // props: { startMinutes?, secondsPerCoin?, secondsPerFollow?, secondsPerLike?,
 //          maxMinutes?, title?, addSoundId?, accent? }
 const STYLE_ID = 'bx-sub-style';
+// --u = „1px bei Standardgröße" (440×200). cqmin (kurze Seite) hielt die Uhr in
+// breiten Boxen klein — jetzt zählt die Breite, gedeckelt durch die Höhe.
 const CSS = `
 .bx-sub { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:4px; container-type:size; font-family: var(--bx-font-body); background: var(--bx-glass);
+  gap:2%; container-type:size; --u: min(0.227cqi, 0.5cqh); font-family: var(--bx-font-body); background: var(--bx-glass);
   border-radius: var(--bx-radius); box-shadow: var(--bx-shadow), 0 0 46px -16px var(--bx-accent);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); overflow:hidden; }
 .bx-sub::before { content:''; position:absolute; inset:0; border-radius:inherit; padding:1.5px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--bx-accent) 80%, white), transparent 45%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; pointer-events:none; }
-.bx-sub-label { font-family: var(--bx-font-display); font-size: clamp(11px, 4cqmin, 20px); letter-spacing:.26em;
-  text-transform:uppercase; color: var(--bx-muted); }
-.bx-sub-time { font-family: var(--bx-font-num); font-weight:800; font-size: clamp(34px, 22cqmin, 96px); line-height:1;
+.bx-sub-label { font-family: var(--bx-font-display); font-size: clamp(10px, calc(var(--u) * 18), 72px); letter-spacing:.26em;
+  text-transform:uppercase; color: #c9cfe2; text-shadow: 0 1px 3px rgba(0,0,0,.85); }
+.bx-sub-time { font-family: var(--bx-font-num); font-weight:800; font-size: clamp(22px, calc(var(--u) * 66), 260px); line-height:1;
   color:#fff; -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill;
   text-shadow: 0 0 22px color-mix(in srgb, var(--bx-accent) 55%, transparent); }
 .bx-sub.low .bx-sub-time { color: #ff5b5b; animation: bx-sub-blink 1s infinite; }
 @keyframes bx-sub-blink { 0%,100%{opacity:1} 50%{opacity:.55} }
-.bx-sub-add { position:absolute; top:10%; font-family: var(--bx-font-display); font-size: clamp(16px, 7cqmin, 34px);
+.bx-sub-add { position:absolute; top:10%; font-family: var(--bx-font-display); font-size: clamp(14px, calc(var(--u) * 26), 104px);
   color: var(--bx-teal); -webkit-text-stroke: 2px #0a0b12; paint-order: stroke fill;
   animation: bx-sub-add 1200ms cubic-bezier(.2,1,.3,1) forwards; pointer-events:none; }
 @keyframes bx-sub-add { 0%{opacity:0; transform: translateY(14px) scale(.7)} 18%{opacity:1; transform:none}

@@ -29,6 +29,22 @@ function scheduleFrame(cb) {
 }
 const STYLES = new Set(['cannon', 'fountain', 'rain']);
 const AVATAR_TINTS = ['#ff5e8a', '#28e0c4', '#ffd23e', '#7c6bff', '#ff9d3d', '#5ad1ff'];
+// Referenz-Box, auf die sich die gezeichneten Pixel-Maße beziehen. Alles wird mit
+// scale() darauf umgerechnet → größeres Widget = größere Bälle/Kanone.
+const REF = 900;
+/** Avatar-Ersatz wie .bx-av in widget-base.css: Farbton aus dem Namen (Hash
+ *  mod 360) + großer Anfangsbuchstabe. Bewusst lokal dupliziert — die Widgets
+ *  haben kein gemeinsames JS-Modul. */
+function bxAvHue(name) {
+  const s = String(name || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; // streut besser als eine reine Summe
+  return h;
+}
+function bxAvInitial(name) {
+  const s = String(name || '').trim();
+  return (s ? s[0] : '?').toUpperCase();
+}
 
 export default class GiftCannon {
   constructor(root, props, ctx) {
@@ -62,6 +78,7 @@ export default class GiftCannon {
     this.observer = new ResizeObserver(this.resize);
     this.observer.observe(root);
     this.resize();
+    if (this.host.preview) this.startDemo();
   }
 
   resize() {
@@ -72,6 +89,9 @@ export default class GiftCannon {
     this.canvas.height = r.height * dpr;
     this.cx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.w = r.width; this.h = r.height;
+    // Größen-Faktor: alle Pixel-Maße (Ballradius, Rohr, Sockel) wachsen mit der
+    // kurzen Seite der Box mit — sonst bleiben sie in großen Overlays winzig.
+    this.s = Math.max(0.45, Math.min(2.6, Math.min(r.width, r.height) / REF));
   }
 
   onEvent(event) {
@@ -82,19 +102,21 @@ export default class GiftCannon {
     const avatar = loadImage(event.user?.profilePic);
     const gift = loadImage(event.gift.icon);
     const tint = AVATAR_TINTS[this.tintN++ % AVATAR_TINTS.length];
+    const name = event.user?.nickname || '';
     if (this.soundId) this.host.playSound?.(this.soundId);
     for (let i = 0; i < plan.rockets; i++) {
-      if (i === 0) this.shoot(avatar, gift, tint);
+      if (i === 0) this.shoot(avatar, gift, tint, name);
       else {
-        const t = setTimeout(() => { this.pendingTimers.delete(t); this.shoot(avatar, gift, tint); }, i * 90);
+        const t = setTimeout(() => { this.pendingTimers.delete(t); this.shoot(avatar, gift, tint, name); }, i * 90);
         this.pendingTimers.add(t);
       }
     }
   }
 
-  shoot(avatar, gift, tint) {
+  shoot(avatar, gift, tint, name = '') {
     if (this.balls.length >= this.maxBalls) this.balls.shift(); // ältesten verdrängen
-    const r = (this.perf ? 22 : 26) + Math.random() * 8;
+    const s = this.s || 1;
+    const r = ((this.perf ? 22 : 26) + Math.random() * 8) * s;
     let x, y, vx, vy;
     if (this.style === 'rain') {
       x = this.w * (0.1 + Math.random() * 0.8); y = -r; vx = (Math.random() - 0.5) * 2; vy = 2 + Math.random() * 2;
@@ -103,13 +125,13 @@ export default class GiftCannon {
       vx = (Math.random() - 0.5) * 3.5; vy = -(this.h * 0.018 + Math.random() * 4);
     } else { // cannon: schräg aus der Mündung
       const aimRight = this.srcX < 0.5;
-      x = this.w * this.srcX; y = this.h - 14;
+      x = this.w * this.srcX; y = this.h - 14 * s;
       const dir = aimRight ? 1 : -1;
       vx = dir * (3 + Math.random() * 3.5);
       vy = -(this.h * 0.016 + Math.random() * 4);
       this.recoil = 1; this.muzzle = 1;
     }
-    this.balls.push({ x, y, vx, vy, r, avatar, gift, tint, rest: false, restT: 0, life: 1, rot: (Math.random() - 0.5) * 0.4, vr: (Math.random() - 0.5) * 0.12 });
+    this.balls.push({ x, y, vx, vy, r, avatar, gift, tint, rest: false, restT: 0, life: 1, rot: (Math.random() - 0.5) * 0.4, vr: (Math.random() - 0.5) * 0.12, hue: bxAvHue(name), initial: bxAvInitial(name) });
     this.kick();
   }
 
@@ -117,7 +139,12 @@ export default class GiftCannon {
 
   frame(now) {
     if (this.cancelFrame) this.cancelFrame();
-    const dt = Math.min(4, this.lastT ? (now - this.lastT) / 16.67 : 1);
+    // Untere Schranke 0 ist PFLICHT: rAF und der Fallback-Timer aus scheduleFrame
+    // liefern Zeitstempel aus verschiedenen Quellen — gewinnt der Timer, kann
+    // now < lastT sein. Ohne max(0,…) wird dt negativ, die Physik läuft rückwärts
+    // (Schwerkraft nach oben) und this.muzzle wächst statt zu verglühen → der
+    // riesige gelbe Klumpen im Bild.
+    const dt = Math.max(0, Math.min(4, this.lastT ? (now - this.lastT) / 16.67 : 1));
     this.lastT = now;
     const cx = this.cx;
     cx.clearRect(0, 0, this.w, this.h);
@@ -161,11 +188,26 @@ export default class GiftCannon {
     cx.save();
     cx.beginPath(); cx.arc(0, 0, b.r, 0, Math.PI * 2); cx.closePath(); cx.clip();
     if (ready(b.avatar)) cx.drawImage(b.avatar, -b.r, -b.r, b.r * 2, b.r * 2);
-    else { cx.fillStyle = b.tint; cx.fillRect(-b.r, -b.r, b.r * 2, b.r * 2); }
+    else {
+      // Kein Profilbild → gleicher Ersatz wie .bx-av: Farbton aus dem Namen +
+      // großer Anfangsbuchstabe statt einer nichtssagenden Farbfläche.
+      cx.fillStyle = b.hue === undefined ? b.tint : `hsl(${b.hue} 42% 34%)`;
+      cx.fillRect(-b.r, -b.r, b.r * 2, b.r * 2);
+      if (b.initial) {
+        // Gegen die Ball-Rotation drehen, damit der Buchstabe lesbar bleibt.
+        cx.save();
+        cx.rotate(-b.rot);
+        cx.fillStyle = '#fff';
+        cx.font = `${(b.r * 1.04).toFixed(1)}px 'Lilita One', 'Arial Black', sans-serif`;
+        cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.fillText(b.initial, 0, b.r * 0.06);
+        cx.restore();
+      }
+    }
     cx.restore();
     // Rand
     cx.beginPath(); cx.arc(0, 0, b.r, 0, Math.PI * 2);
-    cx.lineWidth = 2.5; cx.strokeStyle = '#fff';
+    cx.lineWidth = 2.5 * (this.s || 1); cx.strokeStyle = '#fff';
     if (!this.perf) { cx.shadowColor = 'rgba(0,0,0,.5)'; cx.shadowBlur = 6; }
     cx.stroke();
     cx.shadowBlur = 0;
@@ -176,31 +218,51 @@ export default class GiftCannon {
 
   drawCannon() {
     const cx = this.cx;
+    const s = this.s || 1;
     const x = this.w * this.srcX, y = this.h;
     const aimRight = this.srcX < 0.5;
     const dir = aimRight ? 1 : -1;
     cx.save();
-    cx.translate(x, y - 6 + this.recoil * 6);
+    cx.translate(x, y - 6 * s + this.recoil * 6 * s);
     cx.rotate(dir * -0.6); // schräg nach oben
+    cx.scale(s, s);        // Rohr/Sockel wachsen mit der Widget-Größe mit
     // Rohr
     cx.fillStyle = '#3a3f4d';
     cx.beginPath(); cx.roundRect ? cx.roundRect(-14, -54, 28, 60, 10) : cx.rect(-14, -54, 28, 60); cx.fill();
     cx.fillStyle = '#555b6e';
     cx.beginPath(); cx.roundRect ? cx.roundRect(-16, -58, 32, 12, 6) : cx.rect(-16, -58, 32, 12); cx.fill();
-    // Mündungsblitz
+    // Mündungsblitz — this.muzzle ist per Konstruktion 0..1 (siehe dt-Klemmung).
     if (this.muzzle > 0) {
-      cx.globalAlpha = this.muzzle;
+      cx.globalAlpha = Math.min(1, this.muzzle);
       cx.fillStyle = '#ffd23e';
-      cx.beginPath(); cx.arc(0, -60, 10 + this.muzzle * 12, 0, Math.PI * 2); cx.fill();
+      cx.beginPath(); cx.arc(0, -60, 10 + Math.min(1, this.muzzle) * 12, 0, Math.PI * 2); cx.fill();
     }
     cx.restore();
     // Sockel
     cx.fillStyle = '#23262f';
-    cx.beginPath(); cx.ellipse(x, y - 4, 26, 9, 0, 0, Math.PI * 2); cx.fill();
+    cx.beginPath(); cx.ellipse(x, y - 4 * s, 26 * s, 9 * s, 0, 0, Math.PI * 2); cx.fill();
+  }
+
+  /** Editor-Vorschau: alle paar Sekunden eine Salve, damit man Größe, Position
+   *  und Flugbahn im leeren Editor überhaupt beurteilen kann. */
+  startDemo() {
+    const names = ['Mia', 'LeonGG', 'Nova', 'BigBen', 'ExE'];
+    let i = 0;
+    const salvo = () => {
+      const tint = AVATAR_TINTS[this.tintN++ % AVATAR_TINTS.length];
+      const name = names[i++ % names.length];
+      for (let k = 0; k < 4; k++) {
+        const t = setTimeout(() => { this.pendingTimers.delete(t); this.shoot(null, null, tint, name); }, k * 110);
+        this.pendingTimers.add(t);
+      }
+    };
+    const t0 = setTimeout(salvo, 350); this.pendingTimers.add(t0);
+    this.demoInterval = setInterval(salvo, 2600);
   }
 
   destroy() {
     if (this.cancelFrame) this.cancelFrame();
+    clearInterval(this.demoInterval);
     for (const t of this.pendingTimers) clearTimeout(t);
     this.pendingTimers.clear();
     this.observer.disconnect();

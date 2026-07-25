@@ -7,28 +7,30 @@
 //          tableRows, slideSec, accent }
 const STYLE_ID = 'bx-sp-style';
 const CSS = `
-.bx-sp { position:absolute; inset:0; display:flex; flex-direction:column; gap:8px; padding:14px; container-type:size;
+.bx-sp { position:absolute; inset:0; display:flex; flex-direction:column; gap:2cqmin; padding:4cqmin; container-type:size;
   font-family: var(--bx-font-body); background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow), 0 0 44px -16px var(--bx-accent); overflow:hidden;
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 .bx-sp-title { display:flex; align-items:center; gap:8px; font-family: var(--bx-font-display);
-  font-size: clamp(13px, 5cqmin, 26px); letter-spacing:.16em; text-transform:uppercase; color: var(--bx-text, #fff);
+  font-size: clamp(13px, 5cqmin, 52px); letter-spacing:.16em; text-transform:uppercase; color: var(--bx-text, #fff);
   text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
-.bx-sp-title .dot { width:9px; height:9px; border-radius:50%; background:#ff3b3b; box-shadow:0 0 10px #ff3b3b; animation: bx-sp-blink 1.4s infinite; }
-.bx-sp-title .tab { margin-left:auto; font-size: clamp(9px,2.8cqmin,13px); letter-spacing:.14em; color: var(--bx-teal); opacity:.9; }
+.bx-sp-title .dot { width:.36em; height:.36em; border-radius:50%; background:#ff3b3b; box-shadow:0 0 10px #ff3b3b; animation: bx-sp-blink 1.4s infinite; }
+.bx-sp-title .tab { margin-left:auto; font-size: clamp(9px,2.8cqmin,28px); letter-spacing:.14em; color: var(--bx-teal); opacity:.9; }
 @keyframes bx-sp-blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-.bx-sp-list { display:flex; flex-direction:column; gap:6px; overflow:hidden; flex:1; }
-.bx-sp-row { display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:8px;
-  padding:7px 10px; border-radius:10px; background: rgba(8,10,18,.42); border:1px solid rgba(255,255,255,.10);
+.bx-sp-list { display:flex; flex-direction:column; gap:1.6cqmin; overflow:hidden; flex:1; }
+/* Zeilen brauchen einen kräftigen eigenen Grund: auf hellem Video verschwindet
+   ein fast durchsichtiges Dunkelblau (vorher .42) samt weißer Schrift. */
+.bx-sp-row { display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:2cqmin;
+  padding:1.9cqmin 2.6cqmin; border-radius:2.6cqmin; background: rgba(8,10,18,.66); border:1px solid rgba(255,255,255,.16);
   transition: background .3s; }
-.bx-sp-team { display:flex; align-items:center; gap:7px; min-width:0; }
+.bx-sp-team { display:flex; align-items:center; gap:.4em; min-width:0; }
 .bx-sp-team.away { flex-direction:row-reverse; text-align:right; }
-.bx-sp-team img { width: clamp(18px, 5cqmin, 30px); height: clamp(18px, 5cqmin, 30px); object-fit:contain; flex:none; }
-.bx-sp-team span { font-family: var(--bx-font-display); font-size: clamp(11px, 3.4cqmin, 18px); color:#fff;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bx-sp-score { font-family: var(--bx-font-display); font-size: clamp(14px, 4.6cqmin, 24px); color: var(--bx-gold);
-  -webkit-text-stroke: 2px #0a0b12; paint-order: stroke fill; min-width: 56px; text-align:center; }
-.bx-sp-min { font-family: var(--bx-font-mono); font-size: clamp(9px, 2.6cqmin, 13px); text-align:center; margin-top:2px; }
+.bx-sp-team img { width: clamp(18px, 5cqmin, 56px); height: clamp(18px, 5cqmin, 56px); object-fit:contain; flex:none; }
+.bx-sp-team span { font-family: var(--bx-font-display); font-size: clamp(11px, 3.4cqmin, 36px); color:#fff;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 3px rgba(0,0,0,.75); }
+.bx-sp-score { font-family: var(--bx-font-display); font-size: clamp(14px, 4.6cqmin, 48px); color: var(--bx-gold);
+  -webkit-text-stroke: max(2px,.07em) #0a0b12; paint-order: stroke fill; min-width: 2.6em; text-align:center; }
+.bx-sp-min { font-family: var(--bx-font-mono); font-size: clamp(9px, 2.6cqmin, 26px); text-align:center; margin-top:2px; }
 .bx-sp-min.live { color:#ff5b5b; } .bx-sp-min.fin { color: var(--bx-muted); } .bx-sp-min.sched { color: var(--bx-teal); }
 .bx-sp-row.goal { animation: bx-sp-goal 1.4s ease; }
 @keyframes bx-sp-goal {
@@ -36,23 +38,23 @@ const CSS = `
   15% { background: color-mix(in srgb, var(--bx-gold) 55%, transparent); transform: scale(1.04); }
   100% { background: rgba(8,10,18,.42); transform: scale(1); } }
 .bx-sp-empty { display:flex; flex:1; align-items:center; justify-content:center; text-align:center;
-  font-size:12px; letter-spacing:.12em; color: var(--bx-muted); padding: 10px; }
+  font-size: clamp(11px, 3.2cqmin, 30px); letter-spacing:.12em; color: var(--bx-muted); padding: 10px; }
 /* — Tabelle — */
-.bx-sp-table { display:flex; flex-direction:column; gap:3px; overflow:hidden; flex:1; }
-.bx-sp-grp { font-family: var(--bx-font-display); font-size: clamp(10px,3cqmin,14px); letter-spacing:.14em;
-  text-transform:uppercase; color: var(--bx-teal); margin:4px 2px 1px; }
-.bx-sp-trow { display:grid; grid-template-columns: 1.6em 1fr 2.2em 2.4em 2.4em; align-items:center; gap:6px;
-  padding:4px 8px; border-radius:8px; background: rgba(8,10,18,.42); border:1px solid rgba(255,255,255,.07);
-  font-size: clamp(10px, 3cqmin, 16px); }
+.bx-sp-table { display:flex; flex-direction:column; gap:.8cqmin; overflow:hidden; flex:1; }
+.bx-sp-grp { font-family: var(--bx-font-display); font-size: clamp(10px,3cqmin,30px); letter-spacing:.14em;
+  text-transform:uppercase; color: var(--bx-teal); margin:.3em .15em .1em; }
+.bx-sp-trow { display:grid; grid-template-columns: 1.6em 1fr 2.2em 2.4em 2.4em; align-items:center; gap:.4em;
+  padding:.28em .55em; border-radius:.5em; background: rgba(8,10,18,.66); border:1px solid rgba(255,255,255,.14);
+  font-size: clamp(10px, 3cqmin, 32px); }
 .bx-sp-trow.me { border-color: var(--bx-gold); box-shadow: 0 0 14px -4px var(--bx-gold) inset; }
 .bx-sp-trow .pos { font-family: var(--bx-font-mono); color: var(--bx-muted); text-align:center; }
 .bx-sp-trow .tm { display:flex; align-items:center; gap:6px; min-width:0; }
-.bx-sp-trow .tm img { width: clamp(15px,4cqmin,24px); height: clamp(15px,4cqmin,24px); object-fit:contain; flex:none; }
+.bx-sp-trow .tm img { width: clamp(15px,4cqmin,44px); height: clamp(15px,4cqmin,44px); object-fit:contain; flex:none; }
 .bx-sp-trow .tm span { font-family: var(--bx-font-display); color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bx-sp-trow .sp, .bx-sp-trow .gd { font-family: var(--bx-font-mono); text-align:center; color: var(--bx-muted); }
 .bx-sp-trow .pt { font-family: var(--bx-font-display); text-align:center; color: var(--bx-gold); }
-.bx-sp-thead { display:grid; grid-template-columns: 1.6em 1fr 2.2em 2.4em 2.4em; gap:6px; padding:0 8px;
-  font-family: var(--bx-font-mono); font-size: clamp(8px,2.4cqmin,11px); letter-spacing:.06em; color: var(--bx-muted); opacity:.7; }
+.bx-sp-thead { display:grid; grid-template-columns: 1.6em 1fr 2.2em 2.4em 2.4em; gap:.4em; padding:0 .55em;
+  font-family: var(--bx-font-mono); font-size: clamp(8px,2.4cqmin,24px); letter-spacing:.06em; color: var(--bx-muted); opacity:.85; }
 .bx-sp-page { display:flex; flex-direction:column; flex:1; min-height:0; }
 .bx-sp-page.hide { display:none; }
 /* Tor-Feier */
@@ -67,6 +69,28 @@ const CSS = `
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 const VIEWS = new Set(['matches', 'table', 'both']);
+
+// ── Editor-Schaufenster ────────────────────────────────────────────────────
+// Ohne Demo blieb der Ticker im Editor eine leere Karte (die echten Daten
+// kommen erst live vom /sport-Endpunkt) — man konnte Größe und Position nicht
+// beurteilen. Deshalb: in der Vorschau ein plausibler Bundesliga-Stand.
+const DEMO_MATCHES = [
+  { id: 'd1', home: 'Bayern München', away: 'Dortmund', homeScore: 2, awayScore: 1, status: 'live', minute: 67 },
+  { id: 'd2', home: 'Leverkusen', away: 'RB Leipzig', homeScore: 0, awayScore: 0, status: 'live', minute: 23 },
+  { id: 'd3', home: 'Stuttgart', away: 'Eintracht Frankfurt', homeScore: 3, awayScore: 2, status: 'finished' },
+  { id: 'd4', home: 'Werder Bremen', away: 'FC Augsburg', homeScore: null, awayScore: null, status: 'scheduled', kickoff: '2026-01-01T17:30:00Z' },
+  { id: 'd5', home: 'SC Freiburg', away: '1. FC Köln', homeScore: null, awayScore: null, status: 'scheduled', kickoff: '2026-01-01T19:30:00Z' },
+];
+const DEMO_STANDINGS = [
+  { position: 1, team: 'Bayern München', played: 18, goalDiff: 34, points: 45 },
+  { position: 2, team: 'Leverkusen', played: 18, goalDiff: 22, points: 41 },
+  { position: 3, team: 'Stuttgart', played: 18, goalDiff: 15, points: 36 },
+  { position: 4, team: 'Dortmund', played: 18, goalDiff: 11, points: 33 },
+  { position: 5, team: 'RB Leipzig', played: 18, goalDiff: 9, points: 31 },
+  { position: 6, team: 'Eintracht Frankfurt', played: 18, goalDiff: 4, points: 28 },
+  { position: 7, team: 'SC Freiburg', played: 18, goalDiff: -2, points: 24 },
+  { position: 8, team: 'Werder Bremen', played: 18, goalDiff: -6, points: 21 },
+];
 // 'GROUP_A' / 'GROUP_B' → 'Gruppe A'
 function prettyGroup(g) { const m = /GROUP_?([A-Z0-9]+)/i.exec(String(g || '')); return m ? `Gruppe ${m[1]}` : String(g || ''); }
 /** Spiele ggf. auf ein Team filtern (Teilstring, case-insensitiv). Pure. */
@@ -114,6 +138,18 @@ export default class SportTicker {
     this.matchesPage = this.el.querySelector('.page-matches');
     this.tablePage = this.el.querySelector('.page-table');
     root.appendChild(this.el);
+
+    // Editor-Schaufenster: Demo-Spiele/-Tabelle statt leerer Karte. Kein Poll,
+    // kein Tor-Sound — nur Anschauungsmaterial zum Platzieren und Größen.
+    if (this.ctx.preview) {
+      this.page = this.view === 'table' ? 'table' : 'matches';
+      this.applyPage();
+      this.firstLoad = true;
+      this.renderMatches(DEMO_MATCHES);
+      this.renderTable(DEMO_STANDINGS);
+      if (this.view === 'both') this.slideTimer = setInterval(() => this.flip(), this.slideMs);
+      return;
+    }
 
     if (!this.competition) {
       this.listEl.innerHTML = `<div class="bx-sp-empty">Kein Wettbewerb gewählt — im Editor „Wettbewerb" setzen (z.B. WM = 2000).</div>`;

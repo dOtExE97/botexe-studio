@@ -3,41 +3,47 @@
 // props: { sources?: 'gifts,likes,points', interval?: sek, limit?, accent?, showPic? }
 const STYLE_ID = 'bx-tr-style';
 const CSS = `
-.bx-tr { position: absolute; inset: 0; display: flex; flex-direction: column; font-family: var(--bx-font-body); overflow: hidden; }
-.bx-tr-head { position: relative; height: 34px; margin-bottom: 6px; }
+.bx-tr { position: absolute; inset: 0; display: flex; flex-direction: column; font-family: var(--bx-font-body); overflow: hidden;
+  container-type: size; }
+.bx-tr-head { position: relative; height: clamp(16px,9.5cqh,64px); margin-bottom: clamp(3px,1.6cqh,12px); flex: none; }
 .bx-tr-title { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-family: var(--bx-font-display); font-size: 20px; letter-spacing: .08em; text-transform: uppercase; color: var(--bx-text,#fff);
+  font-family: var(--bx-font-display); font-size: clamp(12px,min(4.4cqi,7cqh),38px); letter-spacing: .08em; text-transform: uppercase; color: var(--bx-text,#fff);
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 3px 5px rgba(0,0,0,.5);
   transition: opacity .35s, transform .35s; }
-.bx-tr-list { position: relative; flex: 1; }
+.bx-tr-list { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .bx-tr-list.out .bx-tr-row { opacity: 0; transform: translateY(-14px); }
 .bx-tr-list.in .bx-tr-row { animation: bx-tr-rowin .45s cubic-bezier(.2,1.1,.3,1) backwards; }
 @keyframes bx-tr-rowin { from { opacity: 0; transform: translateY(18px); } }
-.bx-tr-row { display: flex; align-items: center; gap: 11px; height: 54px; padding: 0 6px;
-  transition: opacity .3s, transform .3s; }
-.bx-tr-rank { width: 34px; height: 34px; flex: none; display: flex; align-items: center; justify-content: center;
-  font-family: var(--bx-font-display); font-size: 17px; color: #0a0b12; border-radius: 11px; background: #525873;
+/* Zeile = eigener Größen-Container: Badge, Bild und Schrift bemessen sich an
+   der Zeilenhöhe (cqh) statt an festen Pixeln. */
+.bx-tr-row { display: flex; align-items: center; gap: clamp(4px,2.4cqi,22px); height: 54px; padding: 0 clamp(3px,1.4cqi,16px);
+  flex: 1 1 0; min-height: 0; container-type: size; transition: opacity .3s, transform .3s; }
+.bx-tr-rank { height: 54%; aspect-ratio: 1/1; width: auto; flex: none; display: flex; align-items: center; justify-content: center;
+  font-family: var(--bx-font-display); font-size: clamp(10px,27cqh,34px); color: #0a0b12; border-radius: 22%; background: #525873;
   -webkit-text-stroke: 0; box-shadow: 0 3px 8px rgba(0,0,0,.4); }
 .bx-tr-row[data-rank="1"] .bx-tr-rank { background: linear-gradient(160deg,#ffe88a,#f5b914); box-shadow: 0 0 16px -2px var(--bx-gold), 0 3px 8px rgba(0,0,0,.4); }
 .bx-tr-row[data-rank="2"] .bx-tr-rank { background: linear-gradient(160deg,#eef2fb,#b9c2d8); }
 .bx-tr-row[data-rank="3"] .bx-tr-rank { background: linear-gradient(160deg,#f0b487,#c9763c); }
-.bx-tr-pic { width: 46px; height: 46px; flex: none; border-radius: 50%; background: #1a1c28 center/cover;
+/* Eigener Größen-Container, damit der Fallback-Buchstabe (.bx-av::after) mitwächst. */
+.bx-tr-pic { height: 74%; aspect-ratio: 1/1; width: auto; flex: none; border-radius: 50%; container-type: size;
   box-shadow: 0 0 0 3px #5c9dff, 0 4px 10px rgba(0,0,0,.5); }
+.bx-tr-pic::after { font-size: 52cqmin; }
 .bx-tr-row[data-rank="1"] .bx-tr-pic { box-shadow: 0 0 0 3px var(--bx-gold), 0 0 18px -2px var(--bx-gold), 0 4px 10px rgba(0,0,0,.5); }
 .bx-tr-row[data-rank="2"] .bx-tr-pic { box-shadow: 0 0 0 3px #d7deec, 0 4px 10px rgba(0,0,0,.5); }
 .bx-tr-row[data-rank="3"] .bx-tr-pic { box-shadow: 0 0 0 3px #f0a35a, 0 4px 10px rgba(0,0,0,.5); }
-.bx-tr-crown { position: absolute; margin-top: -34px; margin-left: 26px; transform: rotate(-12deg);
+.bx-tr-crown { position: absolute; margin-top: -66cqh; margin-left: 34cqh; transform: rotate(-12deg); line-height: 0;
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
-.bx-tr-name { flex: 1; min-width: 0; font-family: var(--bx-font-display); font-size: 21px; color: var(--bx-text,#fff); text-transform: uppercase;
+.bx-tr-crown svg { width: clamp(12px,36cqh,44px); height: auto; display: block; }
+.bx-tr-name { flex: 1; min-width: 0; font-family: var(--bx-font-display); font-size: clamp(11px,min(33cqh,5.4cqi),44px); color: var(--bx-text,#fff); text-transform: uppercase;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
 .bx-tr-row[data-rank="1"] .bx-tr-name { color: var(--bx-gold); }
-.bx-tr-val { flex: none; font-family: var(--bx-font-display); font-size: 21px; color: var(--bx-text,#fff);
+.bx-tr-val { flex: none; font-family: var(--bx-font-display); font-size: clamp(11px,min(33cqh,5cqi),44px); color: var(--bx-text,#fff);
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 3px rgba(0,0,0,.55); }
-.bx-tr-val .arr { font-size: 15px; -webkit-text-stroke: 2px var(--bx-ink, #0a0b12); }
+.bx-tr-val .arr { font-size: clamp(9px,23cqh,30px); -webkit-text-stroke: 2px var(--bx-ink, #0a0b12); }
 .bx-tr-empty { display: flex; align-items: center; justify-content: center; height: 100%; font-family: var(--bx-font-display);
-  font-size: 15px; letter-spacing: .1em; color: var(--bx-muted); text-transform: uppercase; }
+  font-size: clamp(11px,min(3.4cqi,10cqh),24px); letter-spacing: .1em; color: var(--bx-muted); text-transform: uppercase; }
 
 /* ── Stil „Neon" — freistehend ohne Panel, Glow pur. */
 .bx-tr-neon { background: none !important; box-shadow: none !important; border: none; }
@@ -61,67 +67,67 @@ const CSS = `
 .bx-tr-banner { background: none; box-shadow: none; padding: 4px 2px; }
 .bx-tr-banner::before { display: none; }
 .bx-tr-banner .bx-tr-title { letter-spacing: .3em; }
-.bx-tr-banner .bx-tr-row { height: 58px; gap: 0; padding: 0; overflow: hidden;
+.bx-tr-banner .bx-tr-row { gap: 0; padding: 0; overflow: hidden;
   border-radius: 0 10px 10px 0; background: linear-gradient(100deg, rgba(12,13,20,.94), rgba(12,13,20,.78));
   box-shadow: 0 6px 18px -8px rgba(0,0,0,.7); margin-bottom: 6px;
   border-left: 6px solid var(--bx-accent); animation: bx-tr-slide .45s cubic-bezier(.2,1.1,.3,1) backwards; }
 @keyframes bx-tr-slide { from { opacity:0; transform: translateX(-26px); } }
-.bx-tr-banner .bx-tr-rank { width: 46px; height: 100%; border-radius: 0; flex: none;
-  background: var(--bx-accent) !important; box-shadow: none !important; color: #0c0d14; font-size: 22px; }
+.bx-tr-banner .bx-tr-rank { width: clamp(22px,74cqh,90px); height: 100%; aspect-ratio: auto; border-radius: 0; flex: none;
+  background: var(--bx-accent) !important; box-shadow: none !important; color: #0c0d14; font-size: clamp(12px,34cqh,42px); }
 .bx-tr-banner .bx-tr-row[data-rank="1"] .bx-tr-rank { background: linear-gradient(160deg,#ffe88a,#f5b914) !important; }
-.bx-tr-banner .bx-tr-pic { margin-left: 10px; }
-.bx-tr-banner .bx-tr-name { margin-left: 12px; font-size: 24px; letter-spacing: .02em; }
-.bx-tr-banner .bx-tr-val { margin-right: 12px; background: rgba(255,255,255,.10); border-radius: 999px; padding: 3px 14px; }
-.bx-tr-banner .bx-tr-crown { margin-left: 74px; }
+.bx-tr-banner .bx-tr-pic { margin-left: clamp(4px,16cqh,20px); }
+.bx-tr-banner .bx-tr-name { margin-left: clamp(5px,20cqh,24px); font-size: clamp(12px,min(38cqh,5.6cqi),46px); letter-spacing: .02em; }
+.bx-tr-banner .bx-tr-val { margin-right: clamp(5px,20cqh,24px); background: rgba(255,255,255,.10); border-radius: 999px; padding: 3px 14px; }
+.bx-tr-banner .bx-tr-crown { margin-left: 118cqh; }
 
 /* ── KARTE — jede Person eine eigene Karte: großes Bild links, Name und Wert
    übereinander rechts. Wirkt wie ein Kontakt-/Sammelkarten-Stapel. */
 .bx-tr-karte { background: none; box-shadow: none; padding: 4px 2px; }
 .bx-tr-karte::before { display: none; }
-.bx-tr-karte .bx-tr-row { height: 66px; gap: 12px; padding: 0 12px 0 8px; margin-bottom: 8px;
+.bx-tr-karte .bx-tr-row { gap: clamp(5px,18cqh,22px); padding: 0 clamp(5px,18cqh,22px) 0 clamp(3px,12cqh,16px); margin-bottom: clamp(3px,2cqh,14px);
   border-radius: 14px; background: linear-gradient(150deg, rgba(24,26,38,.95), rgba(12,13,20,.92));
   box-shadow: 0 10px 22px -10px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.07);
   border: 1px solid color-mix(in srgb, var(--bx-accent) 30%, transparent); }
 .bx-tr-karte .bx-tr-row[data-rank="1"] { border-color: color-mix(in srgb, var(--bx-gold) 60%, transparent);
   box-shadow: 0 10px 26px -10px rgba(0,0,0,.85), 0 0 22px -8px var(--bx-gold), inset 0 1px 0 rgba(255,255,255,.09); }
-.bx-tr-karte .bx-tr-rank { width: 26px; height: 26px; font-size: 14px; border-radius: 8px; }
-.bx-tr-karte .bx-tr-pic { width: 52px; height: 52px; border-radius: 12px; }
-.bx-tr-karte .bx-tr-name { font-size: 22px; }
-.bx-tr-karte .bx-tr-val { font-size: 22px; }
-.bx-tr-karte .bx-tr-crown { margin-top: -40px; margin-left: 44px; }
+.bx-tr-karte .bx-tr-rank { height: 40%; width: auto; font-size: clamp(9px,21cqh,26px); border-radius: 22%; }
+.bx-tr-karte .bx-tr-pic { height: 78%; width: auto; border-radius: 22%; }
+.bx-tr-karte .bx-tr-name { font-size: clamp(11px,min(34cqh,5.6cqi),46px); }
+.bx-tr-karte .bx-tr-val { font-size: clamp(11px,min(34cqh,5cqi),46px); }
+.bx-tr-karte .bx-tr-crown { margin-top: -62cqh; margin-left: 68cqh; }
 
 
 /* ── SIEGEL — rundes Wappen: Profilbild im Kreis, Name darunter, Wert als
    Gravur. Nur Platz 1 groß, der Rest klein daneben. */
 .bx-tr-siegel { background: none; box-shadow: none; }
 .bx-tr-siegel::before { display: none; }
-.bx-tr-siegel .bx-tr-list { display: flex; align-items: center; justify-content: center; gap: 4%; }
+.bx-tr-siegel .bx-tr-list { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4%; }
 .bx-tr-siegel .bx-tr-row { position: static; height: auto; flex-direction: column; align-items: center; gap: 4px;
   padding: 10px 6px; flex: 1 1 0; min-width: 0; border-radius: 50%; aspect-ratio: 1/1; justify-content: center;
   background: radial-gradient(circle at 50% 30%, rgba(30,32,46,.96), rgba(10,11,18,.96));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--bx-accent) 55%, transparent), 0 10px 24px -10px rgba(0,0,0,.8); }
 .bx-tr-siegel .bx-tr-row[data-rank="1"] { box-shadow: 0 0 0 4px var(--bx-gold), 0 0 26px -6px var(--bx-gold), 0 10px 24px -10px rgba(0,0,0,.85); }
 .bx-tr-siegel .bx-tr-rank { display: none; }
-.bx-tr-siegel .bx-tr-pic { width: clamp(30px, 30cqmin, 70px); height: clamp(30px, 30cqmin, 70px); }
-.bx-tr-siegel .bx-tr-name { flex: none; font-size: clamp(11px, 9cqmin, 19px); text-align: center; max-width: 100%; }
-.bx-tr-siegel .bx-tr-val { font-size: clamp(10px, 8cqmin, 17px); }
-.bx-tr-siegel .bx-tr-crown { margin-top: -18px; margin-left: 0; }
+.bx-tr-siegel .bx-tr-pic { width: 46%; height: auto; aspect-ratio: 1/1; }
+.bx-tr-siegel .bx-tr-name { flex: none; font-size: clamp(10px, 15cqmin, 30px); text-align: center; max-width: 100%; }
+.bx-tr-siegel .bx-tr-val { font-size: clamp(9px, 13cqmin, 26px); }
+.bx-tr-siegel .bx-tr-crown { margin-top: -30cqh; margin-left: 0; }
 
 /* ── KASSETTE — Retro-Tape: Gehäuse mit zwei Spulen, Name auf dem Klebeetikett. */
 .bx-tr-kassette { background: none; box-shadow: none; }
 .bx-tr-kassette::before { display: none; }
-.bx-tr-kassette .bx-tr-row { height: 62px; margin-bottom: 8px; border-radius: 8px; padding: 0 10px;
+.bx-tr-kassette .bx-tr-row { margin-bottom: clamp(3px,2cqh,14px); border-radius: 8px; padding: 0 clamp(4px,16cqh,20px);
   background: linear-gradient(180deg, #2a2d3c, #14161f); border: 2px solid #0a0b12;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 6px 16px -8px rgba(0,0,0,.8); }
-.bx-tr-kassette .bx-tr-rank { border-radius: 50%; width: 26px; height: 26px; font-size: 13px;
+.bx-tr-kassette .bx-tr-rank { border-radius: 50%; height: 42%; width: auto; font-size: clamp(9px,21cqh,26px);
   background: #0a0b12 !important; color: var(--bx-gold); box-shadow: inset 0 0 0 2px #4a5066 !important; }
-.bx-tr-kassette .bx-tr-pic { border-radius: 50%; width: 34px; height: 34px;
+.bx-tr-kassette .bx-tr-pic { border-radius: 50%; height: 55%; width: auto;
   box-shadow: 0 0 0 3px #0a0b12, 0 0 0 5px #4a5066 !important; }
 .bx-tr-kassette .bx-tr-name { background: #f6f0e2; color: #2c2416 !important; text-shadow: none;
-  border-radius: 3px; padding: 3px 10px; font-size: 17px; margin: 0 8px; flex: 1;
-  box-shadow: inset 0 -1px 0 rgba(0,0,0,.15); }
-.bx-tr-kassette .bx-tr-val { font-size: 17px; color: var(--bx-gold) !important; }
-.bx-tr-kassette .bx-tr-crown { margin-top: -30px; margin-left: 20px; }
+  border-radius: 3px; padding: 3px clamp(4px,14cqh,18px); font-size: clamp(10px,min(27cqh,4.4cqi),36px); margin: 0 clamp(3px,12cqh,16px); flex: 1;
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.15); -webkit-text-stroke: 0; }
+.bx-tr-kassette .bx-tr-val { font-size: clamp(10px,min(27cqh,4cqi),36px); color: var(--bx-gold) !important; }
+.bx-tr-kassette .bx-tr-crown { margin-top: -50cqh; margin-left: 32cqh; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -132,8 +138,34 @@ const SRC = {
   wins: { title: 'Top Gewinner', accent: '#ffd23e', valColor: '#ffe88a', list: (s) => s?.topWinners || [], val: (e) => `${e.gameWins || 0} 🏆`, arr: '★' },
 };
 
+/* ── Avatar-Fallback (bewusst je Widget dupliziert, kein gemeinsames JS-Modul):
+   ohne Bild — oder wenn das Laden scheitert — erscheint der Anfangsbuchstabe
+   auf einem aus dem Namen abgeleiteten Farbton statt eines schwarzen Kreises. */
+function avHue(name) { const s = String(name || ''); let h = 0; for (let i = 0; i < s.length; i++) h += s.charCodeAt(i); return h % 360; }
+function avSet(el, name, url) {
+  if (!el) return;
+  const s = String(name || '').trim();
+  el.classList.add('bx-av');
+  el.dataset.initial = (s[0] || '?').toUpperCase();
+  el.style.setProperty('--bx-av-h', String(avHue(s)));
+  el.classList.remove('bx-av-img');
+  el.style.backgroundImage = '';
+  if (!url) return;
+  const img = new Image();
+  img.onload = () => { if (el.isConnected) { el.style.backgroundImage = `url("${cssUrl(url)}")`; el.classList.add('bx-av-img'); } };
+  img.src = url;
+}
+/** URL sicher in CSS url("…") einbetten — nur Quotes escapen, nie nachencodieren. */
+function cssUrl(u) { return String(u).replace(/[\\"']/g, '\\$&').replace(/[\n\r]/g, ''); }
+/** Demo-Daten für die Editor-Vorschau — sonst steht dort nur „— noch keine —". */
+const DEMO = {
+  topGifters: [{ id: 'd1', nickname: 'BigBen', coins: 8400 }, { id: 'd2', nickname: 'Mia', coins: 5200 }, { id: 'd3', nickname: 'LeonGG', coins: 3100 }, { id: 'd4', nickname: 'Nova', coins: 1800 }, { id: 'd5', nickname: 'Sara_99', coins: 940 }, { id: 'd6', nickname: 'ExE', coins: 610 }, { id: 'd7', nickname: 'Kaan', coins: 320 }, { id: 'd8', nickname: 'Pia', coins: 150 }],
+  topLikers: [{ id: 'd1', nickname: 'Mia', likes: 3200 }, { id: 'd2', nickname: 'Nova', likes: 1450 }, { id: 'd3', nickname: 'LeonGG', likes: 900 }, { id: 'd4', nickname: 'BigBen', likes: 420 }, { id: 'd5', nickname: 'Sara_99', likes: 260 }, { id: 'd6', nickname: 'ExE', likes: 180 }, { id: 'd7', nickname: 'Kaan', likes: 95 }, { id: 'd8', nickname: 'Pia', likes: 60 }],
+  topPoints: [{ id: 'd1', nickname: 'Mia', points: 12450 }, { id: 'd2', nickname: 'Nova', points: 8400 }, { id: 'd3', nickname: 'ExE', points: 6100 }, { id: 'd4', nickname: 'BigBen', points: 3200 }, { id: 'd5', nickname: 'Sara_99', points: 1800 }, { id: 'd6', nickname: 'LeonGG', points: 950 }, { id: 'd7', nickname: 'Kaan', points: 470 }, { id: 'd8', nickname: 'Pia', points: 220 }],
+  topWinners: [{ id: 'd1', nickname: 'Mia', gameWins: 4 }, { id: 'd2', nickname: 'Nova', gameWins: 3 }, { id: 'd3', nickname: 'ExE', gameWins: 2 }, { id: 'd4', nickname: 'Kaan', gameWins: 1 }],
+};
 export default class TopRotator {
-  constructor(root, props) {
+  constructor(root, props, ctx) {
     ensureStyle();
     this.root = root;
     this.fixedAccent = props.accent || null;
@@ -143,7 +175,8 @@ export default class TopRotator {
     this.limit = Math.min(8, Math.max(1, Number(props.limit ?? 5)));
     this.showPic = props.showPic !== false;
     this.idx = 0;
-    this.stats = null;
+    this.preview = !!ctx?.preview;
+    this.stats = this.preview ? DEMO : null;
     this.el = document.createElement('div');
     const style = ['glas', 'neon', 'pills', 'banner', 'karte', 'siegel', 'kassette'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-tr${style !== 'glas' ? ` bx-tr-${style}` : ''}`;
@@ -176,14 +209,17 @@ export default class TopRotator {
     this.listEl.innerHTML = items.map((e, i) => `
       <div class="bx-tr-row" data-rank="${i+1}" style="animation-delay:${i*60}ms">
         <div class="bx-tr-rank">${i+1}</div>
-        ${this.showPic ? `<div class="bx-tr-pic" style="${e.profilePic?`background-image:url('${attrUrl(e.profilePic)}')`:''}"></div>${i===0?'<div class="bx-tr-crown"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="17" viewBox="0 0 24 18"><path d="M2 6.2l3.6 3.1L9.4 3l2.6 4.2L14.6 3l3.8 6.3L22 6.2l-1.7 9.3a1 1 0 0 1-1 .8H4.7a1 1 0 0 1-1-.8L2 6.2Z" fill="#ffd23e" stroke="rgba(0,0,0,.55)" stroke-width=".8" stroke-linejoin="round"/><circle cx="2" cy="6.2" r="1.4" fill="#ffd23e"/><circle cx="12" cy="2.4" r="1.4" fill="#ffd23e"/><circle cx="22" cy="6.2" r="1.4" fill="#ffd23e"/></svg></div>':''}` : ''}
+        ${this.showPic ? `<div class="bx-tr-pic"></div>${i===0?'<div class="bx-tr-crown"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="17" viewBox="0 0 24 18"><path d="M2 6.2l3.6 3.1L9.4 3l2.6 4.2L14.6 3l3.8 6.3L22 6.2l-1.7 9.3a1 1 0 0 1-1 .8H4.7a1 1 0 0 1-1-.8L2 6.2Z" fill="#ffd23e" stroke="rgba(0,0,0,.55)" stroke-width=".8" stroke-linejoin="round"/><circle cx="2" cy="6.2" r="1.4" fill="#ffd23e"/><circle cx="12" cy="2.4" r="1.4" fill="#ffd23e"/><circle cx="22" cy="6.2" r="1.4" fill="#ffd23e"/></svg></div>':''}` : ''}
         <div class="bx-tr-name">${escapeHtml(e.nickname)}</div>
         <div class="bx-tr-val" style="color:${i===0&&key!=='points'?def.valColor:'var(--bx-text,#fff)'}"><span class="arr">${def.arr}</span> ${def.val(e)}</div>
       </div>`).join('');
+    // Profilbilder nach dem Einhängen setzen — mit Buchstaben-Fallback, wenn
+    // TikTok keine oder eine tote Bild-URL liefert.
+    if (this.showPic) {
+      const pics = this.listEl.querySelectorAll('.bx-tr-pic');
+      items.forEach((e, i) => avSet(pics[i], e.nickname, e.profilePic));
+    }
   }
   destroy() { clearInterval(this.timer); this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
-/** URL für HTML-Attribut + CSS url('…') — NUR Sonderzeichen ersetzen, nie
- *  (nach-)encodieren: data-URIs / vor-encodierte CDN-URLs blieben sonst kaputt. */
-function attrUrl(u) { return String(u).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '%27').replace(/[<>\n\r]/g, ''); }

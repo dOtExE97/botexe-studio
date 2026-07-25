@@ -55,6 +55,9 @@ function loadImage(url) {
   return img;
 }
 
+// Referenz-Box für alle Pixel-Maße (Icon, Name, Rakete) → siehe resize()/this.s.
+const REF = 900;
+
 const PALETTES = [
   ['#ffd23e', '#ff9d2e', '#fff3c4'],
   ['#21e6c1', '#6dffe3', '#d2fff5'],
@@ -126,6 +129,16 @@ export default class GiftFireworks {
     this.observer = new ResizeObserver(this.resize);
     this.observer.observe(root);
     this.resize();
+    // Editor-Vorschau: von selbst feuern, sonst ist die Box im Editor leer und
+    // man kann Größe/Position des Effekts nicht beurteilen.
+    if (this.host.preview) {
+      const names = ['Mia', 'LeonGG', 'Nova', 'ExE'];
+      let i = 0;
+      const shot = () => this.launch({ totalCoins: 600, count: 3, icon: '' }, names[i++ % names.length]);
+      const t0 = setTimeout(shot, 300);
+      this.pendingTimers.add(t0);
+      this.demoInterval = setInterval(shot, 2400);
+    }
   }
 
   resize() {
@@ -137,6 +150,9 @@ export default class GiftFireworks {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.w = r.width;
     this.h = r.height;
+    // Größen-Faktor gegen die Referenz-Box (900px kurze Seite): Gift-Bild,
+    // Neon-Name und Raketen-Sprite wachsen mit dem Widget mit statt fix zu bleiben.
+    this.s = Math.max(0.45, Math.min(2.6, Math.min(r.width, r.height) / REF));
   }
 
   onEvent(event) {
@@ -226,7 +242,7 @@ export default class GiftFireworks {
       img.src = r.icon;
       img.style.left = `${(r.x / this.w) * 100}%`;
       img.style.top = `${(r.y / this.h) * 100}%`;
-      img.style.width = `${58 + 64 * r.power}px`;
+      img.style.width = `${((58 + 64 * r.power) * (this.s || 1)).toFixed(0)}px`;
       img.style.height = img.style.width;
       this.el.appendChild(img);
       setTimeout(() => img.remove(), 1500);
@@ -237,7 +253,7 @@ export default class GiftFireworks {
       nm.textContent = r.name;
       nm.style.left = `${(r.x / this.w) * 100}%`;
       nm.style.top = `${(r.y / this.h) * 100}%`;
-      nm.style.fontSize = `${26 + 26 * r.power}px`;
+      nm.style.fontSize = `${((26 + 26 * r.power) * (this.s || 1)).toFixed(0)}px`;
       this.el.appendChild(nm);
       setTimeout(() => nm.remove(), 1750);
     }
@@ -337,7 +353,11 @@ export default class GiftFireworks {
     if (this.cancelFrame) this.cancelFrame();
     // Delta-Time: bei niedriger FPS (TTLS!) bewegt sich alles gleich schnell,
     // nur mit weniger Zwischenbildern — statt in Zeitlupe zu ruckeln.
-    const dt = Math.min(4, this.lastT ? (now - this.lastT) / 16.67 : 1);
+    // Untere Schranke 0 ist PFLICHT: rAF und der Fallback-Timer aus scheduleFrame
+    // liefern Zeitstempel aus verschiedenen Quellen — gewinnt der Timer, kann
+    // now < lastT sein. Ohne max(0,…) wird dt negativ: Partikel laufen rückwärts
+    // und p.life STEIGT statt zu verfallen → blasse, kaum bewegte Funken.
+    const dt = Math.max(0, Math.min(4, this.lastT ? (now - this.lastT) / 16.67 : 1));
     this.lastT = now;
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.w, this.h);
@@ -364,7 +384,7 @@ export default class GiftFireworks {
       }
       // Die Rakete IST das Geschenk: bild mit glow steigt auf
       r.wobble += 0.18 * dt;
-      const size = 30 + 22 * r.power;
+      const size = (30 + 22 * r.power) * (this.s || 1);
       ctx.save();
       ctx.translate(r.x + Math.sin(r.wobble) * 2, r.y);
       ctx.rotate(Math.sin(r.wobble) * 0.12);
@@ -443,6 +463,7 @@ export default class GiftFireworks {
 
   destroy() {
     if (this.cancelFrame) this.cancelFrame();
+    clearInterval(this.demoInterval);
     for (const t of this.pendingTimers) clearTimeout(t);
     this.pendingTimers.clear();
     this.observer.disconnect();

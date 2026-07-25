@@ -16,8 +16,10 @@ const CSS = `
   font-family: var(--bx-font-body); background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow), 0 0 44px -16px var(--bx-accent); overflow:hidden;
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+/* Titel an der BREITE messen (cqi), gedeckelt durch die Höhe (cqh): in einem
+   breiten, flachen Brett wäre reines cqmin winzig. */
 .bx-bg-title { text-align:center; font-family: var(--bx-font-display);
-  font-size: clamp(13px, 5.5cqmin, 30px); letter-spacing:.22em;
+  font-size: clamp(13px, min(5.5cqi, 9cqh), 38px); letter-spacing:.22em;
   text-transform:uppercase; color: var(--bx-text, #fff); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
 .bx-bg-grid { position:relative; flex:1; display:grid; gap: 1.4cqmin; --n: 3; }
 /* Zell-Schrift & Bildgröße skalieren mit Brettgröße: --n = Spaltenzahl.
@@ -28,23 +30,46 @@ const CSS = `
 .bx-bg-cell img { width: min(62%, calc(150cqmin / var(--n) * 0.6)); max-height:58%; object-fit:contain;
   filter: drop-shadow(0 2px 5px rgba(0,0,0,.6)); }
 .bx-bg-cell .lbl { font-family: var(--bx-font-display); line-height:1.1; color:#fff;
-  font-size: clamp(9px, calc(34cqmin / var(--n)), 26px);
-  text-transform:uppercase; word-break:break-word; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+  /* Deckel bewusst bei 22px statt 26px: bei 26px passte „FOLLOWER" nicht mehr
+     in eine 3er-Zelle und word-break riss es zu „FOLLOWE / R" auseinander.
+     overflow-wrap statt word-break bricht ausserdem nur dann INNERHALB eines
+     Wortes, wenn es allein in keine Zeile passt — bei „+2.0K Likes" wird also
+     weiterhin sauber am Leerzeichen umbrochen. */
+  font-size: clamp(9px, calc(34cqmin / var(--n)), 22px);
+  text-transform:uppercase; overflow-wrap:break-word; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
 .bx-bg-cell.gift .lbl { font-size: clamp(8px, calc(24cqmin / var(--n)), 18px); opacity:.92; }
 .bx-bg-cell.done { background: color-mix(in srgb, var(--bx-teal) 32%, rgba(8,10,18,.5));
   border-color: var(--bx-teal); }
-.bx-bg-cell.done .lbl { color:#fff; }
-.bx-bg-check { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+/* Erfülltes Feld: man muss weiter LESEN können, WAS erfüllt wurde. Darum bleibt
+   die Beschriftung stehen, wird nur abgedunkelt + durchgestrichen; das Häkchen
+   sitzt klein in der Ecke statt großflächig über dem Text. */
+.bx-bg-cell.done .lbl { color:#fff; opacity:1; text-decoration: line-through;
+  text-decoration-color: rgba(4,36,31,.85);
+  text-decoration-thickness: .1em; text-shadow: 0 1px 3px rgba(0,0,0,.75); }
+.bx-bg-cell.done img { opacity:.55; filter: grayscale(.35) drop-shadow(0 2px 5px rgba(0,0,0,.6)); }
+.bx-bg-check { position:absolute; top: 4%; right: 4%; width: clamp(11px, 30%, 6cqmin); aspect-ratio: 1;
+  display:flex; align-items:center; justify-content:center;
+  border-radius: 50%; background: color-mix(in srgb, var(--bx-teal) 88%, #04121000);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--bx-teal) 70%, transparent), 0 1px 3px rgba(0,0,0,.6);
   pointer-events:none; animation: bx-bg-pop 480ms cubic-bezier(.2,1.6,.4,1); }
-.bx-bg-check svg { width:60%; height:60%; filter: drop-shadow(0 0 12px var(--bx-teal)) drop-shadow(0 2px 4px rgba(0,0,0,.6)); }
+.bx-bg-check svg { width:74%; height:74%; }
+.bx-bg-check svg path { stroke: #04241f; }
 @keyframes bx-bg-pop { 0% { transform: scale(0); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
 .bx-bg-line { position:absolute; height:7px; border-radius:4px; transform-origin:left center;
   background: linear-gradient(90deg, var(--bx-gold), #fff3c4, var(--bx-gold));
   box-shadow: 0 0 16px var(--bx-gold); animation: bx-bg-line 500ms cubic-bezier(.2,1,.3,1) forwards; z-index:3; }
 @keyframes bx-bg-line { from { scale: 0 1; } to { scale: 1 1; } }
-.bx-bg-banner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+/* Das Banner sitzt BEWUSST oben über der Titelzeile statt mittig über dem
+   Gitter: zentriert verdeckte es das mittlere Feld komplett, und genau solche
+   verdeckenden Overlays haben wir hier gerade beim Häkchen beseitigt. Der Titel
+   darunter ist eine feste Beschriftung, keine Spielinformation — den darf der
+   Jubel für 1,7 s überdecken. Die Kapsel blendet ihn sauber aus. */
+.bx-bg-banner { position:absolute; inset:0 0 auto 0; display:flex; align-items:flex-start; justify-content:center;
   pointer-events:none; z-index:4; }
-.bx-bg-banner span { font-family: var(--bx-font-display); font-size: clamp(34px, 16cqmin, 80px); color: var(--bx-gold);
+.bx-bg-banner span { font-family: var(--bx-font-display); font-size: clamp(22px, 11cqmin, 56px); color: var(--bx-gold);
+  padding: .06em .5em .12em; border-radius: 999px;
+  background: linear-gradient(160deg, rgba(18,20,30,.96), rgba(8,9,16,.98));
+  box-shadow: 0 6px 22px -6px rgba(0,0,0,.9), 0 0 0 2px color-mix(in srgb, var(--bx-gold) 55%, transparent);
   -webkit-text-stroke: 4px #0a0b12; paint-order: stroke fill;
   text-shadow: 0 0 36px var(--bx-gold); animation: bx-bg-banner 1600ms cubic-bezier(.2,1.5,.35,1) forwards; }
 @keyframes bx-bg-banner { 0% { transform: scale(.2) rotate(-8deg); opacity:0; }
@@ -101,6 +126,28 @@ export default class BingoWidget {
     this.icons = {}; // slug(lowercase) → Bild-URL aus dem Gift-Katalog
     this.newRound(false);
     this.loadCatalog();
+
+    // Editor-Vorschau: Felder nach und nach abhaken (inkl. einer vollen Reihe →
+    // Durchstreich-Linie + BINGO-Banner), damit man den gefüllten Zustand sieht.
+    if (this.ctx.preview) this.startDemo();
+  }
+
+  /** Vorschau-Demo: hakt in Ruhe eine Reihe ab und würfelt danach neu. */
+  startDemo() {
+    const order = [0, this.size + 1, 1, 2, 3];
+    let i = 0;
+    const step = () => {
+      if (i >= order.length) {
+        i = 0;
+        const t = setTimeout(() => { this.timers.delete(t); this.round++; this.buildBoard(true); }, 2600);
+        this.timers.add(t);
+        return;
+      }
+      const cell = this.cells[order[i++] % this.cells.length];
+      if (cell && !cell.done) this.markDone(cell);
+    };
+    const t0 = setTimeout(step, 700); this.timers.add(t0);
+    this.demoInterval = setInterval(step, 1400);
   }
 
   /** Echte Gift-Bilder aus dem App-Katalog (alles, was je gesehen wurde). */
@@ -254,14 +301,20 @@ export default class BingoWidget {
   drawStrike(cellIdxs) {
     const first = this.cells[cellIdxs[0]].el;
     const last = this.cells[cellIdxs[cellIdxs.length - 1]].el;
-    const g = this.gridEl.getBoundingClientRect();
-    const a = first.getBoundingClientRect();
-    const b = last.getBoundingClientRect();
-    const x1 = a.left + a.width / 2 - g.left, y1 = a.top + a.height / 2 - g.top;
-    const x2 = b.left + b.width / 2 - g.left, y2 = b.top + b.height / 2 - g.top;
-    const len = Math.hypot(x2 - x1, y2 - y1) + Math.min(a.width, a.height) * 0.7;
+    // BEWUSST offsetLeft/offsetTop statt getBoundingClientRect(): das Gitter
+    // trägt beim Neuwürfeln die Animation .newround mit rotateX(90deg), und
+    // getBoundingClientRect() rechnet Transformationen MIT ein. Fällt die
+    // Messung in dieses Fenster, kommen gestauchte Koordinaten heraus — aus
+    // einer waagerechten Gewinnreihe wurde dann eine schräge Linie quer übers
+    // Brett. offset* misst das ungedrehte Layout und ist damit immun.
+    const x1 = first.offsetLeft + first.offsetWidth / 2;
+    const y1 = first.offsetTop + first.offsetHeight / 2;
+    const x2 = last.offsetLeft + last.offsetWidth / 2;
+    const y2 = last.offsetTop + last.offsetHeight / 2;
+    const cw = first.offsetWidth, ch = first.offsetHeight;
+    const len = Math.hypot(x2 - x1, y2 - y1) + Math.min(cw, ch) * 0.7;
     const angle = Math.atan2(y2 - y1, x2 - x1);
-    const off = Math.min(a.width, a.height) * 0.35;
+    const off = Math.min(cw, ch) * 0.35;
     const line = document.createElement('div');
     line.className = 'bx-bg-line';
     line.style.width = `${len}px`;
@@ -325,5 +378,5 @@ export default class BingoWidget {
     this.newRound(true);
   }
 
-  destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
+  destroy() { clearInterval(this.demoInterval); for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

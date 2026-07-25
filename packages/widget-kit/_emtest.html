@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="widget-base.css">
+<style>html,body{margin:0;width:1120px;height:900px;overflow:hidden;background:#14102a}
+#h{position:absolute;left:0;top:0;width:1120px;height:900px}</style></head><body><div id="h"></div>
+<script type="module">
+const M=(await import('./emojify.js')).default;
+const i=new M(document.getElementById('h'),{style:'float',max:6,size:52,accent:'#ff5436'},{preview:true,playSound(){}});
+setTimeout(()=>{
+  const els=document.querySelectorAll('.bx-em-e');
+  const out=[...els].map(e=>{const c=getComputedStyle(e);return {txt:e.textContent,fs:c.fontSize,op:c.opacity,an:c.animationName,bottom:c.bottom,tr:c.transform.slice(0,40)}});
+  console.log('ANZAHL='+els.length);
+  console.log(JSON.stringify(out,null,1));
+},2500);
+</script></body></html>

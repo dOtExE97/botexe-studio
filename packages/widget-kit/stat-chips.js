@@ -1,16 +1,21 @@
 // stat-chips.js — Premium Live-Zähler-Chips. Glas-Pills, Icon-Glow, Puls.
 // props: { metrics?, accent? }
 const STYLE_ID = 'bx-sc-style';
+// --u = „1px bei Standardgröße" (540×60): Chips, Icons und Zahlen sind
+// Vielfache davon und wachsen mit, wenn der Nutzer das Widget größer zieht.
 const CSS = `
-.bx-sc { position: absolute; inset: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--bx-font-body); }
-.bx-sc-chip { display: flex; align-items: center; gap: 9px; padding: 9px 18px 9px 12px; border-radius: 999px;
+.bx-sc { position: absolute; inset: 0; display: flex; align-items: center; gap: 1.85%; flex-wrap: wrap;
+  container-type: size; --u: min(0.185cqi, 1.667cqh); font-family: var(--bx-font-body); }
+.bx-sc-chip { display: flex; align-items: center; gap: calc(var(--u) * 9);
+  padding: calc(var(--u) * 9) calc(var(--u) * 18) calc(var(--u) * 9) calc(var(--u) * 12); border-radius: 999px;
   background: var(--bx-glass); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   box-shadow: 0 8px 20px -8px rgba(0,0,0,.6), 0 0 0 1px color-mix(in srgb, var(--bx-accent) 30%, transparent) inset; }
-.bx-sc-icon { display: flex; align-items: center; justify-content: center; width: 19px; height: 19px;
+.bx-sc-icon { display: flex; align-items: center; justify-content: center;
+  width: clamp(10px, calc(var(--u) * 19), 76px); height: clamp(10px, calc(var(--u) * 19), 76px);
   color: var(--bx-accent); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--bx-accent) 55%, transparent)); }
 .bx-sc-icon svg { width: 100%; height: 100%; display: block; }
-.bx-sc-value { font-family: var(--bx-font-num); font-weight: 700; font-size: 19px; color: var(--bx-text,#fff);
-  text-shadow: 0 2px 6px rgba(0,0,0,.7); min-width: 38px; }
+.bx-sc-value { font-family: var(--bx-font-num); font-weight: 700; font-size: clamp(10px, calc(var(--u) * 19), 76px); color: var(--bx-text,#fff);
+  text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 2px 6px rgba(0,0,0,.7); min-width: calc(var(--u) * 38); }
 .bx-sc-chip.pulse .bx-sc-value { animation: bx-sc-pop 440ms cubic-bezier(.2,1.6,.4,1); }
 .bx-sc-chip.pulse .bx-sc-icon { animation: bx-sc-glow 440ms ease; }
 @keyframes bx-sc-pop { 50% { transform: scale(1.25); color: var(--bx-gold); } }
@@ -28,7 +33,7 @@ const CSS = `
 /* ── Stil „Minimal" — kein Chip-Hintergrund: Icon + Zahl frei mit harter
    Schattenkante. Unsichtbar-leicht für cleane IRL-Overlays. */
 .bx-sc-minimal .bx-sc-chip { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
-  padding: 4px 8px; }
+  padding: calc(var(--u) * 4) calc(var(--u) * 8); }
 .bx-sc-minimal .bx-sc-value { text-shadow: 0 1px 0 rgba(0,0,0,.95), 0 2px 8px rgba(0,0,0,.9); }
 .bx-sc-minimal .bx-sc-icon { filter: drop-shadow(0 1px 2px rgba(0,0,0,.9)); }
 `;
@@ -54,7 +59,7 @@ function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = doc
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
 
 export default class StatChips {
-  constructor(root, props) {
+  constructor(root, props, ctx) {
     ensureStyle();
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     const wanted = String(props.metrics || 'viewers,likes,follows').split(',').map((m) => m.trim()).filter((m) => METRICS[m]);
@@ -70,6 +75,12 @@ export default class StatChips {
       this.chips.set(m, { chip, value: chip.querySelector('.bx-sc-value'), last: 0 });
     }
     root.appendChild(this.el);
+    // Editor-Vorschau: Beispielzahlen statt lauter Nullen — so sieht man, wie
+    // breit die Chips mit echten Werten wirklich werden.
+    if (ctx && ctx.preview) {
+      const demo = { viewers: 342, uniqueViewers: 1180, likes: 12400, follows: 87, coins: 6800, gifts: 37, shares: 14 };
+      for (const [metric, c] of this.chips) c.value.textContent = fmt(demo[metric] ?? 0);
+    }
   }
   onStats(stats) {
     for (const [metric, c] of this.chips) {

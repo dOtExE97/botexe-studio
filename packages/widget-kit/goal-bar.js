@@ -1,15 +1,24 @@
 // goal-bar.js — Premium Session-Goal-Balken. Glas, Glow-Kante, Stripes,
 // Milestone-Ticks, Done-Puls. props: { metric, target, label?, accent? }
 const STYLE_ID = 'bx-gb-style';
+/* --u = „1px bei Standardgröße" (560×80). cqmin (kurze Seite) war hier falsch:
+   in einem 560×80-Balken sind 8cqmin ~6px, die Beschriftung klebte am Minimum.
+   Jetzt führt die Breite (cqi), die Höhe (cqh) deckelt. Thermo/Ring sind
+   hochkant/quadratisch und bekommen weiter unten ein eigenes --u. */
 const CSS = `
 .bx-gb { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center;
-  font-family: var(--bx-font-body); padding: 4px 2px; container-type: size; }
-.bx-gb-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0 4px 8px; }
-.bx-gb-label { font-family: var(--bx-font-display); font-size: clamp(9px,8cqmin,16px); letter-spacing: .26em; color: var(--bx-text,#fff);
-  text-transform: uppercase; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
-.bx-gb-nums { font-family: var(--bx-font-mono); font-weight: 700; font-size: clamp(9px,8cqmin,17px); color: var(--bx-gold);
-  text-shadow: 0 0 12px color-mix(in srgb, var(--bx-gold) 45%, transparent), 0 2px 6px rgba(0,0,0,.8); }
-.bx-gb-track { position: relative; height: clamp(14px,38cqmin,30px); border-radius: 999px; overflow: hidden;
+  font-family: var(--bx-font-body); container-type: size; --u: min(0.1786cqi, 1.25cqh);
+  padding: 0.7% 0.35%; }
+.bx-gb-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0 calc(var(--u) * 4) calc(var(--u) * 8); }
+.bx-gb-label { font-family: var(--bx-font-display); font-size: clamp(8px, calc(var(--u) * 13), 64px); letter-spacing: .26em; color: var(--bx-text,#fff);
+  text-transform: uppercase; text-shadow: 0 2px 8px rgba(0,0,0,.8);
+  /* Kontur statt nur Schatten: der Balken schwebt frei über dem Video und war
+     auf hellen Szenen (weißes Weiß, gelbe Zahlen) kaum zu lesen. */
+  -webkit-text-stroke: clamp(1px, calc(var(--u) * 2), 6px) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+.bx-gb-nums { font-family: var(--bx-font-mono); font-weight: 700; font-size: clamp(8px, calc(var(--u) * 14), 68px); color: var(--bx-gold);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--bx-gold) 45%, transparent), 0 2px 6px rgba(0,0,0,.8);
+  -webkit-text-stroke: clamp(1px, calc(var(--u) * 2), 6px) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+.bx-gb-track { position: relative; height: clamp(8px, calc(var(--u) * 30), 140px); border-radius: 999px; overflow: hidden;
   background: linear-gradient(180deg, rgba(8,9,14,.92), rgba(18,20,28,.92));
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--bx-accent) 35%, transparent) inset, 0 10px 24px -8px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,.06) inset; }
 .bx-gb-fill { position: absolute; inset: 0; width: 0%; border-radius: 999px;
@@ -21,7 +30,7 @@ const CSS = `
   animation: bx-gb-stripes 1.3s linear infinite; }
 .bx-gb-tick { position: absolute; top: 4px; bottom: 4px; width: 2px; border-radius: 2px; background: rgba(255,255,255,.18); }
 .bx-gb-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-family: var(--bx-font-display); font-size: clamp(9px,5cqmin,14px); color: #fff; letter-spacing: .14em; text-shadow: 0 1px 4px rgba(0,0,0,.95); }
+  font-family: var(--bx-font-display); font-size: clamp(8px, calc(var(--u) * 12), 58px); color: #fff; letter-spacing: .14em; text-shadow: 0 1px 4px rgba(0,0,0,.95); }
 .bx-gb.done .bx-gb-fill { background: linear-gradient(90deg, var(--bx-teal), #7dffe9); box-shadow: 0 0 26px 0 color-mix(in srgb, var(--bx-teal) 75%, transparent); }
 .bx-gb.done .bx-gb-track { animation: bx-gb-pulse 900ms ease-in-out 3; }
 @keyframes bx-gb-stripes { to { transform: translateX(26px); } }
@@ -39,17 +48,18 @@ const CSS = `
 
 /* ── Stil „Slim" — hauchdünne Linie, Zahlen frei darüber: edel-minimal für
    cleane IRL-/Talk-Overlays. Kein Chrome, nur Information. */
-.bx-gb-slim .bx-gb-track { height: 7px; border-radius: 999px;
+.bx-gb-slim .bx-gb-track { height: clamp(3px, calc(var(--u) * 7), 34px); border-radius: 999px;
   background: rgba(255,255,255,.14); box-shadow: 0 1px 4px rgba(0,0,0,.5); }
 .bx-gb-slim .bx-gb-fill { box-shadow: 0 0 14px 0 color-mix(in srgb, var(--bx-accent) 80%, transparent); }
 .bx-gb-slim .bx-gb-fill::after { display: none; }
 .bx-gb-slim .bx-gb-tick { display: none; }
 .bx-gb-slim .bx-gb-pct { display: none; }
-.bx-gb-slim .bx-gb-label { letter-spacing: .3em; font-size: clamp(9px,7cqmin,14px); }
+.bx-gb-slim .bx-gb-label { letter-spacing: .3em; font-size: clamp(8px, calc(var(--u) * 12), 58px); }
 
 /* ── THERMOMETER — senkrecht: füllt sich von unten nach oben. Spart Breite und
    passt damit deutlich besser ins TikTok-Hochformat als ein Querbalken. */
-.bx-gb-thermo { flex-direction: column; align-items: center; gap: 6px; }
+.bx-gb-thermo { flex-direction: column; align-items: center; gap: 2%;
+  --u: 0.5cqmin; /* hochkant: hier ist die kurze Seite das richtige Maß */ }
 .bx-gb-thermo .bx-gb-head { flex-direction: column; align-items: center; gap: 2px; margin: 0 0 4px; text-align: center; }
 .bx-gb-thermo .bx-gb-track { flex: 1; width: clamp(22px, 26cqmin, 54px); height: auto; min-height: 0;
   border-radius: 999px; overflow: hidden; }
@@ -100,7 +110,7 @@ const LABELS = { coins: 'Coin-Ziel', likes: 'Like-Ziel', follows: 'Follower-Ziel
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
 
 export default class GoalBar {
-  constructor(root, props) {
+  constructor(root, props, ctx) {
     ensureStyle();
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.metric = ['coins', 'likes', 'follows', 'gifts'].includes(props.metric) ? props.metric : 'coins';
@@ -118,15 +128,22 @@ export default class GoalBar {
       </div>`;
     this.el.querySelector('.bx-gb-label').textContent = this.label;
     root.appendChild(this.el);
+    // Editor-Vorschau: ohne Live-Stats stünde der Balken auf 0 % und man könnte
+    // Farbe/Füllung nicht beurteilen. Reine Anzeige — die ersten echten Stats
+    // überschreiben sie.
+    if (ctx && ctx.preview) this.paint(Math.round(this.target * 0.62));
   }
-  onStats(stats) {
-    const cur = Number(stats?.totals?.[this.metric] ?? 0);
+  /** Balken + Beschriftung auf einen Stand setzen. */
+  paint(cur) {
     const pct = Math.min(100, (cur / this.target) * 100);
     this.el.querySelector('.bx-gb-fill').style.width = `${pct}%`;
     this.el.style.setProperty('--pct', `${pct}%`); // Thermometer-Stil füllt über die Höhe
     this.el.querySelector('.bx-gb-pct').textContent = `${Math.floor(pct)}%`;
     this.el.querySelector('.bx-gb-nums').textContent = `${fmt(cur)} / ${fmt(this.target)}`;
     this.el.classList.toggle('done', cur >= this.target);
+  }
+  onStats(stats) {
+    this.paint(Number(stats?.totals?.[this.metric] ?? 0));
   }
   destroy() { this.el.remove(); }
 }

@@ -3,6 +3,38 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.31.0] — 2026-07-25
+
+### Widgets passen sich jetzt wirklich ihrer Größe an
+Zieht man ein Widget im Overlay größer, blieb die Schrift bisher bei vielen einfach klein — die Karte wurde leer statt größer. Ursache waren feste Pixelgrößen und die Einheit `cqmin`, die an der *kurzen* Seite misst: ein breiter Ziel-Countdown von 760×130 landete dadurch bei ~14 px und ließ 87 % der Fläche ungenutzt. Umgestellt wurden **Zähler, Größtes Gift, Top-Combo, Ziel-Countdown, Ziel-Balken, Geschenkzähler, Coin-Glas, Countdown, Subathon, Hype-Train, Stat-Chips, Bestenliste, Punkte-Board, Wechsler, Chat, Gift-Feed, Activity-Feed, Gift-Alert, Follow-Alert, Verlosung, Coin-Schlacht, Laufband, Befehls-Karussell, Social-Wechsler, Sport-Ticker, Umfrage, Quiz, Zahlen-Raten, TicTacToe, 4 Gewinnt, Galgenmännchen, Spotify und Medien**. Der Ziel-Countdown wächst im Standardformat von 14 auf 46 px.
+
+Bei Laufbändern hängt die Schrift jetzt an der Höhe statt an der kürzeren Seite, bei Spielbrettern bleibt das Feld quadratisch. Drei Widgets (Laufband, Befehls-Karussell, Social-Wechsler) hatten gar keinen Größen-Bezug gesetzt — deren Schrift klebte immer am Minimalwert.
+
+### Profilbilder fallen nicht mehr ins Leere
+Fehlte ein Profilbild — im Live oft, weil TikTok keine URL liefert oder das CDN sie blockt —, zeigten **sieben** Widgets einen schwarzen Kreis. Jetzt erscheint der Anfangsbuchstabe auf einer aus dem Namen abgeleiteten Farbe, auch wenn das Laden erst *scheitert*. Betrifft Bestenliste, Punkte-Board, Wechsler, Chat, Gift-Feed, Activity-Feed, Gift-Alert, Stream-Boss, Herz-Regen und Gift-Kanone. Das Spotify-Widget bekommt denselben Schutz für fehlende Album-Cover.
+
+### Behobene Fehler
+- **Gift-Kanone und Feuerwerk rechneten die Zeit rückwärts.** Die Zeitdifferenz war nur nach oben begrenzt; durch das Rennen zweier Zeitquellen konnte sie negativ werden. Folge: die Kanone zeigte einen wachsenden gelben Klumpen (der Mündungsblitz wuchs auf einen Radius von ~60.000 px) und die Partikel verglühten nie, sondern liefen rückwärts.
+- **Glücksrad:** Die Beschriftungen der linken Radhälfte standen auf dem Kopf.
+- **Bingo:** Das Häkchen verdeckte das erfüllte Feld komplett — man sah nicht mehr, *was* erfüllt wurde. Jetzt ein kleiner Eck-Badge, Text bleibt lesbar. Die Gewinnlinie wurde außerdem schräg statt waagerecht gezeichnet, wenn sie während der Neuwürfel-Drehung berechnet wurde.
+- **Geschenkzähler:** Der Fortschrittsring war reine Deko ohne Datenanbindung — bei 4 von 15 sah er aus wie voll.
+- **Coin-Glas:** Das eingestellte Ziel war toter Code und wurde nirgends angezeigt.
+- **Action-Screen:** Die Krone im Titel wurde vom Farbverlauf entfärbt.
+- **Stream-Boss:** Die Akzentfarbe wurde von der HP-Ampel überschrieben.
+- **Emojis** flogen nach Bildschirm- statt Widget-Maß und wurden in kleinen Boxen sofort abgeschnitten.
+- **4 Gewinnt** hatte Spaltennummern in blassem Weiß, auf hellem Video praktisch unsichtbar; gleiches Muster bei Galgenmännchen, Sport-Ticker und Ziel-Balken behoben.
+
+### Keine leeren Kästen mehr im Editor
+Wer ein Widget platziert, sah bei vielen nur eine leere Fläche und konnte Größe und Position nicht beurteilen. Am schlimmsten: **Medien-Widget und Hype-Train waren im Editor komplett unsichtbar**. Ergänzt wurden Vorschauen für Sport-Ticker (mit Demo-Spieltag), Medien, Zahlen-Raten, Größtes Gift, Top-Combo, Ziel-Balken, Geschenkzähler, Coin-Glas, Hype-Train, Stat-Chips, Bestenliste, Punkte-Board, Wechsler, Chat, Gift-Feed, Activity-Feed, Follow-Alert, Gift-Kanone, Feuerwerk, Herz-Regen, Emojis, Glücksrad und Bingo.
+
+### Übersichtlichere Widget-Liste
+Ein Audit über alle 43 Widgets fand mehrere Gruppen, die sich für den Nutzer kaum unterscheiden. Statt sie zu löschen — das hätte bestehende Overlays zerrissen — zeigt die Palette nur noch den Anführer und klappt die Varianten darunter auf: drei Bestenlisten, zwei Ereignis-Listen, drei Ziel-Anzeigen, Countdown/Subathon, Quiz/Umfrage/Zahlen-Raten, TicTacToe/4 Gewinnt, die beiden Laufbänder und die beiden Effekt-Paare. Der Sport-Ticker liegt unter „Spezialfälle für Fortgeschrittene". **Die Suche findet weiterhin alles.**
+
+### Neu
+- **Galgenmännchen** hat einen zweiten Stil: statt Herzen baut sich an einem echten Galgen Stück für Stück die Figur auf (Standard bleibt „Herzen").
+- **[Widget-Galerie](docs/widgets.md)** — alle 43 Widgets als Bild, nach Kategorien sortiert.
+- Gift-Alert heißt jetzt „Neues Geschenk" statt englisch „Gift Alert"; Activity-Feed sagt „hat abonniert" statt „hat subscribed".
+
 ## [0.30.1] — 2026-07-25
 
 ### Deutsches Anwendungsmenü

@@ -4,13 +4,17 @@
 // neue rein von unten) — animiert wird nur, was sich wirklich ändert.
 // props: { minutes?, label?, doneText?, accent? }
 const STYLE_ID = 'bx-cd-style';
+// --u = „1px bei Standardgröße" (460×200): Ziffern, Label und Kapsel-Polster
+// sind Vielfache davon und wachsen mit, wenn das Widget größer gezogen wird.
 const CSS = `
 .bx-cd { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  font-family: var(--bx-font-body); gap: 6px; }
-.bx-cd-label { font-family: var(--bx-font-display); font-size: 15px; letter-spacing: .34em; text-transform: uppercase;
-  color: var(--bx-muted); text-shadow: 0 2px 6px rgba(0,0,0,.8); }
-.bx-cd-time { display: flex; align-items: center; font-family: var(--bx-font-mono); font-weight: 700; font-size: 64px; line-height: 1; color: var(--bx-text,#fff);
-  padding: 10px 28px; border-radius: 18px; background: var(--bx-glass);
+  container-type: size; --u: min(0.2174cqi, 0.5cqh);
+  font-family: var(--bx-font-body); gap: 3%; }
+.bx-cd-label { font-family: var(--bx-font-display); font-size: clamp(9px, calc(var(--u) * 15), 60px); letter-spacing: .34em; text-transform: uppercase;
+  color: #c9cfe2; text-shadow: 0 2px 6px rgba(0,0,0,.85); }
+.bx-cd-time { display: flex; align-items: center; font-family: var(--bx-font-mono); font-weight: 700;
+  font-size: clamp(20px, calc(var(--u) * 64), 260px); line-height: 1; color: var(--bx-text,#fff);
+  padding: calc(var(--u) * 10) calc(var(--u) * 28); border-radius: calc(var(--u) * 18); background: var(--bx-glass);
   box-shadow: var(--bx-shadow), 0 0 40px -12px var(--bx-accent);
   text-shadow: 0 0 22px color-mix(in srgb, var(--bx-accent) 55%, transparent), 0 3px 8px rgba(0,0,0,.7);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); transition: color .35s ease; }
@@ -31,13 +35,13 @@ const CSS = `
 
 /* ── Stil „Neon" — freistehende Riesen-Ziffern ohne Kapsel: purer Glow. */
 .bx-cd-neon .bx-cd-time { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
-  font-size: 84px; padding: 0;
+  font-size: clamp(24px, calc(var(--u) * 84), 340px); padding: 0;
   text-shadow: 0 0 30px var(--bx-accent), 0 0 60px color-mix(in srgb, var(--bx-accent) 50%, transparent), 0 3px 0 rgba(0,0,0,.5); }
 .bx-cd-neon .bx-cd-label { color: var(--bx-text, #fff); text-shadow: 0 0 12px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 2px 6px rgba(0,0,0,.8); }
 
 /* ── Stil „LED" — dunkle Anzeigetafel mit Scanlines und Bernstein-Ziffern:
    Flughafen-/Stadion-Board-Ästhetik. */
-.bx-cd-led .bx-cd-time { border-radius: 8px; background: #0a0c0a;
+.bx-cd-led .bx-cd-time { border-radius: calc(var(--u) * 8); background: #0a0c0a;
   box-shadow: 0 0 0 3px #1c201c, 0 12px 30px -10px rgba(0,0,0,.8), inset 0 0 24px rgba(0,0,0,.9);
   color: var(--bx-gold); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 70%, transparent);
   position: relative; -webkit-backdrop-filter: none; backdrop-filter: none; }

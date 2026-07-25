@@ -10,11 +10,11 @@ const STYLE_ID = 'bx-hm-style';
 const CSS = `
 .bx-hm { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:.55em; container-type:size; font-family: var(--bx-font-display, var(--bx-font-body, sans-serif));
-  --bx-hm-accent: var(--bx-accent, #ff5436); }
+  font-size: clamp(9px, 9cqmin, 64px); --bx-hm-accent: var(--bx-accent, #ff5436); }
 /* idle → kein Spiel aktiv: komplett unsichtbar, nimmt keine Klicks an */
 .bx-hm.is-idle { opacity:0; pointer-events:none; }
 /* Karte mit fester Zielgröße ~380x150 — skaliert mit, wenn der Layer gezoomt wird */
-.bx-hm-card { width: clamp(280px, 96cqi, 380px); padding: .9em 1em; border-radius: .9em; box-sizing:border-box;
+.bx-hm-card { width: 96cqi; max-width:100%; padding: .9em 1em; border-radius: .9em; box-sizing:border-box;
   display:flex; flex-direction:column; align-items:center; gap:.5em;
   background: linear-gradient(160deg, rgba(18,18,26,.96), rgba(10,10,16,.96)); color:#fff;
   border:1px solid color-mix(in srgb, var(--bx-hm-accent) 50%, transparent);
@@ -27,8 +27,8 @@ const CSS = `
 /* Wort-Zeile: jeder Slot eine Box */
 .bx-hm-word { display:flex; flex-wrap:wrap; justify-content:center; gap:.28em; }
 .bx-hm-slot { min-width:1.15em; height:1.5em; padding:0 .2em; display:grid; place-items:center;
-  font-weight:800; font-size:clamp(20px, 10.5cqmin, 35px); line-height:1; border-radius:.22em;
-  background:rgba(255,255,255,.06); border-bottom:.14em solid rgba(255,255,255,.25); color:#fff8;
+  font-weight:800; font-size:clamp(16px, 10.5cqmin, 96px); line-height:1; border-radius:.22em;
+  background:rgba(10,11,18,.55); border-bottom:.14em solid rgba(255,255,255,.45); color:#fff8;
   text-transform:uppercase; transition: color .2s ease, background .2s ease, border-color .2s ease; }
 .bx-hm-slot.filled { color:#fff; background:color-mix(in srgb, var(--bx-hm-accent) 28%, transparent);
   border-bottom-color: var(--bx-hm-accent);
@@ -37,17 +37,34 @@ const CSS = `
 .bx-hm.won .bx-hm-slot.filled { background:color-mix(in srgb, var(--bx-teal,#2ee6a6) 30%, transparent);
   border-bottom-color: var(--bx-teal,#2ee6a6); text-shadow:0 0 10px color-mix(in srgb, var(--bx-teal,#2ee6a6) 70%, transparent); }
 .bx-hm.lost .bx-hm-slot.filled { color:#ffd0d0; }
+/* Innerer Textblock — im Standard-Stil ('herzen') die einzige Spalte der Karte,
+   sieht damit exakt aus wie vorher. Im Stil 'galgen' steht links das Gerüst. */
+.bx-hm-main { display:flex; flex-direction:column; align-items:center; gap:.5em; min-width:0; flex:1; }
+/* — Zusätzlicher Stil 'galgen': echtes Galgengerüst statt Herzen — */
+.bx-hm.galgen .bx-hm-card { flex-direction:row; align-items:center; gap:.9em; }
+.bx-hm.galgen .bx-hm-hearts { display:none; }
+.bx-hm-gallow { display:none; flex:none; width:4.6em; height:5.2em; }
+.bx-hm.galgen .bx-hm-gallow { display:block; }
+.bx-hm-gallow svg { width:100%; height:100%; display:block; }
+.bx-hm-gallow .frame { stroke:#b98b3a; stroke-width:6; stroke-linecap:round; fill:none; }
+.bx-hm-gallow .rope { stroke:#e8dcc0; stroke-width:3.5; stroke-linecap:round; fill:none; }
+.bx-hm-gallow .part { stroke:#fff; stroke-width:5; stroke-linecap:round; fill:none;
+  opacity:0; transition:opacity .3s ease; }
+.bx-hm-gallow .part.head { fill:none; }
+.bx-hm-gallow .part.on { opacity:1; }
+.bx-hm.lost .bx-hm-gallow .part.on { stroke:#ff6b6b; }
+.bx-hm.won .bx-hm-gallow .part.on { stroke: var(--bx-teal,#2ee6a6); }
 /* Fehlversuch-Leiste (Herzen) */
-.bx-hm-hearts { display:flex; gap:.2em; font-size:clamp(17px, 7.8cqmin, 27px); line-height:1; }
+.bx-hm-hearts { display:flex; gap:.2em; font-size:clamp(14px, 7.8cqmin, 72px); line-height:1; }
 .bx-hm-heart { opacity:1; transition: transform .2s ease, opacity .2s ease; }
 .bx-hm-heart.lost { opacity:.28; filter:grayscale(1); transform:scale(.85); }
 /* Reihe der geratenen Buchstaben */
 .bx-hm-guessed { display:flex; flex-wrap:wrap; justify-content:center; gap:.24em;
-  font-size:clamp(13px, 5.8cqmin, 19px); }
+  font-size:clamp(11px, 5.8cqmin, 52px); }
 .bx-hm-g { padding:.08em .34em; border-radius:.3em; font-weight:700; text-transform:uppercase;
-  background:rgba(255,255,255,.08); color:#fff; }
+  background:rgba(10,11,18,.6); color:#fff; }
 .bx-hm-g.wrong { background:rgba(255,77,77,.18); color:#ff8a8a; text-decoration:line-through; }
-.bx-hm-status { font-size:clamp(15px, 6.7cqmin, 22px); font-weight:800; letter-spacing:.02em;
+.bx-hm-status { font-size:clamp(12px, 6.7cqmin, 60px); font-weight:800; letter-spacing:.02em;
   text-shadow:0 1px 3px rgba(0,0,0,.55); }
 .bx-hm.won .bx-hm-status { color: var(--bx-teal,#2ee6a6); }
 .bx-hm.lost .bx-hm-status { color:#ff6b6b; }
@@ -63,6 +80,23 @@ function ensureStyle() {
   }
 }
 
+const STYLES = new Set(['herzen', 'galgen']);
+// Galgengerüst: Rahmen ist immer da, die 6 Körperteile kommen mit jedem
+// Fehlversuch dazu (Reihenfolge = Array-Reihenfolge).
+const GALLOW_SVG = '<svg viewBox="0 0 100 112" aria-hidden="true">'
+  + '<path class="frame" d="M8 106 H58"/>'
+  + '<path class="frame" d="M22 106 V10"/>'
+  + '<path class="frame" d="M22 10 H70"/>'
+  + '<path class="frame" d="M22 26 L38 10"/>'
+  + '<path class="rope" d="M70 10 V24"/>'
+  + '<circle class="part head" data-i="0" cx="70" cy="32" r="8"/>'
+  + '<path class="part" data-i="1" d="M70 40 V68"/>'
+  + '<path class="part" data-i="2" d="M70 48 L57 60"/>'
+  + '<path class="part" data-i="3" d="M70 48 L83 60"/>'
+  + '<path class="part" data-i="4" d="M70 68 L58 86"/>'
+  + '<path class="part" data-i="5" d="M70 68 L82 86"/>'
+  + '</svg>';
+
 // Demo-Zustand fürs Editor-Schaufenster.
 const DEMO_STATE = {
   masked: '_ A _ _ E', wrong: 2, maxWrong: 6,
@@ -77,13 +111,20 @@ export default class HangmanGame {
     this.p = props || {};
     if (this.p.accent) root.style.setProperty('--bx-accent', this.p.accent);
 
+    // 'herzen' = bisheriges Aussehen (Default, damit bestehende Overlays sich
+    // nicht verändern). 'galgen' = zusätzlicher Stil mit echtem Galgengerüst.
+    this.style = STYLES.has(this.p.style) ? this.p.style : 'herzen';
+
     this.el = document.createElement('div');
-    this.el.className = 'bx-hm';
+    this.el.className = 'bx-hm' + (this.style === 'galgen' ? ' galgen' : '');
     this.el.innerHTML = '<div class="bx-hm-card">'
+      + `<div class="bx-hm-gallow">${this.style === 'galgen' ? GALLOW_SVG : ''}</div>`
+      + '<div class="bx-hm-main">'
       + '<div class="bx-hm-word"></div>'
       + '<div class="bx-hm-hearts"></div>'
       + '<div class="bx-hm-guessed"></div>'
       + '<div class="bx-hm-status"></div>'
+      + '</div>'
       + '</div>';
     root.appendChild(this.el);
     this.card = this.el.querySelector('.bx-hm-card');
@@ -152,6 +193,13 @@ export default class HangmanGame {
       h.className = 'bx-hm-heart' + (i < wrong ? ' lost' : '');
       h.textContent = i < wrong ? '🖤' : '❤️';
       hearts.appendChild(h);
+    }
+
+    // Galgen-Stil: Fehlversuche auf die 6 Körperteile abbilden.
+    if (this.style === 'galgen') {
+      const parts = max > 0 ? Math.round((wrong / max) * 6) : 0;
+      const nodes = this.el.querySelectorAll('.bx-hm-gallow .part');
+      nodes.forEach((n, i) => n.classList.toggle('on', i < parts));
     }
 
     // Geratene Buchstaben — falsche (nicht im masked enthalten) rot/durchgestrichen.

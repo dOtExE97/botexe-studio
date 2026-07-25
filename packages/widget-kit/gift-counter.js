@@ -6,14 +6,24 @@
 //          accent?, theme? }  — bei „raise" steigt das Ziel um die ursprüngliche
 //          Zielgröße (15 → 30 → 45 …).
 const STYLE_ID = 'bx-gco-style';
+// --u = „1px bei Standardgröße" (340×360): alle Maße sind Vielfache davon,
+// damit Icon und Zahlen mitwachsen, wenn das Widget größer gezogen wird.
 const CSS = `
 .bx-gco { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:4px; container-type:size; font-family: var(--bx-font-body); text-align:center; }
-.bx-gco-iconwrap { position:relative; display:grid; place-items:center; width: 42cqmin; height: 42cqmin; margin-bottom: 2cqmin; }
-/* rotierender konischer Glow-Ring hinter dem Gift */
+  gap:1%; container-type:size; --u: min(0.294cqi, 0.278cqh); font-family: var(--bx-font-body); text-align:center; }
+.bx-gco-iconwrap { position:relative; display:grid; place-items:center;
+  width: clamp(40px, calc(var(--u) * 143), 560px); height: clamp(40px, calc(var(--u) * 143), 560px); margin-bottom: calc(var(--u) * 7); }
+/* Fortschrittsring: zeigt den ECHTEN Stand (--pct wird in render() gesetzt) —
+   vorher war das ein rein dekorativer Glow, der bei 4/15 schon „voll" aussah. */
 .bx-gco-ring { position:absolute; inset:0; border-radius:50%;
-  background: conic-gradient(from 0deg, transparent, color-mix(in srgb, var(--bx-accent) 85%, white), transparent 45%, color-mix(in srgb, var(--bx-accent) 70%, transparent), transparent);
-  filter: blur(2px); opacity:.85; animation: bx-gco-spin 3.2s linear infinite; -webkit-mask: radial-gradient(circle, transparent 54%, #000 56%); mask: radial-gradient(circle, transparent 54%, #000 56%); }
+  background: conic-gradient(from -90deg,
+    color-mix(in srgb, var(--bx-accent) 90%, white) 0 var(--pct, 0%),
+    rgba(255,255,255,.14) var(--pct, 0%) 100%);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--bx-accent) 55%, transparent));
+  -webkit-mask: radial-gradient(circle, transparent 54%, #000 56%); mask: radial-gradient(circle, transparent 54%, #000 56%); }
+/* Ziel erreicht → der volle Ring dreht als Belohnung. */
+.bx-gco.done .bx-gco-ring { background: conic-gradient(from -90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white), var(--bx-teal));
+  animation: bx-gco-spin 3.2s linear infinite; }
 @keyframes bx-gco-spin { to { transform: rotate(360deg); } }
 .bx-gco-icon { position:relative; width: 70%; height: 70%; display:grid; place-items:center;
   animation: bx-gco-pulse 2.4s ease-in-out infinite; }
@@ -22,10 +32,10 @@ const CSS = `
 @keyframes bx-gco-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 .bx-gco.hit .bx-gco-icon { animation: bx-gco-hit 420ms cubic-bezier(.2,1.6,.35,1); }
 @keyframes bx-gco-hit { 0%{transform:scale(1)} 45%{transform:scale(1.28)} 100%{transform:scale(1)} }
-.bx-gco-title { font-family: var(--bx-font-display); font-size: clamp(13px, 6cqmin, 30px); text-transform:uppercase;
+.bx-gco-title { font-family: var(--bx-font-display); font-size: clamp(11px, calc(var(--u) * 20), 78px); text-transform:uppercase;
   color:#fff; -webkit-text-stroke: 3px var(--bx-ink,#0a0b12); paint-order: stroke fill; line-height:1.05;
   text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 50%, transparent); }
-.bx-gco-prog { font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size: clamp(18px, 9cqmin, 44px);
+.bx-gco-prog { font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size: clamp(16px, calc(var(--u) * 31), 120px);
   color: var(--bx-gold); -webkit-text-stroke: 2.5px var(--bx-ink,#0a0b12); paint-order: stroke fill; }
 .bx-gco.done .bx-gco-prog { color: var(--bx-teal); }
 
@@ -95,6 +105,7 @@ export default class GiftCounter {
     root.appendChild(this.el);
     this.renderIcon();
     this.render(false);
+    if (this.ctx.preview && this.count === 0) this.renderDemo();
     this.preloadIcon();
   }
 
@@ -151,7 +162,19 @@ export default class GiftCounter {
   render(animate) {
     this.el.querySelector('.bx-gco-prog').textContent = `${this.count} / ${this.target}`;
     this.el.classList.toggle('done', this.count >= this.target);
+    // Ring an den echten Fortschritt binden (0..100 %).
+    const pct = Math.max(0, Math.min(100, (this.count / Math.max(1, this.target)) * 100));
+    this.el.style.setProperty('--pct', `${pct}%`);
     if (animate) { this.el.classList.remove('hit'); void this.el.offsetWidth; this.el.classList.add('hit'); }
+  }
+
+  /** Editor-Vorschau: ohne Gifts stünde hier 0/15 bei leerem Ring — mit
+   *  Beispielstand sieht man sofort, wie der Ring später aussieht. Nur Anzeige,
+   *  nichts wird gespeichert; das erste echte Gift überschreibt sie. */
+  renderDemo() {
+    const demo = Math.max(1, Math.round(this.target * 0.4));
+    this.el.querySelector('.bx-gco-prog').textContent = `${demo} / ${this.target}`;
+    this.el.style.setProperty('--pct', '40%');
   }
 
   // Neuer Stream → Zähler + Ziel zurück auf Start, altes Gift-Icon weg.

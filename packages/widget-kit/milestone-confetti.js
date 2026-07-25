@@ -10,7 +10,7 @@ const CSS = `
 .bx-mc { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   container-type:size; font-family: var(--bx-font-body); pointer-events:none; overflow:hidden; }
 .bx-mc-banner { position:relative; display:flex; flex-direction:column; align-items:center; gap:.2em;
-  padding: 3cqmin 6cqmin; border-radius: var(--bx-radius); background: var(--bx-glass);
+  padding: min(3cqi, 5cqh) min(6cqi, 10cqh); border-radius: var(--bx-radius); background: var(--bx-glass);
   box-shadow: var(--bx-shadow), 0 0 60px -14px var(--bx-accent);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   opacity:0; transform: scale(.6) translateY(14px); }
@@ -22,14 +22,14 @@ const CSS = `
 .bx-mc.hide .bx-mc-banner { animation: bx-mc-out 420ms ease forwards; }
 @keyframes bx-mc-pop { 0%{opacity:0; transform: scale(.6) translateY(14px)} 60%{opacity:1; transform: scale(1.06)} 100%{opacity:1; transform: scale(1)} }
 @keyframes bx-mc-out { to { opacity:0; transform: scale(.9) translateY(-10px) } }
-.bx-mc-label { font-family: var(--bx-font-display); font-size: clamp(11px, 4.5cqmin, 22px); letter-spacing:.24em;
+.bx-mc-label { font-family: var(--bx-font-display); font-size: clamp(11px, min(4.5cqi, 7.4cqh), 30px); letter-spacing:.24em;
   text-transform:uppercase; color: var(--bx-muted); }
-.bx-mc-num { font-family: var(--bx-font-num); font-weight:800; line-height:1; font-size: clamp(32px, 18cqmin, 92px);
+.bx-mc-num { font-family: var(--bx-font-num); font-weight:800; line-height:1; font-size: clamp(28px, min(11cqi, 18cqh), 130px);
   color: var(--bx-gold); -webkit-text-stroke: 3px #0a0b12; paint-order: stroke fill;
   text-shadow: 0 0 26px color-mix(in srgb, var(--bx-gold) 60%, transparent); }
-.bx-mc-msg { font-family: var(--bx-font-display); font-size: clamp(12px, 5cqmin, 24px); color: var(--bx-text,#fff);
+.bx-mc-msg { font-family: var(--bx-font-display); font-size: clamp(12px, min(5cqi, 8.2cqh), 34px); color: var(--bx-text,#fff);
   text-shadow: 0 2px 6px rgba(0,0,0,.6); }
-.bx-mc-piece { position:absolute; top:-8%; width: 1.4cqmin; height: 2.2cqmin; border-radius:1px;
+.bx-mc-piece { position:absolute; top:-8%; width: clamp(3px, 1.4cqmin, 14px); height: clamp(5px, 2.2cqmin, 22px); border-radius:1px;
   animation: bx-mc-fall var(--d) linear forwards; }
 @keyframes bx-mc-fall { 0%{opacity:1; transform: translateY(0) rotate(0)} 100%{opacity:0; transform: translateY(120cqh) rotate(720deg)} }
 

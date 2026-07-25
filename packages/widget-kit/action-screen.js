@@ -11,7 +11,10 @@ function ensureStyle() {
   if (styled) return; styled = true;
   const s = document.createElement('style');
   s.textContent = `
-  .bx-as { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+  /* container-type: size → Kartenbreite und Schriftgröße unten dürfen in cq*
+     rechnen und wachsen mit der Fenstergröße mit (vorher: feste px). */
+  .bx-as { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;
+    container-type: size; }
   .bx-as-card { --bx-as-accent: var(--bx-accent,#ff5436); opacity:0; transform:translateY(14px) scale(.96);
     display:flex; flex-direction:column; gap:.35em; padding:1em 1.2em; border-radius:1em; max-width:96%;
     background:linear-gradient(160deg, rgba(20,20,28,.96), rgba(12,12,18,.96)); color:#fff;
@@ -50,6 +53,12 @@ function ensureStyle() {
   .skin-premium .bx-as-card { --bx-as-accent:#ffce54; background:linear-gradient(160deg,#2a2418,#16130c 60%,#0c0a06);
     border:1px solid #ffce5466; box-shadow:0 12px 44px #000a, 0 0 40px #ffce5430, inset 0 1px 0 #ffffff22; }
   .skin-premium .bx-as-ttl { background:linear-gradient(90deg,#fff,#ffe7a8); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  /* Emojis aus dem Verlaufs-Text herauslösen: background-clip:text färbt sonst
+     auch die Krone/den Pokal mit dem Verlauf ein → grau/entfärbt. Das eigene
+     Element bekommt Füllung und Hintergrund zurück und bleibt bunt. */
+  .bx-as-ttl .bx-as-em, .bx-as-sub .bx-as-em {
+    -webkit-text-fill-color: initial; color: initial;
+    background: none; -webkit-background-clip: border-box; background-clip: border-box; }
   /* Arcade XP — Retro, harte Kanten, Neon-Doppelrahmen, Großbuchstaben */
   .skin-arcade .bx-as-card { --bx-as-accent:#34e2ff; background:linear-gradient(160deg,#1a0f3d,#0d0820); border-radius:.25em;
     font-family:var(--bx-font-display,monospace); text-transform:uppercase; letter-spacing:.02em;
@@ -75,6 +84,29 @@ const SIZE = {
   compact: { w: 360, h: 134, font: 15 }, standard: { w: 400, h: 210, font: 17 },
   full: { w: 460, h: 460, font: 20 }, auto: { w: 400, h: 210, font: 17 },
 };
+// Referenz-Box, in der die SIZE-Werte oben genau ihre px-Größe ergeben. Alles
+// wird darauf bezogen in cq* umgerechnet → die Karte wächst mit dem Fenster.
+const REF_W = 420, REF_H = 240;
+
+/** Emojis (und nur die) in eigene <span class="bx-as-em"> auslagern, damit sie
+ *  von `background-clip: text` der Skin-Titel nicht entfärbt werden. Baut reine
+ *  Textknoten → kein innerHTML mit Nutzertext, also keine XSS-Fläche. */
+function fillTextWithEmoji(el, text) {
+  const s = String(text ?? '');
+  el.replaceChildren();
+  if (!s) return;
+  const isEmoji = (seg) => /\p{Extended_Pictographic}/u.test(seg) || /\p{Regional_Indicator}/u.test(seg);
+  const parts = (typeof Intl !== 'undefined' && Intl.Segmenter)
+    ? [...new Intl.Segmenter('de', { granularity: 'grapheme' }).segment(s)].map((x) => x.segment)
+    : [...s];
+  let buf = '';
+  const flush = () => { if (buf) { el.appendChild(document.createTextNode(buf)); buf = ''; } };
+  for (const p of parts) {
+    if (isEmoji(p)) { flush(); const sp = document.createElement('span'); sp.className = 'bx-as-em'; sp.textContent = p; el.appendChild(sp); }
+    else buf += p;
+  }
+  flush();
+}
 const BADGE = {
   'vip-welcome': '👑', 'returning-viewer': '💜', 'game-level-up': '⭐', 'game-winner': '🏆',
   'quiz-reveal': '🧠', 'boss-damage': '⚔️', 'boss-kill': '💀', 'loot-drop': '🎁',
@@ -171,8 +203,12 @@ export default class ActionScreen {
 
     const card = document.createElement('div');
     card.className = `bx-as-card anim-${this.anim}`;
-    card.style.width = `${size.w}px`;
-    card.style.fontSize = `${(size.font * (Number(this.p.fontScale) || 1))}px`;
+    // Breite & Schrift wachsen mit der Layer-Größe mit (Referenz REF_W×REF_H),
+    // bleiben aber in einem lesbaren Korridor. cqi/cqh statt cqmin: in einer
+    // breiten, flachen Box wäre cqmin winzig.
+    const f = size.font * (Number(this.p.fontScale) || 1);
+    card.style.width = `min(96%, ${(size.w / REF_W * 100).toFixed(1)}cqw)`;
+    card.style.fontSize = `clamp(${(f * 0.62).toFixed(1)}px, min(${(f / REF_W * 100).toFixed(2)}cqi, ${(f / REF_H * 100).toFixed(2)}cqh), ${(f * 2.6).toFixed(0)}px)`;
     if (this.p.textColor) card.style.color = this.p.textColor;
 
     const head = document.createElement('div');
@@ -203,8 +239,8 @@ export default class ActionScreen {
     }
     const txt = document.createElement('div');
     txt.innerHTML = `<div class="bx-as-ttl"></div>${m.subtitle ? '<div class="bx-as-sub"></div>' : ''}`;
-    txt.querySelector('.bx-as-ttl').textContent = m.title || '';
-    if (m.subtitle) txt.querySelector('.bx-as-sub').textContent = m.subtitle;
+    fillTextWithEmoji(txt.querySelector('.bx-as-ttl'), m.title || '');
+    if (m.subtitle) fillTextWithEmoji(txt.querySelector('.bx-as-sub'), m.subtitle);
     head.appendChild(txt);
     card.appendChild(head);
 

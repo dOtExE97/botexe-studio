@@ -3,8 +3,10 @@
 // am Objekt draggen/resizen, Eigenschaften rechts im Panel. TikTok-SafeZones
 // werden als Guides eingeblendet (wo Chat/Buttons der TikTok-UI liegen).
 // Speichern validiert (ajv) und pusht live.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ChevronDown,
+  ChevronUp,
   Clapperboard,
   Smartphone,
   Monitor,
@@ -191,7 +193,14 @@ const WIDGET_TYPES: {
   },
   {
     type: 'hangman-game', label: 'Galgenmännchen', desc: 'Chat rät Buchstaben (oder „!guess wort"). Wort-Zeile, Fehlversuche, geratene Buchstaben.',
-    w: 400, h: 170, props: { accent: '#ff5436' }, fields: [ACCENT_FIELD],
+    w: 400, h: 170, props: { style: 'herzen', accent: '#ff5436' },
+    fields: [
+      styleField([
+        { value: 'herzen', label: 'Herzen (Standard)' },
+        { value: 'galgen', label: 'Galgen — die Figur baut sich Stück für Stück auf' },
+      ]),
+      ACCENT_FIELD,
+    ],
   },
   {
     type: 'tic-tac-toe-game', label: 'Tic Tac Toe', desc: '2 Zuschauer duellieren sich aus dem Chat („!join", dann Feld 1–9). 3×3-Gitter, Turn-Anzeige, Gewinnlinie.',
@@ -914,6 +923,34 @@ const CATEGORY_OF: Record<string, string> = {
   media: 'media', 'spotify-now-playing': 'media',
 };
 
+// Verwandten-Gruppen — ein Audit über alle 44 Widgets fand mehrere Gruppen, die
+// sich für den Nutzer kaum unterscheiden (drei Bestenlisten, zwei Laufbänder,
+// drei Ziel-Anzeigen …). Sie ERSATZLOS zusammenzulegen würde bestehende
+// Overlays zerreißen, deshalb bleiben alle Typen erhalten: in der Palette zeigen
+// wir nur den Anführer, die Varianten liegen einen Klick darunter. Effekt ist
+// derselbe (kürzere Liste), Risiko null.
+// Schlüssel = Anführer, Werte = Varianten (die dann NICHT einzeln gelistet werden).
+const RELATED_OF: Record<string, string[]> = {
+  leaderboard: ['top-rotator', 'points-board'],
+  'gift-feed': ['activity-feed'],
+  'goal-bar': ['goal-countdown', 'gift-counter'],
+  countdown: ['subathon'],
+  'top-gift': ['top-streak'],
+  'quiz-game': ['live-poll', 'guess-number'],
+  'tic-tac-toe-game': ['connect-four-game'],
+  'text-ticker': ['command-carousel'],
+  'gift-fireworks': ['gift-cannon'],
+  'heart-rain': ['emojify'],
+};
+// Alle Typen, die als Variante hinter einem Anführer liegen. Bei aktiver SUCHE
+// werden sie trotzdem gefunden — sonst wäre ein Widget unauffindbar, dessen
+// Namen der Nutzer kennt.
+const RELATED_MEMBERS = new Set(Object.values(RELATED_OF).flat());
+// Spezialfälle, die kaum jemand braucht (Sport-Ticker: externer Anbieter, 13
+// technische Optionen, thematisch neben der Spur). Nicht gelöscht — wer sie
+// schon nutzt, behält sie —, aber am Ende der Kategorie eingeklappt.
+const RARELY_USED = new Set(['sport-ticker']);
+
 // widgetType → Label, einmalig aufgebaut. Spart das lineare WIDGET_TYPES.find()
 // pro Layer pro Render in der Ebenen-Liste.
 const WIDGET_LABELS: Record<string, string> = Object.fromEntries(WIDGET_TYPES.map((w) => [w.type, w.label]));
@@ -967,6 +1004,8 @@ export default function OverlayPage() {
   const [soundList, setSoundList] = useState<{ id: string; filename: string }[]>([]);
   const [paletteQuery, setPaletteQuery] = useState('');
   const [activeCat, setActiveCat] = useState('beliebt'); // aktiver Kategorie-Tab
+  const [openGroup, setOpenGroup] = useState<string | null>(null); // aufgeklappte Varianten
+  const [showRare, setShowRare] = useState(false); // Spezialfälle am Listenende
   // ✨ KI-Assistent: Wunsch-Text, Busy-Zustand + Layout-Sicherung für Rückgängig.
   const [aiWish, setAiWish] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
@@ -1394,18 +1433,63 @@ export default function OverlayPage() {
   // bei jedem Re-Render (z.B. während eines Drags).
   // Sichtbare Widgets: bei Suche quer über ALLE Kategorien, sonst nur der aktive
   // Tab. „Beliebt" ist die kuratierte POPULAR_WIDGETS-Reihenfolge.
+  // Bei aktiver Suche wird ALLES durchsucht (auch eingeklappte Varianten und
+  // Spezialfälle) — wer einen Namen kennt, muss ihn finden.
   const visibleItems = useMemo(() => {
     const q = paletteQuery.trim().toLowerCase();
-    const match = (w: (typeof WIDGET_TYPES)[number]) =>
-      !q || w.label.toLowerCase().includes(q) || w.desc.toLowerCase().includes(q);
-    if (q) return WIDGET_TYPES.filter(match);
+    if (q) {
+      return WIDGET_TYPES.filter(
+        (w) => w.label.toLowerCase().includes(q) || w.desc.toLowerCase().includes(q),
+      );
+    }
     if (activeCat === 'beliebt') {
       return POPULAR_WIDGETS
         .map((t) => WIDGET_TYPES.find((w) => w.type === t))
         .filter((w): w is (typeof WIDGET_TYPES)[number] => !!w);
     }
-    return WIDGET_TYPES.filter((w) => (CATEGORY_OF[w.type] ?? 'deko') === activeCat);
+    return WIDGET_TYPES.filter(
+      (w) =>
+        (CATEGORY_OF[w.type] ?? 'deko') === activeCat &&
+        !RELATED_MEMBERS.has(w.type) &&
+        !RARELY_USED.has(w.type),
+    );
   }, [paletteQuery, activeCat]);
+
+  // Die Spezialfälle der aktiven Kategorie, eingeklappt am Listenende.
+  const rareItems = useMemo(() => {
+    if (paletteQuery.trim() || activeCat === 'beliebt') return [];
+    return WIDGET_TYPES.filter(
+      (w) => RARELY_USED.has(w.type) && (CATEGORY_OF[w.type] ?? 'deko') === activeCat,
+    );
+  }, [paletteQuery, activeCat]);
+
+  // Eine Palette-Kachel — je nach Live-Schalter mit echter Vorschau oder als
+  // schlanke Text-Kachel. Ausgelagert, weil Anführer, Varianten und
+  // Spezialfälle dieselbe Darstellung brauchen.
+  const renderPaletteCard = (w: (typeof WIDGET_TYPES)[number]) =>
+    livePalette ? (
+      <WidgetPreview
+        key={w.type}
+        type={w.type}
+        props={w.props}
+        w={w.w}
+        h={w.h}
+        label={w.label}
+        desc={w.desc}
+        overlayBase={overlayBase}
+        soundOn={previewSound}
+        onAdd={() => addWidget(w)}
+      />
+    ) : (
+      <button
+        key={w.type}
+        onClick={() => addWidget(w)}
+        className="clip-slant group rounded-lg border border-studio-border bg-studio-raised p-2.5 text-left transition-colors hover:border-studio-accent/60"
+      >
+        <div className="text-xs font-bold group-hover:text-studio-accent">{w.label}</div>
+        <div className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-studio-muted">{w.desc}</div>
+      </button>
+    );
 
   if (!layout) return <div className="p-6 text-studio-muted">Lade…</div>;
 
@@ -1470,32 +1554,56 @@ export default function OverlayPage() {
           <div className="px-1 py-6 text-center text-[11px] text-studio-muted">Nichts gefunden.</div>
         ) : (
           <div className={livePalette ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2'}>
-            {visibleItems.map((w) =>
-              livePalette ? (
-                <WidgetPreview
-                  key={w.label}
-                  type={w.type}
-                  props={w.props}
-                  w={w.w}
-                  h={w.h}
-                  label={w.label}
-                  desc={w.desc}
-                  overlayBase={overlayBase}
-                  soundOn={previewSound}
-                  onAdd={() => addWidget(w)}
-                />
-              ) : (
-                <button
-                  key={w.label}
-                  onClick={() => addWidget(w)}
-                  className="clip-slant group rounded-lg border border-studio-border bg-studio-raised p-2.5 text-left transition-colors hover:border-studio-accent/60"
-                >
-                  <div className="text-xs font-bold group-hover:text-studio-accent">{w.label}</div>
-                  <div className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-studio-muted">{w.desc}</div>
-                </button>
-              ),
-            )}
+            {visibleItems.map((w) => {
+              // Varianten nur außerhalb der Suche anbieten — bei einer Suche ist
+              // ohnehin schon jedes Widget einzeln in der Trefferliste.
+              const variants = paletteQuery.trim()
+                ? []
+                : (RELATED_OF[w.type] ?? [])
+                    .map((t) => WIDGET_TYPES.find((x) => x.type === t))
+                    .filter((x): x is (typeof WIDGET_TYPES)[number] => !!x);
+              const open = openGroup === w.type;
+              return (
+                <Fragment key={w.type}>
+                  {renderPaletteCard(w)}
+                  {variants.length > 0 && (
+                    <button
+                      onClick={() => setOpenGroup(open ? null : w.type)}
+                      className={`flex items-center justify-center gap-1 rounded-md border border-dashed px-2 py-1 text-[10px] font-bold transition-colors ${
+                        livePalette ? '' : 'col-span-2'
+                      } ${
+                        open
+                          ? 'border-studio-accent/60 text-studio-accent'
+                          : 'border-studio-border text-studio-muted hover:border-studio-accent/40 hover:text-studio-text'
+                      }`}
+                      title="Ähnliche Widgets, die dasselbe anders darstellen"
+                    >
+                      {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                      {open ? 'Varianten zu' : `${variants.length} Variante${variants.length > 1 ? 'n' : ''} zu`} „{w.label}“
+                    </button>
+                  )}
+                  {open && variants.map((v) => renderPaletteCard(v))}
+                </Fragment>
+              );
+            })}
           </div>
+        )}
+        {/* Spezialfälle — vorhanden, aber bewusst aus der Hauptliste heraus. */}
+        {rareItems.length > 0 && (
+          <>
+            <button
+              onClick={() => setShowRare((v) => !v)}
+              className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-studio-border px-2 py-1 text-[10px] font-bold text-studio-muted transition-colors hover:border-studio-accent/40 hover:text-studio-text"
+            >
+              {showRare ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              {rareItems.length} {rareItems.length === 1 ? 'Spezialfall' : 'Spezialfälle'} für Fortgeschrittene
+            </button>
+            {showRare && (
+              <div className={`mt-2 ${livePalette ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2'}`}>
+                {rareItems.map((w) => renderPaletteCard(w))}
+              </div>
+            )}
+          </>
         )}
       </aside>
 

@@ -3,20 +3,22 @@
 // textContent-only (kein HTML-Inject). props: { max?, hideAfterMs? }
 const STYLE_ID = 'bx-cb-style';
 const CSS = `
-.bx-cb { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 7px;
+.bx-cb { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: clamp(3px,1.4cqh,12px);
   overflow: hidden; font-family: var(--bx-font-body); container-type: size;
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%); mask-image: linear-gradient(to bottom, transparent, #000 14%); }
-.bx-cb-msg { display: flex; align-items: flex-start; gap: 9px; padding: 8px 14px 9px 9px; border-radius: 14px;
+.bx-cb-msg { display: flex; align-items: flex-start; gap: clamp(5px,1.8cqi,16px); padding: clamp(3px,1.3cqh,12px) clamp(7px,2.6cqi,22px) clamp(4px,1.5cqh,13px) clamp(4px,1.4cqi,14px); border-radius: 14px;
   background: var(--bx-glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   box-shadow: 0 6px 16px -8px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.05) inset;
   transform: translateY(14px); opacity: 0; animation: bx-cb-in 280ms cubic-bezier(.2,1.3,.4,1) forwards; }
 .bx-cb-msg.fade { animation: bx-cb-out 420ms ease-in forwards; }
-.bx-cb-pic { width: clamp(16px,6cqmin,26px); height: clamp(16px,6cqmin,26px); border-radius: 50%; flex: none; margin-top: 1px; background: #1a1c28 center/cover;
-  box-shadow: 0 0 0 2px rgba(255,255,255,.12); }
+/* Eigener Groessen-Container, damit der Fallback-Buchstabe (.bx-av::after) mitwaechst. */
+.bx-cb-pic { width: clamp(17px,min(6.6cqi,7.5cqh),46px); aspect-ratio: 1/1; height: auto; border-radius: 50%; flex: none; margin-top: 1px;
+  container-type: size; box-shadow: 0 0 0 2px rgba(255,255,255,.12); }
+.bx-cb-pic::after { font-size: 52cqmin; }
 .bx-cb-body { min-width: 0; }
-.bx-cb-name { font-family: var(--bx-font-display); font-size: clamp(9px,3.4cqmin,13px); text-transform: uppercase; letter-spacing: .03em;
+.bx-cb-name { font-family: var(--bx-font-display); font-size: clamp(9px,min(3.4cqi,4.2cqh),22px); text-transform: uppercase; letter-spacing: .03em;
   text-shadow: 0 1px 3px rgba(0,0,0,.8); }
-.bx-cb-text { font-size: clamp(10px,4cqmin,15px); line-height: 1.32; color: var(--bx-text,#f2f3f8); text-shadow: 0 1px 2px rgba(0,0,0,.6);
+.bx-cb-text { font-size: clamp(11px,min(4.4cqi,5.4cqh),28px); line-height: 1.28; color: var(--bx-text,#f2f3f8); text-shadow: 0 1px 2px rgba(0,0,0,.6);
   word-break: break-word; overflow-wrap: anywhere; }
 @keyframes bx-cb-in { to { transform: translateY(0); opacity: 1; } }
 @keyframes bx-cb-out { to { opacity: 0; } }
@@ -24,7 +26,7 @@ const CSS = `
 /* ── Stil „Clean" — keine Bubbles: pure Textzeilen mit harter Schattenkante,
    minimaler Footprint (klassischer Gamer-Chat direkt überm Gameplay). */
 .bx-cb-clean .bx-cb-msg { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
-  padding: 2px 4px; border-radius: 0; }
+  padding: clamp(1px,.5cqh,4px) 4px; border-radius: 0; }
 .bx-cb-clean .bx-cb-pic { box-shadow: 0 2px 6px rgba(0,0,0,.7); }
 .bx-cb-clean .bx-cb-name { text-shadow: 0 1px 0 rgba(0,0,0,.9), 0 2px 6px rgba(0,0,0,.9); }
 .bx-cb-clean .bx-cb-text { color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.95), 0 2px 8px rgba(0,0,0,.9); }
@@ -45,8 +47,35 @@ function nameColor(name) { let h = 0; for (let i = 0; i < name.length; i++) h = 
 /** URL sicher in CSS url("…") einbetten — NUR Quotes escapen, nie
  *  (nach-)encodieren: data-URIs und vor-encodierte CDN-URLs blieben sonst kaputt. */
 function cssUrl(u) { return String(u).replace(/[\\"']/g, '\\$&').replace(/[\n\r]/g, ''); }
+
+/* ── Avatar-Fallback (bewusst je Widget dupliziert, kein gemeinsames JS-Modul):
+   ohne Bild — oder wenn das Laden scheitert — erscheint der Anfangsbuchstabe
+   auf einem aus dem Namen abgeleiteten Farbton statt eines schwarzen Kreises. */
+function avHue(name) { const s = String(name || ''); let h = 0; for (let i = 0; i < s.length; i++) h += s.charCodeAt(i); return h % 360; }
+function avSet(el, name, url) {
+  if (!el) return;
+  const s = String(name || '').trim();
+  el.classList.add('bx-av');
+  el.dataset.initial = (s[0] || '?').toUpperCase();
+  el.style.setProperty('--bx-av-h', String(avHue(s)));
+  if (!url) return;
+  const img = new Image();
+  img.onload = () => { if (el.isConnected) { el.style.backgroundImage = `url("${cssUrl(url)}")`; el.classList.add('bx-av-img'); } };
+  img.src = url;
+}
+/** Demo-Nachrichten für die Editor-Vorschau — sonst bleibt die Box dort leer. */
+const DEMO = [
+  ['Mia', 'Das Overlay ist mega 🔥'],
+  ['LeonGG', 'gg wp'],
+  ['Nova', 'Wie lange streamst du heute noch?'],
+  ['BigBen', 'Bin neu hier — cooler Stream!'],
+  ['Sara_99', 'Ich muss gleich leider weg, aber morgen wieder ❤'],
+  ['Kaan', 'W stream'],
+  ['Pia', 'erster'],
+  ['ExE', 'Kommt gleich noch eine Runde?'],
+];
 export default class ChatBox {
-  constructor(root, props) {
+  constructor(root, props, ctx) {
     ensureStyle();
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.max = Math.min(30, Math.max(3, Number(props.max ?? 8)));
@@ -56,6 +85,11 @@ export default class ChatBox {
     this.el.className = `bx-cb${this.style !== 'glas' ? ` bx-cb-${this.style}` : ''}`;
     root.appendChild(this.el);
     this.timers = new Set();
+    if (ctx?.preview) {
+      for (const [nick, text] of DEMO.slice(-this.max)) {
+        this.onEvent({ type: 'chat', ts: Date.now(), user: { id: nick, nickname: nick }, text });
+      }
+    }
   }
   onEvent(event) {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
@@ -69,7 +103,7 @@ export default class ChatBox {
     // Sticker-Stil hat helle Bubbles → dunklere Namensfarbe, sonst unlesbar.
     nameEl.style.color = this.style === 'sticker' ? nameColor(name).replace('88% 70%', '80% 34%') : nameColor(name);
     msg.querySelector('.bx-cb-text').textContent = event.text;
-    if (event.user?.profilePic) msg.querySelector('.bx-cb-pic').style.backgroundImage = `url("${cssUrl(event.user.profilePic)}")`;
+    avSet(msg.querySelector('.bx-cb-pic'), name, event.user?.profilePic);
     this.el.appendChild(msg);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();
     if (this.hideAfterMs > 0) {

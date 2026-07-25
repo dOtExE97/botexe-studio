@@ -32,20 +32,25 @@ const PLATFORMS = {
 };
 
 const CSS = `
-.bx-sr { position:absolute; inset:0; display:flex; align-items:center; justify-content:flex-start; font-family: var(--bx-font-body); overflow:hidden; }
-.bx-sr-pill { display:flex; align-items:center; gap:12px; padding:8px 8px 8px 10px; border-radius:999px; max-width:100%;
+/* Ohne container-type liefen die cq-Einheiten unten ins Leere — die Pille blieb
+   beim Vergrößern winzig. Die Pille ist ein BREITES Element: ihre Größe hängt an
+   der HÖHE der Box (cqh); cqi deckelt nur in sehr schmalen Boxen. Alles im
+   Inneren ist in em ausgedrückt und wächst damit automatisch mit. */
+.bx-sr { position:absolute; inset:0; display:flex; align-items:center; justify-content:flex-start; font-family: var(--bx-font-body); overflow:hidden;
+  container-type:size; font-size: clamp(13px, min(36cqh, 7.5cqi), 130px); }
+.bx-sr-pill { display:flex; align-items:center; gap:.32em; padding:.22em .22em .22em .28em; border-radius:999px; max-width:100%;
   opacity:0; transform: translateX(-24px) scale(.92); }
 .bx-sr.show .bx-sr-pill { animation: bx-sr-in 520ms cubic-bezier(.2,1.3,.35,1) forwards; }
 .bx-sr.hide .bx-sr-pill { animation: bx-sr-out 420ms cubic-bezier(.5,0,.7,0) forwards; }
 @keyframes bx-sr-in { 0%{opacity:0; transform:translateX(-24px) scale(.92)} 100%{opacity:1; transform:none} }
 @keyframes bx-sr-out { 0%{opacity:1; transform:none} 100%{opacity:0; transform:translateX(24px) scale(.92)} }
-.bx-sr-ico { width: clamp(34px,12cqmin,52px); height: clamp(34px,12cqmin,52px); flex:none; }
-.bx-sr-ico svg { width:100%; height:100%; display:block; border-radius:28%; box-shadow:0 3px 8px rgba(0,0,0,.35); }
+.bx-sr-ico { width:1.5em; height:1.5em; flex:none; }
+.bx-sr-ico svg { width:100%; height:100%; display:block; border-radius:28%; box-shadow:0 .08em .22em rgba(0,0,0,.35); }
 .bx-sr-txt { display:flex; flex-direction:column; min-width:0; }
-.bx-sr-plat { font-family: var(--bx-font-display); font-size: clamp(10px,3.4cqmin,14px); letter-spacing:.12em; text-transform:uppercase; opacity:.7; }
-.bx-sr-name { font-family: var(--bx-font-display); font-size: clamp(15px,5.4cqmin,26px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.05; }
-.bx-sr-btn { margin-left:6px; flex:none; display:flex; align-items:center; gap:5px; padding:7px 15px; border-radius:999px;
-  font-family: var(--bx-font-display); font-size: clamp(12px,4cqmin,17px); white-space:nowrap; }
+.bx-sr-plat { font-family: var(--bx-font-display); font-size:.4em; letter-spacing:.12em; text-transform:uppercase; opacity:.75; }
+.bx-sr-name { font-family: var(--bx-font-display); font-size:.76em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.05; }
+.bx-sr-btn { margin-left:.18em; flex:none; display:flex; align-items:center; gap:.3em; padding:.4em .85em; border-radius:999px;
+  font-family: var(--bx-font-display); font-size:.5em; white-space:nowrap; }
 .bx-sr-btn svg { width:1em; height:1em; }
 /* — Style: pill (TikFinity-Look: helle Pille, Marken-Follow-Button) — */
 .bx-st-pill .bx-sr-pill { background:#fff; box-shadow:0 10px 30px -8px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.05); }
@@ -59,7 +64,7 @@ const CSS = `
 .bx-st-glas .bx-sr-name { color: var(--bx-text,#fff); }
 .bx-st-glas .bx-sr-btn { color:#fff; }
 /* — Style: neon (transparent + Akzent-Glow) — */
-.bx-st-neon .bx-sr-pill { background: rgba(8,9,14,.55); border:1.5px solid var(--bx-accent); box-shadow:0 0 22px -4px var(--bx-accent); }
+.bx-st-neon .bx-sr-pill { background: rgba(8,9,14,.55); border:max(1.5px,.05em) solid var(--bx-accent); box-shadow:0 0 22px -4px var(--bx-accent); }
 .bx-st-neon .bx-sr-plat { color: var(--bx-muted); }
 .bx-st-neon .bx-sr-name { color:#fff; text-shadow:0 0 10px var(--bx-accent); }
 .bx-st-neon .bx-sr-btn { color:#fff; }
