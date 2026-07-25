@@ -11,11 +11,11 @@ const CSS = `
   font-family: var(--bx-font-body); background: var(--bx-glass); border-radius: var(--bx-radius);
   box-shadow: var(--bx-shadow), 0 0 44px -16px var(--bx-accent); overflow:hidden;
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
-.bx-sp-title { display:flex; align-items:center; gap:8px; font-family: var(--bx-font-display);
-  font-size: clamp(13px, 5cqmin, 52px); letter-spacing:.16em; text-transform:uppercase; color: var(--bx-text, #fff);
+.bx-sp-title { display:flex; align-items:center; gap:.5em; font-family: var(--bx-font-display);
+  font-size: clamp(8px, 5cqmin, 52px); letter-spacing:.16em; text-transform:uppercase; color: var(--bx-text, #fff);
   text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
-.bx-sp-title .dot { width:.36em; height:.36em; border-radius:50%; background:#ff3b3b; box-shadow:0 0 10px #ff3b3b; animation: bx-sp-blink 1.4s infinite; }
-.bx-sp-title .tab { margin-left:auto; font-size: clamp(9px,2.8cqmin,28px); letter-spacing:.14em; color: var(--bx-teal); opacity:.9; }
+.bx-sp-title .dot { flex:none; width:.36em; height:.36em; border-radius:50%; background:#ff3b3b; box-shadow:0 0 10px #ff3b3b; animation: bx-sp-blink 1.4s infinite; }
+.bx-sp-title .tab { margin-left:auto; font-size: clamp(6px,2.8cqmin,28px); letter-spacing:.14em; color: var(--bx-teal); opacity:.9; }
 @keyframes bx-sp-blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 .bx-sp-list { display:flex; flex-direction:column; gap:1.6cqmin; overflow:hidden; flex:1; }
 /* Zeilen brauchen einen kräftigen eigenen Grund: auf hellem Video verschwindet
@@ -25,12 +25,12 @@ const CSS = `
   transition: background .3s; }
 .bx-sp-team { display:flex; align-items:center; gap:.4em; min-width:0; }
 .bx-sp-team.away { flex-direction:row-reverse; text-align:right; }
-.bx-sp-team img { width: clamp(18px, 5cqmin, 56px); height: clamp(18px, 5cqmin, 56px); object-fit:contain; flex:none; }
-.bx-sp-team span { font-family: var(--bx-font-display); font-size: clamp(11px, 3.4cqmin, 36px); color:#fff;
+.bx-sp-team img { width: clamp(9px, 5cqmin, 56px); height: clamp(9px, 5cqmin, 56px); object-fit:contain; flex:none; }
+.bx-sp-team span { font-family: var(--bx-font-display); font-size: clamp(7px, 3.4cqmin, 36px); color:#fff;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 1px 3px rgba(0,0,0,.75); }
-.bx-sp-score { font-family: var(--bx-font-display); font-size: clamp(14px, 4.6cqmin, 48px); color: var(--bx-gold);
+.bx-sp-score { font-family: var(--bx-font-display); font-size: clamp(8px, 4.6cqmin, 48px); color: var(--bx-gold);
   -webkit-text-stroke: max(2px,.07em) #0a0b12; paint-order: stroke fill; min-width: 2.6em; text-align:center; }
-.bx-sp-min { font-family: var(--bx-font-mono); font-size: clamp(9px, 2.6cqmin, 26px); text-align:center; margin-top:2px; }
+.bx-sp-min { font-family: var(--bx-font-mono); font-size: clamp(6px, 2.6cqmin, 26px); text-align:center; margin-top:2px; }
 .bx-sp-min.live { color:#ff5b5b; } .bx-sp-min.fin { color: var(--bx-muted); } .bx-sp-min.sched { color: var(--bx-teal); }
 .bx-sp-row.goal { animation: bx-sp-goal 1.4s ease; }
 @keyframes bx-sp-goal {
@@ -38,25 +38,27 @@ const CSS = `
   15% { background: color-mix(in srgb, var(--bx-gold) 55%, transparent); transform: scale(1.04); }
   100% { background: rgba(8,10,18,.42); transform: scale(1); } }
 .bx-sp-empty { display:flex; flex:1; align-items:center; justify-content:center; text-align:center;
-  font-size: clamp(11px, 3.2cqmin, 30px); letter-spacing:.12em; color: var(--bx-muted); padding: 10px; }
+  font-size: clamp(7px, 3.2cqmin, 30px); letter-spacing:.12em; color: var(--bx-muted); padding: 10px; }
 /* — Tabelle — */
 .bx-sp-table { display:flex; flex-direction:column; gap:.8cqmin; overflow:hidden; flex:1; }
-.bx-sp-grp { font-family: var(--bx-font-display); font-size: clamp(10px,3cqmin,30px); letter-spacing:.14em;
+.bx-sp-grp { font-family: var(--bx-font-display); font-size: clamp(7px,3cqmin,30px); letter-spacing:.14em;
   text-transform:uppercase; color: var(--bx-teal); margin:.3em .15em .1em; }
 .bx-sp-trow { display:grid; grid-template-columns: 1.6em 1fr 2.2em 2.4em 2.4em; align-items:center; gap:.4em;
   padding:.28em .55em; border-radius:.5em; background: rgba(8,10,18,.66); border:1px solid rgba(255,255,255,.14);
-  font-size: clamp(10px, 3cqmin, 32px); }
+  font-size: clamp(7px, 3cqmin, 32px); }
 .bx-sp-trow.me { border-color: var(--bx-gold); box-shadow: 0 0 14px -4px var(--bx-gold) inset; }
 .bx-sp-trow .pos { font-family: var(--bx-font-mono); color: var(--bx-muted); text-align:center; }
 .bx-sp-trow .tm { display:flex; align-items:center; gap:6px; min-width:0; }
-.bx-sp-trow .tm img { width: clamp(15px,4cqmin,44px); height: clamp(15px,4cqmin,44px); object-fit:contain; flex:none; }
+.bx-sp-trow .tm img { width: clamp(8px,4cqmin,44px); height: clamp(8px,4cqmin,44px); object-fit:contain; flex:none; }
 .bx-sp-trow .tm span { font-family: var(--bx-font-display); color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bx-sp-trow .sp, .bx-sp-trow .gd { font-family: var(--bx-font-mono); text-align:center; color: var(--bx-muted); }
 .bx-sp-trow .pt { font-family: var(--bx-font-display); text-align:center; color: var(--bx-gold); }
 .bx-sp-thead { display:grid; grid-template-columns: 1.6em 1fr 2.2em 2.4em 2.4em; gap:.4em; padding:0 .55em;
-  font-family: var(--bx-font-mono); font-size: clamp(8px,2.4cqmin,24px); letter-spacing:.06em; color: var(--bx-muted); opacity:.85; }
+  font-family: var(--bx-font-mono); font-size: clamp(6px,2.4cqmin,24px); letter-spacing:.06em; color: var(--bx-muted); opacity:.85; }
 .bx-sp-page { display:flex; flex-direction:column; flex:1; min-height:0; }
 .bx-sp-page.hide { display:none; }
+/* Zeile passt nicht mehr ganz in die Box → ausblenden statt unten abschneiden. */
+.bx-sp .bx-off { display:none; }
 /* Tor-Feier */
 .bx-sp.goalflash { box-shadow: var(--bx-shadow), 0 0 60px -4px #2bff88, 0 0 0 2.5px #2bff88 inset !important; }
 .bx-sp-goal-banner { position:absolute; inset:0; display:flex; align-items:center; overflow:hidden; pointer-events:none; opacity:0; }
@@ -138,6 +140,10 @@ export default class SportTicker {
     this.matchesPage = this.el.querySelector('.page-matches');
     this.tablePage = this.el.querySelector('.page-table');
     root.appendChild(this.el);
+    // Zieht der Nutzer die Box kleiner, passen die eingestellten Zeilen nicht
+    // mehr hinein — dann zeigen wir eben weniger, statt unten abzuschneiden.
+    this.ro = new ResizeObserver(() => this.fit());
+    this.ro.observe(this.el);
 
     // Editor-Schaufenster: Demo-Spiele/-Tabelle statt leerer Karte. Kein Poll,
     // kein Tor-Sound — nur Anschauungsmaterial zum Platzieren und Größen.
@@ -171,6 +177,30 @@ export default class SportTicker {
     this.matchesPage.classList.toggle('hide', showTable);
     this.tablePage.classList.toggle('hide', !showTable);
     this.tabLabel.textContent = this.view === 'both' ? (showTable ? 'Tabelle' : 'Spiele') : '';
+    this.fit();
+  }
+
+  /** Sichtbare Zeilenzahl aus der Boxhoehe ableiten statt stur die eingestellte
+   *  Hoechstzahl zu rendern: was nicht mehr ganz hineinpasst, wird ausgeblendet
+   *  (nicht geloescht — bei einer groesseren Box kommt es zurueck). */
+  fit() {
+    this.fitList(this.listEl);
+    this.fitList(this.tableEl);
+  }
+
+  fitList(box) {
+    if (!box) return;
+    const avail = box.clientHeight;
+    const kids = Array.from(box.children);
+    if (!avail || kids.length === 0) return;
+    for (const k of kids) k.classList.remove('bx-off');
+    const top = kids[0].offsetTop;
+    let keep = 0;
+    for (const k of kids) {
+      if (keep > 0 && k.offsetTop + k.offsetHeight - top > avail) break;
+      keep++;
+    }
+    for (let i = keep; i < kids.length; i++) kids[i].classList.add('bx-off');
   }
   flip() { this.page = this.page === 'table' ? 'matches' : 'table'; this.applyPage(); }
 
@@ -210,6 +240,7 @@ export default class SportTicker {
     if (goalIds.size > 0 && this.goalBanner) this.celebrateGoal();
 
     this.listEl.innerHTML = shown.map((m) => this.rowHtml(m, goalIds.has(m.id))).join('');
+    this.fit();
     this.firstLoad = false;
   }
 
@@ -235,6 +266,7 @@ export default class SportTicker {
         <span class="pt">${r.points}</span>
       </div>`;
     }).join('');
+    this.fit();
   }
 
   celebrateGoal() {
@@ -261,6 +293,7 @@ export default class SportTicker {
   }
 
   destroy() {
+    this.ro?.disconnect();
     if (this.timer) clearInterval(this.timer);
     if (this.slideTimer) clearInterval(this.slideTimer);
     clearTimeout(this.goalTimer);

@@ -10,7 +10,7 @@ const STYLE_ID = 'bx-hm-style';
 const CSS = `
 .bx-hm { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:.55em; container-type:size; font-family: var(--bx-font-display, var(--bx-font-body, sans-serif));
-  font-size: clamp(9px, 9cqmin, 64px); --bx-hm-accent: var(--bx-accent, #ff5436); }
+  font-size: clamp(6px, 9cqmin, 64px); --bx-hm-accent: var(--bx-accent, #ff5436); }
 /* idle → kein Spiel aktiv: komplett unsichtbar, nimmt keine Klicks an */
 .bx-hm.is-idle { opacity:0; pointer-events:none; }
 /* Karte mit fester Zielgröße ~380x150 — skaliert mit, wenn der Layer gezoomt wird */
@@ -27,7 +27,7 @@ const CSS = `
 /* Wort-Zeile: jeder Slot eine Box */
 .bx-hm-word { display:flex; flex-wrap:wrap; justify-content:center; gap:.28em; }
 .bx-hm-slot { min-width:1.15em; height:1.5em; padding:0 .2em; display:grid; place-items:center;
-  font-weight:800; font-size:clamp(16px, 10.5cqmin, 96px); line-height:1; border-radius:.22em;
+  font-weight:800; font-size:clamp(9px, 10.5cqmin, 96px); line-height:1; border-radius:.22em;
   background:rgba(10,11,18,.55); border-bottom:.14em solid rgba(255,255,255,.45); color:#fff8;
   text-transform:uppercase; transition: color .2s ease, background .2s ease, border-color .2s ease; }
 .bx-hm-slot.filled { color:#fff; background:color-mix(in srgb, var(--bx-hm-accent) 28%, transparent);
@@ -55,16 +55,16 @@ const CSS = `
 .bx-hm.lost .bx-hm-gallow .part.on { stroke:#ff6b6b; }
 .bx-hm.won .bx-hm-gallow .part.on { stroke: var(--bx-teal,#2ee6a6); }
 /* Fehlversuch-Leiste (Herzen) */
-.bx-hm-hearts { display:flex; gap:.2em; font-size:clamp(14px, 7.8cqmin, 72px); line-height:1; }
+.bx-hm-hearts { display:flex; gap:.2em; font-size:clamp(8px, 7.8cqmin, 72px); line-height:1; }
 .bx-hm-heart { opacity:1; transition: transform .2s ease, opacity .2s ease; }
 .bx-hm-heart.lost { opacity:.28; filter:grayscale(1); transform:scale(.85); }
 /* Reihe der geratenen Buchstaben */
 .bx-hm-guessed { display:flex; flex-wrap:wrap; justify-content:center; gap:.24em;
-  font-size:clamp(11px, 5.8cqmin, 52px); }
+  font-size:clamp(7px, 5.8cqmin, 52px); }
 .bx-hm-g { padding:.08em .34em; border-radius:.3em; font-weight:700; text-transform:uppercase;
   background:rgba(10,11,18,.6); color:#fff; }
 .bx-hm-g.wrong { background:rgba(255,77,77,.18); color:#ff8a8a; text-decoration:line-through; }
-.bx-hm-status { font-size:clamp(12px, 6.7cqmin, 60px); font-weight:800; letter-spacing:.02em;
+.bx-hm-status { font-size:clamp(7px, 6.7cqmin, 60px); font-weight:800; letter-spacing:.02em;
   text-shadow:0 1px 3px rgba(0,0,0,.55); }
 .bx-hm.won .bx-hm-status { color: var(--bx-teal,#2ee6a6); }
 .bx-hm.lost .bx-hm-status { color:#ff6b6b; }

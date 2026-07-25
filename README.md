@@ -39,7 +39,7 @@ Dein TikTok-Live  →  bOtExE Studio (auf deinem PC)  →  ein Overlay-Link  →
 - 🔥 **Effekte**: Feuerwerk, Herz-Regen, Konfetti, Geschenk-Kanone, Hype-Train
 - 🗳️ **Punkte & Store** wie Twitch-Kanalpunkte (Zuschauer sammeln & lösen ein)
 - 🗣️ **TTS** — Chat vorlesen & Ansagen (Gratis-Stimme sofort, Premium per eigenem Key)
-- 🎨 **43 Premium-Widgets** ([alle ansehen 🖼️](docs/widgets.md)), 24 Designs, alles einstellbar — und in der Liste schon **live als Vorschau** sichtbar
+- 🎨 **44 Premium-Widgets** ([alle ansehen 🖼️](docs/widgets.md)), 24 Designs, alles einstellbar — und in der Liste schon **live als Vorschau** sichtbar
 - 🔌 **OBS-Steuerung, Stream-Deck, Streamer.bot, Befehle, Sport-Liveticker** u. v. m.
 
 <div align="center">
@@ -54,7 +54,7 @@ Dein TikTok-Live  →  bOtExE Studio (auf deinem PC)  →  ein Overlay-Link  →
 |:---:|:---:|:---:|
 | ![Glücksrad](docs/wheel.png) | ![Designs](docs/widget-styles.png) | ![Coin-Glas](docs/overlay-gift-jar.png) |
 
-**→ [Alle 43 Widgets in der Galerie ansehen](docs/widgets.md)**
+**→ [Alle 44 Widgets in der Galerie ansehen](docs/widgets.md)**
 
 </div>
 

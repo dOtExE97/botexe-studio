@@ -604,7 +604,13 @@ const WIDGET_TYPES: {
     w: 320, h: 320, props: { title: '', style: 'glas', accent: '#ffd23e', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Größtes Gift".' },
-      styleField([{ value: 'glas', label: 'Glas (Panel)' }, { value: 'sticker', label: 'Sticker (freistehend, ohne Panel)' }]),
+      styleField([
+        { value: 'glas', label: 'Glas (Panel)' },
+        { value: 'sticker', label: 'Sticker (freistehend, ohne Panel)' },
+        { value: 'podest', label: 'Podest — das Gift auf einer goldenen Siegertreppe im Spotlight-Kegel' },
+        { value: 'vitrine', label: 'Vitrine — hinter Glas im Schaukasten, mit graviertem Messingschild' },
+        { value: 'neonschild', label: 'Neonschild — Leuchtreklame mit doppelter Neonröhre' },
+      ]),
       ACCENT_FIELD, ...STYLE_FIELDS,
     ],
   },
@@ -613,7 +619,13 @@ const WIDGET_TYPES: {
     w: 340, h: 320, props: { title: '', style: 'glas', accent: '#ff5e8a', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift, leer = „Höchste Combo".' },
-      styleField([{ value: 'glas', label: 'Glas (Panel)' }, { value: 'sticker', label: 'Sticker (freistehend, ohne Panel)' }]),
+      styleField([
+        { value: 'glas', label: 'Glas (Panel)' },
+        { value: 'sticker', label: 'Sticker (freistehend, ohne Panel)' },
+        { value: 'flamme', label: 'Flammensäule — brennt mit jeder Combo-Stufe höher' },
+        { value: 'bon', label: 'Quittung — Kassenbon mit Zackenkante und Barcode' },
+        { value: 'comic', label: 'Comic-Knall — die Combo in einem gezackten Explosionsstern' },
+      ]),
       ACCENT_FIELD, ...STYLE_FIELDS,
     ],
   },
@@ -708,6 +720,34 @@ const WIDGET_TYPES: {
       ]),
       { key: 'size', label: 'Größe (px)', type: 'number', hint: 'Wie groß die Emojis fliegen.' },
       { key: 'max', label: 'Max. pro Nachricht', type: 'number', hint: 'Wie viele Emojis aus EINER Chat-Nachricht fliegen (Spam-Schutz).' },
+    ],
+  },
+  {
+    type: 'gift-menu', label: 'Geschenk-Menü', desc: 'Die Preistafel deines Streams: zeigt, welches Geschenk was auslöst — entweder eins nach dem anderen groß eingeblendet oder als durchlaufendes Band. Mit echtem Gift-Bild und Coin-Preis. Kann die Einträge automatisch aus deinen Triggern lesen, dann pflegst du nichts doppelt.',
+    w: 420, h: 520,
+    props: { mode: 'rotation', items: '', source: 'liste', title: 'Geschenke & was sie auslösen', showTitle: true, showCoins: true, intervalMs: 6000, speed: 26, style: 'karte', accent: '#ff5e8a', theme: 'glas' },
+    fields: [
+      { key: 'mode', label: 'Darstellung', type: 'select', options: [
+        { value: 'rotation', label: 'Eins nach dem anderen' },
+        { value: 'leiste', label: 'Laufband' },
+      ], hint: 'Eins nach dem anderen blendet jedes Geschenk groß ein — gut für schmale, hohe Ecken. Das Laufband lässt alle Einträge durchlaufen und braucht nur einen flachen Streifen.' },
+      { key: 'source', label: 'Woher kommen die Einträge', type: 'select', options: [
+        { value: 'liste', label: 'Meine Liste unten' },
+        { value: 'trigger', label: 'Automatisch aus meinen Triggern' },
+      ], hint: 'Automatisch: die Tafel liest deine Geschenk-Trigger und bleibt von allein aktuell, wenn du dort etwas änderst.' },
+      { key: 'items', label: 'Geschenke + was sie auslösen', type: 'gift-command-list', hint: 'Pro Zeile ein Geschenk wählen und dazuschreiben, was es auslöst. Bild und Coin-Preis kommen automatisch dazu. (Wird bei „Automatisch aus meinen Triggern" nicht benutzt.)' },
+      styleField([
+        { value: 'karte', label: 'Glaskarte (Standard)' },
+        { value: 'tafel', label: 'Sticker-Tafel (bunt, TikTok-Look)' },
+        { value: 'neon', label: 'Neon' },
+      ]),
+      { key: 'title', label: 'Überschrift', type: 'text' },
+      { key: 'showTitle', label: 'Überschrift zeigen', type: 'boolean' },
+      { key: 'showCoins', label: 'Coin-Preis zeigen', type: 'boolean' },
+      { key: 'intervalMs', label: 'Wie lange ein Geschenk stehen bleibt', type: 'seconds', hint: 'Nur bei „Eins nach dem anderen".' },
+      { key: 'speed', label: 'Tempo des Laufbands', type: 'number', hint: 'Sekunden pro Durchlauf — größer = langsamer. Nur beim Laufband.' },
+      ACCENT_FIELD,
+      THEME_FIELD,
     ],
   },
   {
@@ -907,7 +947,7 @@ const PALETTE_CATEGORIES: { id: string; label: string; icon: typeof Star }[] = [
 // (heart-rain statt stream-boss: null Konfiguration, sofort sichtbarer Effekt.)
 const POPULAR_WIDGETS = [
   'gift-alert', 'follow-alert', 'stat-chips', 'goal-bar', 'leaderboard',
-  'chat-box', 'gift-feed', 'top-gift', 'heart-rain', 'wheel',
+  'chat-box', 'gift-feed', 'gift-menu', 'top-gift', 'heart-rain', 'wheel',
 ];
 // JEDES Widget MUSS hier stehen — fehlende fallen auf 'deko' zurück und sind
 // dann im falschen Tab unauffindbar (genau so verschwand mal die halbe
@@ -916,10 +956,13 @@ const CATEGORY_OF: Record<string, string> = {
   'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts', 'gift-cannon': 'alerts', 'action-screen': 'alerts',
   bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele', giveaway: 'spiele', 'gift-battle': 'spiele', 'live-poll': 'spiele',
   'quiz-game': 'spiele', 'hangman-game': 'spiele', 'tic-tac-toe-game': 'spiele', 'connect-four-game': 'spiele', 'stream-boss': 'spiele',
-  'gift-jar': 'gifts', 'gift-counter': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts', 'goal-countdown': 'gifts',
+  'gift-menu': 'gifts', 'gift-jar': 'gifts', 'gift-counter': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts', 'goal-countdown': 'gifts',
   'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',
   'stat-chips': 'stats', counter: 'stats',
-  'heart-rain': 'deko', 'text-ticker': 'deko', 'social-rotator': 'deko', emojify: 'deko', 'command-carousel': 'deko', 'text-label': 'deko',
+  // Das Befehl-Karussell zeigt Geschenke — es gehört zu „Gifts & Ziele", nicht
+  // zur Deko, und liegt dort als Variante unter dem Geschenk-Menü.
+  'command-carousel': 'gifts',
+  'heart-rain': 'deko', 'text-ticker': 'deko', 'social-rotator': 'deko', emojify: 'deko', 'text-label': 'deko',
   media: 'media', 'spotify-now-playing': 'media',
 };
 
@@ -938,7 +981,10 @@ const RELATED_OF: Record<string, string[]> = {
   'top-gift': ['top-streak'],
   'quiz-game': ['live-poll', 'guess-number'],
   'tic-tac-toe-game': ['connect-four-game'],
-  'text-ticker': ['command-carousel'],
+  // Das Geschenk-Menü kann alles, was das Befehl-Karussell kann, und mehr
+  // (Rotations-Modus, Coin-Preis, Einträge automatisch aus den Triggern) —
+  // deshalb führt es, das Karussell liegt als Variante darunter.
+  'gift-menu': ['command-carousel'],
   'gift-fireworks': ['gift-cannon'],
   'heart-rain': ['emojify'],
 };

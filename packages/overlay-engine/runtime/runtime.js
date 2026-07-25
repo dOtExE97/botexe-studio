@@ -267,6 +267,17 @@ function applyWidgetStyle(el, props, w, h) {
   }
   if (props.textColor) el.style.setProperty('--bx-text', String(props.textColor));
 
+  // WICHTIG: Die Widget-Box muss ein Container-Query-Container sein, sonst
+  // messen die cq-Einheiten IN der Widget-Wurzel gegen den Viewport.
+  // Hintergrund: ein Element kann seinen EIGENEN container-type nicht abfragen.
+  // Fast alle Widgets setzen container-type auf ihrer Wurzel (richtig für die
+  // Kinder) und benutzen cq-Einheiten in derselben Regel (z.B. die Basis-
+  // Schriftgröße) — die landeten dadurch beim Viewport und ignorierten die
+  // eingestellte Box komplett. Beim Zahlen-Raten kam so eine Basisschrift von
+  // 27,6 px statt 15,7 px heraus, der Inhalt war höher als das Kästchen und
+  // wurde oben und unten abgeschnitten.
+  el.style.containerType = 'size';
+
   const scale = Number(props.fontScale ?? 1) || 1;
   if (Math.abs(scale - 1) < 0.01) return el;
   // Inhalt im inversen Maß rendern und zurückskalieren → Box bleibt gleich,
@@ -279,6 +290,9 @@ function applyWidgetStyle(el, props, w, h) {
   inner.style.height = `${h / scale}px`;
   inner.style.transformOrigin = 'top left';
   inner.style.transform = `scale(${scale})`;
+  // Bei aktivem Inhalt-Zoom ist DIESES Element die maßgebliche Box (es rendert
+  // im inversen Maß), also wandert der Container mit hierher.
+  inner.style.containerType = 'size';
   el.appendChild(inner);
   return inner;
 }

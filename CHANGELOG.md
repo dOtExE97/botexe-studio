@@ -3,6 +3,34 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.32.0] — 2026-07-25
+
+### Widgets halten sich endlich an ihr Kästchen
+Beim Zahlen-Raten fiel auf, dass der Inhalt über das eingestellte Kästchen hinauslief und oben wie unten abgeschnitten wurde. Dahinter steckte ein Fehler, der **32 der 43 Widgets** betraf: fast alle setzen `container-type` auf ihrer Wurzel (richtig für die Kinder darin) und benutzen in derselben Regel die Basis-Schriftgröße in Container-Einheiten — ein Element kann seinen eigenen Container aber nicht abfragen, also maßen diese Einheiten den **Bildschirm** statt der Widget-Box. Beim Zahlen-Raten ergab das eine Basisschrift von 27,6 px statt 15,7 px. Behoben an einer Stelle: die Overlay-Laufzeit zeichnet die Widget-Box jetzt als Container aus.
+
+Dazu ein Messwerkzeug, das jedes Widget in sechs Boxgrößen prüft (winzig bis sehr breit/sehr hoch) und unterscheidet, ob Inhalt sichtbar heraussteht oder weggeschnitten wird. Alle gefundenen Fälle sind behoben:
+- **Listen passen ihre Zeilenzahl an die Box an.** Chat, Gift-Feed, Activity-Feed und Sport-Ticker zeigen jetzt so viele Zeilen, wie ganz hineinpassen, statt stur die eingestellte Höchstzahl zu rendern und den Rest anzuschneiden. Im Standardformat 420×360 sind das 6 vollständige Chat-Nachrichten statt 8 angeschnittener; wird das Kästchen größer gezogen, kommen sie zurück.
+- **Medien-Widget:** Der Platzhalter „Kein Medium gewählt" lief in *jeder* Größe über — er hatte volle Höhe plus Rahmen plus Innenabstand, aber kein `box-sizing`.
+- **Galgenmännchen, 4 Gewinnt, Stream-Boss** ragten in sehr kleinen Kästchen heraus (zu hohe Mindestgrößen), **Bestenliste** und **Sport-Ticker** schnitten Zeilen ab, **Textfeld** wurde in schmal-hohen Kästchen zu groß.
+
+### Neu: Geschenk-Menü
+Die Preistafel deines Streams — sie zeigt den Zuschauern, welches Geschenk was auslöst. Zwei Darstellungen: **eins nach dem anderen** groß eingeblendet (mit echtem Gift-Bild, Coin-Preis und Fortschrittspunkten) oder als **durchlaufendes Band**. Drei Optiken, freier Text pro Geschenk.
+
+Der eigentliche Clou: Die Tafel kann sich **automatisch aus deinen Triggern speisen**. Statt alles doppelt zu pflegen, liest sie deine Geschenk-Trigger und zeigt „Rose → Konfetti-Regen, Galaxy → Glücksrad". Änderst du einen Trigger, zieht die Tafel nach. Dafür gibt es eine neue, token-geschützte Route, die bewusst **nur** Regelname, Geschenk-Bedingung und die Art der Aktionen liefert — niemals Aktions-Parameter, in denen Sound-Pfade, OBS-Szenen oder Streamer.bot-IDs stecken. Der Selbsttest prüft das jetzt dauerhaft mit.
+
+Das bestehende **Befehl-Karussell** ist damit die kleine Schwester des Geschenk-Menüs und liegt als dessen Variante in „Gifts & Ziele" statt in „Ambient & Deko".
+
+### Sechs neue Optiken für Top-Gift und Top-Streak
+Die beiden waren die letzten Widgets ohne Stil-Auswahl.
+- **Top-Gift:** *Podest* (Gift auf goldener Siegertreppe im Spotlight-Kegel), *Vitrine* (hinter Glas im Schaukasten mit graviertem Messingschild), *Neonschild* (Leuchtreklame mit doppelter Neonröhre).
+- **Top-Streak:** *Flammensäule* (die Combo brennt höher, je größer sie wird), *Quittung* (Kassenbon mit Zackenkante und Barcode), *Comic-Knall* (Combo in einem gezackten Explosionsstern).
+
+Der bisherige Look bleibt in beiden Fällen Standard — bestehende Overlays verändern sich nicht.
+
+### Sonstiges
+- Spotify zeigt einen gezeichneten Platzhalter, wenn kein Album-Cover geladen ist (vorher ein leeres graues Quadrat).
+- Die [Widget-Galerie](docs/widgets.md) ist neu aufgenommen: die alten Bilder entstanden noch ohne den korrekten Container und zeigten teils falsche Schriftgrößen.
+
 ## [0.31.0] — 2026-07-25
 
 ### Widgets passen sich jetzt wirklich ihrer Größe an

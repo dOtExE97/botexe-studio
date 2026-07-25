@@ -86,6 +86,8 @@ export interface OverlayServerOptions {
   onGameWin?: (winId: string, user: { id: string; nickname: string; profilePic?: string }) => void;
   /** Gift-Katalog (slug → Bild/Coins) — fürs Bingo & die Galerie. */
   getGiftCatalog?: () => Record<string, unknown>;
+  /** Geschenk-Regeln für das Geschenk-Menü — BEWUSST ohne Aktions-Parameter. */
+  getTriggerRules?: () => unknown[];
   /** Sport-Liveticker: Spiele eines Wettbewerbs (gecacht im Main). */
   getSportMatches?: (provider: string, competition: string) => Promise<unknown>;
   getSportStandings?: (provider: string, competition: string) => Promise<unknown>;
@@ -218,6 +220,15 @@ export class OverlayServer {
     // Gift-Katalog: echte Gift-Bilder für Bingo-Zellen & Galerie.
     this.expressApp.get('/gift-catalog', auth, (_req, res) => {
       res.json(this.options.getGiftCatalog?.() ?? {});
+    });
+
+    // Geschenk-Regeln für das Geschenk-Menü-Widget: damit die Tafel „welches
+    // Geschenk löst was aus" sich aus den echten Triggern speist und nicht
+    // doppelt gepflegt werden muss. Der Aufrufer liefert bereits eine
+    // abgespeckte Form (siehe studio.ts) — hier landen NIE Aktions-Parameter,
+    // weil darin Sound-Pfade, OBS-Szenen oder Streamer.bot-IDs stecken können.
+    this.expressApp.get('/trigger-rules', auth, (_req, res) => {
+      res.json({ rules: this.options.getTriggerRules?.() ?? [] });
     });
 
     // Spotify-OAuth-Redirect: KEIN Token-Auth (Spotify ruft die URI direkt auf).

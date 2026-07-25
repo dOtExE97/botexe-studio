@@ -11,6 +11,8 @@ const CSS = `
   box-shadow: 0 6px 16px -8px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.05) inset;
   transform: translateY(14px); opacity: 0; animation: bx-cb-in 280ms cubic-bezier(.2,1.3,.4,1) forwards; }
 .bx-cb-msg.fade { animation: bx-cb-out 420ms ease-in forwards; }
+/* Passt nicht mehr in die Box → gar nicht erst zeigen (statt oben abschneiden). */
+.bx-cb-msg.bx-off { display: none; }
 /* Eigener Groessen-Container, damit der Fallback-Buchstabe (.bx-av::after) mitwaechst. */
 .bx-cb-pic { width: clamp(17px,min(6.6cqi,7.5cqh),46px); aspect-ratio: 1/1; height: auto; border-radius: 50%; flex: none; margin-top: 1px;
   container-type: size; box-shadow: 0 0 0 2px rgba(255,255,255,.12); }
@@ -85,11 +87,34 @@ export default class ChatBox {
     this.el.className = `bx-cb${this.style !== 'glas' ? ` bx-cb-${this.style}` : ''}`;
     root.appendChild(this.el);
     this.timers = new Set();
+    // Zieht der Nutzer die Box kleiner, passen die eingestellten Nachrichten
+    // nicht mehr hinein — dann zeigen wir eben weniger, statt oben abzuschneiden.
+    this.ro = new ResizeObserver(() => this.fit());
+    this.ro.observe(this.el);
     if (ctx?.preview) {
       for (const [nick, text] of DEMO.slice(-this.max)) {
         this.onEvent({ type: 'chat', ts: Date.now(), user: { id: nick, nickname: nick }, text });
       }
     }
+  }
+  /** Sichtbare Zeilenzahl aus der Boxhöhe ableiten: von unten nach oben zählen,
+   *  wie viele Nachrichten ganz hineinpassen — der Rest wird ausgeblendet
+   *  (nicht gelöscht, damit er bei einer größeren Box zurückkommt).
+   *  Bewusst KEINE Schrift-Anpassung: die Zeilenhöhe darf nicht bei jeder
+   *  neuen Nachricht springen. */
+  fit() {
+    const box = this.el.clientHeight;
+    const kids = Array.from(this.el.children);
+    if (!box || kids.length === 0) return;
+    for (const k of kids) k.classList.remove('bx-off');
+    const last = kids[kids.length - 1];
+    const bottom = last.offsetTop + last.offsetHeight;
+    let keep = 1;
+    for (let i = kids.length - 2; i >= 0; i--) {
+      if (bottom - kids[i].offsetTop > box) break;
+      keep++;
+    }
+    for (let i = 0; i < kids.length - keep; i++) kids[i].classList.add('bx-off');
   }
   onEvent(event) {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
@@ -106,10 +131,11 @@ export default class ChatBox {
     avSet(msg.querySelector('.bx-cb-pic'), name, event.user?.profilePic);
     this.el.appendChild(msg);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();
+    this.fit();
     if (this.hideAfterMs > 0) {
-      const t = setTimeout(() => { this.timers.delete(t); msg.classList.add('fade'); setTimeout(() => msg.remove(), 440); }, this.hideAfterMs);
+      const t = setTimeout(() => { this.timers.delete(t); msg.classList.add('fade'); setTimeout(() => { msg.remove(); this.fit(); }, 440); }, this.hideAfterMs);
       this.timers.add(t);
     }
   }
-  destroy() { for (const t of this.timers) clearTimeout(t); this.el.remove(); }
+  destroy() { this.ro?.disconnect(); for (const t of this.timers) clearTimeout(t); this.el.remove(); }
 }

@@ -17,7 +17,9 @@ const CSS = `
 @keyframes bx-media-out { to { opacity:0; transform: scale(.96); } }
 /* Platzhalter skaliert mit der Box mit (vorher feste 14px/34px → in einem
    großen Media-Rahmen kaum zu sehen). */
-.bx-media-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.55em; width:100%; height:100%;
+/* box-sizing ist Pflicht: 100% + gestrichelter Rahmen + Innenabstand ragten
+   sonst in JEDER Boxgröße um Rahmen+Padding über das Kästchen hinaus. */
+.bx-media-empty { box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.55em; width:100%; height:100%;
   border:max(2px,.14em) dashed color-mix(in srgb, var(--bx-accent) 50%, transparent); border-radius: var(--bx-radius);
   background: var(--bx-glass); color: var(--bx-muted); font-family: var(--bx-font-display);
   font-size: clamp(11px, 4.4cqmin, 46px); letter-spacing:.12em; text-transform:uppercase; text-align:center; padding:.85em; }

@@ -157,7 +157,24 @@ async function main(): Promise<void> {
     // falscher Token MUSS scheitern
     const noauth = await fetch(`${base}/api/status?token=falsch`);
     if (noauth.status === 200) problems.push({ page: 'API', text: 'falscher Token wurde akzeptiert!' });
-    console.log(`  🔌 API: status ${Array.isArray(status.actions) ? '✓' : '✗'}, Aktion ✓, Reject ✓, Auth ✓`);
+    // Geschenk-Regeln fürs Geschenk-Menü. Wichtig ist nicht nur, DASS die Route
+    // antwortet, sondern dass sie KEINE Aktions-Parameter mitschickt — darin
+    // stecken Sound-Pfade, OBS-Szenen und Streamer.bot-IDs, die im Overlay
+    // nichts zu suchen haben.
+    const rulesRes = await fetch(`${base}/trigger-rules?token=${token}`);
+    const rulesBody = (await rulesRes.json()) as { rules?: unknown };
+    const rules = Array.isArray(rulesBody.rules) ? (rulesBody.rules as Record<string, unknown>[]) : null;
+    if (rulesRes.status !== 200 || !rules) {
+      problems.push({ page: 'API', text: `GET /trigger-rules unbrauchbar (${rulesRes.status})` });
+    } else {
+      const leck = rules.some((r) => (Array.isArray(r.actions) ? r.actions : []).some(
+        (a) => Object.keys(a as object).some((k) => k !== 'kind'),
+      ));
+      if (leck) problems.push({ page: 'API', text: '/trigger-rules liefert Aktions-Parameter mit!' });
+      const rulesNoauth = await fetch(`${base}/trigger-rules?token=falsch`);
+      if (rulesNoauth.status === 200) problems.push({ page: 'API', text: '/trigger-rules ohne Token erreichbar!' });
+    }
+    console.log(`  🔌 API: status ${Array.isArray(status.actions) ? '✓' : '✗'}, Aktion ✓, Reject ✓, Auth ✓, Regeln ${rules ? '✓' : '✗'}`);
   } catch (e) {
     problems.push({ page: 'API', text: `API-Test warf: ${(e as Error).message}` });
   }

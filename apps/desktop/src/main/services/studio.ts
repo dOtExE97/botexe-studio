@@ -247,6 +247,7 @@ export class Studio {
       onGameWin: (_winId, user) => this.recordGameWin(user),
       giftImagesDir: this.giftCatalog.getImagesDir(),
       getGiftCatalog: () => this.getGiftCatalog(),
+      getTriggerRules: () => this.getRulesForOverlay(),
       onSpotifyCallback: (code, state) => this.onSpotifyCallback(code, state),
       getSpotifyState: () => this.lastSpotify,
       getSportMatches: (provider, competition) => this.sport.getMatches(provider as SportProvider, competition),
@@ -848,6 +849,27 @@ export class Studio {
 
   getRules(): TriggerRule[] {
     return this.settings.get().triggerRules;
+  }
+
+  /** Geschenk-Regeln in abgespeckter Form für das Geschenk-Menü im Overlay.
+   *  Das Widget baut daraus die Tafel „welches Geschenk löst was aus" und
+   *  braucht dafür nur den Regelnamen, die Gift-Bedingung und die ART der
+   *  Aktionen. Die Aktions-PARAMETER bleiben bewusst hier: darin stehen
+   *  Sound-Pfade, OBS-Szenen und Streamer.bot-IDs, die im Overlay (und damit
+   *  potenziell in einer Bildschirmaufnahme) nichts zu suchen haben. */
+  getRulesForOverlay(): unknown[] {
+    return this.getRules()
+      .filter((r) => r.event === 'gift')
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        enabled: r.enabled !== false,
+        event: r.event,
+        conditions: (r.conditions ?? [])
+          .filter((c) => c.kind === 'gift_slug_is' || c.kind === 'gift_id_is')
+          .map((c) => ({ kind: c.kind, value: (c as { value?: unknown }).value })),
+        actions: (r.actions ?? []).map((a) => ({ kind: a.kind })),
+      }));
   }
 
   setRules(rules: TriggerRule[]): void {

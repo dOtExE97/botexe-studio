@@ -50,6 +50,29 @@ export default class TextLabel {
     t.textContent = props.text == null || props.text === '' ? 'Dein Text' : String(props.text);
     this.el.appendChild(t);
     root.appendChild(this.el);
+    this.t = t;
+    // Die CSS-Größe (42cqmin) kennt die Zeilenumbrüche nicht: in schmalen, hohen
+    // Kästchen bricht der Text auf mehrere Zeilen und wächst damit über die Box
+    // hinaus. Deshalb nach dem Layout nachmessen und nur bei Bedarf verkleinern.
+    this.ro = new ResizeObserver(() => this.fit());
+    this.ro.observe(this.el);
+    this.fit();
   }
-  destroy() { this.el.remove(); }
+  /** Schrift so weit verkleinern, bis der (ggf. umgebrochene) Text ganz in die
+   *  Box passt. Passt er ohnehin, bleibt die CSS-Größe unangetastet. */
+  fit() {
+    const t = this.t;
+    if (!t) return;
+    t.style.fontSize = ''; // immer von der CSS-Größe aus neu rechnen
+    const avail = this.el.clientHeight - 8; // padding: 4px oben/unten
+    if (avail <= 0) return;
+    let size = parseFloat(getComputedStyle(t).fontSize) || 0;
+    for (let i = 0; i < 14; i++) {
+      const h = t.scrollHeight;
+      if (h <= avail || size <= 6) break;
+      size = Math.max(6, Math.min(size - 0.5, size * (avail / h)));
+      t.style.fontSize = `${size}px`;
+    }
+  }
+  destroy() { this.ro?.disconnect(); this.el.remove(); }
 }

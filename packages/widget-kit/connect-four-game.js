@@ -18,10 +18,10 @@ const COLS = 7;
 const CSS = `
 .bx-c4 { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:.5em; container-type:size; font-family: var(--bx-font-body); color:#fff; text-align:center;
-  font-size: clamp(9px, 4.6cqmin, 60px);
+  font-size: clamp(6px, 4.6cqmin, 60px);
   --bx-c4-accent: var(--bx-accent,#ff5436); --bx-c4-r:#ff4757; --bx-c4-y:#ffd32a; }
 /* Kopfzeile: beide Spieler, der Aktive leuchtet */
-.bx-c4-players { display:flex; align-items:center; justify-content:center; gap:.6em; font-size: clamp(15px, 5.8cqmin, 62px);
+.bx-c4-players { display:flex; align-items:center; justify-content:center; gap:.6em; font-size: clamp(8px, 5.8cqmin, 62px);
   font-family: var(--bx-font-display, inherit); font-weight:800; line-height:1.1; max-width:96%; }
 .bx-c4-pl { display:flex; align-items:center; gap:.35em; padding:.18em .5em; border-radius:.6em; opacity:.62;
   text-shadow:0 1px 3px rgba(0,0,0,.8);
@@ -31,7 +31,7 @@ const CSS = `
 .bx-c4-dot.R { background:var(--bx-c4-r); } .bx-c4-dot.Y { background:var(--bx-c4-y); }
 .bx-c4-vs { font-size:.78em; opacity:.6; }
 /* Status-Zeile */
-.bx-c4-status { font-size: clamp(15px, 5.6cqmin, 60px); font-weight:700; min-height:1.3em;
+.bx-c4-status { font-size: clamp(8px, 5.6cqmin, 60px); font-weight:700; min-height:1.3em;
   color: color-mix(in srgb, var(--bx-c4-accent) 60%, #fff); text-shadow:0 1px 4px rgba(0,0,0,.85), 0 0 .6em rgba(0,0,0,.55); }
 .bx-c4.won .bx-c4-status { color: var(--bx-gold,#ffd700); }
 /* Spielfeld: blaues Brett mit Loch-Rastern */
@@ -39,7 +39,7 @@ const CSS = `
   padding: 1.4cqmin; border-radius: 2cqmin; background:linear-gradient(160deg,#2b4cdb,#1b2f8f);
   box-shadow:0 8px 26px rgba(0,0,0,.45), inset 0 0 18px rgba(0,0,0,.3); width: 78cqmin; max-width:96%; }
 .bx-c4-colhdr { display:grid; grid-template-columns:repeat(${COLS}, 1fr); gap:1.2cqmin; width:78cqmin; max-width:96%; padding:0 1.4cqmin;
-  font-size: clamp(12px, 4.2cqmin, 48px); font-weight:800; color:#fff;
+  font-size: clamp(7px, 4.2cqmin, 48px); font-weight:800; color:#fff;
   text-shadow:0 1px 3px rgba(0,0,0,.85), 0 0 .5em rgba(0,0,0,.7); }
 .bx-c4-cell { aspect-ratio:1/1; border-radius:50%; background:radial-gradient(circle at 35% 30%, #0c1430, #060a1c);
   box-shadow:inset 0 2px 5px rgba(0,0,0,.6); display:grid; place-items:center; }

@@ -15,7 +15,7 @@ const CSS = `
    Chrome: Rahmen-Glow, Name, Level-Badge, Damager, Avatar-Ring. --bx-boss-color
    ist die HP-Ampel (gruen/gelb/rot) und gehoert NUR an den Balken — vorher hat
    sie den Akzent ueberall ueberschrieben, dadurch wirkte der Stil akzentblind. */
-.bx-boss { position:absolute; inset:0; display:flex; flex-direction:column; gap:10px;
+.bx-boss { position:absolute; inset:0; display:flex; flex-direction:column; gap: clamp(3px, min(2.4cqi, 5cqh), 10px);
   padding: min(3.8cqi, 8cqh) min(4.6cqi, 10cqh); container-type:size; font-family: var(--bx-font-body);
   --bx-boss-accent: var(--bx-accent, #ff5436);
   background: var(--bx-glass); border-radius: var(--bx-radius);
@@ -23,15 +23,15 @@ const CSS = `
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   opacity:0; transform: translateY(12px) scale(.97); transition: opacity .4s, transform .4s; pointer-events:none; }
 .bx-boss.on { opacity:1; transform:none; }
-.bx-boss-head { display:flex; align-items:center; gap:10px; }
+.bx-boss-head { display:flex; align-items:center; gap: clamp(3px, min(2.4cqi, 5cqh), 10px); }
 /* Der Avatar ist ein .bx-av (widget-base.css): ohne Bild bleiben Farbton aus dem
    Namen + Initiale sichtbar statt eines leeren schwarzen Kreises. */
 .bx-boss-avawrap { position:relative; flex:0 0 auto;
-  width: clamp(36px, min(11cqi, 24cqh), 132px); height: clamp(36px, min(11cqi, 24cqh), 132px); }
+  width: clamp(18px, min(11cqi, 24cqh), 132px); height: clamp(18px, min(11cqi, 24cqh), 132px); }
 /* font-size hier ist die Bezugsgröße für die Initiale des .bx-av-Fallbacks
    (widget-base.css zeichnet sie mit 52% der Elementschrift). */
 .bx-boss-ava { width:100%; height:100%; border-radius:50%; overflow:hidden;
-  font-size: clamp(28px, min(9cqi, 20cqh), 110px);
+  font-size: clamp(14px, min(9cqi, 20cqh), 110px);
   border:2px solid var(--bx-boss-accent); box-shadow: 0 0 16px -2px var(--bx-boss-accent); }
 .bx-boss-ava img { width:100%; height:100%; object-fit:cover; position:relative; z-index:1; }
 /* Boss-Wappen als kleines Eck-Abzeichen — markiert die Scheibe als Boss, ohne
@@ -41,23 +41,23 @@ const CSS = `
   box-shadow: 0 0 0 2px var(--bx-boss-accent), 0 2px 6px rgba(0,0,0,.6); }
 .bx-boss-crest svg { width:70%; height:70%; color: var(--bx-boss-accent); }
 .bx-boss-name { flex:1 1 auto; min-width:0; font-family: var(--bx-font-display);
-  font-size: clamp(16px, min(6cqi, 15cqh), 46px); letter-spacing:.04em; text-transform:uppercase; line-height:1.1;
+  font-size: clamp(9px, min(6cqi, 15cqh), 46px); letter-spacing:.04em; text-transform:uppercase; line-height:1.1;
   color: var(--bx-text, #fff); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   text-shadow: 0 0 16px var(--bx-boss-accent); }
-.bx-boss-lvl { flex:0 0 auto; font-family: var(--bx-font-display); font-size: clamp(12px, min(3.6cqi, 9cqh), 30px);
+.bx-boss-lvl { flex:0 0 auto; font-family: var(--bx-font-display); font-size: clamp(7px, min(3.6cqi, 9cqh), 30px);
   padding: .18em .7em; border-radius: 999px; letter-spacing:.1em; text-transform:uppercase;
   color:#0a0b12; background: var(--bx-boss-accent);
   box-shadow: 0 0 14px -2px var(--bx-boss-accent); }
-.bx-boss-track { position:relative; height: clamp(20px, min(5.5cqi, 14cqh), 52px); border-radius: 999px;
+.bx-boss-track { position:relative; height: clamp(9px, min(5.5cqi, 14cqh), 52px); border-radius: 999px;
   background: rgba(8,10,18,.6); overflow:hidden; border:1px solid rgba(255,255,255,.12); }
 .bx-boss-fill { position:absolute; inset:0 auto 0 0; width:100%;
   background: linear-gradient(90deg, color-mix(in srgb, var(--bx-boss-color, var(--bx-accent)) 70%, #000), var(--bx-boss-color, var(--bx-accent)));
   box-shadow: 0 0 18px var(--bx-boss-color, var(--bx-accent)); transition: width .4s cubic-bezier(.2,1,.3,1), background .4s; }
 .bx-boss-hptxt { position:absolute; inset:0; display:grid; place-items:center;
-  font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size: clamp(11px, min(3.4cqi, 8.5cqh), 26px);
+  font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size: clamp(7px, min(3.4cqi, 8.5cqh), 26px);
   color:#fff; -webkit-text-stroke: 2px #0a0b12; paint-order: stroke fill; }
-.bx-boss-dmg { display:flex; flex-direction:column; gap:.25em; font-size: clamp(10px, min(2.9cqi, 7cqh), 24px); }
-.bx-boss-dmg-row { display:flex; align-items:center; gap:8px; color: var(--bx-muted); }
+.bx-boss-dmg { display:flex; flex-direction:column; gap:.25em; font-size: clamp(6px, min(2.9cqi, 7cqh), 24px); }
+.bx-boss-dmg-row { display:flex; align-items:center; gap:.5em; color: var(--bx-muted); }
 .bx-boss-dmg-rank { flex:0 0 auto; width: 2.4em; text-align:center;
   font-family: var(--bx-font-display); color: var(--bx-boss-accent); }
 .bx-boss-dmg-name { flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;

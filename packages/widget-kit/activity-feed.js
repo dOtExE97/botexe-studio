@@ -9,6 +9,8 @@ const CSS = `
   box-shadow: 0 8px 22px -8px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset;
   transform: translateX(-115%); animation: bx-af-in 380ms cubic-bezier(.2,1.4,.4,1) forwards; }
 .bx-af-item.old { animation: bx-af-out 320ms ease-in forwards; }
+/* Passt nicht mehr in die Box → gar nicht erst zeigen (statt oben abschneiden). */
+.bx-af-item.bx-off { display: none; }
 /* Profilbild mit Typ-Marke: der Kreis zeigt das Bild — oder, wenn TikTok keins
    liefert, den Anfangsbuchstaben (.bx-av). Die kleine Marke unten rechts sagt,
    um welches Ereignis es geht. */
@@ -99,7 +101,32 @@ export default class ActivityFeed {
     this.el.className = `bx-af${style !== 'glas' ? ` bx-af-${style}` : ''}`;
     root.appendChild(this.el);
     this.timers = new Set();
+    // Zieht der Nutzer die Box kleiner, passen die eingestellten Zeilen nicht
+    // mehr hinein — dann zeigen wir eben weniger, statt oben abzuschneiden.
+    this.ro = new ResizeObserver(() => this.fit());
+    this.ro.observe(this.el);
     if (ctx?.preview) for (const e of DEMO.slice(-this.max)) this.onEvent({ ...e, ts: Date.now() });
+  }
+  /** Sichtbare Zeilenzahl aus der Boxhöhe ableiten: von unten nach oben zählen,
+   *  wie viele Zeilen ganz hineinpassen — der Rest wird ausgeblendet (nicht
+   *  gelöscht, damit er bei einer größeren Box zurückkommt). Bewusst KEINE
+   *  Schrift-Anpassung: die Zeilenhöhe darf nicht bei jedem Ereignis springen. */
+  fit() {
+    const box = this.el.clientHeight;
+    const kids = Array.from(this.el.children);
+    if (!box || kids.length === 0) return;
+    for (const k of kids) k.classList.remove('bx-off');
+    const last = kids[kids.length - 1];
+    // Stil „Sprechblasen" gibt den Zeilen margin-bottom — die zählt zur Höhe,
+    // steckt aber nicht in offsetHeight.
+    const mb = parseFloat(getComputedStyle(last).marginBottom) || 0;
+    const bottom = last.offsetTop + last.offsetHeight + mb;
+    let keep = 1;
+    for (let i = kids.length - 2; i >= 0; i--) {
+      if (bottom - kids[i].offsetTop > box) break;
+      keep++;
+    }
+    for (let i = 0; i < kids.length - keep; i++) kids[i].classList.add('bx-off');
   }
   onEvent(event) {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
@@ -118,9 +145,10 @@ export default class ActivityFeed {
     avSet(item.querySelector('.bx-af-av'), name, event.user?.profilePic);
     this.el.appendChild(item);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();
-    const t = setTimeout(() => { this.timers.delete(t); item.classList.add('old'); setTimeout(() => item.remove(), 320); }, this.ttlMs);
+    this.fit();
+    const t = setTimeout(() => { this.timers.delete(t); item.classList.add('old'); setTimeout(() => { item.remove(); this.fit(); }, 320); }, this.ttlMs);
     this.timers.add(t);
   }
-  destroy() { for (const t of this.timers) clearTimeout(t); this.el.remove(); }
+  destroy() { this.ro?.disconnect(); for (const t of this.timers) clearTimeout(t); this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

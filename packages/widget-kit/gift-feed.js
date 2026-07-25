@@ -11,6 +11,8 @@ const CSS = `
   box-shadow: 0 8px 22px -8px rgba(0,0,0,.6), 0 0 0 1px color-mix(in srgb, var(--bx-accent) 22%, transparent) inset;
   transform: translateX(-115%); animation: bx-gf-in 380ms cubic-bezier(.2,1.4,.4,1) forwards; }
 .bx-gf-item.old { animation: bx-gf-out 320ms ease-in forwards; }
+/* Passt nicht mehr in die Box → gar nicht erst zeigen (statt oben abschneiden). */
+.bx-gf-item.bx-off { display: none; }
 /* Eigener Größen-Container, damit der Fallback-Buchstabe (.bx-av::after) mitwächst. */
 .bx-gf-pic { width: clamp(18px,min(8cqi,9cqh),52px); aspect-ratio: 1/1; height: auto; border-radius: 50%; flex: none; container-type: size;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
@@ -81,11 +83,33 @@ export default class GiftFeed {
     this.el.className = `bx-gf${style !== 'glas' ? ` bx-gf-${style}` : ''}`;
     root.appendChild(this.el);
     this.timers = new Set();
+    // Zieht der Nutzer die Box kleiner, passen die eingestellten Zeilen nicht
+    // mehr hinein — dann zeigen wir eben weniger, statt oben abzuschneiden.
+    this.ro = new ResizeObserver(() => this.fit());
+    this.ro.observe(this.el);
     if (ctx?.preview) {
       for (const [nick, slug, count, coins] of DEMO.slice(-this.max)) {
         this.onEvent({ type: 'gift', ts: Date.now(), user: { id: nick, nickname: nick }, gift: { slug, count, coinsPerUnit: coins, totalCoins: coins * count, icon: '' } });
       }
     }
+  }
+  /** Sichtbare Zeilenzahl aus der Boxhöhe ableiten: von unten nach oben zählen,
+   *  wie viele Zeilen ganz hineinpassen — der Rest wird ausgeblendet (nicht
+   *  gelöscht, damit er bei einer größeren Box zurückkommt). Bewusst KEINE
+   *  Schrift-Anpassung: die Zeilenhöhe darf nicht bei jedem Gift springen. */
+  fit() {
+    const box = this.el.clientHeight;
+    const kids = Array.from(this.el.children);
+    if (!box || kids.length === 0) return;
+    for (const k of kids) k.classList.remove('bx-off');
+    const last = kids[kids.length - 1];
+    const bottom = last.offsetTop + last.offsetHeight;
+    let keep = 1;
+    for (let i = kids.length - 2; i >= 0; i--) {
+      if (bottom - kids[i].offsetTop > box) break;
+      keep++;
+    }
+    for (let i = 0; i < kids.length - keep; i++) kids[i].classList.add('bx-off');
   }
   onEvent(event) {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
@@ -101,8 +125,9 @@ export default class GiftFeed {
     avSet(item.querySelector('.bx-gf-pic'), event.user?.nickname, event.user?.profilePic);
     this.el.appendChild(item);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();
-    const t = setTimeout(() => { this.timers.delete(t); item.classList.add('old'); setTimeout(() => item.remove(), 320); }, this.ttlMs);
+    this.fit();
+    const t = setTimeout(() => { this.timers.delete(t); item.classList.add('old'); setTimeout(() => { item.remove(); this.fit(); }, 320); }, this.ttlMs);
     this.timers.add(t);
   }
-  destroy() { for (const t of this.timers) clearTimeout(t); this.el.remove(); }
+  destroy() { this.ro?.disconnect(); for (const t of this.timers) clearTimeout(t); this.el.remove(); }
 }

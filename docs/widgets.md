@@ -32,14 +32,14 @@ Synthwave …), die das Aussehen komplett verändern. Hier ist jeweils nur die G
 
 |   |   |   |
 | --- | --- | --- |
-| **Coin-Glas** | **Geschenkzähler** | **Goal-Bar** |
-| ![Coin-Glas](screenshots/gift-jar.png) | ![Geschenkzähler](screenshots/gift-counter.png) | ![Goal-Bar](screenshots/goal-bar.png) |
-| **Ziel-Countdown (Text)** | **Top-Gift** | **Top-Streak** |
-| ![Ziel-Countdown (Text)](screenshots/goal-countdown.png) | ![Top-Gift](screenshots/top-gift.png) | ![Top-Streak](screenshots/top-streak.png) |
-| **Countdown** | **Subathon-Timer** | **Hype-Train** |
-| ![Countdown](screenshots/countdown.png) | ![Subathon-Timer](screenshots/subathon.png) | ![Hype-Train](screenshots/hype-train.png) |
-| **Meilenstein-Konfetti** |  |  |
-| ![Meilenstein-Konfetti](screenshots/milestone-confetti.png) |  |  |
+| **Geschenk-Menü** | **Coin-Glas** | **Geschenkzähler** |
+| ![Geschenk-Menü](screenshots/gift-menu.png) | ![Coin-Glas](screenshots/gift-jar.png) | ![Geschenkzähler](screenshots/gift-counter.png) |
+| **Goal-Bar** | **Ziel-Countdown (Text)** | **Top-Gift** |
+| ![Goal-Bar](screenshots/goal-bar.png) | ![Ziel-Countdown (Text)](screenshots/goal-countdown.png) | ![Top-Gift](screenshots/top-gift.png) |
+| **Top-Streak** | **Countdown** | **Subathon-Timer** |
+| ![Top-Streak](screenshots/top-streak.png) | ![Countdown](screenshots/countdown.png) | ![Subathon-Timer](screenshots/subathon.png) |
+| **Hype-Train** | **Meilenstein-Konfetti** |  |
+| ![Hype-Train](screenshots/hype-train.png) | ![Meilenstein-Konfetti](screenshots/milestone-confetti.png) |  |
 
 ## Listen & Chat
 
