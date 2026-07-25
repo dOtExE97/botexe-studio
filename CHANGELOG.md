@@ -3,6 +3,14 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.30.0] — 2026-07-25
+
+### ✨ Starter-Overlay mit einem Klick
+Ein leeres Overlay ist der unfreundlichste erste Eindruck, den die App machen kann. Auf dem leeren Canvas steht jetzt ein Knopf **„Starter-Overlay einfügen"**: Er legt in einem Rutsch **sechs sinnvoll platzierte Widgets** an — Live-Zähler, Ziel-Balken, Top-Gifter (in der neuen Treppen-Optik), Follow-Alert, Gift-Alert und Chat. Alles landet **innerhalb der sicheren TikTok-Zone** (nicht unter dem Kopfbereich, nicht in der Chat-Leiste) und ist frei verschiebbar. Funktioniert für Hoch- und Querformat.
+
+### Einstellungen aufgeräumt
+Die Einstellungsseite war eine Scrollwüste: 18 Karten untereinander, über 5000 Pixel lang — und dabei blieb auf einem breiten Fenster die halbe Fläche leer. Ab einer Fensterbreite von ~1280 px laufen die Karten jetzt **zweispaltig**: gleiche Inhalte, **halbe Scrollstrecke**, kein verschenkter Platz. Auf schmalen Fenstern bleibt alles wie gehabt einspaltig.
+
 ## [0.29.0] — 2026-07-25
 
 ### Acht weitere Optiken 🧾🕹️🔋⭕🏅📼⏱️💬

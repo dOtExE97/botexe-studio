@@ -199,8 +199,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex max-w-3xl flex-col gap-5 p-6">
-      <div className="flex items-start justify-between gap-3">
+    <div className="mx-auto max-w-[1500px] p-6 [column-gap:1.25rem] xl:columns-2 2xl:columns-2">
+      <div className="mb-5 flex items-start justify-between gap-3 [column-span:all]">
         <div>
           <h1 className="font-display text-xl uppercase">Einstellungen</h1>
           <p className="mt-1 text-xs text-studio-muted">TikTok-Verbindung (Key!), Audio, Punkte, Integrationen & Daten.</p>
@@ -215,7 +215,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Von TikFinity umziehen — prominent, weil genau unsere Zielgruppe */}
-      <section className="bx-card border-studio-gold/30 p-5">
+      <section className="mb-5 break-inside-avoid bx-card border-studio-gold/30 p-5">
         <h2 className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <Download size={15} /> Von TikFinity umziehen
         </h2>
@@ -234,7 +234,7 @@ export default function SettingsPage() {
       </section>
 
       {/* TikTok-Verbindung (Sign-Key) */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
             <ShieldCheck size={15} /> TikTok-Verbindung (Sign-Key)
@@ -343,7 +343,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Loyalty-Punkte */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
             <Coins size={15} /> Loyalty-Punkte
@@ -391,7 +391,7 @@ export default function SettingsPage() {
       </section>
 
       {/* TikTok Live Studio */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-accent">
           <Clapperboard size={15} /> TikTok Live Studio
         </h2>
@@ -441,7 +441,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Audio-Ausgabe */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-teal">
           <Speaker size={15} /> Audio-Ausgabe & Sound-Bremse
         </h2>
@@ -464,7 +464,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Gift-Sound-Bremse (Anti-Spam) */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <h2 className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
           <Gift size={15} /> Gift-Sound-Bremse
         </h2>
@@ -487,7 +487,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Spotify */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
             <Music size={15} /> Spotify
@@ -553,7 +553,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Sport-Liveticker */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
           <Gift size={15} /> Sport-Liveticker
         </h2>
@@ -575,7 +575,7 @@ export default function SettingsPage() {
       {info?.control && (() => {
         const ctrl = info.control;
         return (
-        <section className="bx-card p-5">
+        <section className="mb-5 break-inside-avoid bx-card p-5">
           <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
             <Gamepad2 size={15} /> Stream Deck
           </h2>
@@ -598,7 +598,7 @@ export default function SettingsPage() {
       })()}
 
       {/* OBS-Studio-Steuerung */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
             <Clapperboard size={15} /> OBS-Steuerung
@@ -637,7 +637,7 @@ export default function SettingsPage() {
 
 
       {/* TikTok-Chat senden */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
             <MessageSquare size={15} /> Chat schreiben (TikTok-Login)
@@ -665,7 +665,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Streamer.bot-Brücke */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
             <Gamepad2 size={15} /> Streamer.bot
@@ -692,7 +692,7 @@ export default function SettingsPage() {
       <GreetReturningCard />
 
       {/* ✨ KI-Assistent (Overlay-Wünsche) */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
             <Sparkles size={15} /> KI-Assistent (Overlay-Wünsche)
@@ -762,7 +762,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Chat-Moderation */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
           <ShieldCheck size={15} /> Chat-Moderation
         </h2>
@@ -796,7 +796,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Updates */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
           <Download size={15} /> Updates
         </h2>
@@ -830,7 +830,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Feedback & Fehler melden */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <h2 className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
           <MessageSquare size={15} /> Feedback &amp; Fehler melden
         </h2>
@@ -862,7 +862,7 @@ export default function SettingsPage() {
       </section>
 
       {/* App-Info */}
-      <section className="bx-card p-5">
+      <section className="mb-5 break-inside-avoid bx-card p-5">
         <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
           <Info size={15} /> Über bOtExE Studio
         </h2>

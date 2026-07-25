@@ -1248,6 +1248,48 @@ export default function OverlayPage() {
     void persist({ ...layout, canvas: { ...layout.canvas, width: dims.width, height: dims.height }, layers });
   };
 
+  /** Fertiges Beispiel-Overlay: die sechs Widgets, die fast jeder Stream braucht,
+   *  sinnvoll platziert (in Hochformat unter dem TikTok-Kopfbereich und über der
+   *  Chat-Leiste, damit nichts verdeckt wird). Prozentual gerechnet, passt daher
+   *  auf Hoch- UND Querformat. */
+  const insertStarterOverlay = () => {
+    if (!layout) return;
+    const W = canvasW, H = canvasH;
+    const portrait = H >= W;
+    // Anteilige Platzierung: oben Zahlen/Ziel, Mitte Alert, unten Chat/Feed.
+    const plan: { type: string; x: number; y: number; w: number; h: number; props?: Record<string, unknown> }[] = portrait
+      ? [
+        { type: 'stat-chips', x: .06, y: .115, w: .56, h: .032, props: { metrics: 'viewers,likes,follows' } },
+        { type: 'goal-bar', x: .06, y: .158, w: .62, h: .042, props: { metric: 'coins', target: 5000 } },
+        { type: 'leaderboard', x: .06, y: .215, w: .62, h: .105, props: { source: 'gifts', style: 'treppe', limit: 3, title: 'Top Gifter' } },
+        { type: 'follow-alert', x: .06, y: .335, w: .48, h: .05 },
+        { type: 'gift-alert', x: .14, y: .40, w: .72, h: .20 },
+        { type: 'chat-box', x: .06, y: .63, w: .52, h: .18 },
+      ]
+      : [
+        { type: 'stat-chips', x: .04, y: .05, w: .34, h: .055, props: { metrics: 'viewers,likes,follows' } },
+        { type: 'goal-bar', x: .04, y: .12, w: .40, h: .07 },
+        { type: 'leaderboard', x: .66, y: .05, w: .30, h: .22, props: { source: 'gifts', style: 'treppe', limit: 3, title: 'Top Gifter' } },
+        { type: 'follow-alert', x: .04, y: .22, w: .30, h: .08 },
+        { type: 'gift-alert', x: .30, y: .34, w: .40, h: .30 },
+        { type: 'chat-box', x: .04, y: .56, w: .26, h: .38 },
+      ];
+    const layers: OverlayLayer[] = [];
+    plan.forEach((p, i) => {
+      const def = WIDGET_TYPES.find((wt) => wt.type === p.type);
+      if (!def) return;
+      layers.push({
+        id: newLayerId(), widgetType: def.type, name: def.label,
+        x: Math.round(p.x * W), y: Math.round(p.y * H),
+        w: Math.round(p.w * W), h: Math.round(p.h * H),
+        z: i + 1, visible: true,
+        props: { ...def.props, ...(p.props ?? {}) },
+      });
+    });
+    void persist({ ...layout, layers: [...layout.layers, ...layers] });
+    toast('success', `Starter-Overlay eingefügt — ${layers.length} Widgets. Alles frei verschiebbar.`);
+  };
+
   const addWidget = (typeDef: (typeof WIDGET_TYPES)[number]) => {
     if (!layout) return;
     const w = Math.min(typeDef.w, canvasW - 40);
@@ -1643,6 +1685,13 @@ export default function OverlayPage() {
                 <LayoutPanelTop size={36} className="text-studio-muted/50" />
                 <p className="text-sm font-bold text-studio-text/80">Noch keine Widgets auf diesem Screen</p>
                 <p className="max-w-[80%] text-xs text-studio-muted">Wähl links aus der <b>Widget-Palette</b> — du siehst jedes Widget schon live in der Liste. Mit <b>➕ Hinzufügen</b> landet es hier.</p>
+                <button
+                  onClick={insertStarterOverlay}
+                  className="bx-btn-accent pointer-events-auto mt-2 px-5 py-2.5 font-display text-sm tracking-wide"
+                >
+                  ✨ Starter-Overlay einfügen (6 Widgets, fertig platziert)
+                </button>
+                <p className="max-w-[80%] text-[10px] text-studio-muted/70">Zahlen, Ziel-Balken, Top-Gifter, Follow- &amp; Gift-Alert und Chat — direkt startklar, alles frei verschiebbar.</p>
               </div>
             )}
 
