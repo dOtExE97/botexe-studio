@@ -132,6 +132,55 @@ const CSS = `
 .bx-gm-chip .bx-gm-coins { font-size:.46em; padding:.28em .5em; }
 /* Der Pfeil ist im Laufband überflüssig — die zweite Zeile IST die Wirkung. */
 .bx-gm-chip .bx-gm-arr { display:none; }
+
+/* ── Kachelformen ────────────────────────────────────────────────────────
+   Alle Maße hier in cqh (Bandhöhe), NICHT in em: eine Kachel soll die Leiste
+   ausfüllen, egal wie der Nutzer die Textgröße gestellt hat. Sonst würde ein
+   „Quadrat" bei 1,5× aus dem Band herauswachsen. */
+
+/* QUADRAT — echte kleine Vierecke: Geschenk oben, Name, Wirkung darunter.
+   Am kompaktesten, aber die dritte Zeile ist zwangsläufig klein. */
+.bx-gm-t-quadrat .bx-gm-chip { flex-direction:column; align-items:center; justify-content:center;
+  width:78cqh; height:76cqh; gap:1cqh; padding:3cqh 3cqh 4cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-ic { width:38cqh; height:38cqh; }
+.bx-gm-t-quadrat .bx-gm-txt { align-items:center; max-width:100%; gap:0; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-name { font-size:13cqh; line-height:1.05; max-width:66cqh;
+  overflow:hidden; text-overflow:ellipsis; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-act { font-size:10.5cqh; line-height:1.1; max-width:66cqh; }
+/* Preis als Eck-Marke — im Quadrat ist keine Zeile dafür frei. */
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-coins { position:absolute; top:2cqh; right:2cqh; font-size:8cqh;
+  padding:.9cqh 2cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-line { justify-content:center; }
+
+/* ETIKETT — quadratisches Geschenk mit Namensband darauf, die Wirkung steht
+   rechts daneben. Etwas breiter als ein Quadrat, dafür bleibt die Wirkung groß. */
+.bx-gm-t-etikett .bx-gm-chip { gap:2.5cqh; padding:0 3cqh 0 0; height:78cqh; }
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-ic { width:78cqh; height:78cqh; padding:6cqh 4cqh 14cqh; box-sizing:border-box; }
+/* Namensband liegt ÜBER dem unteren Rand des Bildes — wie ein aufgeklebtes
+   Etikett. Deshalb sitzt der Textblock absolut, nicht im Fluss. */
+.bx-gm-t-etikett .bx-gm-txt { position:static; }
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-line { position:absolute; left:0; bottom:0; width:78cqh;
+  justify-content:center; gap:1.5cqh; padding:1.5cqh 0; box-sizing:border-box;
+  background:rgba(6,7,14,.82); }
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-name { font-size:11cqh; max-width:56cqh; overflow:hidden; text-overflow:ellipsis; }
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-coins { font-size:8cqh; padding:.8cqh 1.8cqh; }
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-act { font-size:13cqh; max-width:52cqh; white-space:normal;
+  -webkit-line-clamp:2; line-clamp:2; display:-webkit-box; -webkit-box-orient:vertical; text-overflow:clip; }
+
+/* ABLAGE — wie die Geschenkablage in TikTok: nur Geschenk und Preis, sonst
+   nichts. Maximal kompakt und aus jeder Entfernung erkennbar, zeigt aber NICHT
+   mehr, was das Geschenk auslöst. */
+.bx-gm-t-ablage .bx-gm-chip { flex-direction:column; width:64cqh; height:76cqh; gap:2cqh;
+  padding:4cqh 1cqh 2cqh; align-items:center; justify-content:center; }
+.bx-gm-t-ablage .bx-gm-chip .bx-gm-ic { width:44cqh; height:44cqh; }
+.bx-gm-t-ablage .bx-gm-txt { align-items:center; max-width:100%; gap:0; }
+.bx-gm-t-ablage .bx-gm-chip .bx-gm-act { display:none; }
+.bx-gm-t-ablage .bx-gm-chip .bx-gm-name { display:none; }
+/* Ohne Coin-Preis (Gift noch nie gesehen) blieb hier eine LEERE Pille als
+   dunkler Klecks unter dem Geschenk stehen. */
+.bx-gm-t-ablage .bx-gm-chip .bx-gm-line { justify-content:center; background:none; padding:0; }
+.bx-gm-t-ablage .bx-gm-chip .bx-gm-coins { font-size:15cqh; padding:1.4cqh 3cqh;
+  background:rgba(0,0,0,.55); box-shadow:0 0 0 max(1px,.02em) rgba(255,255,255,.18); }
 .bx-gm-arr { flex:none; opacity:.55; font-size:.85em; }
 
 /* ══ Stil 1: KARTE — Sammelkarte ═══════════════════════════════════════
@@ -354,6 +403,8 @@ const GIFT_SVG = `<svg class="bx-gm-ph" viewBox="0 0 24 24" fill="none" stroke="
 
 const MODES = new Set(['rotation', 'leiste']);
 const STYLES = new Set(['karte', 'tafel', 'neon']);
+/** Kachelform im Laufband — wie kompakt ein Eintrag gepackt wird. */
+const TILES = new Set(['breit', 'quadrat', 'etikett', 'ablage']);
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -454,6 +505,7 @@ export default class GiftMenu {
     if (props.accent) root.style.setProperty('--bx-accent', String(props.accent));
     this.mode = MODES.has(props.mode) ? props.mode : 'rotation';
     this.style = STYLES.has(props.style) ? props.style : 'karte';
+    this.tile = TILES.has(props.tile) ? props.tile : 'breit';
     this.showCoins = props.showCoins !== false;
     this.showTitle = props.showTitle !== false;
     this.title = String(props.title ?? 'Geschenke & was sie auslösen');
@@ -623,7 +675,8 @@ export default class GiftMenu {
     };
     // Doppelte Sequenz: -50% Verschiebung = exakt eine Sequenz → nahtlose Schleife.
     const seq = list.map((it, i) => chip(it, i)).join('');
-    this.el.innerHTML = `<div class="bx-gm-band"><div class="bx-gm-track" style="--dur:${this.speed}s">${seq}${seq}</div></div>`;
+    this.el.innerHTML = `<div class="bx-gm-band bx-gm-t-${this.tile}">`
+      + `<div class="bx-gm-track" style="--dur:${this.speed}s">${seq}${seq}</div></div>`;
     this.cards = [];
     this.dots = [];
     this.barEl = null;

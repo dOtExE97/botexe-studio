@@ -3,6 +3,19 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.33.1] — 2026-07-25
+
+### Vier Kachelformen fürs Geschenk-Laufband
+Die Einträge waren auch nach dem letzten Umbau noch breit. Neu wählbar unter *Kachelform im Laufband*:
+- **Breit** (Standard, unverändert) — Geschenk links, Name und Wirkung daneben. 4 Einträge gleichzeitig.
+- **Quadrat** — kleine Vierecke wie in der TikTok-Geschenkablage: Geschenk, Preis als Eck-Marke, darunter Name und Wirkung. **10 Einträge gleichzeitig.**
+- **Etikett** — die Wirkung groß daneben, Name und Preis als Band auf dem Geschenkbild. 6 gleichzeitig, beste Lesbarkeit der Wirkung.
+- **Ablage** — nur Geschenk und Preis, sonst nichts. Am kompaktesten, zeigt dafür bewusst **nicht**, was das Geschenk auslöst.
+
+Alle Maße hängen an der Bandhöhe statt an der Schriftgröße — sonst wüchse ein „Quadrat" bei 1,5× Textgröße aus dem Band heraus.
+
+Beim Bauen gemessen statt geschätzt: im Quadrat berührte die Wirkungszeile die Kachelkante (77 px Text in 84 px Kachel, 1 px Überstand unten). Korrigiert. In der Ablage blieb ohne bekannten Coin-Preis eine leere Pille als dunkler Klecks stehen — entfernt.
+
 ## [0.33.0] — 2026-07-25
 
 ### Die Textgrößen-Einstellung wirkt endlich

@@ -701,12 +701,18 @@ export const WIDGET_TYPES: {
   {
     type: 'gift-menu', label: 'Geschenk-Menü', desc: 'Die Preistafel deines Streams: zeigt, welches Geschenk was auslöst — entweder eins nach dem anderen groß eingeblendet oder als durchlaufendes Band. Mit echtem Gift-Bild und Coin-Preis. Kann die Einträge automatisch aus deinen Triggern lesen, dann pflegst du nichts doppelt.',
     w: 420, h: 520,
-    props: { mode: 'rotation', items: '', source: 'liste', title: 'Geschenke & was sie auslösen', showTitle: true, showCoins: true, intervalMs: 6000, speed: 26, style: 'karte', accent: '#ff5e8a', theme: 'glas' },
+    props: { mode: 'rotation', items: '', tile: 'breit', source: 'liste', title: 'Geschenke & was sie auslösen', showTitle: true, showCoins: true, intervalMs: 6000, speed: 26, style: 'karte', accent: '#ff5e8a', theme: 'glas' },
     fields: [
       { key: 'mode', label: 'Darstellung', type: 'select', options: [
         { value: 'rotation', label: 'Eins nach dem anderen' },
         { value: 'leiste', label: 'Laufband' },
       ], hint: 'Eins nach dem anderen blendet jedes Geschenk groß ein — gut für schmale, hohe Ecken. Das Laufband lässt alle Einträge durchlaufen und braucht nur einen flachen Streifen.' },
+      { key: 'tile', label: 'Kachelform im Laufband', type: 'select', options: [
+        { value: 'breit', label: 'Breit — Geschenk links, Name und Wirkung daneben' },
+        { value: 'quadrat', label: 'Quadrat — kleine Vierecke, Preis in der Ecke (die meisten Einträge)' },
+        { value: 'etikett', label: 'Etikett — Wirkung groß, Name und Preis auf dem Bild' },
+        { value: 'ablage', label: 'Ablage — nur Geschenk und Preis, wie die TikTok-Geschenkablage' },
+      ], hint: 'Nur beim Laufband. Je kompakter die Kachel, desto mehr Geschenke laufen gleichzeitig durch — dafür wird die Schrift kleiner. „Ablage" zeigt bewusst NICHT, was das Geschenk auslöst.' },
       { key: 'source', label: 'Woher kommen die Einträge', type: 'select', options: [
         { value: 'liste', label: 'Meine Liste unten' },
         { value: 'trigger', label: 'Automatisch aus meinen Triggern' },
