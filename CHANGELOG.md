@@ -3,6 +3,13 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.28.0] — 2026-07-25
+
+### Drei neue Optiken 🎬🃏🌡️
+- **Bestenlisten-Wechsler → „Bauchbinde"**: wie eine TV-Unterzeile — farbiger Rangblock links, breiter dunkler Balken, großer Name, Wert als Chip rechts. Schiebt sich seitlich ein.
+- **Bestenlisten-Wechsler → „Karte"**: jede Person auf einer eigenen Karte mit abgerundetem Profilbild, Platz 1 bekommt einen goldenen Rand.
+- **Ziel-Balken → „Thermometer"**: senkrecht, füllt sich von unten nach oben. Spart Breite und passt damit deutlich besser ins TikTok-Hochformat als ein Querbalken.
+
 ## [0.27.0] — 2026-07-25
 
 ### Visueller Durchgang: alle 44 Widgets angeschaut — 6 Fixes

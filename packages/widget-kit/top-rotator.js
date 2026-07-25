@@ -55,6 +55,41 @@ const CSS = `
 .bx-tr-pills .bx-tr-name { color: #0c0d14 !important; text-shadow: none; }
 .bx-tr-pills .bx-tr-val { color: #0c0d14 !important; text-shadow: none; background: rgba(255,255,255,.72); border-radius: 999px; padding: 2px 10px; }
 .bx-tr-pills .bx-tr-rank { background: rgba(12,13,20,.85) !important; color: #fff; border-radius: 50%; box-shadow: none !important; }
+
+/* ── BAUCHBINDE — TV-Unterzeile: farbiger Rangblock links, breiter dunkler
+   Balken, Name groß, Wert als Chip rechts. Schiebt sich seitlich ein. */
+.bx-tr-banner { background: none; box-shadow: none; padding: 4px 2px; }
+.bx-tr-banner::before { display: none; }
+.bx-tr-banner .bx-tr-title { letter-spacing: .3em; }
+.bx-tr-banner .bx-tr-row { height: 58px; gap: 0; padding: 0; overflow: hidden;
+  border-radius: 0 10px 10px 0; background: linear-gradient(100deg, rgba(12,13,20,.94), rgba(12,13,20,.78));
+  box-shadow: 0 6px 18px -8px rgba(0,0,0,.7); margin-bottom: 6px;
+  border-left: 6px solid var(--bx-accent); animation: bx-tr-slide .45s cubic-bezier(.2,1.1,.3,1) backwards; }
+@keyframes bx-tr-slide { from { opacity:0; transform: translateX(-26px); } }
+.bx-tr-banner .bx-tr-rank { width: 46px; height: 100%; border-radius: 0; flex: none;
+  background: var(--bx-accent) !important; box-shadow: none !important; color: #0c0d14; font-size: 22px; }
+.bx-tr-banner .bx-tr-row[data-rank="1"] .bx-tr-rank { background: linear-gradient(160deg,#ffe88a,#f5b914) !important; }
+.bx-tr-banner .bx-tr-pic { margin-left: 10px; }
+.bx-tr-banner .bx-tr-name { margin-left: 12px; font-size: 24px; letter-spacing: .02em; }
+.bx-tr-banner .bx-tr-val { margin-right: 12px; background: rgba(255,255,255,.10); border-radius: 999px; padding: 3px 14px; }
+.bx-tr-banner .bx-tr-crown { margin-left: 74px; }
+
+/* ── KARTE — jede Person eine eigene Karte: großes Bild links, Name und Wert
+   übereinander rechts. Wirkt wie ein Kontakt-/Sammelkarten-Stapel. */
+.bx-tr-karte { background: none; box-shadow: none; padding: 4px 2px; }
+.bx-tr-karte::before { display: none; }
+.bx-tr-karte .bx-tr-row { height: 66px; gap: 12px; padding: 0 12px 0 8px; margin-bottom: 8px;
+  border-radius: 14px; background: linear-gradient(150deg, rgba(24,26,38,.95), rgba(12,13,20,.92));
+  box-shadow: 0 10px 22px -10px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.07);
+  border: 1px solid color-mix(in srgb, var(--bx-accent) 30%, transparent); }
+.bx-tr-karte .bx-tr-row[data-rank="1"] { border-color: color-mix(in srgb, var(--bx-gold) 60%, transparent);
+  box-shadow: 0 10px 26px -10px rgba(0,0,0,.85), 0 0 22px -8px var(--bx-gold), inset 0 1px 0 rgba(255,255,255,.09); }
+.bx-tr-karte .bx-tr-rank { width: 26px; height: 26px; font-size: 14px; border-radius: 8px; }
+.bx-tr-karte .bx-tr-pic { width: 52px; height: 52px; border-radius: 12px; }
+.bx-tr-karte .bx-tr-name { font-size: 22px; }
+.bx-tr-karte .bx-tr-val { font-size: 22px; }
+.bx-tr-karte .bx-tr-crown { margin-top: -40px; margin-left: 44px; }
+
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -78,7 +113,7 @@ export default class TopRotator {
     this.idx = 0;
     this.stats = null;
     this.el = document.createElement('div');
-    const style = ['glas', 'neon', 'pills'].includes(props.style) ? props.style : 'glas';
+    const style = ['glas', 'neon', 'pills', 'banner', 'karte'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-tr${style !== 'glas' ? ` bx-tr-${style}` : ''}`;
     this.el.innerHTML = `<div class="bx-tr-head"><div class="bx-tr-title"></div></div><div class="bx-tr-list in"></div>`;
     this.titleEl = this.el.querySelector('.bx-tr-title');

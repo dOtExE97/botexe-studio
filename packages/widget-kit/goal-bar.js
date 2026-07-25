@@ -46,6 +46,26 @@ const CSS = `
 .bx-gb-slim .bx-gb-tick { display: none; }
 .bx-gb-slim .bx-gb-pct { display: none; }
 .bx-gb-slim .bx-gb-label { letter-spacing: .3em; font-size: clamp(9px,7cqmin,14px); }
+
+/* ── THERMOMETER — senkrecht: füllt sich von unten nach oben. Spart Breite und
+   passt damit deutlich besser ins TikTok-Hochformat als ein Querbalken. */
+.bx-gb-thermo { flex-direction: column; align-items: center; gap: 6px; }
+.bx-gb-thermo .bx-gb-head { flex-direction: column; align-items: center; gap: 2px; margin: 0 0 4px; text-align: center; }
+.bx-gb-thermo .bx-gb-track { flex: 1; width: clamp(22px, 26cqmin, 54px); height: auto; min-height: 0;
+  border-radius: 999px; overflow: hidden; }
+/* Füllung wächst nach OBEN (statt nach rechts) — Höhe kommt aus --pct. */
+.bx-gb-thermo .bx-gb-fill { top: auto; bottom: 0; left: 0; right: 0; width: 100% !important;
+  height: var(--pct, 0%); border-radius: 999px;
+  transition: height 700ms cubic-bezier(.25,1,.35,1); }
+.bx-gb-thermo .bx-gb-fill::after { animation: bx-gb-stripes-v 1.6s linear infinite;
+  background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.16) 0 8px, transparent 8px 18px); }
+@keyframes bx-gb-stripes-v { to { transform: translateY(-26px); } }
+/* Skalenstriche waagerecht statt senkrecht */
+.bx-gb-thermo .bx-gb-tick { top: auto !important; left: 4px !important; right: 4px; width: auto; height: 2px; }
+.bx-gb-thermo .bx-gb-tick:nth-of-type(2) { bottom: 25%; }
+.bx-gb-thermo .bx-gb-tick:nth-of-type(3) { bottom: 50%; }
+.bx-gb-thermo .bx-gb-tick:nth-of-type(4) { bottom: 75%; }
+.bx-gb-thermo .bx-gb-pct { writing-mode: horizontal-tb; align-items: flex-start; padding-top: 6px; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 const LABELS = { coins: 'Coin-Ziel', likes: 'Like-Ziel', follows: 'Follower-Ziel', gifts: 'Geschenk-Ziel' };
@@ -59,7 +79,7 @@ export default class GoalBar {
     this.target = Math.max(1, Number(props.target ?? 1000));
     this.label = props.label || LABELS[this.metric];
     this.el = document.createElement('div');
-    const style = ['glas', 'arcade', 'slim'].includes(props.style) ? props.style : 'glas';
+    const style = ['glas', 'arcade', 'slim', 'thermo'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-gb${style !== 'glas' ? ` bx-gb-${style}` : ''}`;
     this.el.innerHTML = `
       <div class="bx-gb-head"><div class="bx-gb-label"></div><div class="bx-gb-nums">0 / ${fmt(this.target)}</div></div>
@@ -75,6 +95,7 @@ export default class GoalBar {
     const cur = Number(stats?.totals?.[this.metric] ?? 0);
     const pct = Math.min(100, (cur / this.target) * 100);
     this.el.querySelector('.bx-gb-fill').style.width = `${pct}%`;
+    this.el.style.setProperty('--pct', `${pct}%`); // Thermometer-Stil füllt über die Höhe
     this.el.querySelector('.bx-gb-pct').textContent = `${Math.floor(pct)}%`;
     this.el.querySelector('.bx-gb-nums').textContent = `${fmt(cur)} / ${fmt(this.target)}`;
     this.el.classList.toggle('done', cur >= this.target);

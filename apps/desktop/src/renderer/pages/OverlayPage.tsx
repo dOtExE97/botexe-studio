@@ -291,6 +291,7 @@ const WIDGET_TYPES: {
         { value: 'glas', label: 'Glas (Standard)' },
         { value: 'arcade', label: 'Arcade (LED-Segmente)' },
         { value: 'slim', label: 'Slim (dünne Linie, minimal)' },
+        { value: 'thermo', label: '🌡️ Thermometer (senkrecht, spart Breite)' },
       ]),
       { key: 'metric', label: 'Metrik', type: 'select', options: [
         { value: 'coins', label: 'Coins' }, { value: 'likes', label: 'Likes' },
@@ -403,6 +404,8 @@ const WIDGET_TYPES: {
         { value: 'glas', label: 'Glas (Panel)' },
         { value: 'neon', label: 'Neon (freistehend)' },
         { value: 'pills', label: 'Bunte Pillen' },
+        { value: 'banner', label: '🎬 Bauchbinde (TV-Unterzeile)' },
+        { value: 'karte', label: '🃏 Karte (Kontaktkarten)' },
       ]),
       { key: 'sources', label: 'Welche Listen', type: 'text', hint: 'Reihenfolge, kommagetrennt: gifts, likes, points, wins (Spiel-Siege).' },
       { key: 'interval', label: 'Sekunden pro Liste', type: 'number', hint: 'Wie lange jede Liste gezeigt wird, bevor gewechselt wird.' },
