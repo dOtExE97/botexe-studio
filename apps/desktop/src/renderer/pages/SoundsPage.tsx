@@ -20,7 +20,10 @@ interface MyInstantsResult {
 
 export default function SoundsPage() {
   const [sounds, setSounds] = useState<SoundEntry[]>([]);
-  const [volume, setVolume] = useState(0.7);
+  const [volume, setVolume] = useState(1);
+  // Der ganze Mixer wird gehalten, damit das Speichern des Masters die Kanäle
+  // nicht verwirft (updateSettings mergt nur flach).
+  const [mixer, setMixer] = useState<Record<string, unknown> | null>(null);
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<MyInstantsResult[]>([]);
@@ -34,7 +37,13 @@ export default function SoundsPage() {
 
   useEffect(() => {
     void refresh();
-    void window.studio.getSettings().then((s: { soundVolume: number }) => setVolume(s.soundVolume));
+    // Dieser Regler ist der EINE Master (derselbe wie im Mixer „Master — alles
+    // zusammen"). Früher gab es hier einen zweiten, separaten Master, der mit
+    // dem Mixer multipliziert wurde → „leise trotz vollem Mixer".
+    void window.studio.getSettings().then((s: { mixer?: { master?: number } }) => {
+      setMixer((s.mixer as Record<string, unknown>) ?? null);
+      setVolume((s.mixer?.master as number) ?? 1);
+    });
   }, []);
 
   const search = async () => {
@@ -95,8 +104,8 @@ export default function SoundsPage() {
         </button>
       </div>
 
-      <label className="flex w-72 items-center gap-3 text-xs text-studio-muted">
-        Lautstärke
+      <label className="flex w-80 items-center gap-3 text-xs text-studio-muted">
+        Gesamt-Lautstärke
         <input
           type="range"
           min={0}
@@ -106,12 +115,19 @@ export default function SoundsPage() {
           onChange={(e) => {
             const v = Number(e.target.value);
             setVolume(v);
-            void window.studio.updateSettings({ soundVolume: v });
+            // Schreibt den EINEN Master (identisch zum Mixer). Ganzen Mixer
+            // mitgeben, sonst verwirft der flache Merge die Kanäle.
+            const nextMixer = { ...(mixer ?? {}), master: v };
+            setMixer(nextMixer);
+            void window.studio.updateSettings({ mixer: nextMixer });
           }}
           className="flex-1 accent-[#ff4d2e]"
         />
         <span className="w-9 font-mono">{Math.round(volume * 100)}%</span>
       </label>
+      <p className="mt-1 max-w-md text-[11px] text-studio-muted/70">
+        Das ist derselbe Regler wie im <b>Mixer</b> („Master — alles zusammen"). Einzelne Quellen (Alerts, Vorlesen, Spiele) regelst du dort getrennt.
+      </p>
 
       {/* MyInstants-Suche */}
       <section className="bx-card p-5">

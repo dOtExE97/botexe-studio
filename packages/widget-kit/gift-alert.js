@@ -97,6 +97,34 @@ const CSS = `
 html .bx-frameless .bx-ga-kicker { -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-ga-name { -webkit-text-stroke: max(1.5px, .07em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-ga-coins { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Auslöser auf der KARTE, im Moment des Erscheinens. Bewusst die Karte und
+   nicht die Wurzel: die Wurzel trägt schon Ein- und Ausblenden (.show/.hide),
+   die Karte selbst hat keine eigene Animation — die Choreografie der Basis
+   passt dort ohne Umbau.
+   Der Ring der Basis läuft über box-shadow und kommt damit an ::before
+   (Gradient-Haarlinie) und ::after (Glanzstreif) vorbei, die hier beide
+   belegt sind. Die Karte verliert dafür 900 ms lang ihren eigenen Schatten —
+   im Moment des Auftritts ist genau das gewollt. */
+/* Der Ring wird für 900 ms zum einzigen Schatten der Karte — damit sie dabei
+   nicht flach wirkt, legt ein mitlaufender Filter-Schein Tiefe darunter.
+   KOLLISION: Der Stil „Banner" schneidet die Karte per clip-path schräg an;
+   ein clip-path schneidet auch box-shadow weg, der Ring wäre dort unsichtbar
+   gewesen. Derselbe Filter-Schein umfasst die geschnittene Silhouette und
+   springt für den Banner ein. */
+.bx-premium .bx-ga-card.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1),
+    bx-ga-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes bx-ga-hit-schein {
+  0% { filter: drop-shadow(0 .16em .4em rgba(0,0,0,.7)) drop-shadow(0 0 0 color-mix(in srgb, var(--bx-accent) 95%, white)); }
+  22% { filter: drop-shadow(0 .16em .4em rgba(0,0,0,.7)) drop-shadow(0 0 .5em color-mix(in srgb, var(--bx-accent) 90%, white)); }
+  100% { filter: drop-shadow(0 .16em .4em rgba(0,0,0,.7)) drop-shadow(0 0 0 transparent); }
+}
+/* Mehr Tiefe: Kicker und Coin-Zeile führen das Auge, der Name bleibt Held. */
+.bx-premium .bx-ga-kicker { text-shadow: 0 0 .7em color-mix(in srgb, var(--bx-teal) 60%, transparent), 0 .06em .12em rgba(0,0,0,.8); }
+.bx-premium .bx-ga-coins { text-shadow: 0 0 .55em color-mix(in srgb, var(--bx-gold) 65%, transparent), 0 .06em .12em rgba(0,0,0,.8); }
 `;
 
 function ensureStyle() {
@@ -139,6 +167,7 @@ export default class GiftAlert {
     this.durationMs = Number(props.durationMs ?? 5000);
     this.queue = [];
     this.busy = false;
+    this.timers = new Set();
     this.el = document.createElement('div');
     const style = ['glas', 'neon', 'banner'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-ga${style !== 'glas' ? ` bx-ga-${style}` : ''}`;
@@ -209,6 +238,8 @@ export default class GiftAlert {
     this.burst(alert.coins >= 100 ? 28 : 14);
     this.el.classList.remove('hide');
     this.el.classList.add('show');
+    // Premium-Auslöser: der Auftritt der Karte IST der bemerkenswerte Moment.
+    this.hit(this.el.querySelector('.bx-ga-card'));
     if (this.preview) return; // Vorschau bleibt stehen
 
     this.hideTimer = setTimeout(() => {
@@ -236,9 +267,23 @@ export default class GiftAlert {
     }
   }
 
+  /** Premium-Auslöser (siehe widget-base.css, .bx-premium). Immer setzen — ob
+   *  daraus ein Effekt wird, entscheidet die Basis. Klasse weg, Reflow, Klasse
+   *  neu, damit der Effekt bei Alert-Ketten erneut anspringt. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
+  }
+
   destroy() {
     clearTimeout(this.hideTimer);
     clearTimeout(this.nextTimer);
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     this.el.remove();
   }
 }

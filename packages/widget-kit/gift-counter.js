@@ -57,6 +57,38 @@ const CSS = `
    Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
    frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
 html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow: 0 3px 10px rgba(0,0,0,.55); }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Zwei Stufen: jedes gezählte Geschenk löst am Gift-Rund aus; ist damit das
+   Ziel erreicht, löst zusätzlich der Fortschritts-Text aus — derselbe Effekt
+   an zwei Stellen liest sich deutlich lauter als an einer.
+
+   KOLLISION: Der Icon-Rahmen heißt „bx-gco-iconwrap", das Icon
+   „bx-gco-icon" — beide fallen unter den breiten Selektor [class*='-ic'] der
+   Basis, der Bildern ein langsames Atmen gibt. Beim Icon hätte das dessen
+   eigenen Herzschlag (bx-gco-pulse) ersetzt, weil der Basis-Selektor
+   spezifischer ist als „.bx-gco-icon". Also hier zurückgeholt. */
+.bx-premium .bx-gco-icon { animation: bx-gco-pulse 2.4s ease-in-out infinite; }
+/* Der Ring der Basis ist eine box-shadow-Kontur. Der Icon-Rahmen ist eckig,
+   der Fortschrittsring darin rund — ohne Radius säße ein Kasten um einen
+   Kreis. Der Rahmen hat keinen Hintergrund, der Radius ändert also nichts
+   außer der Form des Auslöser-Rings. */
+.bx-premium .bx-gco-iconwrap { border-radius: 50%; }
+/* Die Fortschrittszahl ist reiner Text. Der Ring der Basis ist in em bemessen
+   und wird dort in großen Boxen zu einer Farbplatte statt zu einer Kontur —
+   deshalb ein Schein, der der Ziffernform folgt. Türkis wie der volle Ring,
+   denn dieser Auslöser feuert nur bei erreichtem Ziel. */
+.bx-premium .bx-gco-prog.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-gco-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes bx-gco-hit-schein {
+  0% { filter: drop-shadow(0 0 0 var(--bx-teal)) drop-shadow(0 0 0 var(--bx-teal)); }
+  18% { filter: drop-shadow(0 0 .14em var(--bx-teal)) drop-shadow(0 0 .34em var(--bx-teal)); }
+  100% { filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); }
+}
+/* Mehr Tiefe an der Fortschrittszahl. */
+.bx-premium .bx-gco-prog { text-shadow: 0 0 .45em color-mix(in srgb, var(--bx-gold) 55%, transparent), 0 .05em .1em rgba(0,0,0,.7); }
+.bx-premium .bx-gco.done .bx-gco-prog { text-shadow: 0 0 .45em color-mix(in srgb, var(--bx-teal) 60%, transparent), 0 .05em .1em rgba(0,0,0,.7); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
@@ -97,6 +129,7 @@ export default class GiftCounter {
     this.target = this.step;
     this.onReach = ['raise', 'reset', 'keep'].includes(props.onReach) ? props.onReach : 'raise';
     this.label = props.label || 'Geschenk-Ziel';
+    this.timers = new Set();
     this.storageKey = `bx-gco-${(ctx && ctx.layerId) || 'default'}`;
     const saved = this.load();
     this.count = saved.count;
@@ -173,6 +206,24 @@ export default class GiftCounter {
     const pct = Math.max(0, Math.min(100, (this.count / Math.max(1, this.target)) * 100));
     this.el.style.setProperty('--pct', `${pct}%`);
     if (animate) { this.el.classList.remove('hit'); void this.el.offsetWidth; this.el.classList.add('hit'); }
+    // Premium-Auslöser: der Zähler ist gestiegen. Ist damit das Ziel erreicht,
+    // bekommt zusätzlich der Fortschritts-Text den Auftritt — deutlich lauter.
+    if (animate) {
+      this.hit(this.el.querySelector('.bx-gco-iconwrap'));
+      if (this.count >= this.target) this.hit(this.el.querySelector('.bx-gco-prog'));
+    }
+  }
+
+  /** Premium-Auslöser (siehe widget-base.css, .bx-premium). Immer setzen — ob
+   *  daraus ein Effekt wird, entscheidet die Basis. Klasse weg, Reflow, Klasse
+   *  neu, damit der Effekt bei einer Combo (10x Rose) erneut anspringt. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
   }
 
   /** Editor-Vorschau: ohne Gifts stünde hier 0/15 bei leerem Ring — mit
@@ -187,5 +238,5 @@ export default class GiftCounter {
   // Neuer Stream → Zähler + Ziel zurück auf Start, altes Gift-Icon weg.
   onReset() { this.count = 0; this.target = this.step; this.lastIcon = ''; this.renderIcon(); this.persist(); this.render(false); }
 
-  destroy() { this.el.remove(); }
+  destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

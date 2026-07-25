@@ -26,6 +26,10 @@ export interface PropField {
    *  „Rahmen ausblenden"), setzen hier false, sonst zeigt der Schalter „an",
    *  obwohl nichts passiert. */
   uncheckedDefault?: boolean;
+  /** Feld nur zeigen, wenn diese Bedingung auf den aktuellen Props zutrifft.
+   *  Gegen wirkungslose Einstellungen: z.B. „Stil" beim Geschenk-Menü nur im
+   *  Rotations-Modus, „Tempo des Laufbands" nur im Laufband-Modus. */
+  showIf?: (props: Record<string, unknown>) => boolean;
 }
 
 const ACCENT_FIELD: PropField = {
@@ -66,7 +70,10 @@ const FONT_FIELD: PropField = {
   hint: 'Schriftart dieses Widgets (nur lokale/System-Fonts).',
 };
 const SIZE_FIELD: PropField = {
-  key: 'fontScale', label: 'Größe', type: 'select',
+  // Bewusst „Textgröße" statt „Größe": die tatsächliche Widget-Größe zieht man
+  // am Rahmen im Editor. Zwei Felder „Größe" (hier + das Karten-Format des
+  // Action-Screens) standen sonst gleichnamig untereinander.
+  key: 'fontScale', label: 'Textgröße', type: 'select',
   options: [
     { value: '0.7', label: 'Klein' },
     { value: '0.85', label: 'Kompakt' },
@@ -123,6 +130,18 @@ export const FRAME_FIELD: PropField = {
 /** Reine Effekt-/Vollbild-Widgets ohne Panel — da bringt „Rahmen ausblenden" nichts. */
 export const NO_FRAME_TOGGLE = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'gift-counter', 'gift-jar', 'goal-bar', 'top-rotator', 'combo']);
 
+/** „Premium-Effekte" — eine zuschaltbare Gestaltungs-Ebene für JEDES Widget.
+ *  Die Regeln liegen gebündelt in widget-base.css unter .bx-premium; die
+ *  Laufzeit setzt die Klasse. Ohne Haken ändert sich nichts — bestehende
+ *  Overlays bleiben unberührt. */
+export const POLISH_FIELD: PropField = {
+  key: 'polish', label: 'Premium-Effekte', type: 'boolean', uncheckedDefault: false,
+  hint: 'Mehr Tiefe (Lichtkante, weicher Schein unter Bildern), ruhig atmende Bewegung und ein deutlicher Effekt in dem Moment, in dem etwas passiert. Zahlen laufen tabellarisch und springen beim Hochzählen nicht mehr. Kostet kaum Leistung — im Schnell-Modus schaltet sich die Dauerbewegung automatisch ab.',
+};
+/** Reine Vollflächen-Effekte: dort gibt es kein Panel und keine Bilder, an
+ *  denen die Premium-Ebene ansetzen könnte. */
+export const NO_POLISH = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'combo']);
+
 /** Schriftart/Größe/Farbe werden universell an JEDES Widget angehängt (außer reine
  *  Effekt-Widgets ohne Text) — dedupliziert, damit Widgets, die sie schon haben,
  *  keine Doppel-Felder bekommen. Das Runtime wendet die Werte universell an. */
@@ -133,6 +152,22 @@ export const UNIVERSAL_STYLE_FIELDS: PropField[] = [FONT_FIELD, SIZE_FIELD, TEXT
 // Kanone zeichnen ihren Text auf Canvas, Emojis haben ein eigenes Groessen-
 // Feld, und das Medien-Widget zeigt ausser dem Platzhalter keinen Text.
 export const NO_STYLE_FIELDS = new Set(['gift-fireworks', 'gift-cannon', 'emojify', 'media']);
+
+/** Nur die Textgröße ist sinnvoll, Schriftart + Textfarbe nicht: Herz-Regen
+ *  zeigt Emojis und Avatar-Kreise mit Initialen — keinen Fließtext, für den
+ *  eine Schriftart oder Textfarbe etwas bewirken würde. Die Größe skaliert
+ *  dagegen sichtbar Herzen und Emojis. */
+export const SIZE_ONLY_STYLE = new Set(['heart-rain']);
+
+/** Kein „Textfarbe"-Feld: bei diesen Widgets kommt die Farbe aus dem Design,
+ *  dem Spielzustand oder dem Theme — eine freie Textfarbe würde nichts bewirken
+ *  oder das Aussehen zerstören (Gold-Zahlen, X/O-Farben, Rad-Segmente, Skins,
+ *  LED-/Uhr-Stile). Ein Feld, das nichts tut, gehört weg. Akzentfarbe + Theme
+ *  bleiben. */
+export const NO_TEXTCOLOR = new Set([
+  'action-screen', 'subathon', 'wheel', 'hangman-game', 'tic-tac-toe-game', 'connect-four-game',
+  'gift-jar', 'gift-counter',
+]);
 
 export const WIDGET_TYPES: {
   type: string;
@@ -148,7 +183,7 @@ export const WIDGET_TYPES: {
     w: 420, h: 240, props: { channels: '', types: '', sizeMode: 'standard', queueMode: 'priority', maxQueue: 6, minPriority: 0, dedupeMs: 1500, defaultSkin: 'premium', animation: 'pop', showAvatar: true, showStats: true, soundMode: 'moment', accent: '#ff5436' },
     fields: [
       { key: 'channels', label: 'Kanäle', type: 'text', hint: 'Leer = alle. Sonst kommagetrennt: vip, viewer, game, mastery, boss, loot, manual, clip.' },
-      { key: 'sizeMode', label: 'Größe', type: 'select', options: [
+      { key: 'sizeMode', label: 'Karten-Format', type: 'select', hint: 'Wie groß die Momente-Karte auftritt. (Die Textgröße stellst du weiter unten.)', options: [
         { value: 'compact', label: 'Kompakt' }, { value: 'standard', label: 'Standard' }, { value: 'full', label: 'Groß (kurz)' },
       ] },
       { key: 'defaultSkin', label: 'Design', type: 'select', options: [
@@ -701,33 +736,47 @@ export const WIDGET_TYPES: {
   {
     type: 'gift-menu', label: 'Geschenk-Menü', desc: 'Die Preistafel deines Streams: zeigt, welches Geschenk was auslöst — entweder eins nach dem anderen groß eingeblendet oder als durchlaufendes Band. Mit echtem Gift-Bild und Coin-Preis. Kann die Einträge automatisch aus deinen Triggern lesen, dann pflegst du nichts doppelt.',
     w: 420, h: 520,
-    props: { mode: 'rotation', items: '', tile: 'breit', source: 'liste', title: 'Geschenke & was sie auslösen', showTitle: true, showCoins: true, intervalMs: 6000, speed: 26, style: 'karte', accent: '#ff5e8a', theme: 'glas' },
+    props: { mode: 'rotation', items: '', tile: 'breit', banner: 'schimmer', source: 'liste', title: 'Geschenke & was sie auslösen', showTitle: true, showCoins: true, intervalMs: 6000, speed: 26, style: 'karte', accent: '#ff5e8a', theme: 'glas' },
     fields: [
       { key: 'mode', label: 'Darstellung', type: 'select', options: [
         { value: 'rotation', label: 'Eins nach dem anderen' },
         { value: 'leiste', label: 'Laufband' },
       ], hint: 'Eins nach dem anderen blendet jedes Geschenk groß ein — gut für schmale, hohe Ecken. Das Laufband lässt alle Einträge durchlaufen und braucht nur einen flachen Streifen.' },
-      { key: 'tile', label: 'Kachelform im Laufband', type: 'select', options: [
+      { key: 'tile', label: 'Kachelform im Laufband', type: 'select', showIf: (p) => p.mode === 'leiste', options: [
         { value: 'breit', label: 'Breit — Geschenk links, Name und Wirkung daneben' },
         { value: 'quadrat', label: 'Quadrat — kleine Vierecke, Preis in der Ecke (die meisten Einträge)' },
         { value: 'etikett', label: 'Etikett — Wirkung groß, Name und Preis auf dem Bild' },
         { value: 'ablage', label: 'Ablage — nur Geschenk und Preis, wie die TikTok-Geschenkablage' },
-      ], hint: 'Nur beim Laufband. Je kompakter die Kachel, desto mehr Geschenke laufen gleichzeitig durch — dafür wird die Schrift kleiner. „Ablage" zeigt bewusst NICHT, was das Geschenk auslöst.' },
+        { value: 'ueberlagert', label: 'Überlagert (Wucht) — kantige Arcade-Kachel, Wirkung in fetten Versalien, Auslöser mit Druckwelle' },
+        { value: 'vitrine', label: 'Vitrine (edel) — schwarzer Schaukasten mit Goldlinie und Lichtkegel, Auslöser als weiches Aufleuchten' },
+        { value: 'aufkleber', label: 'Aufkleber (verspielt) — ausgestanzter Sticker, leicht schief, Auslöser hüpft und wirft Konfetti' },
+        { value: 'untertitel', label: 'Untertitel — farbige Bauchbinde unten, Geschenk ragt darüber' },
+        { value: 'banderole', label: 'Banderole — schräges Band quer über dem Geschenk' },
+      ], hint: 'Nur beim Laufband. Bei „Überlagert", „Untertitel" und „Banderole" liegt die Schrift ALS EBENE über dem Geschenkbild und darf es anschneiden — dadurch wird die Wirkung groß und ist auch auf dem Handy lesbar. „Ablage" zeigt bewusst NICHT, was das Geschenk auslöst.' },
+      { key: 'banner', label: 'Hintergrund des Laufbands', type: 'select', showIf: (p) => p.mode === 'leiste', options: [
+        { value: 'schimmer', label: 'Schimmer — ruhig, ein Lichtstreif wandert darüber' },
+        { value: 'welle', label: 'Welle — Farbverlauf wandert langsam durch' },
+        { value: 'streifen', label: 'Streifen — schräge Streifen laufen mit' },
+        { value: 'aurora', label: 'Aurora — zwei weiche Farbwolken driften' },
+      ], hint: 'Nur beim Laufband. Alle vier sind animiert und laufen dauerhaft — gerechnet wird nur mit Farbverläufen, das kostet auch im schwachen Browser von TikTok Live Studio kaum Leistung.' },
       { key: 'source', label: 'Woher kommen die Einträge', type: 'select', options: [
         { value: 'liste', label: 'Meine Liste unten' },
         { value: 'trigger', label: 'Automatisch aus meinen Triggern' },
       ], hint: 'Automatisch: die Tafel liest deine Geschenk-Trigger und bleibt von allein aktuell, wenn du dort etwas änderst.' },
       { key: 'items', label: 'Geschenke + was sie auslösen', type: 'gift-command-list', textPlaceholder: 'Was löst es aus?', hint: 'Pro Zeile ein Geschenk wählen und dazuschreiben, was es auslöst. Bild und Coin-Preis kommen automatisch dazu. Die Reihenfolge bestimmt, wie die Tafel durchwechselt. (Wird bei „Automatisch aus meinen Triggern" nicht benutzt.)' },
-      styleField([
+      // Stil (Sammelkarte/Preistafel/Leuchtreklame) nur im Rotations-Modus:
+      // im Laufband bestimmt die Kachelform das Aussehen, „Stil" wäre dort
+      // fast wirkungslos (Audit-Befund A2).
+      { ...styleField([
         { value: 'karte', label: 'Sammelkarte — Innenrahmen, Hologramm-Glanz, geprägter Gold-Preis' },
         { value: 'tafel', label: 'Preistafel — Kreidetafel im Holzrahmen, Preis rechts wie auf der Speisekarte' },
         { value: 'neon', label: 'Leuchtreklame — doppelte Neonröhre mit glühender Schrift' },
-      ]),
+      ]), showIf: (p) => (p.mode ?? 'rotation') === 'rotation' },
       { key: 'title', label: 'Überschrift', type: 'text' },
       { key: 'showTitle', label: 'Überschrift zeigen', type: 'boolean' },
       { key: 'showCoins', label: 'Coin-Preis zeigen', type: 'boolean' },
-      { key: 'intervalMs', label: 'Wie lange ein Geschenk stehen bleibt', type: 'seconds', hint: 'Nur bei „Eins nach dem anderen".' },
-      { key: 'speed', label: 'Tempo des Laufbands', type: 'number', hint: 'Sekunden pro Durchlauf — größer = langsamer. Nur beim Laufband.' },
+      { key: 'intervalMs', label: 'Wie lange ein Geschenk stehen bleibt', type: 'seconds', showIf: (p) => (p.mode ?? 'rotation') === 'rotation', hint: 'Wie lange jedes Geschenk groß eingeblendet bleibt.' },
+      { key: 'speed', label: 'Tempo des Laufbands', type: 'number', showIf: (p) => p.mode === 'leiste', hint: 'Sekunden pro Durchlauf — größer = langsamer.' },
       ACCENT_FIELD,
       THEME_FIELD,
     ],

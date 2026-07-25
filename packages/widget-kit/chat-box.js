@@ -51,6 +51,27 @@ const CSS = `
 html .bx-frameless .bx-cb-msg { box-shadow: none; }
 html .bx-frameless .bx-cb:not(.bx-cb-sticker) .bx-cb-name { -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-cb:not(.bx-cb-sticker) .bx-cb-text { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 6px rgba(0,0,0,.55); }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Auslöser auf der NEU EINGETROFFENEN Nachricht — der einzige Moment, in dem
+   im Chat etwas passiert.
+
+   KOLLISION: Die Bubble bringt ihre eigene Einflug-Animation mit und startet
+   bei opacity:0. Die Basis setzt „animation" komplett neu — ohne diese Fassung
+   wäre die frische Nachricht 900 ms lang unsichtbar geblieben. Darum hier
+   Einflug und Auslöser gemeinsam deklariert. */
+.bx-premium .bx-cb-msg.bx-hit {
+  animation: bx-cb-in 280ms cubic-bezier(.2,1.3,.4,1) forwards,
+    bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+/* Das Anheben der Basis bleibt bewusst weg (im Bild geprüft): die Bubble ist so
+   breit wie die Box, die Box schneidet über overflow ab — beim Anheben lief der
+   Text am rechten Rand hinaus. */
+/* Der Ausblender muss den Auslöser überstimmen können (Nachricht läuft ab). */
+.bx-premium .bx-cb-msg.fade.bx-hit { animation: bx-cb-out 420ms ease-in forwards; }
+/* Mehr Tiefe: der Name ist der Anker der Zeile — im Premium-Fall etwas fester
+   gesetzt, damit die Hierarchie Name → Text klarer liest. Keine Maßänderung. */
+.bx-premium .bx-cb-name { letter-spacing: .06em; text-shadow: 0 .04em .1em rgba(0,0,0,.9), 0 0 .5em rgba(0,0,0,.5); }
+.bx-premium .bx-cb-sticker .bx-cb-name { text-shadow: none; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 function nameColor(name) { let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0; return `hsl(${Math.abs(h) % 360} 88% 70%)`; }
@@ -141,10 +162,22 @@ export default class ChatBox {
     this.el.appendChild(msg);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();
     this.fit();
+    this.hit(msg);
     if (this.hideAfterMs > 0) {
       const t = setTimeout(() => { this.timers.delete(t); msg.classList.add('fade'); setTimeout(() => { msg.remove(); this.fit(); }, 440); }, this.hideAfterMs);
       this.timers.add(t);
     }
   }
-  destroy() { this.ro?.disconnect(); for (const t of this.timers) clearTimeout(t); this.el.remove(); }
+  /** Premium-Auslöser (siehe widget-base.css, .bx-premium). Immer setzen — ob
+   *  daraus ein Effekt wird, entscheidet die Basis. Klasse weg, Reflow, Klasse
+   *  neu, damit der Effekt bei schnellen Folgen erneut anspringt. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
+  }
+  destroy() { this.ro?.disconnect(); for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

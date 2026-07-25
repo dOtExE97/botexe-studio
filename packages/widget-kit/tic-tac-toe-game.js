@@ -76,6 +76,26 @@ const CSS = `
 .bx-frameless .bx-ttt-cell.win { border-color: var(--bx-gold, #ffd34d) !important; }
 .bx-frameless .bx-ttt-p.x.active { border-color: var(--bx-x) !important; }
 .bx-frameless .bx-ttt-p.o.active { border-color: var(--bx-o) !important; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Der Auslöser sitzt auf dem Feld, in das gerade gesetzt wurde, und deutlicher
+   auf den Feldern der Gewinnreihe. Zwei Kollisionen mussten dafür aufgelöst
+   werden — die Regeln dieses Widgets stehen im Dokument nach widget-base.css
+   und gewinnen bei gleicher Stärke:
+   1. Das Gewinnfeld blinkt dauerhaft (bx-ttt-flash). Hier läuft es mit 900 ms
+      Verzögerung weiter, also genau dann, wenn der Auslöser fertig ist —
+      sonst hätten sich zwei Animationen um denselben box-shadow gestritten.
+   2. Die gesetzte Figur hat ihre eigene Pop-Animation; die bleibt unangetastet.
+   Das Gitter selbst und die Spielerkarten bekommen NICHTS: ein Spielfeld, das
+   im Ganzen zuckt, liest sich wie ein Fehler, nicht wie ein Zug. */
+.bx-premium .bx-ttt-cell.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1); }
+.bx-premium .bx-ttt-cell.win.bx-hit {
+  --bx-accent: var(--bx-gold, #ffd34d);
+  animation: bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1),
+    bx-ttt-flash .8s ease-in-out 900ms infinite alternate; }
 `;
 
 function ensureStyle() {
@@ -87,6 +107,19 @@ function ensureStyle() {
   }
 }
 
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
+
 export default class TicTacToeWidget {
   constructor(root, props, ctx) {
     ensureStyle();
@@ -96,6 +129,9 @@ export default class TicTacToeWidget {
 
     // Aktueller Zustand (anfangs leer/waiting).
     this.state = this._emptyState();
+    this.timers = new Set();  // Premium-Auslöser → bei destroy clearen
+    this._prevBoard = null;   // letzter Brettstand → erkennt den gesetzten Zug
+    this._winShown = false;   // Gewinnreihe genau einmal auslösen
 
     this.el = document.createElement('div');
     this.el.className = 'bx-ttt';
@@ -186,18 +222,30 @@ export default class TicTacToeWidget {
     const board = s.board || [];
     const winSet = new Set(s.winLine || []);
 
-    // Felder.
+    // Felder. Der Auslöser gilt nur für das, was sich WIRKLICH geändert hat —
+    // beim ersten Aufbau (Mount, Demo-Zustand) bleibt alles ruhig, sonst würde
+    // ein halbes Brett gleichzeitig aufblitzen.
+    const first = this._prevBoard === null;
     for (let i = 0; i < 9; i++) {
       const cell = this.cells[i];
       const val = board[i];
       const isWin = s.status === 'won' && winSet.has(i);
       cell.classList.toggle('win', isWin);
+      if (!first && val && val !== this._prevBoard[i] && !isWin) bxHit(cell, this.timers);
       if (val === 'X' || val === 'O') {
         cell.innerHTML = `<span class="pick ${val === 'X' ? 'x' : 'o'}">${val}</span>`;
       } else {
         // Leeres Feld: Feld-Nummer 1–9 als Hinweis fürs Mitspielen per Chat.
         cell.innerHTML = `<span class="num">${i + 1}</span>`;
       }
+    }
+    this._prevBoard = board.slice(0, 9);
+    // Der Gewinnzug — deutlicher als ein normaler Zug: die ganze Reihe.
+    if (s.status === 'won' && !this._winShown) {
+      this._winShown = true;
+      for (const i of winSet) bxHit(this.cells[i], this.timers);
+    } else if (s.status !== 'won') {
+      this._winShown = false;
     }
 
     // Spieler-Namen + aktiver Spieler.
@@ -235,6 +283,8 @@ export default class TicTacToeWidget {
   }
 
   destroy() {
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     this.el.remove();
   }
 }

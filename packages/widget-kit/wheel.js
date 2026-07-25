@@ -45,9 +45,30 @@ const CSS = `
 .bx-frameless .bx-wh-result .w, .bx-frameless .bx-wh-trigger .who {
   -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Das Rad ist ein Canvas — CSS erreicht es nicht. Der Auslöser sitzt deshalb
+   auf dem GEWINNTEXT im Ergebnis-Fenster: er nennt genau das Feld, auf dem das
+   Rad stehengeblieben ist. Die Kapsel selbst bleibt unangetastet, ihre
+   .show-Animation (bx-wh-pop, forwards) darf nicht überschrieben werden — sie
+   ist es, die das Fenster überhaupt sichtbar macht. */
+.bx-premium .bx-wh-result .v.bx-hit { --bx-accent: var(--bx-gold, #ffd23e); }
 `;
 const COLORS = ['#ff5436','#ffd23e','#28e0c4','#5c9dff','#c45cff','#ff5e8a','#7dff8a','#ff8a3d'];
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
 
 // Anti-Throttle: der TTLS-Browser drosselt rAF auf ~1/s — Fallback-Timer springt
 // ein, wenn rAF nicht feuert. (War zuvor undefiniert → Spin warf ReferenceError.)
@@ -73,6 +94,7 @@ export default class Wheel {
     // Rad-Look: klassisch bunt · Casino (Gold) · Neon-Arcade (freistehend, Glow).
     this.style = ['classic', 'casino', 'neon'].includes(props.style) ? props.style : 'classic';
     this.angle = 0; this.spinning = false; this.pointerDefl = 0; this.lastAngle = 0;
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
     this.el = document.createElement('div');
     // Editor-Vorschau: nie versteckt starten — sonst ist die Box im Editor leer
     // und man kann Größe/Position des Rades nicht beurteilen.
@@ -166,6 +188,9 @@ export default class Wheel {
     res.querySelector('.v').textContent = this.segments[this.winner];
     res.querySelector('.w').textContent = this.winnerName ? `🎉 ${this.winnerName}` : '';
     res.classList.remove('show'); void res.offsetWidth; res.classList.add('show');
+    // Das Rad steht — der Moment des Widgets. Der Auslöser sitzt auf dem
+    // Gewinntext (Canvas erreicht CSS nicht, siehe Kommentar im Stylesheet).
+    bxHit(res.querySelector('.v'), this.timers);
     // nach dem ergebnis wieder ausblenden
     clearTimeout(this.hideT);
     if (this.autoShow && !this.preview) this.hideT = setTimeout(() => this.el.classList.add('hidden'), 3200);
@@ -268,6 +293,7 @@ export default class Wheel {
     ctx.fillStyle = this.accent; ctx.fill(); ctx.strokeStyle='#0a0b12'; ctx.lineWidth=2.5; ctx.stroke();
     ctx.restore();
   }
-  destroy() { if (this.cancelFrame) this.cancelFrame(); clearTimeout(this.hideT); clearTimeout(this.demoT); clearInterval(this.demoInterval); this.observer.disconnect(); this.el.remove(); }
+  destroy() { if (this.cancelFrame) this.cancelFrame(); clearTimeout(this.hideT); clearTimeout(this.demoT); clearInterval(this.demoInterval);
+    for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.observer.disconnect(); this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

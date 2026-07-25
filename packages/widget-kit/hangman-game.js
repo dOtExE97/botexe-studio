@@ -86,12 +86,36 @@ html .bx-frameless .bx-hm-card { background: none; box-shadow: none; }
 html .bx-frameless .bx-hm-slot { -webkit-text-stroke: max(1.5px, .07em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-hm-status { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-hm-guessed { -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Zwei Momente: der gesetzte Zug (ein Buchstabe wird aufgedeckt) und der
+   Gewinnzug (das Wort steht). Beide Ziele — Slot und Wortzeile — tragen keinen
+   eigenen box-shadow, der Ring der Basis kollidiert also mit nichts.
+   Die KARTE bleibt bewusst außen vor: ihr Glühen (accent bzw. türkis/rot je
+   Spielstand) IST die Zustandsanzeige; ein Ring darüber hätte sie für eine
+   Sekunde gelöscht. Beim Sieg läuft der Ring in Türkis mit — der Farbe, in der
+   das Widget den Sieg ohnehin erzählt. */
+.bx-premium .bx-hm-slot.bx-hit { --bx-accent: var(--bx-hm-accent); }
+.bx-premium .bx-hm.won .bx-hm-word.bx-hit { --bx-accent: var(--bx-teal, #2ee6a6); border-radius: .3em; }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {
     const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS;
     document.head.appendChild(s);
   }
+}
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
 }
 
 const STYLES = new Set(['herzen', 'galgen']);
@@ -145,6 +169,8 @@ export default class HangmanGame {
 
     this.state = null;
     this._timers = [];
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
+    this._prevTokens = null; // letztes Wortbild → erkennt den neu gesetzten Zug
     // Editor-Schaufenster: Demo zeigen.
     if (this.ctx.preview) this.render(DEMO_STATE);
   }
@@ -161,6 +187,7 @@ export default class HangmanGame {
   hide() {
     this.state = null;
     this._celebrated = false;
+    this._prevTokens = null;
     this.el.classList.remove('won', 'lost');
     this.el.classList.add('is-idle');
   }
@@ -186,6 +213,15 @@ export default class HangmanGame {
     const word = this.el.querySelector('.bx-hm-word');
     word.innerHTML = '';
     const tokens = this.tokenize(state.masked);
+    // Was ist seit dem letzten Zustand dazugekommen? Genau diese Slots sind der
+    // gesetzte Zug. Bei gleicher Wortlänge vergleichbar; sonst (neues Wort)
+    // gilt nichts als „eben aufgedeckt".
+    const prev = this._prevTokens;
+    const fresh = (prev && prev.length === tokens.length)
+      ? tokens.map((t, i) => t !== '_' && t !== ' ' && prev[i] === '_')
+      : tokens.map(() => false);
+    this._prevTokens = tokens.slice();
+    const slots = [];
     for (const t of tokens) {
       const slot = document.createElement('div');
       if (t === ' ') { slot.className = 'bx-hm-slot space'; }
@@ -195,7 +231,12 @@ export default class HangmanGame {
         slot.textContent = filled ? t : '';
       }
       word.appendChild(slot);
+      slots.push(slot);
     }
+    // Der Moment im Kleinen: die eben aufgedeckten Buchstaben.
+    fresh.forEach((isNew, i) => { if (isNew) bxHit(slots[i], this.timers); });
+    // Der Moment im Großen: gelöst — die ganze Wortzeile reagiert.
+    if (status === 'won' && !this._celebrated) bxHit(word, this.timers);
 
     // Fehlversuch-Herzen (übrig = maxWrong - wrong).
     const max = Math.max(0, Math.floor(Number(state.maxWrong) || 0));
@@ -281,6 +322,8 @@ export default class HangmanGame {
   destroy() {
     this._timers.forEach((t) => clearTimeout(t));
     this._timers = [];
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     this.el.remove();
   }
 }

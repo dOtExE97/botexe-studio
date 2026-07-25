@@ -129,6 +129,25 @@ const CSS = `
 .bx-frameless .bx-pb-bon .bx-pb-row { border-bottom-color: #d5cbb2 !important; }
 .bx-frameless .bx-pb-highscore { border-color: #37ff6a !important; }
 .bx-frameless .bx-pb-highscore .bx-pb-title { border-bottom-color: rgba(55,255,106,.5) !important; }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Auslöser auf der ZEILE: neu in der Liste oder nach oben geklettert.
+
+   KOLLISION, absichtlich entschärft: die Basis hebt über die Einzel-
+   Eigenschaft „scale“ an. Die Zeilen sind absolut positioniert und werden per
+   „transform: translateY(…)“ platziert; „scale“ wird VOR „transform“
+   verrechnet und hätte die Verschiebung mitskaliert — die Zeile wäre beim
+   Anheben nach unten gesprungen. Deshalb hier nur Ring und das Aufblitzen des
+   Profilbildes, beides ohne Ortswechsel. */
+.bx-premium .bx-pb-row.bx-hit { animation: bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+/* Die Krone ist eine feste Form über dem Rang-Abzeichen und schwebt bereits —
+   der Schein der Basis würde sie zusätzlich verwaschen. */
+.bx-premium .bx-pb-crown { filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+/* Mehr Tiefe an der Zahl (nur Schein, keine Maße). */
+.bx-premium .bx-pb-val { text-shadow: 0 0 .5em color-mix(in srgb, var(--bx-accent) 55%, transparent), 0 .06em .12em rgba(0,0,0,.75); }
+.bx-premium .bx-pb-row[data-rank="1"] .bx-pb-val { text-shadow: 0 0 .55em color-mix(in srgb, var(--bx-gold) 60%, transparent), 0 .06em .12em rgba(0,0,0,.75); }
+/* Bon und Highscore leben von flacher Druck-/Pixel-Optik — dort kein Glow. */
+.bx-premium .bx-pb-bon .bx-pb-val, .bx-premium .bx-pb-pills .bx-pb-val { text-shadow: none; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -171,7 +190,22 @@ export default class PointsBoard {
     this.el.querySelector('.bx-pb-title').textContent = this.title || 'Top Supporter';
     root.appendChild(this.el);
     this.rows = new Map();
+    // Letzter bekannter Platz je Zuschauer → daraus folgt, ob jemand neu ist
+    // oder sich verbessert hat.
+    this.ranks = new Map();
+    this.timers = new Set();
     if (ctx?.preview) this.onStats(DEMO);
+  }
+  /** Premium-Auslöser (siehe widget-base.css, .bx-premium). Wird immer gesetzt;
+   *  ob daraus ein Effekt wird, entscheidet die Basis. Klasse-weg-Reflow-Klasse-
+   *  neu, damit der Effekt bei schnellen Folgen erneut anspringt. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
   }
   onStats(stats) {
     if (!this.title && stats?.currencyName) this.el.querySelector('.bx-pb-title').textContent = `Top ${stats.currencyName}`;
@@ -186,13 +220,19 @@ export default class PointsBoard {
     items.forEach((g, i) => {
       seen.add(g.id);
       let row = this.rows.get(g.id);
+      let fresh = false;
       if (!row) {
+        fresh = true;
         row = document.createElement('div'); row.className = 'bx-pb-row'; row.style.opacity = '0';
         row.innerHTML = `<div class="bx-pb-rank"></div><div class="bx-pb-pic"></div><div class="bx-pb-name"></div><div class="bx-pb-val"></div>`;
         list.appendChild(row); this.rows.set(g.id, row);
         requestAnimationFrame(() => { row.style.opacity = '1'; });
       }
       const rank = i + 1;
+      // Bemerkenswerter Moment: neu dabei oder Platz verbessert.
+      const prevRank = this.ranks.get(g.id);
+      if (fresh || (prevRank != null && rank < prevRank)) this.hit(row);
+      this.ranks.set(g.id, rank);
       row.dataset.rank = String(rank);
       row.style.height = `${rowH}px`;
       row.style.transform = `translateY(${i * rowH}px)`;
@@ -203,7 +243,7 @@ export default class PointsBoard {
       row.querySelector('.bx-pb-val').textContent = fmt(g.points);
       avSet(row.querySelector('.bx-pb-pic'), g.nickname, g.profilePic);
     });
-    for (const [id, row] of this.rows) { if (!seen.has(id)) { row.remove(); this.rows.delete(id); } }
+    for (const [id, row] of this.rows) { if (!seen.has(id)) { row.remove(); this.rows.delete(id); this.ranks.delete(id); } }
   }
-  destroy() { this.el.remove(); }
+  destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

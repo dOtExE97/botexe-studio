@@ -83,6 +83,15 @@ const CSS = `
 /* Die Neon-Röhre der Pille ist ein border — die globale frameless-Regel hätte
    sie gelöscht und den Stil damit auf „nichts" reduziert. */
 .bx-frameless .bx-st-neon .bx-sr-pill { border-color: var(--bx-accent) !important; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Der Moment ist der Kanalwechsel. Der Auslöser sitzt auf dem MARKEN-ICON —
+   das ist das, was sich austauscht. Die Pille selbst bleibt außen vor: ihr
+   Ein- und Ausflug ist bereits eine eigene Animation und ihr Schatten (bzw.
+   die Neon-Röhre) trägt ihre Form; der Ring hätte beides ersetzt.
+   Der Ring folgt der Rundung des Icons (die Glyphen sind abgerundete Kacheln),
+   sonst säße ein Kasten um eine runde Marke. */
+.bx-premium .bx-sr-ico.bx-hit { border-radius: 28%; }
 `;
 
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
@@ -104,7 +113,20 @@ export function parseChannels(raw) {
     });
 }
 
-const HEART = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.6-9.4-8.6C1 9.5 2.4 6 5.7 6c2 0 3.2 1.2 3.8 2.2C10.1 7.2 11.3 6 13.3 6c3.3 0 4.7 3.5 3.1 6.4C19 16.4 12 21 12 21z"/></svg>';
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
+
+const HEART ='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.6-9.4-8.6C1 9.5 2.4 6 5.7 6c2 0 3.2 1.2 3.8 2.2C10.1 7.2 11.3 6 13.3 6c3.3 0 4.7 3.5 3.1 6.4C19 16.4 12 21 12 21z"/></svg>';
 
 export default class SocialRotator {
   constructor(root, props, ctx) {
@@ -124,6 +146,7 @@ export default class SocialRotator {
       <div class="bx-sr-txt"><span class="bx-sr-plat"></span><span class="bx-sr-name"></span></div>
       <div class="bx-sr-btn"></div></div>`;
     this.pill = this.el.querySelector('.bx-sr-pill');
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
     root.appendChild(this.el);
     this.cycle = this.cycle.bind(this);
     this.cycle();
@@ -146,6 +169,8 @@ export default class SocialRotator {
     this.el.classList.remove('hide');
     void this.pill.offsetWidth; // reflow → Animation neu starten
     this.el.classList.add('show');
+    // Der Moment: ein anderer Kanal ist dran — sein Marken-Icon meldet sich.
+    bxHit(this.el.querySelector('.bx-sr-ico'), this.timers);
     // anzeigen, dann ausblenden, dann nächster
     this.showT = setTimeout(() => {
       this.el.classList.remove('show');
@@ -154,5 +179,6 @@ export default class SocialRotator {
     }, this.intervalMs);
   }
 
-  destroy() { clearTimeout(this.showT); clearTimeout(this.nextT); this.el.remove(); }
+  destroy() { clearTimeout(this.showT); clearTimeout(this.nextT);
+    for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

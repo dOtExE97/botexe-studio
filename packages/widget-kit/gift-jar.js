@@ -56,6 +56,37 @@ const CSS = `
 .bx-jar--tf .bx-jar-badge .num { color:#ffd54a; -webkit-text-stroke:0; text-shadow:0 1px 2px rgba(0,0,0,.5); }
 .bx-jar--tf .bx-jar-label { color:#fff; -webkit-text-stroke:0; font-weight:800; text-shadow:0 2px 6px rgba(0,0,0,.55); }
 .bx-jar--tf .bx-jar-toast b { color:#ffd54a; }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Zwei Stufen: jedes Geschenk erhöht den Stand → das ZAHL-ABZEICHEN löst aus,
+   dort liest man die Änderung. Wird damit das Ziel erreicht, löst zusätzlich
+   die ÜBERSCHRIFT aus — deutlich lauter, und genau einmal.
+   Das Glas selbst liegt auf einem Canvas; CSS kommt dort nicht heran, deshalb
+   sitzt der Auslöser konsequent an den DOM-Aufsätzen.
+
+   KOLLISION: Bei erreichtem Ziel pulsiert das Abzeichen bereits
+   („.bx-jar.done .bx-jar-badge") und ist damit spezifischer als der Auslöser
+   der Basis. Darum beides hier gemeinsam. */
+.bx-premium .bx-jar.done .bx-jar-badge.bx-hit {
+  animation: bx-jar-done 1.1s ease-in-out infinite,
+    bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+/* Die Überschrift ist reiner Text ohne eigene Fläche — ein Ring darum wäre ein
+   Kasten in der Luft. Sie bekommt deshalb einen Schein statt einer Kontur. */
+.bx-premium .bx-jar-label.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-jar-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes bx-jar-hit-schein {
+  0% { filter: drop-shadow(0 0 0 var(--bx-teal)); }
+  22% { filter: drop-shadow(0 0 .5em var(--bx-teal)) drop-shadow(0 0 .9em var(--bx-teal)); }
+  100% { filter: drop-shadow(0 0 0 transparent); }
+}
+/* Die Münze im Abzeichen ist ein Emoji in fester Form, kein Bild — sie bleibt
+   von Schein und Dauer-Atmen der Basis unberührt. Mehr Tiefe holt sich das
+   Abzeichen über seine Zahl. */
+.bx-premium .bx-jar-badge .num { text-shadow: 0 0 .45em color-mix(in srgb, var(--bx-gold) 60%, transparent), 0 .05em .1em rgba(0,0,0,.7); }
+.bx-premium .bx-jar.done .bx-jar-badge .num { text-shadow: 0 0 .45em color-mix(in srgb, var(--bx-teal) 60%, transparent), 0 .05em .1em rgba(0,0,0,.7); }
+.bx-premium .bx-jar--tf .bx-jar-badge .num { text-shadow: 0 1px 2px rgba(0,0,0,.5); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -95,6 +126,7 @@ export default class GiftJar {
     // originalgetreu nachgezeichnete TikFinity-Mason-Glas.
     this.shape = ['glas', 'herz', 'pokal', 'truhe', 'tikfinity'].includes(props.shape) ? props.shape : 'glas';
     this.toastTimers = new Set();
+    this.hitTimers = new Set();
     this.el = document.createElement('div');
     this.el.className = 'bx-jar' + (this.shape === 'tikfinity' ? ' bx-jar--tf' : '');
     this.el.innerHTML = `<canvas></canvas><div class="bx-jar-label"></div><div class="bx-jar-badge"><span class="ico">🪙</span><span class="num">0</span><span class="tgt"></span><span class="bx-jar-goal"><i></i></span></div><div class="bx-jar-toasts"></div>`;
@@ -120,7 +152,22 @@ export default class GiftJar {
     if (tgt) tgt.textContent = `/ ${fmt(this.target)}`;
     const bar = this.el.querySelector('.bx-jar-goal > i');
     if (bar) bar.style.width = `${Math.max(0, Math.min(100, (this.coinsValue / this.target) * 100))}%`;
-    this.el.classList.toggle('done', this.coinsValue >= this.target);
+    const vorherDone = this.done === true;
+    this.done = this.coinsValue >= this.target;
+    this.el.classList.toggle('done', this.done);
+    return this.done && !vorherDone; // Ziel gerade eben erreicht
+  }
+
+  /** Premium-Auslöser (siehe widget-base.css, .bx-premium). Immer setzen — ob
+   *  daraus ein Effekt wird, entscheidet die Basis. Klasse weg, Reflow, Klasse
+   *  neu, damit der Effekt bei einer Combo erneut anspringt. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.hitTimers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.hitTimers.add(t);
   }
 
   /** Beispiel-Füllung für den Editor (keine Dauer-Animation, nur einmal). */
@@ -204,7 +251,11 @@ export default class GiftJar {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'gift' || !event.gift) return;
     this.coinsValue += event.gift.totalCoins;
-    this.updateBadge();
+    const zielErreicht = this.updateBadge();
+    // Premium-Auslöser: der Stand ist gestiegen → Zahl-Abzeichen. Ist damit das
+    // Ziel erreicht → zusätzlich die Überschrift, deutlich lauter.
+    this.hit(this.el.querySelector('.bx-jar-badge'));
+    if (zielErreicht) this.hit(this.el.querySelector('.bx-jar-label'));
     if (this.showToast) this.addToast(event);
     // Combo (z.B. 10x Rose) wirft EINEN Ball pro Gift — nicht nur einen für die
     // ganze Combo. Anzahl gedeckelt, Ballgröße aus dem Einzel-Coin-Wert.
@@ -441,6 +492,7 @@ export default class GiftJar {
   destroy() {
     if (this.pendingTimers) { for (const t of this.pendingTimers) clearTimeout(t); this.pendingTimers.clear(); }
     for (const t of this.toastTimers) clearTimeout(t); this.toastTimers.clear();
+    for (const t of this.hitTimers) clearTimeout(t); this.hitTimers.clear();
     this.observer.disconnect(); this.falling=[]; this.resting=[]; this.el.remove();
   }
 }

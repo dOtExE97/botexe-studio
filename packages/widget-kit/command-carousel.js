@@ -39,10 +39,31 @@ const CSS = `
 html .bx-frameless .bx-st-glas .bx-cc-chip,
 html .bx-frameless .bx-st-neon .bx-cc-chip { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-cc-emo { -webkit-text-stroke: 0; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Auch hier läuft ein Band statt zu wechseln — der Moment ist der Rundenanfang,
+   wenn die erste Kachel wieder hereinläuft. Der Auslöser sitzt auf deren
+   Gift-Bild bzw. Emoji, nicht auf der Kachel: der Sticker-Stil baut seine 3D-
+   Kante aus box-shadow, der Neon-Stil seine Röhre — der Ring hätte beides für
+   eine Sekunde ausradiert und die Kachel wäre flach geworden. */
+.bx-premium .bx-cc-emo.bx-hit { border-radius: .2em; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const STYLES = new Set(['sticker', 'glas', 'neon']);
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
 
 const GRADIENTS = [
   'linear-gradient(160deg,#ff6a3d,#ff2e63)',
@@ -91,6 +112,14 @@ export default class CommandCarousel {
     const seq = list.map(chip).join('');
     this.el.innerHTML = `<div class="bx-cc-track" style="--dur:${speed}s">${seq}${seq}</div>`;
     root.appendChild(this.el);
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
+    // Rundenanfang des Bandes: die erste Kachel läuft wieder herein.
+    this.track = this.el.querySelector('.bx-cc-track');
+    this.onLoop = () => {
+      const first = this.el.querySelector('.bx-cc-chip');
+      bxHit(first?.querySelector('.bx-cc-gift, .bx-cc-emo') || first, this.timers);
+    };
+    this.track.addEventListener('animationiteration', this.onLoop);
 
     // Gift-Bilder async aus dem App-Katalog nachladen (wie bingo.js).
     if (this.ctx.baseUrl && list.some((it) => it.slug)) {
@@ -111,5 +140,10 @@ export default class CommandCarousel {
     }
   }
 
-  destroy() { this.el.remove(); }
+  destroy() {
+    this.track?.removeEventListener('animationiteration', this.onLoop);
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
+    this.el.remove();
+  }
 }

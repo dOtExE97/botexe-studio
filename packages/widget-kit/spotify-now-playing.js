@@ -54,8 +54,44 @@ const CSS = `
 .bx-frameless .bx-spo-artist { color: #eef1f8; }
 /* Der Fortschrittsbalken war eine helle Spur auf hellem Video → dunkle Spur. */
 .bx-frameless .bx-spo-bar { background: rgba(0,0,0,.45); }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Das Cover ist kein <img>, sondern eine Fläche mit Hintergrundbild — die
+   Basis erreicht es also nicht. Hier bekommt es den gleichen Auftritt wie die
+   Bilder in den anderen Widgets: mehr Tiefe und ein Schein in der Akzentfarbe,
+   damit es vor dem Videobild schwebt.
+   Der Auslöser ist der SONGWECHSEL und sitzt auf dem Cover — es ist das, was
+   sich sichtbar austauscht. Sein eigener Schatten bleibt dabei stehen, damit
+   die Platte in der Sekunde des Wechsels nicht flach wird. */
+.bx-premium .bx-spo-art {
+  box-shadow: 0 .1em .28em -.1em rgba(0, 0, 0, .8),
+    0 0 1.1em -.2em color-mix(in srgb, var(--bx-accent) 60%, transparent); }
+@keyframes bx-spo-hit {
+  0% { box-shadow: 0 .1em .28em -.1em rgba(0,0,0,.8),
+    0 0 0 .02em color-mix(in srgb, var(--bx-accent) 95%, white), 0 0 1.4em -.2em var(--bx-accent); }
+  70% { box-shadow: 0 .1em .28em -.1em rgba(0,0,0,.8),
+    0 0 0 .42em transparent, 0 0 2.6em -.1em color-mix(in srgb, var(--bx-accent) 60%, transparent); }
+  100% { box-shadow: 0 .1em .28em -.1em rgba(0,0,0,.8),
+    0 0 1.1em -.2em color-mix(in srgb, var(--bx-accent) 60%, transparent); } }
+.bx-premium .bx-spo-art.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-spo-hit 900ms cubic-bezier(.2,.9,.3,1); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css bzw. die eigene Fassung oben — ohne den Haken
+// „Premium-Effekte" passiert nichts. Bewusst lokal dupliziert: die Widgets
+// haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
 
 export default class SpotifyNowPlaying {
   constructor(root, props, ctx) {
@@ -74,6 +110,7 @@ export default class SpotifyNowPlaying {
     this.fill = this.el.querySelector('.bx-spo-fill');
     root.appendChild(this.el);
     this.dur = 0; this.prog = 0; this.playing = false; this.trackId = '';
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
     this.tick = setInterval(() => this.advance(), 1000);
     // Editor-Vorschau: Demo-Song zeigen — sonst ist die Karte im Editor komplett
     // unsichtbar (im echten Overlay ist „leer = unsichtbar" richtig, im Editor
@@ -99,6 +136,8 @@ export default class SpotifyNowPlaying {
       if (art) this.art.style.backgroundImage = `url("${art}")`;
       else this.art.style.removeProperty('background-image');
       this.art.classList.toggle('has-art', !!art);
+      // Der Moment: ein anderer Song läuft — das Cover wechselt.
+      bxHit(this.art, this.timers);
     }
     this.dur = Number(s.durationMs) || 0;
     this.prog = Number(s.progressMs) || 0;
@@ -110,5 +149,5 @@ export default class SpotifyNowPlaying {
     if (this.playing && this.prog < this.dur) { this.prog = Math.min(this.dur, this.prog + 1000); this.render(); }
   }
   render() { this.fill.style.width = this.dur > 0 ? `${Math.min(100, (this.prog / this.dur) * 100)}%` : '0%'; }
-  destroy() { clearInterval(this.tick); this.el.remove(); }
+  destroy() { clearInterval(this.tick); for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

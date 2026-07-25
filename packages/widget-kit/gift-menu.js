@@ -30,7 +30,15 @@ const CSS = `
    Widget rechnet in em. */
 .bx-gm { position:absolute; inset:0; overflow:hidden; container-type:size; box-sizing:border-box;
   font-family: var(--bx-font-body); color: var(--bx-text,#fff);
-  font-size: calc(clamp(9px, min(6cqi, 5.2cqh), 34px) * var(--bx-fs, 1)); }
+  font-size: calc(clamp(9px, min(6cqi, 5.2cqh), 34px) * var(--bx-fs, 1));
+  /* Drei Schriftebenen für das Laufband. Sie zeigen per Default auf die
+     Theme-/Nutzer-Variablen — die Schriftart-Einstellung greift also weiter.
+     Nur solange der Nutzer NICHTS eingestellt hat (Basiswerte aus
+     widget-base.css), setzt syncFonts() hier die kuratierte Wahl darüber:
+     Anton für die Wirkung, Bebas Neue für den Namen, Russo One für den Preis. */
+  --bx-gm-hero:  var(--bx-font-display);
+  --bx-gm-label: var(--bx-font-body);
+  --bx-gm-num:   var(--bx-font-num); }
 
 /* ── Rotation ─────────────────────────────────────────────────────────── */
 .bx-gm-rot { position:absolute; inset:0; display:flex; flex-direction:column; align-items:stretch;
@@ -133,6 +141,41 @@ const CSS = `
 /* Der Pfeil ist im Laufband überflüssig — die zweite Zeile IST die Wirkung. */
 .bx-gm-chip .bx-gm-arr { display:none; }
 
+
+/* ── Animierte Banner-Hintergründe ───────────────────────────────────────
+   Der Wunsch war „wie ein kleines Video". Bewusst NICHT als Videodatei,
+   sondern als CSS-Verlauf in Bewegung: kostet fast nichts, läuft auch im
+   schwachen TTLS-Browser flüssig und braucht keine mitgelieferte Datei.
+   Alle drei animieren nur background-position bzw. transform. */
+.bx-gm-b-welle { background:
+    linear-gradient(100deg,
+      color-mix(in srgb, var(--bx-accent,#ff5e8a) 34%, #0b0c16) 0%,
+      #0b0c16 26%,
+      color-mix(in srgb, var(--bx-accent-2,#7c5cff) 40%, #0b0c16) 50%,
+      #0b0c16 74%,
+      color-mix(in srgb, var(--bx-accent,#ff5e8a) 34%, #0b0c16) 100%) !important;
+  background-size: 260% 100% !important;
+  animation: bx-gm-welle 14s linear infinite; }
+@keyframes bx-gm-welle { from { background-position: 0% 0 } to { background-position: -260% 0 } }
+
+.bx-gm-b-streifen { background:
+    repeating-linear-gradient(115deg,
+      rgba(255,255,255,.055) 0 2.2em,
+      rgba(255,255,255,0) 2.2em 4.6em),
+    linear-gradient(180deg, rgba(24,26,40,.92), rgba(10,11,20,.96)) !important;
+  background-size: 12em 100%, 100% 100% !important;
+  animation: bx-gm-streifen 4.5s linear infinite; }
+@keyframes bx-gm-streifen { from { background-position: 0 0, 0 0 } to { background-position: 12em 0, 0 0 } }
+
+/* Aurora: zwei weiche Farbwolken, die gegenläufig wandern. */
+.bx-gm-b-aurora { background: linear-gradient(180deg, rgba(14,15,26,.94), rgba(8,9,16,.96)) !important; }
+.bx-gm-b-aurora::before { content:''; position:absolute; inset:-40% -10%; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(40% 120% at 20% 50%, color-mix(in srgb, var(--bx-accent,#ff5e8a) 55%, transparent), transparent 70%),
+    radial-gradient(36% 110% at 70% 50%, color-mix(in srgb, var(--bx-accent-2,#7c5cff) 55%, transparent), transparent 70%);
+  filter: blur(1.2em); opacity:.75; animation: bx-gm-aurora 11s ease-in-out infinite alternate; }
+@keyframes bx-gm-aurora { from { transform: translateX(-12%) } to { transform: translateX(12%) } }
+
 /* ── Kachelformen ────────────────────────────────────────────────────────
    Alle Maße hier in cqh (Bandhöhe), NICHT in em: eine Kachel soll die Leiste
    ausfüllen, egal wie der Nutzer die Textgröße gestellt hat. Sonst würde ein
@@ -166,6 +209,71 @@ const CSS = `
 .bx-gm-t-etikett .bx-gm-chip .bx-gm-coins { font-size:8cqh; padding:.8cqh 1.8cqh; }
 .bx-gm-t-etikett .bx-gm-chip .bx-gm-act { font-size:13cqh; max-width:52cqh; white-space:normal;
   -webkit-line-clamp:2; line-clamp:2; display:-webkit-box; -webkit-box-orient:vertical; text-overflow:clip; }
+
+/* ── Formen mit TEXT ALS EBENE ÜBER DEM GESCHENK ─────────────────────────
+   Gemeinsame Idee: das Geschenk füllt die Kachel als Bild, die Schrift liegt
+   DARÜBER und darf es ruhig anschneiden. Dadurch wird die Wirkung — die
+   eigentliche Information — endlich groß, ohne dass die Kachel wächst.
+   Grundlage für alle drei: das Geschenk absolut hinter dem Text. */
+.bx-gm-t-ueberlagert .bx-gm-chip, .bx-gm-t-untertitel .bx-gm-chip, .bx-gm-t-banderole .bx-gm-chip,
+.bx-gm-t-vitrine .bx-gm-chip, .bx-gm-t-aufkleber .bx-gm-chip {
+  display:block; width:132cqh; height:80cqh; padding:0; }
+.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-ic, .bx-gm-t-untertitel .bx-gm-chip .bx-gm-ic,
+.bx-gm-t-banderole .bx-gm-chip .bx-gm-ic,
+.bx-gm-t-vitrine .bx-gm-chip .bx-gm-ic, .bx-gm-t-aufkleber .bx-gm-chip .bx-gm-ic {
+  position:absolute; left:50%; translate:-50% 0; width:64cqh; height:64cqh; }
+.bx-gm-t-ueberlagert .bx-gm-txt, .bx-gm-t-untertitel .bx-gm-txt, .bx-gm-t-banderole .bx-gm-txt,
+.bx-gm-t-vitrine .bx-gm-txt, .bx-gm-t-aufkleber .bx-gm-txt {
+  position:absolute; inset:0; max-width:none; z-index:2; pointer-events:none; }
+/* Preis immer oben rechts als Marke — im Textbereich wäre kein Platz. */
+.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-coins, .bx-gm-t-untertitel .bx-gm-chip .bx-gm-coins,
+.bx-gm-t-banderole .bx-gm-chip .bx-gm-coins,
+.bx-gm-t-vitrine .bx-gm-chip .bx-gm-coins, .bx-gm-t-aufkleber .bx-gm-chip .bx-gm-coins {
+  position:absolute; top:2.5cqh; right:2.5cqh; font-size:9cqh; padding:1cqh 2.2cqh; z-index:3;
+  background:rgba(0,0,0,.6); box-shadow:0 0 0 max(1px,.02em) rgba(255,255,255,.2); }
+/* Der Textkörper der drei ausgestalteten Fassungen (ueberlagert/vitrine/
+   aufkleber) steht weiter unten im eigenen Block — dort mit höherer
+   Spezifität, damit die Stile karte/tafel/neon ihn nicht überschreiben. */
+.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-act, .bx-gm-t-vitrine .bx-gm-chip .bx-gm-act,
+.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-act {
+  position:absolute; text-align:center; line-height:1.02; opacity:1; z-index:3;
+  /* Lange Woerter MUESSEN umbrechen duerfen: „Konfetti-Regen" passt in einer
+     Zeile nicht in die Kachel und wurde sonst am letzten Buchstaben abgeschnitten. */
+  white-space:normal; overflow-wrap:anywhere; max-width:none; -webkit-line-clamp:2; line-clamp:2;
+  display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden; }
+/* Weicher Verlauf unter dem Text: gibt ihm Halt, ohne das Geschenk zuzudecken. */
+.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-txt::after, .bx-gm-t-vitrine .bx-gm-chip .bx-gm-txt::after,
+.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-txt::after {
+  content:''; position:absolute; left:0; right:0; bottom:0; height:46cqh; z-index:1; pointer-events:none;
+  background: linear-gradient(180deg, transparent, rgba(6,7,14,.55) 45%, rgba(6,7,14,.88)); }
+
+/* UNTERTITEL — wie eine Bauchbinde im Fernsehen: unten ein deckender Balken
+   in der Akzentfarbe, das Geschenk ragt oben darüber hinaus. */
+.bx-gm-t-untertitel .bx-gm-chip .bx-gm-ic { top:0; }
+.bx-gm-t-untertitel .bx-gm-chip .bx-gm-line { position:absolute; left:0; right:0; top:1.5cqh;
+  justify-content:flex-start; padding:0 2cqh; background:none; }
+.bx-gm-t-untertitel .bx-gm-chip .bx-gm-name { font-size:9.5cqh; max-width:56cqh; opacity:.95;
+  -webkit-text-stroke: max(2px,.5cqh) #0a0b12; paint-order: stroke fill; }
+.bx-gm-t-untertitel .bx-gm-chip .bx-gm-act { position:absolute; left:0; right:0; bottom:0;
+  padding:2.5cqh 2cqh 3cqh; box-sizing:border-box;
+  font-family: var(--bx-font-display); font-size:15cqh; line-height:1.02; text-align:center;
+  white-space:normal; overflow:hidden; max-width:none; opacity:1;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2;
+  color:#0a0b12; background: var(--bx-accent,#ff5e8a);
+  box-shadow: 0 -.4cqh 1.2cqh rgba(0,0,0,.5); }
+
+/* BANDEROLE — ein schräges Band quer über das Geschenk, wie ein Aufkleber. */
+.bx-gm-t-banderole .bx-gm-chip .bx-gm-ic { top:11cqh; }
+.bx-gm-t-banderole .bx-gm-chip .bx-gm-line { position:absolute; left:0; right:0; top:2cqh;
+  justify-content:flex-start; background:none; padding:0 30cqh 0 3cqh; box-sizing:border-box; }
+.bx-gm-t-banderole .bx-gm-chip .bx-gm-name { font-size:10cqh; max-width:100%; opacity:.95;
+  -webkit-text-stroke: max(2px,.5cqh) #0a0b12; paint-order: stroke fill; }
+.bx-gm-t-banderole .bx-gm-chip .bx-gm-act { position:absolute; left:1cqh; right:1cqh; top:42cqh;
+  rotate:-7deg; padding:1.6cqh 0; box-sizing:border-box;
+  font-family: var(--bx-font-display); font-size:15cqh; line-height:1; text-align:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:none; opacity:1;
+  color:#0a0b12; background: var(--bx-gold,#ffd23e);
+  box-shadow: 0 .5cqh 1.4cqh rgba(0,0,0,.6); }
 
 /* ABLAGE — wie die Geschenkablage in TikTok: nur Geschenk und Preis, sonst
    nichts. Maximal kompakt und aus jeder Entfernung erkennbar, zeigt aber NICHT
@@ -387,6 +495,545 @@ const CSS = `
   text-shadow: 0 0 .3em var(--bx-accent,#ff5e8a), 0 0 .9em color-mix(in srgb, var(--bx-accent,#ff5e8a) 70%, transparent); }
 .bx-frameless .bx-st-neon .bx-gm-title { color: color-mix(in srgb, var(--bx-accent,#ff5e8a) 45%, white);
   text-shadow: 0 0 .3em var(--bx-accent,#ff5e8a); }
+
+/* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  DREI AUSGESTALTETE LAUFBAND-FASSUNGEN                               ║
+   ╚══════════════════════════════════════════════════════════════════════╝
+   Drei Haltungen für dieselbe Aufgabe („Galaxy → Runde verlassen"), nicht
+   drei Farbvarianten:
+     tile='ueberlagert'  WUCHT   — Arcade-Marquee. Kantig, Akzentbalken am Fuß,
+                                   Anton in Versalien. Auslöser: Druckwelle,
+                                   Kippen, Splitter.
+     tile='vitrine'      EDEL    — Schaukasten. Schwarz, Goldhaarlinie, ein
+                                   Lichtkegel von oben. Auslöser: weiches
+                                   Aufleuchten, Goldstaub, kein Sprung.
+     tile='aufkleber'    STICKER — ausgestanzter Aufkleber, leicht schief,
+                                   Sonnenstrahlen-Burst. Auslöser: hüpft mit
+                                   Squash-and-Stretch und wirft Konfetti.
+
+   Regeln, die für ALLE drei gelten:
+   • Maße in cqh (Bandhöhe) — die Kachel darf mit --bx-fs NICHT wachsen,
+     sonst ragt sie aus dem Band. Nur die Schriftgrößen sind ebenfalls cqh,
+     weil der Text sonst die feste Kachel sprengen würde; der Regler --bx-fs
+     wirkt weiter über die Basisgröße des Bandes auf ALLE anderen Formen.
+   • Das Geschenkbild bleibt oben frei — Text nur auf dem unteren Drittel.
+   • Animiert wird ausschließlich transform / translate / rotate / scale /
+     opacity / filter. Kein Layout pro Frame.
+   • Die Spezifität ist hier bewusst hoch (.bx-gm-band.bx-gm-t-x .bx-gm-chip),
+     damit die Stile karte/tafel/neon die Kachelform nicht überschreiben.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Streifen-Ebene: blendet die Kacheln an den Bandenden weich aus, statt sie
+   hart abzuschneiden. Gilt für alle Kachelformen — reine Verbesserung. */
+.bx-gm-strip { position:absolute; inset:0; z-index:2; display:flex; align-items:center; overflow:hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%); }
+
+/* Abstand zwischen den Kacheln an der BANDHÖHE festmachen — die Vorgabe .4em
+   wuchs mit dem Textgrößen-Regler und riss die Leiste auseinander. */
+.bx-gm-t-ueberlagert .bx-gm-track, .bx-gm-t-vitrine .bx-gm-track, .bx-gm-t-aufkleber .bx-gm-track {
+  gap:3.5cqh; }
+
+/* Der Textgrößen-Regler des Nutzers wirkt hier GEDÄMPFT (0,82×…1,22×) und nur
+   auf Schriftgrößen und Kachel-BREITE. Auf die Höhe darf er nie wirken — sonst
+   wächst die Kachel aus dem Band heraus. Breiter werden darf sie dagegen
+   gefahrlos, dann passt der größere Text auch wieder in eine Zeile. */
+.bx-gm-band.bx-gm-t-ueberlagert, .bx-gm-band.bx-gm-t-vitrine, .bx-gm-band.bx-gm-t-aufkleber {
+  --bx-gm-fs: clamp(.82, var(--bx-fs, 1), 1.22); }
+
+/* ── Gemeinsames Gerüst der drei Fassungen ─────────────────────────────── */
+.bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip, .bx-gm-band.bx-gm-t-vitrine .bx-gm-chip,
+.bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip {
+  /* padding:0 steht hier nochmal, weil der Frameless-Block weiter oben
+     .35em/.4em setzt — das würde die cqh-Geometrie verschieben. */
+  padding:0; overflow:hidden; box-sizing:border-box; height:78cqh; border:0;
+  width: calc(138cqh * var(--bx-gm-fs, 1)); }
+.bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-ic, .bx-gm-band.bx-gm-t-vitrine .bx-gm-chip .bx-gm-ic,
+.bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-ic {
+  top:3.5cqh; width:62cqh; height:62cqh; z-index:1; }
+
+/* Schweben im Ruhezustand. Nutzt die Eigenschaft translate (nicht transform),
+   weil die Bildkachel dort schon ihr -50% für die Zentrierung trägt.
+   --bx-i kommt aus dem Markup und versetzt jede Kachel gegen die nächste. */
+.bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-ic, .bx-gm-band.bx-gm-t-vitrine .bx-gm-chip .bx-gm-ic,
+.bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-ic {
+  animation: bx-gm-float 4.6s ease-in-out infinite alternate;
+  animation-delay: calc(var(--bx-i, 0) * -0.61s); }
+@keyframes bx-gm-float { from { translate:-50% 1.1cqh } to { translate:-50% -1.8cqh } }
+
+/* Lichtwurf, der AUS dem Geschenk auf die Kachel fällt — pulsiert langsam und
+   je Kachel versetzt, damit die Leiste atmet statt im Gleichschritt zu blinken. */
+.bx-gm-t-ueberlagert .bx-gm-ic::before, .bx-gm-t-vitrine .bx-gm-ic::before,
+.bx-gm-t-aufkleber .bx-gm-ic::before {
+  content:''; position:absolute; inset:-16%; z-index:-1; pointer-events:none; border-radius:50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--bx-accent,#ff5e8a) 70%, transparent), transparent 78%);
+  filter: blur(1.8cqh);
+  animation: bx-gm-glow 5.2s ease-in-out infinite alternate;
+  animation-delay: calc(var(--bx-i, 0) * -0.83s); }
+@keyframes bx-gm-glow { from { opacity:.32; scale:.88 } to { opacity:.7; scale:1.1 } }
+
+/* Kachelboden: Aufstandsschatten + Lichtpfütze direkt unter dem Geschenk.
+   Erst dadurch STEHT das Geschenk, statt im Rechteck zu schweben. */
+.bx-gm-t-ueberlagert .bx-gm-ic::after, .bx-gm-t-vitrine .bx-gm-ic::after,
+.bx-gm-t-aufkleber .bx-gm-ic::after {
+  content:''; position:absolute; left:14%; right:14%; bottom:-3%; height:13%; z-index:-1;
+  pointer-events:none; border-radius:50%; filter: blur(.9cqh);
+  background:
+    radial-gradient(closest-side, color-mix(in srgb, var(--bx-accent,#ff5e8a) 60%, transparent), transparent 76%),
+    radial-gradient(closest-side, rgba(0,0,0,.75), transparent 74%); }
+
+/* Die Effekt-Ebene des Auslösers. Eigenes Element, weil chip::before den
+   Kachelboden trägt und chip::after den alten Lichtstreif — beide vergeben. */
+.bx-gm-fx { display:none; }
+.bx-gm-t-ueberlagert .bx-gm-fx, .bx-gm-t-vitrine .bx-gm-fx, .bx-gm-t-aufkleber .bx-gm-fx {
+  display:block; position:absolute; inset:0; z-index:6; pointer-events:none; overflow:hidden;
+  border-radius:inherit; }
+.bx-gm-t-ueberlagert .bx-gm-fx::before, .bx-gm-t-vitrine .bx-gm-fx::before,
+.bx-gm-t-aufkleber .bx-gm-fx::before,
+.bx-gm-t-ueberlagert .bx-gm-fx::after, .bx-gm-t-vitrine .bx-gm-fx::after,
+.bx-gm-t-aufkleber .bx-gm-fx::after { content:''; position:absolute; opacity:0; }
+/* Der alte Lichtstreif auf chip::after würde sich mit den neuen Choreografien
+   überlagern — hier läuft er über die Effekt-Ebene. */
+.bx-gm-t-ueberlagert .bx-gm-chip.is-hit::after, .bx-gm-t-vitrine .bx-gm-chip.is-hit::after,
+.bx-gm-t-aufkleber .bx-gm-chip.is-hit::after { display:none; }
+
+/* Partikel — Splitter, Goldstaub oder Konfetti. Startlinie liegt auf dem
+   Kachelboden, geflogen wird nach oben. */
+.bx-gm-parts { position:absolute; left:0; right:0; bottom:22cqh; height:0; z-index:7; pointer-events:none; }
+.bx-gm-parts i { position:absolute; left:var(--x,50%); bottom:0; width:var(--s,2cqh); height:var(--s,2cqh);
+  background: var(--c, #fff); opacity:0;
+  animation: bx-gm-part var(--t,900ms) var(--d,0ms) cubic-bezier(.18,.72,.3,1) both; }
+@keyframes bx-gm-part {
+  0%   { opacity:0; translate:-50% 0; scale:.3; rotate:0deg }
+  14%  { opacity:1; scale:1 }
+  72%  { opacity:1 }
+  100% { opacity:0; translate: calc(-50% + var(--dx,0cqh)) calc(-1 * var(--rise,40cqh)); scale:.6; rotate: var(--r,180deg) } }
+/* Splitter: harte Rauten mit Akzent-Glühen. */
+.bx-gm-parts-ueberlagert i { border-radius:.3cqh;
+  box-shadow: 0 0 1.4cqh color-mix(in srgb, var(--bx-accent,#ff5e8a) 70%, transparent); }
+/* Goldstaub: winzige runde Körnchen, kaum leuchtend. */
+.bx-gm-parts-vitrine i { border-radius:50%;
+  box-shadow: 0 0 1.2cqh color-mix(in srgb, var(--bx-gold,#ffd23e) 55%, transparent); }
+/* Konfetti: bunte Schnipsel mit dunkler Kante — passt zur Aufkleber-Kontur. */
+.bx-gm-parts-aufkleber i { border-radius:.4cqh;
+  box-shadow: 0 0 0 max(1px,.16cqh) rgba(25,27,40,.8); }
+
+/* ══ FASSUNG 1: WUCHT (tile='ueberlagert') ═════════════════════════════════
+   Arcade-Marquee über dem Videobild. Kantiges Rechteck, Akzentbalken am Fuß,
+   abgeschrägtes Namensschild, Preis bündig in der Ecke. Die Wirkung steht in
+   Anton — der engsten und fettesten der zwölf Familien: maximale Strichstärke
+   je Pixel, damit sie auf bewegtem Bild und auf dem Handy noch trägt. */
+.bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip {
+  border-radius:1.2cqh;
+  background:
+    /* Harte Akzentkante links — die Kachel bekommt eine Leserichtung. */
+    linear-gradient(90deg, var(--bx-accent,#ff5e8a) 0 1.8cqh, transparent 1.8cqh),
+    linear-gradient(180deg, rgba(30,33,52,.6), rgba(7,8,15,.9) 70%, rgba(12,13,22,.94));
+  box-shadow:
+    inset 0 max(1px,.3cqh) 0 rgba(255,255,255,.22),
+    inset 0 0 0 max(1px,.22cqh) rgba(255,255,255,.09),
+    0 3cqh 4.5cqh -2cqh rgba(0,0,0,.85),
+    0 0 3.5cqh -1.2cqh color-mix(in srgb, var(--bx-accent,#ff5e8a) 75%, transparent); }
+.bx-gm-t-ueberlagert .bx-gm-chip::before {
+  content:''; position:absolute; inset:0; z-index:0; pointer-events:none; border-radius:inherit;
+  background: radial-gradient(58% 42% at 50% 26cqh, color-mix(in srgb, var(--bx-accent,#ff5e8a) 24%, transparent), transparent 74%); }
+/* Der Fußbalken muss ÜBER den Verlauf — als Kachel-Hintergrund lag er darunter
+   und war schlicht nicht zu sehen. Die Kerben machen daraus eine Marquee-Leiste. */
+.bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-txt::before {
+  content:''; position:absolute; left:0; right:0; bottom:0; height:2.6cqh; z-index:4; pointer-events:none;
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,.55) 0 1cqh, transparent 1cqh 3cqh),
+    linear-gradient(90deg, var(--bx-accent,#ff5e8a), color-mix(in srgb, var(--bx-accent,#ff5e8a) 55%, var(--bx-gold,#ffd23e)));
+  box-shadow: 0 -.5cqh 1.4cqh color-mix(in srgb, var(--bx-accent,#ff5e8a) 55%, transparent); }
+.bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-txt::after {
+  height:50cqh;
+  background: linear-gradient(180deg, transparent, rgba(4,5,12,.52) 40%, rgba(4,5,12,.9) 76%, rgba(4,5,12,.96)); }
+/* Name: schmale Versalzeile auf einem abgeschrägten Schild. Bebas Neue ist
+   reine Versalschrift — die Großschreibung wirkt gesetzt, nicht geschrien. */
+.bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-line {
+  position:absolute; left:0; right:0; top:0; justify-content:flex-start; background:none; padding:0; }
+.bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-name {
+  font-family: var(--bx-gm-label); font-weight:400; font-size: calc(10.5cqh * var(--bx-gm-fs, 1)); line-height:1;
+  letter-spacing:.1em; padding:1.5cqh 3.2cqh 1.3cqh 3.4cqh; max-width:76cqh; box-sizing:border-box;
+  color:#0a0b12; background: var(--bx-accent,#ff5e8a);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 2.6cqh) 100%, 0 100%);
+  -webkit-text-stroke:0; text-shadow:none; opacity:1; }
+/* Preis in Russo One mit Tabellenziffern: gleich breite Ziffern, damit die
+   Zahl beim Vorbeilaufen nicht zappelt. */
+.bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-coins {
+  top:0; right:0; border-radius:0 0 0 1.4cqh; padding:1.4cqh 2.4cqh;
+  font-family: var(--bx-gm-num); font-variant-numeric: tabular-nums; font-size: calc(9.5cqh * var(--bx-gm-fs, 1)); line-height:1;
+  letter-spacing:.02em; color: var(--bx-gold,#ffd23e); background: rgba(4,5,10,.86);
+  box-shadow: inset 0 0 0 max(1px,.2cqh) color-mix(in srgb, var(--bx-gold,#ffd23e) 42%, transparent); }
+.bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-act {
+  left:3cqh; right:3cqh; bottom:4.6cqh;
+  font-family: var(--bx-gm-hero); font-weight:400; font-size: calc(16cqh * var(--bx-gm-fs, 1)); line-height:.94;
+  letter-spacing:.005em; text-transform:uppercase; color:#fff;
+  -webkit-text-stroke: max(2px,.8cqh) #05060c; paint-order: stroke fill;
+  text-shadow: 0 .5cqh 1.3cqh rgba(0,0,0,.95); }
+
+/* Auslöser WUCHT: Druckwelle, Kippen, Splitter. */
+.bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip.is-hit {
+  animation: bx-gm-w-kick 1500ms cubic-bezier(.22,1.1,.3,1);
+  box-shadow:
+    inset 0 0 0 max(2px,.45cqh) color-mix(in srgb, var(--bx-accent,#ff5e8a) 92%, #fff),
+    0 0 6cqh -.5cqh var(--bx-accent,#ff5e8a),
+    0 3cqh 5cqh -2cqh rgba(0,0,0,.9); }
+@keyframes bx-gm-w-kick {
+  0%   { transform: translateY(0) scale(1) rotate(0deg); filter:none }
+  4%   { filter: brightness(2) saturate(1.25) }
+  7%   { transform: translateY(-3.4cqh) scale(1.055) rotate(-2.4deg) }
+  15%  { transform: translateY(-4.4cqh) scale(1.04) rotate(2deg); filter:none }
+  27%  { transform: translateY(-1.6cqh) scale(1.025) rotate(-1deg) }
+  42%  { transform: translateY(-2.4cqh) scale(1.015) rotate(.6deg) }
+  64%  { transform: translateY(0) scale(1.006) rotate(-.15deg) }
+  100% { transform:none; filter:none } }
+/* Druckwelle: ein Ring, der aus der Kachelmitte nach außen läuft. */
+.bx-gm-t-ueberlagert .bx-gm-chip.is-hit .bx-gm-fx::before {
+  inset:26cqh 48cqh; border-radius:50%;
+  border: max(2px,1cqh) solid color-mix(in srgb, var(--bx-accent,#ff5e8a) 80%, #fff);
+  animation: bx-gm-shock 780ms 40ms cubic-bezier(.14,.7,.24,1) both; }
+@keyframes bx-gm-shock {
+  0%   { opacity:0; scale:.2 }
+  12%  { opacity:1 }
+  100% { opacity:0; scale:4 } }
+/* Lichtstreif quer über die Kachel. */
+.bx-gm-t-ueberlagert .bx-gm-chip.is-hit .bx-gm-fx::after {
+  inset:-10% -30%;
+  background: linear-gradient(102deg, transparent 36%, rgba(255,255,255,.55) 50%, transparent 64%);
+  animation: bx-gm-sweep2 880ms 90ms ease-out both; }
+@keyframes bx-gm-sweep2 {
+  0%   { opacity:0; transform: translateX(-80%) }
+  10%  { opacity:1 }
+  100% { opacity:0; transform: translateX(80%) } }
+/* Geschenk springt nach vorn und überstrahlt — Schweben läuft weiter. */
+.bx-gm-t-ueberlagert .bx-gm-chip.is-hit .bx-gm-ic {
+  animation: bx-gm-float 4.6s ease-in-out infinite alternate, bx-gm-w-pop 1400ms cubic-bezier(.2,1.5,.3,1);
+  animation-delay: calc(var(--bx-i, 0) * -0.61s), 0ms; }
+@keyframes bx-gm-w-pop {
+  0%   { translate:-50% 0; scale:1; filter:none }
+  10%  { translate:-50% -4cqh; scale:1.3; filter: brightness(1.75) saturate(1.35) drop-shadow(0 0 3cqh var(--bx-accent,#ff5e8a)) }
+  32%  { translate:-50% -2.4cqh; scale:1.13; filter: brightness(1.2) drop-shadow(0 0 2cqh var(--bx-accent,#ff5e8a)) }
+  58%  { translate:-50% -.8cqh; scale:1.04 }
+  100% { translate:-50% 0; scale:1; filter:none } }
+/* „von <Name>" fliegt von unten ein und setzt sich über die Wirkung. */
+.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-who, .bx-gm-t-vitrine .bx-gm-chip .bx-gm-who,
+.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-who { display:none; }
+.bx-gm-t-ueberlagert .bx-gm-chip.is-hit.has-who .bx-gm-who {
+  display:block; z-index:8; top:auto; bottom:41cqh; left:50%; max-width:92%;
+  font-family: var(--bx-gm-label); font-size:8.5cqh; line-height:1; letter-spacing:.12em;
+  text-transform:uppercase; padding:1.2cqh 2.6cqh; border-radius:0;
+  background: var(--bx-gold,#ffd23e); color:#0a0b12;
+  box-shadow: 0 .8cqh 2cqh rgba(0,0,0,.7);
+  animation: bx-gm-who-pop 2200ms 200ms cubic-bezier(.2,1.5,.3,1) both; }
+@keyframes bx-gm-who-pop {
+  0%   { opacity:0; translate:-50% 5cqh; scale:.7 }
+  9%   { opacity:1; translate:-50% 0; scale:1.1 }
+  15%  { scale:1 }
+  86%  { opacity:1; translate:-50% 0; scale:1 }
+  100% { opacity:0; translate:-50% -2.5cqh; scale:.94 } }
+
+/* ══ FASSUNG 2: EDEL (tile='vitrine') ══════════════════════════════════════
+   Ein beleuchteter Schaukasten. Fast nur Schwarz, eine Goldhaarlinie als
+   Rahmen, ein Lichtkegel von oben auf das Geschenk und eine Glaskante als
+   Regalboden. Wirkung in Bebas Neue (hohe, schlanke Versalien, gesperrt),
+   Name winzig in Righteous mit weiter Sperrung wie eine Museumsplakette,
+   Preis in Russo One mit Tabellenziffern. Nichts hüpft, nichts blinkt. */
+.bx-gm-band.bx-gm-t-vitrine .bx-gm-chip {
+  width: calc(148cqh * var(--bx-gm-fs, 1)); border-radius:.6cqh;
+  background: linear-gradient(180deg, rgba(6,6,9,.94), rgba(1,1,3,.97) 58%, rgba(5,5,8,.95));
+  box-shadow:
+    inset 0 0 0 max(1px,.34cqh) color-mix(in srgb, var(--bx-gold,#ffd23e) 62%, transparent),
+    inset 0 max(1px,.24cqh) 0 rgba(255,255,255,.2),
+    inset 0 -4cqh 6cqh -3cqh color-mix(in srgb, var(--bx-accent,#ff5e8a) 45%, transparent),
+    0 2.8cqh 4.2cqh -2cqh rgba(0,0,0,.95); }
+/* Vier Goldwinkel wie an einer Museumsplakette. Acht Verlaufsschichten auf
+   EINEM Pseudo — deshalb muss die is-hit-Variante mit aufgeführt werden,
+   sonst nähme ihr die Auslöser-Regel weiter oben die Sichtbarkeit. */
+.bx-gm-t-vitrine .bx-gm-chip::after, .bx-gm-t-vitrine .bx-gm-chip.is-hit::after {
+  content:''; display:block; position:absolute; inset:2.2cqh 2.6cqh; z-index:5; pointer-events:none;
+  border-radius:0; animation:none; opacity:.7;
+  --gl: linear-gradient(var(--bx-gold,#ffd23e) 0 0);
+  background:
+    var(--gl) left top / 5cqh max(1px,.24cqh) no-repeat,
+    var(--gl) left top / max(1px,.24cqh) 5cqh no-repeat,
+    var(--gl) right top / 5cqh max(1px,.24cqh) no-repeat,
+    var(--gl) right top / max(1px,.24cqh) 5cqh no-repeat,
+    var(--gl) left bottom / 5cqh max(1px,.24cqh) no-repeat,
+    var(--gl) left bottom / max(1px,.24cqh) 5cqh no-repeat,
+    var(--gl) right bottom / 5cqh max(1px,.24cqh) no-repeat,
+    var(--gl) right bottom / max(1px,.24cqh) 5cqh no-repeat; }
+/* Der Lichtkegel: ein Trapez aus der Deckenmitte, weich, langsam heller und
+   dunkler werdend — das ist die einzige Bewegung im Ruhezustand. */
+.bx-gm-t-vitrine .bx-gm-chip::before {
+  content:''; position:absolute; left:0; right:0; top:0; height:70cqh; z-index:0; pointer-events:none;
+  clip-path: polygon(39% 0, 61% 0, 86% 100%, 14% 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bx-accent,#ff5e8a) 46%, transparent), transparent 68%);
+  filter: blur(2.2cqh);
+  animation: bx-gm-cone 6.4s ease-in-out infinite alternate;
+  animation-delay: calc(var(--bx-i, 0) * -1.07s); }
+@keyframes bx-gm-cone { from { opacity:.34 } to { opacity:.72 } }
+/* Regalboden: eine Goldkante, auf der das Geschenk steht. */
+.bx-gm-band.bx-gm-t-vitrine .bx-gm-chip .bx-gm-txt::before {
+  content:''; position:absolute; left:8cqh; right:8cqh; top:62.5cqh; height:max(1px,.24cqh); z-index:2;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bx-gold,#ffd23e) 85%, #fff), transparent);
+  opacity:.65; }
+.bx-gm-band.bx-gm-t-vitrine .bx-gm-chip .bx-gm-txt::after {
+  height:46cqh;
+  background: linear-gradient(180deg, transparent, rgba(2,2,6,.6) 44%, rgba(2,2,6,.94)); }
+.bx-gm-band.bx-gm-t-vitrine .bx-gm-chip .bx-gm-line {
+  position:absolute; left:0; right:0; top:3.4cqh; padding:0 4.5cqh; box-sizing:border-box;
+  justify-content:flex-start; background:none; }
+.bx-gm-band.bx-gm-t-vitrine .bx-gm-chip .bx-gm-name {
+  font-family: var(--bx-gm-label); font-size: calc(8cqh * var(--bx-gm-fs, 1)); line-height:1; letter-spacing:.26em;
+  max-width:72cqh; opacity:1; color: color-mix(in srgb, var(--bx-gold,#ffd23e) 42%, #fff);
+  -webkit-text-stroke: max(1.5px,.34cqh) rgba(3,3,7,.92); paint-order: stroke fill; }
+.bx-gm-band.bx-gm-t-vitrine .bx-gm-chip .bx-gm-coins {
+  top:2.9cqh; right:4.5cqh; padding:0; background:none; box-shadow:none;
+  font-family: var(--bx-gm-num); font-variant-numeric: tabular-nums; font-size: calc(8.4cqh * var(--bx-gm-fs, 1)); line-height:1;
+  letter-spacing:.05em; color: var(--bx-gold,#ffd23e);
+  -webkit-text-stroke: max(1.5px,.34cqh) rgba(3,3,7,.92); paint-order: stroke fill; }
+.bx-gm-band.bx-gm-t-vitrine .bx-gm-chip .bx-gm-act {
+  left:2.6cqh; right:2.6cqh; bottom:6cqh;
+  font-family: var(--bx-gm-hero); font-weight:400; font-size: calc(15.5cqh * var(--bx-gm-fs, 1)); line-height:.96;
+  letter-spacing:.035em; text-transform:uppercase; color:#f7f3e9;
+  -webkit-text-stroke: max(1.5px,.48cqh) rgba(2,2,6,.94); paint-order: stroke fill;
+  text-shadow: 0 .4cqh 1.4cqh rgba(0,0,0,.92); }
+/* Feine Goldlinie unter der Wirkung — die Plakettenkante. Der Chip-Block
+   weiter oben blendet .bx-gm-line::after aus, deshalb hier wieder an. */
+.bx-gm-band.bx-gm-t-vitrine .bx-gm-chip .bx-gm-line::after {
+  display:block; content:''; position:absolute; left:32%; right:32%; bottom:-70cqh;
+  height:max(1px,.2cqh); min-width:0; border:0; flex:none;
+  background: linear-gradient(90deg, transparent, var(--bx-gold,#ffd23e), transparent); opacity:.55; }
+
+/* Auslöser EDEL: kein Sprung, sondern ein Aufleuchten. */
+.bx-gm-band.bx-gm-t-vitrine .bx-gm-chip.is-hit {
+  animation: bx-gm-v-lift 1800ms cubic-bezier(.16,.8,.24,1);
+  box-shadow:
+    inset 0 0 0 max(1.5px,.3cqh) color-mix(in srgb, var(--bx-gold,#ffd23e) 85%, #fff),
+    inset 0 -4cqh 7cqh -3cqh color-mix(in srgb, var(--bx-accent,#ff5e8a) 70%, transparent),
+    0 0 5cqh -1cqh color-mix(in srgb, var(--bx-gold,#ffd23e) 60%, transparent),
+    0 2.8cqh 4.2cqh -2cqh rgba(0,0,0,.92); }
+@keyframes bx-gm-v-lift {
+  0%   { transform: translateY(0) scale(1); filter:none }
+  18%  { transform: translateY(-1.4cqh) scale(1.02); filter: brightness(1.18) }
+  55%  { transform: translateY(-.6cqh) scale(1.008) }
+  100% { transform:none; filter:none } }
+/* Ein einziger, sehr weicher Goldring — langsam, breit, kaum sichtbar am Ende. */
+.bx-gm-t-vitrine .bx-gm-chip.is-hit .bx-gm-fx::before {
+  inset:20cqh 44cqh; border-radius:50%;
+  border: max(1px,.35cqh) solid color-mix(in srgb, var(--bx-gold,#ffd23e) 80%, #fff);
+  filter: blur(.3cqh);
+  animation: bx-gm-v-ring 1500ms 60ms cubic-bezier(.2,.65,.2,1) both; }
+@keyframes bx-gm-v-ring {
+  0%   { opacity:0; scale:.35 }
+  20%  { opacity:.85 }
+  100% { opacity:0; scale:3.1 } }
+/* Das Aufleuchten selbst: der Lichtkegel wird kurz zum Scheinwerfer. */
+.bx-gm-t-vitrine .bx-gm-chip.is-hit .bx-gm-fx::after {
+  inset:0;
+  background: radial-gradient(62% 58% at 50% 34%, rgba(255,248,225,.6), color-mix(in srgb, var(--bx-accent,#ff5e8a) 30%, transparent) 46%, transparent 74%);
+  animation: bx-gm-v-bloom 1700ms ease-out both; }
+@keyframes bx-gm-v-bloom {
+  0%   { opacity:0; scale:.7 }
+  14%  { opacity:1; scale:1 }
+  46%  { opacity:.6 }
+  100% { opacity:0; scale:1.15 } }
+.bx-gm-t-vitrine .bx-gm-chip.is-hit .bx-gm-ic {
+  animation: bx-gm-float 4.6s ease-in-out infinite alternate, bx-gm-v-pop 1700ms cubic-bezier(.18,.7,.22,1);
+  animation-delay: calc(var(--bx-i, 0) * -0.61s), 0ms; }
+@keyframes bx-gm-v-pop {
+  0%   { translate:-50% 0; scale:1; filter:none }
+  22%  { translate:-50% -2.2cqh; scale:1.11; filter: brightness(1.45) saturate(1.1) drop-shadow(0 0 2.4cqh color-mix(in srgb, var(--bx-gold,#ffd23e) 70%, transparent)) }
+  60%  { translate:-50% -1cqh; scale:1.04; filter: brightness(1.12) }
+  100% { translate:-50% 0; scale:1; filter:none } }
+.bx-gm-t-vitrine .bx-gm-chip.is-hit.has-who .bx-gm-who {
+  display:block; z-index:8; top:auto; bottom:42cqh; left:50%; max-width:92%;
+  font-family: var(--bx-gm-label); font-size:7.4cqh; line-height:1; letter-spacing:.26em;
+  text-transform:uppercase; padding:0; border-radius:0; background:none; box-shadow:none;
+  color: color-mix(in srgb, var(--bx-gold,#ffd23e) 70%, #fff);
+  -webkit-text-stroke: max(1.5px,.34cqh) rgba(2,2,6,.94); paint-order: stroke fill;
+  animation: bx-gm-who-fade 2300ms 260ms ease-out both; }
+@keyframes bx-gm-who-fade {
+  0%   { opacity:0; translate:-50% 2.2cqh }
+  16%  { opacity:1; translate:-50% 0 }
+  84%  { opacity:1; translate:-50% 0 }
+  100% { opacity:0; translate:-50% -1.4cqh } }
+
+/* ══ FASSUNG 3: STICKER (tile='aufkleber') ═════════════════════════════════
+   Ein ausgestanzter Aufkleber, leicht schief aufs Videobild geklebt. Heller
+   Körper mit weißem Stanzrand und dunkler Keylinie, dahinter ein langsam
+   drehender Sonnenstrahlen-Burst in der Akzentfarbe. Wirkung in Luckiest Guy
+   (runde, dicke Formen mit Platz für eine kräftige Kontur), Name in Fredoka
+   auf einer dunklen Pille, Preis in Baloo 2 auf einem Gold-Button. */
+.bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip {
+  width: calc(146cqh * var(--bx-gm-fs, 1)); border-radius:5cqh;
+  border: max(3px,1.3cqh) solid #fdfdff;
+  background:
+    radial-gradient(72% 58% at 50% 6%, rgba(255,255,255,.96), rgba(246,248,255,.86) 52%, rgba(214,221,242,.82)),
+    linear-gradient(180deg, #fbfcff, #cfd7ee);
+  box-shadow:
+    inset 0 0 0 max(1.5px,.42cqh) #191b28,
+    inset 0 -2.5cqh 4cqh -2cqh color-mix(in srgb, var(--bx-accent,#ff5e8a) 45%, transparent),
+    0 3cqh 3.6cqh -1.6cqh rgba(0,0,0,.8);
+  /* Leichte Schräglage wie von Hand geklebt — abwechselnd links/rechts. */
+  --tilt: -2.6deg;
+  animation: bx-gm-wiggle 5.8s ease-in-out infinite alternate;
+  animation-delay: calc(var(--bx-i, 0) * -0.73s); }
+.bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip:nth-child(even) { --tilt: 2.3deg; }
+/* Stanzlinie: die gestrichelte Kante, an der man den Aufkleber abzieht. */
+.bx-gm-t-aufkleber .bx-gm-chip::after, .bx-gm-t-aufkleber .bx-gm-chip.is-hit::after {
+  content:''; display:block; position:absolute; inset:1.8cqh; z-index:5; pointer-events:none;
+  border-radius:3.4cqh; animation:none; background:none;
+  border: max(1px,.3cqh) dashed rgba(25,27,40,.32); }
+@keyframes bx-gm-wiggle {
+  from { rotate: calc(var(--tilt, 0deg) - .9deg) }
+  to   { rotate: calc(var(--tilt, 0deg) + .9deg) } }
+/* Sonnenstrahlen hinter dem Geschenk — die Bewegung im Ruhezustand. */
+.bx-gm-t-aufkleber .bx-gm-chip::before {
+  content:''; position:absolute; left:50%; top:33cqh; width:96cqh; height:96cqh; z-index:0;
+  translate:-50% -50%; pointer-events:none; border-radius:50%; opacity:.5;
+  background: repeating-conic-gradient(from 0deg,
+    color-mix(in srgb, var(--bx-accent,#ff5e8a) 55%, transparent) 0deg 9deg, transparent 9deg 18deg);
+  -webkit-mask-image: radial-gradient(closest-side, #000 24%, rgba(0,0,0,.5) 52%, transparent 76%);
+  mask-image: radial-gradient(closest-side, #000 24%, rgba(0,0,0,.5) 52%, transparent 76%);
+  animation: bx-gm-rays 26s linear infinite; }
+@keyframes bx-gm-rays { to { rotate: 360deg } }
+/* Heller Körper: der Verlauf unter dem Text muss AUFHELLEN, nicht abdunkeln. */
+.bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-txt::after {
+  height:44cqh;
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,.5) 42%, rgba(255,255,255,.86) 76%, rgba(255,255,255,.93)); }
+.bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-line {
+  position:absolute; left:0; right:0; top:3cqh; padding:0 3.5cqh; box-sizing:border-box;
+  justify-content:flex-start; background:none; }
+.bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-name {
+  font-family: var(--bx-gm-label); font-weight:600; font-size: calc(9.5cqh * var(--bx-gm-fs, 1)); line-height:1;
+  letter-spacing:.05em; padding:1.3cqh 2.6cqh; border-radius:99em; max-width:74cqh; box-sizing:border-box;
+  color:#fbfcff; background:#191b28; box-shadow: 0 .6cqh 0 rgba(0,0,0,.25);
+  -webkit-text-stroke:0; text-shadow:none; opacity:1; }
+.bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-coins {
+  top:2.6cqh; right:3.5cqh; padding:1.2cqh 2.4cqh; border-radius:99em;
+  font-family: var(--bx-gm-num); font-weight:800; font-variant-numeric: tabular-nums;
+  font-size: calc(9cqh * var(--bx-gm-fs, 1)); line-height:1; color:#3a2a00;
+  background: linear-gradient(165deg, #ffe9a3, var(--bx-gold,#ffd23e));
+  box-shadow: inset 0 0 0 max(1.5px,.34cqh) #191b28, 0 .6cqh 0 rgba(0,0,0,.25); }
+/* Dunkle Type mit hartem Akzentschatten = Aufkleberschrift. */
+.bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-act {
+  left:2.6cqh; right:2.6cqh; bottom:5cqh;
+  font-family: var(--bx-gm-hero); font-weight:400; font-size: calc(16cqh * var(--bx-gm-fs, 1)); line-height:1.0;
+  letter-spacing:.01em; text-transform:uppercase; color:#14151f;
+  /* BEWUSST ohne helle Kontur: dunkle Type direkt auf dem hellen Aufkleber ist
+     der kontraststärkste Fall, den es gibt. Ein weißer Halo fraß bei 34 %
+     Ansichtsgröße genau den Buchstabeninnenraum weg, den man zum Lesen
+     braucht. Der harte Akzentschatten bleibt — er macht die Sticker-Anmutung. */
+  -webkit-text-stroke:0;
+  text-shadow: 0 .45cqh 0 color-mix(in srgb, var(--bx-accent,#ff5e8a) 88%, #2a0d18),
+    0 1cqh .9cqh rgba(0,0,0,.28); }
+
+/* Auslöser STICKER: hüpfen mit Squash-and-Stretch, dann Konfetti. */
+.bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip.is-hit {
+  animation: bx-gm-wiggle 5.8s ease-in-out infinite alternate,
+             bx-gm-s-hop 1500ms cubic-bezier(.3,1.1,.4,1);
+  animation-delay: calc(var(--bx-i, 0) * -0.73s), 0ms;
+  box-shadow:
+    inset 0 0 0 max(1.5px,.42cqh) #191b28,
+    inset 0 -3cqh 5cqh -2cqh color-mix(in srgb, var(--bx-accent,#ff5e8a) 70%, transparent),
+    0 0 5cqh -1cqh var(--bx-accent,#ff5e8a),
+    0 3cqh 3.6cqh -1.6cqh rgba(0,0,0,.8); }
+@keyframes bx-gm-s-hop {
+  0%   { transform: translateY(0) scale(1,1) }
+  8%   { transform: translateY(1.2cqh) scale(1.13,.87) }
+  22%  { transform: translateY(-5cqh) scale(.93,1.1) }
+  36%  { transform: translateY(-6.4cqh) scale(1,1) }
+  52%  { transform: translateY(1cqh) scale(1.11,.9) }
+  68%  { transform: translateY(-2.4cqh) scale(.97,1.04) }
+  84%  { transform: translateY(.3cqh) scale(1.03,.97) }
+  100% { transform:none } }
+/* Comic-Ring: eine aufgehende Kontur in Kachelform, kein Kreis. */
+.bx-gm-t-aufkleber .bx-gm-chip.is-hit .bx-gm-fx::before {
+  inset:14cqh 24cqh; border-radius:6cqh;
+  border: max(2px,1.1cqh) solid color-mix(in srgb, var(--bx-accent,#ff5e8a) 88%, #fff);
+  animation: bx-gm-s-ring 700ms 60ms cubic-bezier(.16,.72,.24,1) both; }
+@keyframes bx-gm-s-ring {
+  0%   { opacity:0; scale:.4; rotate:-6deg }
+  14%  { opacity:1 }
+  100% { opacity:0; scale:2.6; rotate:4deg } }
+/* Glanz über den Aufkleber — er ist ja beschichtet. */
+.bx-gm-t-aufkleber .bx-gm-chip.is-hit .bx-gm-fx::after {
+  inset:-10% -30%;
+  background: linear-gradient(100deg, transparent 38%, rgba(255,255,255,.85) 50%, transparent 62%);
+  animation: bx-gm-sweep2 820ms 140ms ease-out both; }
+.bx-gm-t-aufkleber .bx-gm-chip.is-hit .bx-gm-ic {
+  animation: bx-gm-float 4.6s ease-in-out infinite alternate, bx-gm-s-pop 1500ms cubic-bezier(.25,1.6,.35,1);
+  animation-delay: calc(var(--bx-i, 0) * -0.61s), 0ms; }
+@keyframes bx-gm-s-pop {
+  0%   { translate:-50% 0; scale:1; rotate:0deg; filter:none }
+  12%  { translate:-50% -4.5cqh; scale:1.34; rotate:-9deg; filter: brightness(1.5) saturate(1.3) drop-shadow(0 0 2.4cqh var(--bx-accent,#ff5e8a)) }
+  30%  { translate:-50% -2cqh; scale:1.1; rotate:7deg }
+  48%  { translate:-50% -3cqh; scale:1.16; rotate:-4deg; filter: brightness(1.15) }
+  70%  { translate:-50% -.6cqh; scale:1.03; rotate:1.5deg }
+  100% { translate:-50% 0; scale:1; rotate:0deg; filter:none } }
+/* „von <Name>" als Sprechblase, die mit Überschwung aufpoppt. */
+.bx-gm-t-aufkleber .bx-gm-chip.is-hit.has-who .bx-gm-who {
+  display:block; z-index:8; top:auto; bottom:40cqh; left:50%; max-width:92%;
+  font-family: var(--bx-gm-label); font-weight:600; font-size:8.5cqh; line-height:1;
+  letter-spacing:.03em; padding:1.3cqh 3cqh; border-radius:99em;
+  background:#191b28; color:#fdfdff;
+  box-shadow: inset 0 0 0 max(1.5px,.34cqh) #fdfdff, 0 .9cqh 1.8cqh rgba(0,0,0,.45);
+  animation: bx-gm-who-pop 2200ms 240ms cubic-bezier(.2,1.8,.3,1) both; }
+
+/* ── Banner-Hintergründe: Fassung der Leiste selbst ───────────────────────
+   Zu den drei Kachelfassungen bekommt das Band eine Kante, damit die Kacheln
+   auf etwas STEHEN statt darin zu kleben: oben eine Lichtlinie, unten eine
+   Schattenfuge, dazu ein Bodenschimmer in der Akzentfarbe. */
+.bx-gm-band.bx-gm-t-ueberlagert, .bx-gm-band.bx-gm-t-vitrine, .bx-gm-band.bx-gm-t-aufkleber {
+  box-shadow:
+    inset 0 max(1px,.4cqh) 0 rgba(255,255,255,.16),
+    inset 0 max(-2px,-.8cqh) 0 rgba(0,0,0,.6),
+    inset 0 -3cqh 5cqh -3cqh color-mix(in srgb, var(--bx-accent,#ff5e8a) 45%, transparent); }
+/* Der Schimmer über dem Band läuft bei den drei Fassungen ruhiger und
+   schmaler — sonst kämpft er mit dem Lichtwurf der Kacheln. */
+.bx-gm-band.bx-gm-t-ueberlagert::after, .bx-gm-band.bx-gm-t-vitrine::after,
+.bx-gm-band.bx-gm-t-aufkleber::after { width:24%; opacity:.6; animation-duration:9s; }
+/* Von den animierten Bannern bleiben neben den großen Kacheln nur noch die
+   Ränder übrig. Damit sie dort überhaupt noch zu sehen sind, laufen Aurora und
+   Streifen bei diesen drei Fassungen kräftiger. */
+.bx-gm-band.bx-gm-t-ueberlagert.bx-gm-b-aurora::before,
+.bx-gm-band.bx-gm-t-vitrine.bx-gm-b-aurora::before,
+.bx-gm-band.bx-gm-t-aufkleber.bx-gm-b-aurora::before { opacity:1; inset:-55% -10%; }
+.bx-gm-band.bx-gm-t-ueberlagert.bx-gm-b-streifen,
+.bx-gm-band.bx-gm-t-vitrine.bx-gm-b-streifen,
+.bx-gm-band.bx-gm-t-aufkleber.bx-gm-b-streifen { background:
+    repeating-linear-gradient(115deg,
+      color-mix(in srgb, var(--bx-accent,#ff5e8a) 22%, transparent) 0 2.2em,
+      rgba(255,255,255,0) 2.2em 4.6em),
+    linear-gradient(180deg, rgba(24,26,40,.92), rgba(10,11,20,.96)) !important;
+  background-size: 12em 100%, 100% 100% !important; }
+
+/* ── „Rahmen ausblenden" für die drei Fassungen ───────────────────────────
+   Der Frameless-Block weiter oben nimmt Hintergrund und Schatten weg — der
+   Textverlauf, die Goldwinkel, die Stanzlinie, der Fußbalken und der
+   Strahlenkranz blieben aber stehen und sahen dann aus wie eine halbe Kachel.
+   Ohne Kachel bleibt: Geschenk, Lichtwurf, Schrift. Und die Schrift braucht
+   dann ihre eigene Kontur, weil kein Verlauf mehr hinter ihr liegt. */
+.bx-frameless .bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-txt::after,
+.bx-frameless .bx-gm-band.bx-gm-t-vitrine .bx-gm-chip .bx-gm-txt::after,
+.bx-frameless .bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-txt::after,
+.bx-frameless .bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip .bx-gm-txt::before,
+.bx-frameless .bx-gm-band.bx-gm-t-vitrine .bx-gm-chip .bx-gm-txt::before,
+.bx-frameless .bx-gm-band.bx-gm-t-vitrine .bx-gm-chip::after,
+.bx-frameless .bx-gm-band.bx-gm-t-vitrine .bx-gm-chip.is-hit::after,
+.bx-frameless .bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip::after,
+.bx-frameless .bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip.is-hit::after,
+.bx-frameless .bx-gm-band.bx-gm-t-ueberlagert .bx-gm-chip::before,
+.bx-frameless .bx-gm-band.bx-gm-t-vitrine .bx-gm-chip::before,
+.bx-frameless .bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip::before { display:none; }
+/* Der Aufkleber trägt seine Lesbarkeit sonst über den hellen Körper. Fällt der
+   weg, MUSS die Kontur zurück — sonst steht dunkle Schrift auf dunklem Video. */
+.bx-frameless .bx-gm-band.bx-gm-t-aufkleber .bx-gm-chip .bx-gm-act {
+  color:#fff; -webkit-text-stroke: max(2.5px,.9cqh) #14151f; paint-order: stroke fill;
+  text-shadow: 0 .5cqh 0 color-mix(in srgb, var(--bx-accent,#ff5e8a) 88%, #2a0d18),
+    0 1cqh 1.2cqh rgba(0,0,0,.6); }
 `;
 
 function ensureStyle() {
@@ -403,8 +1050,61 @@ const GIFT_SVG = `<svg class="bx-gm-ph" viewBox="0 0 24 24" fill="none" stroke="
 
 const MODES = new Set(['rotation', 'leiste']);
 const STYLES = new Set(['karte', 'tafel', 'neon']);
-/** Kachelform im Laufband — wie kompakt ein Eintrag gepackt wird. */
-const TILES = new Set(['breit', 'quadrat', 'etikett', 'ablage']);
+/** Kachelform im Laufband — wie kompakt ein Eintrag gepackt wird.
+ *  'ueberlagert' | 'vitrine' | 'aufkleber' sind die drei ausgestalteten
+ *  Laufband-Fassungen (Wucht / Edel / Sticker) — siehe CSS weiter oben. */
+const TILES = new Set(['breit', 'quadrat', 'etikett', 'ablage', 'ueberlagert', 'untertitel', 'banderole',
+  'vitrine', 'aufkleber']);
+/** Kachelformen mit eigener Schrift-Hierarchie und eigener Auslöse-Choreografie. */
+const SHOWCASE_TILES = new Set(['ueberlagert', 'vitrine', 'aufkleber']);
+/** Hintergrund-Banner des Laufbands — ruhig oder in Bewegung. */
+const BANNERS = new Set(['schimmer', 'welle', 'streifen', 'aurora']);
+
+/** Kuratierte Schrift-Hierarchie je ausgestalteter Fassung: eine dominante
+ *  Display-Schrift für die WIRKUNG, eine schmale Versalschrift für den NAMEN,
+ *  eine eigene Schrift mit Tabellenziffern für den PREIS. Alle zwölf Familien
+ *  liegen lokal in widget-base.css — nichts wird nachgeladen. */
+const TILE_FONTS = {
+  // Wucht: Anton ist die engste und fetteste der zwölf — maximale Strichstärke
+  // je Pixel, hält auf bewegtem Videobild und bei 34 % noch stand.
+  ueberlagert: {
+    hero: "'Anton', 'Arial Narrow', 'Arial Black', sans-serif",
+    label: "'Bebas Neue', 'Arial Narrow', sans-serif",
+    num: "'Russo One', 'Arial Black', sans-serif",
+  },
+  // Edel: Bebas Neue hat feine, hohe Versalien — schlank statt laut.
+  vitrine: {
+    hero: "'Bebas Neue', 'Arial Narrow', sans-serif",
+    label: "'Righteous', 'Trebuchet MS', sans-serif",
+    num: "'Russo One', 'Arial Black', sans-serif",
+  },
+  // Sticker: Luckiest Guy ist die Aufkleber-Schrift schlechthin (runde, dicke
+  // Formen mit Platz für eine kräftige Kontur).
+  aufkleber: {
+    hero: "'Luckiest Guy', 'Arial Black', cursive",
+    label: "'Fredoka', 'Trebuchet MS', sans-serif",
+    num: "'Baloo 2', 'Arial Black', sans-serif",
+  },
+};
+/** Die unveränderten Basiswerte aus widget-base.css. Stimmt die aktuelle
+ *  Variable damit überein, hat der Nutzer NICHTS eingestellt — nur dann darf
+ *  die kuratierte Wahl greifen. Setzt er eine Schriftart oder ein Theme, das
+ *  die Variable belegt, gewinnt seine Einstellung. */
+const BASE_FONTS = {
+  '--bx-font-display': "'Lilita One', 'Arial Black', sans-serif",
+  '--bx-font-body': "'Baloo 2', 'Segoe UI', system-ui, sans-serif",
+  '--bx-font-num': "'Baloo 2', 'Arial Black', sans-serif",
+};
+/** Partikel-Farben je Fassung. Die Akzentfarbe des Nutzers ist überall dabei,
+ *  damit der Schwarm zur eingestellten Farbe passt. */
+const PARTICLE_COLORS = {
+  ueberlagert: ['var(--bx-accent,#ff5e8a)', '#ffffff', 'var(--bx-gold,#ffd23e)', 'var(--bx-accent,#ff5e8a)'],
+  vitrine: ['var(--bx-gold,#ffd23e)', '#fff6da', 'var(--bx-gold,#ffd23e)'],
+  aufkleber: ['var(--bx-accent,#ff5e8a)', 'var(--bx-gold,#ffd23e)', '#4ad3ff', '#7cf59b', '#ffffff'],
+};
+function normFont(v) {
+  return String(v || '').replace(/["']/g, '').replace(/\s*,\s*/g, ',').replace(/\s+/g, ' ').trim().toLowerCase();
+}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -495,6 +1195,7 @@ export default class GiftMenu {
     this.ctx = ctx || {};
     this.props = props || {};
     this.timers = new Set();
+    this.parts = new Set();   // laufende Partikel-Schwärme (Auslöse-Effekt)
     this.rotTimer = null;
     this.icons = {};      // giftKey → Bild-URL
     this.iconsById = {};  // giftId  → Bild-URL
@@ -506,6 +1207,7 @@ export default class GiftMenu {
     this.mode = MODES.has(props.mode) ? props.mode : 'rotation';
     this.style = STYLES.has(props.style) ? props.style : 'karte';
     this.tile = TILES.has(props.tile) ? props.tile : 'breit';
+    this.banner = BANNERS.has(props.banner) ? props.banner : 'schimmer';
     this.showCoins = props.showCoins !== false;
     this.showTitle = props.showTitle !== false;
     this.title = String(props.title ?? 'Geschenke & was sie auslösen');
@@ -523,6 +1225,10 @@ export default class GiftMenu {
       this.demo = true;
     }
     this.build();
+    // Die Runtime setzt Theme und Schriftart u.U. ERST nach dem Bauen auf die
+    // Widget-Box. Deshalb ein zweiter Blick im nächsten Tick.
+    const ft = setTimeout(() => { this.timers.delete(ft); this.syncFonts(); }, 0);
+    this.timers.add(ft);
 
     // Bilder + Coin-Preise aus dem App-Katalog (offizielle Quelle) nachladen.
     if (this.ctx.baseUrl) void this.loadCatalog();
@@ -535,11 +1241,33 @@ export default class GiftMenu {
     if (this.rotTimer) { clearInterval(this.rotTimer); this.rotTimer = null; }
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
+    this.clearParticles();
     this.index = 0;
     const list = this.items.length ? this.items : [{ slug: '', text: 'Noch keine Geschenke eingetragen' }];
     this.list = list; // für die Zuordnung eintreffender Geschenke
     if (this.mode === 'leiste') this.buildBand(list);
     else this.buildRotation(list);
+    this.syncFonts();
+  }
+
+  /** Kuratierte Schrift-Hierarchie einhängen — aber nur, wo der Nutzer nichts
+   *  eigenes gesetzt hat. Sobald seine Schriftart-Einstellung oder ein Theme
+   *  eine der drei Basis-Variablen belegt, bleibt DIESE stehen. */
+  syncFonts() {
+    const st = this.el.style;
+    const drop = () => { st.removeProperty('--bx-gm-hero'); st.removeProperty('--bx-gm-label'); st.removeProperty('--bx-gm-num'); };
+    const set = TILE_FONTS[this.tile];
+    if (!set || this.mode !== 'leiste') { drop(); return; }
+    let cs;
+    try { cs = getComputedStyle(this.el); } catch { return; }
+    const pick = (base, chosen, target) => {
+      const cur = normFont(cs.getPropertyValue(base));
+      if (!cur || cur === normFont(BASE_FONTS[base])) st.setProperty(target, chosen);
+      else st.removeProperty(target);
+    };
+    pick('--bx-font-display', set.hero, '--bx-gm-hero');
+    pick('--bx-font-body', set.label, '--bx-gm-label');
+    pick('--bx-font-num', set.num, '--bx-gm-num');
   }
 
   // ── Auslöser ────────────────────────────────────────────────────────────
@@ -576,21 +1304,67 @@ export default class GiftMenu {
         this.rotTimer = setInterval(() => this.show((this.index + 1) % this.cards.length), this.dwell);
       }
     }
+    this.clearParticles();
     for (const el of targets) {
       const badge = el.querySelector('.bx-gm-who');
       if (badge) badge.textContent = who ? `von ${who}` : '';
+      el.classList.toggle('has-who', !!who);
       // Neu anstoßen, auch wenn die Klasse noch hängt (Combo: 10x Rose).
       el.classList.remove('is-hit');
       void el.offsetWidth;
       el.classList.add('is-hit');
+      this.spawnParticles(el);
     }
     if (this.hitTimer) { clearTimeout(this.hitTimer); this.timers.delete(this.hitTimer); }
     this.hitTimer = setTimeout(() => {
       this.timers.delete(this.hitTimer);
       this.hitTimer = null;
       for (const el of this.el.querySelectorAll('.is-hit')) el.classList.remove('is-hit');
+      this.clearParticles();
     }, 2600);
     this.timers.add(this.hitTimer);
+  }
+
+  /** Der Partikel-Schwarm des Auslösers. Bewusst per JS: jedes Teilchen
+   *  braucht eigene Startposition, Flugbahn, Drehung und Verzögerung — als
+   *  festes CSS wären das dutzende Regeln, die immer gleich aussehen.
+   *  Animiert wird ausschließlich translate/rotate/opacity. Aufgeräumt wird
+   *  über this.timers (Ablauf) UND clearParticles() (Neubau/destroy). */
+  spawnParticles(el) {
+    const kind = SHOWCASE_TILES.has(this.tile) ? this.tile : '';
+    if (!kind || this.mode !== 'leiste') return;
+    // Edel wirft Goldstaub (wenig, langsam), Wucht Splitter, Sticker Konfetti.
+    const n = kind === 'vitrine' ? 10 : (kind === 'aufkleber' ? 16 : 14);
+    const pal = PARTICLE_COLORS[kind];
+    const box = document.createElement('i');
+    box.className = `bx-gm-parts bx-gm-parts-${kind}`;
+    let html = '';
+    for (let k = 0; k < n; k++) {
+      const x = Math.round((k / Math.max(1, n - 1)) * 82 + 9 + (Math.random() * 8 - 4));
+      const rise = kind === 'vitrine' ? 26 + Math.random() * 22 : 34 + Math.random() * 40;
+      const drift = (Math.random() * 26 - 13) * (kind === 'vitrine' ? 0.5 : 1);
+      const size = kind === 'vitrine' ? 0.9 + Math.random() * 0.9 : 1.5 + Math.random() * 2.2;
+      const rot = Math.round(Math.random() * 900 - 450);
+      const del = Math.round(Math.random() * (kind === 'vitrine' ? 420 : 240));
+      const dur = Math.round((kind === 'vitrine' ? 1100 : 720) + Math.random() * 520);
+      html += `<i style="--x:${x}%;--rise:${rise.toFixed(1)}cqh;--dx:${drift.toFixed(1)}cqh;`
+        + `--s:${size.toFixed(2)}cqh;--r:${rot}deg;--d:${del}ms;--t:${dur}ms;`
+        + `--c:${pal[k % pal.length]}"></i>`;
+    }
+    box.innerHTML = html;
+    el.appendChild(box);
+    this.parts.add(box);
+    const t = setTimeout(() => {
+      this.timers.delete(t);
+      this.parts.delete(box);
+      box.remove();
+    }, 2200);
+    this.timers.add(t);
+  }
+
+  clearParticles() {
+    for (const p of this.parts) p.remove();
+    this.parts.clear();
   }
 
   /** Bild-Platzhalter + (später) echtes Bild für einen Eintrag. */
@@ -665,18 +1439,25 @@ export default class GiftMenu {
       const name = this.displayName(it);
       // Zweizeilig statt einzeilig: oben Name + Preis, darunter die Wirkung.
       // Eine lange Zeile machte aus jeder Kachel ein halbes Banner.
-      return `<span class="bx-gm-chip" data-idx="${i}">${this.iconHtml(it)}`
+      // --bx-i versetzt Schweben und Lichtpuls je Kachel: die Leiste soll leben,
+      // nicht im Gleichschritt blinken.
+      return `<span class="bx-gm-chip" data-idx="${i}" style="--bx-i:${i}">${this.iconHtml(it)}`
         + `<span class="bx-gm-txt">`
         + `<span class="bx-gm-line">`
         + `${name ? `<span class="bx-gm-name">${escapeHtml(name)}</span>` : ''}`
         + `${this.coinsHtml(it)}</span>`
         + `${it.text ? `<span class="bx-gm-act">${escapeHtml(it.text)}</span>` : ''}`
-        + `</span></span>`;
+        + `</span>`
+        + `<i class="bx-gm-fx" aria-hidden="true"></i>`
+        + `<span class="bx-gm-who"></span>`
+        + `</span>`;
     };
     // Doppelte Sequenz: -50% Verschiebung = exakt eine Sequenz → nahtlose Schleife.
     const seq = list.map((it, i) => chip(it, i)).join('');
-    this.el.innerHTML = `<div class="bx-gm-band bx-gm-t-${this.tile}">`
-      + `<div class="bx-gm-track" style="--dur:${this.speed}s">${seq}${seq}</div></div>`;
+    // Die Streifen-Ebene blendet die Kacheln an den beiden Bandenden weich aus
+    // (Maske) — vorher schnitten sie hart an der Kante ab.
+    this.el.innerHTML = `<div class="bx-gm-band bx-gm-t-${this.tile} bx-gm-b-${this.banner}">`
+      + `<div class="bx-gm-strip"><div class="bx-gm-track" style="--dur:${this.speed}s">${seq}${seq}</div></div></div>`;
     this.cards = [];
     this.dots = [];
     this.barEl = null;
@@ -742,6 +1523,7 @@ export default class GiftMenu {
     if (this.rotTimer) clearInterval(this.rotTimer);
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
+    this.clearParticles();
     this.el.remove();
   }
 }

@@ -58,9 +58,41 @@ const CSS = `
 .bx-frameless .bx-sub:not(.bx-sub-led):not(.bx-sub-bombe) .bx-sub-label {
   color: #fff; -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Der Moment ist der Zuwachs: Zeit kommt dazu, die Uhr springt nach oben. Der
+   Auslöser sitzt auf der Uhr selbst — das „+Xs" fliegt ohnehin schon los.
+   Zwei Fassungen, weil die Uhr je nach Stil etwas anderes ist:
+   · Glas — nackte Ziffern, der Ring der Basis läuft voll durch, in Türkis (der
+     Farbe, in der das Widget den Zuwachs erzählt).
+   · Bombe/LED — die Uhr IST dort ein Gehäuse aus box-shadow (Tafel bzw. Bombe).
+     Ein Ring hätte es für eine Sekunde ausradiert; hier hebt sie sich nur.
+   Die Warnfarbe unter einer Minute blinkt; diese Widget-Regel steht im Dokument
+   nach widget-base.css und hätte den Auslöser sonst geschluckt — die Regeln
+   unten sind spezifischer und gewinnen. */
+.bx-premium .bx-sub:not(.bx-sub-led):not(.bx-sub-bombe) .bx-sub-time.bx-hit {
+  --bx-accent: var(--bx-teal, #21e6c1); border-radius: .1em;
+  animation: bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1); }
+.bx-premium .bx-sub-led .bx-sub-time.bx-hit,
+.bx-premium .bx-sub-bombe .bx-sub-time.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const two = (n) => String(n).padStart(2, '0');
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
 
 export default class Subathon {
   constructor(root, props, ctx) {
@@ -75,6 +107,7 @@ export default class Subathon {
     this.startMs = Math.max(0, Number(props.startMinutes ?? 30)) * 60000;
     this.remaining = this.startMs;
     this.lastT = 0;
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
 
     this.el = document.createElement('div');
     this.style = ['glas', 'bombe', 'led'].includes(props.style) ? props.style : 'glas';
@@ -96,6 +129,8 @@ export default class Subathon {
     if (add <= 0) return;
     this.remaining = Math.min(this.maxMs, this.remaining + add * 1000);
     this.popAdd(Math.round(add));
+    // Der Moment: Zeit ist dazugekommen — die Uhr nimmt sie an.
+    bxHit(this.timeEl, this.timers);
     if (this.addSound) this.host.playSound?.(this.addSound);
     this.kick();
   }
@@ -117,7 +152,11 @@ export default class Subathon {
     this.lastT = now;
     this.remaining = Math.max(0, this.remaining - dt);
     this.render();
-    if (this.remaining <= 0) { clearInterval(this.timer); this.timer = null; this.timeEl.textContent = 'VORBEI!'; }
+    if (this.remaining <= 0) {
+      clearInterval(this.timer); this.timer = null; this.timeEl.textContent = 'VORBEI!';
+      // Der zweite Moment: die Zeit ist abgelaufen.
+      bxHit(this.timeEl, this.timers);
+    }
   }
 
   render() {
@@ -134,5 +173,6 @@ export default class Subathon {
     this.render();
   }
 
-  destroy() { if (this.timer) { clearInterval(this.timer); this.timer = null; } this.el.remove(); }
+  destroy() { if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

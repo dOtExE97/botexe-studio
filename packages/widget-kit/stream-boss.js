@@ -117,10 +117,45 @@ const CSS = `
 .bx-frameless .bx-boss-name, .bx-frameless .bx-boss-dmg, .bx-frameless .bx-boss-slain {
   -webkit-text-stroke: max(1.5px, .075em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Zwei Momente, unterschiedlich laut: SCHADEN trifft die HP-Leiste, der TOD
+   trifft den Boss selbst.
+   1. Schaden: die Leiste wackelt bereits (bx-boss-shake). Diese Regel steht im
+      Dokument nach widget-base.css und hätte den Auslöser überschrieben —
+      deshalb beides zusammen. Wackeln nutzt transform, Anheben die eigene
+      scale-Eigenschaft; die beiden kommen sich nicht ins Gehege. Der Ring läuft
+      in der HP-Ampelfarbe: bei wenig HP wird der Treffer rot.
+   2. Tod: der Auslöser sitzt auf der Boss-Scheibe. Der Ring folgt der Rundung
+      (sonst kastenförmiger Ring um ein rundes Bild), und das Profilbild blitzt
+      über die Basisregel für .bx-av mit auf.
+   Das Wappen bleibt bewusst ruhig: es ist ein festes Abzeichen, kein Ereignis. */
+.bx-premium .bx-boss.hit .bx-boss-track.bx-hit {
+  --bx-accent: var(--bx-boss-color, var(--bx-boss-accent));
+  animation: bx-boss-shake .35s ease,
+    bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1); }
+.bx-premium .bx-boss-avawrap.bx-hit { border-radius: 50%; }
+/* Arcade und Düster tragen eine eckige Scheibe — dort folgt der Ring der Kante. */
+.bx-premium .bx-boss-arcade .bx-boss-avawrap.bx-hit { border-radius: 6px; }
+.bx-premium .bx-boss-duester .bx-boss-avawrap.bx-hit { border-radius: 4px; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(Math.round(n)));
 const BOSS_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 9.5 6 5 5l1.5 5L3 13l4 1 1 5 4-2 4 2 1-5 4-1-3.5-3L19 5l-4.5 1L12 2Zm-2 9a1.2 1.2 0 1 1 0 2.4A1.2 1.2 0 0 1 10 11Zm4 0a1.2 1.2 0 1 1 0 2.4A1.2 1.2 0 0 1 14 11Z"/></svg>';
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
 
 /** Farbton/Initiale für den .bx-av-Fallback (Boss ohne Profilbild).
  *  Bewusst lokal dupliziert — die Widgets haben kein gemeinsames JS-Modul. */
@@ -152,6 +187,7 @@ export default class StreamBoss {
 
     this.active = false;
     this.defeated = false;
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
 
     this.el = document.createElement('div');
     this.style = ['glas', 'arcade', 'duester'].includes(props.style) ? props.style : 'glas';
@@ -164,6 +200,7 @@ export default class StreamBoss {
       <div class="bx-boss-track"><div class="bx-boss-fill"></div><div class="bx-boss-hptxt"></div></div>
       <div class="bx-boss-dmg"></div>
       <div class="bx-boss-slain">BESIEGT!</div>`;
+    this.avaWrapEl = this.el.querySelector('.bx-boss-avawrap');
     this.avaEl = this.el.querySelector('.bx-boss-ava');
     this.nameEl = this.el.querySelector('.bx-boss-name');
     this.lvlEl = this.el.querySelector('.bx-boss-lvl');
@@ -236,7 +273,11 @@ export default class StreamBoss {
     this.renderDamagers(state.topDamagers);
 
     // Treffer-Wackler nur, wenn schon aktiv (nicht beim Einblenden).
-    if (wasActive) { this.el.classList.remove('hit'); void this.el.offsetWidth; this.el.classList.add('hit'); }
+    if (wasActive) {
+      this.el.classList.remove('hit'); void this.el.offsetWidth; this.el.classList.add('hit');
+      // Der Moment: Schaden ist angekommen — die HP-Leiste nimmt ihn.
+      bxHit(this.el.querySelector('.bx-boss-track'), this.timers);
+    }
   }
 
   renderDamagers(list) {
@@ -268,6 +309,8 @@ export default class StreamBoss {
     this.fillEl.style.width = '0%';
     this.hpTxtEl.textContent = '0 / 0';
     this.el.classList.add('defeated');
+    // Der große Moment: der Boss fällt — der Auslöser trifft ihn selbst.
+    bxHit(this.avaWrapEl, this.timers);
     if (this.killTimer) clearTimeout(this.killTimer);
     this.killTimer = setTimeout(() => { this.killTimer = null; this.hide(); }, 1100);
   }
@@ -301,6 +344,8 @@ export default class StreamBoss {
 
   destroy() {
     if (this.killTimer) { clearTimeout(this.killTimer); this.killTimer = null; }
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     this.active = false;
     this.el.remove();
   }

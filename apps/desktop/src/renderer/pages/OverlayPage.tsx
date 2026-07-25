@@ -7,6 +7,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import {
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Clapperboard,
   Smartphone,
   Monitor,
@@ -45,8 +46,13 @@ import {
   WIDGET_TYPES,
   FRAME_FIELD,
   NO_FRAME_TOGGLE,
+  POLISH_FIELD,
+  NO_POLISH,
+  SIZE_ONLY_STYLE,
+  NO_TEXTCOLOR,
   NO_STYLE_FIELDS,
   UNIVERSAL_STYLE_FIELDS,
+  type PropField,
 } from './widget-types';
 
 // Palette-Kategorien — Tab-Chips oben, es ist immer NUR eine Kategorie sichtbar
@@ -152,6 +158,56 @@ function freshLayout(name: string, preset: CanvasPreset): OverlayLayout {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+}
+
+/** Feld-Beschriftung mit dezentem „?"-Knopf: die Erklärung erscheint erst auf
+ *  Klick, statt dauerhaft unter jedem Regler zu stehen und das Panel zu bläht.
+ *  Bewusst ein Button mit stopPropagation, damit der Klick nicht das
+ *  umschließende <label> auslöst (Fokus/Toggle des Reglers). */
+function FieldLabel({ label, hint }: { label: string; hint?: string }) {
+  const [open, setOpen] = useState(false);
+  if (!hint) return <>{label}</>;
+  return (
+    <>
+      <span className="inline-flex items-center gap-1.5 align-middle">
+        <span>{label}</span>
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((o) => !o); }}
+          aria-label="Erklärung anzeigen"
+          className={`grid h-4 w-4 flex-none place-items-center rounded-full border text-[9px] font-bold leading-none ${
+            open ? 'border-transparent bg-studio-accent/20 text-studio-accent' : 'border-studio-border text-studio-muted hover:border-studio-muted hover:text-studio-text'
+          }`}
+        >?</button>
+      </span>
+      {open && (
+        <span className="mt-1 block rounded-md border border-studio-border bg-studio-raised p-2 text-[10px] font-normal normal-case leading-snug tracking-normal text-studio-muted">
+          {hint}
+        </span>
+      )}
+    </>
+  );
+}
+
+/** Aufklappbarer Block im Optionen-Panel. Gruppiert die vielen Regler in
+ *  „Position & Größe", „Inhalt & Verhalten" und „Aussehen" — statt einer
+ *  langen Scroll-Wand. Native <details> = zugänglich, kein extra Zustand. */
+function PanelSection({ title, dot, defaultOpen = true, action, children }: {
+  title: string; dot: string; defaultOpen?: boolean; action?: React.ReactNode; children: React.ReactNode;
+}) {
+  return (
+    <details open={defaultOpen} className="group border-t border-studio-border first:border-t-0">
+      <summary className="flex cursor-pointer list-none items-center gap-2 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-studio-text [&::-webkit-details-marker]:hidden">
+        <span className="h-2 w-2 flex-none rounded-[3px]" style={{ background: dot, boxShadow: `0 0 8px ${dot}` }} />
+        {title}
+        <span className="ml-auto flex items-center gap-2">
+          {action}
+          <ChevronRight size={14} className="text-studio-muted transition-transform group-open:rotate-90 group-open:text-studio-teal" />
+        </span>
+      </summary>
+      <div className="flex flex-col gap-2.5 pb-3">{children}</div>
+    </details>
+  );
 }
 
 export default function OverlayPage() {
@@ -1088,62 +1144,41 @@ export default function OverlayPage() {
           </div>
         )}
         {selected && (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
+          <div className="flex flex-col">
+            <div className="flex items-center justify-between pb-1">
               <h2 className="font-display text-sm uppercase">{selectedDef?.label}</h2>
               <button onClick={() => removeLayer(selected.id)} className="text-[11px] text-studio-muted hover:text-studio-accent">
                 Entfernen
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              {(['x', 'y', 'w', 'h'] as const).map((k) => (
-                <label key={k} className="text-[10px] uppercase tracking-widest text-studio-muted">
-                  {{ x: 'Abstand links', y: 'Abstand oben', w: 'Breite', h: 'Höhe' }[k]}
-                  <input
-                    type="number"
-                    value={selected[k]}
-                    onChange={(e) => updateLayer(selected.id, { [k]: Number(e.target.value) } as Partial<OverlayLayer>, true)}
-                    className="bx-input mt-1 font-mono"
-                  />
-                </label>
-              ))}
-            </div>
+            {(() => {
+              // ── Alle Felder zusammenstellen (Logik wie zuvor) ───────────
+              // KOPIE, sonst mutiert base.push() die WIDGET_TYPES-Definition.
+              const base = [...(selectedDef?.fields ?? [])];
+              if (selectedDef && !NO_FRAME_TOGGLE.has(selectedDef.type)) base.push(FRAME_FIELD);
+              if (selectedDef && !NO_POLISH.has(selectedDef.type)) base.push(POLISH_FIELD);
+              // Schrift/Größe/Farbe universell — aber nur die, die wirklich wirken.
+              const style = !selectedDef || NO_STYLE_FIELDS.has(selectedDef.type)
+                ? []
+                : UNIVERSAL_STYLE_FIELDS
+                    .filter((sf) => !base.some((f) => f.key === sf.key))
+                    .filter((sf) => {
+                      if (SIZE_ONLY_STYLE.has(selectedDef.type)) return sf.key === 'fontScale';
+                      if (NO_TEXTCOLOR.has(selectedDef.type)) return sf.key !== 'textColor';
+                      return true;
+                    });
+              // showIf blendet im aktuellen Zustand wirkungslose Felder aus.
+              const all = [...base, ...style].filter((f) => !f.showIf || f.showIf(selected.props ?? {}));
+              // Drei Blöcke: „Aussehen" bündelt Design/Schrift/Größe/Farbe/Rahmen/
+              // Premium, der Rest ist „Inhalt & Verhalten".
+              const APP = new Set(['fontFamily', 'fontScale', 'textColor', 'frameless', 'polish', 'style', 'shape', 'theme', 'accent']);
+              const content = all.filter((f) => !APP.has(f.key));
+              const appearance = all.filter((f) => APP.has(f.key));
+              const hasStyle = !!selectedDef?.fields.some((f) => f.key === 'style' || f.key === 'shape');
 
-            <label className="flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={selected.visible}
-                onChange={(e) => updateLayer(selected.id, { visible: e.target.checked }, true)}
-                className="accent-[#ff4d2e]"
-              />
-              Sichtbar
-            </label>
-
-            {selectedDef && selectedDef.fields.length > 0 && (
-              <div className="mt-1 border-t border-studio-border pt-3">
-                <h3 className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-studio-muted">
-                  <span>Widget-Einstellungen</span>
-                  {selectedDef.fields.some((f) => f.key === 'style' || f.key === 'shape') && (
-                    <button
-                      onClick={() => setGalleryOpen(true)}
-                      className="normal-case tracking-normal text-[10px] font-bold text-studio-teal hover:text-studio-accent"
-                      title="Alle Grundformen dieses Widgets als Live-Vorschau durchblättern"
-                    >
-                      🎨 Design-Galerie
-                    </button>
-                  )}
-                </h3>
-                <div className="flex flex-col gap-2.5">
-                  {/* Felder + universell angehängte Stil-Felder (Schrift/Größe/Farbe,
-                      dedupliziert) + „Rahmen ausblenden". */}
-                  {(() => {
-                    const base = NO_FRAME_TOGGLE.has(selectedDef.type) ? selectedDef.fields : [...selectedDef.fields, FRAME_FIELD];
-                    const style = NO_STYLE_FIELDS.has(selectedDef.type)
-                      ? []
-                      : UNIVERSAL_STYLE_FIELDS.filter((sf) => !base.some((f) => f.key === sf.key));
-                    return [...base, ...style];
-                  })().map((field) => {
+              // Eine Feld-Zeile rendern (der bisherige Switch, unverändert).
+              const renderField = (field: PropField) => {
                     const value = selected.props?.[field.key] ?? '';
                     const setProp = (v: unknown) =>
                       updateLayer(selected.id, { props: { ...selected.props, [field.key]: v } }, true);
@@ -1152,9 +1187,8 @@ export default function OverlayPage() {
                     if (field.type === 'gift-list') {
                       return (
                         <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
-                          {field.label}
+                          <FieldLabel label={field.label} hint={field.hint} />
                           <GiftListEditor value={String(value)} onChange={(v) => setProp(v)} />
-                          {field.hint && <p className="mt-1 normal-case tracking-normal text-studio-muted/70">{field.hint}</p>}
                         </div>
                       );
                     }
@@ -1163,13 +1197,12 @@ export default function OverlayPage() {
                     if (field.type === 'gift-command-list') {
                       return (
                         <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
-                          {field.label}
+                          <FieldLabel label={field.label} hint={field.hint} />
                           <GiftCommandListEditor
                             value={String(value)}
                             onChange={(v) => setProp(v)}
                             textPlaceholder={field.textPlaceholder}
                           />
-                          {field.hint && <p className="mt-1 normal-case tracking-normal text-studio-muted/70">{field.hint}</p>}
                         </div>
                       );
                     }
@@ -1178,9 +1211,8 @@ export default function OverlayPage() {
                     if (field.type === 'gift') {
                       return (
                         <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
-                          {field.label}
+                          <FieldLabel label={field.label} hint={field.hint} />
                           <div className="mt-1.5"><GiftPicker value={String(value)} onChange={(v) => setProp(v)} placeholder="Alle Gifts (leer lassen)…" /></div>
-                          {field.hint && <p className="mt-1 normal-case tracking-normal text-studio-muted/70">{field.hint}</p>}
                         </div>
                       );
                     }
@@ -1189,7 +1221,7 @@ export default function OverlayPage() {
                     if (field.type === 'media') {
                       return (
                         <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
-                          {field.label}
+                          <FieldLabel label={field.label} hint={field.hint} />
                           <div className="mt-1.5 grid grid-cols-3 gap-1.5">
                             {mediaList.map((m) => {
                               const sel = m.id === value;
@@ -1228,7 +1260,6 @@ export default function OverlayPage() {
                               Auswahl entfernen
                             </button>
                           ) : null}
-                          {field.hint && <span className="mt-1 block text-[9px] normal-case tracking-normal text-studio-muted/70">{field.hint}</span>}
                         </div>
                       );
                     }
@@ -1237,7 +1268,7 @@ export default function OverlayPage() {
                     if (field.type === 'sound') {
                       return (
                         <label key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
-                          {field.label}
+                          <FieldLabel label={field.label} hint={field.hint} />
                           <select
                             value={String(value)}
                             onChange={(e) => setProp(e.target.value)}
@@ -1248,7 +1279,6 @@ export default function OverlayPage() {
                               <option key={s.id} value={s.id}>{s.filename}</option>
                             ))}
                           </select>
-                          {field.hint && <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">{field.hint}</span>}
                           {soundList.length === 0 && (
                             <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-gold">
                               Noch keine Sounds — unter „Sounds" importieren (MyInstants-Suche!).
@@ -1268,16 +1298,13 @@ export default function OverlayPage() {
                             onChange={(e) => setProp(e.target.checked)}
                             className="mt-0.5 accent-[#ff4d2e]"
                           />
-                          <span>
-                            {field.label}
-                            {field.hint && <span className="mt-0.5 block text-[10px] text-studio-muted/80">{field.hint}</span>}
-                          </span>
+                          <span><FieldLabel label={field.label} hint={field.hint} /></span>
                         </label>
                       );
                     }
                     return (
                       <label key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
-                        {field.label}
+                        <FieldLabel label={field.label} hint={field.hint} />
                         {field.type === 'color' ? (
                           <input
                             type="color"
@@ -1312,14 +1339,65 @@ export default function OverlayPage() {
                             className={`bx-input mt-1${field.type === 'number' ? ' font-mono' : ''}`}
                           />
                         )}
-                        {field.hint && <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">{field.hint}</span>}
                       </label>
                     );
-                  })}
-                </div>
-              </div>
-            )}
-            <div className="text-[10px] text-studio-muted">Layer-ID: <code className="font-mono">{selected.id}</code></div>
+              };
+
+              return (
+                <>
+                  <PanelSection title="Position & Größe" dot="#f0b429">
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['x', 'y', 'w', 'h'] as const).map((k) => (
+                        <label key={k} className="text-[10px] uppercase tracking-widest text-studio-muted">
+                          {{ x: 'Abstand links', y: 'Abstand oben', w: 'Breite', h: 'Höhe' }[k]}
+                          <input
+                            type="number"
+                            value={selected[k]}
+                            onChange={(e) => updateLayer(selected.id, { [k]: Number(e.target.value) } as Partial<OverlayLayer>, true)}
+                            className="bx-input mt-1 font-mono"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                    <label className="mt-2.5 flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={selected.visible}
+                        onChange={(e) => updateLayer(selected.id, { visible: e.target.checked }, true)}
+                        className="accent-[#ff4d2e]"
+                      />
+                      Sichtbar
+                    </label>
+                  </PanelSection>
+
+                  {content.length > 0 && (
+                    <PanelSection title="Inhalt & Verhalten" dot="#33e3c6">
+                      {content.map(renderField)}
+                    </PanelSection>
+                  )}
+
+                  {appearance.length > 0 && (
+                    <PanelSection
+                      title="Aussehen"
+                      dot="#ff5e8a"
+                      defaultOpen={false}
+                      action={hasStyle ? (
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setGalleryOpen(true); }}
+                          className="normal-case tracking-normal text-[10px] font-bold text-studio-teal hover:text-studio-accent"
+                          title="Alle Grundformen dieses Widgets als Live-Vorschau durchblättern"
+                        >
+                          🎨 Galerie
+                        </button>
+                      ) : undefined}
+                    >
+                      {appearance.map(renderField)}
+                    </PanelSection>
+                  )}
+                </>
+              );
+            })()}
+            <div className="mt-1 border-t border-studio-border pt-2 text-[10px] text-studio-muted">Layer-ID: <code className="font-mono">{selected.id}</code></div>
           </div>
         )}
       </aside>

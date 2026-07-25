@@ -90,6 +90,19 @@ const CSS = `
   text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.55); }
 /* Der Hinweis war schon mit Panel arg blass (44 % Weiß) — ohne Panel hoffnungslos. */
 .bx-frameless .bx-qz-foot { color: #ffffffe0; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Der Moment ist das Aufdecken: die richtige Antwort. Die trägt schon eine
+   eigene Fassung (grüner Innenrahmen + bx-qz-pop) und die Widget-Regeln stehen
+   im Dokument nach widget-base.css — der Auslöser wäre also überschrieben
+   worden. Hier deshalb beides zusammen: der vorhandene Puls bleibt, Anheben und
+   Ring kommen dazu. Der Ring läuft in Türkis statt im Akzent, sonst hätte die
+   richtige Antwort zwei widersprüchliche Farben. */
+.bx-premium .bx-qz-opt.correct.bx-hit {
+  --bx-accent: var(--bx-teal, #21e6c1);
+  animation: bx-qz-pop .8s ease-in-out 2,
+    bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1); }
 `;
 
 function ensureStyle() {
@@ -102,6 +115,19 @@ function ensureStyle() {
 function esc(s) {
   return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
+
 // Stimmenzahlen → Prozente (gerundet), robust gegen fehlendes totalVotes.
 function toPercents(counts, total) {
   const sum = total > 0 ? total : counts.reduce((a, b) => a + (Number(b) || 0), 0);
@@ -134,6 +160,8 @@ export default class QuizGameWidget {
     root.appendChild(this.el);
 
     this._optCount = 0; // gemerkte Optionsanzahl → Karten nur bei Änderung neu bauen
+    this._hitDone = false; // Auslöser genau einmal je Aufdeck-Runde
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
     this.render();
 
     // Editor-Schaufenster: Demo-Quiz zeigen, das zwischen Frage und Reveal pendelt.
@@ -218,6 +246,15 @@ export default class QuizGameWidget {
       opt.classList.toggle('wrong', revealed && i !== g.correctIndex);
     });
 
+    // Der Moment des Quiz: die Lösung wird sichtbar. Genau einmal je Runde —
+    // während der Frage laufen laufend Renders für die Stimmenbalken durch.
+    if (revealed && !this._hitDone) {
+      this._hitDone = true;
+      bxHit(this.optEls[g.correctIndex], this.timers);
+    } else if (!revealed) {
+      this._hitDone = false;
+    }
+
     // Gewinner-Name nur im reveal mit bekanntem Sieger.
     const hasWinner = state === 'reveal' && g.winner && g.winner.nickname;
     if (hasWinner) this.wtxtEl.innerHTML = `Erste richtig: <b>${esc(g.winner.nickname)}</b>`;
@@ -298,6 +335,8 @@ export default class QuizGameWidget {
   destroy() {
     if (this.previewVotes) clearInterval(this.previewVotes);
     if (this.previewCycle) clearInterval(this.previewCycle);
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     this.el.remove();
   }
 }

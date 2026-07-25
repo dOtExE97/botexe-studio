@@ -57,8 +57,30 @@ const CSS = `
    frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
 html .bx-frameless .bx-cd-label { color: #fff; -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-cd-time { -webkit-text-stroke: max(1.5px, .06em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Der Moment ist die Null: aus der laufenden Uhr wird der Schlusstext („LOS!").
+   Der Auslöser sitzt auf genau diesem Text und nicht auf der Kapsel — die
+   trägt Glas-Schatten (bzw. Tafel-Gehäuse im LED-Stil) und ihre eigene
+   Pop-Animation; der Ring hätte beides für eine Sekunde ersetzt und die Kapsel
+   wäre im Augenblick des Starts flach geworden. Ring in Türkis, das ist die
+   Farbe, in die die Uhr bei Null ohnehin wechselt. */
+.bx-premium .bx-cd-done-text.bx-hit { --bx-accent: var(--bx-teal, #21e6c1); border-radius: .12em; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
 
 export default class Countdown {
   constructor(root, props, ctx) {
@@ -82,6 +104,7 @@ export default class Countdown {
     this.digits = [];          // { cell, roll, value } pro Ziffernstelle
     this.lastText = null;      // zuletzt gerendertes Ziffern-Muster (z.B. "0459")
     this.showingDone = false;
+    this.timers = new Set();   // Premium-Auslöser → bei destroy clearen
     this.el = document.createElement('div');
     const style = ['glas', 'neon', 'led'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-cd${style !== 'glas' ? ` bx-cd-${style}` : ''}`;
@@ -148,10 +171,14 @@ export default class Countdown {
     if (this.remaining <= 0) {
       if (!this.showingDone) {
         this.timeEl.innerHTML = `<span class="bx-cd-done-text"></span>`;
-        this.timeEl.querySelector('.bx-cd-done-text').textContent = this.doneText;
+        const done = this.timeEl.querySelector('.bx-cd-done-text');
+        done.textContent = this.doneText;
         this.digits = [];
         this.showingDone = true;
         this.lastText = null;
+        // Der Moment: die Uhr steht auf Null. Nur beim Umschlag, nicht bei jedem
+        // Tick danach — showingDone sorgt dafür, dass dieser Zweig einmal läuft.
+        if (!initial) bxHit(done, this.timers);
       }
       this.el.classList.add('done');
       this.el.classList.remove('urgent');
@@ -176,5 +203,5 @@ export default class Countdown {
     this.render(true);
   }
 
-  destroy() { clearInterval(this.timer); this.el.remove(); }
+  destroy() { clearInterval(this.timer); for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

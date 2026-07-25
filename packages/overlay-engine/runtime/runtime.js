@@ -259,6 +259,12 @@ function applyWidgetStyle(el, props) {
     }
   }
 
+  // „Premium-Effekte" — eine zuschaltbare Gestaltungs-Ebene, die für JEDES
+  // Widget gilt (Tiefe, tabellarische Zahlen, langsames Atmen, gemeinsame
+  // Auslöser-Choreografie). Die Regeln stehen gebündelt in widget-base.css
+  // unter .bx-premium. Ohne den Haken ändert sich nichts.
+  el.classList.toggle('bx-premium', !!props.polish);
+
   const fam = FONT_STACKS[props.fontFamily];
   if (fam) {
     el.style.setProperty('--bx-font-display', fam);

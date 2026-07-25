@@ -3,6 +3,47 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.34.0] — 2026-07-25
+
+### Neu: Premium-Effekte für jedes Widget (ein Häkchen)
+Eine zuschaltbare Gestaltungs-Ebene, die für **alle** Widgets gilt: mehr Tiefe (Lichtkante, weicher farbiger Schein unter Geschenk- und Profilbildern), ruhig atmende Bewegung im Leerlauf und ein deutlicher Effekt in dem Moment, in dem etwas passiert — beim Chat die neue Nachricht, beim Stream-Boss der eintreffende Schaden, beim Ziel das Erreichen. Zahlen laufen tabellarisch und springen beim Hochzählen nicht mehr. Ohne Häkchen ändert sich nichts — bestehende Overlays bleiben unberührt. Im Schnell-Modus schaltet sich die Dauerbewegung automatisch ab.
+
+### Übersichtlicheres Optionen-Panel
+Die Einstellungen eines Widgets standen bisher als eine lange Scroll-Wand untereinander, jede mit dauerhaft offenem Erklär-Absatz. Jetzt in drei aufklappbare Blöcke sortiert — **Position & Größe**, **Inhalt & Verhalten**, **Aussehen** (eingeklappt, das sind die selteneren Feineinstellungen). Die Erklärungen liegen hinter einem dezenten **?** und erscheinen erst auf Klick. Kein Feld geht verloren — es wird nur ruhiger.
+
+### Geschenk-Menü: Auslöse-Animation und mehr Kachelformen
+Schickt jemand wirklich eines der Geschenke, springt die Tafel auf diesen Eintrag, er ploppt auf, bekommt Leuchtrand und Lichtstreif, und oben erscheint „von <Name>". Vorher war die Tafel ein reiner Aushang. Dazu neue Kachelformen fürs Laufband — von **Breit** über **Quadrat** (kleine Vierecke wie die TikTok-Geschenkablage) bis zu drei Fassungen mit eigener Handschrift und eigenem Auslöse-Effekt: **Wucht**, **Vitrine** (edel) und **Aufkleber** (verspielt).
+
+### Einstellungen aufgeräumt — keine wirkungslosen Regler mehr
+- Der **Action-Screen** hatte zweimal „Größe": jetzt „Karten-Format" (die Karte) und „Textgröße" (der Inhalt).
+- Beim **Geschenk-Menü** verschwinden Felder, die im aktuellen Modus nichts tun (z.B. „Stil" nur bei Rotation, „Tempo" nur beim Laufband).
+- **Ein Lautstärke-Master statt zwei:** der Regler auf der Sounds-Seite und der Mixer-Master waren getrennt und multiplizierten sich („leise trotz vollem Mixer"). Jetzt derselbe Wert — verlustfrei umgestellt, bei niemandem wird es lauter oder leiser.
+- Wo ein Widget die Farbe aus Design, Theme oder Spielzustand bezieht (Gold-Zahlen, X/O-Farben, Rad-Segmente), fällt das wirkungslose **Textfarbe**-Feld weg. Größe und Schriftart sind jetzt überall sauber angebunden.
+- **Spotify:** der Platzhalter für ein fehlendes Album-Cover war kaputt (unsichtbare Note) — behoben.
+
+### Für Entwickler
+- **AGENTS.md** (tool-neutrale Bauanleitung), **CLAUDE.md** und ein projektinterner Skill bündeln die Konventionen und Fallstricke des Projekts.
+- Abhängigkeiten aktualisiert (React, ws, tiktok-live-connector, GitHub-Actions); größere Tooling-Upgrades folgen als eigene, geprüfte Migration.
+
+### Drei Kachelformen, bei denen die Schrift ÜBER dem Geschenk liegt
+Bisher mussten sich Geschenkbild und Text den Platz teilen — die Wirkung („was löst es aus") blieb dadurch zwangsläufig klein. Neu liegt die Schrift als eigene Ebene über dem Bild und darf es bewusst anschneiden:
+- **Überlagert** — die Wirkung groß quer über dem unteren Teil des Geschenks, mit kräftiger Kontur. Name klein oben links, Preis oben rechts.
+- **Untertitel** — eine farbige Bauchbinde am unteren Rand wie im Fernsehen; das Geschenk ragt darüber hinaus. Zweizeilig, wenn der Text länger ist.
+- **Banderole** — ein schräges Band quer über dem Geschenk, wie ein aufgeklebter Sticker.
+
+Damit ist die Wirkung drei- bis viermal so groß wie vorher und bleibt auch verkleinert auf einem Handy lesbar.
+
+Alle Maße hängen an der Bandhöhe, nicht an der Schriftgröße — sonst wüchsen die Kacheln bei 1,5× Textgröße aus dem Band heraus.
+
+Beim Entwerfen mit **echten TikTok-Geschenkbildern** geprüft (Galaxy, Hat and Mustache, Rose, Doughnut, Lion) und dabei mehrere Fehler gefunden und behoben: Name und Preis-Marke überlappten sich oben, die Bauchbinde kürzte längere Texte statt umzubrechen, das schräge Band ragte über die Kachel hinaus, und bei „Überlagert" wurde „Pumpe wegwerfen" um den letzten Buchstaben gekappt.
+
+Wichtig bei „Überlagert": das **Geschenk bleibt sichtbar**. Der Text sitzt am unteren Rand auf einem weichen Verlauf statt quer über der Bildmitte — er bekommt seinen Kontrast, das obere Zweidrittel des Geschenks bleibt frei.
+
+### Vier animierte Hintergründe fürs Laufband
+Wählbar unter *Hintergrund des Laufbands*: **Schimmer** (ruhig, ein Lichtstreif wandert darüber), **Welle** (Farbverlauf wandert durch), **Streifen** (schräge Streifen laufen mit) und **Aurora** (zwei weiche Farbwolken driften gegenläufig).
+
+Bewusst keine Videodatei, sondern reine CSS-Verläufe in Bewegung: nichts muss mitgeliefert werden, und es läuft auch im schwachen Browser von TikTok Live Studio flüssig, weil nur Verlaufsposition und Verschiebung animiert werden.
+
 ## [0.33.1] — 2026-07-25
 
 ### Vier Kachelformen fürs Geschenk-Laufband

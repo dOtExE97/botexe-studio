@@ -56,6 +56,15 @@ html .bx-frameless .bx-gn-tile { -webkit-text-stroke: max(1.5px, .06em) var(--bx
 html .bx-frameless .bx-gn-hint { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-gn-sub { color: #fff; -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-gn-win .who { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Der Moment ist der Treffer: die Kacheln klappen von „?" auf die Zahl. Der
+   Auslöser sitzt auf der KACHELREIHE, nicht auf den Kacheln selbst — die
+   tragen einen eigenen Schatten und ihre Flip-Animation, beides würde der Ring
+   der Basis für eine knappe Sekunde ersetzen. Die Reihe hat weder das eine noch
+   das andere, dort greift die Choreografie sauber. Ring in Gold, das ist die
+   Siegfarbe dieses Widgets (Avatar-Ring und Name des Gewinners). */
+.bx-premium .bx-gn-tiles.bx-hit { --bx-accent: var(--bx-gold, #ffd23e); border-radius: .35em; }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {
@@ -70,7 +79,20 @@ function rngInt(seedStr, min, max) {
   for (let i = 0; i < seedStr.length; i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619); }
   return min + ((h >>> 0) % (max - min + 1));
 }
-const CONF_COLORS = ['#ffd23e', '#21e6c1', '#ff5e8a', '#7c5cff', '#ffffff'];
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
+
+const CONF_COLORS =['#ffd23e', '#21e6c1', '#ff5e8a', '#7c5cff', '#ffffff'];
 
 export default class GuessNumberWidget {
   constructor(root, props, ctx) {
@@ -85,6 +107,7 @@ export default class GuessNumberWidget {
     this.winSound = props.winSoundId || '';
     this.round = 0;
     this.solved = false;
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
     this.digits = String(this.max).length;
     // Rundenstand pro Session merken: Nach einem Reload/Reconnect dieser Quelle
     // würde round sonst wieder bei 1 starten — andere Quellen (OBS/TTLS) sind
@@ -179,6 +202,9 @@ export default class GuessNumberWidget {
   win(user) {
     this.solved = true;
     this.renderTiles(String(this.secret), true);
+    // Der Moment: die gesuchte Zahl steht da. Die Kacheln werden neu gebaut,
+    // deshalb erst danach auslösen.
+    bxHit(this.tilesEl, this.timers);
     this.hintEl.textContent = '';
     this.subEl.textContent = '';
     if (this.winSound) this.ctx.playSound?.(this.winSound);
@@ -236,6 +262,8 @@ export default class GuessNumberWidget {
   destroy() {
     if (this.roundTimer) clearTimeout(this.roundTimer);
     if (this.previewTimer) clearInterval(this.previewTimer);
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     this.el.remove();
   }
 }

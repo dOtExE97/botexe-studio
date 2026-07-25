@@ -76,6 +76,30 @@ function ensureStyle() {
   .skin-dark-pro .bx-as-card { --bx-as-accent:#7c5cff; background:radial-gradient(120% 120% at 0 0, #14132a, #07070d); border:1px solid #7c5cff55;
     box-shadow:0 12px 44px #000c, 0 0 34px #7c5cff44; }
   .skin-dark-pro .bx-as-ttl { color:#cfc6ff; text-shadow:0 0 10px #7c5cff88; }
+
+  /* ── Premium-Ebene (.bx-premium) ─────────────────────────────────────────
+     Der Moment ist das Erscheinen der Karte. Der Ring der Basis läuft über
+     box-shadow — und genau der trägt hier die Tiefe der Karte (Schlagschatten
+     + Akzent-Schein). Ein roher Ring hätte die Karte für eine Sekunde flach auf
+     das Video geklebt. Deshalb eine eigene Fassung: der Schlagschatten bleibt
+     stehen, die Druckwelle läuft zusätzlich darüber und verklingt in den
+     normalen Schein.
+     Die Einflug-Varianten (Pop/Flip) behalten ihre Animation — sie stehen im
+     Dokument nach widget-base.css und hätten den Auslöser sonst geschluckt. */
+  @keyframes bx-as-hit {
+    0% { box-shadow: 0 10px 40px rgba(0,0,0,.5),
+      0 0 0 .02em color-mix(in srgb, var(--bx-as-accent) 95%, white),
+      0 0 1.4em -.2em var(--bx-as-accent); }
+    70% { box-shadow: 0 10px 40px rgba(0,0,0,.5),
+      0 0 0 .42em color-mix(in srgb, var(--bx-as-accent) 0%, transparent),
+      0 0 2.6em -.1em color-mix(in srgb, var(--bx-as-accent) 60%, transparent); }
+    100% { box-shadow: 0 10px 40px rgba(0,0,0,.5),
+      0 0 36px color-mix(in srgb, var(--bx-as-accent) 35%, transparent); } }
+  .bx-premium .bx-as-card.bx-hit { animation: bx-as-hit 900ms cubic-bezier(.2,.9,.3,1); }
+  .bx-premium .bx-as-card.anim-pop.bx-hit.show {
+    animation: bx-as-pop .5s cubic-bezier(.2,1.5,.35,1), bx-as-hit 900ms cubic-bezier(.2,.9,.3,1); }
+  .bx-premium .bx-as-card.anim-flip.bx-hit.show {
+    animation: bx-as-flip .55s ease, bx-as-hit 900ms cubic-bezier(.2,.9,.3,1); }
   `;
   document.head.appendChild(s);
 }
@@ -107,6 +131,20 @@ function fillTextWithEmoji(el, text) {
   }
   flush();
 }
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css bzw. die eigene Fassung oben — ohne den Haken
+// „Premium-Effekte" passiert nichts. Bewusst lokal dupliziert: die Widgets
+// haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
+
 const BADGE = {
   'vip-welcome': '👑', 'returning-viewer': '💜', 'game-level-up': '⭐', 'game-winner': '🏆',
   'quiz-reveal': '🧠', 'boss-damage': '⚔️', 'boss-kill': '💀', 'loot-drop': '🎁',
@@ -145,6 +183,7 @@ export default class ActionScreen {
     this.queue = [];
     this.recent = new Map();   // dedupe-Schlüssel → ts
     this.busy = false;
+    this.timers = new Set();   // Premium-Auslöser → bei destroy clearen
 
     this.el = document.createElement('div');
     this.el.className = `bx-as skin-${this.skin}`;
@@ -268,7 +307,13 @@ export default class ActionScreen {
       card.appendChild(st);
     }
     this.el.appendChild(card);
-    requestAnimationFrame(() => card.classList.add('show'));
+    // Reflow statt requestAnimationFrame: das erzwungene Layout schreibt den
+    // Startzustand fest, danach greifen Übergang und Animation zuverlässig —
+    // auch in Umgebungen, in denen rAF nicht feuert (headless).
+    void card.offsetWidth;
+    card.classList.add('show');
+    // Der Moment dieses Widgets: die Karte erscheint.
+    bxHit(card, this.timers);
 
     // Sound
     const sound = this.p.soundMode === 'off' ? null : (this.p.soundMode === 'custom' ? this.p.soundId : m.soundId);
@@ -297,5 +342,7 @@ export default class ActionScreen {
     this.el.innerHTML = '';
   }
 
-  destroy() { clearTimeout(this._t); clearTimeout(this._t2); clearTimeout(this._previewT); this.queue = []; this.recent.clear(); this.el.remove(); }
+  destroy() { clearTimeout(this._t); clearTimeout(this._t2); clearTimeout(this._previewT);
+    for (const t of this.timers) clearTimeout(t); this.timers.clear();
+    this.queue = []; this.recent.clear(); this.el.remove(); }
 }

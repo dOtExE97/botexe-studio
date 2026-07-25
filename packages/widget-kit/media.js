@@ -24,6 +24,24 @@ const CSS = `
   background: var(--bx-glass); color: var(--bx-muted); font-family: var(--bx-font-display);
   font-size: clamp(11px, 4.4cqmin, 46px); letter-spacing:.12em; text-transform:uppercase; text-align:center; padding:.85em; }
 .bx-media-empty span { font-size:2.4em; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   AUSGENOMMEN: das Medium selbst. Die Basis legt jedem Bild einen farbigen
+   Schein in der Akzentfarbe unter — bei einem Gift-Bild ist das schön, bei
+   einem formatfüllenden Logo, Banner oder Video ist es ein farbiger Nebel rund
+   um das Kästchen. Das eigene Bild bleibt deshalb, wie der Nutzer es hochgeladen
+   hat. Wer einen Rahmen will, hat dafür die Einstellung „Rahmen" — die wird
+   unter Premium etwas tiefer.
+   Der Auslöser ist das Einblenden. Er hebt das Medium an; ein Ring läuft nur im
+   Rahmen-Modus mit, sonst zöge er eine Kante um ein freigestelltes Bild. */
+.bx-premium .bx-media-el { filter: none; }
+.bx-premium .bx-media.frame .bx-media-el {
+  box-shadow: var(--bx-shadow), 0 24px 50px -18px rgba(0, 0, 0, .85),
+    0 0 50px -18px var(--bx-accent); }
+.bx-premium .bx-media-el.bx-hit { animation: bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1); }
+.bx-premium .bx-media.frame .bx-media-el.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1); }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {
@@ -32,6 +50,19 @@ function ensureStyle() {
     s.textContent = CSS;
     document.head.appendChild(s);
   }
+}
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird, entscheidet die Premium-Ebene in widget-base.css bzw. die
+// eigene Fassung oben — ohne den Haken „Premium-Effekte" passiert nichts.
+// Bewusst lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
 }
 
 function kindFor(props) {
@@ -49,6 +80,7 @@ export default class MediaWidget {
     this.kind = kindFor(props);
     this.durationMs = Number(props.durationMs) || 6000;
     this.hideTimer = null;
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
 
     this.el = document.createElement('div');
     this.el.className = 'bx-media' + (props.frame ? ' frame' : '');
@@ -127,6 +159,8 @@ export default class MediaWidget {
     if (this.hideTimer) { clearTimeout(this.hideTimer); this.hideTimer = null; }
     this.el.classList.remove('bx-media-hidden', 'bx-media-out');
     this.el.classList.remove('bx-media-play'); void this.el.offsetWidth; this.el.classList.add('bx-media-play');
+    // Der Moment dieses Widgets: das Medium kommt ins Bild.
+    bxHit(this.media, this.timers);
     if (this.kind === 'video') {
       try { this.media.currentTime = 0; } catch { /* noop */ }
       this.media.play?.().catch(() => {});
@@ -158,6 +192,8 @@ export default class MediaWidget {
   destroy() {
     if (this.hideTimer) clearTimeout(this.hideTimer);
     if (this.outTimer) clearTimeout(this.outTimer);
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     if (this.media && this.kind === 'video') { try { this.media.pause(); this.media.src = ''; } catch { /* noop */ } }
     this.el.remove();
   }

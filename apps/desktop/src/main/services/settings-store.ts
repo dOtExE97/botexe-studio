@@ -10,7 +10,7 @@ import type { AnnounceConfig, GiftAnnounceConfig } from './tts-announce';
 import { DEFAULT_MIXER, normalizeMixer, type MixerSettings } from '../../shared/mixer';
 import { log } from '../core/logger';
 
-export const SETTINGS_SCHEMA_VERSION = 6;
+export const SETTINGS_SCHEMA_VERSION = 7;
 
 export interface TTSSettings {
   enabled: boolean;
@@ -274,6 +274,18 @@ export class SettingsStore {
       merged.audioOutputLabel = typeof raw.audioOutputLabel === 'string' ? raw.audioOutputLabel : '';
       // App-Mixer (additiv): fehlend/kaputt → Defaults, Zahlen geklemmt.
       merged.mixer = normalizeMixer(raw.mixer);
+      // Migration v6→v7: Es gab ZWEI globale Master — `soundVolume` (Sounds-Seite)
+      // und `mixer.master` —, die BEIDE alles multiplizierten („leise trotz
+      // vollem Mixer"). Zusammengeführt zu EINEM (der Mixer-Master führt). Der
+      // alte Sounds-Master wird EINMALIG in den Mixer-Master eingerechnet, damit
+      // die tatsächliche Lautstärke exakt gleich bleibt; danach ist soundVolume
+      // neutral (1) und wird nicht mehr als Master benutzt. Versions-gated, damit
+      // es nicht doppelt einrechnet.
+      if (typeof raw.schemaVersion !== 'number' || raw.schemaVersion < 7) {
+        const altMaster = typeof raw.soundVolume === 'number' ? raw.soundVolume : 1;
+        merged.mixer = normalizeMixer({ ...merged.mixer, master: merged.mixer.master * altMaster });
+      }
+      merged.soundVolume = 1; // Legacy — der Master liegt jetzt allein im Mixer.
       // KI-Assistent (additiv): defensiv mergen.
       const rawAi = (typeof raw.ai === 'object' && raw.ai !== null ? raw.ai : {}) as Record<string, unknown>;
       let aiModel = typeof rawAi.model === 'string' ? rawAi.model.slice(0, 60) : '';

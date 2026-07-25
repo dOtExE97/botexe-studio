@@ -48,10 +48,42 @@ const CSS = `
    frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
 html .bx-frameless .bx-gv-title { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-gv-sub { color: #fff; -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Der Moment ist die Enthüllung des gezogenen Namens. Beide Bühnen bringen dort
+   schon eine eigene Animation UND einen eigenen Schatten mit (Gold-Glow der
+   Gewinnerkarte bzw. Panel-Schatten des Spotlights) — die Regeln des Widgets
+   stehen im Dokument NACH widget-base.css und würden den Auslöser sonst
+   schlicht überschreiben. Deshalb hier die eigene Fassung: die vorhandene
+   Puls-Animation bleibt, Anheben und Ring kommen dazu, und der Ring läuft in
+   Gold statt im Akzent — das ist die Farbe des Gewinns in diesem Widget. */
+.bx-premium .bx-gv-card.win.bx-hit,
+.bx-premium .bx-gv-spot.bx-hit { --bx-accent: var(--bx-gold, #ffd23e); }
+.bx-premium .bx-gv-card.win.bx-hit {
+  animation: bx-gv-winpulse 1s ease-in-out 2,
+    bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1); }
+.bx-premium .bx-gv-spot.win.bx-hit {
+  animation: bx-gv-winpulse .8s ease 3,
+    bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const STYLES = new Set(['strip', 'spotlight']);
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
 
 export default class Giveaway {
   constructor(root, props, ctx) {
@@ -150,6 +182,10 @@ export default class Giveaway {
     if (this.winSoundId) this.host.playSound?.(this.winSoundId);
     const w = this.el.querySelector('.bx-gv-winner');
     if (w) { w.textContent = `🎉 Gewinner: ${winner}`; w.classList.remove('show'); void w.offsetWidth; w.classList.add('show'); }
+    // Der Moment: der gezogene Gewinner steht fest. Der Auslöser sitzt auf der
+    // Bühne (Gewinnerkarte bzw. Spotlight-Feld), nicht auf der Gewinnerzeile —
+    // dort ist es der Name selbst, der gerade groß geworden ist.
+    bxHit(this.el.querySelector('.bx-gv-card.win') || this.el.querySelector('.bx-gv-spot'), this.timers);
   }
 
   /** Neuer Stream: laufende Ziehung/Timer abbrechen, zurück in den Wartezustand. */

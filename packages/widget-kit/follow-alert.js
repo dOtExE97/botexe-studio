@@ -51,6 +51,47 @@ const CSS = `
    frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
 html .bx-frameless .bx-fa:not(.bx-st-hype) .bx-fa-label { -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-fa:not(.bx-st-hype) .bx-fa-name { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Auslöser auf dem SYMBOLFELD, nicht auf der Pille. Grund: die Pille trägt
+   ihre komplette Choreografie in einer einzigen animation-Kurzschreibweise
+   (Einflug + zeitversetztes Ausblenden über --stay) und in der Vorschau
+   zusätzlich eine Inline-Animation. Jede Fassung dort wäre brüchig. Das
+   Symbolfeld ist das Wappen der Karte, hat keine eigene Animation und
+   erscheint gleichzeitig mit ihr — der Ring sitzt dort sauber.
+
+   AUSGENOMMEN: Das Symbolfeld heißt „bx-fa-icon" und fällt damit unter den
+   breiten Selektor [class*='-ic'] der Basis, der Bildern ein langsames Atmen
+   gibt. Hier ist es aber kein Bild, sondern eine gefüllte Kachel (Glas/Hype) —
+   die ganze Fläche hätte im Ruhezustand gepulst. Also Atmen aus, Schein nur
+   auf dem Zeichen darin. Der Auslöser (.bx-hit) bleibt ausdrücklich erhalten. */
+.bx-premium .bx-fa-icon:not(.bx-hit) { animation: none; }
+/* Der Ring der Basis allein ging hier unter (im Bild geprüft): das Symbolfeld
+   trägt ohnehin einen Akzent-Glow, ein zweiter Ring darüber fiel nicht auf.
+   Deshalb blitzt das Feld zusätzlich auf — derselbe Gedanke, mit dem die Basis
+   Bilder im Moment des Treffers hervorhebt. */
+.bx-premium .bx-fa-icon.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1),
+    bx-fa-hit-schein 900ms cubic-bezier(0.2, 1.4, 0.35, 1); }
+@keyframes bx-fa-hit-schein {
+  0% { filter: brightness(1) drop-shadow(0 0 0 var(--bx-accent)); }
+  18% { filter: brightness(1.6) drop-shadow(0 0 .55em var(--bx-accent)); }
+  100% { filter: brightness(1) drop-shadow(0 0 0 transparent); }
+}
+/* KOLLISION, gefunden im Bild: Die Wurzel trägt „bx-st-glas" nur als Marke für
+   die Stil-Variante. Die Premium-Ebene hält „.bx-st-glas" aber für ein
+   Glas-Panel und legte Lichtkante und Tiefenschatten auf diese unsichtbare
+   Vollflächen-Wurzel — ein Geisterrahmen in der Standard-Akzentfarbe lag um die
+   ganze Box. Das Panel ist hier die PILLE; sie bekommt die Tiefe. */
+.bx-premium .bx-fa.bx-st-glas { box-shadow: none; }
+.bx-premium .bx-st-glas .bx-fa-pill {
+  box-shadow: var(--bx-shadow), -6px 0 26px -8px var(--bx-accent),
+    0 0 0 1px rgba(255,255,255,.09) inset, 0 2px 0 rgba(255,255,255,.18) inset; }
+.bx-premium .bx-fa-icon svg { filter: drop-shadow(0 .05em .1em rgba(0,0,0,.5)); }
+/* Mehr Tiefe: die Beschriftung führt, der Name trägt. */
+.bx-premium .bx-fa-label { text-shadow: 0 0 .6em color-mix(in srgb, var(--bx-accent) 55%, transparent), 0 .06em .12em rgba(0,0,0,.7); }
+.bx-premium .bx-st-hype .bx-fa-label { text-shadow: none; }
 `;
 // Monochrome Inline-SVG-Icons, eingefärbt via currentColor (.bx-fa-icon color je Stil).
 const ICONS = {
@@ -77,6 +118,7 @@ export default class FollowAlert {
     this.stayMs = Number(props.durationMs ?? 3600);
     this.queue = [];
     this.busy = false;
+    this.timers = new Set();
     // Editor-Vorschau: einen stehenden Beispiel-Alert zeigen, sonst ist die Box
     // im Editor leer und man sieht nicht, was das Widget später tut.
     this.preview = !!ctx?.preview;
@@ -128,8 +170,21 @@ export default class FollowAlert {
     wrap.querySelector('.bx-fa-name').textContent = item.name;
     if (this.preview) pill.style.animation = 'bx-fa-in 440ms cubic-bezier(.2,1.5,.35,1) forwards';
     this.root.appendChild(wrap);
+    // Premium-Auslöser: der Auftritt der Karte IST der bemerkenswerte Moment.
+    this.hit(wrap.querySelector('.bx-fa-icon'));
     if (this.preview) return; // Vorschau bleibt stehen
     this.timer = setTimeout(() => { wrap.remove(); this.next(); }, this.stayMs + 480);
   }
-  destroy() { clearTimeout(this.timer); this.root.querySelectorAll('.bx-fa').forEach((el) => el.remove()); }
+  /** Premium-Auslöser (siehe widget-base.css, .bx-premium). Immer setzen — ob
+   *  daraus ein Effekt wird, entscheidet die Basis. Klasse weg, Reflow, Klasse
+   *  neu, damit der Effekt bei Alert-Ketten erneut anspringt. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
+  }
+  destroy() { clearTimeout(this.timer); for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.root.querySelectorAll('.bx-fa').forEach((el) => el.remove()); }
 }

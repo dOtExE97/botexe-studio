@@ -48,6 +48,34 @@ const CSS = `
 html .bx-frameless .bx-cnt::before { display: none; }
 html .bx-frameless .bx-cnt:not(.bx-cnt-sticker) .bx-cnt-label { color: #fff; -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-cnt:not(.bx-cnt-sticker) .bx-cnt-value { -webkit-text-stroke: max(1.5px, .07em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Auslöser an der ZAHL — das Widget kennt genau einen Moment, und das ist ihre
+   Änderung. Bewusst nicht an der Kachel: deren box-shadow trägt bei „LED" den
+   Gehäuserahmen und bei „Sticker" den harten versetzten Schatten; der Ring
+   hätte beides 900 ms lang ausgeknipst.
+
+   KOLLISION: Die Zahl trägt schon ihren „pop" (Skalierung auf 1,22) und ist
+   damit gleich spezifisch wie der Auslöser der Basis — bei Gleichstand gewinnt
+   das später geladene Widget-Stylesheet, der Ring wäre also nie erschienen.
+   Hier deshalb beides gemeinsam. Das Anheben der Basis bleibt bewusst weg:
+   der eigene Pop ist kräftiger, zwei Skalierungen würden sich multiplizieren. */
+/* Der Ring der Basis ist in em bemessen. Auf der riesigen Zähler-Ziffer wurde
+   daraus (im Bild geprüft) eine breite Farbplatte, die Beschriftung und Zahl
+   verschluckt hat. Reine Textziele bekommen deshalb einen Schein, der der
+   ZIFFERNFORM folgt statt einem Kasten. */
+.bx-premium .bx-cnt-value.pop.bx-hit {
+  animation: bx-cnt-pop 380ms cubic-bezier(.2,1.5,.35,1),
+    bx-cnt-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes bx-cnt-hit-schein {
+  0% { filter: drop-shadow(0 0 0 var(--bx-accent)) drop-shadow(0 0 0 var(--bx-accent)); }
+  18% { filter: drop-shadow(0 0 .12em var(--bx-accent)) drop-shadow(0 0 .3em var(--bx-accent)); }
+  100% { filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); }
+}
+/* Mehr Tiefe: die Beschriftung tritt zurück, die Zahl steht. */
+.bx-premium .bx-cnt-label { opacity: .82; letter-spacing: .36em; }
+.bx-premium .bx-cnt-value { text-shadow: 0 0 .35em color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 .05em .12em rgba(0,0,0,.7); }
+.bx-premium .bx-cnt-sticker .bx-cnt-value { text-shadow: none; }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {
@@ -62,6 +90,7 @@ export default class CounterWidget {
   constructor(root, props, ctx) {
     ensureStyle();
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
+    this.timers = new Set();
     this.storageKey = `bx-counter-${(ctx && ctx.layerId) || 'default'}`;
     this.start = Number(props.start) || 0;
     this.value = this.load(this.start);
@@ -103,13 +132,19 @@ export default class CounterWidget {
     v.classList.toggle('neg', this.value < 0);
     if (animate) {
       v.classList.remove('pop');
+      v.classList.remove('bx-hit');
       void v.offsetWidth;
       v.classList.add('pop');
+      // Premium-Auslöser: die Zahl hat sich geändert. Klasse weg, Reflow,
+      // Klasse neu — sonst bliebe der Effekt bei schnellen Klicks stehen.
+      v.classList.add('bx-hit');
+      const t = setTimeout(() => { this.timers.delete(t); v.classList.remove('bx-hit'); }, 900);
+      this.timers.add(t);
     }
   }
 
   // Neuer Stream → zurück auf Startwert.
   onReset() { this.value = this.start; this.persist(); this.render(false); }
 
-  destroy() { this.el.remove(); }
+  destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

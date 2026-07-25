@@ -68,11 +68,35 @@ const CSS = `
   -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.55); }
 .bx-frameless .bx-mc:not(.bx-mc-pow) .bx-mc-label { color: #fff; opacity: 1; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Der Moment ist die erreichte Schwelle. Der Auslöser sitzt auf der ZAHL, nicht
+   auf dem Banner: das Banner trägt seine Pop-Animation (die es überhaupt erst
+   sichtbar macht) und seinen Panel-Schatten — der Ring hätte beides für eine
+   Sekunde ersetzt. Die Zahl hat weder das eine noch das andere und ist ohnehin
+   das, was gefeiert wird. Ring in Gold, passend zur Zahl selbst. */
+.bx-premium .bx-mc-num.bx-hit { --bx-accent: var(--bx-gold, #ffd23e); border-radius: .12em; }
+/* Beim POW-Sticker ist die Zahl dunkel auf Weiß — dort trägt der Ring die
+   Sticker-Farbe, ein goldener Schein auf Weiß wäre unsichtbar. */
+.bx-premium .bx-mc-pow .bx-mc-num.bx-hit { --bx-accent: #c72c6f; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const METRICS = ['coins', 'likes', 'follows', 'gifts'];
 const LABELS = { coins: 'Coins', likes: 'Likes', follows: 'Follower', gifts: 'Geschenke' };
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
 
 /** Nächste noch nicht erreichte Schwelle > cur. milestones schlägt step. */
 export function nextMilestone(cur, step, milestones) {
@@ -101,6 +125,7 @@ export default class MilestoneConfetti {
     this.soundId = props.soundId || '';
     this.colors = ['#ffd23e', '#ff5e8a', '#28e0c4', '#7c6bff', '#ff9d3d', '#5ad1ff'];
     this.lastSeen = null; // bekannter Stand; erst gesetzt → kein Burst beim Mount
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
 
     this.el = document.createElement('div');
     this.style = ['konfetti', 'feuerwerk', 'pow'].includes(props.style) ? props.style : 'konfetti';
@@ -143,6 +168,8 @@ export default class MilestoneConfetti {
     // reflow, damit die Pop-Animation auch bei Folge-Meilensteinen neu startet
     void this.banner.offsetWidth;
     this.el.classList.add('show');
+    // Der Moment: die Schwelle ist gefallen — die Zahl ist der Held.
+    bxHit(this.numEl, this.timers);
     this.burst();
     if (this.soundId) this.host.playSound?.(this.soundId);
     clearTimeout(this.hideT);
@@ -173,5 +200,6 @@ export default class MilestoneConfetti {
     this.el.querySelectorAll('.bx-mc-piece').forEach((p) => p.remove());
   }
 
-  destroy() { clearTimeout(this.hideT); clearTimeout(this.demoTimer); clearInterval(this.demoInterval); this.el.remove(); }
+  destroy() { clearTimeout(this.hideT); clearTimeout(this.demoTimer); clearInterval(this.demoInterval);
+    for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

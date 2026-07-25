@@ -136,6 +136,33 @@ const CSS = `
 .bx-frameless .bx-tr-empty { color: #fff;
   -webkit-text-stroke: max(1.5px, .075em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Auslöser auf der ZEILE — aber NICHT beim Weiterdrehen (dann wechselt nur die
+   Ansicht, es ist nichts passiert), sondern nur, wenn frische Zahlen jemanden
+   neu in die Liste bringen oder nach oben ziehen.
+   Die Zeilen sind Flex-Kinder ohne eigenes transform → die volle Choreografie
+   der Basis (Anheben + Ring + Aufblitzen) passt hier unverändert.
+
+   KOLLISION: Beim animierten Aufbau trägt die Liste .in, und
+   „.bx-tr-list.in .bx-tr-row“ setzt die Einflug-Animation — die hätte die
+   Auslöser-Choreografie überschrieben. Darum hier beides gemeinsam. */
+.bx-premium .bx-tr-list.in .bx-tr-row.bx-hit {
+  animation: bx-tr-rowin .45s cubic-bezier(.2,1.1,.3,1) backwards,
+    bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+/* Bauchbinde: die Zeile schiebt sich seitlich ein — auch das erhalten. */
+.bx-premium .bx-tr-banner .bx-tr-list.in .bx-tr-row.bx-hit {
+  animation: bx-tr-slide .45s cubic-bezier(.2,1.1,.3,1) backwards,
+    bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+/* Das Anheben der Basis bleibt bewusst weg (im Bild geprüft): die Zeile ist so
+   breit wie die Box, die Box schneidet über overflow ab — beim Anheben wurden
+   die Werte am rechten Rand abgeschnitten. Ring und Aufblitzen des Profilbildes
+   tragen den Moment ohne Ortswechsel. */
+.bx-premium .bx-tr-row.bx-hit { animation: bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+/* Der Siegel-Stil ist ein Rund — der Ring folgt seiner Form von selbst, weil er
+   am Element hängt und die Zeile dort border-radius:50% trägt. */
+/* Die Krone ist eine feste Form, kein Bild — sie behält ihren eigenen Saum. */
+.bx-premium .bx-tr-crown { filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -191,6 +218,11 @@ export default class TopRotator {
     this.el.innerHTML = `<div class="bx-tr-head"><div class="bx-tr-title"></div></div><div class="bx-tr-list in"></div>`;
     this.titleEl = this.el.querySelector('.bx-tr-title');
     this.listEl = this.el.querySelector('.bx-tr-list');
+    // Letzter bekannter Platz je Quelle+Person → daraus folgt, wer neu ist bzw.
+    // wer geklettert ist. Pro Quelle getrennt, sonst meldet jeder Rotationsschritt
+    // lauter „Aufstiege".
+    this.ranks = new Map();
+    this.timers = new Set();
     root.appendChild(this.el);
     this.render(true);
     if (this.sources.length > 1) this.timer = setInterval(() => this.rotate(), this.interval);
@@ -204,6 +236,17 @@ export default class TopRotator {
     setTimeout(() => { this.render(true); this.listEl.classList.remove('out'); this.titleEl.style.opacity=''; this.titleEl.style.transform=''; }, 360);
   }
   onStats(stats) { this.stats = stats; this.render(false); }
+  /** Premium-Auslöser (siehe widget-base.css, .bx-premium). Immer setzen — ob
+   *  daraus ein Effekt wird, entscheidet die Basis. Klasse weg, Reflow, Klasse
+   *  neu: so springt der Effekt auch bei schnellen Folgen erneut an. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
+  }
   render(animate) {
     const key = this.sources[this.idx];
     const def = SRC[key];
@@ -227,7 +270,21 @@ export default class TopRotator {
       const pics = this.listEl.querySelectorAll('.bx-tr-pic');
       items.forEach((e, i) => avSet(pics[i], e.nickname, e.profilePic));
     }
+    // Bemerkenswerter Moment: in DIESER Liste neu dabei oder nach oben geklettert.
+    // Beim ersten Aufbau einer Quelle ist noch nichts bekannt → kein Auslöser,
+    // sonst würde jeder Rotationsschritt die ganze Liste aufblitzen lassen.
+    const rows = this.listEl.querySelectorAll('.bx-tr-row');
+    const bekannt = this.ranks.has(key);
+    const vorher = this.ranks.get(key) || new Map();
+    const jetzt = new Map();
+    items.forEach((e, i) => {
+      const id = e.id ?? e.nickname;
+      const alt = vorher.get(id);
+      if (bekannt && (alt == null || i + 1 < alt)) this.hit(rows[i]);
+      jetzt.set(id, i + 1);
+    });
+    this.ranks.set(key, jetzt);
   }
-  destroy() { clearInterval(this.timer); this.el.remove(); }
+  destroy() { clearInterval(this.timer); for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

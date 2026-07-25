@@ -94,10 +94,41 @@ const CSS = `
 html .bx-frameless .bx-bt-title { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-bt-clock { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-bt-score { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Zwei Momente: die FÜHRUNG WECHSELT (das ist die Dramatik eines Tauziehens)
+   und am Ende der Sieg. Beide sitzen auf dem Namens-/Punkteblock des Teams —
+   nicht auf dem Balken: der lebt schon von seinen laufenden Streifen und
+   seiner Breite, ein Ring darum wäre nur Unruhe.
+   Der Ring trägt die Teamfarbe, damit man am Aufblitzen sofort SIEHT, wer
+   vorne liegt. Beim Sieger läuft die vorhandene Sieg-Animation weiter; die
+   Widget-Regel steht im Dokument nach widget-base.css und hätte den Auslöser
+   sonst überschrieben. */
+.bx-premium .bx-bt-team.a.bx-hit { --bx-accent: var(--bx-a, #ff5e8a); }
+.bx-premium .bx-bt-team.b.bx-hit { --bx-accent: var(--bx-b, #4ea8ff); }
+.bx-premium .bx-bt.win-a .bx-bt-team.a.bx-hit,
+.bx-premium .bx-bt.win-b .bx-bt-team.b.bx-hit {
+  --bx-accent: var(--bx-gold, #ffd23e);
+  animation: bx-bt-win 1s ease-in-out 2,
+    bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const STYLES = new Set(['tug', 'versus']);
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
+
 function tokens(str) { return String(str || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean); }
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(Math.round(n)));
 
@@ -119,6 +150,8 @@ export default class GiftBattle {
     this.scoreA = 0; this.scoreB = 0;
     this.remaining = this.duration;
     this.ended = false;
+    this.timers = new Set();  // Premium-Auslöser → bei destroy clearen
+    this.leader = null;       // 'a' | 'b' → erkennt den Führungswechsel
 
     this.el = document.createElement('div');
     this.el.className = 'bx-bt';
@@ -157,6 +190,7 @@ export default class GiftBattle {
   titleText() { return this.metric === 'count' ? 'Geschenk-Schlacht' : 'Coin-Schlacht'; }
 
   cacheEls() {
+    this.teamEls = { a: this.el.querySelector('.bx-bt-team.a'), b: this.el.querySelector('.bx-bt-team.b') };
     this.clockEl = this.el.querySelector('.bx-bt-clock');
     this.scoreEls = this.el.querySelectorAll('.bx-bt-score');
     this.knotEl = this.el.querySelector('.bx-bt-knot');
@@ -195,6 +229,11 @@ export default class GiftBattle {
 
   render() {
     if (this.scoreEls) { this.scoreEls[0].textContent = fmt(this.scoreA); this.scoreEls[1].textContent = fmt(this.scoreB); }
+    // Der Moment der Schlacht: die Führung wechselt. Gleichstand zählt nicht als
+    // Führung — sonst blitzte es bei jedem Hin und Her doppelt.
+    const lead = this.scoreA > this.scoreB ? 'a' : this.scoreB > this.scoreA ? 'b' : null;
+    if (lead && lead !== this.leader && !this.ended) bxHit(this.teamEls?.[lead], this.timers);
+    this.leader = lead;
     const pos = battlePosition(this.scoreA, this.scoreB);
     if (this.style === 'versus') {
       const max = Math.max(this.scoreA, this.scoreB, 1);
@@ -214,6 +253,8 @@ export default class GiftBattle {
     const w = battleWinner(this.scoreA, this.scoreB);
     if (w !== 'tie') {
       this.el.classList.add(w === 'a' ? 'win-a' : 'win-b');
+      // Der zweite Moment: das Team hat die Runde gewonnen.
+      bxHit(this.teamEls?.[w], this.timers);
       if (this.winSound) this.ctx.playSound?.(this.winSound);
       const name = w === 'a' ? this.nameA : this.nameB;
       this.showBanner(`🏆 ${name}`);
@@ -233,7 +274,7 @@ export default class GiftBattle {
   }
 
   newRound() {
-    this.scoreA = 0; this.scoreB = 0; this.ended = false;
+    this.scoreA = 0; this.scoreB = 0; this.ended = false; this.leader = null;
     this.remaining = this.duration;
     this.el.classList.remove('win-a', 'win-b');
     if (this.bannerEl) this.bannerEl.classList.remove('show');
@@ -265,6 +306,8 @@ export default class GiftBattle {
     if (this.clockTimer) clearInterval(this.clockTimer);
     if (this.roundTimer) clearTimeout(this.roundTimer);
     if (this.previewTimer) clearInterval(this.previewTimer);
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     this.el.remove();
   }
 }

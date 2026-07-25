@@ -111,6 +111,36 @@ const CSS = `
    Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
    frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
 html .bx-frameless .bx-gb-pct { -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Zwei Stufen: steigt der Stand, löst die Zahlen-Zeile aus („340 / 1K") — sie
+   ist die Stelle, an der man die Änderung liest. Wird das Ziel erreicht, löst
+   zusätzlich die ganze Bahn aus; das ist ungleich lauter und passiert genau
+   einmal.
+
+   KOLLISION: Bei erreichtem Ziel pulsiert die Bahn bereits
+   („.bx-gb.done .bx-gb-track", auch über box-shadow) und ist damit
+   spezifischer als der Ring der Basis. Darum beides hier gemeinsam. */
+.bx-premium .bx-gb.done .bx-gb-track.bx-hit {
+  animation: bx-gb-pulse 900ms ease-in-out 3,
+    bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+/* Ring-Stil: die Bahn IST der Kreis — der Auslöser-Ring folgt seiner Form. */
+/* Die Zahlen-Zeile ist reiner Text. Der Ring der Basis ist in em bemessen und
+   wird dort in großen Boxen zu einer Farbplatte statt zu einer Kontur — deshalb
+   ein Schein, der der Ziffernform folgt. */
+.bx-premium .bx-gb-nums.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-gb-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes bx-gb-hit-schein {
+  0% { filter: drop-shadow(0 0 0 var(--bx-gold)) drop-shadow(0 0 0 var(--bx-gold)); }
+  18% { filter: drop-shadow(0 0 .12em var(--bx-gold)) drop-shadow(0 0 .3em var(--bx-gold)); }
+  100% { filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); }
+}
+.bx-premium .bx-gb-ring .bx-gb-track.bx-hit { border-radius: 50%; }
+/* Mehr Tiefe: Beschriftung tritt zurück, die Zahlen führen. */
+.bx-premium .bx-gb-label { opacity: .88; }
+.bx-premium .bx-gb-nums { text-shadow: 0 0 .5em color-mix(in srgb, var(--bx-gold) 60%, transparent), 0 .06em .12em rgba(0,0,0,.85); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 const LABELS = { coins: 'Coin-Ziel', likes: 'Like-Ziel', follows: 'Follower-Ziel', gifts: 'Geschenk-Ziel' };
@@ -123,6 +153,10 @@ export default class GoalBar {
     this.metric = ['coins', 'likes', 'follows', 'gifts'].includes(props.metric) ? props.metric : 'coins';
     this.target = Math.max(1, Number(props.target ?? 1000));
     this.label = props.label || LABELS[this.metric];
+    this.timers = new Set();
+    // Letzter gemalter Stand — der Auslöser gehört nur zum ECHTEN Anstieg,
+    // nicht zum ersten Zeichnen.
+    this.last = null;
     this.el = document.createElement('div');
     const style = ['glas', 'arcade', 'slim', 'thermo', 'akku', 'ring'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-gb${style !== 'glas' ? ` bx-gb-${style}` : ''}`;
@@ -147,10 +181,32 @@ export default class GoalBar {
     this.el.style.setProperty('--pct', `${pct}%`); // Thermometer-Stil füllt über die Höhe
     this.el.querySelector('.bx-gb-pct').textContent = `${Math.floor(pct)}%`;
     this.el.querySelector('.bx-gb-nums').textContent = `${fmt(cur)} / ${fmt(this.target)}`;
-    this.el.classList.toggle('done', cur >= this.target);
+    const wasDone = this.el.classList.contains('done');
+    const done = cur >= this.target;
+    this.el.classList.toggle('done', done);
+    // Premium-Auslöser: der Stand ist gestiegen → Zahlen-Zeile. Ist damit das
+    // Ziel erreicht → zusätzlich die ganze Bahn, deutlich lauter.
+    if (this.last != null && cur > this.last) {
+      this.hit(this.el.querySelector('.bx-gb-nums'));
+      if (done && !wasDone) this.hit(this.el.querySelector('.bx-gb-track'));
+    }
+    this.last = cur;
+  }
+
+  /** Premium-Auslöser (siehe widget-base.css, .bx-premium). Immer setzen — ob
+   *  daraus ein Effekt wird, entscheidet die Basis. Klasse weg, Reflow, Klasse
+   *  neu, damit der Effekt bei dicht aufeinander folgenden Stats erneut
+   *  anspringt. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
   }
   onStats(stats) {
     this.paint(Number(stats?.totals?.[this.metric] ?? 0));
   }
-  destroy() { this.el.remove(); }
+  destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

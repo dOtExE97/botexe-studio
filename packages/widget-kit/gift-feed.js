@@ -53,6 +53,27 @@ const CSS = `
 html .bx-frameless .bx-gf-item { box-shadow: none; }
 html .bx-frameless .bx-gf:not(.bx-gf-pills) .bx-gf-text { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 6px rgba(0,0,0,.55); }
 html .bx-frameless .bx-gf:not(.bx-gf-pills) .bx-gf-coins { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Auslöser auf der NEU EINGETROFFENEN Zeile — der Moment, in dem ein Geschenk
+   ankommt. Bei einer Combo (10× Rose) feuert er pro Zeile neu.
+
+   KOLLISION: Die Zeile bringt ihre eigene Einflug-Animation mit und steht
+   vorher auf translateX(-115%). Die Basis setzt „animation" komplett neu —
+   ohne diese Fassung wäre die frische Zeile 900 ms lang links außerhalb der
+   Box geblieben. Darum hier Einflug und Auslöser gemeinsam. */
+.bx-premium .bx-gf-item.bx-hit {
+  animation: bx-gf-in 380ms cubic-bezier(.2,1.4,.4,1) forwards,
+    bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+/* Das Anheben der Basis bleibt bewusst weg (im Bild geprüft): die Zeile ist so
+   breit wie die Box, die Box schneidet über overflow ab — beim Anheben wurden
+   die Coin-Werte am rechten Rand abgeschnitten. Ring und Aufblitzen des
+   Profilbildes bewegen nichts und tragen den Moment allein. */
+/* Das Ablaufen der Zeile muss den Auslöser überstimmen können. */
+.bx-premium .bx-gf-item.old.bx-hit { animation: bx-gf-out 320ms ease-in forwards; }
+/* Mehr Tiefe an der Coin-Zahl — der Wert ist die eigentliche Nachricht. */
+.bx-premium .bx-gf-coins { text-shadow: 0 0 .5em color-mix(in srgb, var(--bx-gold) 55%, transparent), 0 .06em .12em rgba(0,0,0,.75); }
+.bx-premium .bx-gf-pills .bx-gf-coins { text-shadow: none; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
@@ -135,8 +156,20 @@ export default class GiftFeed {
     this.el.appendChild(item);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();
     this.fit();
+    this.hit(item);
     const t = setTimeout(() => { this.timers.delete(t); item.classList.add('old'); setTimeout(() => { item.remove(); this.fit(); }, 320); }, this.ttlMs);
     this.timers.add(t);
   }
-  destroy() { this.ro?.disconnect(); for (const t of this.timers) clearTimeout(t); this.el.remove(); }
+  /** Premium-Auslöser (siehe widget-base.css, .bx-premium). Immer setzen — ob
+   *  daraus ein Effekt wird, entscheidet die Basis. Klasse weg, Reflow, Klasse
+   *  neu, damit der Effekt bei einer Combo pro Zeile erneut anspringt. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
+  }
+  destroy() { this.ro?.disconnect(); for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

@@ -1,7 +1,7 @@
 {
   "name": "botexe-studio-desktop",
   "productName": "bOtExE Studio",
-  "version": "0.33.1",
+  "version": "0.34.0",
   "description": "Lokales TikTok-Live Overlay-Studio — TikFinity-Ersatz",
   "main": ".vite/build/main.js",
   "private": true,
@@ -56,10 +56,10 @@
     "lucide-react": "^0.577.0",
     "node-edge-tts": "^1.2.10",
     "obs-websocket-js": "^5.0.8",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "tiktok-live-connector": "^2.4.0",
-    "update-electron-app": "^3.0.0",
-    "ws": "^8.19.0"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tiktok-live-connector": "^2.4.3",
+    "update-electron-app": "^3.3.0",
+    "ws": "^8.21.1"
   }
 }

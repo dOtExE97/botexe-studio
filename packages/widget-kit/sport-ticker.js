@@ -76,10 +76,40 @@ const CSS = `
 .bx-frameless .bx-sp-title, .bx-frameless .bx-sp-grp, .bx-frameless .bx-sp-empty {
   -webkit-text-stroke: max(1.5px, .075em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   AUSGENOMMEN: die WAPPEN. Die Basis legt jedem Bild einen farbigen Schein in
+   der Akzentfarbe unter — bei zehn Vereinslogos nebeneinander wird daraus ein
+   Farbnebel, und ein Wappen ist ohnehin eine feste Marke und kein Ereignis.
+   Sie behalten deshalb nur den dunklen Schatten, der sie vom Video abhebt.
+   Der Auslöser ist das TOR. Die getroffene Zeile leuchtet bereits gold auf
+   (bx-sp-goal); diese Regel steht im Dokument nach widget-base.css und hätte
+   den Auslöser überschrieben — hier laufen beide zusammen, mit dem Ring in
+   Gold statt im Akzent, passend zum Aufleuchten der Zeile. */
+.bx-premium .bx-sp-team img, .bx-premium .bx-sp-trow .tm img {
+  filter: drop-shadow(0 .1em .2em rgba(0, 0, 0, .75)); }
+.bx-premium .bx-sp-row.goal.bx-hit {
+  --bx-accent: var(--bx-gold, #ffd23e);
+  animation: bx-sp-goal 1.4s ease,
+    bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 const VIEWS = new Set(['matches', 'table', 'both']);
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
 
 // ── Editor-Schaufenster ────────────────────────────────────────────────────
 // Ohne Demo blieb der Ticker im Editor eine leere Karte (die echten Daten
@@ -134,6 +164,7 @@ export default class SportTicker {
     this.page = 'matches'; // aktuelle Slider-Seite
     this.lastMatches = [];
     this.lastStandings = [];
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
 
     this.el = document.createElement('div');
     this.el.className = 'bx-sp';
@@ -249,6 +280,9 @@ export default class SportTicker {
     if (goalIds.size > 0 && this.goalBanner) this.celebrateGoal();
 
     this.listEl.innerHTML = shown.map((m) => this.rowHtml(m, goalIds.has(m.id))).join('');
+    // Der Moment des Tickers: ein Tor. Erst nach dem Neuaufbau der Liste — die
+    // Zeilen von eben gibt es nicht mehr.
+    if (goalIds.size > 0) for (const row of this.listEl.querySelectorAll('.bx-sp-row.goal')) bxHit(row, this.timers);
     this.fit();
     this.firstLoad = false;
   }
@@ -306,6 +340,8 @@ export default class SportTicker {
     if (this.timer) clearInterval(this.timer);
     if (this.slideTimer) clearInterval(this.slideTimer);
     clearTimeout(this.goalTimer);
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     this.el.remove();
   }
 }

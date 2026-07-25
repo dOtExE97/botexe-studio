@@ -1651,7 +1651,10 @@ export class Studio {
   // ── Sound ─────────────────────────────────────────────────────────────
 
   playSound(soundId: string, volume?: number, category: SoundCategory = 'soundboard'): void {
-    const vol = volume ?? this.settings.get().soundVolume;
+    // `vol` ist die PRO-SOUND-Lautstärke (Standard 1). Die globale Skalierung
+    // macht der Mixer im Renderer (Master × Kanal) — deshalb hier KEIN
+    // soundVolume mehr (das war der zweite Master, siehe Migration v6→v7).
+    const vol = volume ?? 1;
     const url = `http://127.0.0.1:${this.server.getPort()}/sounds/${encodeURIComponent(soundId)}?token=${this.server.getToken()}`;
     this.hooks.onSoundPlay({ soundId, url, volume: vol, category });
   }
@@ -1660,7 +1663,8 @@ export class Studio {
    *  damit es CSP-konform über dasselbe Audio-System wie alle Sounds läuft. */
   previewSound(mp3Url: string): void {
     const url = `http://127.0.0.1:${this.server.getPort()}/preview?url=${encodeURIComponent(mp3Url)}&token=${this.server.getToken()}`;
-    this.hooks.onSoundPlay({ soundId: 'preview', url, volume: this.settings.get().soundVolume });
+    // Vorhören auf Master-Lautstärke, damit es so laut klingt wie im echten Betrieb.
+    this.hooks.onSoundPlay({ soundId: 'preview', url, volume: this.settings.get().mixer.master });
   }
 
   /** Renderer meldet, dass ein Audio fertig ist → TTS-Sequencing freigeben. */

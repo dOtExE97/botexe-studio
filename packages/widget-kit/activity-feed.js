@@ -55,6 +55,27 @@ const CSS = `
    frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
 html .bx-frameless .bx-af-item { box-shadow: none; }
 html .bx-frameless .bx-af-text { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; text-shadow: 0 2px 6px rgba(0,0,0,.55); }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Auslöser auf dem NEU EINGETROFFENEN Eintrag.
+
+   KOLLISION: Die Zeile bringt ihre eigene Einflug-Animation mit und steht
+   vorher auf translateX(-115%); die Basis setzt „animation" komplett neu.
+   Ohne diese Fassung wäre der frische Eintrag 900 ms außerhalb der Box
+   stehen geblieben — darum Einflug und Auslöser gemeinsam. */
+.bx-premium .bx-af-item.bx-hit {
+  animation: bx-af-in 380ms cubic-bezier(.2,1.4,.4,1) forwards,
+    bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+/* Das Anheben der Basis bleibt bewusst weg (im Bild geprüft): die Zeile ist so
+   breit wie die Box, die Box schneidet über overflow ab — beim Anheben lief der
+   Zeilentext am rechten Rand hinaus. */
+.bx-premium .bx-af-item.old.bx-hit { animation: bx-af-out 320ms ease-in forwards; }
+/* Der Zeitstrahl zeichnet Linie und Punkt in ::before/::after der Zeile und
+   der Sprechblasen-Stil seinen Zipfel in ::after — beide bleiben unberührt,
+   weil der Ring der Basis bewusst über box-shadow läuft.
+   Die Typ-Marke (Follow/Sub/Share/Gift) ist eine feste Form, kein Bild: sie
+   bekommt weder Schein noch Dauer-Atmen, sondern nur etwas mehr Tiefe. */
+.bx-premium .bx-af-badge { box-shadow: 0 0 0 2px rgba(10,11,18,.85), 0 .1em .2em rgba(0,0,0,.55); }
 `;
 // Monochrome Inline-SVG-Icons (currentColor = dunkle Badge-Schrift auf hellem Gradient).
 const ICONS = {
@@ -154,9 +175,21 @@ export default class ActivityFeed {
     this.el.appendChild(item);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();
     this.fit();
+    this.hit(item);
     const t = setTimeout(() => { this.timers.delete(t); item.classList.add('old'); setTimeout(() => { item.remove(); this.fit(); }, 320); }, this.ttlMs);
     this.timers.add(t);
   }
-  destroy() { this.ro?.disconnect(); for (const t of this.timers) clearTimeout(t); this.el.remove(); }
+  /** Premium-Auslöser (siehe widget-base.css, .bx-premium). Immer setzen — ob
+   *  daraus ein Effekt wird, entscheidet die Basis. Klasse weg, Reflow, Klasse
+   *  neu, damit der Effekt bei schnellen Folgen erneut anspringt. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
+  }
+  destroy() { this.ro?.disconnect(); for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

@@ -185,6 +185,39 @@ const CSS = `
 html .bx-frameless .bx-lb-title { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-lb:not(.bx-st-pills):not(.bx-st-treppe) .bx-lb-name { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-lb:not(.bx-st-pills):not(.bx-st-treppe) .bx-lb-val { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Der Auslöser sitzt auf der ZEILE: sie bekommt bx-hit, wenn dieser Zuschauer
+   neu in der Liste steht oder sich verbessert hat.
+
+   KOLLISION, absichtlich entschärft: die Basis-Choreografie hebt das Element
+   über die Einzel-Eigenschaft „scale“ an. Die Zeilen sind absolut positioniert
+   und werden per „transform: translateY(…)“ an ihren Platz geschoben — und
+   „scale“ wird VOR „transform“ verrechnet, skaliert die Verschiebung also mit.
+   Eine Zeile bei 200 px wäre beim Anheben um gut 10 px nach unten gesprungen.
+   Darum hier nur Ring (box-shadow) und das Aufblitzen des Profilbildes aus der
+   Basis — beide bewegen die Zeile nicht. */
+.bx-premium .bx-lb-row.bx-hit { animation: bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+/* Arcade und Podium stellen jede Person als freistehende SPALTE dar — dort
+   zeichnete der Rechteck-Ring der Basis einen Rahmen um eine Karte, die es gar
+   nicht gibt (im Bild geprüft). Diese beiden Stile bekommen deshalb einen
+   Schein über „filter", der die tatsächliche Silhouette aus Profilbild, Name
+   und Wert umfasst — plus das Anheben, das hier ohne Ortswechsel funktioniert,
+   weil die Spalten per Flexbox und nicht per transform sitzen. */
+.bx-premium .bx-st-arcade .bx-lb-row.bx-hit, .bx-premium .bx-st-podium .bx-lb-row.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-lb-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes bx-lb-hit-schein {
+  0% { filter: drop-shadow(0 0 0 color-mix(in srgb, var(--bx-gold) 95%, white)); }
+  22% { filter: drop-shadow(0 0 .5em color-mix(in srgb, var(--bx-gold) 90%, white)); }
+  100% { filter: drop-shadow(0 0 0 transparent); }
+}
+/* Mehr Tiefe: die Zahl ist die Nachricht — im Premium-Fall trägt sie einen
+   satteren Schein, ohne dass sich an Maßen etwas ändert. */
+.bx-premium .bx-lb-val { text-shadow: 0 0 .5em color-mix(in srgb, var(--bx-gold) 55%, transparent), 0 .06em .12em rgba(0,0,0,.75); }
+.bx-premium .bx-lb-likes .bx-lb-val { text-shadow: 0 0 .5em color-mix(in srgb, var(--bx-pink) 55%, transparent), 0 .06em .12em rgba(0,0,0,.75); }
+/* Pills/Treppe tragen dunkle Schrift auf heller Fläche — dort wäre ein Glow Matsch. */
+.bx-premium .bx-st-pills .bx-lb-val, .bx-premium .bx-st-treppe .bx-lb-val { text-shadow: none; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -235,7 +268,24 @@ export default class Leaderboard {
     this.el.querySelector('.bx-lb-title').textContent = props.title || (this.source === 'likes' ? 'Top Likes' : 'Top Gifter');
     root.appendChild(this.el);
     this.rows = new Map();
+    // Letzter bekannter Platz je Zuschauer — daraus leitet sich ab, ob jemand
+    // NEU dazugekommen ist oder sich verbessert hat (Führungswechsel).
+    this.ranks = new Map();
+    this.timers = new Set();
     if (ctx?.preview) this.onStats(DEMO);
+  }
+  /** Premium-Auslöser: markiert kurz den Moment, in dem etwas passiert.
+   *  Die Klasse wirkt NUR mit aktiver Premium-Ebene (widget-base.css) — sie
+   *  wird hier trotzdem immer gesetzt, damit die Widget-Logik einfach bleibt.
+   *  Bei schnellen Folgen (Combo) muss der Effekt neu anspringen: Klasse weg,
+   *  Reflow erzwingen, Klasse neu. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
   }
   onStats(stats) {
     const src = this.source === 'likes' ? stats?.topLikers : stats?.topGifters;
@@ -256,13 +306,19 @@ export default class Leaderboard {
     items.forEach((g, i) => {
       seen.add(g.id);
       let row = this.rows.get(g.id);
+      let fresh = false;
       if (!row) {
+        fresh = true;
         row = document.createElement('div'); row.className = 'bx-lb-row'; row.style.opacity = '0';
         row.innerHTML = `<div class="bx-lb-rank"></div>${this.showPic ? '<div class="bx-lb-pic"></div>' : ''}<div class="bx-lb-name"></div><div class="bx-lb-val"></div>`;
         list.appendChild(row); this.rows.set(g.id, row);
         requestAnimationFrame(() => { row.style.opacity = '1'; });
       }
       const val = this.source === 'likes' ? g.likes : g.coins;
+      // Bemerkenswerter Moment: neu in der Liste oder nach oben geklettert.
+      const prevRank = this.ranks.get(g.id);
+      if (fresh || (prevRank != null && i + 1 < prevRank)) this.hit(row);
+      this.ranks.set(g.id, i + 1);
       row.dataset.rank = String(i + 1);
       if (!flexStyle) { row.style.height = `${rowH}px`; row.style.transform = `translateY(${i * rowH}px)`; }
       if (this.style === 'bars') row.style.setProperty('--bar', `${Math.max(8, (val / maxVal) * 100)}%`);
@@ -281,7 +337,7 @@ export default class Leaderboard {
       }
       avSet(row.querySelector('.bx-lb-pic'), g.nickname, g.profilePic);
     });
-    for (const [id, row] of this.rows) { if (!seen.has(id)) { row.remove(); this.rows.delete(id); } }
+    for (const [id, row] of this.rows) { if (!seen.has(id)) { row.remove(); this.rows.delete(id); this.ranks.delete(id); } }
     // Liste wieder leer (z.B. Session-Reset ohne Rebuild) → Platzhalter zurückholen,
     // sonst bleibt ein komplett leeres Panel stehen.
     if (items.length === 0 && !list.querySelector('.bx-lb-empty')) {
@@ -295,5 +351,5 @@ export default class Leaderboard {
       items.forEach((g) => { const r = this.rows.get(g.id); if (r) list.appendChild(r); });
     }
   }
-  destroy() { this.el.remove(); }
+  destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

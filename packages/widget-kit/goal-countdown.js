@@ -29,10 +29,34 @@ const CSS = `
    Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
    frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
 html .bx-frameless .bx-gcd-text { text-shadow: 0 3px 10px rgba(0,0,0,.6); }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Der Moment ist die schrumpfende Restzahl — und, deutlicher, das erreichte
+   Ziel. Der Auslöser sitzt auf der ZAHL (bzw. auf der Zeile, wenn das Ziel
+   erreicht ist und keine Zahl mehr dasteht), nicht auf der Wurzel: die trägt
+   die vorhandene Pop-Animation des ganzen Widgets, ein Ring um die volle Box
+   wäre außerdem ein Rahmen quer über das Videobild.
+   Die Zahl ist ein Inline-Element — als solches nimmt sie keinen box-shadow
+   sichtbar an; inline-block macht sie zum Kasten, ohne den Textfluss zu ändern. */
+.bx-premium .bx-gcd-n { display: inline-block; }
+.bx-premium .bx-gcd.done .bx-gcd-text.bx-hit { --bx-accent: var(--bx-teal, #21e6c1); border-radius: .1em; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 function fmtNum(n) { return Number(n).toLocaleString('de-DE'); }
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
 
 /** Reine View-Logik: liefert {done, html} für den Countdown-Text. Platzhalter
  *  {n}=verbleibend, {label}=Metrik-Name, {target}=Ziel. Testbar, DOM-frei. */
@@ -58,6 +82,7 @@ export default class GoalCountdown {
     this.doneText = String(props.doneText || 'Ziel erreicht! 🎉');
     this.onReach = props.onReach === 'keep' ? 'keep' : 'raise';
     this.cur = 0;
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
 
     this.el = document.createElement('div');
     this.el.className = 'bx-gcd';
@@ -106,9 +131,15 @@ export default class GoalCountdown {
     this.textEl.innerHTML = v.html;
     this.el.classList.toggle('done', v.done);
     this.fit();
-    if (animate) { this.el.classList.remove('pop'); void this.el.offsetWidth; this.el.classList.add('pop'); }
+    if (animate) {
+      this.el.classList.remove('pop'); void this.el.offsetWidth; this.el.classList.add('pop');
+      // Der Moment: das Ziel rückt näher — bzw. ist erreicht. Die Zahl trägt den
+      // Auslöser; im „erreicht"-Zustand gibt es keine mehr, dann die Zeile.
+      bxHit(this.textEl.querySelector('.bx-gcd-n') || this.textEl, this.timers);
+    }
   }
 
   onReset() { this.cur = 0; this.target = this.step; this.render(false); }
-  destroy() { if (this.observer) { this.observer.disconnect(); this.observer = null; } this.el.remove(); }
+  destroy() { if (this.observer) { this.observer.disconnect(); this.observer = null; }
+    for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

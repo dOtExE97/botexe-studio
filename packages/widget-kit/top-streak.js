@@ -176,6 +176,35 @@ const CSS = `
    frameless-Regel hätte sie transparent gesetzt und den Bon entkernt. */
 .bx-frameless .bx-ts-bon .bx-ts-kicker { border-bottom-color: #b9ad90 !important; }
 .bx-frameless .bx-ts-bon .bx-ts-row { border-bottom-color: #c3b79a !important; }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Auslöser auf der KARTE, wenn eine NEUE HÖCHSTE COMBO gesetzt wird — render()
+   läuft ausschließlich in diesem Moment.
+
+   KOLLISION 1: Die Karte trägt bereits „bounce" (transform-Skalierung). Die
+   Basis hebt über die Einzel-Eigenschaft scale an; zusammen hätte sich das
+   multipliziert. Im Premium-Fall übernimmt die Basis das Anheben allein.
+   KOLLISION 2: Der Ring der Basis läuft über box-shadow — dort steht je nach
+   Stil der Glasschatten oder gar nichts (Flamme, Bon, Comic). Ein Ring hätte
+   ihn 900 ms lang ersetzt. Deshalb hier ein Schein über „filter", der die
+   Silhouette umfasst und jeden eigenen Schatten stehen lässt. */
+.bx-premium .bx-ts.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-ts-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes bx-ts-hit-schein {
+  0% { filter: drop-shadow(0 0 0 color-mix(in srgb, var(--bx-accent) 95%, white)); }
+  22% { filter: drop-shadow(0 0 .55em color-mix(in srgb, var(--bx-accent) 90%, white)); }
+  100% { filter: drop-shadow(0 0 0 transparent); }
+}
+/* Die Combo-Zahl ist der Held der Karte — sie blitzt im Auslöser mit auf.
+   (Sie heißt nicht wie ein Bild und fiel deshalb durch die Basis-Selektoren.) */
+.bx-premium .bx-ts.bx-hit .bx-ts-x, .bx-premium .bx-ts.bx-hit .bx-ts-img {
+  animation: bx-premium-flash 900ms cubic-bezier(0.2, 1.4, 0.35, 1); }
+/* Der Kassenbon lebt von flacher Druckoptik — dort kein Aufblitzen. */
+.bx-premium .bx-ts-bon.bx-hit .bx-ts-x, .bx-premium .bx-ts-bon.bx-hit .bx-ts-img { animation: none; }
+/* Mehr Tiefe am Kicker; der Gift-Name bleibt die Schlagzeile. */
+.bx-premium .bx-ts-kicker { text-shadow: 0 0 .7em color-mix(in srgb, var(--bx-gold) 55%, transparent), 0 .06em .12em rgba(0,0,0,.8); }
+.bx-premium .bx-ts-bon .bx-ts-kicker, .bx-premium .bx-ts-comic .bx-ts-kicker { text-shadow: none; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const FIRE_SVG = '<svg class="bx-ts-fire" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s4 4 4 8a4 4 0 0 1-8 0c0-1 .5-2 .5-2S6 10 6 13a6 6 0 0 0 12 0c0-5-6-11-6-11Z"/></svg>';
@@ -186,6 +215,7 @@ export default class TopStreak {
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.title = props.title || 'Höchste Combo';
     this.max = 0;
+    this.timers = new Set();
     this.el = document.createElement('div');
     // „glas" (Standard) und „sticker" behalten ihre alten Klassen unverändert,
     // damit bestehende Overlays exakt gleich aussehen. Neue Stile folgen dem
@@ -231,9 +261,15 @@ export default class TopStreak {
     this.el.querySelector('.bx-ts-gift').textContent = slug;
     this.el.querySelector('.bx-ts-by b').textContent = nickname || 'Jemand';
     this.el.classList.remove('bounce'); void this.el.offsetWidth; this.el.classList.add('bounce');
+    // Premium-Auslöser: eine neue Höchst-Combo ist DER bemerkenswerte Moment.
+    // Klasse weg, Reflow, Klasse neu — sonst bliebe der Effekt bei zwei
+    // Rekorden kurz hintereinander beim ersten stehen.
+    this.el.classList.remove('bx-hit'); void this.el.offsetWidth; this.el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); this.el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
   }
   // Neuer Stream → höchste Combo zurück auf „leer".
   onReset() { this.max = 0; this.el.style.removeProperty('--flame'); this.el.innerHTML = `<div class="bx-ts-empty">${FIRE_SVG}<span>Noch keine Combo</span></div>`; }
-  destroy() { this.el.remove(); }
+  destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

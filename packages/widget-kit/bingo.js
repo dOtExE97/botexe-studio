@@ -84,6 +84,19 @@ const CSS = `
    Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
    frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
 html .bx-frameless .bx-bg-title { -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Zwei Momente: die eben abgehakte Zelle und — deutlich größer — das ganze
+   Brett bei BINGO. Beide Elemente tragen von Haus aus KEINEN box-shadow, der
+   Ring der Basis kollidiert also mit nichts.
+   Nachgeschärft: das Gift-Bild in der getroffenen Zelle blitzt mit auf. Die
+   Basis macht das nur für Klassen mit „-ic"/„-pic"; hier heißt das Bild
+   schlicht <img> in der Zelle. Die abgehakte Zelle rahmt sich in Türkis (die
+   Farbe des Häkchens) statt im Akzent — sonst hätte das Feld zwei Farben. */
+.bx-premium .bx-bg-cell.bx-hit { --bx-accent: var(--bx-teal, #21e6c1); }
+.bx-premium .bx-bg-cell.bx-hit img { animation: bx-premium-flash 900ms cubic-bezier(.2,1.4,.35,1); }
+/* BINGO: das Brett hebt sich, die Linie darf ihre eigene Animation behalten. */
+.bx-premium .bx-bg-grid.bx-hit { --bx-accent: var(--bx-gold, #ffd23e); }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {
@@ -93,6 +106,19 @@ function ensureStyle() {
     document.head.appendChild(s);
   }
 }
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
+
 const CHECK_SVG = `<svg viewBox="0 0 24 24"><path d="M4 12.5l5.2 5.5L20 6.5" fill="none" stroke="#3df5cf" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
 
@@ -274,6 +300,8 @@ export default class BingoWidget {
     chk.className = 'bx-bg-check';
     chk.innerHTML = CHECK_SVG;
     cell.el.appendChild(chk);
+    // Der Moment im Kleinen: genau dieses Feld wurde eben erfüllt.
+    bxHit(cell.el, this.timers);
     if (this.cellSound) this.ctx.playSound?.(this.cellSound);
     this.checkLines();
   }
@@ -296,6 +324,8 @@ export default class BingoWidget {
       this.drawStrike(line.cells);
     }
     if (newBingo) {
+      // Der Moment im Großen: eine Reihe steht — das ganze Brett reagiert.
+      bxHit(this.gridEl, this.timers);
       this.banner('BINGO!');
       this.ctx.playSound?.(this.bingoSound || this.cellSound);
     }

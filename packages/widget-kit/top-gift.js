@@ -170,6 +170,39 @@ const CSS = `
    (border-color: transparent) hätte sie ersatzlos ausgeknipst. */
 .bx-frameless .bx-tg.bx-tg-neonschild { border-color: color-mix(in srgb, var(--bx-accent) 85%, white) !important; }
 .bx-frameless .bx-tg.bx-tg-neonschild::before { border-color: color-mix(in srgb, var(--bx-accent) 55%, white) !important; }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Auslöser auf der KARTE, wenn ein NEUER REKORD gesetzt wird — genau der
+   Moment, den dieses Widget feiert (render() läuft nur dann).
+
+   KOLLISION 1: Die Karte trägt bereits „bounce". Beides zusammen (bounce
+   skaliert per transform, die Basis per scale) hätte sich multipliziert und
+   übertrieben gewirkt — deshalb übernimmt im Premium-Fall die Choreografie
+   der Basis das Anheben allein.
+   KOLLISION 2: Der Ring der Basis läuft über box-shadow. Genau dort steht bei
+   jedem Stil etwas anderes (Glasschatten, Messing-Vitrine, Neonröhre, gar
+   nichts beim Sticker) — ein Ring hätte das 900 ms lang ausgeknipst. Darum
+   hier stattdessen ein Schein über „filter", der die Silhouette umfasst: er
+   funktioniert bei JEDEM Stil und lässt jeden eigenen Schatten stehen. */
+.bx-premium .bx-tg.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-tg-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes bx-tg-hit-schein {
+  0% { filter: drop-shadow(0 0 0 color-mix(in srgb, var(--bx-accent) 95%, white)); }
+  22% { filter: drop-shadow(0 0 .55em color-mix(in srgb, var(--bx-accent) 90%, white)); }
+  100% { filter: drop-shadow(0 0 0 transparent); }
+}
+/* Das gezeichnete Geschenk-Symbol heißt nicht wie ein Bild und ging der Basis
+   durch die Lappen — hier bekommt es denselben Auftritt wie ein echtes
+   Gift-Bild, ohne sein Schweben zu verlieren. */
+.bx-premium .bx-tg.bx-hit .bx-tg-svg svg, .bx-premium .bx-tg.bx-hit .bx-tg-img {
+  animation: bx-premium-flash 900ms cubic-bezier(0.2, 1.4, 0.35, 1); }
+/* Mehr Tiefe an Kicker und Coin-Zeile — der Gift-Name bleibt die Schlagzeile. */
+.bx-premium .bx-tg-kicker { text-shadow: 0 0 .7em color-mix(in srgb, var(--bx-gold) 55%, transparent), 0 .06em .12em rgba(0,0,0,.8); }
+.bx-premium .bx-tg-coins { text-shadow: 0 0 .5em color-mix(in srgb, var(--bx-gold) 55%, transparent), 0 .06em .12em rgba(0,0,0,.75); }
+/* Vitrine und Podest setzen dunkle Schrift auf Messing bzw. Gold — dort wäre
+   ein Glow Matsch. */
+.bx-premium .bx-tg-vitrine .bx-tg-coins, .bx-premium .bx-tg-podest .bx-tg-coins { text-shadow: 0 1px 0 rgba(255,255,255,.45); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
@@ -182,6 +215,7 @@ export default class TopGift {
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.title = props.title || 'Größtes Gift';
     this.max = 0;
+    this.timers = new Set();
     this.el = document.createElement('div');
     // „glas" (Standard) und „sticker" behalten ihre alten Klassen unverändert,
     // damit bestehende Overlays exakt gleich aussehen. Neue Stile folgen dem
@@ -227,9 +261,15 @@ export default class TopGift {
     this.el.querySelector('.bx-tg-gift').textContent = slug;
     this.el.querySelector('.bx-tg-by b').textContent = nickname || 'Jemand';
     this.el.classList.remove('bounce'); void this.el.offsetWidth; this.el.classList.add('bounce');
+    // Premium-Auslöser: ein neuer Rekord ist DER bemerkenswerte Moment.
+    // Klasse weg, Reflow, Klasse neu — sonst bliebe der Effekt bei zwei
+    // Rekorden kurz hintereinander (Combo) beim ersten stehen.
+    this.el.classList.remove('bx-hit'); void this.el.offsetWidth; this.el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); this.el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
   }
   // Neuer Stream → Rekord zurück auf „leer".
   onReset() { this.max = 0; this.el.innerHTML = `<div class="bx-tg-empty">${GIFT_SVG}<span>Noch kein Gift</span></div>`; }
-  destroy() { this.el.remove(); }
+  destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

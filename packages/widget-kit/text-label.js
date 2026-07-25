@@ -37,8 +37,36 @@ const CSS = `
   background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,.85) 50%, transparent 65%);
   -webkit-mask: linear-gradient(#000 0 0); animation: bx-tl-sh 2.8s ease-in-out infinite; mix-blend-mode:overlay; }
 @keyframes bx-tl-sh { 0%{ transform:translateX(-120%) } 60%,100%{ transform:translateX(120%) } }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Ein Schriftfeld wechselt seinen Eintrag nie — es hat genau einen Moment: das
+   Erscheinen. Dort setzt der Auslöser an, und zwar nur als Anheben. Ein Ring
+   um einen Textblock wäre ein Kasten mitten auf dem Videobild.
+   Die Dauer-Effekte (Puls, Hüpfen, Schweben, Glühen, Regenbogen) laufen im
+   Widget selbst und stehen im Dokument nach widget-base.css — sie hätten den
+   Auslöser überschrieben. Deshalb hier je Variante beides zusammen. */
+.bx-premium .bx-tl-t.bx-hit { --bx-tl-lift: bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1);
+  animation: var(--bx-tl-lift); }
+.bx-premium .bx-tl.glow .bx-tl-t.bx-hit { animation: bx-tl-glow 2s ease-in-out infinite, var(--bx-tl-lift); }
+.bx-premium .bx-tl.pulse .bx-tl-t.bx-hit { animation: bx-tl-pulse 1.8s ease-in-out infinite, var(--bx-tl-lift); }
+.bx-premium .bx-tl.bounce .bx-tl-t.bx-hit { animation: bx-tl-bounce 1.5s cubic-bezier(.3,1.3,.5,1) infinite, var(--bx-tl-lift); }
+.bx-premium .bx-tl.float .bx-tl-t.bx-hit { animation: bx-tl-float 3.6s ease-in-out infinite, var(--bx-tl-lift); }
+.bx-premium .bx-tl.rainbow .bx-tl-t.bx-hit { animation: bx-tl-rb 5s linear infinite, var(--bx-tl-lift); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird, entscheidet die Premium-Ebene in widget-base.css bzw. die
+// eigene Fassung oben — ohne den Haken „Premium-Effekte" passiert nichts.
+// Bewusst lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
 
 export default class TextLabel {
   constructor(root, props) {
@@ -61,6 +89,9 @@ export default class TextLabel {
     this.ro = new ResizeObserver(() => this.fit());
     this.ro.observe(this.el);
     this.fit();
+    // Der einzige Moment dieses Widgets: es erscheint.
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
+    bxHit(t, this.timers);
   }
   /** Schrift so weit verkleinern, bis der (ggf. umgebrochene) Text ganz in die
    *  Box passt. Passt er ohnehin, bleibt die CSS-Größe unangetastet. */
@@ -78,5 +109,5 @@ export default class TextLabel {
       t.style.fontSize = `${size}px`;
     }
   }
-  destroy() { this.ro?.disconnect(); this.el.remove(); }
+  destroy() { this.ro?.disconnect(); for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

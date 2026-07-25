@@ -64,11 +64,43 @@ const CSS = `
    frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
 html .bx-frameless .bx-c4-colhdr { -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-c4-status { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Der Auslöser sitzt auf dem eben eingeworfenen STEIN und deutlicher auf den
+   Steinen der Gewinnreihe. Er rundet sich mit ihnen (border-radius erbt der
+   Ring vom Element), sitzt also als Kreis um den Chip.
+   Ausgenommen bleibt das BRETT: seine blaue Platte samt Innenschatten ist eine
+   feste Form; ein Ring darum hätte den Schatten für eine Sekunde gelöscht und
+   das Brett wäre flach geworden. Die Löcher bleiben ebenfalls ruhig.
+   Die Gewinnsteine glühen von Haus aus dauerhaft — die Widget-Regel steht im
+   Dokument nach widget-base.css und hätte den Auslöser überschrieben. Deshalb
+   hier zusammengefasst: erst der Ring, danach (900 ms) das Glühen. */
+.bx-premium .bx-c4-cell .pc.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1); }
+.bx-premium .bx-c4-cell.win .pc.bx-hit {
+  --bx-accent: #fff;
+  animation: bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1),
+    bx-c4-glow 1s ease-in-out 900ms infinite; }
 `;
 function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {
     const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s);
   }
+}
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
 }
 
 /** Leeres 6x7-Brett (alle Felder null). Reine Logik. */
@@ -128,6 +160,9 @@ export default class ConnectFourWidget {
     }
 
     this.state = null;
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
+    this._prev = null;       // letzter Brettstand → erkennt den eingeworfenen Stein
+    this._winShown = false;  // Gewinnreihe genau einmal auslösen
     // Editor-Schaufenster: Demo-Stand zeigen.
     if (this.ctx.preview) this.state = this.demoState();
     this.render();
@@ -212,15 +247,30 @@ export default class ConnectFourWidget {
       statusEl.textContent = `${turn === 'R' ? nameR : nameY} ist am Zug`;
     }
 
-    // Brett: Steine + Gewinn-Hervorhebung
+    // Brett: Steine + Gewinn-Hervorhebung. Der Auslöser gilt nur für das, was
+    // sich WIRKLICH geändert hat — beim ersten Aufbau (Mount, Demo-Stand) bleibt
+    // das Brett ruhig, sonst plumpsten alle Steine gleichzeitig los.
+    const first = this._prev === null;
+    const winHits = [];
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const cell = this.cells[r][c];
         const pc = cell.firstChild;
         const v = (board[r] && board[r][c]) || null;
         pc.className = 'pc' + (v ? ` set ${v}` : '');
-        cell.classList.toggle('win', status === 'won' && wins.has(`${r},${c}`));
+        const isWin = status === 'won' && wins.has(`${r},${c}`);
+        cell.classList.toggle('win', isWin);
+        if (isWin) winHits.push(pc);
+        else if (!first && v && v !== this._prev[r][c]) bxHit(pc, this.timers);
       }
+    }
+    this._prev = board.map((row) => (Array.isArray(row) ? row.slice(0, COLS) : Array(COLS).fill(null)));
+    // Der Gewinnzug — deutlicher als ein einzelner Stein: die ganze Reihe.
+    if (status === 'won' && !this._winShown) {
+      this._winShown = true;
+      for (const pc of winHits) bxHit(pc, this.timers);
+    } else if (status !== 'won') {
+      this._winShown = false;
     }
   }
 
@@ -229,6 +279,8 @@ export default class ConnectFourWidget {
 
   destroy() {
     clearTimeout(this._flashT);
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     if (this.el) this.el.remove();
   }
 }

@@ -76,6 +76,41 @@ const CSS = `
 html .bx-frameless .bx-ht-title { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-ht-lvl { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-ht-foot { color: #fff; -webkit-text-stroke: max(1.5px, .11em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Zwei Stufen: jeder Beitrag treibt den Balken → die BAHN löst aus. Steigt der
+   Zug dabei eine Stufe, löst zusätzlich die LEVEL-ANZEIGE aus — der lautere
+   Moment bekommt die zweite Stelle.
+   Bewusst nicht das Panel: dessen box-shadow trägt Glas und Level-Glow, der
+   Ring hätte beides 900 ms lang ersetzt.
+
+   KOLLISION: Beim Stufenaufstieg pumpt die Bahn bereits
+   („.bx-ht.levelup .bx-ht-track") und ist damit spezifischer als der Auslöser
+   der Basis. Darum hier beides gemeinsam. */
+.bx-premium .bx-ht.levelup .bx-ht-track.bx-hit {
+  animation: bx-ht-pump .5s ease,
+    bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+/* Der Rakete-Stil kippt die Bahn (skewX) — der Ring folgt dieser Schräge von
+   selbst, weil er am Element hängt. Der abgerundete Radius bleibt erhalten. */
+/* Der Ring der Basis zeichnet in der Akzentfarbe. Beim Hype-Train sagt aber die
+   LEVEL-Farbe, wie heiß es gerade ist — der Auslöser übernimmt sie, sonst
+   leuchtet Stufe 5 in derselben Farbe wie Stufe 1. */
+.bx-premium .bx-ht-track.bx-hit, .bx-premium .bx-ht-lvl.bx-hit { --bx-accent: var(--bx-ht-color, #ff4d2e); }
+/* Die Level-Anzeige ist reiner Text. Der Ring der Basis ist in em bemessen und
+   wird in großen Boxen zur Farbplatte statt zur Kontur — deshalb ein Schein,
+   der der Schriftform folgt. */
+.bx-premium .bx-ht-lvl.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-ht-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes bx-ht-hit-schein {
+  0% { filter: drop-shadow(0 0 0 var(--bx-ht-color, #ff4d2e)) drop-shadow(0 0 0 var(--bx-ht-color, #ff4d2e)); }
+  18% { filter: drop-shadow(0 0 .12em var(--bx-ht-color, #ff4d2e)) drop-shadow(0 0 .32em var(--bx-ht-color, #ff4d2e)); }
+  100% { filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); }
+}
+/* Mehr Tiefe: Titel und Level führen, die Fußzeile tritt zurück. */
+.bx-premium .bx-ht-lvl { text-shadow: 0 0 .5em color-mix(in srgb, var(--bx-ht-color, var(--bx-accent)) 65%, transparent); }
+.bx-premium .bx-ht-foot { opacity: .9; }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(Math.round(n)));
@@ -99,6 +134,7 @@ export default class HypeTrain {
     this.deadline = 0;
     this.contributors = 0;
     this.lastT = 0;
+    this.timers = new Set();
 
     this.style = ['zug', 'rakete', 'led'].includes(props.style) ? props.style : 'zug';
     this.el = document.createElement('div');
@@ -155,6 +191,22 @@ export default class HypeTrain {
     this.level = Math.min(this.maxLevels, Math.floor(this.points / this.levelStep) + 1);
     if (this.level > prevLevel) this.levelUp();
     this.render();
+    // Premium-Auslöser: jeder Beitrag treibt die Bahn; ein Stufenaufstieg
+    // bekommt zusätzlich die Level-Anzeige — deutlich lauter.
+    this.hit(this.el.querySelector('.bx-ht-track'));
+    if (this.level > prevLevel) this.hit(this.lvlEl);
+  }
+
+  /** Premium-Auslöser (siehe widget-base.css, .bx-premium). Immer setzen — ob
+   *  daraus ein Effekt wird, entscheidet die Basis. Klasse weg, Reflow, Klasse
+   *  neu, damit der Effekt bei einer Gift-Salve erneut anspringt. */
+  hit(el) {
+    if (!el) return;
+    el.classList.remove('bx-hit');
+    void el.offsetWidth;
+    el.classList.add('bx-hit');
+    const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+    this.timers.add(t);
   }
 
   start() {
@@ -221,6 +273,8 @@ export default class HypeTrain {
 
   destroy() {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     this.active = false;
     this.el.remove();
   }

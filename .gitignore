@@ -25,3 +25,7 @@ userData/
 *.local.json
 .env
 .env.*
+
+# Wegwerf-Render-/Debug-Dateien im Widget-Ordner (Prefix _) — kommen beim
+# Screenshot-Prüfen vor, sollen nie eingecheckt oder mitgebaut werden.
+packages/widget-kit/_*

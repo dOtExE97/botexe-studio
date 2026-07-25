@@ -48,6 +48,34 @@ const CSS = `
   -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 max(1px, .04em) max(3px, .1em) rgba(0,0,0,.6); }
 .bx-frameless .bx-sc-icon { filter: drop-shadow(0 0 1.5px rgba(10,11,18,.95)) drop-shadow(0 2px 4px rgba(0,0,0,.7)); }
+
+/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
+   Auslöser an der PILLE, sobald sich ihre Zahl ändert — der einzige Moment,
+   den dieses Widget kennt. Die Pille ist der richtige Träger: Symbol und Zahl
+   gehören zusammen, und der Ring folgt ihrer Kapselform.
+   Die eigene Choreografie (Zahl poppt, Symbol glüht auf) sitzt auf den
+   KINDERN und bleibt dadurch unangetastet.
+
+   Das Symbol heißt „bx-sc-icon" und fällt unter [class*='-ic'] der Basis,
+   bekommt also das langsame Atmen. Das passt hier: es ist ein einzelnes,
+   freistehendes Zeichen — keine gefüllte Kachel, deren Form dabei pulsen
+   würde. Nur im Badges-Stil steht es fast schwarz auf hellem Verlauf, dort
+   bleibt die Helligkeitswelle ohnehin unsichtbar. */
+/* KOLLISION: Im Badges-Stil ist die Pille per clip-path zur Parallelogramm-
+   Plakette geschnitten — ein clip-path schneidet auch box-shadow weg, der Ring
+   der Basis war dort schlicht unsichtbar. Ersatz ist ein Schein über „filter",
+   der die geschnittene Silhouette umfasst. */
+.bx-premium .bx-sc-badges .bx-sc-chip.bx-hit {
+  animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
+    bx-sc-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes bx-sc-hit-schein {
+  0% { filter: drop-shadow(0 0 0 color-mix(in srgb, var(--bx-accent) 95%, white)); }
+  22% { filter: drop-shadow(0 0 .45em color-mix(in srgb, var(--bx-accent) 90%, white)); }
+  100% { filter: drop-shadow(0 0 0 transparent); }
+}
+/* Mehr Tiefe: die Zahl führt, das Symbol begleitet. */
+.bx-premium .bx-sc-value { text-shadow: 0 .05em .12em rgba(0,0,0,.95), 0 0 .5em rgba(0,0,0,.6); }
+.bx-premium .bx-sc-badges .bx-sc-value { text-shadow: none; }
 `;
 // Monochrome Inline-SVG-Icons (24×24, currentColor) — bewusst schlicht, edel.
 const ICON = {
@@ -79,6 +107,7 @@ export default class StatChips {
     const style = ['glas', 'badges', 'minimal'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-sc${style !== 'glas' ? ` bx-sc-${style}` : ''}`;
     this.chips = new Map();
+    this.timers = new Set();
     for (const m of wanted) {
       const chip = document.createElement('div');
       chip.className = 'bx-sc-chip';
@@ -97,8 +126,18 @@ export default class StatChips {
   onStats(stats) {
     for (const [metric, c] of this.chips) {
       const v = Number(stats?.totals?.[METRICS[metric][0]] ?? 0);
-      if (v !== c.last) { c.last = v; c.value.textContent = fmt(v); c.chip.classList.remove('pulse'); void c.chip.offsetWidth; c.chip.classList.add('pulse'); }
+      if (v !== c.last) {
+        c.last = v; c.value.textContent = fmt(v);
+        // Klasse weg, Reflow, Klasse neu — sonst bliebe der Effekt bei zwei
+        // Änderungen kurz hintereinander beim ersten stehen. Gilt für die
+        // eigene Puls-Klasse wie für den Premium-Auslöser.
+        c.chip.classList.remove('pulse'); c.chip.classList.remove('bx-hit');
+        void c.chip.offsetWidth;
+        c.chip.classList.add('pulse'); c.chip.classList.add('bx-hit');
+        const t = setTimeout(() => { this.timers.delete(t); c.chip.classList.remove('bx-hit'); }, 900);
+        this.timers.add(t);
+      }
     }
   }
-  destroy() { this.el.remove(); }
+  destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
 }

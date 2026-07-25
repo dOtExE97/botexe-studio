@@ -77,9 +77,35 @@ const CSS = `
    frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
 html .bx-frameless .bx-pl-q { -webkit-text-stroke: max(1.5px, .08em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 html .bx-frameless .bx-pl-foot { color: #fff; -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+
+/* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
+   Der Moment ist das Ergebnis: der Balken, der die Abstimmung gewonnen hat. Er
+   trägt schon Gold-Rahmen und eigene Puls-Animation, und die Widget-Regeln
+   stehen im Dokument nach widget-base.css — der Auslöser wäre überschrieben
+   worden. Darum hier beides zusammen, mit dem Ring in Gold (der Farbe des
+   Siegerbalkens) statt im Akzent. */
+.bx-premium .bx-pl-bar.win.bx-hit {
+  --bx-accent: var(--bx-gold, #ffd23e);
+  animation: bx-pl-win .8s ease-in-out 2,
+    bx-premium-lift 900ms cubic-bezier(.2,1.5,.35,1),
+    bx-premium-ring 900ms cubic-bezier(.2,.9,.3,1); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const STYLES = new Set(['bars', 'cards']);
+
+// Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
+// Was daraus wird (Anheben, Ring, Aufblitzen), entscheidet die Premium-Ebene in
+// widget-base.css — ohne den Haken „Premium-Effekte" passiert nichts. Bewusst
+// lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
+function bxHit(el, timers) {
+  if (!el) return;
+  el.classList.remove('bx-hit');
+  void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
+  el.classList.add('bx-hit');
+  const t = setTimeout(() => { timers.delete(t); el.classList.remove('bx-hit'); }, 900);
+  timers.add(t);
+}
+
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 
 export default class LivePoll {
@@ -95,6 +121,7 @@ export default class LivePoll {
     this.autoNewRound = props.autoNewRound !== false;
     this.roundDelay = Math.max(1500, Number(props.roundDelayMs ?? 6000));
     this.revealSound = props.revealSoundId || '';
+    this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
 
     this.el = document.createElement('div');
     this.el.className = 'bx-pl' + (this.style === 'cards' ? ' cards' : '');
@@ -173,6 +200,8 @@ export default class LivePoll {
     const { winner } = pollResult(this.counts);
     if (winner >= 0 && this.barEls[winner]) {
       this.barEls[winner].classList.add('win');
+      // Der Moment der Umfrage: die führende Antwort ist die Antwort.
+      bxHit(this.barEls[winner], this.timers);
       if (this.revealSound) this.ctx.playSound?.(this.revealSound);
     }
     if (this.autoNewRound && !this.ctx.preview) {
@@ -209,6 +238,8 @@ export default class LivePoll {
     if (this.roundTimer) clearTimeout(this.roundTimer);
     if (this.previewTimer) clearInterval(this.previewTimer);
     if (this.previewCycle) clearInterval(this.previewCycle);
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     this.el.remove();
   }
 }
