@@ -104,6 +104,7 @@ const ACTION_LABELS: Record<string, string> = {
   speak: 'TTS-Ansage',
   spin_wheel: 'Glücksrad',
   spin_slot: 'Spielautomat',
+  lucky_draw: 'Karten-Ziehung (Geschenke-Slider)',
   play_media: 'Media',
   counter_add: 'Zähler',
   obs_scene: 'OBS-Szene',
