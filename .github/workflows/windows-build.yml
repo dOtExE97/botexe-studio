@@ -2,10 +2,12 @@
 # - Push auf main / manuell: baut die Setup-.exe als Artefakt (zum Testen).
 # - Push eines Versions-Tags `v*` (z.B. v0.2.0): VERÖFFENTLICHT ein GitHub-Release
 #   mit Squirrel-Feed (.exe + .nupkg + RELEASES) für das Auto-Update.
-#   Damit dabei auch DELTA-Pakete entstehen (nur die Änderungen statt ~150 MB),
-#   bekommt der Publish-Schritt `BX_REMOTE_RELEASES` — damit lädt Squirrel den
-#   bisherigen Feed und rechnet die Differenz. Fehlt die Variable (lokaler Build),
-#   entsteht nur das volle Paket.
+#   ACHTUNG: KEINE Delta-Pakete! update.electronjs.org macht nur aus der ERSTEN
+#   Zeile der RELEASES-Datei eine absolute Adresse und hängt sie ans neueste
+#   Release. Enthält die Datei mehr als die aktuelle Version (so wie mit Squirrels
+#   `remoteReleases`), zeigt diese Zeile auf eine Datei, die dort nicht liegt →
+#   der Update-Helfer stirbt mit „Command failed: 4294967295" und NIEMAND kann
+#   mehr updaten (passiert in v0.39.0, zurückgenommen in v0.39.1).
 name: Windows Build
 
 on:
@@ -58,6 +60,3 @@ jobs:
         run: npm run publish --workspace apps/desktop
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Lässt Squirrel den bisherigen Feed laden und zusätzlich Delta-Pakete
-          # rechnen — sonst lädt jeder Nutzer bei jedem Update die vollen ~150 MB.
-          BX_REMOTE_RELEASES: https://github.com/${{ github.repository }}

@@ -3,6 +3,15 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.39.1] — 2026-07-27
+
+### Behoben: Auto-Update ging nicht mehr (dringend)
+Mit 0.39.0 schlug die Update-Suche mit „Command failed: 4294967295" fehl — Updates kamen nicht mehr an. Ursache war die in 0.39.0 eingeführte Umstellung auf Delta-Pakete: Der Update-Dienst kommt mit der dadurch veränderten Versionsliste nicht zurecht und verweist auf eine Paketdatei, die es nicht gibt. Die Umstellung ist zurückgenommen — Updates funktionieren wieder wie gewohnt.
+
+**Nur falls die App bei dir noch auf 0.39.0 hängt:** einmal die aktuelle Setup-Datei von der GitHub-Releases-Seite herunterladen und drüber installieren, danach läuft das automatische Update wieder von allein.
+
+*(Updates laden damit vorerst wieder das komplette Paket. Die Ersparnis holen wir später sauber nach — sie darf das Update nicht gefährden.)*
+
 ## [0.39.0] — 2026-07-26
 
 ### Neu: „Was ist neu?" nach dem Update ✨

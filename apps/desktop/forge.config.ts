@@ -45,13 +45,16 @@ const config: ForgeConfig = {
       name: 'botexe-studio',
       authors: 'dotexe',
       description: 'Lokales TikTok-Live Overlay-Studio',
-      // Ohne diese Zeile kannte der Build-Server die Vorgängerversion nicht und
-      // konnte KEINE Delta-Pakete rechnen — jeder Nutzer lud bei jedem Update die
-      // vollen ~150 MB. Mit der Adresse lädt Squirrel den bisherigen Feed und legt
-      // zusätzlich kleine Delta-Pakete an (nur die Änderungen).
-      // Absichtlich nur beim Veröffentlichen (Tag-Build) aktiv: bei einem lokalen
-      // `npm run make` ohne Netz soll der Build nicht daran scheitern.
-      ...(process.env.BX_REMOTE_RELEASES ? { remoteReleases: process.env.BX_REMOTE_RELEASES } : {}),
+      // NICHT `remoteReleases` setzen — auch wenn es verlockend ist, weil es
+      // Delta-Pakete brächte (~90 statt ~150 MB pro Update):
+      // Damit listet die RELEASES-Datei die ganze Versions-Historie. Unser Updater
+      // holt sie aber über update.electronjs.org, und der Dienst macht NUR aus der
+      // ERSTEN Zeile eine absolute Adresse — angehängt ans NEUESTE Release. Die
+      // erste Zeile ist dann die ÄLTESTE Version, deren Paket dort nicht liegt →
+      // 404 → „Command failed: 4294967295", und das Auto-Update ist für ALLE tot.
+      // Genau so passiert in v0.39.0 (zurückgenommen in v0.39.1).
+      // Deltas gingen nur mit einem eigenen Feed, wo alle Pakete am selben Ort
+      // liegen (z.B. UpdateSourceType.StaticStorage) — bewusst offen gelassen.
     }),
     new MakerZIP({}, ['linux']),
   ],
