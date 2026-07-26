@@ -570,6 +570,27 @@ export const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'slot-machine', label: 'Gambling-Automat', desc: 'Spielautomat: ein Geschenk lässt die Walzen drehen — mit einstellbarer Gewinnchance wird zufällig eins deiner Geschenke gezogen und ausgelöst.',
+    w: 640, h: 480, props: { source: 'trigger', items: '', style: 'neon', accent: '#ff5e8a', spinGift: '', winChance: 60, spinMs: 2000 },
+    fields: [
+      { key: 'source', label: 'Woher kommen die Symbole', type: 'select', options: [
+        { value: 'trigger', label: 'Automatisch aus meinen Geschenk-Triggern' },
+        { value: 'liste', label: 'Meine Liste unten' },
+      ], hint: 'Die Walzen zeigen deine Geschenke/Challenges. Automatisch: bleibt von allein aktuell, wenn du deine Trigger änderst.' },
+      { key: 'items', label: 'Geschenke auf den Walzen', type: 'gift-command-list', textPlaceholder: 'Was löst es aus?', hint: 'Pro Zeile ein Geschenk wählen und dazuschreiben, was es auslöst. Bild kommt automatisch dazu. (Wird bei „Automatisch aus meinen Geschenk-Triggern" nicht benutzt.)', showIf: (p) => p.source === 'liste' },
+      { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift über den Walzen.' },
+      { key: 'spinGift', label: 'Bei welchem Geschenk drehen?', type: 'gift', hint: 'Schickt das jemand, drehen die Walzen. Leer = nur manuell.', showIf: (p) => (p.source ?? 'trigger') === 'trigger' },
+      { key: 'winChance', label: 'Gewinnchance (%)', type: 'number', hint: '0 = nie ein Gewinn, 100 = immer. Bestimmt, wie oft 3 Gleiche fallen.', showIf: (p) => (p.source ?? 'trigger') === 'trigger' },
+      { key: 'spinMs', label: 'Dreh-Dauer', type: 'seconds', hint: 'Wie lange die Walzen drehen, bis sie stoppen. Bestimmt auch, wann bei Gewinn die Aktion feuert (gleichzeitig mit dem Stopp).', showIf: (p) => (p.source ?? 'trigger') === 'trigger' },
+      ACCENT_FIELD,
+      styleField([
+        { value: 'neon', label: '⚡ Neon (Standard)' },
+        { value: 'classic', label: '🎡 Klassisch' },
+        { value: 'casino', label: '🎰 Casino (Gold & Rot-Schwarz)' },
+      ]),
+    ],
+  },
+  {
     type: 'giveaway', label: 'Giveaway / Verlosung', desc: 'Verlosung: Zuschauer schreiben !join in den Chat und sind im Lostopf. Auf Knopfdruck zieht das Widget spannend animiert einen Gewinner.',
     w: 760, h: 240, props: { style: 'strip', title: 'Giveaway', soundId: '', winSoundId: 'botexe-gewinn.wav', accent: '#ff5436', theme: 'glas' },
     fields: [

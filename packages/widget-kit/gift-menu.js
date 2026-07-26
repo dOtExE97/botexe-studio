@@ -1509,6 +1509,19 @@ export default class GiftMenu {
     this.celebrate(i, event.user && event.user.nickname);
   }
 
+  /** Reine Anzeige-Aktion (Stück 3, Teil C): der Gambling-Automat hat dieses
+   *  Geschenk als Gewinner ausgelost — Challenge hier starten, als wäre das
+   *  Geschenk gesendet worden (aber ohne echtes Gift-Event, also ohne
+   *  Coin-/Zähler-Nebenwirkung). matchIndex/celebrate sind dieselben wie bei
+   *  onEvent — celebrate() startet den Countdown nur, wenn der Eintrag eine
+   *  Dauer (secs>0) trägt; sonst blitzt der Eintrag nur kurz auf. */
+  onAction(action) {
+    if (!action || action.kind !== 'start_gift_challenge') return;
+    const i = this.matchIndex({ slug: action.slug });
+    if (i < 0) return;
+    this.celebrate(i, action.who);
+  }
+
   /** Der getroffene Eintrag springt nach vorn und feiert kurz. */
   celebrate(i, who) {
     const targets = [...this.el.querySelectorAll(`[data-idx="${i}"]`)]
