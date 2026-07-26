@@ -11,6 +11,7 @@ import { Studio } from './main/services/studio';
 import type { TTSSettings } from './main/services/settings-store';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
+import { TUNING_SPECS } from './main/services/tts-tuning';
 import { log, initFileLogging, getLogDir, formatLocalStamp } from './main/core/logger';
 import { generateLayers, generateRules, listGeminiModels, type AiCatalogEntry, type AiTriggerContext } from './main/services/ai-overlay';
 import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, uninstallHostsEntry, TTLS_HOST } from './main/services/ttls-link';
@@ -855,6 +856,10 @@ function registerIpc(): void {
     }
   });
   ipcMain.handle(IPC.TTS_BYOK_PROVIDERS, () => BYOK_PROVIDERS);
+  // Feineinstellungs-Regler pro Anbieter (edge/piper/openai/…) — reine Daten
+  // aus tts-tuning.ts, damit die TTS-Seite nur die zur gewählten Stimme
+  // passenden Regler zeigt (Task 4).
+  ipcMain.handle(IPC.TTS_TUNING_SPECS, () => TUNING_SPECS);
   ipcMain.handle(IPC.TTS_BYOK_STATUS, () => isStudio().ttsCredentialStatus());
   ipcMain.handle(IPC.TTS_BYOK_SET, (_e, provider: unknown, fields: unknown) => {
     if (typeof provider !== 'string' || typeof fields !== 'object' || fields === null) {
