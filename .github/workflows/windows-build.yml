@@ -1,8 +1,11 @@
 # Windows-Build & Release.
 # - Push auf main / manuell: baut die Setup-.exe als Artefakt (zum Testen).
 # - Push eines Versions-Tags `v*` (z.B. v0.2.0): VERÖFFENTLICHT ein GitHub-Release
-#   mit Squirrel-Feed (.exe + .nupkg + RELEASES) → die App zieht daraus per Delta
-#   automatisch nur die Änderungen (Auto-Update).
+#   mit Squirrel-Feed (.exe + .nupkg + RELEASES) für das Auto-Update.
+#   Damit dabei auch DELTA-Pakete entstehen (nur die Änderungen statt ~150 MB),
+#   bekommt der Publish-Schritt `BX_REMOTE_RELEASES` — damit lädt Squirrel den
+#   bisherigen Feed und rechnet die Differenz. Fehlt die Variable (lokaler Build),
+#   entsteht nur das volle Paket.
 name: Windows Build
 
 on:
@@ -55,3 +58,6 @@ jobs:
         run: npm run publish --workspace apps/desktop
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Lässt Squirrel den bisherigen Feed laden und zusätzlich Delta-Pakete
+          # rechnen — sonst lädt jeder Nutzer bei jedem Update die vollen ~150 MB.
+          BX_REMOTE_RELEASES: https://github.com/${{ github.repository }}

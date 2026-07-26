@@ -45,6 +45,13 @@ const config: ForgeConfig = {
       name: 'botexe-studio',
       authors: 'dotexe',
       description: 'Lokales TikTok-Live Overlay-Studio',
+      // Ohne diese Zeile kannte der Build-Server die Vorgängerversion nicht und
+      // konnte KEINE Delta-Pakete rechnen — jeder Nutzer lud bei jedem Update die
+      // vollen ~150 MB. Mit der Adresse lädt Squirrel den bisherigen Feed und legt
+      // zusätzlich kleine Delta-Pakete an (nur die Änderungen).
+      // Absichtlich nur beim Veröffentlichen (Tag-Build) aktiv: bei einem lokalen
+      // `npm run make` ohne Netz soll der Build nicht daran scheitern.
+      ...(process.env.BX_REMOTE_RELEASES ? { remoteReleases: process.env.BX_REMOTE_RELEASES } : {}),
     }),
     new MakerZIP({}, ['linux']),
   ],
