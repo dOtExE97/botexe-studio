@@ -673,6 +673,41 @@ const CSS = `
   box-shadow: 0 .2em .5em rgba(0,0,0,.5); }
 .bx-gm-card.is-hit .bx-gm-who { opacity:1; }
 
+/* ══ Lucky-Card (Stück 4, Task 1): Karten-Shuffle + Ziehung ═════════════
+   Der Automat blättert die Karten schnell→langsam durch (runLuckyDraw,
+   shuffleSchedule) und landet auf der vom Server gezogenen Karte.
+   .bx-gm-lucky sitzt auf der Widget-Wurzel, solange ein Draw läuft (dezenter
+   Rahmen-Puls, macht sichtbar "hier passiert gerade ein Zufallsspiel").
+   .bx-gm-lucky-flash markiert im Laufband die Kachel, die der Shuffle gerade
+   überfliegt (Rotation braucht das nicht — dort übernimmt is-in/show() die
+   Optik direkt). .bx-gm-lucky-win ist die Gewinn-Feier auf der gezogenen
+   Karte NACH celebrate() (zusätzlicher Glow/Glitzer-Rand, celebrate() selbst
+   liefert schon is-hit/Partikel). .bx-gm-lucky-miss ist das kurze "daneben"
+   bei einer Niete — bewusst schwächer/kürzer als der Gewinn, kein Glow. */
+@keyframes bx-gm-lucky-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 max(1px,.03em) color-mix(in srgb, var(--bx-accent,#ff5e8a) 45%, transparent); }
+  50% { box-shadow: inset 0 0 0 max(2px,.06em) color-mix(in srgb, var(--bx-accent,#ff5e8a) 85%, white); }
+}
+.bx-gm-lucky { animation: bx-gm-lucky-pulse 480ms ease-in-out infinite; }
+.bx-gm-lucky-flash { box-shadow: 0 0 0 max(1.5px,.05em) color-mix(in srgb, var(--bx-accent,#ff5e8a) 70%, white),
+    0 0 1.1em -.25em var(--bx-accent,#ff5e8a) !important; filter: brightness(1.18); }
+@keyframes bx-gm-lucky-win-glow {
+  0% { filter: brightness(1) saturate(1); }
+  30% { filter: brightness(1.5) saturate(1.4); }
+  100% { filter: brightness(1) saturate(1); }
+}
+.bx-gm-card.bx-gm-lucky-win, .bx-gm-chip.bx-gm-lucky-win {
+  animation: bx-gm-lucky-win-glow 1.1s ease-out;
+  box-shadow: 0 0 0 max(2px,.08em) var(--bx-gold,#ffd23e), 0 0 2.2em -.2em var(--bx-gold,#ffd23e),
+    0 .5em 1.2em -.5em rgba(0,0,0,.8) !important; }
+@keyframes bx-gm-lucky-miss-shake {
+  0%, 100% { transform: translateX(0); opacity:1; }
+  25% { transform: translateX(-.12em); }
+  75% { transform: translateX(.12em); }
+  90% { opacity:.7; }
+}
+.bx-gm-card.bx-gm-lucky-miss, .bx-gm-chip.bx-gm-lucky-miss { animation: bx-gm-lucky-miss-shake 420ms ease-in-out; filter: grayscale(.35); }
+
 /* ══ „Rahmen ausblenden" (frameless) ═══════════════════════════════════
    Der Nutzer will das Menü auch OHNE Karte über dem Videobild — nur Geschenk
    und Text. Panel, Rahmen, Dekor und Lichtstimmung fallen weg; dafür bekommt
@@ -1349,6 +1384,24 @@ import {
 // abgeschnitten wird.
 const TIMER_RING_R = 15;
 const TIMER_RING_C = 2 * Math.PI * TIMER_RING_R;
+/** Lucky-Card: reiner Helfer für den Shuffle-Fahrplan — `steps` Zeitpunkte
+ *  (ms ab Start), monoton steigend, „schnell→langsam": die ABSTÄNDE zwischen
+ *  den Zeitpunkten wachsen zum Ende hin (erster Abstand < letzter Abstand),
+ *  der letzte Zeitpunkt <= totalMs. Deshalb t^2 (quadratisch wachsend) statt
+ *  der eigentlich naheliegenden "ease-out"-Kurve (1-(1-t)^2): die hätte am
+ *  Anfang GROSSE und am Ende KLEINE Abstände (schnell werdende, nicht
+ *  langsam werdende Flips) — geprüft: passt nicht zum gewünschten "wird
+ *  langsamer". Reine Funktion (kein DOM, kein Zufall) — daher ohne Widget
+ *  testbar. */
+export function shuffleSchedule(steps, totalMs) {
+  const out = [];
+  for (let k = 1; k <= steps; k++) {
+    const t = k / steps;
+    out.push(Math.round(t * t * totalMs)); // quadratisch wachsend: Abstände nehmen zu
+  }
+  return out;
+}
+
 const TIMER_STYLES = new Set(['einfach', 'balken', 'ring']);
 
 /** "rose::Konfetti | galaxy::Songwunsch" → [{slug, text, secs}]. Ohne :: gilt der
@@ -1397,6 +1450,7 @@ export default class GiftMenu {
     this.meta = {};       // giftKey → { name, coins }
     this.metaById = {};   // giftId  → { name, coins, key }
     this.index = 0;
+    this.luckyRunning = false; // Lucky-Card (Task 1): verhindert überlappende Draws
 
     if (props.accent) root.style.setProperty('--bx-accent', String(props.accent));
     this.mode = MODES.has(props.mode) ? props.mode : 'rotation';
@@ -1461,6 +1515,16 @@ export default class GiftMenu {
     // wären sonst tot (Ticker liefe gegen entfernte Knoten weiter).
     this.activeTimers.clear();
     this.countdownTimer = null;
+    // Ein laufender Lucky-Draw hängt an den ALTEN Karten/Chips — die sind
+    // gleich weg, also Flag zurücksetzen (sonst bliebe der Automat für immer
+    // "gesperrt", weil luckyRunning nie wieder auf false geht).
+    this.luckyRunning = false;
+    // Die Lucky-Draw-Klassen hängen an this.el (nicht an den DOM-Knoten, die
+    // gleich neu gebaut werden) — ohne dieses Aufräumen bliebe der Pulse-Glow
+    // (bx-gm-lucky) für immer an, wenn der Rebuild mitten im Shuffle passiert
+    // und die oben geleerten Timeouts (die die Klasse sonst entfernen) nie
+    // mehr feuern.
+    this.el.classList.remove('bx-gm-lucky', 'bx-gm-lucky-win', 'bx-gm-lucky-miss');
     this.clearParticles();
     this.index = 0;
     const list = this.items.length ? this.items : [{ slug: '', text: 'Noch keine Geschenke eingetragen' }];
@@ -1516,10 +1580,94 @@ export default class GiftMenu {
    *  onEvent — celebrate() startet den Countdown nur, wenn der Eintrag eine
    *  Dauer (secs>0) trägt; sonst blitzt der Eintrag nur kurz auf. */
   onAction(action) {
-    if (!action || action.kind !== 'start_gift_challenge') return;
+    if (!action) return;
+    if (action.kind === 'lucky_draw') { this.runLuckyDraw(action); return; }
+    if (action.kind !== 'start_gift_challenge') return;
     const i = this.matchIndex({ slug: action.slug });
     if (i < 0) return;
     this.celebrate(i, action.who);
+  }
+
+  /** Lucky-Card (Stück 4, Task 1): die Karten shuffeln durch und landen auf
+   *  dem vom SERVER bereits ausgelosten `action.winnerIndex` — das Widget
+   *  entscheidet NIE selbst über Gewinn/Niete, es spielt nur die Optik.
+   *  Rotation: `show(zufälligerIndex)` im Fahrplan von shuffleSchedule, am
+   *  letzten Zeitpunkt fest auf winnerIndex. Laufband (keine `cards`): statt
+   *  show() wandert ein Highlight über die `data-idx`-Chips, zum Schluss
+   *  bleibt winnerIndex markiert. Gewinn → celebrate() (hebt hervor + startet
+   *  ggf. die Challenge) + kurze Gewinn-Feier-Klasse; Niete → nur ein kurzes
+   *  "daneben"-Aufblitzen, KEIN celebrate. */
+  runLuckyDraw(action) {
+    if (this.luckyRunning) return; // keine zwei Draws gleichzeitig
+    const n = (this.cards && this.cards.length) || this.list.length;
+    if (!n) return;
+    const winner = Math.max(0, Math.min(n - 1, Number(action.winnerIndex) || 0));
+    const totalMs = Math.max(600, Number(this.luckyDrawMs) || 3000);
+    const schedule = shuffleSchedule(16, totalMs);
+    // Number(0) || Math.random() würde einen echten Roll von 0 verwerfen —
+    // Number.isFinite prüft explizit, ob überhaupt ein gültiger Roll da ist.
+    const seed = Number.isFinite(action.roll) ? Number(action.roll) : Math.random();
+    this.luckyRunning = true;
+    this.el.classList.add('bx-gm-lucky');
+
+    const chips = this.mode === 'leiste'
+      ? [...this.el.querySelectorAll('.bx-gm-chip')]
+      : [];
+
+    const highlightChip = (idx) => {
+      for (const c of chips) c.classList.toggle('bx-gm-lucky-flash', Number(c.dataset.idx) === idx);
+    };
+
+    schedule.forEach((at, step) => {
+      const isLast = step === schedule.length - 1;
+      const t = setTimeout(() => {
+        this.timers.delete(t);
+        const idx = isLast ? winner : Math.floor(((seed * 9301 + step * 49297) % 1) * n);
+        const safeIdx = ((idx % n) + n) % n;
+        if (this.mode === 'leiste') highlightChip(safeIdx);
+        else if (this.cards && this.cards.length) this.show(safeIdx);
+        if (isLast) this.finishLuckyDraw(action, winner, chips);
+      }, at);
+      this.timers.add(t);
+    });
+  }
+
+  /** Landeergebnis nach dem letzten Shuffle-Schritt anzeigen (Gewinn-Feier
+   *  bzw. Niete-Blitz) und `luckyRunning` freigeben. */
+  finishLuckyDraw(action, winner, chips) {
+    this.luckyRunning = false;
+    for (const c of chips) c.classList.remove('bx-gm-lucky-flash');
+    if (action.win) {
+      this.celebrate(winner, action.who);
+      const targets = [...this.el.querySelectorAll(`[data-idx="${winner}"]`)]
+        .filter((el) => el.classList.contains('bx-gm-card') || el.classList.contains('bx-gm-chip'));
+      for (const el of targets) {
+        el.classList.remove('bx-gm-lucky-win');
+        void el.offsetWidth;
+        el.classList.add('bx-gm-lucky-win');
+      }
+      const wt = setTimeout(() => {
+        this.timers.delete(wt);
+        for (const el of targets) el.classList.remove('bx-gm-lucky-win');
+        this.el.classList.remove('bx-gm-lucky');
+      }, 2400);
+      this.timers.add(wt);
+    } else {
+      // Niete: nur ein kurzes "daneben"-Aufblitzen, kein celebrate/Challenge.
+      const targets = [...this.el.querySelectorAll(`[data-idx="${winner}"]`)]
+        .filter((el) => el.classList.contains('bx-gm-card') || el.classList.contains('bx-gm-chip'));
+      for (const el of targets) {
+        el.classList.remove('bx-gm-lucky-miss');
+        void el.offsetWidth;
+        el.classList.add('bx-gm-lucky-miss');
+      }
+      const mt = setTimeout(() => {
+        this.timers.delete(mt);
+        for (const el of targets) el.classList.remove('bx-gm-lucky-miss');
+        this.el.classList.remove('bx-gm-lucky');
+      }, 1200);
+      this.timers.add(mt);
+    }
   }
 
   /** Der getroffene Eintrag springt nach vorn und feiert kurz. */
@@ -1881,7 +2029,14 @@ export default class GiftMenu {
       if (!res.ok) return;
       const data = await res.json();
       const rules = Array.isArray(data) ? data : (data && Array.isArray(data.rules) ? data.rules : []);
-      const items = itemsFromRules(rules);
+      // Textfilter ZUERST anwenden — MUSS mit orderedGiftKeys() (Server,
+      // gift-mapping.ts) sowie slot-machine.js' und wheel.js' loadRules()
+      // deckungsgleich bleiben: Der Server errechnet winnerIndex = floor(
+      // rollPick * orderedGiftKeys(rules).length), und orderedGiftKeys()
+      // filtert dieselbe itemsFromRules-Liste auf `.text`. Ein breiterer
+      // Filter hier (oder gar keiner) nimmt Einträge auf, die der Server
+      // nicht zählt → Index-Drift, der Server trifft die falsche Karte.
+      const items = itemsFromRules(rules).filter((it) => it.text);
       if (!items.length) return;
       this.items = items;
       this.demo = false;
@@ -1896,6 +2051,7 @@ export default class GiftMenu {
     this.timers.clear();
     this.activeTimers.clear();
     this.countdownTimer = null;
+    this.luckyRunning = false;
     this.clearParticles();
     this.el.remove();
   }

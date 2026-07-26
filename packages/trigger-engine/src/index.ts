@@ -127,7 +127,13 @@ export type TriggerActionKind =
    *  benannten Geschenks — z.B. wenn der Gambling-Automat dieses Geschenk als
    *  Gewinner auslost (siehe slot-gift.ts planSlotSpins). Kann auf dem
    *  gift-menu-Widget nie erneut den Automaten auslösen. */
-  | { kind: 'start_gift_challenge'; targetId: string; slug: string; who?: string };
+  | { kind: 'start_gift_challenge'; targetId: string; slug: string; who?: string }
+  /** Lucky-Card: der Geschenke-Slider (gift-menu) shuffelt die Karten durch
+   *  und landet auf winnerIndex — win/winnerIndex/roll würfelt der SERVER
+   *  (Task 2, noch offen); das Widget entscheidet NIE selbst über
+   *  Gewinn/Niete, es spielt nur die Animation und löst bei Gewinn die
+   *  Challenge der gezogenen Karte aus (celebrate). */
+  | { kind: 'lucky_draw'; targetId: string; win?: boolean; winnerIndex?: number; roll?: number; who?: string };
 
 /** Eine Aktion mit optionaler Verzögerung (Combo-Sequenz: Alert jetzt,
  *  Sound +0,5s, Ansage +2s …). delayMs = Versatz ab Auslösung der Regel. */
