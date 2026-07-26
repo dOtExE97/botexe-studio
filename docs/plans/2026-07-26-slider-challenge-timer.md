@@ -8,10 +8,10 @@ rein, läuft auf genau diesem Eintrag im Geschenke-Slider ein animierter Countdo
 
 **Architektur:** Kein neues Widget. Das Item-Format `slug::text` wird um eine optionale
 Dauer erweitert (`slug::text::sekunden`). Das Widget `gift-menu` startet in `celebrate(i)`
-einen Countdown auf dem getroffenen Eintrag; ein reiner Kern (`countdown.js`) rechnet
+einen Countdown auf dem getroffenen Eintrag; ein reiner Kern (`gift-countdown.js`) rechnet
 Stacking/Cap/Format, das Widget tickt und rendert. Mehrere Optiken über `timerStyle`.
 
-**Tech Stack:** Vanilla-ES-Widget (`gift-menu.js`, neues `countdown.js`), React-Editor
+**Tech Stack:** Vanilla-ES-Widget (`gift-menu.js`, neues `gift-countdown.js`), React-Editor
 (`GiftCommandListEditor.tsx`), `widget-types.ts`, Tests unter `node:test`.
 
 ## Global Constraints
@@ -115,8 +115,8 @@ git commit -m "feat(gift-menu): Item-Format um optionale Dauer (slug::text::seku
 ### Task 2: Countdown-Engine im Widget (Stacking, Cap, Tick, Ablauf)
 
 **Files:**
-- Create: `packages/widget-kit/countdown.js` (reiner Kern)
-- Test: `packages/widget-kit/countdown.test.ts`
+- Create: `packages/widget-kit/gift-countdown.js` (reiner Kern)
+- Test: `packages/widget-kit/gift-countdown.test.ts`
 - Modify: `packages/widget-kit/gift-menu.js` (`celebrate` startet/verlängert Countdown; ein
   Sekunden-Ticker aktualisiert Anzeige; `destroy` räumt auf)
 
@@ -128,7 +128,7 @@ git commit -m "feat(gift-menu): Item-Format um optionale Dauer (slug::text::seku
 - [ ] **Schritt 1: Failing test — Kern (Stacking + Cap + Format)**
 
 ```ts
-import { stackRemaining, fmtTime } from './countdown.js';
+import { stackRemaining, fmtTime } from './gift-countdown.js';
 test('stackRemaining addiert und deckelt bei cap', () => {
   expect(stackRemaining(0, 60, 600)).toBe(60);   // Start
   expect(stackRemaining(20, 60, 600)).toBe(80);  // drauflegen
@@ -146,7 +146,7 @@ test('fmtTime formatiert m:ss', () => {
 - [ ] **Schritt 3: Kern implementieren**
 
 ```js
-// packages/widget-kit/countdown.js — reiner, DOM-freier Kern.
+// packages/widget-kit/gift-countdown.js — reiner, DOM-freier Kern.
 export function stackRemaining(prev, addSecs, cap = 600) {
   const base = prev > 0 ? prev : 0;
   return Math.min(cap, base + Math.max(0, addSecs));
@@ -158,11 +158,11 @@ export function fmtTime(secs) {
 }
 ```
 
-- [ ] **Schritt 4: Test grün** → PASS. `node --check countdown.js` → 0.
+- [ ] **Schritt 4: Test grün** → PASS. `node --check gift-countdown.js` → 0.
 
 - [ ] **Schritt 5: Im Widget verdrahten (`gift-menu.js`)**
 
-- `import { stackRemaining, fmtTime } from './countdown.js';`
+- `import { stackRemaining, fmtTime } from './gift-countdown.js';`
 - Zustand: `this.activeTimers = new Map();` (Key = `giftKey(item.slug)||'#'+giftId`, Wert
   `{ remaining, total, el }`).
 - In `celebrate(i)`: das getroffene Item bestimmen (aus der Liste per Index i). Wenn
@@ -186,9 +186,9 @@ Zustandsübergang in eine kleine reine Funktion ziehen und DIE testen.
 - [ ] **Schritt 6: Checks + Commit**
 
 Run: `npm run typecheck && npm run lint && npm test && npm run widget-check` → 0.
-`node --check packages/widget-kit/gift-menu.js packages/widget-kit/countdown.js` → 0.
+`node --check packages/widget-kit/gift-menu.js packages/widget-kit/gift-countdown.js` → 0.
 ```bash
-git add packages/widget-kit/countdown.js packages/widget-kit/countdown.test.ts packages/widget-kit/gift-menu.js
+git add packages/widget-kit/gift-countdown.js packages/widget-kit/gift-countdown.test.ts packages/widget-kit/gift-menu.js
 git commit -m "feat(gift-menu): Challenge-Countdown pro Eintrag (Stacking, Cap 600s, Tick, Ablauf)"
 ```
 
