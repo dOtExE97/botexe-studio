@@ -1,6 +1,9 @@
 // GiftCommandListEditor — pro Zeile ein GESCHENK (durchsuchbarer Picker) + ein
 // Text, was es auslöst. Für das Befehl-Karussell. Serialisiert als
 // "slug::Text | slug2::Text2" (parseItems im Widget versteht das + Legacy-Emoji).
+// Optional trägt eine Zeile eine Challenge-Dauer ("slug::Text::60" — Sekunden),
+// die als drittes Feld nur geschrieben wird, wenn secs > 0 (unverändertes
+// Format bleibt sonst 2-feldig).
 import { useEffect, useRef, useState } from 'react';
 import { X, Plus, ChevronUp, ChevronDown } from 'lucide-react';
 import GiftPicker from './GiftPicker';
@@ -8,24 +11,38 @@ import GiftPicker from './GiftPicker';
 interface Row {
   slug: string;
   text: string;
+  secs?: number;
 }
 
-function parse(value: string): Row[] {
+export function parse(value: string): Row[] {
   return String(value || '')
     .split('|')
     .map((s) => s.trim())
     .filter(Boolean)
     .map((s) => {
-      const i = s.indexOf('::');
-      if (i >= 0) return { slug: s.slice(0, i).trim(), text: s.slice(i + 2).trim() };
-      return { slug: '', text: s }; // Legacy-/Nur-Text-Eintrag
+      const parts = s.split('::');
+      if (parts.length === 1) return { slug: '', text: (parts[0] ?? '').trim() }; // Legacy-/Nur-Text-Eintrag
+      const slug = (parts[0] ?? '').trim();
+      const rest = parts.slice(1).map((p) => p.trim());
+      let secs = 0;
+      // Dauer nur, wenn NEBEN dem Text ein reines Zahlen-Feld am Ende steht
+      // (mind. 2 Felder nach dem slug) — „slug::42" bleibt Text, kein Timer.
+      const last = rest[rest.length - 1];
+      if (rest.length >= 2 && last !== undefined && /^\d+$/.test(last)) {
+        secs = Number(rest.pop());
+      }
+      const text = rest.join('::').trim();
+      return secs > 0 ? { slug, text, secs } : { slug, text };
     });
 }
 
-function serialize(rows: Row[]): string {
+export function serialize(rows: Row[]): string {
   return rows
     .filter((r) => r.slug || r.text)
-    .map((r) => (r.slug ? `${r.slug}::${r.text}` : r.text))
+    .map((r) => {
+      const base = r.slug ? `${r.slug}::${r.text}` : r.text;
+      return r.secs && r.secs > 0 ? `${base}::${r.secs}` : base;
+    })
     .join(' | ');
 }
 
@@ -99,14 +116,31 @@ export default function GiftCommandListEditor(
               <X size={13} />
             </button>
           </div>
-          <input
-            value={row.text}
-            // | und :: sind Trennzeichen im Speicherformat → im Text neutralisieren,
-            // damit eine Eingabe die Liste nicht zerschießt.
-            onChange={(e) => setRow(i, { text: e.target.value.replace(/\|/g, '/').replace(/::/g, ':') })}
-            placeholder={textPlaceholder ?? 'Auslöser/Text (z.B. !feuer)'}
-            className="bx-input mt-1 w-full text-xs normal-case tracking-normal"
-          />
+          <div className="mt-1 flex items-center gap-1">
+            <input
+              value={row.text}
+              // | und :: sind Trennzeichen im Speicherformat → im Text neutralisieren,
+              // damit eine Eingabe die Liste nicht zerschießt.
+              onChange={(e) => setRow(i, { text: e.target.value.replace(/\|/g, '/').replace(/::/g, ':') })}
+              placeholder={textPlaceholder ?? 'Auslöser/Text (z.B. !feuer)'}
+              className="bx-input w-full flex-1 text-xs normal-case tracking-normal"
+            />
+            {/* Challenge-Dauer für diese Zeile — Eingabe in MINUTEN, gespeichert
+                wird in Sekunden (secs). Leer/0 ⇒ kein Timer, kein 3. Feld. */}
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={row.secs ? row.secs / 60 : ''}
+              onChange={(e) => {
+                const min = Number(e.target.value);
+                setRow(i, { secs: min > 0 ? Math.round(min * 60) : 0 });
+              }}
+              placeholder="Min"
+              title="Challenge-Dauer in Minuten (leer = kein Timer)"
+              className="bx-input w-12 flex-none text-center text-xs normal-case tracking-normal"
+            />
+          </div>
         </div>
       ))}
       {rows.length === 0 && (

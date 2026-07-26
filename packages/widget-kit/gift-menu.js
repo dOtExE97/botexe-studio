@@ -96,6 +96,68 @@ const CSS = `
 .bx-gm-bar.run i { animation: bx-gm-fill var(--dwell,6s) linear forwards; }
 @keyframes bx-gm-fill { from { width:0 } to { width:100% } }
 
+/* ── Challenge-Countdown ──────────────────────────────────────────────────
+   Kapsel oben rechts auf dem getroffenen Eintrag, in drei Optiken (Feld
+   timerStyle, Task 3): einfach (nur Zahl), balken (Zahl + schrumpfender
+   Streifen), ring (Kreis, der sich leert, Zahl in der Mitte). Alle drei
+   teilen sich die Basis-Kapsel .bx-gm-timer, die konkrete Optik hängt an
+   .bx-gm-timer--einfach/--balken/--ring. Sanftes Einblenden über @keyframes
+   statt Sprung — passt zum "is-in"-Übergang der Karte daneben. */
+.bx-gm-timer { position:absolute; top:.32em; right:.32em; z-index:5;
+  display:flex; align-items:center; font-family: var(--bx-font-num);
+  line-height:1; font-variant-numeric: tabular-nums; color:#fff; pointer-events:none;
+  box-shadow: 0 0 0 max(1px,.03em) rgba(255,255,255,.28);
+  animation: bx-gm-timer-in .35s ease both; }
+@keyframes bx-gm-timer-in { from { opacity:0; transform:translateY(-.3em) scale(.85); } to { opacity:1; transform:none; } }
+.bx-gm-timer-txt { position:relative; }
+
+/* einfach: die schlichte Zahl-Kapsel von Task 2, unverändert. */
+.bx-gm-timer--einfach { font-size:.6em; padding:.3em .55em; border-radius:99em; background: rgba(0,0,0,.6); }
+.bx-gm-chip .bx-gm-timer--einfach { font-size:.42em; }
+
+/* balken: Zahl über einem Streifen, der von rechts nach links leerläuft.
+   Die Breite steckt in der Kapsel (nicht in der Karte) — so bleibt sie in
+   JEDER Kartenbreite gleich proportioniert, ohne die Karte selbst zu messen. */
+.bx-gm-timer--balken { flex-direction:column; align-items:stretch; gap:.22em; font-size:.6em;
+  padding:.32em .5em .4em; border-radius:.55em; background: rgba(0,0,0,.62);
+  width: min(calc(9.5em * var(--bx-fs, 1)), 44cqi, 70cqw); }
+.bx-gm-timer--balken .bx-gm-timer-txt { text-align:center; letter-spacing:.02em; }
+.bx-gm-timer-bar { position:relative; height:.3em; border-radius:99em; overflow:hidden;
+  background: rgba(255,255,255,.18); box-shadow: inset 0 0 0 max(1px,.02em) rgba(0,0,0,.35); }
+.bx-gm-timer-bar i { display:block; height:100%; width:0; border-radius:99em;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent,#ff5e8a) 75%, white), var(--bx-accent,#ff5e8a));
+  box-shadow: 0 0 .5em -.05em var(--bx-accent,#ff5e8a);
+  transition: width 1s linear; }
+.bx-gm-chip .bx-gm-timer--balken { font-size:.44em;
+  width: min(calc(9.5em * var(--bx-fs, 1)), 30cqh, 60cqi); }
+
+/* ring: runde Kapsel, Zahl in der Mitte, Füllstand als SVG-Kreis (transform:
+   rotate + stroke-dashoffset — beides GPU-freundlich, kein Layout pro Tick). */
+.bx-gm-timer--ring { padding:0; border-radius:99em; background: rgba(0,0,0,.6);
+  display:grid; place-items:center;
+  width: min(calc(clamp(20px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 22cqh, 26cqi);
+  height: min(calc(clamp(20px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 22cqh, 26cqi); }
+.bx-gm-timer-ring { position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
+.bx-gm-timer-ring circle { fill:none; stroke-width:8%; }
+.bx-gm-timer-ring .bx-gm-timer-ring-bg { stroke: rgba(255,255,255,.2); }
+.bx-gm-timer-ring .bx-gm-timer-ring-fg { stroke: var(--bx-accent,#ff5e8a); stroke-linecap:round;
+  transition: stroke-dashoffset 1s linear; filter: drop-shadow(0 0 .25em var(--bx-accent,#ff5e8a)); }
+.bx-gm-timer--ring .bx-gm-timer-txt { font-size:.32em; }
+.bx-gm-chip .bx-gm-timer--ring {
+  width: min(calc(clamp(16px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 26cqh, 20cqi);
+  height: min(calc(clamp(16px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 26cqh, 20cqi); }
+.bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.3em; }
+
+/* Laufband, Kachelform „breit" (Standard): der Chip ist eine flexible Reihe
+   OHNE feste Breite (Icon + Text). Als Ecken-Overlay wie in der Rotation
+   würde der Countdown dort den Namen verdecken — die Kachel ist dafür zu
+   schmal (Messung: bis zu 20px Überlappung bei „balken"). Deshalb reiht er
+   sich hier stattdessen als zusätzliches Flex-Element ein: der Chip wächst
+   um genau seine Breite, nichts wird zugedeckt. Die anderen Kachelformen
+   (quadrat/etikett/…) sind fest bemessene Boxen mit Ecken-Marken (Coins) —
+   dort bleibt der Countdown als Ecken-Pille wie gehabt. */
+.bx-gm-t-breit .bx-gm-chip .bx-gm-timer { position:relative; top:auto; right:auto; flex:none; margin-left:.2em; }
+
 /* ── Laufband ─────────────────────────────────────────────────────────── */
 /* Ein Band ist BREIT: die Chip-Größe hängt an der HÖHE (cqh), cqi deckelt sie
    in schmalen Boxen zusätzlich. --bx-fs auch hier AUSSEN um das clamp. */
@@ -194,6 +256,15 @@ const CSS = `
 .bx-gm-t-quadrat .bx-gm-chip .bx-gm-coins { position:absolute; top:2cqh; right:2cqh; font-size:8cqh;
   padding:.9cqh 2cqh; }
 .bx-gm-t-quadrat .bx-gm-chip .bx-gm-line { justify-content:center; }
+/* Challenge-Countdown: das Geschenk füllt hier schon die obere Hälfte der
+   Kachel — als Ecken-Pille in Kartengröße (em-basiert) würde er das Bild
+   überlappen. Deshalb eigene, kleinere Bemessung in cqh (wie alle anderen
+   quadrat-Maße), dichter an der Ecke als der Coin-Preis. */
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer { top:1cqh; right:1cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--einfach { font-size:7cqh; padding:.6cqh 1.4cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--balken { font-size:7cqh; width:32cqh; padding:.5cqh 1cqh .7cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--ring { width:15cqh; height:15cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.34em; }
 
 /* ETIKETT — quadratisches Geschenk mit Namensband darauf, die Wirkung steht
    rechts daneben. Etwas breiter als ein Quadrat, dafür bleibt die Wirkung groß. */
@@ -1116,23 +1187,48 @@ function escapeHtml(s) {
 // re-exportiert, damit bestehende Imports von gift-menu.js weiter funktionieren.
 import { giftKey, actionLabel, itemsFromRules } from './gift-rules.js';
 export { giftKey, actionLabel, itemsFromRules };
+// Challenge-Countdown pro Eintrag: reiner Kern in gift-countdown.js (NICHT
+// countdown.js — das ist das unabhängige Premium-Countdown-Widget).
+import {
+  fmtTime, nextCountdownState, tickCountdownState, countdownProgress, barWidthPct, ringDashOffset,
+} from './gift-countdown.js';
 
-/** "rose::Konfetti | galaxy::Songwunsch" → [{slug, text}]. Ohne :: gilt der
- *  ganze Eintrag als Gift-Name ohne Aktionstext. */
+// Ring-Radius im normierten SVG-viewBox (0 0 36 36) — 15 lässt einen Rand für
+// die Ring-Strichbreite (8%) übrig, ohne dass der Kreis am viewBox-Rand
+// abgeschnitten wird.
+const TIMER_RING_R = 15;
+const TIMER_RING_C = 2 * Math.PI * TIMER_RING_R;
+const TIMER_STYLES = new Set(['einfach', 'balken', 'ring']);
+
+/** "rose::Konfetti | galaxy::Songwunsch" → [{slug, text, secs}]. Ohne :: gilt der
+ *  ganze Eintrag als Gift-Name ohne Aktionstext. Ein optionales 3. Feld
+ *  ("slug::Text::60") trägt die Challenge-Dauer in Sekunden (0 = kein Timer);
+ *  „slug::42" bleibt reiner Text (Zahl allein reicht nicht — s.u.). */
 export function parseItems(raw) {
   return String(raw || '')
     .split('|')
     .map((s) => s.trim())
     .filter(Boolean)
     .map((s) => {
-      const i = s.indexOf('::');
-      if (i >= 0) return { slug: s.slice(0, i).trim(), text: s.slice(i + 2).trim() };
-      return { slug: s, text: '' };
+      const parts = s.split('::');
+      const slug = (parts[0] ?? '').trim();
+      const rest = parts.slice(1).map((p) => p.trim());
+      let secs = 0;
+      // Dauer nur, wenn NEBEN dem Text ein reines Zahlen-Feld am Ende steht
+      // (mind. 2 Felder nach dem slug) — „slug::42" bleibt Text, kein Timer.
+      if (rest.length >= 2 && /^\d+$/.test(rest[rest.length - 1])) {
+        secs = Number(rest.pop());
+      }
+      const text = rest.join('::').trim();
+      return { slug, text, secs };
     })
     .filter((it) => it.slug || it.text);
 }
 
-const DEMO = 'Rose::Konfetti-Regen | Finger Heart::Danke-Sound | Galaxy::Songwunsch | TikTok::Glücksrad drehen | Doughnut::Tode +1';
+// Galaxy trägt hier zusätzlich eine Demo-Dauer (::45), damit der Challenge-
+// Countdown auch OHNE echtes Geschenk im Editor zu sehen ist (s.u., `demo`-Zweig
+// im Konstruktor). Ändert nichts an Name/Wirkungstext, nur das dritte Feld.
+const DEMO = 'Rose::Konfetti-Regen | Finger Heart::Danke-Sound | Galaxy::Songwunsch::45 | TikTok::Glücksrad drehen | Doughnut::Tode +1';
 const DEMO_COINS = { rose: 1, fingerheart: 5, galaxy: 1000, tiktok: 1, doughnut: 30 };
 
 export default class GiftMenu {
@@ -1143,6 +1239,8 @@ export default class GiftMenu {
     this.timers = new Set();
     this.parts = new Set();   // laufende Partikel-Schwärme (Auslöse-Effekt)
     this.rotTimer = null;
+    this.activeTimers = new Map(); // giftKey/#idx → { remaining, total, els } — laufende Challenge-Countdowns
+    this.countdownTimer = null;    // EIN Sekunden-Ticker für alle activeTimers
     this.icons = {};      // giftKey → Bild-URL
     this.iconsById = {};  // giftId  → Bild-URL
     this.meta = {};       // giftKey → { name, coins }
@@ -1152,6 +1250,7 @@ export default class GiftMenu {
     if (props.accent) root.style.setProperty('--bx-accent', String(props.accent));
     this.mode = MODES.has(props.mode) ? props.mode : 'rotation';
     this.style = STYLES.has(props.style) ? props.style : 'karte';
+    this.timerStyle = TIMER_STYLES.has(props.timerStyle) ? props.timerStyle : 'balken';
     this.tile = TILES.has(props.tile) ? props.tile : 'breit';
     this.banner = BANNERS.has(props.banner) ? props.banner : 'schimmer';
     this.showCoins = props.showCoins !== false;
@@ -1171,6 +1270,17 @@ export default class GiftMenu {
       this.demo = true;
     }
     this.build();
+    // Vorschau: den Challenge-Countdown einmal ohne echtes Geschenk-Event
+    // anzeigen, damit die Optik im Editor beurteilbar ist (kein Hit-Glow,
+    // keine Partikel — nur der Countdown selbst).
+    if (this.demo) {
+      const di = this.list.findIndex((it) => Number(it.secs) > 0);
+      if (di >= 0) {
+        const dTargets = [...this.el.querySelectorAll(`[data-idx="${di}"]`)]
+          .filter((el) => el.classList.contains('bx-gm-card') || el.classList.contains('bx-gm-chip'));
+        if (dTargets.length) this.startCountdown(di, this.list[di], dTargets);
+      }
+    }
     // Die Runtime setzt Theme und Schriftart u.U. ERST nach dem Bauen auf die
     // Widget-Box. Deshalb ein zweiter Blick im nächsten Tick.
     const ft = setTimeout(() => { this.timers.delete(ft); this.syncFonts(); }, 0);
@@ -1187,6 +1297,10 @@ export default class GiftMenu {
     if (this.rotTimer) { clearInterval(this.rotTimer); this.rotTimer = null; }
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
+    // Neuer Aufbau ersetzt das komplette DOM — alte Countdown-Elementreferenzen
+    // wären sonst tot (Ticker liefe gegen entfernte Knoten weiter).
+    this.activeTimers.clear();
+    this.countdownTimer = null;
     this.clearParticles();
     this.index = 0;
     const list = this.items.length ? this.items : [{ slug: '', text: 'Noch keine Geschenke eingetragen' }];
@@ -1269,6 +1383,115 @@ export default class GiftMenu {
       this.clearParticles();
     }, 2600);
     this.timers.add(this.hitTimer);
+
+    // Challenge-Countdown: nur wenn dieses Item eine Dauer trägt (Task 1,
+    // parseItems 3. Feld). Mehrfach-Treffer legen Restzeit drauf (Stacking).
+    const item = (this.list || [])[i];
+    if (item && Number(item.secs) > 0) this.startCountdown(i, item, targets);
+  }
+
+  /** Countdown für den getroffenen Eintrag starten bzw. — bei bereits
+   *  laufendem Countdown desselben Gifts — die Restzeit draufstapeln
+   *  (gedeckelt, siehe gift-countdown.js). `targets` sind schon die per
+   *  data-idx gefundenen Elemente — im Laufband-Modus ZWEI Duplikate (die
+   *  Sequenz ist für den nahtlosen Loop verdoppelt), beide bekommen dieselbe
+   *  Anzeige. */
+  startCountdown(i, item, targets) {
+    const key = item.slug ? giftKey(item.slug) : `#${i}`;
+    const prev = this.activeTimers.get(key);
+    const { remaining, total } = nextCountdownState(prev, Number(item.secs) || 0, 600);
+    for (const el of targets) el.classList.add('bx-gm-timing');
+    this.activeTimers.set(key, { remaining, total, els: targets });
+    this.renderCountdown(key);
+    this.ensureCountdownTicker();
+  }
+
+  /** Der Countdown-Knoten je Optik (einfach/balken/ring, Feld `timerStyle`).
+   *  Getrennt von renderCountdown(), weil er nur EINMAL pro Eintrag gebaut
+   *  wird — jeder weitere Tick aktualisiert nur noch Text/Breite/Offset. */
+  buildTimerNode() {
+    const node = document.createElement('span');
+    node.className = `bx-gm-timer bx-gm-timer--${this.timerStyle}`;
+    if (this.timerStyle === 'balken') {
+      node.innerHTML = '<span class="bx-gm-timer-txt"></span>'
+        + '<span class="bx-gm-timer-bar"><i></i></span>';
+    } else if (this.timerStyle === 'ring') {
+      node.innerHTML = `<svg class="bx-gm-timer-ring" viewBox="0 0 36 36">`
+        + `<circle class="bx-gm-timer-ring-bg" cx="18" cy="18" r="${TIMER_RING_R}"></circle>`
+        + `<circle class="bx-gm-timer-ring-fg" cx="18" cy="18" r="${TIMER_RING_R}" `
+        + `stroke-dasharray="${TIMER_RING_C}" stroke-dashoffset="0"></circle>`
+        + `</svg><span class="bx-gm-timer-txt"></span>`;
+    } else {
+      node.innerHTML = '<span class="bx-gm-timer-txt"></span>';
+    }
+    return node;
+  }
+
+  /** Anzeige EINES Countdown-Eintrags aktualisieren: Text bei allen drei
+   *  Optiken, plus Balken-Breite bzw. Ring-Füllstand. `--bx-gm-prog` bleibt
+   *  zusätzlich als CSS-Variable stehen — falls ein Skin sie mal selbst
+   *  braucht (z. B. um die Karte während des Countdowns leicht zu färben). */
+  renderCountdown(key) {
+    const t = this.activeTimers.get(key);
+    if (!t) return;
+    const pct = countdownProgress(t.remaining, t.total);
+    const label = fmtTime(t.remaining);
+    for (const el of t.els) {
+      let node = el.querySelector('.bx-gm-timer');
+      if (!node || !node.classList.contains(`bx-gm-timer--${this.timerStyle}`)) {
+        if (node) node.remove();
+        node = this.buildTimerNode();
+        el.appendChild(node);
+      }
+      const txt = node.querySelector('.bx-gm-timer-txt');
+      if (txt) txt.textContent = label;
+      if (this.timerStyle === 'balken') {
+        const fill = node.querySelector('.bx-gm-timer-bar i');
+        if (fill) fill.style.width = `${barWidthPct(t.remaining, t.total)}%`;
+      } else if (this.timerStyle === 'ring') {
+        const fg = node.querySelector('.bx-gm-timer-ring-fg');
+        if (fg) fg.style.strokeDashoffset = String(ringDashOffset(t.remaining, t.total, TIMER_RING_C));
+      }
+      el.style.setProperty('--bx-gm-prog', String(pct));
+    }
+  }
+
+  /** Countdown-Eintrag beenden: Marker/Anzeige entfernen, aus der Map raus. */
+  resetCountdown(key) {
+    const t = this.activeTimers.get(key);
+    if (!t) return;
+    for (const el of t.els) {
+      el.classList.remove('bx-gm-timing');
+      el.style.removeProperty('--bx-gm-prog');
+      const node = el.querySelector('.bx-gm-timer');
+      if (node) node.remove();
+    }
+    this.activeTimers.delete(key);
+  }
+
+  /** EIN Sekunden-Ticker für alle laufenden Countdowns — nur solange
+   *  activeTimers nicht leer ist (kein leerlaufendes Interval). */
+  ensureCountdownTicker() {
+    if (this.countdownTimer) return;
+    this.countdownTimer = setInterval(() => this.tickCountdowns(), 1000);
+    this.timers.add(this.countdownTimer);
+  }
+
+  tickCountdowns() {
+    for (const [key, t] of this.activeTimers) {
+      const next = tickCountdownState(t);
+      if (next.done) {
+        this.resetCountdown(key);
+      } else {
+        t.remaining = next.remaining;
+        this.renderCountdown(key);
+      }
+    }
+    if (this.activeTimers.size === 0 && this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.timers.delete(this.countdownTimer);
+      this.countdownTimer = null;
+    }
   }
 
   /** Der Partikel-Schwarm des Auslösers. Bewusst per JS: jedes Teilchen
@@ -1469,6 +1692,8 @@ export default class GiftMenu {
     if (this.rotTimer) clearInterval(this.rotTimer);
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
+    this.activeTimers.clear();
+    this.countdownTimer = null;
     this.clearParticles();
     this.el.remove();
   }
