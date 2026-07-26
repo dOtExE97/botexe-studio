@@ -6,6 +6,7 @@ import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
 import type { StudioEvent, Redemption, PanelButton } from '@botexe/trigger-engine';
 import { validateTriggerRules, validateChatCommands } from './main/services/validators';
 import { IPC } from './shared/constants';
+import { normalizeMixer } from './shared/mixer';
 import { Studio } from './main/services/studio';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
@@ -984,6 +985,14 @@ function registerIpc(): void {
     if (typeof p.autostart === 'boolean') allowed.autostart = p.autostart;
     if (typeof p.giftSoundGapSec === 'number') allowed.giftSoundGapSec = Math.min(600, Math.max(0, Math.round(p.giftSoundGapSec)));
     if (typeof p.autoBackup === 'boolean') allowed.autoBackup = p.autoBackup;
+    // Telemetrie-Zustimmung: fehlte hier → die Wahl (Banner UND Schalter in den
+    // Einstellungen) wurde still verworfen. Folge: Das Banner kam nach jedem
+    // Neustart wieder und Sentry wurde NIE aktiviert (beim Start wird auf
+    // `telemetry === 'on'` geprüft) — es kam also nie ein Absturzbericht an.
+    if (p.telemetry === 'on' || p.telemetry === 'off') allowed.telemetry = p.telemetry;
+    // Mixer (Master + Kanal-Lautstärken): fehlte ebenfalls → jeder Regler fiel
+    // nach dem Neustart zurück. normalizeMixer validiert/clamped die Werte.
+    if (typeof p.mixer === 'object' && p.mixer !== null) allowed.mixer = normalizeMixer(p.mixer);
     if (typeof p.spotifyClientId === 'string') allowed.spotifyClientId = p.spotifyClientId.trim().slice(0, 100);
     if (typeof p.moderation === 'object' && p.moderation !== null) {
       const m = p.moderation as Record<string, unknown>;
