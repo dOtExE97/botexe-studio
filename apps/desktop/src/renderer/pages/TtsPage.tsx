@@ -102,7 +102,7 @@ function AnnounceSection({
   const ag = tts.announceGift ?? { enabled: false, template: '{user} schenkt {gift}!', voice: '', minCoins: 1000 };
   return (
     <section className="bx-card p-5">
-      <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+      <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
         <Volume2 size={15} /> Ansagen (Ereignisse vorlesen)
       </h2>
       <div className="flex flex-col gap-4">
@@ -250,7 +250,7 @@ export default function TtsPage() {
 
       {/* Stimme + Test */}
       <section className="bx-card p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <Volume2 size={15} /> Standard-Stimme
         </h2>
         <div className="flex flex-wrap items-center gap-2">
@@ -331,7 +331,7 @@ export default function TtsPage() {
       {/* Chat vorlesen */}
       <section className="bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
             <MessageSquare size={15} /> Chat vorlesen
           </h2>
           <label className="flex cursor-pointer items-center gap-2 text-xs">

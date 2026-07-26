@@ -405,7 +405,7 @@ export default function TriggersPage() {
 
       {(rules.length === 0 || showTemplates) && (
         <div className="bx-card p-4">
-          <div className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <div className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
             <Zap size={14} /> Vorlagen — ein Klick, fertig eingerichtet
           </div>
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">

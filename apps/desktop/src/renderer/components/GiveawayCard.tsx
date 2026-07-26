@@ -37,7 +37,7 @@ export default function GiveawayCard() {
     <section className="bx-card p-4">
       <div className="mb-3 flex items-center gap-2">
         <Gift size={18} className="text-studio-teal" />
-        <h3 className="font-display text-sm uppercase tracking-wider">Giveaway / Verlosung</h3>
+        <h3 className="font-display text-sm uppercase tracking-wider text-studio-gold">Giveaway / Verlosung</h3>
         <label className="ml-auto flex cursor-pointer items-center gap-2 text-xs">
           <input type="checkbox" checked={st.enabled} onChange={(e) => patch({ enabled: e.target.checked })} className="accent-[#21e6c1]" />
           Beitritt aktiv

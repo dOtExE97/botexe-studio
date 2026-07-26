@@ -198,7 +198,7 @@ function PanelSection({ title, dot, defaultOpen = true, action, children }: {
 }) {
   return (
     <details open={defaultOpen} className="group border-t border-studio-border first:border-t-0">
-      <summary className="flex cursor-pointer list-none items-center gap-2 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-studio-text [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-2 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-studio-gold [&::-webkit-details-marker]:hidden">
         <span className="h-2 w-2 flex-none rounded-[3px]" style={{ background: dot, boxShadow: `0 0 8px ${dot}` }} />
         {title}
         <span className="ml-auto flex items-center gap-2">
@@ -730,7 +730,7 @@ export default function OverlayPage() {
       {/* Widget-Palette — Kategorie-Tabs + Suche (nur eine Kategorie sichtbar) */}
       <aside data-palette-scroll className="overflow-y-auto border-r border-studio-border bg-studio-panel p-3">
         <div className="mb-2 flex items-center justify-between px-1">
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Widgets</h2>
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-gold">Widgets</h2>
           <button
             onClick={() => setLivePalette((on) => { const next = !on; localStorage.setItem('bx-palette-live', next ? '1' : '0'); return next; })}
             className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${livePalette ? 'text-studio-teal' : 'text-studio-muted'} hover:text-studio-teal`}
@@ -833,7 +833,7 @@ export default function OverlayPage() {
       <section className="relative flex flex-col overflow-hidden bg-studio-bg">
         {/* Profil-Leiste — jedes Profil ist ein eigener Overlay-Screen mit eigenem Link */}
         <div className="flex flex-none flex-wrap items-center gap-2 border-b border-studio-border bg-studio-panel px-3 py-2">
-          <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-studio-muted">Profile</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-studio-gold">Profile</span>
           {profiles.map((p) => {
             const isPortraitP = p.canvas.height > p.canvas.width;
             const isCurrent = p.id === layout?.id;

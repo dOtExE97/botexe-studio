@@ -131,7 +131,7 @@ export default function SoundsPage() {
 
       {/* MyInstants-Suche */}
       <section className="bx-card p-5">
-        <h2 className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-teal">
+        <h2 className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <Search size={15} /> MyInstants durchsuchen
         </h2>
         <p className="mb-3 text-[12px] leading-relaxed text-studio-muted">

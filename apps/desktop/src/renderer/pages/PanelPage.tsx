@@ -113,7 +113,7 @@ export default function PanelPage() {
 
       {/* Soundboard */}
       <section className="bx-card p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-teal"><Volume2 size={15} /> Soundboard</h2>
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold"><Volume2 size={15} /> Soundboard</h2>
         {sounds.length === 0 ? (
           <p className="text-xs text-studio-muted">Noch keine Sounds — importiere welche unter „Sounds".</p>
         ) : (

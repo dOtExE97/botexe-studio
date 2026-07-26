@@ -68,7 +68,7 @@ export default function GamesCard() {
 
   return (
     <div className="bx-card p-4">
-      <div className="mb-3 flex items-center gap-2 text-sm font-bold"><Gamepad2 size={16} className="text-studio-accent" /> Chat-Spiele
+      <div className="mb-3 flex items-center gap-2 text-sm font-bold text-studio-gold"><Gamepad2 size={16} className="text-studio-accent" /> Chat-Spiele
         {active && <span className="ml-auto flex items-center gap-2 text-xs text-studio-teal">läuft: {LABEL[active]}
           <button onClick={() => void stop()} className="rounded bg-studio-raised px-2 py-0.5 hover:bg-studio-accent hover:text-black"><Square size={11} className="inline" /> Stop</button>
         </span>}

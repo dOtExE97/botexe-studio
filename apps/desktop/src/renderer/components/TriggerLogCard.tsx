@@ -29,7 +29,7 @@ export default function TriggerLogCard() {
     <section className="bx-card flex min-h-0 flex-col overflow-hidden">
       <div className="flex items-center gap-2 border-b border-studio-border px-4 py-2.5">
         <Zap size={14} className="text-studio-gold" />
-        <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Trigger-Protokoll</h2>
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-gold">Trigger-Protokoll</h2>
         {entries.length > 0 && (
           <button
             onClick={() => { seen.current.clear(); setEntries([]); }}

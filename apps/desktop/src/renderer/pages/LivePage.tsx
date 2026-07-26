@@ -328,7 +328,7 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
           (Test-Events laufen durch die ganze Kette, Overlay reagiert ohne Live). */}
       <div className="grid min-h-0 flex-1 grid-cols-[1fr_1fr_280px] gap-4">
         <section className="bx-card flex min-h-0 flex-col overflow-hidden">
-          <h2 className="border-b border-studio-border px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">
+          <h2 className="border-b border-studio-border px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.3em] text-studio-gold">
             Live-Feed
           </h2>
           <div className="flex flex-1 flex-col-reverse overflow-y-auto p-3">
@@ -358,7 +358,7 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
 
         {/* Test-Werkzeuge */}
         <section className="bx-card flex flex-col gap-2 p-4">
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-muted">Testen ohne Live</h2>
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-gold">Testen ohne Live</h2>
           <p className="mb-1 text-[11px] leading-relaxed text-studio-muted">
             Schickt echte Events durch die komplette Kette — Trigger, Overlay und Sounds reagieren wie im Stream.
           </p>
