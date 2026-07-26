@@ -36,6 +36,10 @@ export interface TTSSettings {
   announceFollow: AnnounceConfig;
   /** Ansage „großes Gift ab X Coins". */
   announceGift: GiftAnnounceConfig;
+  /** Regler-Werte PRO ANBIETER (Edge/Piper/OpenAI/Polly/ElevenLabs) — siehe
+   *  tts-tuning.ts. `rate`/`pitch` oben bleiben vorerst als Legacy-Fallback
+   *  erhalten; Task 3 liest nur noch aus `tuning`. */
+  tuning: Record<string, Record<string, number | string>>;
 }
 
 export interface StudioSettings {
@@ -162,6 +166,7 @@ const TTS_DEFAULTS: TTSSettings = {
   readPrefix: '',
   announceFollow: { enabled: false, template: '{user} folgt jetzt! ❤️', voice: '' },
   announceGift: { enabled: false, template: '{user} schenkt {gift}!', voice: '', minCoins: 1000 },
+  tuning: {},
 };
 
 const DEFAULTS: StudioSettings = {
@@ -255,6 +260,20 @@ export class SettingsStore {
         merged.tts.readGroups = migrateReadWho(rawTts.readWho);
       }
       delete (merged.tts as unknown as Record<string, unknown>).readWho; // Legacy-Feld entfernen
+      // Migration: Tuning-Regler PRO ANBIETER (vorher galt rate/pitch global,
+      // wirkte aber nur bei Edge). Waren rate/pitch gesetzt und existiert noch
+      // kein tuning.edge, wird daraus einmalig tuning.edge gebaut — sonst
+      // wären bestehende Edge-Einstellungen nach dem Update weg.
+      merged.tts.tuning =
+        typeof rawTts.tuning === 'object' && rawTts.tuning !== null
+          ? (rawTts.tuning as Record<string, Record<string, number | string>>)
+          : {};
+      if (!merged.tts.tuning.edge && (typeof rawTts.rate === 'number' || typeof rawTts.pitch === 'number')) {
+        merged.tts.tuning = {
+          ...merged.tts.tuning,
+          edge: { rate: merged.tts.rate, pitch: merged.tts.pitch },
+        };
+      }
       // Migration v2→v3: credentials-block ergänzen.
       merged.ttsCredentials =
         typeof raw.ttsCredentials === 'object' && raw.ttsCredentials !== null ? raw.ttsCredentials : {};

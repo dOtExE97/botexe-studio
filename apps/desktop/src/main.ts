@@ -8,6 +8,7 @@ import { validateTriggerRules, validateChatCommands } from './main/services/vali
 import { IPC } from './shared/constants';
 import { normalizeMixer } from './shared/mixer';
 import { Studio } from './main/services/studio';
+import type { TTSSettings } from './main/services/settings-store';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
 import { log, initFileLogging, getLogDir, formatLocalStamp } from './main/core/logger';
@@ -968,6 +969,9 @@ function registerIpc(): void {
               },
             }
           : {}),
+        // Regler pro Anbieter — Werte werden ohnehin beim Anwenden über
+        // resolveTuning() geklemmt (tts-tuning.ts), hier nur roh durchlassen.
+        ...(typeof t.tuning === 'object' && t.tuning !== null ? { tuning: t.tuning as TTSSettings['tuning'] } : {}),
       };
     }
     if (typeof p.sportApiKey === 'string') allowed.sportApiKey = p.sportApiKey.trim().slice(0, 120);

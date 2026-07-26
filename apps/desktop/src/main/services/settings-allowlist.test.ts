@@ -55,6 +55,37 @@ function fieldsAllowedByHandler(): Set<string> {
   return out;
 }
 
+/** Alle tts-Unterfelder, die die TTS-Seite per `update({ … })` schickt
+ *  (Renderer-Quelle: TtsPage.tsx — dort geht `update()` NICHT über
+ *  updateSettings({ feld }), sondern über updateSettings({ tts: patch }),
+ *  darum ein eigener Scan). */
+function ttsFieldsSentByRenderer(): Set<string> {
+  const code = readFileSync(join(SRC, 'renderer', 'pages', 'TtsPage.tsx'), 'utf8');
+  const out = new Set<string>();
+  for (const m of code.matchAll(/\bupdate\(\{\s*([A-Za-z_$][\w$]*)/g)) {
+    if (m[1]) out.add(m[1]);
+  }
+  return out;
+}
+
+/** Alle tts-Unterfelder, die der `p.tts`-Block im SETTINGS_UPDATE-Handler
+ *  als `t.<feld>` prüft. */
+function ttsFieldsAllowedByHandler(): Set<string> {
+  const code = readFileSync(join(SRC, 'main.ts'), 'utf8');
+  const start = code.indexOf('typeof p.tts === ');
+  assert.ok(start > 0, 'p.tts-Block in main.ts nicht gefunden');
+  // Der Block endet, sobald ein nachfolgendes p.<anderesFeld> außerhalb von
+  // t. beginnt — hier reicht das nächste "if (typeof p." nach dem Block-Start.
+  const next = code.indexOf('if (typeof p.', start + 'typeof p.tts === '.length);
+  const end = next > start ? next : code.length;
+  const block = code.slice(start, end);
+  const out = new Set<string>();
+  for (const m of block.matchAll(/\bt\.([A-Za-z_$][\w$]*)/g)) {
+    if (m[1]) out.add(m[1]);
+  }
+  return out;
+}
+
 test('jedes vom Renderer gesendete Einstellungs-Feld steht in der SETTINGS_UPDATE-Allowlist', () => {
   const sent = fieldsSentByRenderer();
   const allowed = fieldsAllowedByHandler();
@@ -66,5 +97,19 @@ test('jedes vom Renderer gesendete Einstellungs-Feld steht in der SETTINGS_UPDAT
     [],
     `Diese Felder schickt die Oberfläche, der Handler verwirft sie aber still: ${fehlend.join(', ')}. `
       + 'In main.ts (SETTINGS_UPDATE) freischalten — sonst ist die Einstellung nach dem Neustart weg.',
+  );
+});
+
+test('jedes von der TTS-Seite gesendete tts-Unterfeld steht im p.tts-Block der Allowlist', () => {
+  const sent = ttsFieldsSentByRenderer();
+  const allowed = ttsFieldsAllowedByHandler();
+  assert.ok(sent.size > 0, 'keine update({ … })-Aufrufe in TtsPage.tsx gefunden — Test-Regex prüfen');
+
+  const fehlend = [...sent].filter((f) => !allowed.has(f)).sort();
+  assert.deepEqual(
+    fehlend,
+    [],
+    `Diese tts-Unterfelder schickt die TTS-Seite, der p.tts-Block verwirft sie aber still: ${fehlend.join(', ')}. `
+      + 'In main.ts (SETTINGS_UPDATE, p.tts-Block) freischalten — sonst ist die Einstellung nach dem Neustart weg.',
   );
 });
