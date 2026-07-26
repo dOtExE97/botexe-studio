@@ -96,6 +96,10 @@ export type TriggerActionKind =
   /** roll (0..1) würfelt der SERVER beim Broadcast — alle Overlay-Quellen
    *  (OBS + TTLS) zeigen so denselben Gewinner. segmentIndex = fester Zielwert. */
   | { kind: 'spin_wheel'; targetId: string; cost?: number; segmentIndex?: number; roll?: number }
+  /** Gambling-Automat: win/winnerIndex/roll würfelt der SERVER zentral beim
+   *  Geschenk-Empfang (planSlotOutcome in slot-gift.ts) — alle Overlay-
+   *  Quellen zeigen so dasselbe Ergebnis. */
+  | { kind: 'spin_slot'; targetId: string; win?: boolean; winnerIndex?: number; roll?: number }
   /** Media-Widget abspielen (Bild einblenden / Video starten) — z.B. Begrüßungsclip. */
   | { kind: 'play_media'; targetId: string }
   /** Counter-Widget verändern (delta ±N, z.B. „Tode +1" per Hotkey/Befehl). */

@@ -4,7 +4,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { TriggerEngine, renderSpeakTemplate, matchRedemption, matchChatCommand, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
+import { TriggerEngine, renderSpeakTemplate, matchRedemption, matchChatCommand, orderedGiftKeys, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { SessionStats } from '../core/session-stats';
@@ -23,6 +23,7 @@ import { MediaLibrary } from './media-library';
 import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { planWheelSpins } from './wheel-gift';
+import { matchingSlotLayers, planSlotOutcome } from './slot-gift';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { ProfileStore, type ProfileMeta } from './profile-store';
@@ -101,6 +102,7 @@ const ACTION_LABELS: Record<string, string> = {
   hide_layer: 'Layer verstecken',
   speak: 'TTS-Ansage',
   spin_wheel: 'Glücksrad',
+  spin_slot: 'Spielautomat',
   play_media: 'Media',
   counter_add: 'Zähler',
   obs_scene: 'OBS-Szene',
@@ -442,6 +444,24 @@ export class Studio {
         const layers = this.layouts.list().flatMap((layout) => layout.layers);
         for (const { ruleId, action } of planWheelSpins(layers, e.gift.slug, this.getRules())) {
           this.dispatchAction(ruleId, action, e);
+        }
+        // Automat-Bindung „Bei welchem Geschenk drehen?": passendes
+        // slot-machine-Widget (spinGift-Prop) dreht — Gewinn/Niete + Gewinner-
+        // Symbol würfelt der SERVER zentral (planSlotOutcome), damit alle
+        // Overlay-Quellen (OBS + TTLS) dasselbe Ergebnis zeigen. n = Anzahl
+        // Gift-Symbole in genau der Reihenfolge, die das Widget selbst aus den
+        // Trigger-Regeln ableitet (orderedGiftKeys/itemsFromRules) — so trifft
+        // der Server-Index garantiert dasselbe Symbol wie das Widget anzeigt.
+        // Task 3 hängt hier das Auslösen der gewonnenen Gift-Aktion an.
+        const giftKeyCount = orderedGiftKeys(this.getRules()).length;
+        for (const layer of matchingSlotLayers(layers, e.gift.slug)) {
+          const { win, winnerIndex } = planSlotOutcome(
+            Math.random(),
+            Math.random(),
+            Number(layer.props?.winChance ?? 60) / 100,
+            giftKeyCount,
+          );
+          this.dispatchAction('slot-gift', { kind: 'spin_slot', targetId: layer.id, win, winnerIndex, roll: Math.random() }, e);
         }
         this.maybeAnnounceGift(e); // TTS-Ansage ab Coin-Schwelle
       }
