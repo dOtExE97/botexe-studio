@@ -3,7 +3,7 @@
 // Gewinn-Popup. Blendet sich beim Spin automatisch ein und nach dem
 // Ergebnis wieder aus (props.autoShow). props: { segments, accent, spinMs,
 //   autoShow?, title? }. rAF nur während der Show (TTLS-schonend).
-import { itemsFromRules } from './gift-menu.js';
+import { itemsFromRules } from './gift-rules.js';
 
 const STYLE_ID = 'bx-wh-style';
 const CSS = `
@@ -143,10 +143,14 @@ export default class Wheel {
       if (!res.ok) return;
       const data = await res.json();
       const rules = Array.isArray(data) ? data : (data && Array.isArray(data.rules) ? data.rules : []);
-      const items = itemsFromRules(rules);
+      // Textfilter ZUERST anwenden — segmentRules und segments müssen aus
+      // DERSELBEN gefilterten Liste kommen, sonst zeigt Index i bei segments
+      // ein anderes Gift als bei segmentRules (Rad-Bindung Task 1 hatte hier
+      // segmentRules unfiltered stehen, während segments schon filterte).
+      const items = itemsFromRules(rules).filter((it) => it.text);
       if (!items.length) return;
       this.segmentRules = items;
-      this.segments = items.map((it) => it.text).filter(Boolean);
+      this.segments = items.map((it) => it.text);
       this.draw();
     } catch { /* Route (noch) nicht da — manuelle Liste bleibt */ }
   }

@@ -81,3 +81,83 @@ test('orderedGiftKeys: gift_id_is als Schlüssel (#<id>), keine Regel ohne Gift-
   assert.deepEqual(orderedGiftKeys(rules).map((k) => k.ruleId), ['x']);
   assert.deepEqual(orderedGiftKeys(rules)[0], { slug: '', giftId: 5655, ruleId: 'x' });
 });
+
+// ── Golden-Fixture-Paritätstest ──────────────────────────────────────────
+// orderedGiftKeys() UND das Rad-Widget (wheel.js: this.segments) entstehen
+// beide aus itemsFromRules() (packages/widget-kit/gift-rules.js) — das ist
+// die einzige Quelle, die beide Seiten teilen. Ein reiner Kommentar hätte die
+// Drift aus Task 1/2 nicht verhindert (dort driftete genau das auseinander:
+// eine textlose Regel zählte serverseitig mit, das Rad zeigte sie aber gar
+// nicht als Segment). Dieser Test fixiert die Fixture-Erwartung UNABHÄNGIG
+// von orderedGiftKeys()' Implementierung — bricht künftig jemand die
+// gemeinsame Quelle wieder in zwei Kopien auseinander und lässt dabei den
+// Textfilter aus, schlägt HIER etwas fehl, nicht erst live auf dem Rad.
+import { itemsFromRules } from '../../widget-kit/gift-rules.js';
+
+test('orderedGiftKeys deckt sich exakt mit den Rad-Segmenten (Golden Fixture)', () => {
+  const rules: TriggerRule[] = [
+    // 1) generischer Name („Gift: …"), Text kommt aus der Aktion → sichtbar.
+    {
+      id: 'r-rose', name: 'Gift: rose', event: 'gift', enabled: true,
+      conditions: [{ kind: 'gift_slug_is', value: 'rose' }],
+      actions: [{ kind: 'play_sound', soundId: 'a.mp3' }],
+    },
+    // 2) KEINE Aktion, generischer Name → leerer Text. Zählt server- UND
+    //    rad-seitig NICHT mit (der ursprüngliche Bug: diese Regel driftete
+    //    den Server-Index gegen die Rad-Segmente).
+    {
+      id: 'r-empty', name: 'Gift: leer', event: 'gift', enabled: true,
+      conditions: [{ kind: 'gift_slug_is', value: 'leer' }],
+      actions: [],
+    },
+    // 3) nicht-alphanumerischer Slug (Apostroph/Leerzeichen) — eigener Name.
+    {
+      id: 'r-fingerheart', name: "Finger Heart's Gruß", event: 'gift', enabled: true,
+      conditions: [{ kind: 'gift_slug_is', value: "Finger Heart's" }],
+      actions: [{ kind: 'speak', template: 'Danke!' }],
+    },
+    // 4) Duplikat per Groß-/Kleinschreibung desselben Slugs — muss wegfallen.
+    {
+      id: 'r-rose-dup', name: 'Rose nochmal', event: 'gift', enabled: true,
+      conditions: [{ kind: 'gift_slug_is', value: 'ROSE' }],
+      actions: [{ kind: 'fire_alert', targetId: 'fw' }],
+    },
+    // 5) nur gift_id_is (kein Slug) — eigener Name.
+    {
+      id: 'r-giftid', name: 'Galaxy-Geschenk', event: 'gift', enabled: true,
+      conditions: [{ kind: 'gift_id_is', value: 5655 }],
+      actions: [{ kind: 'spotify_request', query: '{{gift}}' }],
+    },
+    // 6) deaktivierte Regel — muss wegfallen.
+    {
+      id: 'r-disabled', name: 'Deaktiviert', event: 'gift', enabled: false,
+      conditions: [{ kind: 'gift_slug_is', value: 'diamond' }],
+      actions: [{ kind: 'play_sound', soundId: 'x.mp3' }],
+    },
+    // 7) kein Gift-Event — muss wegfallen.
+    {
+      id: 'r-follow', name: 'Follow-Regel', event: 'follow', enabled: true,
+      conditions: [],
+      actions: [{ kind: 'speak', template: 'Willkommen!' }],
+    },
+  ];
+
+  // Was das Rad-Widget zeigt (wheel.js, this.segments): itemsFromRules() +
+  // GENAU dieser Filter — Hand-erhaltene Erwartung, unabhängig importiert.
+  const wheelSegments = itemsFromRules(rules).filter((it: { text: string }) => it.text);
+  const wheelSlugs = wheelSegments.map((it: { slug: string }) => it.slug);
+
+  const serverKeys = orderedGiftKeys(rules);
+
+  assert.deepEqual(
+    serverKeys.map((k) => k.slug),
+    wheelSlugs,
+    'Server-Gewinner-Index-Reihenfolge muss exakt den Rad-Segmenten entsprechen',
+  );
+  assert.equal(serverKeys.length, wheelSegments.length, 'gleiche Anzahl Einträge — kein Drift');
+  assert.deepEqual(
+    serverKeys.map((k) => k.ruleId),
+    ['r-rose', 'r-fingerheart', 'r-giftid'],
+    'r-empty (leerer Text), r-rose-dup (Duplikat), r-disabled und r-follow fallen bei BEIDEN Seiten gleichermaßen weg',
+  );
+});

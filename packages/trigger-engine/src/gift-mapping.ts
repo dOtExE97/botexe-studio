@@ -3,6 +3,13 @@
 // giftmap-<slug>), damit Zuordnungen idempotent sind. Zusätzliche, frei auf
 // der Trigger-Seite gebaute Regeln zum selben Gift bleiben unberührt.
 import type { TriggerAction, TriggerRule } from './index';
+// itemsFromRules ist reine, DOM-freie Logik aus packages/widget-kit — SIE ist
+// die einzige Quelle für „Gift-Regeln → Rad-/Tafel-Einträge". Damit gilt
+// orderedGiftKeys()' Index per Konstruktion für dasselbe Segment, das das
+// Rad-Widget (wheel.js) anzeigt — keine zweite, von Hand synchron zu
+// haltende Kopie mehr. Kein Typen-Paket nötig: gift-rules.js ist DOM-frei
+// reines JS, allowJs übernimmt es unverändert (siehe tsconfig.json).
+import { itemsFromRules } from '../../widget-kit/gift-rules.js';
 
 /** Stabile id der kanonischen Galerie-Regel eines Gifts. */
 export function giftRuleId(slug: string): string {
@@ -62,40 +69,23 @@ export interface GiftKey {
 }
 
 /**
- * Gift-Regeln in Anzeigereihenfolge, dedupliziert — DAS SERVER-PENDANT zu
- * itemsFromRules() in packages/widget-kit/gift-menu.js. Das Rad-Widget baut
- * seine Segmente per itemsFromRules aus denselben Regeln; der Server bestimmt
- * per orderedGiftKeys() den Gewinner-INDEX. Beide MÜSSEN exakt dieselbe
- * Einschluss-/Dedup-/Reihenfolge-Logik verwenden — sonst landet das Rad
- * (Widget-Reihenfolge) auf einem anderen Feld als dem, dessen Aktion
- * serverseitig gefeuert wird (Index-Drift). Bei Änderung an EINER Stelle
- * IMMER die andere mitziehen — siehe Kommentar bei itemsFromRules/giftKey
- * in gift-menu.js.
- *
- * Schlüssel-Formel identisch zu giftKey() in gift-menu.js: Slug klein +
- * auf a-z0-9 reduziert (Apostroph/Leerzeichen/Schreibweise egal), sonst
- * `#<giftId>`.
+ * Gift-Regeln in Anzeigereihenfolge, dedupliziert und um textlose Einträge
+ * bereinigt — DER GEWINNER-INDEX HIER IST PER KONSTRUKTION IDENTISCH ZU DEN
+ * SICHTBAREN RAD-SEGMENTEN: beide entstehen aus derselben itemsFromRules()
+ * (packages/widget-kit/gift-rules.js), und beide wenden denselben Textfilter
+ * an (`.filter((it) => it.text)`), den wheel.js beim Segmentaufbau nutzt
+ * (`this.segments = items.map(it => it.text).filter(Boolean)`). Eine
+ * Gift-Regel ohne Aktion (leerer Text) zählt hier also NICHT mit — sie taucht
+ * auf dem Rad ja auch nicht als Segment auf. Ohne diesen Filter würde der
+ * Server-Index gegen die Rad-Segmente driften (Index N zählt eine Regel mit,
+ * die das Rad gar nicht zeigt → falsches Feld feuert).
  */
 export function orderedGiftKeys(rules: TriggerRule[]): GiftKey[] {
-  const out: GiftKey[] = [];
-  const seen = new Set<string>();
-  for (const rule of Array.isArray(rules) ? rules : []) {
-    if (!rule || rule.enabled === false || rule.event !== 'gift') continue;
-    const conds = Array.isArray(rule.conditions) ? rule.conditions : [];
-    const slugCond = conds.find((c) => c && c.kind === 'gift_slug_is') as
-      | { kind: 'gift_slug_is'; value: string }
-      | undefined;
-    const idCond = conds.find((c) => c && c.kind === 'gift_id_is') as
-      | { kind: 'gift_id_is'; value: number }
-      | undefined;
-    if (!slugCond && !idCond) continue;
-    const slug = slugCond ? String(slugCond.value ?? '') : '';
-    const giftId = idCond ? Number(idCond.value) || 0 : 0;
-    const key = slug ? slug.toLowerCase().replace(/[^a-z0-9]/g, '') : `#${giftId}`;
-    if (!key || seen.has(key)) continue;
-    if (!slug && !giftId) continue; // ungültige gift_id_is (0/NaN) ohne Slug
-    seen.add(key);
-    out.push({ slug, giftId, ruleId: rule.id });
-  }
-  return out;
+  const items = (itemsFromRules(Array.isArray(rules) ? rules : []) as Array<{
+    slug: string;
+    giftId: number;
+    text: string;
+    ruleId: string;
+  }>).filter((it) => it.text);
+  return items.map((it) => ({ slug: it.slug, giftId: it.giftId, ruleId: it.ruleId }));
 }

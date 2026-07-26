@@ -1,20 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { TriggerRule } from '@botexe/trigger-engine';
-import { matchingWheelSpins, planWheelSpins } from './wheel-gift';
-
-test('matchingWheelSpins liefert IDs sichtbarer Räder mit passendem spinGift', () => {
-  const layers = [
-    { id: 'w1', widgetType: 'wheel', visible: true, props: { spinGift: 'galaxy' } },
-    { id: 'w2', widgetType: 'wheel', visible: true, props: { spinGift: 'rose' } },
-    { id: 'w3', widgetType: 'wheel', visible: false, props: { spinGift: 'galaxy' } }, // unsichtbar
-    { id: 'w4', widgetType: 'wheel', visible: true, props: { spinGift: '' } }, // leer = nie
-    { id: 'g1', widgetType: 'gift-menu', visible: true, props: { spinGift: 'galaxy' } }, // kein Rad
-  ];
-  assert.deepEqual(matchingWheelSpins(layers, 'galaxy'), ['w1']);
-  assert.deepEqual(matchingWheelSpins(layers, 'rose'), ['w2']);
-  assert.deepEqual(matchingWheelSpins(layers, 'diamond'), []);
-});
+import { planWheelSpins } from './wheel-gift';
 
 // planWheelSpins — Task 3 (Auto-Feuern): EIN Rad, EIN Gift-Trigger (galaxy →
 // play_sound). autoFire:true muss genau EINEN spin_wheel (mit segmentIndex)

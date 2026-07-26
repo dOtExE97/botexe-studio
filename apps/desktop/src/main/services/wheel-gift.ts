@@ -18,11 +18,6 @@ export function matchingWheelLayers(layers: WheelLayer[], giftSlug: string): Whe
   );
 }
 
-/** IDs sichtbarer Rad-Widgets, deren spinGift-Prop auf diesen Gift-Slug passt. */
-export function matchingWheelSpins(layers: WheelLayer[], giftSlug: string): string[] {
-  return matchingWheelLayers(layers, giftSlug).map((l) => l.id);
-}
-
 /** Eine für Studio.dispatchAction() fertig geplante Aktion. */
 export type WheelSpinAction = { ruleId: string; action: TriggerAction };
 
