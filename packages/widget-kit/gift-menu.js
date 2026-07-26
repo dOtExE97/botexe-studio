@@ -190,6 +190,24 @@ const CSS = `
   height: min(calc(clamp(28px, min(22cqi,19cqh), 100px) * var(--bx-fs, 1)), 44cqh, 34cqi); }
 .bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.46em; }
 
+/* ══ Timer-Platzierung (Feld timerPlacement) ═════════════════════════════
+   Zwei wählbare Auftritte für DENSELBEN Countdown, per Klasse auf der
+   Widget-Wurzel (.bx-gm-tp-prominent / .bx-gm-tp-kompakt, s. Konstruktor):
+     prominent (Standard) — die Vordergrund-Übernahme weiter unten: der
+       Countdown wird der HELD des getroffenen Eintrags (großer, mittiger
+       Text über Scrim/Abdunklung, s. Kommentar dort).
+     kompakt — die klassische kleine Ecken-Kapsel bzw. das Chip-Segment
+       (Optik aus Commit 7f98fce, VOR der Vordergrund-Übernahme): einfach
+       die Basisregeln von .bx-gm-timer weiter oben (top/right .3em bzw.
+       Flex-Element im Chip), OHNE die Overrides unten — deshalb reicht es,
+       jene Overrides mit „.bx-gm-tp-prominent " zu praefixieren, statt eine
+       zweite Regel-Kaskade zu schreiben. Engine (activeTimers/Ticker/Cap)
+       UND DOM (Scrim wird in BEIDEN Faellen eingehaengt/entfernt, s.
+       renderCountdown/resetCountdown) bleiben dabei unangetastet — der
+       Scrim ist in „kompakt" per .bx-gm-scrim{display:none} einfach
+       unsichtbar, weil die einzige Regel, die ihn zeigt, jetzt am
+       Vorfahren .bx-gm-tp-prominent haengt. */
+
 /* ══ Vordergrund-Uebernahme: Rotation ═══════════════════════════════════
    .bx-gm-scrim ist ein EIGENES Element (von renderCountdown zusammen mit
    dem Uhr-Knoten eingehängt, von resetCountdown zusammen mit ihm wieder
@@ -199,10 +217,11 @@ const CSS = `
    „ring" zu einem CSS-Widerspruch geführt (inset:0 UND eine feste
    Ring-Breite gleichzeitig sind ueberbestimmt). Per Default unsichtbar
    (display:none) — wirkt nur dort, wo eine Vordergrund-Regel weiter unten
-   sie sichtbar schaltet (Rotation + Laufband „breit"); auf den
-   Ecken-Pillen-Kachelformen bleibt sie folgenlos. */
+   sie sichtbar schaltet (Rotation + Laufband „breit"), NUR bei Platzierung
+   „prominent"; auf den Ecken-Pillen-Kachelformen UND bei „kompakt" bleibt
+   sie folgenlos. */
 .bx-gm-scrim { display:none; }
-.bx-gm-card.bx-gm-timing .bx-gm-scrim {
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-scrim {
   display:block; position:absolute; inset:0; z-index:7; pointer-events:none; border-radius:inherit;
   background: linear-gradient(175deg, rgba(14,15,26,.4), rgba(6,7,13,.78) 55%, rgba(3,4,8,.88));
   animation: bx-gm-scrim-in .5s cubic-bezier(.2,.85,.3,1) both; }
@@ -212,41 +231,42 @@ const CSS = `
    weg (das übernimmt der Scrim), Ziffern werden zum groessten Text der
    Karte. --bx-gm-hero-fs bündelt die eine Stellschraube, an der Text- UND
    Ring-Durchmesser hängen, damit beide zueinander proportioniert bleiben. */
-.bx-gm-card.bx-gm-timing .bx-gm-timer {
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-timer {
   position:absolute; top:50%; left:50%; right:auto; bottom:auto; translate:-50% -50%; z-index:9;
   flex-direction:column; gap:.14em; padding:0; background:none; box-shadow:none;
   animation: bx-gm-hero-in .5s cubic-bezier(.2,.85,.3,1) both; }
 @keyframes bx-gm-hero-in { from { opacity:0; translate:-50% -46%; } to { opacity:1; translate:-50% -50%; } }
-.bx-gm-card.bx-gm-timing .bx-gm-timer--einfach,
-.bx-gm-card.bx-gm-timing .bx-gm-timer--balken,
-.bx-gm-card.bx-gm-timing .bx-gm-timer--ring {
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-timer--einfach,
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-timer--balken,
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-timer--ring {
   --bx-gm-hero-fs: calc(clamp(27px, min(15.5cqi, 13.5cqh), 130px) * var(--bx-fs, 1));
   font-size: var(--bx-gm-hero-fs); padding:0; border-radius:0; }
-.bx-gm-card.bx-gm-timing .bx-gm-timer-txt {
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-timer-txt {
   filter: drop-shadow(0 .06em .32em rgba(0,0,0,.75)); }
-.bx-gm-card.bx-gm-timing .bx-gm-timer--balken { width: min(64cqi, 84%); }
-.bx-gm-card.bx-gm-timing .bx-gm-timer--balken .bx-gm-timer-bar { height:.15em; }
-.bx-gm-card.bx-gm-timing .bx-gm-timer--ring {
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-timer--balken { width: min(64cqi, 84%); }
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-timer--balken .bx-gm-timer-bar { height:.15em; }
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-timer--ring {
   width: calc(var(--bx-gm-hero-fs) * 2.15); height: calc(var(--bx-gm-hero-fs) * 2.15); }
 /* Geschenk, Name/Preis und die Challenge-Zeile weichen der Uhr: das Bild
    bleibt (gedimmt) als Kontext hinter dem Scrim sichtbar, Name/Preis
    rutschen als kleine Randnotiz an den unteren Kartenrand, die Challenge-
    Zeile (der eigentliche Auftrag, z. B. "→ Still sein") wandert als
    Überschrift ÜBER die Uhr — beide über dem Scrim (z-index höher), damit
-   nichts von der Abdunkelung verschluckt wird. */
-.bx-gm-card.bx-gm-timing .bx-gm-ic { opacity:.62; transition: opacity .4s ease; }
-.bx-gm-card.bx-gm-timing .bx-gm-line {
+   nichts von der Abdunkelung verschluckt wird. Nur bei „prominent" — bei
+   „kompakt" bleiben Bild/Name/Preis/Zeile unangetastet im normalen Fluss. */
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-ic { opacity:.62; transition: opacity .4s ease; }
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-line {
   position:absolute; left:50%; bottom:.55em; translate:-50% 0; z-index:9;
   max-width:88%; font-size:.7em; opacity:.85; }
-.bx-gm-card.bx-gm-timing .bx-gm-act {
+.bx-gm-tp-prominent .bx-gm-card.bx-gm-timing .bx-gm-act {
   position:absolute; left:50%; top:.6em; translate:-50% 0; z-index:9;
   max-width:92%; font-size:1.08em; text-align:center; opacity:1; }
 /* Sanfter Akzent-Rand auf der ganzen Karte, solange sie „läuft" — macht den
    aktiven Eintrag zusätzlich erkennbar, nicht nur die Uhr selbst. Höhere
-   Selektor-Spezifität (3 statt 2 Klassen) als die Stil-Panels
+   Selektor-Spezifität (3 statt 2 Klassen, plus Vorfahre) als die Stil-Panels
    (.bx-st-karte .bx-gm-card etc.), damit sie unabhängig von der
    Deklarationsreihenfolge gewinnt. */
-.bx-gm-rot .bx-gm-card.bx-gm-timing {
+.bx-gm-tp-prominent .bx-gm-rot .bx-gm-card.bx-gm-timing {
   box-shadow: 0 0 0 max(1.5px,.05em) color-mix(in srgb, var(--bx-accent,#ff5e8a) 55%, transparent),
     0 0 1.8em -.35em var(--bx-accent,#ff5e8a), var(--bx-shadow, 0 .5em 1.4em -.5em rgba(0,0,0,.85)); }
 
@@ -255,24 +275,27 @@ const CSS = `
    Ecken-Overlay wie in der Rotation würde der Countdown dort den Namen
    verdecken — die Kachel ist dafür zu schmal (Messung: bis zu 20px
    Überlappung bei „balken"). Deshalb bleibt die Uhr ein zusätzliches
-   Flex-Element (der Chip wächst um ihre Breite), wird aber deutlich das
-   auffälligste Element der Kachel: klar größer als Name/Wirkung, mit
-   eigenem Akzent-Glanzrahmen statt der schlichten Ecken-Pille. Die
+   Flex-Element (der Chip wächst um ihre Breite) — das gilt für BEIDE
+   Platzierungen gleich (Basisregel unten, ungegatet). Bei „prominent" wird
+   sie zusätzlich deutlich das auffälligste Element der Kachel: klar größer
+   als Name/Wirkung, mit eigenem Akzent-Glanzrahmen statt der schlichten
+   Ecken-Pille (Overrides darunter, „.bx-gm-tp-prominent" praefigiert). Bei
+   „kompakt" bleibt sie exakt die kleine Ecken-Pillen-Größe von oben. Die
    Chip-Höhe bleibt FEST (3,05em, Bandhöhe) — deshalb wächst die Uhr hier
    bewusst moderater als in der Rotation, sonst würde sie oben/unten
    anschneiden (widget-check!). Die anderen Kachelformen (quadrat/etikett/…)
    bleiben unverändert Ecken-Pillen, siehe deren eigene Overrides. */
 .bx-gm-t-breit .bx-gm-chip .bx-gm-timer { position:relative; top:auto; right:auto; flex:none; margin-left:.25em;
   padding:.16em .48em; border-radius:.4em; }
-.bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--einfach,
-.bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--balken,
-.bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--ring {
+.bx-gm-tp-prominent .bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--einfach,
+.bx-gm-tp-prominent .bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--balken,
+.bx-gm-tp-prominent .bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--ring {
   font-size:1.55em; }
-.bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--balken { width:auto; min-width:4.2em; font-size:1.32em; }
-.bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--ring {
+.bx-gm-tp-prominent .bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--balken { width:auto; min-width:4.2em; font-size:1.32em; }
+.bx-gm-tp-prominent .bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--ring {
   width: min(calc(2.5em * var(--bx-fs, 1)), 58cqh, 30cqi);
   height: min(calc(2.5em * var(--bx-fs, 1)), 58cqh, 30cqi); }
-.bx-gm-band.bx-gm-t-breit .bx-gm-chip.bx-gm-timing {
+.bx-gm-tp-prominent .bx-gm-band.bx-gm-t-breit .bx-gm-chip.bx-gm-timing {
   box-shadow: 0 0 0 max(1.5px,.045em) color-mix(in srgb, var(--bx-accent,#ff5e8a) 55%, transparent),
     0 0 1em -.3em var(--bx-accent,#ff5e8a); }
 
@@ -1379,6 +1402,15 @@ export default class GiftMenu {
     this.mode = MODES.has(props.mode) ? props.mode : 'rotation';
     this.style = STYLES.has(props.style) ? props.style : 'karte';
     this.timerStyle = TIMER_STYLES.has(props.timerStyle) ? props.timerStyle : 'balken';
+    // Zwei Auftritte für denselben Countdown, wählbar über timerPlacement:
+    // 'prominent' (Standard) = die Vordergrund-Übernahme (Scrim + große Uhr
+    // mittig, s. CSS-Kommentar bei .bx-gm-scrim), 'kompakt' = die kleine
+    // Ecken-Kapsel/das Chip-Segment aus der Fassung VOR der Vordergrund-
+    // Übernahme (Commit 7f98fce). Beide teilen sich Engine, Ziffernblatt
+    // (buildTimerNode/renderCountdown/resetCountdown) UND das DOM (Scrim wird
+    // in beiden Fällen eingehängt) — nur eine Klasse auf this.el entscheidet
+    // per CSS, welcher Satz Regeln greift (s. .bx-gm-tp-prominent weiter unten).
+    this.timerPlacement = props.timerPlacement === 'kompakt' ? 'kompakt' : 'prominent';
     this.tile = TILES.has(props.tile) ? props.tile : 'breit';
     this.banner = BANNERS.has(props.banner) ? props.banner : 'schimmer';
     this.showCoins = props.showCoins !== false;
@@ -1388,7 +1420,7 @@ export default class GiftMenu {
     this.speed = Math.max(6, Number(props.speed ?? 26) || 26);
 
     this.el = document.createElement('div');
-    this.el.className = `bx-gm bx-st-${this.style}`;
+    this.el.className = `bx-gm bx-st-${this.style} bx-gm-tp-${this.timerPlacement}`;
     root.appendChild(this.el);
 
     this.items = parseItems(props.items);

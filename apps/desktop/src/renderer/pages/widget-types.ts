@@ -750,7 +750,7 @@ export const WIDGET_TYPES: {
   {
     type: 'gift-menu', label: 'Geschenk-Menü', desc: 'Die Preistafel deines Streams: zeigt, welches Geschenk was auslöst — entweder eins nach dem anderen groß eingeblendet oder als durchlaufendes Band. Mit echtem Gift-Bild und Coin-Preis. Kann die Einträge automatisch aus deinen Triggern lesen, dann pflegst du nichts doppelt.',
     w: 420, h: 520,
-    props: { mode: 'rotation', items: '', tile: 'breit', banner: 'schimmer', source: 'liste', title: 'Geschenke & was sie auslösen', showTitle: true, showCoins: true, intervalMs: 6000, speed: 26, style: 'karte', timerStyle: 'balken', accent: '#ff5e8a', theme: 'glas' },
+    props: { mode: 'rotation', items: '', tile: 'breit', banner: 'schimmer', source: 'liste', title: 'Geschenke & was sie auslösen', showTitle: true, showCoins: true, intervalMs: 6000, speed: 26, style: 'karte', timerStyle: 'balken', timerPlacement: 'prominent', accent: '#ff5e8a', theme: 'glas' },
     fields: [
       { key: 'mode', label: 'Darstellung', type: 'select', options: [
         { value: 'rotation', label: 'Eins nach dem anderen' },
@@ -778,6 +778,10 @@ export const WIDGET_TYPES: {
         { value: 'trigger', label: 'Automatisch aus meinen Triggern' },
       ], hint: 'Automatisch: die Tafel liest deine Geschenk-Trigger und bleibt von allein aktuell, wenn du dort etwas änderst.' },
       { key: 'items', label: 'Geschenke + was sie auslösen', type: 'gift-command-list', textPlaceholder: 'Was löst es aus?', hint: 'Pro Zeile ein Geschenk wählen und dazuschreiben, was es auslöst. Bild und Coin-Preis kommen automatisch dazu. Die Reihenfolge bestimmt, wie die Tafel durchwechselt. Minuten eintragen ⇒ Countdown läuft: dann läuft bei diesem Geschenk ein Countdown im Overlay. (Wird bei „Automatisch aus meinen Triggern" nicht benutzt.)' },
+      { key: 'timerPlacement', label: 'Timer-Platzierung', type: 'select', options: [
+        { value: 'prominent', label: 'Prominent — großer Countdown im Vordergrund' },
+        { value: 'kompakt', label: 'Kompakt — kleines Ziffernblatt in der Ecke' },
+      ], hint: 'Prominent übernimmt den getroffenen Eintrag komplett: große Zeit mittig, Bild abgedunkelt dahinter — gut, wenn die Challenge im Fokus stehen soll. Kompakt zeigt nur ein kleines Ziffernblatt in der Ecke bzw. im Laufband-Chip, der Rest bleibt wie gewohnt sichtbar.' },
       { key: 'timerStyle', label: 'Timer-Optik', type: 'select', options: [
         { value: 'einfach', label: 'Einfach — nur die Restzeit' },
         { value: 'balken', label: 'Balken — schrumpfender Streifen + Zeit' },
