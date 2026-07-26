@@ -27,6 +27,12 @@ export interface VoiceGroup {
 
 // ── Edge ──────────────────────────────────────────────────────────────────
 
+/** Budget für EINEN Synthese-Versuch (Edge-Bibliothek + unser eigener Race).
+ *  Geteilt zwischen tts-providers.ts (Edge-Client-Timeout) und tts-service.ts
+ *  (Promise.race), damit die Bibliothek nicht mit ihrem eigenen längeren
+ *  Default hängt, während wir längst aufgegeben haben. */
+export const SYNTH_TIMEOUT_MS = 7_000;
+
 const EDGE_VOICES: Array<[string, string, 'de' | 'en']> = [
   ['de-DE-KatjaNeural', 'Katja (DE, Frau)', 'de'],
   ['de-DE-AmalaNeural', 'Amala (DE, Frau)', 'de'],
@@ -55,6 +61,9 @@ async function edgeSynthesize(text: string, voiceId: string, target: string, tun
     // Tempo/Tonhöhe aus den Einstellungen (0 = neutral).
     rate: fmtSigned(Math.max(-50, Math.min(50, tuning?.rate ?? 0)), '%'),
     pitch: fmtSigned(Math.max(-20, Math.min(20, tuning?.pitch ?? 0)), 'Hz'),
+    // Ohne diesen Wert hängt die Bibliothek mit ihrem eigenen (längeren)
+    // Default-Timeout — dann hilft unser Retry/Fallback zu spät.
+    timeout: SYNTH_TIMEOUT_MS,
   });
   await engine.ttsPromise(text, target);
 }
@@ -91,7 +100,7 @@ interface PiperVoiceDef {
   model: string;
 }
 
-const PIPER_VOICES: PiperVoiceDef[] = [
+export const PIPER_VOICES: PiperVoiceDef[] = [
   { id: 'de-thorsten', name: 'Thorsten (DE, Mann) — lokal', language: 'de', model: 'de/de_DE/thorsten/medium/de_DE-thorsten-medium' },
   { id: 'de-eva', name: 'Eva (DE, Frau) — lokal', language: 'de', model: 'de/de_DE/eva_k/x_low/de_DE-eva_k-x_low' },
   { id: 'de-kerstin', name: 'Kerstin (DE, Frau) — lokal', language: 'de', model: 'de/de_DE/kerstin/low/de_DE-kerstin-low' },

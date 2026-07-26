@@ -18,6 +18,8 @@ import {
   normalizeVoiceId,
   extForVoice,
   synthesizeWith,
+  SYNTH_TIMEOUT_MS,
+  PIPER_VOICES,
   type VoiceGroup,
 } from './tts-providers';
 import {
@@ -31,7 +33,7 @@ import {
 export const DEFAULT_VOICE = 'edge:de-DE-KatjaNeural';
 const QUEUE_CAP = 8;
 const MAX_CACHE_FILES = 60;
-const SYNTH_TIMEOUT_MS = 12_000;
+// SYNTH_TIMEOUT_MS kommt aus tts-providers.ts (geteilt mit dem Edge-Client-Timeout).
 
 interface QueueItem {
   text: string;
@@ -49,6 +51,16 @@ export interface TTSPlayback {
 export function isTransientTtsError(msg: string): boolean {
   return /\b(429|500|502|503|504)\b|timed?\s*out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|network|fetch failed|server response|temporarily/i
     .test(String(msg || ''));
+}
+
+/** Einsatzbereite lokale Stimme als Notnagel, wenn die Online-Stimme streikt.
+ *  Gibt null zurück, wenn die aktuelle Stimme schon lokal ist (kein Kreisverkehr)
+ *  oder nichts vorbereitet wurde. */
+export function pickLocalFallbackVoice(piper: PiperRuntime, currentVoice: string): string | null {
+  if (normalizeVoiceId(currentVoice).startsWith('piper:')) return null;
+  if (!piper.hasBinary?.()) return null;
+  const ready = PIPER_VOICES.find((v) => piper.voiceReady(v.id));
+  return ready ? `piper:${ready.id}` : null;
 }
 
 export class TTSService {
@@ -198,21 +210,32 @@ export class TTSService {
     }
     this.processing = true;
 
-    // Bis zu 3 Versuche bei TRANSIENTEN Fehlern (z.B. Edge-TTS 503/Timeout) — so
-    // schluckt ein Server-Schluckauf keine Ansage mehr. Permanente Fehler (falscher
-    // Key etc.) brechen sofort ab.
+    // Bis zu 2 Versuche bei TRANSIENTEN Fehlern (z.B. Edge-TTS 503/Timeout) — schnell
+    // scheitern statt lange Stille, danach greift der lokale Fallback unten. Permanente
+    // Fehler (falscher Key etc.) brechen sofort ab.
     let playback: TTSPlayback | null = null;
     let lastMsg = '';
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try { playback = await this.synthesize(item.text, item.voice); break; }
       catch (err) {
         lastMsg = (err as Error)?.message || String(err) || 'unbekannter Fehler';
-        if (attempt < 3 && isTransientTtsError(lastMsg)) {
+        if (attempt < 2 && isTransientTtsError(lastMsg)) {
           log.warn('TTS', `Synthese-Versuch ${attempt} fehlgeschlagen (${lastMsg}) — neuer Versuch…`);
           await new Promise((r) => setTimeout(r, 350 * attempt));
           continue;
         }
         break;
+      }
+    }
+    // Online-Stimme streikt weiter? Auf eine bereite lokale Piper-Stimme ausweichen,
+    // statt komplett stumm zu bleiben (echter Nutzer-Bug: 30s Stille trotz fertig
+    // eingerichtetem Piper).
+    if (!playback) {
+      const local = pickLocalFallbackVoice(this.piper, item.voice);
+      if (local) {
+        log.warn('TTS', `Online-Stimme nicht erreichbar (${lastMsg}) → lokale Stimme ${local}`);
+        try { playback = await this.synthesize(item.text, local); }
+        catch (err) { lastMsg = (err as Error)?.message || lastMsg; }
       }
     }
     if (playback) {
@@ -222,7 +245,10 @@ export class TTSService {
       await this.waitForPlayback(playback);
     } else {
       log.error('TTS', `Synthese fehlgeschlagen (voice=${item.voice})`, lastMsg);
-      this.onError?.(`Sprachausgabe fehlgeschlagen: ${lastMsg}`);
+      this.onError?.(
+        `Sprachausgabe fehlgeschlagen: ${lastMsg}. Tipp: unter „Stimme" eine lokale ` +
+          `Piper-Stimme vorbereiten — die läuft ohne Internet.`,
+      );
     }
 
     void this.processNext();
