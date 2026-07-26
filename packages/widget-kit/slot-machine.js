@@ -57,7 +57,7 @@ const CSS = `
   border-radius:min(2.4cqi,2.4cqh); border: max(1px,.2cqi) dashed color-mix(in srgb, var(--bx-accent,#ff5e8a) 55%, transparent);
   opacity:.65; }
 .bx-sm-title { flex:none; text-align:center; letter-spacing:.16em; text-transform:uppercase;
-  font-size:min(4.6cqi,4.2cqh); color:#fff; -webkit-text-stroke: max(1px,.09em) #0a0b12; paint-order: stroke fill;
+  font-size: calc(min(4.6cqi,4.2cqh) * var(--bx-fs, 1)); color:#fff; -webkit-text-stroke: max(1px,.09em) #0a0b12; paint-order: stroke fill;
   text-shadow: 0 0 .5em color-mix(in srgb, var(--bx-accent,#ff5e8a) 70%, transparent); }
 /* Anzeigefenster mit den drei Walzen. */
 .bx-sm-win { position:relative; flex:1 1 auto; min-height:0; display:flex; gap:min(2cqi,2cqh);
@@ -77,7 +77,7 @@ const CSS = `
 .bx-sm-cell img { display:none; }
 .bx-sm-cell.has-img img { display:block; }
 .bx-sm-cell.has-img svg { display:none; }
-.bx-sm-cell .lbl { max-width:92%; font-size:min(2.2cqi,2.6cqh); line-height:1.05; text-align:center;
+.bx-sm-cell .lbl { max-width:92%; font-size: calc(min(2.2cqi,2.6cqh) * var(--bx-fs, 1)); line-height:1.05; text-align:center;
   color: var(--bx-text,#f4f0ff); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 /* Während des Drehens: schnelle, endlose Endlosschleife (die Ziel-Landung
    übernimmt danach das JS mit einer ease-out-transition). */
@@ -117,7 +117,7 @@ const CSS = `
    Anzeigefenster, damit es auch bei sehr flachen Boxen nicht herausragt. */
 .bx-sm-msg { position:absolute; left:50%; top:50%; translate:-50% -50%; z-index:5; text-align:center;
   padding:.5em .9em; border-radius:.6em; white-space:nowrap; max-width:92%;
-  font-size:min(3.6cqi,4.2cqh); color:#fff; -webkit-text-stroke: max(1px,.08em) #0a0b12; paint-order: stroke fill;
+  font-size: calc(min(3.6cqi,4.2cqh) * var(--bx-fs, 1)); color:#fff; -webkit-text-stroke: max(1px,.08em) #0a0b12; paint-order: stroke fill;
   background: color-mix(in srgb, #000 55%, transparent); opacity:0; pointer-events:none;
   overflow:hidden; text-overflow:ellipsis; }
 .bx-sm-msg.show.win { animation: bx-sm-msg-win 2.4s cubic-bezier(.2,1.4,.3,1) forwards; color:#fff2b0; }
@@ -380,7 +380,9 @@ export default class SlotMachine {
     this.spinning = false;
     this.cab.classList.remove('spinning');
     for (const reel of this.reels) reel.classList.remove('spin');
-    const it = this.items[((winnerIndex % this.items.length) + this.items.length) % this.items.length];
+    // winnerIndex kommt aus slotReels() (targets[0]) und ist dort bereits auf
+    // [0, n) normalisiert — erneutes Modulo hier wäre redundant.
+    const it = this.items[winnerIndex];
     this.msgEl.textContent = win
       ? `🎉 JACKPOT — ${this.displayName(it)}!`
       : 'So knapp daneben…';
