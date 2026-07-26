@@ -24,6 +24,7 @@ import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { planWheelSpins } from './wheel-gift';
 import { planSlotSpins } from './slot-gift';
+import { planLuckyDraws } from './lucky-draw';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { ProfileStore, type ProfileMeta } from './profile-store';
@@ -459,6 +460,19 @@ export class Studio {
         // startet damit die Challenge des Gewinner-Geschenks, exakt als wäre
         // es gesendet worden (ohne Coin-/Zähler-Nebenwirkung, s. slot-gift.ts).
         for (const { ruleId, action } of planSlotSpins(layers, e.gift.slug, this.getRules(), Math.random, e.user?.nickname)) {
+          this.dispatchAction(ruleId, action, e);
+        }
+        // Lucky-Card-Bindung „Bei welchem Geschenk ziehen?" (Stück 4, Task 2):
+        // passender Geschenke-Slider (gift-menu, luckyMode+luckyGift-Prop)
+        // shuffelt seine Karten durch — Gewinn/Niete + Gewinner-Karte würfelt
+        // der SERVER zentral (planSlotOutcome, wiederverwendet aus
+        // slot-gift.ts), damit alle Overlay-Quellen dasselbe Ergebnis zeigen.
+        // planLuckyDraws() (lucky-draw.ts) entscheidet ALLES (auch das
+        // Auslösen der gewonnenen Gift-Aktion bei source:'trigger') rein/
+        // testbar; hier wird nur noch gefeuert, was geplant wurde — pro
+        // Slider genau 1 Draw, bei Gewinn höchstens 1 Satz Aktionen
+        // (verzögert um luckyDrawMs).
+        for (const { ruleId, action } of planLuckyDraws(layers, e.gift.slug, this.getRules(), Math.random, e.user?.nickname)) {
           this.dispatchAction(ruleId, action, e);
         }
         this.maybeAnnounceGift(e); // TTS-Ansage ab Coin-Schwelle
