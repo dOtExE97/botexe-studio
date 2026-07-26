@@ -44,10 +44,12 @@ Feld gehörende Aktion automatisch.
      Legt/pflegt im Hintergrund die Trigger-Regel (`gift_*_is` → `spin_wheel targetId`),
      kein Gang in die Trigger-Seite nötig. Leer = kein Auto-Dreh.
    - Häkchen **„Aktion automatisch ausführen"** (Standard AUS) → „Beides per Schalter".
-3. **Auto-Feuern (sicher)**: Feld trägt eine Aktion. Beim Stopp meldet das Rad über
-   neuen Rückkanal `ctx.fireDrawn(drawId, action)` (analog `reportWin`) → Server führt
-   die Aktion **einmal** über die Engine aus (Dedup per `drawId`). Nur im echten
-   Overlay (nicht Preview/Single), damit keine Demo-/Punkte-Verfälschung.
+3. **Auto-Feuern (sicher)**: Feld trägt eine Aktion. Weil der `roll` schon **zentral am
+   Server** gewürfelt wird (`runAction` broadcastet `roll: Math.random()`), kennt der
+   Server den Gewinner deterministisch und feuert die Aktion **serverseitig** über
+   `dispatchAction`, verzögert um `spinMs` (feuert genau, wenn das Rad steht). Das ist
+   sauberer als ein Widget-Rückkanal: EINE Roll-Stelle → **kein Doppelfeuer** bei mehreren
+   offenen Overlays, kein Dedup nötig. Nur im echten Overlay (nicht Preview/Single).
 4. **Grenzen/Qualität**: Canvas-Rad skaliert schon per `cqi`; nichts läuft aus der
    Box; Vorschau-Demo bleibt; `widget-check`/`node --check`/Tests grün.
 
