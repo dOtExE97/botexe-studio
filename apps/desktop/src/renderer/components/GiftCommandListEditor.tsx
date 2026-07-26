@@ -147,7 +147,6 @@ export default function GiftCommandListEditor(
               className="bx-input flex-none px-1.5 py-1 text-center text-xs"
             />
             <span className="flex-none">Min</span>
-            <span className="flex-none text-studio-muted/70">· leer = kein Timer</span>
           </label>
         </div>
       ))}
