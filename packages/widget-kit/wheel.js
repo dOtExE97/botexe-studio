@@ -3,6 +3,8 @@
 // Gewinn-Popup. Blendet sich beim Spin automatisch ein und nach dem
 // Ergebnis wieder aus (props.autoShow). props: { segments, accent, spinMs,
 //   autoShow?, title? }. rAF nur während der Show (TTLS-schonend).
+import { itemsFromRules } from './gift-menu.js';
+
 const STYLE_ID = 'bx-wh-style';
 const CSS = `
 /* container-type: size → alle Schriftgrößen unten dürfen mit cq* rechnen und
@@ -55,6 +57,13 @@ const CSS = `
 .bx-premium .bx-wh-result .v.bx-hit { --bx-accent: var(--bx-gold, #ffd23e); }
 `;
 const COLORS = ['#ff5436','#ffd23e','#28e0c4','#5c9dff','#c45cff','#ff5e8a','#7dff8a','#ff8a3d'];
+
+// Reiner Helper (kein DOM) — die Radfelder aus den Trigger-Regeln ableiten.
+// Setzt auf itemsFromRules (gift-menu.js) auf: dort steckt schon die Logik,
+// welche Regel einen sprechenden Text liefert.
+export function segmentsFromRules(rules) {
+  return itemsFromRules(rules).map((it) => it.text).filter(Boolean);
+}
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 
 // Premium-Auslöser: Klasse `bx-hit` setzen und nach 900 ms wieder wegnehmen.
@@ -81,12 +90,19 @@ function scheduleFrame(cb) {
 export default class Wheel {
   constructor(root, props, ctx) {
     ensureStyle();
+    // Achtung Namenskollision: `this.ctx` ist unten schon der Canvas-2D-Context
+    // (this.ctx = this.canvas.getContext('2d')) — der App-Kontext (baseUrl,
+    // token, preview) heißt hier deshalb bewusst `this.host`.
     this.host = ctx || {};
     this.accent = props.accent || '#ff5436';
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.segments = String(props.segments || '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech')
       .split('|').map((x) => x.trim()).filter(Boolean);
     if (this.segments.length < 2) this.segments = ['Gewinn', 'Niete'];
+    // Quelle der Radfelder: manuelle Liste (Standard) oder automatisch aus den
+    // Geschenk-Triggern des Nutzers (Muster: gift-menu.js loadRules).
+    this.source = props.source === 'trigger' ? 'trigger' : 'liste';
+    this.segmentRules = []; // Index = Segment-Index — Grundlage für spätere Aufgaben (Auto-Auslösen)
     this.spinMs = Math.max(2000, Number(props.spinMs ?? 5000));
     this.autoShow = props.autoShow !== false;
     this.showTrigger = props.showTrigger !== false; // Banner „wer hat gedreht" (TikFinity-Style)
@@ -113,6 +129,26 @@ export default class Wheel {
       this.demoT = setTimeout(demo, 600);
       this.demoInterval = setInterval(demo, Math.max(9000, this.spinMs + 5000));
     }
+    // Quelle „trigger": Radfelder aus den Geschenk-Triggern nachladen. Nicht in
+    // der Editor-Vorschau (dort gibt es keinen Server, der die Route bedient).
+    if (this.source === 'trigger' && this.host.baseUrl && !this.host.preview) void this.loadRules();
+  }
+
+  /** Radfelder aus den Trigger-Regeln des Nutzers ableiten (Quelle „trigger").
+   *  Schlägt das fehl (Route noch nicht da, Netzwerkfehler), bleibt die
+   *  manuelle Liste stehen — Muster: gift-menu.js loadRules(). */
+  async loadRules() {
+    try {
+      const res = await fetch(`${this.host.baseUrl}/trigger-rules?token=${this.host.token}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const rules = Array.isArray(data) ? data : (data && Array.isArray(data.rules) ? data.rules : []);
+      const items = itemsFromRules(rules);
+      if (!items.length) return;
+      this.segmentRules = items;
+      this.segments = items.map((it) => it.text).filter(Boolean);
+      this.draw();
+    } catch { /* Route (noch) nicht da — manuelle Liste bleibt */ }
   }
   resize() {
     const r = this.el.getBoundingClientRect(); if (r.width===0) return;

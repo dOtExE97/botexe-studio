@@ -543,14 +543,18 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'wheel', label: 'Glücksrad', desc: 'Dreht bei einer Trigger-Aktion (z.B. !spin gegen Punkte) und zeigt den Gewinn. Preise frei wählbar.',
-    w: 480, h: 560, props: { style: 'classic', segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', spinMs: 5000, accent: '#ff5436', autoShow: true, showTrigger: true, title: 'Glücksrad', spinSoundId: 'botexe-rad.wav', resultSoundId: 'botexe-gewinn.wav' },
+    w: 480, h: 560, props: { style: 'classic', segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', source: 'liste', spinMs: 5000, accent: '#ff5436', autoShow: true, showTrigger: true, title: 'Glücksrad', spinSoundId: 'botexe-rad.wav', resultSoundId: 'botexe-gewinn.wav' },
     fields: [
       styleField([
         { value: 'classic', label: '🎡 Bunt (Standard)' },
         { value: 'casino', label: '🎰 Casino (Gold & Rot-Schwarz)' },
         { value: 'neon', label: '⚡ Neon-Arcade (freistehend, Glow)' },
       ]),
-      { key: 'segments', label: 'Preise', type: 'list', separator: '|', textPlaceholder: 'Preis, z.B. 100 Coins', addLabel: 'Preis hinzufügen', hint: 'Jede Zeile ist ein Feld auf dem Rad. Frei änderbar — hinzufügen, entfernen, sortieren.' },
+      { key: 'source', label: 'Woher kommen die Felder', type: 'select', options: [
+        { value: 'liste', label: 'Meine Liste unten' },
+        { value: 'trigger', label: 'Automatisch aus meinen Geschenk-Triggern' },
+      ], hint: 'Automatisch: das Rad nimmt deine Geschenk-Trigger als Felder und bleibt von allein aktuell.' },
+      { key: 'segments', label: 'Preise', type: 'list', separator: '|', textPlaceholder: 'Preis, z.B. 100 Coins', addLabel: 'Preis hinzufügen', hint: 'Jede Zeile ist ein Feld auf dem Rad. Frei änderbar — hinzufügen, entfernen, sortieren.', showIf: (p) => (p.source ?? 'liste') === 'liste' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift über dem Rad.' },
       { key: 'spinMs', label: 'Drehdauer', type: 'seconds', hint: 'Wie lange das Rad dreht, bis es stoppt.' },
       { key: 'autoShow', label: 'Auto ein-/ausblenden', type: 'boolean', hint: 'An: Rad erscheint beim Spin und verschwindet nach dem Ergebnis (deckt sonst nichts zu). Aus: dauerhaft sichtbar.' },
