@@ -96,6 +96,17 @@ const CSS = `
 .bx-gm-bar.run i { animation: bx-gm-fill var(--dwell,6s) linear forwards; }
 @keyframes bx-gm-fill { from { width:0 } to { width:100% } }
 
+/* ── Challenge-Countdown ──────────────────────────────────────────────────
+   Bewusst schlicht: nur Restzeit als Zahl in einer kleinen Kapsel oben rechts
+   auf dem getroffenen Eintrag. Die drei Optik-Varianten (einfach/balken/ring)
+   kommen erst in Task 3 — hier zählt nur, DASS der Countdown korrekt läuft,
+   stackt und abläuft. Die Klasse .bx-gm-timing ist ein reiner Marker für Task 3. */
+.bx-gm-timer { position:absolute; top:.32em; right:.32em; z-index:5;
+  font-family: var(--bx-font-num); font-size:.6em; line-height:1; font-variant-numeric: tabular-nums;
+  padding:.3em .55em; border-radius:99em; background: rgba(0,0,0,.6); color:#fff;
+  box-shadow: 0 0 0 max(1px,.03em) rgba(255,255,255,.28); pointer-events:none; }
+.bx-gm-chip .bx-gm-timer { font-size:.42em; top:.4em; right:.4em; }
+
 /* ── Laufband ─────────────────────────────────────────────────────────── */
 /* Ein Band ist BREIT: die Chip-Größe hängt an der HÖHE (cqh), cqi deckelt sie
    in schmalen Boxen zusätzlich. --bx-fs auch hier AUSSEN um das clamp. */
@@ -1116,6 +1127,9 @@ function escapeHtml(s) {
 // re-exportiert, damit bestehende Imports von gift-menu.js weiter funktionieren.
 import { giftKey, actionLabel, itemsFromRules } from './gift-rules.js';
 export { giftKey, actionLabel, itemsFromRules };
+// Challenge-Countdown pro Eintrag: reiner Kern in gift-countdown.js (NICHT
+// countdown.js — das ist das unabhängige Premium-Countdown-Widget).
+import { fmtTime, nextCountdownState, tickCountdownState } from './gift-countdown.js';
 
 /** "rose::Konfetti | galaxy::Songwunsch" → [{slug, text, secs}]. Ohne :: gilt der
  *  ganze Eintrag als Gift-Name ohne Aktionstext. Ein optionales 3. Feld
@@ -1142,7 +1156,10 @@ export function parseItems(raw) {
     .filter((it) => it.slug || it.text);
 }
 
-const DEMO = 'Rose::Konfetti-Regen | Finger Heart::Danke-Sound | Galaxy::Songwunsch | TikTok::Glücksrad drehen | Doughnut::Tode +1';
+// Galaxy trägt hier zusätzlich eine Demo-Dauer (::45), damit der Challenge-
+// Countdown auch OHNE echtes Geschenk im Editor zu sehen ist (s.u., `demo`-Zweig
+// im Konstruktor). Ändert nichts an Name/Wirkungstext, nur das dritte Feld.
+const DEMO = 'Rose::Konfetti-Regen | Finger Heart::Danke-Sound | Galaxy::Songwunsch::45 | TikTok::Glücksrad drehen | Doughnut::Tode +1';
 const DEMO_COINS = { rose: 1, fingerheart: 5, galaxy: 1000, tiktok: 1, doughnut: 30 };
 
 export default class GiftMenu {
@@ -1153,6 +1170,8 @@ export default class GiftMenu {
     this.timers = new Set();
     this.parts = new Set();   // laufende Partikel-Schwärme (Auslöse-Effekt)
     this.rotTimer = null;
+    this.activeTimers = new Map(); // giftKey/#idx → { remaining, total, els } — laufende Challenge-Countdowns
+    this.countdownTimer = null;    // EIN Sekunden-Ticker für alle activeTimers
     this.icons = {};      // giftKey → Bild-URL
     this.iconsById = {};  // giftId  → Bild-URL
     this.meta = {};       // giftKey → { name, coins }
@@ -1181,6 +1200,17 @@ export default class GiftMenu {
       this.demo = true;
     }
     this.build();
+    // Vorschau: den Challenge-Countdown einmal ohne echtes Geschenk-Event
+    // anzeigen, damit die Optik im Editor beurteilbar ist (kein Hit-Glow,
+    // keine Partikel — nur der Countdown selbst).
+    if (this.demo) {
+      const di = this.list.findIndex((it) => Number(it.secs) > 0);
+      if (di >= 0) {
+        const dTargets = [...this.el.querySelectorAll(`[data-idx="${di}"]`)]
+          .filter((el) => el.classList.contains('bx-gm-card') || el.classList.contains('bx-gm-chip'));
+        if (dTargets.length) this.startCountdown(di, this.list[di], dTargets);
+      }
+    }
     // Die Runtime setzt Theme und Schriftart u.U. ERST nach dem Bauen auf die
     // Widget-Box. Deshalb ein zweiter Blick im nächsten Tick.
     const ft = setTimeout(() => { this.timers.delete(ft); this.syncFonts(); }, 0);
@@ -1197,6 +1227,10 @@ export default class GiftMenu {
     if (this.rotTimer) { clearInterval(this.rotTimer); this.rotTimer = null; }
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
+    // Neuer Aufbau ersetzt das komplette DOM — alte Countdown-Elementreferenzen
+    // wären sonst tot (Ticker liefe gegen entfernte Knoten weiter).
+    this.activeTimers.clear();
+    this.countdownTimer = null;
     this.clearParticles();
     this.index = 0;
     const list = this.items.length ? this.items : [{ slug: '', text: 'Noch keine Geschenke eingetragen' }];
@@ -1279,6 +1313,83 @@ export default class GiftMenu {
       this.clearParticles();
     }, 2600);
     this.timers.add(this.hitTimer);
+
+    // Challenge-Countdown: nur wenn dieses Item eine Dauer trägt (Task 1,
+    // parseItems 3. Feld). Mehrfach-Treffer legen Restzeit drauf (Stacking).
+    const item = (this.list || [])[i];
+    if (item && Number(item.secs) > 0) this.startCountdown(i, item, targets);
+  }
+
+  /** Countdown für den getroffenen Eintrag starten bzw. — bei bereits
+   *  laufendem Countdown desselben Gifts — die Restzeit draufstapeln
+   *  (gedeckelt, siehe gift-countdown.js). `targets` sind schon die per
+   *  data-idx gefundenen Elemente — im Laufband-Modus ZWEI Duplikate (die
+   *  Sequenz ist für den nahtlosen Loop verdoppelt), beide bekommen dieselbe
+   *  Anzeige. */
+  startCountdown(i, item, targets) {
+    const key = item.slug ? giftKey(item.slug) : `#${i}`;
+    const prev = this.activeTimers.get(key);
+    const { remaining, total } = nextCountdownState(prev, Number(item.secs) || 0, 600);
+    for (const el of targets) el.classList.add('bx-gm-timing');
+    this.activeTimers.set(key, { remaining, total, els: targets });
+    this.renderCountdown(key);
+    this.ensureCountdownTicker();
+  }
+
+  /** Anzeige EINES Countdown-Eintrags aktualisieren (Restzeit + einfacher
+   *  Fortschritt als CSS-Variable — die Stil-Varianten aus Task 3 lesen sie). */
+  renderCountdown(key) {
+    const t = this.activeTimers.get(key);
+    if (!t) return;
+    const pct = t.total > 0 ? Math.max(0, Math.min(1, t.remaining / t.total)) : 0;
+    for (const el of t.els) {
+      let node = el.querySelector('.bx-gm-timer');
+      if (!node) {
+        node = document.createElement('span');
+        node.className = 'bx-gm-timer';
+        el.appendChild(node);
+      }
+      node.textContent = fmtTime(t.remaining);
+      el.style.setProperty('--bx-gm-prog', String(pct));
+    }
+  }
+
+  /** Countdown-Eintrag beenden: Marker/Anzeige entfernen, aus der Map raus. */
+  resetCountdown(key) {
+    const t = this.activeTimers.get(key);
+    if (!t) return;
+    for (const el of t.els) {
+      el.classList.remove('bx-gm-timing');
+      el.style.removeProperty('--bx-gm-prog');
+      const node = el.querySelector('.bx-gm-timer');
+      if (node) node.remove();
+    }
+    this.activeTimers.delete(key);
+  }
+
+  /** EIN Sekunden-Ticker für alle laufenden Countdowns — nur solange
+   *  activeTimers nicht leer ist (kein leerlaufendes Interval). */
+  ensureCountdownTicker() {
+    if (this.countdownTimer) return;
+    this.countdownTimer = setInterval(() => this.tickCountdowns(), 1000);
+    this.timers.add(this.countdownTimer);
+  }
+
+  tickCountdowns() {
+    for (const [key, t] of this.activeTimers) {
+      const next = tickCountdownState(t);
+      if (next.done) {
+        this.resetCountdown(key);
+      } else {
+        t.remaining = next.remaining;
+        this.renderCountdown(key);
+      }
+    }
+    if (this.activeTimers.size === 0 && this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.timers.delete(this.countdownTimer);
+      this.countdownTimer = null;
+    }
   }
 
   /** Der Partikel-Schwarm des Auslösers. Bewusst per JS: jedes Teilchen
@@ -1479,6 +1590,8 @@ export default class GiftMenu {
     if (this.rotTimer) clearInterval(this.rotTimer);
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
+    this.activeTimers.clear();
+    this.countdownTimer = null;
     this.clearParticles();
     this.el.remove();
   }
