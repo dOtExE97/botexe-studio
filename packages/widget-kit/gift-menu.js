@@ -97,15 +97,66 @@ const CSS = `
 @keyframes bx-gm-fill { from { width:0 } to { width:100% } }
 
 /* ── Challenge-Countdown ──────────────────────────────────────────────────
-   Bewusst schlicht: nur Restzeit als Zahl in einer kleinen Kapsel oben rechts
-   auf dem getroffenen Eintrag. Die drei Optik-Varianten (einfach/balken/ring)
-   kommen erst in Task 3 — hier zählt nur, DASS der Countdown korrekt läuft,
-   stackt und abläuft. Die Klasse .bx-gm-timing ist ein reiner Marker für Task 3. */
+   Kapsel oben rechts auf dem getroffenen Eintrag, in drei Optiken (Feld
+   timerStyle, Task 3): einfach (nur Zahl), balken (Zahl + schrumpfender
+   Streifen), ring (Kreis, der sich leert, Zahl in der Mitte). Alle drei
+   teilen sich die Basis-Kapsel .bx-gm-timer, die konkrete Optik hängt an
+   .bx-gm-timer--einfach/--balken/--ring. Sanftes Einblenden über @keyframes
+   statt Sprung — passt zum "is-in"-Übergang der Karte daneben. */
 .bx-gm-timer { position:absolute; top:.32em; right:.32em; z-index:5;
-  font-family: var(--bx-font-num); font-size:.6em; line-height:1; font-variant-numeric: tabular-nums;
-  padding:.3em .55em; border-radius:99em; background: rgba(0,0,0,.6); color:#fff;
-  box-shadow: 0 0 0 max(1px,.03em) rgba(255,255,255,.28); pointer-events:none; }
-.bx-gm-chip .bx-gm-timer { font-size:.42em; top:.4em; right:.4em; }
+  display:flex; align-items:center; font-family: var(--bx-font-num);
+  line-height:1; font-variant-numeric: tabular-nums; color:#fff; pointer-events:none;
+  box-shadow: 0 0 0 max(1px,.03em) rgba(255,255,255,.28);
+  animation: bx-gm-timer-in .35s ease both; }
+@keyframes bx-gm-timer-in { from { opacity:0; transform:translateY(-.3em) scale(.85); } to { opacity:1; transform:none; } }
+.bx-gm-timer-txt { position:relative; }
+
+/* einfach: die schlichte Zahl-Kapsel von Task 2, unverändert. */
+.bx-gm-timer--einfach { font-size:.6em; padding:.3em .55em; border-radius:99em; background: rgba(0,0,0,.6); }
+.bx-gm-chip .bx-gm-timer--einfach { font-size:.42em; }
+
+/* balken: Zahl über einem Streifen, der von rechts nach links leerläuft.
+   Die Breite steckt in der Kapsel (nicht in der Karte) — so bleibt sie in
+   JEDER Kartenbreite gleich proportioniert, ohne die Karte selbst zu messen. */
+.bx-gm-timer--balken { flex-direction:column; align-items:stretch; gap:.22em; font-size:.6em;
+  padding:.32em .5em .4em; border-radius:.55em; background: rgba(0,0,0,.62);
+  width: min(calc(9.5em * var(--bx-fs, 1)), 44cqi, 70cqw); }
+.bx-gm-timer--balken .bx-gm-timer-txt { text-align:center; letter-spacing:.02em; }
+.bx-gm-timer-bar { position:relative; height:.3em; border-radius:99em; overflow:hidden;
+  background: rgba(255,255,255,.18); box-shadow: inset 0 0 0 max(1px,.02em) rgba(0,0,0,.35); }
+.bx-gm-timer-bar i { display:block; height:100%; width:0; border-radius:99em;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent,#ff5e8a) 75%, white), var(--bx-accent,#ff5e8a));
+  box-shadow: 0 0 .5em -.05em var(--bx-accent,#ff5e8a);
+  transition: width 1s linear; }
+.bx-gm-chip .bx-gm-timer--balken { font-size:.44em;
+  width: min(calc(9.5em * var(--bx-fs, 1)), 30cqh, 60cqi); }
+
+/* ring: runde Kapsel, Zahl in der Mitte, Füllstand als SVG-Kreis (transform:
+   rotate + stroke-dashoffset — beides GPU-freundlich, kein Layout pro Tick). */
+.bx-gm-timer--ring { padding:0; border-radius:99em; background: rgba(0,0,0,.6);
+  display:grid; place-items:center;
+  width: min(calc(clamp(20px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 22cqh, 26cqi);
+  height: min(calc(clamp(20px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 22cqh, 26cqi); }
+.bx-gm-timer-ring { position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
+.bx-gm-timer-ring circle { fill:none; stroke-width:8%; }
+.bx-gm-timer-ring .bx-gm-timer-ring-bg { stroke: rgba(255,255,255,.2); }
+.bx-gm-timer-ring .bx-gm-timer-ring-fg { stroke: var(--bx-accent,#ff5e8a); stroke-linecap:round;
+  transition: stroke-dashoffset 1s linear; filter: drop-shadow(0 0 .25em var(--bx-accent,#ff5e8a)); }
+.bx-gm-timer--ring .bx-gm-timer-txt { font-size:.32em; }
+.bx-gm-chip .bx-gm-timer--ring {
+  width: min(calc(clamp(16px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 26cqh, 20cqi);
+  height: min(calc(clamp(16px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 26cqh, 20cqi); }
+.bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.3em; }
+
+/* Laufband, Kachelform „breit" (Standard): der Chip ist eine flexible Reihe
+   OHNE feste Breite (Icon + Text). Als Ecken-Overlay wie in der Rotation
+   würde der Countdown dort den Namen verdecken — die Kachel ist dafür zu
+   schmal (Messung: bis zu 20px Überlappung bei „balken"). Deshalb reiht er
+   sich hier stattdessen als zusätzliches Flex-Element ein: der Chip wächst
+   um genau seine Breite, nichts wird zugedeckt. Die anderen Kachelformen
+   (quadrat/etikett/…) sind fest bemessene Boxen mit Ecken-Marken (Coins) —
+   dort bleibt der Countdown als Ecken-Pille wie gehabt. */
+.bx-gm-t-breit .bx-gm-chip .bx-gm-timer { position:relative; top:auto; right:auto; flex:none; margin-left:.2em; }
 
 /* ── Laufband ─────────────────────────────────────────────────────────── */
 /* Ein Band ist BREIT: die Chip-Größe hängt an der HÖHE (cqh), cqi deckelt sie
@@ -205,6 +256,15 @@ const CSS = `
 .bx-gm-t-quadrat .bx-gm-chip .bx-gm-coins { position:absolute; top:2cqh; right:2cqh; font-size:8cqh;
   padding:.9cqh 2cqh; }
 .bx-gm-t-quadrat .bx-gm-chip .bx-gm-line { justify-content:center; }
+/* Challenge-Countdown: das Geschenk füllt hier schon die obere Hälfte der
+   Kachel — als Ecken-Pille in Kartengröße (em-basiert) würde er das Bild
+   überlappen. Deshalb eigene, kleinere Bemessung in cqh (wie alle anderen
+   quadrat-Maße), dichter an der Ecke als der Coin-Preis. */
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer { top:1cqh; right:1cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--einfach { font-size:7cqh; padding:.6cqh 1.4cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--balken { font-size:7cqh; width:32cqh; padding:.5cqh 1cqh .7cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--ring { width:15cqh; height:15cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.34em; }
 
 /* ETIKETT — quadratisches Geschenk mit Namensband darauf, die Wirkung steht
    rechts daneben. Etwas breiter als ein Quadrat, dafür bleibt die Wirkung groß. */
@@ -1129,7 +1189,16 @@ import { giftKey, actionLabel, itemsFromRules } from './gift-rules.js';
 export { giftKey, actionLabel, itemsFromRules };
 // Challenge-Countdown pro Eintrag: reiner Kern in gift-countdown.js (NICHT
 // countdown.js — das ist das unabhängige Premium-Countdown-Widget).
-import { fmtTime, nextCountdownState, tickCountdownState } from './gift-countdown.js';
+import {
+  fmtTime, nextCountdownState, tickCountdownState, countdownProgress, barWidthPct, ringDashOffset,
+} from './gift-countdown.js';
+
+// Ring-Radius im normierten SVG-viewBox (0 0 36 36) — 15 lässt einen Rand für
+// die Ring-Strichbreite (8%) übrig, ohne dass der Kreis am viewBox-Rand
+// abgeschnitten wird.
+const TIMER_RING_R = 15;
+const TIMER_RING_C = 2 * Math.PI * TIMER_RING_R;
+const TIMER_STYLES = new Set(['einfach', 'balken', 'ring']);
 
 /** "rose::Konfetti | galaxy::Songwunsch" → [{slug, text, secs}]. Ohne :: gilt der
  *  ganze Eintrag als Gift-Name ohne Aktionstext. Ein optionales 3. Feld
@@ -1181,6 +1250,7 @@ export default class GiftMenu {
     if (props.accent) root.style.setProperty('--bx-accent', String(props.accent));
     this.mode = MODES.has(props.mode) ? props.mode : 'rotation';
     this.style = STYLES.has(props.style) ? props.style : 'karte';
+    this.timerStyle = TIMER_STYLES.has(props.timerStyle) ? props.timerStyle : 'balken';
     this.tile = TILES.has(props.tile) ? props.tile : 'breit';
     this.banner = BANNERS.has(props.banner) ? props.banner : 'schimmer';
     this.showCoins = props.showCoins !== false;
@@ -1336,20 +1406,52 @@ export default class GiftMenu {
     this.ensureCountdownTicker();
   }
 
-  /** Anzeige EINES Countdown-Eintrags aktualisieren (Restzeit + einfacher
-   *  Fortschritt als CSS-Variable — die Stil-Varianten aus Task 3 lesen sie). */
+  /** Der Countdown-Knoten je Optik (einfach/balken/ring, Feld `timerStyle`).
+   *  Getrennt von renderCountdown(), weil er nur EINMAL pro Eintrag gebaut
+   *  wird — jeder weitere Tick aktualisiert nur noch Text/Breite/Offset. */
+  buildTimerNode() {
+    const node = document.createElement('span');
+    node.className = `bx-gm-timer bx-gm-timer--${this.timerStyle}`;
+    if (this.timerStyle === 'balken') {
+      node.innerHTML = '<span class="bx-gm-timer-txt"></span>'
+        + '<span class="bx-gm-timer-bar"><i></i></span>';
+    } else if (this.timerStyle === 'ring') {
+      node.innerHTML = `<svg class="bx-gm-timer-ring" viewBox="0 0 36 36">`
+        + `<circle class="bx-gm-timer-ring-bg" cx="18" cy="18" r="${TIMER_RING_R}"></circle>`
+        + `<circle class="bx-gm-timer-ring-fg" cx="18" cy="18" r="${TIMER_RING_R}" `
+        + `stroke-dasharray="${TIMER_RING_C}" stroke-dashoffset="0"></circle>`
+        + `</svg><span class="bx-gm-timer-txt"></span>`;
+    } else {
+      node.innerHTML = '<span class="bx-gm-timer-txt"></span>';
+    }
+    return node;
+  }
+
+  /** Anzeige EINES Countdown-Eintrags aktualisieren: Text bei allen drei
+   *  Optiken, plus Balken-Breite bzw. Ring-Füllstand. `--bx-gm-prog` bleibt
+   *  zusätzlich als CSS-Variable stehen — falls ein Skin sie mal selbst
+   *  braucht (z. B. um die Karte während des Countdowns leicht zu färben). */
   renderCountdown(key) {
     const t = this.activeTimers.get(key);
     if (!t) return;
-    const pct = t.total > 0 ? Math.max(0, Math.min(1, t.remaining / t.total)) : 0;
+    const pct = countdownProgress(t.remaining, t.total);
+    const label = fmtTime(t.remaining);
     for (const el of t.els) {
       let node = el.querySelector('.bx-gm-timer');
-      if (!node) {
-        node = document.createElement('span');
-        node.className = 'bx-gm-timer';
+      if (!node || !node.classList.contains(`bx-gm-timer--${this.timerStyle}`)) {
+        if (node) node.remove();
+        node = this.buildTimerNode();
         el.appendChild(node);
       }
-      node.textContent = fmtTime(t.remaining);
+      const txt = node.querySelector('.bx-gm-timer-txt');
+      if (txt) txt.textContent = label;
+      if (this.timerStyle === 'balken') {
+        const fill = node.querySelector('.bx-gm-timer-bar i');
+        if (fill) fill.style.width = `${barWidthPct(t.remaining, t.total)}%`;
+      } else if (this.timerStyle === 'ring') {
+        const fg = node.querySelector('.bx-gm-timer-ring-fg');
+        if (fg) fg.style.strokeDashoffset = String(ringDashOffset(t.remaining, t.total, TIMER_RING_C));
+      }
       el.style.setProperty('--bx-gm-prog', String(pct));
     }
   }

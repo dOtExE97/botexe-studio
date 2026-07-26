@@ -44,3 +44,25 @@ export function tickCountdownState(state) {
   const remaining = state.remaining - 1;
   return { remaining, total: state.total, done: remaining <= 0 };
 }
+
+/** Fortschritt 0..1 (Restzeit/Gesamtzeit) — die gemeinsame Grundlage für die
+ *  Balken- UND die Ring-Optik (Task 3). `total<=0` (sollte nicht vorkommen,
+ *  Absicherung) zählt als „aufgebraucht". */
+export function countdownProgress(remaining, total) {
+  if (!(total > 0)) return 0;
+  return Math.max(0, Math.min(1, remaining / total));
+}
+
+/** Balken-Breite in Prozent (0..100), gerundet auf 1 Nachkommastelle — reicht
+ *  für eine ruhige CSS-Transition, ohne dass Sub-Pixel-Rauschen entsteht. */
+export function barWidthPct(remaining, total) {
+  return Math.round(countdownProgress(remaining, total) * 1000) / 10;
+}
+
+/** `stroke-dashoffset` für den Ring: bei `progress=1` (voll) 0 (kein Offset,
+ *  Ring ganz gefüllt), bei `progress=0` (abgelaufen) der volle Umfang (Ring
+ *  komplett ausgeblendet). `circumference` ist 2πr des Ring-SVG. */
+export function ringDashOffset(remaining, total, circumference) {
+  const progress = countdownProgress(remaining, total);
+  return Math.round((1 - progress) * circumference * 1000) / 1000;
+}
