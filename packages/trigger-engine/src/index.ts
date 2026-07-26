@@ -1,7 +1,7 @@
 // @botexe/trigger-engine — deterministische Regel-Logik, keine Electron-/IO-Abhängigkeiten.
 // Cooldowns rechnen mit event.ts (nicht Wanduhr) → Replay-Tests sind exakt reproduzierbar.
 
-export { giftRuleId, findGiftRule, upsertGiftRule, otherGiftRules } from './gift-mapping';
+export { giftRuleId, findGiftRule, upsertGiftRule, otherGiftRules, orderedGiftKeys, type GiftKey } from './gift-mapping';
 
 export type StudioEventType =
   | 'chat'

@@ -40,9 +40,11 @@ Feld gehörende Aktion automatisch.
    (analog Geschenk-Menü): „Meine Liste" (StringListEditor) oder „Automatisch aus
    meinen Geschenk-Triggern" (vorbefüllt via `itemsFromRules`, **trotzdem editierbar**).
 2. **Einstellung direkt am Rad** (das „easy intuitiv"):
-   - Feld **„Bei welchem Geschenk drehen?"** — Geschenk-Picker in den Rad-Einstellungen.
-     Legt/pflegt im Hintergrund die Trigger-Regel (`gift_*_is` → `spin_wheel targetId`),
-     kein Gang in die Trigger-Seite nötig. Leer = kein Auto-Dreh.
+   - Feld **„Bei welchem Geschenk drehen?"** — Geschenk-Picker in den Rad-Einstellungen
+     (Prop `spinGift`). Bindung wird **serverseitig** im Gift-Handler ausgewertet
+     (`matchingWheelSpins` → `spin_wheel`), KEIN automatisch angelegter Trigger (der beim
+     Nutzer als Fremdkörper in der Regel-Liste stünde; `OverlayPage` hat ohnehin keinen
+     Regel-Store-Zugriff). Leer = kein Auto-Dreh.
    - Häkchen **„Aktion automatisch ausführen"** (Standard AUS) → „Beides per Schalter".
 3. **Auto-Feuern (sicher)**: Feld trägt eine Aktion. Weil der `roll` schon **zentral am
    Server** gewürfelt wird (`runAction` broadcastet `roll: Math.random()`), kennt der

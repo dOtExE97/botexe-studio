@@ -22,6 +22,7 @@ import { SoundLibrary } from './sound-library';
 import { MediaLibrary } from './media-library';
 import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
+import { planWheelSpins } from './wheel-gift';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { ProfileStore, type ProfileMeta } from './profile-store';
@@ -433,6 +434,14 @@ export class Studio {
           if (gapMs > 0 && e.ts - last < gapMs) continue;
           this.giftSoundLastAt.set(soundId, e.ts);
           this.playSound(soundId, undefined, 'alert');
+        }
+        // Rad-Bindung „Bei welchem Geschenk drehen?": passendes Rad-Widget
+        // (spinGift-Prop) automatisch drehen — serverseitig, keine Regel nötig.
+        // planWheelSpins() (wheel-gift.ts) entscheidet ALLES (auch Auto-Feuern,
+        // Task 3) rein/testbar; hier wird nur noch gefeuert, was geplant wurde.
+        const layers = this.layouts.list().flatMap((layout) => layout.layers);
+        for (const { ruleId, action } of planWheelSpins(layers, e.gift.slug, this.getRules())) {
+          this.dispatchAction(ruleId, action, e);
         }
         this.maybeAnnounceGift(e); // TTS-Ansage ab Coin-Schwelle
       }

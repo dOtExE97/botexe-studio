@@ -1110,11 +1110,12 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
-/** Toleranter Gift-Schlüssel (nur Buchstaben/Ziffern, klein) — wie in der
- *  Trigger-Engine, damit Apostroph/Leerzeichen/Schreibweise egal sind. */
-export function giftKey(slug) {
-  return String(slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
+// giftKey/actionLabel/itemsFromRules sind nach gift-rules.js ausgelagert —
+// EINZIGE Quelle dieser Logik, die sich auch der Server (trigger-engine/
+// gift-mapping.ts) und das Rad-Widget (wheel.js) teilen. Hier importiert UND
+// re-exportiert, damit bestehende Imports von gift-menu.js weiter funktionieren.
+import { giftKey, actionLabel, itemsFromRules } from './gift-rules.js';
+export { giftKey, actionLabel, itemsFromRules };
 
 /** "rose::Konfetti | galaxy::Songwunsch" → [{slug, text}]. Ohne :: gilt der
  *  ganze Eintrag als Gift-Name ohne Aktionstext. */
@@ -1129,61 +1130,6 @@ export function parseItems(raw) {
       return { slug: s, text: '' };
     })
     .filter((it) => it.slug || it.text);
-}
-
-/** Aktions-Art → verständlicher deutscher Text für die Tafel. */
-export function actionLabel(action) {
-  if (!action || typeof action !== 'object') return '';
-  switch (action.kind) {
-    case 'play_sound': return 'Sound';
-    case 'fire_alert': return 'Alarm';
-    case 'show_layer': return 'Einblendung';
-    case 'hide_layer': return '';
-    case 'speak': return 'Ansage';
-    case 'spin_wheel': return 'Glücksrad';
-    case 'play_media': return 'Video/Bild';
-    case 'counter_add': return `Zähler ${Number(action.delta) >= 0 ? '+' : ''}${Number(action.delta) || 0}`;
-    case 'obs_scene': return `Szene: ${action.scene || ''}`.trim();
-    case 'obs_visibility': return 'Quelle ein/aus';
-    case 'send_chat': return 'Chat-Nachricht';
-    case 'streamerbot_action': return String(action.action || 'Streamer.bot');
-    case 'giveaway_draw': return 'Verlosung';
-    case 'giveaway_reset': return '';
-    case 'spotify_control': return 'Musik';
-    case 'spotify_request': return 'Songwunsch';
-    default: return '';
-  }
-}
-
-/** Trigger-Regeln → Tafel-Einträge. Nur aktive Gift-Regeln mit einer
- *  Gift-Bedingung (gift_slug_is / gift_id_is). Der Text kommt aus dem
- *  Regel-Namen, sofern er selbst gewählt ist; sonst aus den Aktionen. */
-export function itemsFromRules(rules) {
-  const out = [];
-  const seen = new Set();
-  for (const rule of Array.isArray(rules) ? rules : []) {
-    if (!rule || rule.enabled === false || rule.event !== 'gift') continue;
-    const conds = Array.isArray(rule.conditions) ? rule.conditions : [];
-    const slugCond = conds.find((c) => c && c.kind === 'gift_slug_is');
-    const idCond = conds.find((c) => c && c.kind === 'gift_id_is');
-    if (!slugCond && !idCond) continue;
-    const slug = slugCond ? String(slugCond.value || '') : '';
-    const giftId = idCond ? Number(idCond.value) || 0 : 0;
-    const key = slug ? giftKey(slug) : `#${giftId}`;
-    if (!key || seen.has(key)) continue;
-    // Von der Geschenke-Galerie erzeugte Regeln heißen „Gift: <slug>" — das ist
-    // kein sprechender Text, dann lieber die Aktionen beschreiben.
-    const name = String(rule.name || '').trim();
-    const generic = /^gift:/i.test(name);
-    const fromActions = (Array.isArray(rule.actions) ? rule.actions : [])
-      .map(actionLabel).filter(Boolean);
-    const uniq = [...new Set(fromActions)];
-    const text = (!generic && name) ? name : uniq.join(' + ');
-    if (!slug && !giftId) continue;
-    seen.add(key);
-    out.push({ slug, giftId, text });
-  }
-  return out;
 }
 
 const DEMO = 'Rose::Konfetti-Regen | Finger Heart::Danke-Sound | Galaxy::Songwunsch | TikTok::Glücksrad drehen | Doughnut::Tode +1';
