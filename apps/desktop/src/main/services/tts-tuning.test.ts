@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TUNING_SPECS, resolveTuning } from './tts-tuning';
+import { piperArgs } from './tts-providers';
 
 test('jeder Anbieter mit Reglern hat Vorgaben', () => {
   for (const [prov, params] of Object.entries(TUNING_SPECS)) {
@@ -45,4 +46,29 @@ test('resolveTuning: ohne gespeicherte Werte kommen nur Vorgaben zurück', () =>
 test('gtts hat KEINEN Eintrag (verify-or-drop: kein bestätigter Slow-Parameter)', () => {
   assert.equal(TUNING_SPECS.gtts, undefined);
   assert.deepEqual(resolveTuning('gtts', { slow: 1 }), {});
+});
+
+// ── piperArgs (Task 3: Tuning wirkt jetzt auch bei Piper) ──────────────────
+
+test('piperArgs setzt Tempo/Ausdruck/Pausen', () => {
+  const a = piperArgs({ lengthScale: 1.2, noiseScale: 0.5, noiseW: 0.6, sentenceSilence: 0.3 });
+  assert.ok(a.includes('--length_scale')); assert.ok(a.includes('1.2'));
+  assert.ok(a.includes('--noise_scale')); assert.ok(a.includes('--noise_w')); assert.ok(a.includes('--sentence_silence'));
+});
+
+test('piperArgs ohne Tuning ⇒ keine Flags', () => {
+  assert.deepEqual(piperArgs({}), []);
+  assert.deepEqual(piperArgs(undefined), []);
+});
+
+test('piperArgs: aufgelöstes Standard-Tuning (resolveTuning-Output) ergibt alle vier Flags', () => {
+  const a = piperArgs(resolveTuning('piper', {}));
+  for (const flag of ['--length_scale', '--noise_scale', '--noise_w', '--sentence_silence']) {
+    assert.ok(a.includes(flag), flag);
+  }
+  assert.equal(a.length, 8); // 4 Flags + 4 Werte
+});
+
+test('piperArgs ignoriert nicht-numerische/undefinierte Werte', () => {
+  assert.deepEqual(piperArgs({ lengthScale: Number.NaN, quality: 'tts-1' } as unknown as Record<string, number>), []);
 });

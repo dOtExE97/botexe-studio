@@ -116,7 +116,15 @@ async function writeAudio(target: string, data: ArrayBuffer | Buffer): Promise<v
 }
 
 // ── ElevenLabs ──────────────────────────────────────────────────────────
-async function elevenSynthesize(text: string, voiceId: string, creds: ByokCredentials, target: string): Promise<void> {
+// API-Feldnamen laut ElevenLabs-Doku (Text-to-Speech): body.voice_settings
+// mit stability/similarity_boost/style (https://elevenlabs.io/docs/api-reference/text-to-speech).
+async function elevenSynthesize(
+  text: string,
+  voiceId: string,
+  creds: ByokCredentials,
+  target: string,
+  tuning?: Record<string, number | string>,
+): Promise<void> {
   const id = voiceId || '21m00Tcm4TlvDq8ikWAM';
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(id)}`, {
     method: 'POST',
@@ -125,7 +133,15 @@ async function elevenSynthesize(text: string, voiceId: string, creds: ByokCreden
       'Content-Type': 'application/json',
       Accept: 'audio/mpeg',
     },
-    body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2' }),
+    body: JSON.stringify({
+      text,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: {
+        stability: Number(tuning?.stability ?? 0.5),
+        similarity_boost: Number(tuning?.similarity ?? 0.75),
+        style: Number(tuning?.style ?? 0),
+      },
+    }),
   });
   if (!res.ok) throw new Error(`ElevenLabs HTTP ${res.status}: ${(await res.text()).slice(0, 120)}`);
   await writeAudio(target, await res.arrayBuffer());
@@ -148,7 +164,17 @@ async function ttsMonsterSynthesize(text: string, voiceId: string, creds: ByokCr
 }
 
 // ── OpenAI-kompatibel ───────────────────────────────────────────────────
-async function openaiSynthesize(text: string, voiceId: string, creds: ByokCredentials, target: string): Promise<void> {
+// API-Feldnamen laut OpenAI-Doku (Audio → Speech): body.speed (0.25..4.0),
+// body.model (https://platform.openai.com/docs/api-reference/audio/createSpeech).
+// Ein in den Zugangsdaten explizit gesetztes `model` gewinnt weiterhin —
+// die `quality`-Regler dienen nur als Vorgabe, falls der User nichts einträgt.
+async function openaiSynthesize(
+  text: string,
+  voiceId: string,
+  creds: ByokCredentials,
+  target: string,
+  tuning?: Record<string, number | string>,
+): Promise<void> {
   const base = (creds.baseUrl ?? '').replace(/\/+$/, '');
   if (!base) throw new Error('Basis-URL fehlt');
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -157,10 +183,11 @@ async function openaiSynthesize(text: string, voiceId: string, creds: ByokCreden
     method: 'POST',
     headers,
     body: JSON.stringify({
-      model: creds.model || 'tts-1',
+      model: creds.model || String(tuning?.quality ?? 'tts-1'),
       input: text,
       voice: voiceId || 'alloy',
       response_format: 'mp3',
+      speed: Number(tuning?.speed ?? 1),
     }),
   });
   if (!res.ok) throw new Error(`OpenAI-TTS HTTP ${res.status}: ${(await res.text()).slice(0, 120)}`);
@@ -168,15 +195,24 @@ async function openaiSynthesize(text: string, voiceId: string, creds: ByokCreden
 }
 
 // ── Amazon Polly (SigV4-signiert) ───────────────────────────────────────
-async function pollySynthesize(text: string, voiceId: string, creds: ByokCredentials, target: string): Promise<void> {
+// API-Feldname laut Polly-Doku (SynthesizeSpeech): body.Engine = 'standard'|'neural'
+// (https://docs.aws.amazon.com/polly/latest/dg/API_SynthesizeSpeech.html).
+async function pollySynthesize(
+  text: string,
+  voiceId: string,
+  creds: ByokCredentials,
+  target: string,
+  tuning?: Record<string, number | string>,
+): Promise<void> {
   const region = creds.region || 'eu-central-1';
   const host = `polly.${region}.amazonaws.com`;
   const path = '/v1/speech';
+  const engine = tuning?.engine === 'standard' ? 'standard' : 'neural';
   const body = JSON.stringify({
     Text: text,
     VoiceId: voiceId || 'Brian',
     OutputFormat: 'mp3',
-    Engine: 'neural',
+    Engine: engine,
   });
   // amzDate ohne Millis/Doppelpunkte: YYYYMMDDTHHMMSSZ
   const amzDate = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -219,15 +255,16 @@ export async function byokSynthesize(
   voiceId: string,
   creds: ByokCredentials,
   target: string,
+  tuning?: Record<string, number | string>,
 ): Promise<void> {
   switch (providerId) {
     case 'elevenlabs':
-      return elevenSynthesize(text, voiceId, creds, target);
+      return elevenSynthesize(text, voiceId, creds, target, tuning);
     case 'ttsmonster':
-      return ttsMonsterSynthesize(text, voiceId, creds, target);
+      return ttsMonsterSynthesize(text, voiceId, creds, target); // kein Tuning-Eintrag in TUNING_SPECS
     case 'openai':
-      return openaiSynthesize(text, voiceId, creds, target);
+      return openaiSynthesize(text, voiceId, creds, target, tuning);
     case 'polly':
-      return pollySynthesize(text, voiceId, creds, target);
+      return pollySynthesize(text, voiceId, creds, target, tuning);
   }
 }

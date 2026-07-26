@@ -53,14 +53,23 @@ const EDGE_VOICES: Array<[string, string, 'de' | 'en']> = [
   ['en-GB-RyanNeural', 'Ryan (EN-GB, Mann)', 'en'],
 ];
 
-async function edgeSynthesize(text: string, voiceId: string, target: string, tuning?: { rate?: number; pitch?: number }): Promise<void> {
+async function edgeSynthesize(
+  text: string,
+  voiceId: string,
+  target: string,
+  tuning?: Record<string, number | string>,
+): Promise<void> {
   const lang = voiceId.split('-').slice(0, 2).join('-');
   const fmtSigned = (n: number, unit: string) => `${n >= 0 ? '+' : ''}${Math.round(n)}${unit}`;
+  const rate = Number(tuning?.rate ?? 0);
+  const pitch = Number(tuning?.pitch ?? 0);
+  const volume = Number(tuning?.volume ?? 0);
   const engine = new EdgeTTS({
-    voice: voiceId, lang, volume: '+0%',
-    // Tempo/Tonhöhe aus den Einstellungen (0 = neutral).
-    rate: fmtSigned(Math.max(-50, Math.min(50, tuning?.rate ?? 0)), '%'),
-    pitch: fmtSigned(Math.max(-20, Math.min(20, tuning?.pitch ?? 0)), 'Hz'),
+    voice: voiceId, lang,
+    // Tempo/Tonhöhe/Lautstärke aus den Einstellungen (0 = neutral).
+    rate: fmtSigned(Math.max(-50, Math.min(50, rate)), '%'),
+    pitch: fmtSigned(Math.max(-20, Math.min(20, pitch)), 'Hz'),
+    volume: fmtSigned(Math.max(-50, Math.min(50, volume)), '%'),
     // Ohne diesen Wert hängt die Bibliothek mit ihrem eigenen (längeren)
     // Default-Timeout — dann hilft unser Retry/Fallback zu spät.
     timeout: SYNTH_TIMEOUT_MS,
@@ -110,6 +119,24 @@ export const PIPER_VOICES: PiperVoiceDef[] = [
   { id: 'en-ryan', name: 'Ryan (EN-US, Mann) — lokal', language: 'en', model: 'en/en_US/ryan/medium/en_US-ryan-medium' },
   { id: 'en-alan', name: 'Alan (EN-GB, Mann) — lokal', language: 'en', model: 'en/en_GB/alan/medium/en_GB-alan-medium' },
 ];
+
+/** Baut die Piper-CLI-Flags aus dem aufgelösten Tuning (Task 2:
+ *  TUNING_SPECS.piper — lengthScale/noiseScale/noiseW/sentenceSilence).
+ *  Piper (Release 2023.11.14-2) unterstützt diese vier Flags direkt.
+ *  Ohne Tuning (leeres Objekt) ⇒ keine Flags, damit unveränderte Nutzer
+ *  weiterhin exakt Piper's eigene Defaults bekommen. */
+export function piperArgs(tuning?: Record<string, number | string>): string[] {
+  const args: string[] = [];
+  const push = (flag: string, key: string) => {
+    const v = tuning?.[key];
+    if (typeof v === 'number' && Number.isFinite(v)) args.push(flag, String(v));
+  };
+  push('--length_scale', 'lengthScale');
+  push('--noise_scale', 'noiseScale');
+  push('--noise_w', 'noiseW');
+  push('--sentence_silence', 'sentenceSilence');
+  return args;
+}
 
 async function downloadFile(url: string, target: string): Promise<void> {
   const res = await fetch(url);
@@ -187,7 +214,7 @@ export class PiperRuntime {
     });
   }
 
-  synthesize(text: string, voiceId: string, target: string): Promise<void> {
+  synthesize(text: string, voiceId: string, target: string, tuning?: Record<string, number | string>): Promise<void> {
     const def = PIPER_VOICES.find((v) => v.id === voiceId);
     if (!def) return Promise.reject(new Error(`Unbekannte Piper-Stimme: ${voiceId}`));
     if (!this.hasBinary() || !this.voiceReady(voiceId)) {
@@ -195,7 +222,7 @@ export class PiperRuntime {
     }
     const model = path.join(this.voicesDir, `${path.basename(def.model)}.onnx`);
     return new Promise((resolve, reject) => {
-      const child = spawn(this.binPath(), ['--model', model, '--output_file', target]);
+      const child = spawn(this.binPath(), ['--model', model, '--output_file', target, ...piperArgs(tuning)]);
       const timer = setTimeout(() => {
         child.kill();
         reject(new Error('Piper-Timeout'));
@@ -250,17 +277,17 @@ export async function synthesizeWith(
   text: string,
   voice: string,
   target: string,
-  tuning?: { rate?: number; pitch?: number },
+  tuning?: Record<string, number | string>,
 ): Promise<void> {
   const normalized = normalizeVoiceId(voice);
   const [ns, id] = normalized.split(':', 2) as [string, string];
   switch (ns) {
     case 'edge':
-      return edgeSynthesize(text, id, target, tuning); // Tempo/Pitch nur bei Edge
+      return edgeSynthesize(text, id, target, tuning);
     case 'piper':
-      return piper.synthesize(text, id, target);
+      return piper.synthesize(text, id, target, tuning); // jetzt mit Tempo/Ausdruck/Pausen
     case 'gtts':
-      return gttsSynthesize(text, id, target);
+      return gttsSynthesize(text, id, target); // kein bestätigter Parameter (verify-or-drop)
     default:
       throw new Error(`Unbekannter TTS-Provider: ${ns}`);
   }

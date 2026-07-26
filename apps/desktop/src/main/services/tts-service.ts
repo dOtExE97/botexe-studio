@@ -75,15 +75,17 @@ export class TTSService {
 
   private getCredentials: () => Record<string, ByokCredentials>;
   private readonly onError?: (message: string) => void;
-  /** Tempo/Tonhöhe aus den Settings (nur Edge-Stimmen werten es aus). */
-  private readonly getTuning?: () => { rate: number; pitch: number };
+  /** Pro-Anbieter aufgelöstes Tuning (resolveTuning aus tts-tuning.ts) —
+   *  jeder Provider (edge/piper/openai/polly/elevenlabs/…) bekommt seine
+   *  eigenen, bereits mit Vorgaben gefüllten und geklemmten Regler-Werte. */
+  private readonly getTuning?: (provider: string) => Record<string, number | string>;
 
   constructor(
     userDataDir: string,
     onAudio: (playback: TTSPlayback) => void,
     getCredentials: () => Record<string, ByokCredentials> = () => ({}),
     onError?: (message: string) => void,
-    getTuning?: () => { rate: number; pitch: number },
+    getTuning?: (provider: string) => Record<string, number | string>,
   ) {
     this.cacheDir = path.join(userDataDir, 'tts-cache');
     fs.mkdirSync(this.cacheDir, { recursive: true });
@@ -261,6 +263,7 @@ export class TTSService {
     const fileId = `tts-${crypto.randomBytes(6).toString('hex')}.${extForVoice(voice)}`;
     const target = path.join(this.cacheDir, fileId);
 
+    const tuning = this.getTuning?.(ns);
     const work = byokDef
       ? byokSynthesize(
           ns as ByokProviderId,
@@ -268,8 +271,9 @@ export class TTSService {
           normalized.slice(ns.length + 1),
           this.getCredentials()[ns] ?? {},
           target,
+          tuning,
         )
-      : synthesizeWith(this.piper, text, voice, target, this.getTuning?.());
+      : synthesizeWith(this.piper, text, voice, target, tuning);
 
     await Promise.race([
       work,
