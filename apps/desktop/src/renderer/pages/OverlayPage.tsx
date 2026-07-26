@@ -37,6 +37,7 @@ import {
 import ConfirmButton from '../components/ConfirmButton';
 import GiftListEditor from '../components/GiftListEditor';
 import GiftCommandListEditor from '../components/GiftCommandListEditor';
+import StringListEditor from '../components/StringListEditor';
 import GiftPicker from '../components/GiftPicker';
 import WidgetPreview from '../components/WidgetPreview';
 import { toast, toastAction } from '../components/ToastHost';
@@ -1202,6 +1203,24 @@ export default function OverlayPage() {
                             value={String(value)}
                             onChange={(v) => setProp(v)}
                             textPlaceholder={field.textPlaceholder}
+                          />
+                        </div>
+                      );
+                    }
+
+                    // Einfache Liste: eine Zeile pro Eintrag, statt „alles in EINE
+                    // Zeile mit | / , getrennt" (Glücksrad-Preise, Laufband-Texte …).
+                    if (field.type === 'list') {
+                      return (
+                        <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
+                          <FieldLabel label={field.label} hint={field.hint} />
+                          <StringListEditor
+                            value={String(value)}
+                            onChange={(v) => setProp(v)}
+                            separator={field.separator}
+                            placeholder={field.textPlaceholder}
+                            addLabel={field.addLabel}
+                            maxItems={field.maxItems}
                           />
                         </div>
                       );

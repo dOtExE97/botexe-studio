@@ -3,6 +3,11 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.36.0] — 2026-07-26
+
+### Besser: Listen-Felder sind jetzt echte Listen (Glücksrad, Laufband, Umfrage)
+Felder, in die man früher alle Einträge in **eine** Zeile mit `|` oder `,` getrennt tippen musste, sind jetzt eine richtige Liste — **eine Zeile pro Eintrag**, mit Plus zum Hinzufügen, X zum Entfernen und Pfeilen zum Sortieren. Betrifft die **Glücksrad-Preise**, die **Laufband-Nachrichten** und die **Umfrage-Antworten**. Vorbefüllte Beispiele bleiben, lassen sich aber sofort intuitiv anpassen. Gespeichert wird weiter im alten Format — bestehende Overlays bleiben unberührt.
+
 ## [0.35.0] — 2026-07-26
 
 ### Neu: anonyme Absturzberichte (Sentry) — mit Zustimmung, ohne Geheimnisse

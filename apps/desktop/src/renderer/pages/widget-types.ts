@@ -13,13 +13,18 @@ export interface PropField {
   /** seconds = im UI in Sekunden, gespeichert als ms · boolean = Schalter
    *  media = visueller Bild/Video-Picker mit Import · sound = Sound-Dropdown
    *  (abgespielt über die App, nie im Overlay) */
-  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound' | 'gift-list' | 'gift' | 'gift-command-list';
+  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound' | 'gift-list' | 'gift' | 'gift-command-list' | 'list';
   options?: { value: string; label: string }[];
   hint?: string;
-  /** Nur für 'gift-command-list': Platzhalter im Textfeld je Zeile. Der
-   *  Standard („z.B. !feuer") stammt aus der Chat-Befehl-Welt und passt beim
-   *  Geschenk-Menü nicht — dort beschreibt der Text, was das Geschenk auslöst. */
+  /** Nur für 'gift-command-list' und 'list': Platzhalter im Textfeld je Zeile. */
   textPlaceholder?: string;
+  /** Nur 'list': Trennzeichen, mit dem die Einträge in EINEM String gespeichert
+   *  werden (rückwärtskompatibel zu den alten „a|b|c"-Feldern). Standard '|'. */
+  separator?: string;
+  /** Nur 'list': Beschriftung des „+"-Knopfs (z.B. „Preis hinzufügen"). */
+  addLabel?: string;
+  /** Nur 'list': optionale Obergrenze an Einträgen (z.B. 4 Quiz-Antworten). */
+  maxItems?: number;
   /** Nur boolean: Zustand, wenn die Prop (noch) NICHT gesetzt ist. Die meisten
    *  Widgets lesen `props.x !== false`, behandeln „nicht gesetzt" also als AN —
    *  darum ist true der Standard. Felder, die ohne Wert AUS sind (z.B.
@@ -545,7 +550,7 @@ export const WIDGET_TYPES: {
         { value: 'casino', label: '🎰 Casino (Gold & Rot-Schwarz)' },
         { value: 'neon', label: '⚡ Neon-Arcade (freistehend, Glow)' },
       ]),
-      { key: 'segments', label: 'Preise', type: 'text', hint: 'Mit | trennen — jeder Eintrag ein Segment, z.B. „100 Coins|Nichts|VIP".' },
+      { key: 'segments', label: 'Preise', type: 'list', separator: '|', textPlaceholder: 'Preis, z.B. 100 Coins', addLabel: 'Preis hinzufügen', hint: 'Jede Zeile ist ein Feld auf dem Rad. Frei änderbar — hinzufügen, entfernen, sortieren.' },
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift über dem Rad.' },
       { key: 'spinMs', label: 'Drehdauer', type: 'seconds', hint: 'Wie lange das Rad dreht, bis es stoppt.' },
       { key: 'autoShow', label: 'Auto ein-/ausblenden', type: 'boolean', hint: 'An: Rad erscheint beim Spin und verschwindet nach dem Ergebnis (deckt sonst nichts zu). Aus: dauerhaft sichtbar.' },
@@ -602,7 +607,7 @@ export const WIDGET_TYPES: {
         { value: 'cards', label: 'Karten (nebeneinander)' },
       ]),
       { key: 'question', label: 'Frage', type: 'text' },
-      { key: 'options', label: 'Optionen', type: 'text', hint: '2–4 Optionen, kommagetrennt. Zuschauer tippen die Zahl (1, 2, …) in den Chat.' },
+      { key: 'options', label: 'Optionen', type: 'list', separator: ',', maxItems: 4, textPlaceholder: 'Antwort, z.B. Fortnite', addLabel: 'Antwort hinzufügen', hint: 'Bis zu 4 Antworten. Zuschauer tippen die Zahl (1, 2, …) in den Chat.' },
       { key: 'durationSec', label: 'Abstimmdauer (Sek.)', type: 'number', hint: 'Wie lange abgestimmt werden kann, bis der Sieger enthüllt wird.' },
       { key: 'autoNewRound', label: 'Auto neue Runde', type: 'boolean', hint: 'Nach dem Reveal automatisch wieder offen für Stimmen.' },
       { key: 'roundDelayMs', label: 'Pause bis zur neuen Runde', type: 'seconds', hint: 'Wie lange das Ergebnis stehen bleibt, bevor neu abgestimmt wird.' },
@@ -693,7 +698,7 @@ export const WIDGET_TYPES: {
     type: 'text-ticker', label: 'Lauftext-Banner', desc: 'Scrollender Streifen für Socials/Ansagen — dünn, deckt kaum zu. 3 Stile.',
     w: 760, h: 56, props: { messages: 'Folge mir! | Discord in der Bio | Danke fürs Zuschauen ❤️', speed: 18, style: 'glas', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
-      { key: 'messages', label: 'Nachrichten', type: 'text', hint: 'Mehrere mit | trennen, z.B. „Folge mir! | Discord in der Bio".' },
+      { key: 'messages', label: 'Nachrichten', type: 'list', separator: '|', textPlaceholder: 'Nachricht, z.B. Folge mir!', addLabel: 'Nachricht hinzufügen', hint: 'Jede Zeile läuft nacheinander durchs Band.' },
       styleField([
         { value: 'glas', label: 'Glas' },
         { value: 'solid', label: 'Gefüllt' },
