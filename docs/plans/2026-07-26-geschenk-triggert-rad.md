@@ -145,79 +145,104 @@ git commit -m "feat(wheel): Quelle 'trigger' — Radfelder aus Geschenk-Triggern
 
 ---
 
-### Task 2: Gift-Picker am Rad — „Bei welchem Geschenk drehen?"
+### Task 2: „Bei welchem Geschenk drehen?" — serverseitige Bindung (Prop, KEINE Regel)
+
+> **Geändert ggü. urspr. Plan:** `OverlayPage` hat KEINEN Zugriff auf die Regel-Liste
+> (keine Renderer↔Rules-Plumbing vorhanden), und eine automatisch angelegte Regel würde
+> in der Trigger-Liste des Nutzers als „Fremdkörper" auftauchen. Sauberer und mit
+> vorhandenen Mustern belegt: Die Bindung lebt als Widget-Prop `spinGift` und wird
+> **serverseitig** im Gift-Handler ausgewertet. Verhalten identisch (Geschenk → Rad dreht).
 
 **Files:**
-- Modify: `apps/desktop/src/renderer/pages/widget-types.ts` (Feld `spinGift`)
-- Modify: `apps/desktop/src/renderer/pages/OverlayPage.tsx` (renderField-Zweig
-  `wheel-trigger`, der die Regel via `RULES_SET` anlegt/prüft)
-- Test: `apps/desktop/src/renderer/pages/__tests__/wheel-trigger-rule.test.ts` (Pure-Helper)
+- Create: `apps/desktop/src/main/services/wheel-gift.ts` (reiner Matcher)
+- Test: `apps/desktop/src/main/services/wheel-gift.test.ts`
+- Modify: `apps/desktop/src/main/services/studio.ts` (Gift-Handler ~Zeile 410–438)
+- Modify: `apps/desktop/src/renderer/pages/widget-types.ts` (Feld `spinGift` + Default-Prop)
 
 **Interfaces:**
-- Consumes: bestehender IPC `IPC.RULES_SET` (Renderer→Main, `main.ts:669`), aktuelle
-  Regeln aus dem Renderer-Store (gleiche Quelle wie `TriggersPage.tsx`).
-- Produces: reiner Helper `wheelSpinRule(giftSlug, layerId): TriggerRule` — für Task 3
-  identisch wiederverwendbar (gleiche Regel-Form).
+- Consumes: Gift-Event `e.gift.slug` / `e.gift.giftId`, Layout-Layer
+  (`this.layouts.list()` bzw. das aktive Layout — Muster wie `studio.ts:1683`
+  `layout?.layers.find(l => l.widgetType==='media' && l.visible && …)`),
+  `this.dispatchAction(ruleId, action, event)` (`studio.ts:446`). Feldtyp `'gift'`
+  existiert bereits und rendert `GiftPicker` (`OverlayPage.tsx:1230`).
+- Produces: `matchingWheelSpins(layers, giftSlug): string[]` (Layer-IDs sichtbarer
+  Räder mit passendem `spinGift`) — von Task 3 als Ansatzpunkt fürs Auto-Feuern genutzt.
 
-- [ ] **Schritt 1: Failing test — Regel-Bauer**
+- [ ] **Schritt 1: Failing test — welche Räder soll dieses Gift drehen?**
+
+Reiner Matcher (kein I/O). `node:test`/`node:assert` (Server-Tests laufen mit Vitest —
+Muster der bestehenden `apps/desktop/src/main/services/*.test.ts` übernehmen, das dort
+verwendete Runner-Idiom prüfen und 1:1 spiegeln).
 
 ```ts
-import { wheelSpinRule } from '../wheel-trigger';
-test('wheelSpinRule baut gift→spin_wheel-Regel', () => {
-  const r = wheelSpinRule('galaxy', 'layer-42');
-  expect(r.event).toBe('gift');
-  expect(r.conditions).toEqual([{ kind: 'gift_slug_is', value: 'galaxy' }]);
-  expect(r.actions).toEqual([{ kind: 'spin_wheel', targetId: 'layer-42' }]);
+import { matchingWheelSpins } from './wheel-gift';
+test('matchingWheelSpins liefert IDs sichtbarer Räder mit passendem spinGift', () => {
+  const layers = [
+    { id: 'w1', widgetType: 'wheel', visible: true,  props: { spinGift: 'galaxy' } },
+    { id: 'w2', widgetType: 'wheel', visible: true,  props: { spinGift: 'rose' } },
+    { id: 'w3', widgetType: 'wheel', visible: false, props: { spinGift: 'galaxy' } }, // unsichtbar
+    { id: 'w4', widgetType: 'wheel', visible: true,  props: { spinGift: '' } },       // leer = nie
+    { id: 'g1', widgetType: 'gift-menu', visible: true, props: { spinGift: 'galaxy' } }, // kein Rad
+  ];
+  expect(matchingWheelSpins(layers, 'galaxy')).toEqual(['w1']);
+  expect(matchingWheelSpins(layers, 'rose')).toEqual(['w2']);
+  expect(matchingWheelSpins(layers, 'diamond')).toEqual([]);
 });
 ```
 
-- [ ] **Schritt 2: Test rot** — Run: `npx vitest run …wheel-trigger-rule.test.ts` → FAIL.
+- [ ] **Schritt 2: Test rot** — Run: `npx vitest run apps/desktop/src/main/services/wheel-gift.test.ts` → FAIL.
 
-- [ ] **Schritt 3: Helper implementieren**
+- [ ] **Schritt 3: Matcher implementieren**
 
 ```ts
-// apps/desktop/src/renderer/pages/wheel-trigger.ts
-import type { TriggerRule } from '@botexe/trigger-engine';
-export function wheelSpinRule(giftSlug: string, layerId: string): TriggerRule {
-  return {
-    id: `wheel-spin-${layerId}`,
-    name: `Rad drehen bei ${giftSlug}`,
-    enabled: true,
-    event: 'gift',
-    conditions: [{ kind: 'gift_slug_is', value: giftSlug }],
-    actions: [{ kind: 'spin_wheel', targetId: layerId }],
-  } as TriggerRule;
+// apps/desktop/src/main/services/wheel-gift.ts
+type WheelLayer = { id: string; widgetType: string; visible: boolean; props?: Record<string, unknown> };
+/** IDs sichtbarer Rad-Widgets, deren spinGift auf diesen Gift-Slug passt. */
+export function matchingWheelSpins(layers: WheelLayer[], giftSlug: string): string[] {
+  const slug = String(giftSlug || '');
+  if (!slug) return [];
+  return layers
+    .filter((l) => l.widgetType === 'wheel' && l.visible && String(l.props?.spinGift || '') === slug)
+    .map((l) => l.id);
 }
 ```
 
-(Feld-Namen von `TriggerRule` in `trigger-engine/src/index.ts` gegenprüfen: `id`,
-`name`, `enabled`, `event`, `conditions`, `actions`. `id`-Präfix `wheel-spin-<layerId>`
-macht die Regel idempotent — kein Duplikat bei erneutem Anlegen.)
+- [ ] **Schritt 4: Test grün** — Run: `npx vitest run …wheel-gift.test.ts` → PASS.
 
-- [ ] **Schritt 4: Test grün** — Run: `npx vitest run …` → PASS.
+- [ ] **Schritt 5: Im Gift-Handler von `studio.ts` verdrahten**
 
-- [ ] **Schritt 5: UI-Feld + Anlege-Aktion**
+Im `if (e.type === 'gift' && e.gift)`-Block (nach dem bestehenden Gift-Sound-Teil,
+vor `this.maybeAnnounceGift(e)`): die aktiven Layer holen (gleiche Quelle wie der
+Sound-Teil dort nutzt — `this.layouts.list()` / aktives Layout), dann
 
-`widget-types.ts` wheel-Felder: neues Feld
 ```ts
-{ key: 'spinGift', label: 'Bei welchem Geschenk drehen?', type: 'gift-picker',
-  hint: 'Wähle ein Geschenk — schickt das jemand, dreht das Rad automatisch. Leer = nur manuell.' },
+for (const layerId of matchingWheelSpins(activeLayers, e.gift.slug)) {
+  this.dispatchAction('wheel-gift', { kind: 'spin_wheel', targetId: layerId }, e);
+}
 ```
-(Ob `gift-picker` als Feld-Typ existiert, in `OverlayPage.tsx`/`widget-types.ts` prüfen;
-sonst den Picker aus dem `gift-command-list`-Zweig wiederverwenden.)
 
-In `OverlayPage.tsx`: wenn `spinGift` gesetzt wird, per `RULES_SET` die Regel
-`wheelSpinRule(spinGift, layer.id)` in die bestehende Regel-Liste **einfügen/ersetzen**
-(nach `id` deduplizieren), leeres `spinGift` → Regel mit dieser `id` entfernen.
-Statuszeile „✓ Trigger aktiv für 🎁 <Geschenk>" zeigen.
+Prüfen, wie der bestehende `spin_wheel`-Pfad in `runAction` `params` (Name/Gift fürs
+Banner) füllt bzw. den `roll` ergänzt — falls `params` unterstützt wird, `params:
+{ name: e.user?.nickname, gift: e.gift.slug }` mitgeben; falls nicht (Typ
+`TriggerAction` kennt kein `params`), das Feld weglassen (Rad dreht ohne Banner — kein
+Blocker). Kein Typfehler erzwingen.
 
-- [ ] **Schritt 6: Checks + Commit**
+- [ ] **Schritt 6: UI-Feld**
+
+`widget-types.ts` wheel: Default-Prop `spinGift: ''` ergänzen; Feld (Feldtyp `'gift'`
+existiert und rendert den GiftPicker):
+```ts
+{ key: 'spinGift', label: 'Bei welchem Geschenk drehen?', type: 'gift',
+  hint: 'Wähle ein Geschenk — schickt das jemand, dreht das Rad automatisch. Leer = nur manuell/über eigene Trigger.' },
+```
+
+- [ ] **Schritt 7: Checks + Commit**
 
 Run: `npm run typecheck && npm run lint && npm test && npm run widget-check` → 0.
 
 ```bash
-git add apps/desktop/src/renderer/pages/wheel-trigger.ts apps/desktop/src/renderer/pages/__tests__/wheel-trigger-rule.test.ts apps/desktop/src/renderer/pages/widget-types.ts apps/desktop/src/renderer/pages/OverlayPage.tsx
-git commit -m "feat(wheel): Gift-Picker legt gift→spin_wheel-Regel an"
+git add apps/desktop/src/main/services/wheel-gift.ts apps/desktop/src/main/services/wheel-gift.test.ts apps/desktop/src/main/services/studio.ts apps/desktop/src/renderer/pages/widget-types.ts
+git commit -m "feat(wheel): Geschenk dreht Rad — serverseitige Bindung per spinGift-Prop"
 ```
 
 ---
@@ -304,7 +329,9 @@ git commit -m "feat(wheel): Auto-Feuern der ausgelosten Aktion (serverseitig, ve
 ## Self-Review (gegen das Spec)
 - **Quelle liste|trigger + vorbefüllt/editierbar:** Task 1 (source-Feld, `showIf` lässt
   Liste editierbar). ✓
-- **Gift-Picker am Rad legt Regel an:** Task 2. ✓
+- **Geschenk-Auswahl am Rad („Bei welchem Geschenk drehen?"):** Task 2 — serverseitige
+  Bindung per `spinGift`-Prop (statt auto-angelegter Regel; identisches Verhalten,
+  keine Regel-Store-Verdrahtung nötig). ✓
 - **„Beides per Schalter" (Auto-Feuern optional, Standard aus):** Task 3 (autoFire,
   Default false, showIf nur bei trigger). ✓
 - **Sicher/einmalig/nur echtes Overlay:** Task 3 serverseitig, zentraler Roll. ✓
