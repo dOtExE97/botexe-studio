@@ -52,3 +52,50 @@ export function otherGiftRules(rules: TriggerRule[], slug: string): TriggerRule[
       ),
   );
 }
+
+/** Ein Eintrag der Rad-Segmentliste (nur der Schlüssel, kein Anzeigetext —
+ *  der Text ist Widget-Sache; der Server braucht nur wer/welcher Index). */
+export interface GiftKey {
+  slug: string;
+  giftId: number;
+  ruleId: string;
+}
+
+/**
+ * Gift-Regeln in Anzeigereihenfolge, dedupliziert — DAS SERVER-PENDANT zu
+ * itemsFromRules() in packages/widget-kit/gift-menu.js. Das Rad-Widget baut
+ * seine Segmente per itemsFromRules aus denselben Regeln; der Server bestimmt
+ * per orderedGiftKeys() den Gewinner-INDEX. Beide MÜSSEN exakt dieselbe
+ * Einschluss-/Dedup-/Reihenfolge-Logik verwenden — sonst landet das Rad
+ * (Widget-Reihenfolge) auf einem anderen Feld als dem, dessen Aktion
+ * serverseitig gefeuert wird (Index-Drift). Bei Änderung an EINER Stelle
+ * IMMER die andere mitziehen — siehe Kommentar bei itemsFromRules/giftKey
+ * in gift-menu.js.
+ *
+ * Schlüssel-Formel identisch zu giftKey() in gift-menu.js: Slug klein +
+ * auf a-z0-9 reduziert (Apostroph/Leerzeichen/Schreibweise egal), sonst
+ * `#<giftId>`.
+ */
+export function orderedGiftKeys(rules: TriggerRule[]): GiftKey[] {
+  const out: GiftKey[] = [];
+  const seen = new Set<string>();
+  for (const rule of Array.isArray(rules) ? rules : []) {
+    if (!rule || rule.enabled === false || rule.event !== 'gift') continue;
+    const conds = Array.isArray(rule.conditions) ? rule.conditions : [];
+    const slugCond = conds.find((c) => c && c.kind === 'gift_slug_is') as
+      | { kind: 'gift_slug_is'; value: string }
+      | undefined;
+    const idCond = conds.find((c) => c && c.kind === 'gift_id_is') as
+      | { kind: 'gift_id_is'; value: number }
+      | undefined;
+    if (!slugCond && !idCond) continue;
+    const slug = slugCond ? String(slugCond.value ?? '') : '';
+    const giftId = idCond ? Number(idCond.value) || 0 : 0;
+    const key = slug ? slug.toLowerCase().replace(/[^a-z0-9]/g, '') : `#${giftId}`;
+    if (!key || seen.has(key)) continue;
+    if (!slug && !giftId) continue; // ungültige gift_id_is (0/NaN) ohne Slug
+    seen.add(key);
+    out.push({ slug, giftId, ruleId: rule.id });
+  }
+  return out;
+}

@@ -55,3 +55,29 @@ test('otherGiftRules findet fremde Regeln, die dasselbe Gift referenzieren — o
   assert.equal(others.length, 1);
   assert.equal(others[0]?.id, 'rule-custom');
 });
+
+// orderedGiftKeys: Server-Pendant zu itemsFromRules (widget-kit/gift-menu.js) —
+// MUSS dessen Einschluss-/Dedup-/Reihenfolge-Logik exakt spiegeln, sonst zeigt
+// das Rad ein anderes Feld als das, dessen Aktion serverseitig gefeuert wird.
+import { orderedGiftKeys } from './gift-mapping';
+
+test('orderedGiftKeys: gift-Regeln in Reihenfolge, dedupliziert, deaktivierte raus', () => {
+  const rules: TriggerRule[] = [
+    { id: 'a', name: 'a', event: 'gift', enabled: true, conditions: [{ kind: 'gift_slug_is', value: 'Galaxy' }], actions: [] },
+    { id: 'b', name: 'b', event: 'gift', enabled: true, conditions: [{ kind: 'gift_slug_is', value: 'rose' }], actions: [] },
+    { id: 'c', name: 'c', event: 'gift', enabled: true, conditions: [{ kind: 'gift_slug_is', value: 'galaxy' }], actions: [] }, // Dup (case)
+    { id: 'd', name: 'd', event: 'gift', enabled: false, conditions: [{ kind: 'gift_slug_is', value: 'tiktok' }], actions: [] }, // aus
+    { id: 'e', name: 'e', event: 'follow', enabled: true, conditions: [], actions: [] }, // kein gift
+  ];
+  assert.deepEqual(orderedGiftKeys(rules).map((k) => k.ruleId), ['a', 'b']);
+  assert.deepEqual(orderedGiftKeys(rules)[0], { slug: 'Galaxy', giftId: 0, ruleId: 'a' });
+});
+
+test('orderedGiftKeys: gift_id_is als Schlüssel (#<id>), keine Regel ohne Gift-Bedingung', () => {
+  const rules: TriggerRule[] = [
+    { id: 'x', name: 'x', event: 'gift', enabled: true, conditions: [{ kind: 'gift_id_is', value: 5655 }], actions: [] },
+    { id: 'y', name: 'y', event: 'gift', enabled: true, conditions: [{ kind: 'gift_coins_gte', value: 100 }], actions: [] }, // keine Gift-Bedingung
+  ];
+  assert.deepEqual(orderedGiftKeys(rules).map((k) => k.ruleId), ['x']);
+  assert.deepEqual(orderedGiftKeys(rules)[0], { slug: '', giftId: 5655, ruleId: 'x' });
+});

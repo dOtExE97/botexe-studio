@@ -1111,7 +1111,10 @@ function escapeHtml(s) {
 }
 
 /** Toleranter Gift-Schlüssel (nur Buchstaben/Ziffern, klein) — wie in der
- *  Trigger-Engine, damit Apostroph/Leerzeichen/Schreibweise egal sind. */
+ *  Trigger-Engine, damit Apostroph/Leerzeichen/Schreibweise egal sind.
+ *  WICHTIG: orderedGiftKeys() in packages/trigger-engine/src/gift-mapping.ts
+ *  ist das Server-Pendant zu giftKey()/itemsFromRules() hier — MUSS exakt
+ *  dieselbe Formel/Reihenfolge/Dedup verwenden (Rad-Server-Index-Drift sonst). */
 export function giftKey(slug) {
   return String(slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -1157,7 +1160,10 @@ export function actionLabel(action) {
 
 /** Trigger-Regeln → Tafel-Einträge. Nur aktive Gift-Regeln mit einer
  *  Gift-Bedingung (gift_slug_is / gift_id_is). Der Text kommt aus dem
- *  Regel-Namen, sofern er selbst gewählt ist; sonst aus den Aktionen. */
+ *  Regel-Namen, sofern er selbst gewählt ist; sonst aus den Aktionen.
+ *  Einschluss/Dedup/Reihenfolge MUSS mit orderedGiftKeys() (trigger-engine/
+ *  gift-mapping.ts) übereinstimmen — der i-te Eintrag hier = i-tes Rad-Segment,
+ *  dessen Index der Server per orderedGiftKeys() bestimmt. */
 export function itemsFromRules(rules) {
   const out = [];
   const seen = new Set();
