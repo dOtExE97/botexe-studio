@@ -20,6 +20,11 @@
   --color-studio-panel: #14161e;
   --color-studio-raised: #1b1e29;
   --color-studio-border: #262a36;
+  /* Interaktive Steuerelemente (Selects, Inputs, Buttons): klar heller als das
+     Panel (#14161e) + hellerer Rand, damit sie sich sichtbar abheben. */
+  --color-studio-control: #232838;
+  --color-studio-control-border: #3c4257;
+  --color-studio-control-border-hover: #545b73;
   --color-studio-text: #ececf1;
   --color-studio-muted: #8b8fa3;
   --color-studio-accent: #ff4d2e;
@@ -95,13 +100,19 @@ body {
 .bx-select {
   width: 100%;
   border-radius: 9px;
-  border: 1px solid var(--color-studio-border);
-  background: rgba(12, 13, 18, 0.7);
+  /* Deutlich abgehobene Steuerfläche + sichtbarer Rand — sonst „dunkel auf
+     dunkel" und die Felder verschwimmen mit dem Panel. */
+  border: 1px solid var(--color-studio-control-border);
+  background: var(--color-studio-control);
   color: var(--color-studio-text);
   padding: 8px 11px;
   font-size: 13px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.bx-input:hover,
+.bx-select:hover {
+  border-color: var(--color-studio-control-border-hover);
 }
 .bx-input::placeholder {
   color: color-mix(in srgb, var(--color-studio-muted) 60%, transparent);
@@ -117,7 +128,7 @@ body {
 .bx-select {
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%238b8fa3' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23c8ccda' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
   padding-right: 30px;
@@ -133,16 +144,19 @@ body {
   align-items: center;
   gap: 6px;
   border-radius: 9px;
-  border: 1px solid var(--color-studio-border);
-  background: rgba(27, 30, 41, 0.6);
+  /* Sichtbarer Button: hellere Fläche + hellerer Rand + heller Text (nicht
+     gedämpft), damit er auf dem dunklen Panel klar als Knopf lesbar ist. */
+  border: 1px solid var(--color-studio-control-border);
+  background: var(--color-studio-control);
   padding: 7px 12px;
   font-size: 12px;
-  color: var(--color-studio-muted);
+  color: var(--color-studio-text);
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 .bx-pill:hover {
   color: var(--color-studio-text);
-  border-color: color-mix(in srgb, var(--color-studio-accent) 50%, var(--color-studio-border));
+  border-color: var(--color-studio-control-border-hover);
+  background: color-mix(in srgb, var(--color-studio-control) 80%, var(--color-studio-text));
 }
 
 /* Akzent-Hauptbutton */

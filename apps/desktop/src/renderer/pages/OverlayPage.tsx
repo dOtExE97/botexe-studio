@@ -952,7 +952,7 @@ export default function OverlayPage() {
                 key={preset}
                 onClick={() => switchPreset(preset)}
                 className={`clip-slant flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold tracking-wider ${
-                  active ? 'bg-studio-accent text-black' : 'bg-studio-raised text-studio-muted hover:text-studio-text'
+                  active ? 'bg-studio-accent text-black' : 'border border-studio-control-border bg-studio-control text-studio-muted hover:border-studio-control-border-hover hover:text-studio-text'
                 }`}
               >
                 {preset === 'portrait' ? <Smartphone size={13} /> : <Monitor size={13} />}

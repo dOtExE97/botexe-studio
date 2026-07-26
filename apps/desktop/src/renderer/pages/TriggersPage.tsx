@@ -480,7 +480,7 @@ export default function TriggersPage() {
               <button
                 onClick={() => patchRule(rule.id, { enabled: !rule.enabled })}
                 className={`clip-slant flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold tracking-widest ${
-                  rule.enabled ? 'bg-studio-teal/15 text-studio-teal' : 'bg-studio-raised text-studio-muted'
+                  rule.enabled ? 'bg-studio-teal/15 text-studio-teal' : 'border border-studio-control-border bg-studio-control text-studio-muted'
                 }`}
               >
                 <Power size={11} /> {rule.enabled ? 'AKTIV' : 'AUS'}

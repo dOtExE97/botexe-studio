@@ -122,7 +122,7 @@ export default function MixerPage() {
               <button
                 onClick={() => setChannel(c, { muted: !ch.muted })}
                 title={ch.muted ? 'Ton wieder an' : 'Stummschalten'}
-                className={`flex-none rounded-lg p-2 ${ch.muted ? 'bg-studio-accent/20 text-studio-accent' : 'bg-studio-raised/60 text-studio-muted hover:text-studio-text'}`}
+                className={`flex-none rounded-lg border p-2 ${ch.muted ? 'border-studio-accent/40 bg-studio-accent/20 text-studio-accent' : 'border-studio-control-border bg-studio-control text-studio-muted hover:border-studio-control-border-hover hover:text-studio-text'}`}
               >
                 {ch.muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
               </button>

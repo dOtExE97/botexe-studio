@@ -241,7 +241,7 @@ export default function TtsPage() {
         <button
           onClick={() => update({ enabled: !tts.enabled })}
           className={`clip-slant px-5 py-2.5 font-display text-sm ${
-            tts.enabled ? 'bg-studio-teal text-black' : 'bg-studio-raised text-studio-muted'
+            tts.enabled ? 'bg-studio-teal text-black' : 'border border-studio-control-border bg-studio-control text-studio-muted'
           }`}
         >
           {tts.enabled ? 'TTS AKTIV' : 'TTS AUS'}

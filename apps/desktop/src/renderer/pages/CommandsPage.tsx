@@ -55,7 +55,7 @@ export default function CommandsPage() {
         {cmds.map((c) => (
           <div key={c.id} className={`bx-card p-4 transition-opacity ${c.enabled ? '' : 'opacity-60'}`}>
             <div className="mb-3 flex items-center gap-2">
-              <button onClick={() => patch(c.id, { enabled: !c.enabled })} className={`clip-slant flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold tracking-widest ${c.enabled ? 'bg-studio-teal/15 text-studio-teal' : 'bg-studio-raised text-studio-muted'}`}>
+              <button onClick={() => patch(c.id, { enabled: !c.enabled })} className={`clip-slant flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold tracking-widest ${c.enabled ? 'bg-studio-teal/15 text-studio-teal' : 'border border-studio-control-border bg-studio-control text-studio-muted'}`}>
                 <Power size={11} /> {c.enabled ? 'AKTIV' : 'AUS'}
               </button>
               <input value={c.command} onChange={(e) => patch(c.id, { command: e.target.value })} className="flex-1 bg-transparent font-mono text-sm outline-none" placeholder="!befehl" />

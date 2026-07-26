@@ -122,7 +122,7 @@ export default function StorePage() {
               <div className="mb-3 flex items-center gap-2">
                 <button
                   onClick={() => patch(r.id, { enabled: !r.enabled })}
-                  className={`clip-slant flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold tracking-widest ${r.enabled ? 'bg-studio-teal/15 text-studio-teal' : 'bg-studio-raised text-studio-muted'}`}
+                  className={`clip-slant flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold tracking-widest ${r.enabled ? 'bg-studio-teal/15 text-studio-teal' : 'border border-studio-control-border bg-studio-control text-studio-muted'}`}
                 >
                   <Power size={11} /> {r.enabled ? 'AKTIV' : 'AUS'}
                 </button>
