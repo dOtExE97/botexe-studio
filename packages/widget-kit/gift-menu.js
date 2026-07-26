@@ -1519,6 +1519,12 @@ export default class GiftMenu {
     // gleich weg, also Flag zurücksetzen (sonst bliebe der Automat für immer
     // "gesperrt", weil luckyRunning nie wieder auf false geht).
     this.luckyRunning = false;
+    // Die Lucky-Draw-Klassen hängen an this.el (nicht an den DOM-Knoten, die
+    // gleich neu gebaut werden) — ohne dieses Aufräumen bliebe der Pulse-Glow
+    // (bx-gm-lucky) für immer an, wenn der Rebuild mitten im Shuffle passiert
+    // und die oben geleerten Timeouts (die die Klasse sonst entfernen) nie
+    // mehr feuern.
+    this.el.classList.remove('bx-gm-lucky', 'bx-gm-lucky-win', 'bx-gm-lucky-miss');
     this.clearParticles();
     this.index = 0;
     const list = this.items.length ? this.items : [{ slug: '', text: 'Noch keine Geschenke eingetragen' }];
@@ -1598,7 +1604,9 @@ export default class GiftMenu {
     const winner = Math.max(0, Math.min(n - 1, Number(action.winnerIndex) || 0));
     const totalMs = Math.max(600, Number(this.luckyDrawMs) || 3000);
     const schedule = shuffleSchedule(16, totalMs);
-    const seed = Number(action.roll) || Math.random();
+    // Number(0) || Math.random() würde einen echten Roll von 0 verwerfen —
+    // Number.isFinite prüft explizit, ob überhaupt ein gültiger Roll da ist.
+    const seed = Number.isFinite(action.roll) ? Number(action.roll) : Math.random();
     this.luckyRunning = true;
     this.el.classList.add('bx-gm-lucky');
 
