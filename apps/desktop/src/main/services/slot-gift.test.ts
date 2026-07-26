@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { TriggerRule } from '@botexe/trigger-engine';
-import { planSlotOutcome, matchingSlotLayers, planSlotSpins } from './slot-gift';
+import { planSlotOutcome, matchingSlotLayers, matchingGiftMenuLayers, planSlotSpins } from './slot-gift';
 
 // planSlotOutcome — reine Logik (RNG injiziert): rollWin < winChance ⇒ Gewinn,
 // winnerIndex kommt unabhängig davon aus rollPick (0..1) × n Symbole.
@@ -99,4 +99,78 @@ test('planSlotSpins: source:liste wird nicht gematcht ⇒ kein Plan', () => {
   ];
   const plan = planSlotSpins(layers, 'galaxy', rules, () => 0);
   assert.deepEqual(plan, []);
+});
+
+// matchingGiftMenuLayers — Stück 3, Teil C: nur sichtbare gift-menu-Layer,
+// KEINE Prop-Bindung (jeder sichtbare Slider bekommt das Signal, er entscheidet
+// selbst per matchIndex, ob er das Geschenk kennt).
+test('matchingGiftMenuLayers: nur sichtbare gift-menu-Layer, andere Widget-Typen ignoriert', () => {
+  const layers = [
+    { id: 'g1', widgetType: 'gift-menu', visible: true },
+    { id: 'g2', widgetType: 'gift-menu', visible: false }, // unsichtbar
+    { id: 's1', widgetType: 'slot-machine', visible: true }, // anderer Widget-Typ
+  ];
+  assert.deepEqual(matchingGiftMenuLayers(layers).map((l) => l.id), ['g1']);
+});
+
+// planSlotSpins + Geschenke-Slider (Stück 3, Teil C): bei Gewinn zusätzlich
+// EIN start_gift_challenge pro sichtbarem gift-menu, verzögert um spinMs, mit
+// dem Slug des GEWÜRFELTEN Gewinners (winnerIndex → orderedGiftKeys), nicht
+// zwingend dem Gift, das den Automaten ausgelöst hat.
+test('planSlotSpins: Gewinn ⇒ start_gift_challenge pro sichtbarem Geschenke-Slider, verzögert um spinMs', () => {
+  const rules: TriggerRule[] = [
+    {
+      id: 'r-galaxy', name: 'Galaxy', event: 'gift', enabled: true,
+      conditions: [{ kind: 'gift_slug_is', value: 'galaxy' }],
+      actions: [{ kind: 'play_sound', soundId: 'boom.mp3' }],
+    },
+  ];
+  const layers = [
+    { id: 's1', widgetType: 'slot-machine', visible: true, props: { spinGift: 'galaxy', source: 'trigger', winChance: 100, spinMs: 4000 } },
+    { id: 'gm1', widgetType: 'gift-menu', visible: true },
+    { id: 'gm2', widgetType: 'gift-menu', visible: false }, // unsichtbar ⇒ kein Signal
+  ];
+  const plan = planSlotSpins(layers, 'galaxy', rules, () => 0, 'Mia');
+  assert.equal(plan.length, 3, 'spin_slot + Aktions-Satz + genau ein Challenge-Signal (gm2 unsichtbar)');
+  const challenge = plan.find((p) => p.action.kind === 'start_gift_challenge');
+  assert.deepEqual(challenge, {
+    ruleId: 'slot-gift-challenge',
+    action: { kind: 'start_gift_challenge', targetId: 'gm1', slug: 'galaxy', who: 'Mia', delayMs: 4000 },
+  });
+});
+
+test('planSlotSpins: Niete ⇒ kein start_gift_challenge, auch bei sichtbarem Geschenke-Slider', () => {
+  const rules: TriggerRule[] = [
+    {
+      id: 'r-galaxy', name: 'Galaxy', event: 'gift', enabled: true,
+      conditions: [{ kind: 'gift_slug_is', value: 'galaxy' }],
+      actions: [{ kind: 'play_sound', soundId: 'boom.mp3' }],
+    },
+  ];
+  const layers = [
+    { id: 's1', widgetType: 'slot-machine', visible: true, props: { spinGift: 'galaxy', source: 'trigger', winChance: 0, spinMs: 4000 } },
+    { id: 'gm1', widgetType: 'gift-menu', visible: true },
+  ];
+  const plan = planSlotSpins(layers, 'galaxy', rules, () => 0.999, 'Mia');
+  assert.ok(!plan.some((p) => p.action.kind === 'start_gift_challenge'));
+});
+
+test('planSlotSpins: ohne who ⇒ Challenge-Aktion trägt kein who-Feld', () => {
+  const rules: TriggerRule[] = [
+    {
+      id: 'r-galaxy', name: 'Galaxy', event: 'gift', enabled: true,
+      conditions: [{ kind: 'gift_slug_is', value: 'galaxy' }],
+      actions: [{ kind: 'play_sound', soundId: 'boom.mp3' }],
+    },
+  ];
+  const layers = [
+    { id: 's1', widgetType: 'slot-machine', visible: true, props: { spinGift: 'galaxy', source: 'trigger', winChance: 100, spinMs: 4000 } },
+    { id: 'gm1', widgetType: 'gift-menu', visible: true },
+  ];
+  const plan = planSlotSpins(layers, 'galaxy', rules, () => 0);
+  const challenge = plan.find((p) => p.action.kind === 'start_gift_challenge');
+  assert.deepEqual(challenge, {
+    ruleId: 'slot-gift-challenge',
+    action: { kind: 'start_gift_challenge', targetId: 'gm1', slug: 'galaxy', delayMs: 4000 },
+  });
 });

@@ -121,7 +121,13 @@ export type TriggerActionKind =
   | { kind: 'spotify_control'; control: 'play' | 'pause' | 'next' | 'previous' }
   /** Song-Request: query (Template, z.B. {args} = Chat-Text nach dem Befehl) →
    *  Spotify-Suche → erster Treffer in die Wiedergabe-Queue. */
-  | { kind: 'spotify_request'; query: string };
+  | { kind: 'spotify_request'; query: string }
+  /** Reine Anzeige-Aktion (kein Gift-Event, keine Coin-/Zähler-Nebenwirkung):
+   *  startet auf dem Geschenke-Slider (gift-menu) die Challenge des per slug
+   *  benannten Geschenks — z.B. wenn der Gambling-Automat dieses Geschenk als
+   *  Gewinner auslost (siehe slot-gift.ts planSlotSpins). Kann auf dem
+   *  gift-menu-Widget nie erneut den Automaten auslösen. */
+  | { kind: 'start_gift_challenge'; targetId: string; slug: string; who?: string };
 
 /** Eine Aktion mit optionaler Verzögerung (Combo-Sequenz: Alert jetzt,
  *  Sound +0,5s, Ansage +2s …). delayMs = Versatz ab Auslösung der Regel. */

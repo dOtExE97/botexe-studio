@@ -111,6 +111,7 @@ const ACTION_LABELS: Record<string, string> = {
   streamerbot_action: 'Streamer.bot',
   spotify_control: 'Spotify',
   spotify_request: 'Song-Request',
+  start_gift_challenge: 'Challenge (Geschenke-Slider)',
   giveaway_draw: 'Verlosung ziehen',
   giveaway_reset: 'Verlosung reset',
 };
@@ -453,8 +454,11 @@ export class Studio {
         // (slot-gift.ts) entscheidet ALLES (auch das Auslösen der gewonnenen
         // Gift-Aktion, Task 3) rein/testbar; hier wird nur noch gefeuert, was
         // geplant wurde — pro Automat genau 1 Spin, bei Gewinn genau 1 Satz
-        // Aktionen (verzögert um spinMs).
-        for (const { ruleId, action } of planSlotSpins(layers, e.gift.slug, this.getRules())) {
+        // Aktionen (verzögert um spinMs) UND (Stück 3, Teil C) je 1
+        // start_gift_challenge pro sichtbarem Geschenke-Slider — der Slider
+        // startet damit die Challenge des Gewinner-Geschenks, exakt als wäre
+        // es gesendet worden (ohne Coin-/Zähler-Nebenwirkung, s. slot-gift.ts).
+        for (const { ruleId, action } of planSlotSpins(layers, e.gift.slug, this.getRules(), Math.random, e.user?.nickname)) {
           this.dispatchAction(ruleId, action, e);
         }
         this.maybeAnnounceGift(e); // TTS-Ansage ab Coin-Schwelle

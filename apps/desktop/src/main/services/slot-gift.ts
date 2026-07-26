@@ -31,6 +31,17 @@ export function matchingSlotLayers(layers: SlotLayer[], giftSlug: string): SlotL
   );
 }
 
+/**
+ * Sichtbare Geschenke-Slider-Widgets (gift-menu) — Empfänger des
+ * Challenge-Start-Signals bei Automat-Gewinn (Stück 3, Teil C). Anders als
+ * matchingSlotLayers gibt es hier keine Prop-Bindung: JEDER sichtbare
+ * Geschenke-Slider bekommt das Signal (er entscheidet selbst per matchIndex,
+ * ob er das gewonnene Geschenk überhaupt kennt — s. gift-menu.js onAction).
+ */
+export function matchingGiftMenuLayers(layers: SlotLayer[]): SlotLayer[] {
+  return layers.filter((l) => l.widgetType === 'gift-menu' && l.visible);
+}
+
 /** Eine für Studio.dispatchAction() fertig geplante Aktion. */
 export type SlotSpinAction = { ruleId: string; action: TriggerAction };
 
@@ -44,12 +55,23 @@ export type SlotSpinAction = { ruleId: string; action: TriggerAction };
  * Dispatch selbst) — Studio.ts ruft nur noch dispatchAction() für jeden
  * Eintrag auf: eine Entscheidungsstelle, kein Doppelfeuer (pro Automat genau
  * 1 Spin + höchstens 1 Aktions-Satz).
+ *
+ * Stück 3, Teil C: bei Gewinn zusätzlich EIN start_gift_challenge pro
+ * sichtbarem Geschenke-Slider (gift-menu) — der Slider startet damit die
+ * Challenge des Gewinner-Geschenks (matchIndex+celebrate in gift-menu.js),
+ * exakt als wäre das Geschenk gesendet worden, aber ohne synthetisches
+ * Gift-Event (keine Coin-/Zähler-Nebenwirkung, kein Retrigger-Risiko — das
+ * ist eine reine Anzeige-Aktion, kein Event vom Typ 'gift'). `who` ist der
+ * Nickname des Spenders, der den Automaten ausgelöst hat (Studio.ts reicht
+ * e.user?.nickname durch); optional, weil manche Aufrufer (Tests) keinen
+ * Absender haben.
  */
 export function planSlotSpins(
   layers: SlotLayer[],
   giftSlug: string,
   rules: TriggerRule[],
   rng: () => number = Math.random,
+  who?: string,
 ): SlotSpinAction[] {
   const out: SlotSpinAction[] = [];
   const keys = orderedGiftKeys(rules);
@@ -62,14 +84,29 @@ export function planSlotSpins(
       action: { kind: 'spin_slot', targetId: layer.id, win, winnerIndex, roll: rng() },
     });
     if (win) {
+      // Default (2000) MUSS mit widget-types.ts' slot-machine-Standard
+      // übereinstimmen — sonst feuert die Aktion (unkonfiguriert) zu einem
+      // anderen Zeitpunkt als die Walzen im Widget tatsächlich stoppen.
+      const spinMs = Number(p.spinMs ?? 2000);
       const rule = rules.find((r) => r.id === keys[winnerIndex]?.ruleId);
       if (rule) {
-        // Default (2000) MUSS mit widget-types.ts' slot-machine-Standard
-        // übereinstimmen — sonst feuert die Aktion (unkonfiguriert) zu einem
-        // anderen Zeitpunkt als die Walzen im Widget tatsächlich stoppen.
-        const spinMs = Number(p.spinMs ?? 2000);
         for (const act of rule.actions) {
           out.push({ ruleId: rule.id, action: { ...act, delayMs: (act.delayMs ?? 0) + spinMs } });
+        }
+      }
+      const winnerSlug = keys[winnerIndex]?.slug;
+      if (winnerSlug) {
+        for (const menu of matchingGiftMenuLayers(layers)) {
+          out.push({
+            ruleId: 'slot-gift-challenge',
+            action: {
+              kind: 'start_gift_challenge',
+              targetId: menu.id,
+              slug: winnerSlug,
+              ...(who !== undefined ? { who } : {}),
+              delayMs: spinMs,
+            },
+          });
         }
       }
     }
