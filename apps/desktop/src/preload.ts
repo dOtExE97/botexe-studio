@@ -81,6 +81,12 @@ const api = {
 
   // App-Info
   getAppInfo: () => ipcRenderer.invoke(IPC.APP_INFO),
+  /** „Was ist neu?"-Popup: geparste CHANGELOG.md + aktuelle App-Version. */
+  getChangelog: () =>
+    ipcRenderer.invoke(IPC.CHANGELOG_GET) as Promise<{
+      version: string;
+      entries: { version: string; date: string; body: string }[];
+    }>,
   openDataDir: () => ipcRenderer.invoke(IPC.APP_OPEN_DATA_DIR),
   openGiftImages: () => ipcRenderer.invoke(IPC.APP_OPEN_GIFT_IMAGES),
   spotifyBeginAuth: () => ipcRenderer.invoke(IPC.SPOTIFY_BEGIN_AUTH),

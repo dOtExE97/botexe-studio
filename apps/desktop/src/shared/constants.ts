@@ -72,6 +72,8 @@ export const IPC = {
   TTS_BYOK_SET: 'tts:byok-set',
   // App-Info / Einstellungen
   APP_INFO: 'app:info',
+  /** „Was ist neu?"-Popup: gepackte CHANGELOG.md geparst + App-Version. */
+  CHANGELOG_GET: 'app:changelog-get',
   APP_OPEN_DATA_DIR: 'app:open-data-dir',
   APP_OPEN_GIFT_IMAGES: 'app:open-gift-images',
   SPOTIFY_BEGIN_AUTH: 'spotify:begin-auth',

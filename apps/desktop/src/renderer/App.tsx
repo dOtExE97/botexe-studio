@@ -7,6 +7,7 @@ import UpdateBanner from './components/UpdateBanner';
 import TelemetryConsent from './components/TelemetryConsent';
 import ProfileSwitcher from './components/ProfileSwitcher';
 import OnboardingTour from './components/OnboardingTour';
+import WhatsNew from './components/WhatsNew';
 import KeyWizard from './components/KeyWizard';
 import LivePage from './pages/LivePage';
 import OverlayPage from './pages/OverlayPage';
@@ -129,6 +130,7 @@ export default function App() {
         if (p === 'key-wizard') window.dispatchEvent(new CustomEvent('bx-key-wizard'));
         else setPage(p as Page);
       }} />
+      <WhatsNew />
 
       {/* Sidebar */}
       <aside className="flex w-52 flex-none flex-col border-r border-studio-border bg-studio-panel">

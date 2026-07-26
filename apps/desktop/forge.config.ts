@@ -21,6 +21,8 @@ const config: ForgeConfig = {
       'assets',
       path.resolve(__dirname, '../../packages/widget-kit'),
       path.resolve(__dirname, '../../packages/overlay-engine/runtime'),
+      // Für das „Was ist neu?"-Popup — offline gelesen, kein GitHub-API-Call.
+      path.resolve(__dirname, '../../CHANGELOG.md'),
     ],
     // npm prune funktioniert nicht sauber mit Workspaces — stattdessen
     // installieren wir production-deps im packageAfterCopy-Hook.
