@@ -102,51 +102,56 @@ const CSS = `
    Streifen), ring (Kreis, der sich leert, Zahl in der Mitte). Alle drei
    teilen sich die Basis-Kapsel .bx-gm-timer, die konkrete Optik hängt an
    .bx-gm-timer--einfach/--balken/--ring. Sanftes Einblenden über @keyframes
-   statt Sprung — passt zum "is-in"-Übergang der Karte daneben. */
-.bx-gm-timer { position:absolute; top:.32em; right:.32em; z-index:5;
+   statt Sprung — passt zum "is-in"-Übergang der Karte daneben.
+   Nutzer-Feedback: der Countdown war im (oft kleinen) Widget kaum lesbar.
+   Deshalb hier durchgehend ~1,6–1,9× größer als zuvor (Schriftgrößen, Balken-
+   und Ringmaße), plus fette Ziffern und eine dunklere Kapsel für Kontrast auf
+   jedem Kartenbild — die Boxgrößen-Deckel (cqi/cqh) wachsen proportional mit,
+   damit widget-check auch in der Mini-Box "winzig" (0,45×) grün bleibt. */
+.bx-gm-timer { position:absolute; top:.3em; right:.3em; z-index:5;
   display:flex; align-items:center; font-family: var(--bx-font-num);
-  line-height:1; font-variant-numeric: tabular-nums; color:#fff; pointer-events:none;
-  box-shadow: 0 0 0 max(1px,.03em) rgba(255,255,255,.28);
+  line-height:1; font-weight:800; font-variant-numeric: tabular-nums; color:#fff; pointer-events:none;
+  box-shadow: 0 0 0 max(1.5px,.04em) rgba(255,255,255,.32);
   animation: bx-gm-timer-in .35s ease both; }
 @keyframes bx-gm-timer-in { from { opacity:0; transform:translateY(-.3em) scale(.85); } to { opacity:1; transform:none; } }
-.bx-gm-timer-txt { position:relative; }
+.bx-gm-timer-txt { position:relative; text-shadow: 0 .05em .18em rgba(0,0,0,.6); }
 
-/* einfach: die schlichte Zahl-Kapsel von Task 2, unverändert. */
-.bx-gm-timer--einfach { font-size:.6em; padding:.3em .55em; border-radius:99em; background: rgba(0,0,0,.6); }
-.bx-gm-chip .bx-gm-timer--einfach { font-size:.42em; }
+/* einfach: die schlichte Zahl-Kapsel von Task 2, jetzt deutlich größer. */
+.bx-gm-timer--einfach { font-size:1.05em; padding:.32em .6em; border-radius:99em; background: rgba(0,0,0,.72); }
+.bx-gm-chip .bx-gm-timer--einfach { font-size:.74em; }
 
 /* balken: Zahl über einem Streifen, der von rechts nach links leerläuft.
    Die Breite steckt in der Kapsel (nicht in der Karte) — so bleibt sie in
    JEDER Kartenbreite gleich proportioniert, ohne die Karte selbst zu messen. */
-.bx-gm-timer--balken { flex-direction:column; align-items:stretch; gap:.22em; font-size:.6em;
-  padding:.32em .5em .4em; border-radius:.55em; background: rgba(0,0,0,.62);
-  width: min(calc(9.5em * var(--bx-fs, 1)), 44cqi, 70cqw); }
+.bx-gm-timer--balken { flex-direction:column; align-items:stretch; gap:.24em; font-size:1em;
+  padding:.34em .55em .42em; border-radius:.55em; background: rgba(0,0,0,.74);
+  width: min(calc(9.5em * var(--bx-fs, 1)), 58cqi, 82cqw); }
 .bx-gm-timer--balken .bx-gm-timer-txt { text-align:center; letter-spacing:.02em; }
-.bx-gm-timer-bar { position:relative; height:.3em; border-radius:99em; overflow:hidden;
-  background: rgba(255,255,255,.18); box-shadow: inset 0 0 0 max(1px,.02em) rgba(0,0,0,.35); }
+.bx-gm-timer-bar { position:relative; height:.34em; border-radius:99em; overflow:hidden;
+  background: rgba(255,255,255,.2); box-shadow: inset 0 0 0 max(1px,.02em) rgba(0,0,0,.35); }
 .bx-gm-timer-bar i { display:block; height:100%; width:0; border-radius:99em;
   background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent,#ff5e8a) 75%, white), var(--bx-accent,#ff5e8a));
   box-shadow: 0 0 .5em -.05em var(--bx-accent,#ff5e8a);
   transition: width 1s linear; }
-.bx-gm-chip .bx-gm-timer--balken { font-size:.44em;
-  width: min(calc(9.5em * var(--bx-fs, 1)), 30cqh, 60cqi); }
+.bx-gm-chip .bx-gm-timer--balken { font-size:.76em;
+  width: min(calc(9.5em * var(--bx-fs, 1)), 38cqh, 76cqi); }
 
 /* ring: runde Kapsel, Zahl in der Mitte, Füllstand als SVG-Kreis (transform:
    rotate + stroke-dashoffset — beides GPU-freundlich, kein Layout pro Tick). */
-.bx-gm-timer--ring { padding:0; border-radius:99em; background: rgba(0,0,0,.6);
+.bx-gm-timer--ring { padding:0; border-radius:99em; background: rgba(0,0,0,.72);
   display:grid; place-items:center;
-  width: min(calc(clamp(20px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 22cqh, 26cqi);
-  height: min(calc(clamp(20px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 22cqh, 26cqi); }
+  width: min(calc(clamp(30px, min(20cqi,17.5cqh), 96px) * var(--bx-fs, 1)), 34cqh, 40cqi);
+  height: min(calc(clamp(30px, min(20cqi,17.5cqh), 96px) * var(--bx-fs, 1)), 34cqh, 40cqi); }
 .bx-gm-timer-ring { position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
 .bx-gm-timer-ring circle { fill:none; stroke-width:8%; }
 .bx-gm-timer-ring .bx-gm-timer-ring-bg { stroke: rgba(255,255,255,.2); }
 .bx-gm-timer-ring .bx-gm-timer-ring-fg { stroke: var(--bx-accent,#ff5e8a); stroke-linecap:round;
   transition: stroke-dashoffset 1s linear; filter: drop-shadow(0 0 .25em var(--bx-accent,#ff5e8a)); }
-.bx-gm-timer--ring .bx-gm-timer-txt { font-size:.32em; }
+.bx-gm-timer--ring .bx-gm-timer-txt { font-size:.56em; }
 .bx-gm-chip .bx-gm-timer--ring {
-  width: min(calc(clamp(16px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 26cqh, 20cqi);
-  height: min(calc(clamp(16px, min(12cqi,10.5cqh), 60px) * var(--bx-fs, 1)), 26cqh, 20cqi); }
-.bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.3em; }
+  width: min(calc(clamp(26px, min(20cqi,17.5cqh), 96px) * var(--bx-fs, 1)), 42cqh, 32cqi);
+  height: min(calc(clamp(26px, min(20cqi,17.5cqh), 96px) * var(--bx-fs, 1)), 42cqh, 32cqi); }
+.bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.52em; }
 
 /* Laufband, Kachelform „breit" (Standard): der Chip ist eine flexible Reihe
    OHNE feste Breite (Icon + Text). Als Ecken-Overlay wie in der Rotation
@@ -258,13 +263,14 @@ const CSS = `
 .bx-gm-t-quadrat .bx-gm-chip .bx-gm-line { justify-content:center; }
 /* Challenge-Countdown: das Geschenk füllt hier schon die obere Hälfte der
    Kachel — als Ecken-Pille in Kartengröße (em-basiert) würde er das Bild
-   überlappen. Deshalb eigene, kleinere Bemessung in cqh (wie alle anderen
-   quadrat-Maße), dichter an der Ecke als der Coin-Preis. */
+   überlappen. Deshalb eigene Bemessung in cqh (wie alle anderen quadrat-Maße),
+   dichter an der Ecke als der Coin-Preis. Größe an .bx-gm-name (13cqh)
+   angelehnt, damit die Uhr trotz Miniaturkachel klar lesbar bleibt. */
 .bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer { top:1cqh; right:1cqh; }
-.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--einfach { font-size:7cqh; padding:.6cqh 1.4cqh; }
-.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--balken { font-size:7cqh; width:32cqh; padding:.5cqh 1cqh .7cqh; }
-.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--ring { width:15cqh; height:15cqh; }
-.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.34em; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--einfach { font-size:11cqh; padding:.8cqh 1.8cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--balken { font-size:11cqh; width:46cqh; padding:.7cqh 1.4cqh 1cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--ring { width:24cqh; height:24cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.5em; }
 
 /* ETIKETT — quadratisches Geschenk mit Namensband darauf, die Wirkung steht
    rechts daneben. Etwas breiter als ein Quadrat, dafür bleibt die Wirkung groß. */
@@ -280,6 +286,15 @@ const CSS = `
 .bx-gm-t-etikett .bx-gm-chip .bx-gm-coins { font-size:8cqh; padding:.8cqh 1.8cqh; }
 .bx-gm-t-etikett .bx-gm-chip .bx-gm-act { font-size:13cqh; max-width:52cqh; white-space:normal;
   -webkit-line-clamp:2; line-clamp:2; display:-webkit-box; -webkit-box-orient:vertical; text-overflow:clip; }
+/* Challenge-Countdown: die (jetzt größere) Kapsel würde in der em-Bemessung
+   der Basisregel in die groß gesetzte Wirkung (13cqh, mittig neben dem Bild)
+   hineinragen. Deshalb wie beim Quadrat eigene, kleinere cqh-Bemessung —
+   bleibt klar über der Wirkung, ohne sie zu verdecken. */
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-timer { top:1.5cqh; right:1.5cqh; }
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-timer--einfach { font-size:8cqh; padding:.6cqh 1.4cqh; }
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-timer--balken { font-size:8cqh; width:34cqh; padding:.6cqh 1.1cqh .8cqh; }
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-timer--ring { width:18cqh; height:18cqh; }
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.5em; }
 
 /* ── Formen mit TEXT ALS EBENE ÜBER DEM GESCHENK ─────────────────────────
    Gemeinsame Idee: das Geschenk füllt die Kachel als Bild, die Schrift liegt
