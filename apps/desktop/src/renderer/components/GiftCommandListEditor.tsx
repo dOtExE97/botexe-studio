@@ -123,10 +123,13 @@ export default function GiftCommandListEditor(
               // damit eine Eingabe die Liste nicht zerschießt.
               onChange={(e) => setRow(i, { text: e.target.value.replace(/\|/g, '/').replace(/::/g, ':') })}
               placeholder={textPlaceholder ?? 'Auslöser/Text (z.B. !feuer)'}
-              className="bx-input w-full flex-1 text-xs normal-case tracking-normal"
+              className="bx-input min-w-0 flex-1 text-xs normal-case tracking-normal"
             />
             {/* Challenge-Dauer für diese Zeile — Eingabe in MINUTEN, gespeichert
-                wird in Sekunden (secs). Leer/0 ⇒ kein Timer, kein 3. Feld. */}
+                wird in Sekunden (secs). Leer/0 ⇒ kein Timer, kein 3. Feld.
+                .bx-input setzt width:100% unlayered (schlägt jede Tailwind-
+                Breiten-Utility) — feste Breite darum per Inline-Style statt
+                w-* erzwingen, sonst reißt genau dieses Feld die Zeile wieder auf. */}
             <input
               type="number"
               min={0}
@@ -138,7 +141,8 @@ export default function GiftCommandListEditor(
               }}
               placeholder="Min"
               title="Challenge-Dauer in Minuten (leer = kein Timer)"
-              className="bx-input w-12 flex-none text-center text-xs normal-case tracking-normal"
+              style={{ width: '2.75rem' }}
+              className="bx-input flex-none text-center text-xs normal-case tracking-normal"
             />
           </div>
         </div>
