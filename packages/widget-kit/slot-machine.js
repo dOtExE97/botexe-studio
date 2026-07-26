@@ -14,6 +14,13 @@
 // App-Katalog (/gift-catalog, /gift-img) — kein TikTok-Bild wird je
 // mitgeliefert (siehe CLAUDE.md).
 import { itemsFromRules, giftKey } from './gift-rules.js';
+// gift-countdown.js — reiner Kern (kein DOM/Timer), schon für den
+// Challenge-Countdown im Geschenke-Slider genutzt (Stück 2). Task 3
+// verwendet hier NUR stackRemaining (Draufstapeln + Deckel bei Mehrfach-
+// Gewinn desselben Items) und fmtTime (MM:SS) — die Timer-Optiken
+// (Balken/Ring) aus gift-menu.js braucht der Automat nicht, hier reicht
+// eine einzelne Anzeige in der Gewinn-Feier.
+import { stackRemaining, fmtTime } from './gift-countdown.js';
 
 const STYLE_ID = 'bx-sm-style';
 
@@ -126,6 +133,27 @@ const CSS = `
   80% { opacity:1; } 100% { opacity:0; scale:.96; } }
 @keyframes bx-sm-msg-loss { 0% { opacity:0; translate:-50% -40%; } 18% { opacity:1; translate:-50% -50%; }
   75% { opacity:1; } 100% { opacity:0; } }
+/* Challenge-Countdown (Task 3): kleine Anzeige am unteren Rand des
+   Anzeigefensters — bewusst KLEIN/dezent (Prominenz bleibt bei der
+   Jackpot-Feier), bleibt aber sichtbar solange die Challenge läuft (auch über
+   spätere Nieten hinweg), nicht nur während der 2.4s-Feier-Animation. */
+.bx-sm-cd { position:absolute; left:50%; bottom:min(2cqi,2cqh); translate:-50% 0; z-index:6;
+  display:flex; align-items:baseline; gap:.35em; padding:.3em .7em; border-radius:999px;
+  background: color-mix(in srgb, #000 62%, transparent);
+  box-shadow: 0 0 .6em color-mix(in srgb, var(--bx-gold,#ffd23e) 50%, transparent),
+    inset 0 0 0 max(1px,.1cqi) color-mix(in srgb, var(--bx-gold,#ffd23e) 45%, transparent);
+  color: var(--bx-gold,#ffd23e); font-size: calc(min(2.4cqi,2.8cqh) * var(--bx-fs, 1));
+  opacity:0; pointer-events:none; transition: opacity .25s ease; white-space:nowrap; max-width:90%;
+  overflow:hidden; text-overflow:ellipsis; }
+.bx-sm-cd.show { opacity:1; animation: bx-sm-cd-in .35s cubic-bezier(.2,1.3,.3,1); }
+@keyframes bx-sm-cd-in { 0% { opacity:0; translate:-50% 10px; } 100% { opacity:1; translate:-50% 0; } }
+.bx-sm-cd .lbl { color:#fff2d8; overflow:hidden; text-overflow:ellipsis; }
+.bx-sm-cd .time { font-variant-numeric: tabular-nums; font-weight:700; letter-spacing:.02em; flex:none; }
+.bx-sm-cd .time.tick { animation: bx-sm-cd-tick .35s ease; }
+@keyframes bx-sm-cd-tick { 0% { transform:scale(1.22); color:#fff; } 100% { transform:scale(1); color: var(--bx-gold,#ffd23e); } }
+.bx-sm-cd .colon { animation: bx-sm-cd-blink 1s steps(1,end) infinite; }
+@keyframes bx-sm-cd-blink { 0%,49% { opacity:1; } 50%,100% { opacity:.25; } }
+
 /* Jackpot-Konfetti: kleine Rechtecke, die aus der Mitte hochspritzen — reine
    transform/opacity-Animation (GPU-freundlich). */
 .bx-sm-fx { position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:4; }
@@ -157,22 +185,32 @@ const GIFT_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 // landet — rein optisch, damit der Spin nicht zu kurz aussieht.
 const LAPS = 4;
 
-// "rose::Konfetti-Regen | galaxy::Songwunsch" → [{slug, text}] — dieselbe
-// Kurzform wie gift-menu.js parseItems, hier ohne Countdown-Feld (das ist
-// Aufgabe von Task 3 / gift-menu, nicht des Automaten).
+// "rose::Konfetti-Regen | galaxy::Songwunsch::45" → [{slug, text, secs}] —
+// IDENTISCHE Logik zu gift-menu.js parseItems (Slug::Text::Sekunden, drittes
+// Feld optional, 0 = keine Challenge; "slug::42" bleibt reiner Text, eine
+// Zahl allein reicht nicht — s. dortigen Kommentar). Nur die Quelle "liste"
+// nutzt dieses dritte Feld sinnvoll; die Quelle "trigger" (itemsFromRules)
+// kennt bislang keine Dauer, secs bleibt dort 0 (kein Absturz, nur kein
+// Countdown, s. finish()/startCountdown() unten).
 function parseSlotItems(raw) {
   return String(raw || '')
     .split('|')
     .map((s) => s.trim())
     .filter(Boolean)
     .map((s) => {
-      const [slug, ...rest] = s.split('::');
-      return { slug: (slug || '').trim(), text: rest.join('::').trim() };
+      const parts = s.split('::');
+      const slug = (parts[0] ?? '').trim();
+      const rest = parts.slice(1).map((p) => p.trim());
+      let secs = 0;
+      if (rest.length >= 2 && /^\d+$/.test(rest[rest.length - 1])) {
+        secs = Number(rest.pop());
+      }
+      return { slug, text: rest.join('::').trim(), secs };
     })
     .filter((it) => it.slug || it.text);
 }
 
-const DEMO = 'Rose::Konfetti | Finger Heart::Danke-Sound | Galaxy::Songwunsch | TikTok::Extra-Dreh | Doughnut::Bonus';
+const DEMO = 'Rose::Konfetti | Finger Heart::Danke-Sound | Galaxy::Songwunsch::45 | TikTok::Extra-Dreh | Doughnut::Bonus';
 
 export default class SlotMachine {
   constructor(root, props, ctx) {
@@ -209,6 +247,7 @@ export default class SlotMachine {
           <div class="bx-sm-line"></div>
           <div class="bx-sm-fx"></div>
           <div class="bx-sm-msg"></div>
+          <div class="bx-sm-cd"></div>
         </div>
         <div class="bx-sm-leds"></div>
         <div class="bx-sm-lever"><span class="stick"></span><span class="ball"></span></div>
@@ -219,6 +258,13 @@ export default class SlotMachine {
     this.winEl = this.el.querySelector('.bx-sm-win');
     this.msgEl = this.el.querySelector('.bx-sm-msg');
     this.fxEl = this.el.querySelector('.bx-sm-fx');
+    this.cdEl = this.el.querySelector('.bx-sm-cd');
+    // Challenge-Countdown (Task 3): läuft unabhängig von der Spin-Feier weiter
+    // (auch über spätere Nieten hinweg), bis er abläuft — stackRemaining()
+    // deckelt Mehrfach-Gewinne desselben Automaten bei 600s (Muster gift-menu.js).
+    this.cdRemaining = 0;
+    this.cdText = '';
+    this.cdTimer = null;
     this.leverEl = this.el.querySelector('.bx-sm-lever');
     this.reels = [...this.el.querySelectorAll('.bx-sm-reel')];
     // LED-Kette: Anzahl grob nach Breite, rein dekorativ.
@@ -399,9 +445,52 @@ export default class SlotMachine {
     if (win) {
       this.winEl.classList.add('win');
       this.confetti();
+      // Gewonnenes Item hervorheben + bei Dauer (secs>0) die Challenge
+      // anzeigen/zählen (Task 3). Nieten rühren einen bereits laufenden
+      // Countdown nicht an — der zählt unbeeinflusst weiter runter.
+      const secs = Number(it && it.secs) || 0;
+      if (secs > 0) this.startCountdown(it, secs);
     } else {
       this.winEl.classList.remove('win');
     }
+  }
+
+  /** Challenge-Countdown starten/aufstocken (gift-countdown.js: stackRemaining
+   *  + fmtTime, wie Stück 2 im Geschenke-Slider) — hier als einzelne kleine
+   *  Anzeige in der Automaten-Feier statt der drei Timer-Optiken der Tafel. */
+  startCountdown(item, secs) {
+    this.cdRemaining = stackRemaining(this.cdRemaining, secs, 600);
+    this.cdText = this.displayName(item);
+    this.renderCountdown();
+    this.cdEl.classList.add('show');
+    if (!this.cdTimer) {
+      this.cdTimer = setInterval(() => {
+        this.cdRemaining -= 1;
+        if (this.cdRemaining <= 0) { this.stopCountdown(); return; }
+        this.renderCountdown(true);
+      }, 1000);
+    }
+  }
+
+  /** Anzeige aktualisieren — Minuten/Sekunden in eigenen Spans (tabular-nums
+   *  in CSS), damit der Tick-Puls (`pulse`) nur auf die Ziffern wirkt, nicht
+   *  auf „GEWONNEN: <Text> —" davor (Muster: gift-menu.js renderCountdown). */
+  renderCountdown(pulse) {
+    const [mm, ss] = fmtTime(this.cdRemaining).split(':');
+    this.cdEl.innerHTML = `<span class="lbl">🏆 GEWONNEN: ${escapeHtml(this.cdText)} — </span>`
+      + `<span class="time"><span class="mm">${mm}</span><span class="colon">:</span><span class="ss">${ss}</span></span>`;
+    if (pulse) {
+      const time = this.cdEl.querySelector('.time');
+      if (time) { time.classList.remove('tick'); void time.offsetWidth; time.classList.add('tick'); }
+    }
+  }
+
+  stopCountdown() {
+    clearInterval(this.cdTimer);
+    this.cdTimer = null;
+    this.cdRemaining = 0;
+    this.cdText = '';
+    this.cdEl.classList.remove('show');
   }
 
   /** Kleine Konfetti-Rechtecke, die aus der Mitte hochspritzen (Jackpot-
@@ -426,6 +515,7 @@ export default class SlotMachine {
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
     clearTimeout(this.demoT); clearInterval(this.demoInterval);
+    clearInterval(this.cdTimer);
     this.el.remove();
   }
 }
