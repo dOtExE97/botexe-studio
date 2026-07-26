@@ -3,6 +3,14 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.39.0] — 2026-07-26
+
+### Neu: „Was ist neu?" nach dem Update ✨
+Nach einem Update zeigt dir die App jetzt kurz, **was sich geändert hat** — direkt beim Start, aus dieser Änderungsliste. Hast du mehrere Updates übersprungen, siehst du alle Einträge dazwischen. Bei einer frischen Installation bleibt es still (da führt dich die Willkommens-Tour). Zum Nachlesen: **Einstellungen → „Was ist neu?"**.
+
+### Besser: Updates laden nur noch die Änderungen
+Bisher hat die App bei **jedem** Update das komplette Paket (~150 MB) heruntergeladen — auch wenn sich kaum etwas geändert hatte. Ab jetzt werden zusätzlich **Delta-Pakete** veröffentlicht, sodass nur noch die tatsächlichen Änderungen geladen werden. Spürbar ab dem nächsten Update.
+
 ## [0.38.0] — 2026-07-26
 
 ### Behoben: Sprachausgabe bleibt nicht mehr stumm 🔊
