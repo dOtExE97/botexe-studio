@@ -7,6 +7,7 @@ import type { StudioEvent, Redemption, PanelButton } from '@botexe/trigger-engin
 import { validateTriggerRules, validateChatCommands } from './main/services/validators';
 import { IPC } from './shared/constants';
 import { normalizeMixer } from './shared/mixer';
+import { parseChangelog } from './shared/changelog';
 import { Studio } from './main/services/studio';
 import type { TTSSettings } from './main/services/settings-store';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
@@ -305,6 +306,15 @@ async function openTiktokLogin(): Promise<{ ok: boolean; loggedIn: boolean }> {
   });
 }
 
+/** Gepackt: liegt als Datei direkt unter Resources (siehe forge.config.ts
+ *  extraResource). Dev: Repo-Root relativ zu apps/desktop (Monorepo-Pfad, wie
+ *  bei Studio.resolvePaths für widget-kit/runtime). */
+function resolveChangelogPath(): string {
+  return app.isPackaged && process.resourcesPath
+    ? path.join(process.resourcesPath, 'CHANGELOG.md')
+    : path.join(app.getAppPath(), '../../CHANGELOG.md');
+}
+
 function setupStudio(): Studio {
   const paths = Studio.resolvePaths(
     app.getAppPath(),
@@ -377,6 +387,14 @@ function registerIpc(): void {
     overlayPort: isStudio().getOverlayInfo().port,
     control: isStudio().getControlInfo(),
   }));
+  ipcMain.handle(IPC.CHANGELOG_GET, () => {
+    try {
+      const raw = fs.readFileSync(resolveChangelogPath(), 'utf-8');
+      return { version: app.getVersion(), entries: parseChangelog(raw) };
+    } catch {
+      return { version: app.getVersion(), entries: [] };
+    }
+  });
   ipcMain.handle(IPC.APP_OPEN_DATA_DIR, () => {
     void shell.openPath(app.getPath('userData'));
     return { ok: true };

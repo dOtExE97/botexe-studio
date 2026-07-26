@@ -207,13 +207,22 @@ export default function SettingsPage() {
           <h1 className="font-display text-xl uppercase">Einstellungen</h1>
           <p className="mt-1 text-xs text-studio-muted">TikTok-Verbindung (Key!), Audio, Punkte, Integrationen & Daten.</p>
         </div>
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent('bx-show-tour'))}
-          className="bx-pill flex-none text-[11px] hover:text-studio-accent"
-          title="Die Willkommens-/Einrichtungs-Tour erneut anzeigen"
-        >
-          <Rocket size={13} /> Tour erneut zeigen
-        </button>
+        <div className="flex flex-none items-center gap-2">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('bx-show-whats-new'))}
+            className="bx-pill text-[11px] hover:text-studio-accent"
+            title="Zeigt die letzte Änderungsübersicht erneut an"
+          >
+            <Sparkles size={13} /> Was ist neu?
+          </button>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('bx-show-tour'))}
+            className="bx-pill text-[11px] hover:text-studio-accent"
+            title="Die Willkommens-/Einrichtungs-Tour erneut anzeigen"
+          >
+            <Rocket size={13} /> Tour erneut zeigen
+          </button>
+        </div>
       </div>
 
       {/* Von TikFinity umziehen — prominent, weil genau unsere Zielgruppe */}
