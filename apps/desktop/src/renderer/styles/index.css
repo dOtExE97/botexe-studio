@@ -97,47 +97,55 @@ body {
   color: var(--color-studio-muted);
 }
 
-/* Eingabefelder — einheitlich, mit Fokus-Glow statt OS-Look */
-.bx-input,
-.bx-select {
-  width: 100%;
-  border-radius: 9px;
-  /* Deutlich abgehobene Steuerfläche + sichtbarer Rand — sonst „dunkel auf
-     dunkel" und die Felder verschwimmen mit dem Panel. */
-  border: 1px solid var(--color-studio-control-border);
-  background: var(--color-studio-control);
-  color: var(--color-studio-text);
-  padding: 8px 11px;
-  font-size: 13px;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-}
-.bx-input:hover,
-.bx-select:hover {
-  border-color: var(--color-studio-control-border-hover);
-}
-.bx-input::placeholder {
-  color: color-mix(in srgb, var(--color-studio-muted) 60%, transparent);
-}
-.bx-input:focus,
-.bx-select:focus {
-  border-color: var(--color-studio-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-studio-accent) 18%, transparent);
-  background: rgba(12, 13, 18, 0.9);
-}
+/* Eingabefelder — einheitlich, mit Fokus-Glow statt OS-Look
+   WICHTIG: In @layer components, damit Tailwinds Utilities (@layer utilities,
+   z.B. w-20/max-w-40) die Basis-„width: 100%" hier überstimmen können. Ohne
+   Layer läge diese Regel unlayered/außerhalb der Layer-Kaskade — und
+   unlayered CSS gewinnt IMMER gegen layered CSS, unabhängig von Spezifität.
+   Damit liefen alle festen Breiten-Utilities auf `.bx-input`/`.bx-select`
+   ins Leere (Felder blieben immer 100% breit). */
+@layer components {
+  .bx-input,
+  .bx-select {
+    width: 100%;
+    border-radius: 9px;
+    /* Deutlich abgehobene Steuerfläche + sichtbarer Rand — sonst „dunkel auf
+       dunkel" und die Felder verschwimmen mit dem Panel. */
+    border: 1px solid var(--color-studio-control-border);
+    background: var(--color-studio-control);
+    color: var(--color-studio-text);
+    padding: 8px 11px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .bx-input:hover,
+  .bx-select:hover {
+    border-color: var(--color-studio-control-border-hover);
+  }
+  .bx-input::placeholder {
+    color: color-mix(in srgb, var(--color-studio-muted) 60%, transparent);
+  }
+  .bx-input:focus,
+  .bx-select:focus {
+    border-color: var(--color-studio-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-studio-accent) 18%, transparent);
+    background: rgba(12, 13, 18, 0.9);
+  }
 
-/* Native Select-Pfeil ersetzen — kein graues OS-Dropdown mehr */
-.bx-select {
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23c8ccda' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 30px;
-}
-.bx-select option {
-  background: #14161e;
-  color: var(--color-studio-text);
+  /* Native Select-Pfeil ersetzen — kein graues OS-Dropdown mehr */
+  .bx-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23c8ccda' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+  }
+  .bx-select option {
+    background: #14161e;
+    color: var(--color-studio-text);
+  }
 }
 
 /* Pill-Button (Sekundär) mit Glas */
