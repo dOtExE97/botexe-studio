@@ -97,20 +97,32 @@ const CSS = `
 @keyframes bx-gm-fill { from { width:0 } to { width:100% } }
 
 /* ── Challenge-Countdown ──────────────────────────────────────────────────
-   Kapsel oben rechts auf dem getroffenen Eintrag, in drei Optiken (Feld
-   timerStyle): einfach (nur die große Uhr), balken (Uhr + duenner Balken),
-   ring (Uhr in einem sich leerenden Ring). Alle drei teilen sich dieselbe
-   Panel-Optik (Glas-Grundierung + Akzent-Glanzkante als duenner Rahmen) —
-   das macht sie als Set erkennbar, die konkrete Optik unterscheidet nur
-   Form/Zusatzelement. Redesign-Auftrag der Nutzerin: NICHT nur groesser
-   skalieren, sondern klassisches "00:00"-Ziffernblatt (siehe fmtTime in
-   gift-countdown.js), sauberes Erscheinungsbild, wirklich animiert. Die
-   Zahl steht deshalb in Minuten:Sekunden-Spans (Doppelpunkt blinkt je
-   Sekunde wie eine echte digitale Uhr), tabellarische UND monospace
-   Ziffern gegen Zittern beim Zaehlen. Sanftes Einblenden beim Start plus
-   ein leichter Puls je Tick (renderCountdown() haengt dafuer die Klasse
-   bx-gm-tick per remove/reflow/add um — Muster wie bx-hit fuer den
-   Auslöser-Effekt, aus AGENTS.md). */
+   Nutzerin-Feedback nach zwei Anläufen: "immer noch zu klein, warum nicht
+   prominent im Vordergrund?". Die vorherigen Fassungen waren eine Kapsel
+   oben rechts (bzw. ein Chip-Segment) — genau DAS wird hier ersetzt. Die
+   Uhr ist jetzt der HELD des getroffenen Eintrags:
+     Rotation — der Countdown übernimmt die ganze Karte als Vordergrund-
+       Ebene: ein eigenes Abdunkel-Element (.bx-gm-scrim) legt sich über das
+       Geschenkbild, mittig darüber steht die GROSSE 00:00, die Challenge-
+       Zeile (.bx-gm-act, "→ Text") rückt als Überschrift knapp darüber,
+       Name/Preis werden zur kleinen Randnotiz am unteren Rand.
+     Laufband (Kachelform „breit", Standard) — die Uhr wird deutlich das
+       auffälligste Element der Kachel (klar größer als Name/Wirkung),
+       bleibt aber ein Flex-Element neben Icon/Text (siehe Kommentar
+       weiter unten, warum sie dort NICHT als Ecken-Overlay sitzen kann).
+     Die anderen Kachelformen (quadrat/etikett/…) sind fest bemessene Boxen
+     mit Ecken-Marken (Coins) — dort bleibt der Countdown bewusst als
+     kompakte Ecken-Pille (siehe deren eigene Overrides weiter unten),
+     genau wie beim Coin-Preis.
+   Alle drei Optiken (Feld timerStyle) sind Varianten DERSELBEN Vordergrund-
+   Behandlung: einfach = nur die große Zeit (am saubersten), balken = Zeit +
+   schlanker Fortschrittsbalken, ring = Zeit in einem Ring gerahmt. Die
+   Engine (Stapeln/Deckel/Tick/Reset in startCountdown/tickCountdowns,
+   activeTimers) bleibt unangetastet — hier ändert sich ausschließlich die
+   Optik. Das Ziffernblatt selbst (Minuten:Sekunden-Spans, blinkender
+   Doppelpunkt, tabellarische UND monospace Ziffern, Tick-Puls per
+   remove/reflow/add der Klasse bx-gm-tick — Muster wie bx-hit, s.
+   AGENTS.md) ist unverändert aus der letzten Fassung übernommen. */
 .bx-gm-timer { position:absolute; top:.3em; right:.3em; z-index:5;
   display:flex; align-items:center; justify-content:center;
   font-family: var(--bx-font-num), ui-monospace, 'SFMono-Regular', monospace;
@@ -137,7 +149,9 @@ const CSS = `
 
 /* einfach: der "klassische, optisch cleane" Timer — nur die große 00:00 auf
    dem schlichten Panel, kein Zusatzelement. Maximale Lesbarkeit, minimales
-   Chrome. */
+   Chrome. Diese Basiswerte gelten für die Ecken-Pille (quadrat/etikett/…);
+   Rotation und Laufband „breit" überschreiben sie weiter unten deutlich
+   größer (Vordergrund-Auftrag). */
 .bx-gm-timer--einfach { font-size:1.3em; padding:.28em .58em; border-radius:.5em; }
 .bx-gm-chip .bx-gm-timer--einfach { font-size:.86em; padding:.22em .5em; }
 
@@ -176,15 +190,91 @@ const CSS = `
   height: min(calc(clamp(28px, min(22cqi,19cqh), 100px) * var(--bx-fs, 1)), 44cqh, 34cqi); }
 .bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.46em; }
 
-/* Laufband, Kachelform „breit" (Standard): der Chip ist eine flexible Reihe
-   OHNE feste Breite (Icon + Text). Als Ecken-Overlay wie in der Rotation
-   würde der Countdown dort den Namen verdecken — die Kachel ist dafür zu
-   schmal (Messung: bis zu 20px Überlappung bei „balken"). Deshalb reiht er
-   sich hier stattdessen als zusätzliches Flex-Element ein: der Chip wächst
-   um genau seine Breite, nichts wird zugedeckt. Die anderen Kachelformen
-   (quadrat/etikett/…) sind fest bemessene Boxen mit Ecken-Marken (Coins) —
-   dort bleibt der Countdown als Ecken-Pille wie gehabt. */
-.bx-gm-t-breit .bx-gm-chip .bx-gm-timer { position:relative; top:auto; right:auto; flex:none; margin-left:.2em; }
+/* ══ Vordergrund-Uebernahme: Rotation ═══════════════════════════════════
+   .bx-gm-scrim ist ein EIGENES Element (von renderCountdown zusammen mit
+   dem Uhr-Knoten eingehängt, von resetCountdown zusammen mit ihm wieder
+   entfernt — siehe dort), nicht die Uhr selbst: die Uhr muss je Optik
+   unterschiedlich groß/geformt sein (Text/Balken/Ring), die Abdunkelung
+   dagegen IMMER die ganze Karte decken. Beides in einem Element hätte bei
+   „ring" zu einem CSS-Widerspruch geführt (inset:0 UND eine feste
+   Ring-Breite gleichzeitig sind ueberbestimmt). Per Default unsichtbar
+   (display:none) — wirkt nur dort, wo eine Vordergrund-Regel weiter unten
+   sie sichtbar schaltet (Rotation + Laufband „breit"); auf den
+   Ecken-Pillen-Kachelformen bleibt sie folgenlos. */
+.bx-gm-scrim { display:none; }
+.bx-gm-card.bx-gm-timing .bx-gm-scrim {
+  display:block; position:absolute; inset:0; z-index:7; pointer-events:none; border-radius:inherit;
+  background: linear-gradient(175deg, rgba(14,15,26,.4), rgba(6,7,13,.78) 55%, rgba(3,4,8,.88));
+  animation: bx-gm-scrim-in .5s cubic-bezier(.2,.85,.3,1) both; }
+@keyframes bx-gm-scrim-in { from { opacity:0; } to { opacity:1; } }
+/* Die Uhr selbst: nicht mehr die Eckkapsel, sondern mittig über der Karte
+   (Transform statt inset:0 — s.o. der Grund), eigenes Panel/Ranking fällt
+   weg (das übernimmt der Scrim), Ziffern werden zum groessten Text der
+   Karte. --bx-gm-hero-fs bündelt die eine Stellschraube, an der Text- UND
+   Ring-Durchmesser hängen, damit beide zueinander proportioniert bleiben. */
+.bx-gm-card.bx-gm-timing .bx-gm-timer {
+  position:absolute; top:50%; left:50%; right:auto; bottom:auto; translate:-50% -50%; z-index:9;
+  flex-direction:column; gap:.14em; padding:0; background:none; box-shadow:none;
+  animation: bx-gm-hero-in .5s cubic-bezier(.2,.85,.3,1) both; }
+@keyframes bx-gm-hero-in { from { opacity:0; translate:-50% -46%; } to { opacity:1; translate:-50% -50%; } }
+.bx-gm-card.bx-gm-timing .bx-gm-timer--einfach,
+.bx-gm-card.bx-gm-timing .bx-gm-timer--balken,
+.bx-gm-card.bx-gm-timing .bx-gm-timer--ring {
+  --bx-gm-hero-fs: calc(clamp(27px, min(15.5cqi, 13.5cqh), 130px) * var(--bx-fs, 1));
+  font-size: var(--bx-gm-hero-fs); padding:0; border-radius:0; }
+.bx-gm-card.bx-gm-timing .bx-gm-timer-txt {
+  filter: drop-shadow(0 .06em .32em rgba(0,0,0,.75)); }
+.bx-gm-card.bx-gm-timing .bx-gm-timer--balken { width: min(64cqi, 84%); }
+.bx-gm-card.bx-gm-timing .bx-gm-timer--balken .bx-gm-timer-bar { height:.15em; }
+.bx-gm-card.bx-gm-timing .bx-gm-timer--ring {
+  width: calc(var(--bx-gm-hero-fs) * 2.15); height: calc(var(--bx-gm-hero-fs) * 2.15); }
+/* Geschenk, Name/Preis und die Challenge-Zeile weichen der Uhr: das Bild
+   bleibt (gedimmt) als Kontext hinter dem Scrim sichtbar, Name/Preis
+   rutschen als kleine Randnotiz an den unteren Kartenrand, die Challenge-
+   Zeile (der eigentliche Auftrag, z. B. "→ Still sein") wandert als
+   Überschrift ÜBER die Uhr — beide über dem Scrim (z-index höher), damit
+   nichts von der Abdunkelung verschluckt wird. */
+.bx-gm-card.bx-gm-timing .bx-gm-ic { opacity:.62; transition: opacity .4s ease; }
+.bx-gm-card.bx-gm-timing .bx-gm-line {
+  position:absolute; left:50%; bottom:.55em; translate:-50% 0; z-index:9;
+  max-width:88%; font-size:.7em; opacity:.85; }
+.bx-gm-card.bx-gm-timing .bx-gm-act {
+  position:absolute; left:50%; top:.6em; translate:-50% 0; z-index:9;
+  max-width:92%; font-size:1.08em; text-align:center; opacity:1; }
+/* Sanfter Akzent-Rand auf der ganzen Karte, solange sie „läuft" — macht den
+   aktiven Eintrag zusätzlich erkennbar, nicht nur die Uhr selbst. Höhere
+   Selektor-Spezifität (3 statt 2 Klassen) als die Stil-Panels
+   (.bx-st-karte .bx-gm-card etc.), damit sie unabhängig von der
+   Deklarationsreihenfolge gewinnt. */
+.bx-gm-rot .bx-gm-card.bx-gm-timing {
+  box-shadow: 0 0 0 max(1.5px,.05em) color-mix(in srgb, var(--bx-accent,#ff5e8a) 55%, transparent),
+    0 0 1.8em -.35em var(--bx-accent,#ff5e8a), var(--bx-shadow, 0 .5em 1.4em -.5em rgba(0,0,0,.85)); }
+
+/* ══ Vordergrund-Uebernahme: Laufband, Kachelform „breit" (Standard) ═════
+   Der Chip ist eine flexible Reihe OHNE feste Breite (Icon + Text). Als
+   Ecken-Overlay wie in der Rotation würde der Countdown dort den Namen
+   verdecken — die Kachel ist dafür zu schmal (Messung: bis zu 20px
+   Überlappung bei „balken"). Deshalb bleibt die Uhr ein zusätzliches
+   Flex-Element (der Chip wächst um ihre Breite), wird aber deutlich das
+   auffälligste Element der Kachel: klar größer als Name/Wirkung, mit
+   eigenem Akzent-Glanzrahmen statt der schlichten Ecken-Pille. Die
+   Chip-Höhe bleibt FEST (3,05em, Bandhöhe) — deshalb wächst die Uhr hier
+   bewusst moderater als in der Rotation, sonst würde sie oben/unten
+   anschneiden (widget-check!). Die anderen Kachelformen (quadrat/etikett/…)
+   bleiben unverändert Ecken-Pillen, siehe deren eigene Overrides. */
+.bx-gm-t-breit .bx-gm-chip .bx-gm-timer { position:relative; top:auto; right:auto; flex:none; margin-left:.25em;
+  padding:.16em .48em; border-radius:.4em; }
+.bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--einfach,
+.bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--balken,
+.bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--ring {
+  font-size:1.55em; }
+.bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--balken { width:auto; min-width:4.2em; font-size:1.32em; }
+.bx-gm-t-breit .bx-gm-chip.bx-gm-timing .bx-gm-timer--ring {
+  width: min(calc(2.5em * var(--bx-fs, 1)), 58cqh, 30cqi);
+  height: min(calc(2.5em * var(--bx-fs, 1)), 58cqh, 30cqi); }
+.bx-gm-band.bx-gm-t-breit .bx-gm-chip.bx-gm-timing {
+  box-shadow: 0 0 0 max(1.5px,.045em) color-mix(in srgb, var(--bx-accent,#ff5e8a) 55%, transparent),
+    0 0 1em -.3em var(--bx-accent,#ff5e8a); }
 
 /* ── Laufband ─────────────────────────────────────────────────────────── */
 /* Ein Band ist BREIT: die Chip-Größe hängt an der HÖHE (cqh), cqi deckelt sie
@@ -1478,6 +1568,17 @@ export default class GiftMenu {
       let node = el.querySelector('.bx-gm-timer');
       if (!node || !node.classList.contains(`bx-gm-timer--${this.timerStyle}`)) {
         if (node) node.remove();
+        // Scrim (Abdunkel-Ebene für die Vordergrund-Übernahme der Karte) als
+        // EIGENES Element VOR der Uhr einhängen — nicht Teil der Uhr selbst,
+        // siehe CSS-Kommentar bei .bx-gm-scrim (Ring-Größe vs. inset:0 wäre
+        // sonst überbestimmt). Auf den Ecken-Pillen-Kachelformen bleibt sie
+        // per CSS unsichtbar (display:none), stört dort also nicht.
+        if (!el.querySelector('.bx-gm-scrim')) {
+          const scrim = document.createElement('i');
+          scrim.className = 'bx-gm-scrim';
+          scrim.setAttribute('aria-hidden', 'true');
+          el.appendChild(scrim);
+        }
         node = this.buildTimerNode();
         el.appendChild(node);
       }
@@ -1519,6 +1620,8 @@ export default class GiftMenu {
       el.style.removeProperty('--bx-gm-prog');
       const node = el.querySelector('.bx-gm-timer');
       if (node) node.remove();
+      const scrim = el.querySelector('.bx-gm-scrim');
+      if (scrim) scrim.remove();
     }
     this.activeTimers.delete(key);
   }
