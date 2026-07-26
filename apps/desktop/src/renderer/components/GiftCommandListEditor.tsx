@@ -5,7 +5,7 @@
 // die als drittes Feld nur geschrieben wird, wenn secs > 0 (unverändertes
 // Format bleibt sonst 2-feldig).
 import { useEffect, useRef, useState } from 'react';
-import { X, Plus, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, Plus, ChevronUp, ChevronDown, Timer } from 'lucide-react';
 import GiftPicker from './GiftPicker';
 
 interface Row {
@@ -116,20 +116,22 @@ export default function GiftCommandListEditor(
               <X size={13} />
             </button>
           </div>
-          <div className="mt-1 flex items-center gap-1">
-            <input
-              value={row.text}
-              // | und :: sind Trennzeichen im Speicherformat → im Text neutralisieren,
-              // damit eine Eingabe die Liste nicht zerschießt.
-              onChange={(e) => setRow(i, { text: e.target.value.replace(/\|/g, '/').replace(/::/g, ':') })}
-              placeholder={textPlaceholder ?? 'Auslöser/Text (z.B. !feuer)'}
-              className="bx-input min-w-0 flex-1 text-xs normal-case tracking-normal"
-            />
-            {/* Challenge-Dauer für diese Zeile — Eingabe in MINUTEN, gespeichert
-                wird in Sekunden (secs). Leer/0 ⇒ kein Timer, kein 3. Feld.
-                .bx-input setzt width:100% unlayered (schlägt jede Tailwind-
-                Breiten-Utility) — feste Breite darum per Inline-Style statt
-                w-* erzwingen, sonst reißt genau dieses Feld die Zeile wieder auf. */}
+          <input
+            value={row.text}
+            // | und :: sind Trennzeichen im Speicherformat → im Text neutralisieren,
+            // damit eine Eingabe die Liste nicht zerschießt.
+            onChange={(e) => setRow(i, { text: e.target.value.replace(/\|/g, '/').replace(/::/g, ':') })}
+            placeholder={textPlaceholder ?? 'Auslöser/Text (z.B. !feuer)'}
+            className="bx-input mt-1 w-full text-xs normal-case tracking-normal"
+          />
+          {/* Eigene, klar beschriftete Zeile für die optionale Challenge-Dauer —
+              vorher war es nur ein kryptisches „Min"-Kästchen. Eingabe in MINUTEN,
+              gespeichert in Sekunden (secs). Leer/0 ⇒ kein Timer, kein 3. Feld.
+              .bx-input setzt width:100% unlayered (schlägt jede Tailwind-Breiten-
+              Utility) — feste Breite darum per Inline-Style erzwingen. */}
+          <label className="mt-1.5 flex items-center gap-1.5 text-[10px] normal-case tracking-normal text-studio-muted">
+            <Timer size={13} className="flex-none text-studio-gold" />
+            <span className="flex-none">Challenge-Timer:</span>
             <input
               type="number"
               min={0}
@@ -139,14 +141,20 @@ export default function GiftCommandListEditor(
                 const min = Number(e.target.value);
                 setRow(i, { secs: min > 0 ? Math.round(min * 60) : 0 });
               }}
-              placeholder="Min"
-              title="Challenge-Dauer in Minuten (leer = kein Timer)"
-              style={{ width: '2.75rem' }}
-              className="bx-input flex-none text-center text-xs normal-case tracking-normal"
+              placeholder="–"
+              title="Challenge-Dauer in Minuten — läuft als Countdown im Overlay, wenn dieses Geschenk kommt. Leer = kein Timer."
+              style={{ width: '3rem' }}
+              className="bx-input flex-none px-1.5 py-1 text-center text-xs"
             />
-          </div>
+            <span className="flex-none">Min</span>
+            <span className="flex-none text-studio-muted/70">· leer = kein Timer</span>
+          </label>
         </div>
       ))}
+      <p className="mt-0.5 flex items-start gap-1.5 text-[10px] leading-snug normal-case tracking-normal text-studio-muted/80">
+        <Timer size={12} className="mt-0.5 flex-none text-studio-gold" />
+        <span><b>Challenge-Timer</b> (optional): Trag Minuten ein, dann läuft bei diesem Geschenk ein sichtbarer Countdown im Overlay — z.&nbsp;B. „1&nbsp;Min still sein". Leer lassen = nur der Text, kein Timer.</span>
+      </p>
       {rows.length === 0 && (
         <p className="normal-case tracking-normal text-studio-muted/70">
           Noch nichts eingetragen — unten eine Zeile hinzufügen.
