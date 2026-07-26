@@ -3,6 +3,27 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.38.0] — 2026-07-26
+
+### Behoben: Sprachausgabe bleibt nicht mehr stumm 🔊
+Wenn der Online-Vorlese-Dienst hakte, wartete die App bis zu **30 Sekunden** und sagte dann gar nichts — selbst wenn eine **lokale Stimme** längst fertig eingerichtet war. Jetzt:
+- **Schneller aufgeben statt hängen** (7 statt 12 Sekunden, 2 statt 3 Versuche).
+- **Automatisch auf die lokale Stimme ausweichen**, wenn der Online-Dienst nicht antwortet — die läuft ohne Internet weiter.
+- **Klare Meldung statt Stille**, wenn wirklich nichts geht (mit Tipp, eine lokale Stimme vorzubereiten).
+
+### Neu: Feineinstellung je Stimme — endlich wirken die Regler ⚙️
+Bisher gab es feste Regler für Tempo und Tonhöhe, die **nur bei den Online-Stimmen** etwas taten — bei einer lokalen Stimme passierte gar nichts. Jetzt zeigt die Stimme-Seite **nur die Regler, die deine gewählte Stimme wirklich kann**, jeweils mit Erklärung und „Auf Standard zurücksetzen":
+- **Lokal (Piper):** Tempo, Ausdruck, Aussprache-Variation, Pause zwischen Sätzen
+- **Edge (online):** Tempo, Tonhöhe, Lautstärke
+- **OpenAI:** Tempo und HD-Qualität · **Amazon Polly:** Neural-Qualität · **ElevenLabs:** Stabilität, Ähnlichkeit, Stil
+
+Die Einstellungen werden **pro Anbieter** gemerkt — du kannst deine lokale und deine Online-Stimme also unterschiedlich einstellen. Bisherige Tempo-/Tonhöhe-Werte werden automatisch übernommen.
+
+### Behoben: Einstellungen, die nach dem Neustart weg waren
+Zwei Einstellungen wurden beim Speichern still verworfen und fielen bei jedem Start zurück:
+- **Die Mischpult-Regler** (Gesamt- und Kanal-Lautstärken, auch für die Sprachausgabe).
+- **Die Zustimmung zu anonymen Absturzberichten** — deshalb kam die Nachfrage nach jedem Neustart erneut, und es wurde nie ein Bericht gesendet.
+
 ## [0.37.1] — 2026-07-26
 
 ### Behoben: Bedien-Felder wieder in richtiger Breite + Geschenke-Liste repariert
