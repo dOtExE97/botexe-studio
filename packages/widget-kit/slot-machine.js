@@ -241,7 +241,14 @@ export default class SlotMachine {
       this.items = parseSlotItems(DEMO);
       this.demo = true;
     }
-    if (!this.items.length) this.items = [{ slug: '', text: '?' }];
+    // Platzhalter, solange Quelle "trigger" noch auf loadRules() wartet: MINDESTENS
+    // 2 unterschiedliche Symbole nötig — slotReels() degeneriert bei n===1 IMMER
+    // auf [w,w,w] (s. Kommentar dort), eine echte Niete sähe in diesem kurzen
+    // Vorlade-Fenster sonst wie ein Jackpot aus. Drei leicht unterscheidbare
+    // Platzhalter (Muster wheel.js: dessen Default-Segmente haben ebenfalls
+    // von Haus aus >=2 Einträge) — verschwinden, sobald loadRules() die echten
+    // Symbole liefert.
+    if (!this.items.length) this.items = [{ slug: '', text: '?' }, { slug: '', text: '??' }, { slug: '', text: '???' }];
 
     this.el = document.createElement('div');
     this.el.className = `bx-sm bx-sm-${this.style}`;
