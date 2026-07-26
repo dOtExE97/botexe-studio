@@ -3,6 +3,13 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.37.1] — 2026-07-26
+
+### Behoben: Bedien-Felder wieder in richtiger Breite + Geschenke-Liste repariert
+- **Geschenke-Liste im Geschenk-Menü:** Die Einträge-Liste („Geschenke + was sie auslösen") war zerrissen — ein Feld wurde 100 % breit und hat die Zeilen gesprengt. Jetzt fitten die Zeilen wieder sauber ins Panel.
+- **Challenge-Timer verständlich:** Die optionale Challenge-Dauer war nur ein kryptisches kleines „Min"-Kästchen. Jetzt eine klar beschriftete Zeile („⏱ Challenge-Timer: \_ Min") mit kurzer Erklärung darunter.
+- **~14 Eingabefelder app-weit** (u. a. in Zuschauer, Stimme, Galerie, Trigger) wurden fälschlich in voller Breite gezeigt, obwohl sie schmal sein sollten — Ursache war eine CSS-Ebenen-Reihenfolge, jetzt behoben. Betrifft nur die Bedienoberfläche, nicht die Overlays.
+
 ## [0.37.0] — 2026-07-26
 
 ### Neu: die Glücks-/Gambling-Familie — Geschenke lösen Spiele aus 🎰
