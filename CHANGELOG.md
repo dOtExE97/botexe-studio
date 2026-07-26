@@ -3,6 +3,22 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.37.0] — 2026-07-26
+
+### Neu: die Glücks-/Gambling-Familie — Geschenke lösen Spiele aus 🎰
+Vier neue Wege, wie ein Geschenk im Stream etwas Zufälliges auslöst — alle mit **echtem Zufall** (zentral entschieden, gleich auf allen Overlay-Quellen, nichts manipuliert):
+- **Glücksrad per Geschenk:** Ein gewähltes Geschenk lässt das Rad drehen und lost ein Feld aus. Neu: die Felder können automatisch aus deinen Geschenk-Triggern kommen, und auf Wunsch feuert das ausgeloste Feld seine Aktion von selbst (Häkchen, Standard aus).
+- **Challenge-Timer im Geschenke-Slider:** Häng an ein Geschenk eine Challenge mit Dauer (z. B. „1 Min still sein") — kommt das Geschenk, läuft auf dem Eintrag ein animierter Countdown. Mit klassischem `00:00`-Ziffernblatt, drei Optiken (Einfach/Balken/Ring) und wählbarer Platzierung (prominenter Vordergrund oder kompakt in der Ecke). Nachsenden legt Zeit drauf (bis 10 Min).
+- **Gambling-Automat (neu):** Ein Spielautomat mit 3 Walzen aus deinen Geschenken. Ein Geschenk lässt die Walzen drehen, mit einstellbarer **Gewinnchance** wird zufällig ein Geschenk gezogen — bei Gewinn wird es ausgelöst (Aktion + Challenge).
+- **Lucky-Card im Slider:** Eine animierte Karten-Ziehung direkt im Geschenke-Slider — ausgelöst per Geschenk **oder** Chat-Befehl (z. B. `!lucky`), mit Gewinnchance. Der Gewinn löst die gezogene Karte aus.
+
+### Besser: Bedienoberfläche endlich gut lesbar
+- **Auswahl-Felder & Buttons sichtbar:** Selects, Eingabefelder und Buttons hoben sich kaum vom dunklen Hintergrund ab — jetzt mit klar abgehobener Fläche und sichtbarem Rand (app-weit).
+- **Einheitliche goldene Section-Überschriften** auf allen Seiten und in den Widget-Menüs.
+- **Sekundär-Text kräftiger:** Feld-Labels, Beschreibungen, Nav-Rubriken und Fußzeilen sind deutlich besser lesbar.
+
+Für Entwickler: neue Actions `spin_slot`/`lucky_draw`/`start_gift_challenge`; gemeinsame `itemsFromRules(...).filter(it=>it.text)`-Filterung über Rad/Automat/Slider/Server für Index-Parität; geteilter Zufalls-/Aktivierungs-Pfad (`slot-gift.ts`/`lucky-draw.ts`), Countdown-Kern `gift-countdown.js`.
+
 ## [0.36.0] — 2026-07-26
 
 ### Besser: Listen-Felder sind jetzt echte Listen (Glücksrad, Laufband, Umfrage)
