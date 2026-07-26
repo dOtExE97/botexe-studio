@@ -22,6 +22,7 @@ import { SoundLibrary } from './sound-library';
 import { MediaLibrary } from './media-library';
 import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
+import { matchingWheelSpins } from './wheel-gift';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { ProfileStore, type ProfileMeta } from './profile-store';
@@ -433,6 +434,12 @@ export class Studio {
           if (gapMs > 0 && e.ts - last < gapMs) continue;
           this.giftSoundLastAt.set(soundId, e.ts);
           this.playSound(soundId, undefined, 'alert');
+        }
+        // Rad-Bindung „Bei welchem Geschenk drehen?": passendes Rad-Widget
+        // (spinGift-Prop) automatisch drehen — serverseitig, keine Regel nötig.
+        const layers = this.layouts.list().flatMap((layout) => layout.layers);
+        for (const layerId of matchingWheelSpins(layers, e.gift.slug)) {
+          this.dispatchAction('wheel-gift', { kind: 'spin_wheel', targetId: layerId }, e);
         }
         this.maybeAnnounceGift(e); // TTS-Ansage ab Coin-Schwelle
       }

@@ -543,7 +543,7 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'wheel', label: 'Glücksrad', desc: 'Dreht bei einer Trigger-Aktion (z.B. !spin gegen Punkte) und zeigt den Gewinn. Preise frei wählbar.',
-    w: 480, h: 560, props: { style: 'classic', segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', source: 'liste', spinMs: 5000, accent: '#ff5436', autoShow: true, showTrigger: true, title: 'Glücksrad', spinSoundId: 'botexe-rad.wav', resultSoundId: 'botexe-gewinn.wav' },
+    w: 480, h: 560, props: { style: 'classic', segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', source: 'liste', spinMs: 5000, accent: '#ff5436', autoShow: true, showTrigger: true, title: 'Glücksrad', spinSoundId: 'botexe-rad.wav', resultSoundId: 'botexe-gewinn.wav', spinGift: '' },
     fields: [
       styleField([
         { value: 'classic', label: '🎡 Bunt (Standard)' },
@@ -561,6 +561,8 @@ export const WIDGET_TYPES: {
       { key: 'showTrigger', label: 'Dreher-Banner', type: 'boolean', hint: 'Zeigt beim Start kurz, wer (womit) gedreht hat — freistehend. Lichter-Kette am Rand ist immer an.' },
       { key: 'spinSoundId', label: 'Dreh-Sound', type: 'sound', hint: 'Spielt beim Start des Spins über die App.' },
       { key: 'resultSoundId', label: 'Gewinn-Sound', type: 'sound', hint: 'Spielt, wenn das Rad stehen bleibt.' },
+      { key: 'spinGift', label: 'Bei welchem Geschenk drehen?', type: 'gift',
+        hint: 'Wähle ein Geschenk — schickt das jemand, dreht das Rad automatisch. Leer = nur manuell/über eigene Trigger.' },
       ACCENT_FIELD,
     ],
   },
