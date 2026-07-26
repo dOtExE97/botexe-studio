@@ -238,7 +238,7 @@ export default function SettingsPage() {
       {/* TikTok-Verbindung (Sign-Key) */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
             <ShieldCheck size={15} /> TikTok-Verbindung (Sign-Key)
           </h2>
           <span className={`flex items-center gap-1.5 text-[11px] font-bold ${signKeySet ? 'text-emerald-300' : 'text-amber-300'}`}>
@@ -396,7 +396,7 @@ export default function SettingsPage() {
 
       {/* TikTok Live Studio */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-accent">
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <Clapperboard size={15} /> TikTok Live Studio
         </h2>
         <p className="mb-3 text-[12px] leading-relaxed text-studio-muted">
@@ -446,7 +446,7 @@ export default function SettingsPage() {
 
       {/* Audio-Ausgabe */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-teal">
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <Speaker size={15} /> Audio-Ausgabe & Sound-Bremse
         </h2>
         <p className="mb-3 text-[12px] leading-relaxed text-studio-muted">
@@ -469,7 +469,7 @@ export default function SettingsPage() {
 
       {/* Gift-Sound-Bremse (Anti-Spam) */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
-        <h2 className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+        <h2 className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <Gift size={15} /> Gift-Sound-Bremse
         </h2>
         <p className="mb-2 text-[11px] text-studio-muted">
@@ -493,7 +493,7 @@ export default function SettingsPage() {
       {/* Spotify */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
             <Music size={15} /> Spotify
           </h2>
           <span className={`flex items-center gap-1.5 text-[11px] font-bold ${spotify.connected ? 'text-emerald-300' : 'text-studio-muted'}`}>
@@ -558,7 +558,7 @@ export default function SettingsPage() {
 
       {/* Sport-Liveticker */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <Gift size={15} /> Sport-Liveticker
         </h2>
         <label className="block text-[11px] uppercase tracking-widest text-studio-muted">football-data.org API-Key</label>
@@ -580,7 +580,7 @@ export default function SettingsPage() {
         const ctrl = info.control;
         return (
         <section className="mb-5 break-inside-avoid bx-card p-5">
-          <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
             <Gamepad2 size={15} /> Stream Deck
           </h2>
           <p className="mb-3 text-[11px] text-studio-muted">
@@ -604,7 +604,7 @@ export default function SettingsPage() {
       {/* OBS-Studio-Steuerung */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
             <Clapperboard size={15} /> OBS-Steuerung
           </h2>
           <span className={`flex items-center gap-1.5 text-[11px] font-bold ${obsStatus === 'connected' ? 'text-emerald-300' : obsStatus === 'error' ? 'text-studio-accent' : obsStatus === 'connecting' ? 'text-studio-gold' : 'text-studio-muted'}`}>
@@ -643,7 +643,7 @@ export default function SettingsPage() {
       {/* TikTok-Chat senden */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
             <MessageSquare size={15} /> Chat schreiben (TikTok-Login)
           </h2>
           <span className={`flex items-center gap-1.5 text-[11px] font-bold ${tiktokIn ? 'text-emerald-300' : 'text-studio-muted'}`}>
@@ -671,7 +671,7 @@ export default function SettingsPage() {
       {/* Streamer.bot-Brücke */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
             <Gamepad2 size={15} /> Streamer.bot
           </h2>
           <span className={`flex items-center gap-1.5 text-[11px] font-bold ${sbStatus === 'connected' ? 'text-emerald-300' : sbStatus === 'error' ? 'text-studio-accent' : sbStatus === 'connecting' ? 'text-studio-gold' : 'text-studio-muted'}`}>
@@ -698,7 +698,7 @@ export default function SettingsPage() {
       {/* ✨ KI-Assistent (Overlay-Wünsche) */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
             <Sparkles size={15} /> KI-Assistent (Overlay-Wünsche)
           </h2>
           <span className={`flex items-center gap-1.5 text-[11px] font-bold ${(aiProvider === 'ollama' || aiKeySet) ? 'text-emerald-300' : 'text-studio-muted'}`}>
@@ -767,7 +767,7 @@ export default function SettingsPage() {
 
       {/* Chat-Moderation */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <ShieldCheck size={15} /> Chat-Moderation
         </h2>
         <label className="block text-[11px] uppercase tracking-widest text-studio-muted">Gesperrte Wörter</label>
@@ -801,7 +801,7 @@ export default function SettingsPage() {
 
       {/* Updates */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <Download size={15} /> Updates
         </h2>
         <div className="flex flex-wrap items-center gap-3">
@@ -835,7 +835,7 @@ export default function SettingsPage() {
 
       {/* Feedback & Fehler melden */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
-        <h2 className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+        <h2 className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <MessageSquare size={15} /> Feedback &amp; Fehler melden
         </h2>
         <p className="mb-3 text-[11px] leading-relaxed text-studio-muted">
@@ -887,7 +887,7 @@ export default function SettingsPage() {
 
       {/* App-Info */}
       <section className="mb-5 break-inside-avoid bx-card p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-muted">
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
           <Info size={15} /> Über bOtExE Studio
         </h2>
         {info && (
