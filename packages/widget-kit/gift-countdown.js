@@ -20,11 +20,15 @@ export function stackRemaining(prev, addSecs, cap = 600) {
   return Math.min(cap, base + Math.max(0, addSecs));
 }
 
-/** Sekunden → "m:ss" (z. B. 80 → "1:20"). */
+/** Sekunden → klassisches "MM:SS" (zweistellig, z. B. 80 → "01:20", 5 → "00:05").
+ *  Redesign-Wunsch der Nutzerin: „warum nicht auch mal ein klassisches
+ *  00:00-Timer-Format" — vorher war die Minute einstellig ("1:20"), das
+ *  wirkte nicht wie eine „richtige" Digitaluhr. Cap ist 600s (10 Min, siehe
+ *  stackRemaining), zweistellige Minuten reichen also immer aus. */
 export function fmtTime(secs) {
   const s = Math.max(0, Math.round(secs));
   const m = Math.floor(s / 60);
-  return `${m}:${String(s % 60).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
 /** Zustandsübergang für ein neu eintreffendes Geschenk mit `secs>0`.

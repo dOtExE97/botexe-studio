@@ -98,60 +98,83 @@ const CSS = `
 
 /* ── Challenge-Countdown ──────────────────────────────────────────────────
    Kapsel oben rechts auf dem getroffenen Eintrag, in drei Optiken (Feld
-   timerStyle, Task 3): einfach (nur Zahl), balken (Zahl + schrumpfender
-   Streifen), ring (Kreis, der sich leert, Zahl in der Mitte). Alle drei
-   teilen sich die Basis-Kapsel .bx-gm-timer, die konkrete Optik hängt an
-   .bx-gm-timer--einfach/--balken/--ring. Sanftes Einblenden über @keyframes
-   statt Sprung — passt zum "is-in"-Übergang der Karte daneben.
-   Nutzer-Feedback: der Countdown war im (oft kleinen) Widget kaum lesbar.
-   Deshalb hier durchgehend ~1,6–1,9× größer als zuvor (Schriftgrößen, Balken-
-   und Ringmaße), plus fette Ziffern und eine dunklere Kapsel für Kontrast auf
-   jedem Kartenbild — die Boxgrößen-Deckel (cqi/cqh) wachsen proportional mit,
-   damit widget-check auch in der Mini-Box "winzig" (0,45×) grün bleibt. */
+   timerStyle): einfach (nur die große Uhr), balken (Uhr + duenner Balken),
+   ring (Uhr in einem sich leerenden Ring). Alle drei teilen sich dieselbe
+   Panel-Optik (Glas-Grundierung + Akzent-Glanzkante als duenner Rahmen) —
+   das macht sie als Set erkennbar, die konkrete Optik unterscheidet nur
+   Form/Zusatzelement. Redesign-Auftrag der Nutzerin: NICHT nur groesser
+   skalieren, sondern klassisches "00:00"-Ziffernblatt (siehe fmtTime in
+   gift-countdown.js), sauberes Erscheinungsbild, wirklich animiert. Die
+   Zahl steht deshalb in Minuten:Sekunden-Spans (Doppelpunkt blinkt je
+   Sekunde wie eine echte digitale Uhr), tabellarische UND monospace
+   Ziffern gegen Zittern beim Zaehlen. Sanftes Einblenden beim Start plus
+   ein leichter Puls je Tick (renderCountdown() haengt dafuer die Klasse
+   bx-gm-tick per remove/reflow/add um — Muster wie bx-hit fuer den
+   Auslöser-Effekt, aus AGENTS.md). */
 .bx-gm-timer { position:absolute; top:.3em; right:.3em; z-index:5;
-  display:flex; align-items:center; font-family: var(--bx-font-num);
-  line-height:1; font-weight:800; font-variant-numeric: tabular-nums; color:#fff; pointer-events:none;
-  box-shadow: 0 0 0 max(1.5px,.04em) rgba(255,255,255,.32);
-  animation: bx-gm-timer-in .35s ease both; }
-@keyframes bx-gm-timer-in { from { opacity:0; transform:translateY(-.3em) scale(.85); } to { opacity:1; transform:none; } }
-.bx-gm-timer-txt { position:relative; text-shadow: 0 .05em .18em rgba(0,0,0,.6); }
+  display:flex; align-items:center; justify-content:center;
+  font-family: var(--bx-font-num), ui-monospace, 'SFMono-Regular', monospace;
+  line-height:1; font-weight:800; font-variant-numeric: tabular-nums; letter-spacing:.02em;
+  color:#fff; pointer-events:none;
+  background: linear-gradient(165deg, rgba(30,32,48,.94), rgba(7,8,15,.95));
+  box-shadow: inset 0 .07em 0 rgba(255,255,255,.18),
+    0 0 0 max(1.5px,.045em) color-mix(in srgb, var(--bx-accent,#ff5e8a) 55%, rgba(255,255,255,.3)),
+    0 .18em .55em -.12em rgba(0,0,0,.65);
+  animation: bx-gm-timer-in .4s cubic-bezier(.2,.85,.3,1) both; }
+@keyframes bx-gm-timer-in { from { opacity:0; transform:translateY(-.35em) scale(.8); } to { opacity:1; transform:none; } }
+.bx-gm-timer-txt { position:relative; display:inline-flex; align-items:baseline;
+  text-shadow: 0 .05em .18em rgba(0,0,0,.6); }
+/* Der Tick-Puls: kurzer Sprung aus leicht gedaempft/verkleinert zurueck auf
+   voll — reine transform/opacity-Animation (GPU-freundlich, s. AGENTS.md). */
+.bx-gm-timer-txt.bx-gm-tick { animation: bx-gm-timer-tick .4s cubic-bezier(.2,.85,.3,1); }
+@keyframes bx-gm-timer-tick { 0% { opacity:.55; transform:scale(.92); } 100% { opacity:1; transform:scale(1); } }
+/* Blinkender Doppelpunkt — die klassische Digitaluhr-Signatur, laeuft
+   unabhaengig von den JS-Ticks (rein optische Zutat, kein Zeitgeber-Bezug
+   noetig, daher ganz bewusst eine einfache CSS-Endlosschleife). */
+.bx-gm-timer-colon { display:inline-block; margin:0 .02em;
+  animation: bx-gm-timer-blink 1s steps(1,end) infinite; }
+@keyframes bx-gm-timer-blink { 0%,45% { opacity:1 } 50%,95% { opacity:.28 } 100% { opacity:1 } }
 
-/* einfach: die schlichte Zahl-Kapsel von Task 2, jetzt deutlich größer. */
-.bx-gm-timer--einfach { font-size:1.05em; padding:.32em .6em; border-radius:99em; background: rgba(0,0,0,.72); }
-.bx-gm-chip .bx-gm-timer--einfach { font-size:.74em; }
+/* einfach: der "klassische, optisch cleane" Timer — nur die große 00:00 auf
+   dem schlichten Panel, kein Zusatzelement. Maximale Lesbarkeit, minimales
+   Chrome. */
+.bx-gm-timer--einfach { font-size:1.3em; padding:.28em .58em; border-radius:.5em; }
+.bx-gm-chip .bx-gm-timer--einfach { font-size:.86em; padding:.22em .5em; }
 
-/* balken: Zahl über einem Streifen, der von rechts nach links leerläuft.
-   Die Breite steckt in der Kapsel (nicht in der Karte) — so bleibt sie in
-   JEDER Kartenbreite gleich proportioniert, ohne die Karte selbst zu messen. */
-.bx-gm-timer--balken { flex-direction:column; align-items:stretch; gap:.24em; font-size:1em;
-  padding:.34em .55em .42em; border-radius:.55em; background: rgba(0,0,0,.74);
+/* balken: 00:00 oben, darunter ein duenner, sauberer Balken (statt der
+   vorherigen dicken Leiste) mit weichem Akzent-Glanz. Die Breite steckt in
+   der Kapsel (nicht in der Karte) — so bleibt sie in JEDER Kartenbreite
+   gleich proportioniert, ohne die Karte selbst zu messen. */
+.bx-gm-timer--balken { flex-direction:column; align-items:stretch; gap:.22em; font-size:1.22em;
+  padding:.3em .5em .38em; border-radius:.55em;
   width: min(calc(9.5em * var(--bx-fs, 1)), 58cqi, 82cqw); }
-.bx-gm-timer--balken .bx-gm-timer-txt { text-align:center; letter-spacing:.02em; }
-.bx-gm-timer-bar { position:relative; height:.34em; border-radius:99em; overflow:hidden;
-  background: rgba(255,255,255,.2); box-shadow: inset 0 0 0 max(1px,.02em) rgba(0,0,0,.35); }
+.bx-gm-timer--balken .bx-gm-timer-txt { justify-content:center; }
+.bx-gm-timer-bar { position:relative; height:.22em; border-radius:99em; overflow:hidden;
+  background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 max(1px,.02em) rgba(0,0,0,.35); }
 .bx-gm-timer-bar i { display:block; height:100%; width:0; border-radius:99em;
   background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent,#ff5e8a) 75%, white), var(--bx-accent,#ff5e8a));
   box-shadow: 0 0 .5em -.05em var(--bx-accent,#ff5e8a);
   transition: width 1s linear; }
-.bx-gm-chip .bx-gm-timer--balken { font-size:.76em;
+.bx-gm-chip .bx-gm-timer--balken { font-size:.9em;
   width: min(calc(9.5em * var(--bx-fs, 1)), 38cqh, 76cqi); }
 
-/* ring: runde Kapsel, Zahl in der Mitte, Füllstand als SVG-Kreis (transform:
-   rotate + stroke-dashoffset — beides GPU-freundlich, kein Layout pro Tick). */
-.bx-gm-timer--ring { padding:0; border-radius:99em; background: rgba(0,0,0,.72);
+/* ring: duenner, sauberer Ring statt der vorherigen breiten Spur, 00:00
+   mittig, Fuellstand als SVG-Kreis (transform:rotate + stroke-dashoffset —
+   beides GPU-freundlich, kein Layout pro Tick). */
+.bx-gm-timer--ring { padding:0; border-radius:99em;
   display:grid; place-items:center;
-  width: min(calc(clamp(30px, min(20cqi,17.5cqh), 96px) * var(--bx-fs, 1)), 34cqh, 40cqi);
-  height: min(calc(clamp(30px, min(20cqi,17.5cqh), 96px) * var(--bx-fs, 1)), 34cqh, 40cqi); }
+  width: min(calc(clamp(34px, min(22cqi,19cqh), 100px) * var(--bx-fs, 1)), 36cqh, 42cqi);
+  height: min(calc(clamp(34px, min(22cqi,19cqh), 100px) * var(--bx-fs, 1)), 36cqh, 42cqi); }
 .bx-gm-timer-ring { position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
-.bx-gm-timer-ring circle { fill:none; stroke-width:8%; }
-.bx-gm-timer-ring .bx-gm-timer-ring-bg { stroke: rgba(255,255,255,.2); }
+.bx-gm-timer-ring circle { fill:none; stroke-width:7%; }
+.bx-gm-timer-ring .bx-gm-timer-ring-bg { stroke: rgba(255,255,255,.16); }
 .bx-gm-timer-ring .bx-gm-timer-ring-fg { stroke: var(--bx-accent,#ff5e8a); stroke-linecap:round;
-  transition: stroke-dashoffset 1s linear; filter: drop-shadow(0 0 .25em var(--bx-accent,#ff5e8a)); }
-.bx-gm-timer--ring .bx-gm-timer-txt { font-size:.56em; }
+  transition: stroke-dashoffset 1s linear; filter: drop-shadow(0 0 .3em var(--bx-accent,#ff5e8a)); }
+.bx-gm-timer--ring .bx-gm-timer-txt { font-size:.5em; }
 .bx-gm-chip .bx-gm-timer--ring {
-  width: min(calc(clamp(26px, min(20cqi,17.5cqh), 96px) * var(--bx-fs, 1)), 42cqh, 32cqi);
-  height: min(calc(clamp(26px, min(20cqi,17.5cqh), 96px) * var(--bx-fs, 1)), 42cqh, 32cqi); }
-.bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.52em; }
+  width: min(calc(clamp(28px, min(22cqi,19cqh), 100px) * var(--bx-fs, 1)), 44cqh, 34cqi);
+  height: min(calc(clamp(28px, min(22cqi,19cqh), 100px) * var(--bx-fs, 1)), 44cqh, 34cqi); }
+.bx-gm-chip .bx-gm-timer--ring .bx-gm-timer-txt { font-size:.46em; }
 
 /* Laufband, Kachelform „breit" (Standard): der Chip ist eine flexible Reihe
    OHNE feste Breite (Icon + Text). Als Ecken-Overlay wie in der Rotation
@@ -1459,7 +1482,23 @@ export default class GiftMenu {
         el.appendChild(node);
       }
       const txt = node.querySelector('.bx-gm-timer-txt');
-      if (txt) txt.textContent = label;
+      if (txt) {
+        // Minuten/Sekunden getrennt in eigene Spans (statt reiner Text-Knoten):
+        // so kann der Doppelpunkt unabhängig blinken (klassische Digitaluhr-
+        // Signatur, CSS-Endlosschleife .bx-gm-timer-colon) und die Ziffern
+        // bekommen unten den Tick-Puls. fmtTime liefert immer "MM:SS".
+        const [mm, ss] = label.split(':');
+        txt.innerHTML = `<span class="bx-gm-timer-mm">${mm}</span>`
+          + `<span class="bx-gm-timer-colon">:</span>`
+          + `<span class="bx-gm-timer-ss">${ss}</span>`;
+        // Tick-Puls je Sekunde: Klasse abnehmen → Reflow erzwingen → wieder
+        // anhängen, sonst würde der Browser die (unveränderte) Animation
+        // beim erneuten Setzen derselben Klasse einfach ignorieren. Gleiches
+        // Muster wie bx-hit für den Auslöser-Effekt (siehe AGENTS.md).
+        txt.classList.remove('bx-gm-tick');
+        void txt.offsetWidth;
+        txt.classList.add('bx-gm-tick');
+      }
       if (this.timerStyle === 'balken') {
         const fill = node.querySelector('.bx-gm-timer-bar i');
         if (fill) fill.style.width = `${barWidthPct(t.remaining, t.total)}%`;

@@ -13,10 +13,11 @@ test('stackRemaining addiert und deckelt bei cap', () => {
   assert.equal(stackRemaining(580, 60, 600), 600); // Cap
 });
 
-test('fmtTime formatiert m:ss', () => {
-  assert.equal(fmtTime(80), '1:20');
-  assert.equal(fmtTime(5), '0:05');
-  assert.equal(fmtTime(0), '0:00');
+test('fmtTime formatiert klassisches MM:SS (zweistellige Minute)', () => {
+  assert.equal(fmtTime(80), '01:20');
+  assert.equal(fmtTime(5), '00:05');
+  assert.equal(fmtTime(0), '00:00');
+  assert.equal(fmtTime(600), '10:00'); // Cap (10 Min) bleibt zweistellig
 });
 
 test('nextCountdownState startet frisch, wenn kein Vorzustand existiert', () => {
