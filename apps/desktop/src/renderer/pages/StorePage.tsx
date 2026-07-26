@@ -202,7 +202,7 @@ export default function StorePage() {
               <label className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-widest text-studio-muted">
                 Höchstens alle … Sek.
                 <input type="number" min={0} value={(r.cooldownMs ?? 0) / 1000} onChange={(e) => patch(r.id, { cooldownMs: Math.max(0, Number(e.target.value)) * 1000 })} className="bx-input font-mono" style={{ width: '5rem' }} />
-                <span className="normal-case tracking-normal text-studio-muted/60">Mindestabstand zwischen zwei Einlösungen</span>
+                <span className="normal-case tracking-normal text-studio-muted/80">Mindestabstand zwischen zwei Einlösungen</span>
               </label>
             </div>
           );

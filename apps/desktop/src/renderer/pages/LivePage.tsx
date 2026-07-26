@@ -220,7 +220,7 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
               onClick={() => setLiveToolsOpen(false)}
               className="flex items-center gap-2 self-start rounded-lg px-2 py-1 text-[11px] text-studio-muted hover:text-studio-text"
             >
-              <ChevronUp size={13} /> Live-Werkzeuge einklappen <span className="text-studio-muted/60">(erst live nützlich)</span>
+              <ChevronUp size={13} /> Live-Werkzeuge einklappen <span className="text-studio-muted/80">(erst live nützlich)</span>
             </button>
           )}
 
@@ -276,7 +276,7 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
               <span><b className="text-studio-text">{history.likes.toLocaleString('de-DE')}</b> Likes</span>
               <span><b className="text-studio-text">{history.follows.toLocaleString('de-DE')}</b> Follower</span>
               <span><b className="text-studio-text">{history.chats.toLocaleString('de-DE')}</b> Kommentare</span>
-              <span className="text-studio-muted/60">· {history.sessions} Stream{history.sessions === 1 ? '' : 's'}</span>
+              <span className="text-studio-muted/80">· {history.sessions} Stream{history.sessions === 1 ? '' : 's'}</span>
             </>
           ) : (
             <span>Lade…</span>

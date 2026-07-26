@@ -258,7 +258,7 @@ function GiftActionPanel({
         <div className="flex-1">
           <div className="font-display text-sm uppercase">{giftDisplayName(gift.slug, lang, gift.customName)}</div>
           {giftDisplayName(gift.slug, lang, gift.customName) !== gift.slug && (
-            <div className="text-[9px] text-studio-muted/60">{gift.slug}</div>
+            <div className="text-[9px] text-studio-muted/80">{gift.slug}</div>
           )}
           <div className="flex items-center gap-1 text-[10px] text-studio-gold"><Coins size={10} /> {gift.coins} Coins · {gift.count}× erhalten</div>
         </div>
@@ -333,7 +333,7 @@ function GiftActionPanel({
             }}
             className="bx-input w-16 font-mono text-xs"
           />
-          Sek. <span className="text-studio-muted/60">(0 = jedes Gift)</span>
+          Sek. <span className="text-studio-muted/80">(0 = jedes Gift)</span>
         </label>
       )}
       {others.length > 0 && (

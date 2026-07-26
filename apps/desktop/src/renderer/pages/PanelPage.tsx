@@ -217,7 +217,7 @@ export default function PanelPage() {
                   ) : b.accelerator ? (
                     <code className="rounded bg-studio-bg px-2 py-1 font-mono text-studio-text">{b.accelerator}</code>
                   ) : (
-                    <span className="text-studio-muted/60">keiner</span>
+                    <span className="text-studio-muted/80">keiner</span>
                   )}
                   {recording !== b.id && (
                     <button onClick={() => setRecording(b.id)} className="bx-pill !py-1 !px-2 text-[10px]">

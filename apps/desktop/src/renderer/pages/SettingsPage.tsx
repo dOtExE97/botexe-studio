@@ -483,7 +483,7 @@ export default function SettingsPage() {
             onBlur={() => void window.studio.updateSettings({ giftSoundGapSec: giftSoundGap })}
             className="bx-input w-20 font-mono"
           />
-          Sekunden <span className="text-studio-muted/60">(0 = jedes Gift)</span>
+          Sekunden <span className="text-studio-muted/80">(0 = jedes Gift)</span>
         </label>
         <p className="mt-2 text-[10px] text-studio-muted/70">
           Gilt für die Sounds der Gift-Widgets (Alert & Co.). Trigger-Regeln haben zusätzlich ihren eigenen Cooldown — auch in der Geschenke-Galerie einstellbar.

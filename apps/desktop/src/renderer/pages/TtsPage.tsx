@@ -147,7 +147,7 @@ function AnnounceSection({
               <VoiceSelect groups={groups} value={ag.voice} onChange={(v) => update({ announceGift: { ...ag, voice: v } })} />
             </label>
           </div>
-          <span className="mt-1.5 block text-[9px] tracking-normal text-studio-muted/70">
+          <span className="mt-1.5 block text-[9px] tracking-normal text-studio-muted/80">
             Platzhalter: {'{user}'}, {'{gift}'}, {'{count}'}, {'{coins}'}
           </span>
         </div>
@@ -361,12 +361,12 @@ export default function TtsPage() {
               onChange={(e) => update({ chatTemplate: e.target.value })}
               className="bx-input mt-1 font-mono text-xs"
             />
-            <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">
+            <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/80">
               Platzhalter: {'{user}'} und {'{text}'}
             </span>
           </label>
           <div className="text-[10px] uppercase tracking-widest text-studio-muted">
-            Wer wird vorgelesen <span className="normal-case tracking-normal text-studio-muted/60">(mehrere möglich)</span>
+            Wer wird vorgelesen <span className="normal-case tracking-normal text-studio-muted/80">(mehrere möglich)</span>
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1.5 normal-case">
               {READ_GROUP_LABELS.map((g) => {
                 const groups = tts.readGroups ?? ['all'];
@@ -387,7 +387,7 @@ export default function TtsPage() {
                 );
               })}
             </div>
-            <span className="mt-1 block text-[9px] normal-case tracking-normal text-studio-muted/70">
+            <span className="mt-1 block text-[9px] normal-case tracking-normal text-studio-muted/80">
               Vorgelesen wird, wer in mindestens einer angekreuzten Gruppe ist. Deine ★VIPs werden immer
               vorgelesen, Stumm-geschaltete nie. „Alle" liest jeden.
             </span>
@@ -400,7 +400,7 @@ export default function TtsPage() {
               placeholder="z.B. ."
               className="bx-input mt-1 w-28 font-mono text-xs"
             />
-            <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/70">
+            <span className="mt-0.5 block text-[9px] normal-case tracking-normal text-studio-muted/80">
               Leer = alle (wie oben gewählt). Mit „." werden <strong>nur</strong> Nachrichten mit Punkt
               vorgelesen — <strong>auch von Mods/Followern!</strong> (Punkt wird entfernt). Wenn jemand
               nicht vorgelesen wird, obwohl er sollte: hier auf leer prüfen.

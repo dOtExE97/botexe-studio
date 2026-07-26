@@ -50,7 +50,7 @@ interface SoundEntry { id: string; filename: string }
 /** Kompaktes Verzögerungs-Feld für Combo-Sequenzen (Versatz ab Auslösung). */
 function ActionDelay({ value, onChange }: { value: number; onChange: (ms: number) => void }) {
   return (
-    <label className="flex items-center gap-1 self-end text-[9px] uppercase tracking-wider text-studio-muted/70" title="Verzögerung ab Auslösung (Sekunden) — für Combos">
+    <label className="flex items-center gap-1 self-end text-[9px] uppercase tracking-wider text-studio-muted/80" title="Verzögerung ab Auslösung (Sekunden) — für Combos">
       <Clock size={10} /> +
       <input
         type="number"
@@ -774,7 +774,7 @@ export default function TriggersPage() {
                     </p>
                   )}
                   {comboCount > 1 && (
-                    <p className="flex items-center gap-1 text-[9px] text-studio-muted/70">
+                    <p className="flex items-center gap-1 text-[9px] text-studio-muted/80">
                       <Clock size={9} /> Combo: {comboCount} Aktionen feuern zusammen — mit „+Sek." zeitversetzt.
                     </p>
                   )}
