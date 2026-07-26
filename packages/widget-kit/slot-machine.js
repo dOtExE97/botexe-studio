@@ -227,6 +227,13 @@ export default class SlotMachine {
     this.timers = new Set();
     this.spinning = false;
     this.reelIndex = [0, 0, 0]; // aktueller Symbol-Index je Walze (für die nächste Drehung als Startpunkt)
+    // Dreh-Dauer: EINZIGE Quelle für Walzen-Stopp UND Server-Aktions-Feuern
+    // (Muster wheel.js: this.spinMs treibt dort ebenfalls Optik + Timing).
+    // Der Server (slot-gift.ts planSlotSpins) verzögert die Gewinn-Aktion um
+    // exakt dasselbe props.spinMs (gleicher Default 2000) — ändert sich hier
+    // die Dreh-Dauer, verschiebt sich automatisch auch der Feuer-Zeitpunkt,
+    // die beiden können nie auseinanderlaufen.
+    this.spinMs = Math.max(1200, Number(props.spinMs ?? 2000));
 
     this.items = parseSlotItems(props.items);
     this.preview = !!this.host.preview;
@@ -398,27 +405,39 @@ export default class SlotMachine {
     // Hebel zucken lassen — reine Deko.
     this.leverEl.classList.remove('pull'); void this.leverEl.offsetWidth; this.leverEl.classList.add('pull');
     const targets = [r0, r1, r2];
+    // Alle Zeiten leiten sich aus this.spinMs ab (statt fixer Konstanten),
+    // damit die Walzen bei JEDER Dreh-Dauer sichtbar rund um spinMs stoppen —
+    // dieselben Anteile wie die frühere feste Konstante (700/260/650 bei
+    // spinMs≈1920), nur proportional skaliert. Letzte Walze stoppt bei
+    // (spinMs - settleMs), die Ausroll-Transition läuft dann bis spinMs durch
+    // — finish() (und damit serverseitig die Aktion, s. slot-gift.ts) feuert
+    // exakt bei spinMs, also genau wenn die letzte Walze sichtbar steht.
+    const settleMs = Math.max(300, Math.round(this.spinMs * 0.34));
+    const stagger = Math.max(80, Math.round(this.spinMs * 0.135));
+    const lastStopIn = Math.max(0, this.spinMs - settleMs);
     // Jede Walze bekommt für sich einen leichten Zeitversatz beim Anlaufen
     // (klassischer Slot-Look: Walzen stoppen NACHEINANDER, nicht gleichzeitig).
     this.reels.forEach((reel, i) => {
       reel.classList.remove('settle');
       reel.classList.add('spin');
-      const stopIn = 700 + i * 260;
-      const t = setTimeout(() => this.landReel(reel, targets[i], stopIn), stopIn);
+      const stopIn = Math.max(0, lastStopIn - (this.reels.length - 1 - i) * stagger);
+      const t = setTimeout(() => this.landReel(reel, targets[i], settleMs), stopIn);
       this.timers.add(t);
     });
-    const totalMs = 700 + 2 * 260 + 700; // letzte Walze + Ausroll-Transition
-    const doneT = setTimeout(() => this.finish(!!action.win, targets[0]), totalMs);
+    const doneT = setTimeout(() => this.finish(!!action.win, targets[0]), this.spinMs);
     this.timers.add(doneT);
   }
 
   /** Eine Walze vom Dreh- in den Ausroll-Zustand versetzen und per
    *  translateY auf den Zielindex fahren lassen (CSS transition übernimmt
-   *  das sanfte Ausklingen, s. .bx-sm-reel.settle). */
-  landReel(reel, index, spunMs) {
+   *  das sanfte Ausklingen, s. .bx-sm-reel.settle — die Dauer wird hier
+   *  inline überschrieben, damit sie mit this.spinMs skaliert statt fix
+   *  650ms zu bleiben). */
+  landReel(reel, index, settleMs) {
     reel.classList.remove('spin');
     reel.classList.add('settle');
     const strip = reel.querySelector('.bx-sm-strip');
+    if (settleMs) strip.style.transitionDuration = `${settleMs}ms`;
     const cellH = strip.firstElementChild ? strip.firstElementChild.getBoundingClientRect().height : 0;
     const n = this.items.length;
     // Zielzelle: eine möglichst weit hinten liegende Wiederholung des

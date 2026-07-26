@@ -64,7 +64,10 @@ export function planSlotSpins(
     if (win) {
       const rule = rules.find((r) => r.id === keys[winnerIndex]?.ruleId);
       if (rule) {
-        const spinMs = Number(p.spinMs ?? 4000);
+        // Default (2000) MUSS mit widget-types.ts' slot-machine-Standard
+        // übereinstimmen — sonst feuert die Aktion (unkonfiguriert) zu einem
+        // anderen Zeitpunkt als die Walzen im Widget tatsächlich stoppen.
+        const spinMs = Number(p.spinMs ?? 2000);
         for (const act of rule.actions) {
           out.push({ ruleId: rule.id, action: { ...act, delayMs: (act.delayMs ?? 0) + spinMs } });
         }

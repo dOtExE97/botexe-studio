@@ -571,7 +571,7 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'slot-machine', label: 'Gambling-Automat', desc: 'Spielautomat: ein Geschenk lässt die Walzen drehen — mit einstellbarer Gewinnchance wird zufällig eins deiner Geschenke gezogen und ausgelöst.',
-    w: 640, h: 480, props: { source: 'trigger', items: '', style: 'neon', accent: '#ff5e8a', spinGift: '', winChance: 60 },
+    w: 640, h: 480, props: { source: 'trigger', items: '', style: 'neon', accent: '#ff5e8a', spinGift: '', winChance: 60, spinMs: 2000 },
     fields: [
       { key: 'source', label: 'Woher kommen die Symbole', type: 'select', options: [
         { value: 'trigger', label: 'Automatisch aus meinen Geschenk-Triggern' },
@@ -581,6 +581,7 @@ export const WIDGET_TYPES: {
       { key: 'title', label: 'Titel', type: 'text', hint: 'Überschrift über den Walzen.' },
       { key: 'spinGift', label: 'Bei welchem Geschenk drehen?', type: 'gift', hint: 'Schickt das jemand, drehen die Walzen. Leer = nur manuell.' },
       { key: 'winChance', label: 'Gewinnchance (%)', type: 'number', hint: '0 = nie ein Gewinn, 100 = immer. Bestimmt, wie oft 3 Gleiche fallen.' },
+      { key: 'spinMs', label: 'Dreh-Dauer', type: 'seconds', hint: 'Wie lange die Walzen drehen, bis sie stoppen. Bestimmt auch, wann bei Gewinn die Aktion feuert (gleichzeitig mit dem Stopp).' },
       ACCENT_FIELD,
       styleField([
         { value: 'neon', label: '⚡ Neon (Standard)' },
