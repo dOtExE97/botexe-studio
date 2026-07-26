@@ -34,6 +34,9 @@ export const DEFAULT_VOICE = 'edge:de-DE-KatjaNeural';
 const QUEUE_CAP = 8;
 const MAX_CACHE_FILES = 60;
 // SYNTH_TIMEOUT_MS kommt aus tts-providers.ts (geteilt mit dem Edge-Client-Timeout).
+/** Geduld für LOKALE Synthese (Piper): rechnet auf der CPU und darf länger brauchen
+ *  als der kurze Online-Riegel. Passt zu Pipers eigenem 15s-Abbruch. */
+const LOCAL_SYNTH_TIMEOUT_MS = 15_000;
 
 interface QueueItem {
   text: string;
@@ -275,9 +278,13 @@ export class TTSService {
         )
       : synthesizeWith(this.piper, text, voice, target, tuning);
 
+    // Lokale Stimmen (Piper) brauchen auf schwacher Hardware länger als der auf den
+    // Online-Dienst getrimmte kurze Riegel — mit 7s würde ausgerechnet der Notnagel
+    // scheitern und es bliebe doch still. Piper bricht intern nach 15s selbst ab.
+    const budget = ns === 'piper' ? LOCAL_SYNTH_TIMEOUT_MS : SYNTH_TIMEOUT_MS;
     await Promise.race([
       work,
-      new Promise((_r, reject) => setTimeout(() => reject(new Error('TTS-Timeout')), SYNTH_TIMEOUT_MS)),
+      new Promise((_r, reject) => setTimeout(() => reject(new Error('TTS-Timeout')), budget)),
     ]);
     if (!fs.existsSync(target)) throw new Error('Keine Audio-Datei erzeugt');
 

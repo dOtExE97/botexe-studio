@@ -32,7 +32,11 @@ export const TUNING_SPECS: Record<string, TuningParam[]> = {
     { key: 'lengthScale', label: 'Tempo', hint: 'Kleiner = schneller gesprochen.', min: 0.5, max: 2, step: 0.05, default: 1 },
     { key: 'noiseScale', label: 'Ausdruck', hint: 'Höher = lebendiger, aber unruhiger.', min: 0, max: 1, step: 0.05, default: 0.667 },
     { key: 'noiseW', label: 'Aussprache-Variation', hint: 'Höher = weniger monoton, kann nuscheln.', min: 0, max: 1, step: 0.05, default: 0.8 },
-    { key: 'sentenceSilence', label: 'Pause zwischen Sätzen', hint: 'Sekunden Stille nach jedem Satz.', min: 0, max: 2, step: 0.1, default: 0.2 },
+    // Vorgabe 0 = Pipers eigener CLI-Standard. Wichtig: resolveTuning liefert IMMER
+    // alle Werte, also bekommt Piper immer explizite Flags — die Vorgaben müssen
+    // deshalb exakt Pipers Standard entsprechen, sonst klingt es bei Leuten anders,
+    // die nie an einem Regler gedreht haben.
+    { key: 'sentenceSilence', label: 'Pause zwischen Sätzen', hint: 'Sekunden Stille nach jedem Satz.', min: 0, max: 2, step: 0.1, default: 0 },
   ],
   openai: [
     { key: 'speed', label: 'Tempo', hint: '1 = normal, 2 = doppelt so schnell.', min: 0.25, max: 4, step: 0.05, default: 1 },
