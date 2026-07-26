@@ -771,7 +771,7 @@ export const WIDGET_TYPES: {
   {
     type: 'gift-menu', label: 'Geschenk-Menü', desc: 'Die Preistafel deines Streams: zeigt, welches Geschenk was auslöst — entweder eins nach dem anderen groß eingeblendet oder als durchlaufendes Band. Mit echtem Gift-Bild und Coin-Preis. Kann die Einträge automatisch aus deinen Triggern lesen, dann pflegst du nichts doppelt.',
     w: 420, h: 520,
-    props: { mode: 'rotation', items: '', tile: 'breit', banner: 'schimmer', source: 'liste', title: 'Geschenke & was sie auslösen', showTitle: true, showCoins: true, intervalMs: 6000, speed: 26, style: 'karte', timerStyle: 'balken', timerPlacement: 'prominent', accent: '#ff5e8a', theme: 'glas', luckyMode: false, luckyGift: '', luckyChance: 60, luckyDrawMs: 3000 },
+    props: { mode: 'rotation', items: '', tile: 'breit', banner: 'schimmer', source: 'liste', title: 'Geschenke & was sie auslösen', showTitle: true, showCoins: true, intervalMs: 6000, speed: 26, style: 'karte', timerStyle: 'balken', timerPlacement: 'prominent', accent: '#ff5e8a', theme: 'glas', luckyMode: false, luckyGift: '', luckyChance: 60, luckyDrawMs: 3000, luckyCommand: '' },
     fields: [
       { key: 'mode', label: 'Darstellung', type: 'select', options: [
         { value: 'rotation', label: 'Eins nach dem anderen' },
@@ -824,6 +824,7 @@ export const WIDGET_TYPES: {
       { key: 'luckyMode', label: 'Lucky-Draw aktivieren', type: 'boolean', hint: 'Statt fest zuzuordnen: EIN Geschenk shuffelt erst durch alle Karten und landet dann per Zufall auf einer — nur bei Gewinn löst die Karte aus (Glücksrad-Gefühl statt Preistafel).' },
       { key: 'luckyGift', label: 'Bei welchem Geschenk ziehen?', type: 'gift', hint: 'Schickt das jemand, shuffeln die Karten. Leer = nie.', showIf: (p) => p.luckyMode === true },
       { key: 'luckyChance', label: 'Gewinnchance (%)', type: 'number', hint: '0 = nie ein Gewinn, 100 = immer. Bestimmt, wie oft die gezogene Karte tatsächlich auslöst.', showIf: (p) => p.luckyMode === true },
+      { key: 'luckyCommand', label: 'Chat-Befehl (optional)', type: 'text', hint: 'z.B. !lucky — schreibt das jemand, läuft die Ziehung. Leer = nur per Geschenk.', showIf: (p) => p.luckyMode === true },
       ACCENT_FIELD,
       THEME_FIELD,
     ],

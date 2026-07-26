@@ -1,13 +1,15 @@
-// lucky-draw.ts — serverseitige Bindung „Bei welchem Geschenk ziehen?" für die
-// Lucky-Card (Stück 4, Task 2). Spiegelt slot-gift.ts: ein Geschenke-Slider
-// (gift-menu) trägt optional einen Gift-Slug als Prop (luckyGift). Kommt genau
-// dieses Geschenk an, sollen die Karten shuffeln — Gewinn/Niete und
-// Gewinner-Karte entscheidet der SERVER (zentraler Zufall, planSlotOutcome
-// aus slot-gift.ts, wiederverwendet), damit alle Overlay-Quellen (OBS + TTLS)
-// dasselbe Ergebnis zeigen. Pure Logik, kein I/O — RNG wird injiziert,
-// testbar. planLuckyDraws() ist so gebaut, dass Task 3 (Chat-Command-Auslöser)
-// denselben Dispatch-Pfad wiederverwenden kann (siehe dort).
-import { orderedGiftKeys, type TriggerAction, type TriggerRule } from '@botexe/trigger-engine';
+// lucky-draw.ts — serverseitige Bindung für die Lucky-Card (Stück 4). Ein
+// Geschenke-Slider (gift-menu) trägt zwei UNABHÄNGIGE Auslöser: einen
+// Gift-Slug (luckyGift, Task 2) und/oder einen Chat-Befehl (luckyCommand,
+// Task 3). Trifft einer davon zu, sollen die Karten shuffeln — Gewinn/Niete
+// und Gewinner-Karte entscheidet der SERVER (zentraler Zufall,
+// planSlotOutcome aus slot-gift.ts, wiederverwendet), damit alle
+// Overlay-Quellen (OBS + TTLS) dasselbe Ergebnis zeigen. Pure Logik, kein
+// I/O — RNG wird injiziert, testbar. planLuckyDraws() kennt den Auslöser
+// selbst nicht mehr: studio.ts wählt vorher per matchingLuckyLayers() ODER
+// matchLuckyCommand() die passenden Layer aus und reicht NUR die durch — ein
+// einziger Dispatch-Pfad für beide Auslöser.
+import { commandMatches, orderedGiftKeys, type TriggerAction, type TriggerRule } from '@botexe/trigger-engine';
 import { planSlotOutcome } from './slot-gift';
 
 export type LuckyLayer = { id: string; widgetType: string; visible: boolean; props?: Record<string, unknown> };
@@ -62,11 +64,31 @@ export function luckyCardCount(layer: LuckyLayer, rules: TriggerRule[]): number 
     .filter((it) => it.slug || it.text).length;
 }
 
+/**
+ * Sichtbare Geschenke-Slider (gift-menu), deren luckyCommand-Prop auf diesen
+ * Chat-Text passt (Stück 4, Task 3 — zweiter Auslöser neben dem Geschenk).
+ * Spiegelt matchingLuckyLayers(), nur mit Command- statt Gift-Abgleich:
+ * commandMatches() (trigger-engine, wie bei ChatCommand/Redemption) prüft
+ * führendes '!' egal, case-insensitiv, ganzes Wort — UND liefert bei leerem
+ * luckyCommand automatisch `false` (kein Auslösen ohne konfigurierten
+ * Befehl). Das Ergebnis geht 1:1 in planLuckyDraws() (dieselbe Ziehung wie
+ * beim Geschenke-Pfad, keine zweite Zufalls-/Aktions-Logik).
+ */
+export function matchLuckyCommand(layers: LuckyLayer[], text: string): LuckyLayer[] {
+  return layers.filter(
+    (l) =>
+      l.widgetType === 'gift-menu' &&
+      l.visible &&
+      l.props?.luckyMode === true &&
+      commandMatches(text, String(l.props?.luckyCommand || '')),
+  );
+}
+
 /** Eine für Studio.dispatchAction() fertig geplante Aktion. */
 export type LuckyDrawAction = { ruleId: string; action: TriggerAction };
 
 /**
- * Plant für jeden zu diesem Gift passenden Geschenke-Slider GENAU EINEN
+ * Plant für jeden übergebenen (bereits gematchten) Geschenke-Slider GENAU EINEN
  * lucky_draw-Dispatch (Gewinn/Niete + Gewinner-Index kommen zentral aus
  * planSlotOutcome, wiederverwendet von slot-gift.ts) — und bei Gewinn UND
  * source:'trigger' zusätzlich die volle Aktionsliste der ausgelosten
@@ -83,23 +105,25 @@ export type LuckyDrawAction = { ruleId: string; action: TriggerAction };
  *
  * `who` ist der Nickname des Spenders, der den Draw ausgelöst hat (Studio.ts
  * reicht e.user?.nickname durch); optional, weil manche Aufrufer (Tests,
- * spätere Chat-Command-Auslöser in Task 3) keinen Absender haben.
+ * Chat-Command-Auslöser ohne Absender-Kontext) keinen Absender haben.
  *
- * Task 3 (Chat-Command-Auslöser) kann denselben Pfad wiederverwenden: statt
- * über ein Gift-Event nur über matchingLuckyLayers() mit einem anderen
- * Auswahlkriterium (z. B. Command-Prop statt luckyGift) an diese Funktion
- * gehen — die Dispatch-/Aktions-Logik ab planSlotOutcome bleibt identisch.
+ * WICHTIG (Task 3): `layers` sind hier bereits die VORGEFILTERTEN Treffer —
+ * diese Funktion filtert selbst NICHT mehr nach Gift-Slug oder Command. So
+ * ist der Dispatch-Pfad für BEIDE Auslöser (Geschenk → matchingLuckyLayers(),
+ * Chat-Befehl → matchLuckyCommand()) exakt derselbe Code: Studio.ts wählt die
+ * passenden Layer per Auslöser aus und reicht sie hierher durch — keine
+ * doppelte Roll-/Dispatch-/Aktions-Logik, ein Auslöser kann nie den anderen
+ * beeinflussen.
  */
 export function planLuckyDraws(
   layers: LuckyLayer[],
-  giftSlug: string,
   rules: TriggerRule[],
   rng: () => number = Math.random,
   who?: string,
 ): LuckyDrawAction[] {
   const out: LuckyDrawAction[] = [];
   const keys = orderedGiftKeys(rules);
-  for (const layer of matchingLuckyLayers(layers, giftSlug)) {
+  for (const layer of layers) {
     const p = layer.props ?? {};
     const winChance = Number(p.luckyChance ?? 60) / 100;
     const n = luckyCardCount(layer, rules);

@@ -24,7 +24,7 @@ import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { planWheelSpins } from './wheel-gift';
 import { planSlotSpins } from './slot-gift';
-import { planLuckyDraws } from './lucky-draw';
+import { matchingLuckyLayers, matchLuckyCommand, planLuckyDraws, type LuckyLayer } from './lucky-draw';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { ProfileStore, type ProfileMeta } from './profile-store';
@@ -198,6 +198,9 @@ export class Studio {
   /** redemptionId → event.ts der letzten Einlösung (globaler Cooldown). */
   private redemptionCooldowns = new Map<string, number>();
   private commandCooldowns = new Map<string, number>();
+  /** layerId → event.ts der letzten per Chat-Befehl ausgelösten Lucky-Ziehung
+   *  (Stück 4, Task 3) — verhindert Spam-Überlagerung, s. maybeLuckyDrawByCommand(). */
+  private luckyDrawCooldowns = new Map<string, number>();
 
   constructor(paths: StudioPaths, hooks: StudioHooks) {
     this.hooks = hooks;
@@ -400,6 +403,7 @@ export class Studio {
         this.games.handleChat(e);
         this.maybeJoinGiveaway(e);
         this.maybeRunCommand(e);
+        this.maybeLuckyDrawByCommand(e);
         this.maybeRedeem(e);
         this.maybeReadChat(e);
       }
@@ -471,8 +475,11 @@ export class Studio {
         // Auslösen der gewonnenen Gift-Aktion bei source:'trigger') rein/
         // testbar; hier wird nur noch gefeuert, was geplant wurde — pro
         // Slider genau 1 Draw, bei Gewinn höchstens 1 Satz Aktionen
-        // (verzögert um luckyDrawMs).
-        for (const { ruleId, action } of planLuckyDraws(layers, e.gift.slug, this.getRules(), Math.random, e.user?.nickname)) {
+        // (verzögert um luckyDrawMs). Die Layer-Auswahl passiert HIER per
+        // matchingLuckyLayers() — planLuckyDraws() selbst kennt den Auslöser
+        // nicht mehr (siehe maybeLuckyDrawByCommand() für den zweiten
+        // Auslöser per Chat-Befehl, Task 3, derselbe Dispatch-Pfad).
+        for (const { ruleId, action } of planLuckyDraws(matchingLuckyLayers(layers, e.gift.slug), this.getRules(), Math.random, e.user?.nickname)) {
           this.dispatchAction(ruleId, action, e);
         }
         this.maybeAnnounceGift(e); // TTS-Ansage ab Coin-Schwelle
@@ -1391,6 +1398,41 @@ export class Studio {
     log.info('Befehl', `${cmd.command} von ${event.user?.nickname ?? '?'}`);
   }
 
+  /**
+   * Lucky-Card, zweiter Auslöser (Stück 4, Task 3): passender Geschenke-
+   * Slider (gift-menu, luckyMode+luckyCommand-Prop) zieht auch OHNE Geschenk,
+   * wenn im Chat der konfigurierte Befehl auftaucht — matchLuckyCommand()
+   * wählt die Layer aus, planLuckyDraws() (lucky-draw.ts) übernimmt danach
+   * GENAU denselben Dispatch-Pfad wie der Gift-Auslöser (kein zweiter Roll,
+   * keine doppelte Aktions-Logik).
+   *
+   * Cooldown: ein Chat-Befehl lässt sich beliebig oft spammen — ohne Bremse
+   * würden mehrere Ziehungen für denselben Slider überlappen (Karten
+   * shuffeln erneut, während die vorherige Ziehung noch läuft). Darum pro
+   * Layer ein Cooldown in Höhe der Zieh-Dauer (luckyDrawMs, Fallback 3000ms —
+   * derselbe Fallback wie in planLuckyDraws()/gift-menu.js): erst wenn die
+   * vorherige Ziehung sichtbar abgeschlossen ist, darf die nächste per Befehl
+   * starten. Ein eigenes Cooldown-Feld ist NICHT nötig — die Zieh-Dauer ist
+   * bereits die sinnvolle Sperrzeit.
+   */
+  private maybeLuckyDrawByCommand(event: StudioEvent): void {
+    if (!event.text) return;
+    const layers = this.layouts.list().flatMap((layout) => layout.layers) as LuckyLayer[];
+    const matched = matchLuckyCommand(layers, event.text);
+    if (!matched.length) return;
+    const now = event.ts;
+    const eligible = matched.filter((l) => {
+      const last = this.luckyDrawCooldowns.get(l.id) ?? 0;
+      const cooldownMs = Math.max(600, Number(l.props?.luckyDrawMs ?? 3000));
+      return now - last >= cooldownMs;
+    });
+    if (!eligible.length) return;
+    for (const l of eligible) this.luckyDrawCooldowns.set(l.id, now);
+    for (const { ruleId, action } of planLuckyDraws(eligible, this.getRules(), Math.random, event.user?.nickname)) {
+      this.dispatchAction(ruleId, action, event);
+    }
+  }
+
   // ── Einlöse-Store ─────────────────────────────────────────────────────
 
   getRedemptions(): Redemption[] {
@@ -1520,6 +1562,7 @@ export class Studio {
     this.engine.resetCooldowns();
     this.redemptionCooldowns.clear();
     this.commandCooldowns.clear();
+    this.luckyDrawCooldowns.clear();
     this.giveawayParticipants.clear();
     this.lastGiveawayWinner = '';
     this.greetedThisSession.clear();
