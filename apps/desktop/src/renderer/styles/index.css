@@ -26,7 +26,9 @@
   --color-studio-control-border: #3c4257;
   --color-studio-control-border-hover: #545b73;
   --color-studio-text: #ececf1;
-  --color-studio-muted: #8b8fa3;
+  /* Sekundär-Text: von #8b8fa3 angehoben — war auf dem dunklen Grund und bei
+     kleiner Schrift zu schwach lesbar (Kontrast jetzt ~7:1 statt ~5:1). */
+  --color-studio-muted: #a6abbe;
   --color-studio-accent: #ff4d2e;
   --color-studio-accent-soft: #ff8a3d;
   --color-studio-teal: #21e6c1;

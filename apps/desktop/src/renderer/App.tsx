@@ -142,7 +142,7 @@ export default function App() {
           {NAV.map(({ id, label, icon: Icon, group, hint }, i) => (
             <div key={id}>
               {(i === 0 || NAV[i - 1]?.group !== group) && (
-                <div className="mb-1 mt-3 px-2 text-[9px] font-bold uppercase tracking-[0.3em] text-studio-muted/60 first:mt-0">
+                <div className="mb-1 mt-3 px-2 text-[9px] font-bold uppercase tracking-[0.3em] text-studio-muted first:mt-0">
                   {group}
                 </div>
               )}
