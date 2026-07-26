@@ -2029,7 +2029,14 @@ export default class GiftMenu {
       if (!res.ok) return;
       const data = await res.json();
       const rules = Array.isArray(data) ? data : (data && Array.isArray(data.rules) ? data.rules : []);
-      const items = itemsFromRules(rules);
+      // Textfilter ZUERST anwenden — MUSS mit orderedGiftKeys() (Server,
+      // gift-mapping.ts) sowie slot-machine.js' und wheel.js' loadRules()
+      // deckungsgleich bleiben: Der Server errechnet winnerIndex = floor(
+      // rollPick * orderedGiftKeys(rules).length), und orderedGiftKeys()
+      // filtert dieselbe itemsFromRules-Liste auf `.text`. Ein breiterer
+      // Filter hier (oder gar keiner) nimmt Einträge auf, die der Server
+      // nicht zählt → Index-Drift, der Server trifft die falsche Karte.
+      const items = itemsFromRules(rules).filter((it) => it.text);
       if (!items.length) return;
       this.items = items;
       this.demo = false;
