@@ -27,11 +27,15 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
       nodes.push(<b key={`${keyPrefix}-b${i}`}>{m[1]}</b>);
     } else if (m[2] !== undefined && m[3] !== undefined) {
       const url = m[3];
+      // Nur echte Web-Adressen bekommen ein href — sonst greift die Prüfung nur
+      // beim normalen Klick, und ein Mittelklick würde daran vorbei aufmachen.
+      const sicher = /^https?:\/\//.test(url);
       nodes.push(
         <a
           key={`${keyPrefix}-a${i}`}
-          href={url}
-          onClick={(e) => { e.preventDefault(); if (/^https?:\/\//.test(url)) void window.studio.openExternal(url); }}
+          href={sicher ? url : undefined}
+          rel="noreferrer"
+          onClick={(e) => { e.preventDefault(); if (sicher) void window.studio.openExternal(url); }}
           className="text-studio-teal underline decoration-dotted underline-offset-2 hover:text-studio-accent"
         >
           {m[2]}
@@ -115,9 +119,18 @@ export default function WhatsNew() {
 
     const seen = localStorage.getItem(SEEN_KEY);
     if (!seen) {
-      // Erstinstallation: OnboardingTour übernimmt die Begrüßung — hier nur
-      // stillschweigend merken, nichts zeigen.
+      // Noch nie gemerkt — zwei sehr verschiedene Fälle:
+      //  a) echte Erstinstallation → die OnboardingTour begrüßt, hier nichts zeigen.
+      //  b) Bestandsnutzer, der zum ERSTEN MAL eine Version mit diesem Fenster
+      //     startet → er soll die Neuerungen sehen, sonst verpasst er ausgerechnet
+      //     die Version, die das Fenster mitbringt.
+      // Unterschieden an der abgeschlossenen Tour: die hat ein Neuling noch nicht.
+      const kenntDieApp = localStorage.getItem('bx-onboarding-done') === '1';
       localStorage.setItem(SEEN_KEY, version);
+      if (kenntDieApp) {
+        setEntries(all.slice(0, 1));
+        setOpen(true);
+      }
       return;
     }
     const newer = entriesSince(all, seen);
