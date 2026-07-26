@@ -1117,17 +1117,27 @@ function escapeHtml(s) {
 import { giftKey, actionLabel, itemsFromRules } from './gift-rules.js';
 export { giftKey, actionLabel, itemsFromRules };
 
-/** "rose::Konfetti | galaxy::Songwunsch" → [{slug, text}]. Ohne :: gilt der
- *  ganze Eintrag als Gift-Name ohne Aktionstext. */
+/** "rose::Konfetti | galaxy::Songwunsch" → [{slug, text, secs}]. Ohne :: gilt der
+ *  ganze Eintrag als Gift-Name ohne Aktionstext. Ein optionales 3. Feld
+ *  ("slug::Text::60") trägt die Challenge-Dauer in Sekunden (0 = kein Timer);
+ *  „slug::42" bleibt reiner Text (Zahl allein reicht nicht — s.u.). */
 export function parseItems(raw) {
   return String(raw || '')
     .split('|')
     .map((s) => s.trim())
     .filter(Boolean)
     .map((s) => {
-      const i = s.indexOf('::');
-      if (i >= 0) return { slug: s.slice(0, i).trim(), text: s.slice(i + 2).trim() };
-      return { slug: s, text: '' };
+      const parts = s.split('::');
+      const slug = (parts[0] ?? '').trim();
+      const rest = parts.slice(1).map((p) => p.trim());
+      let secs = 0;
+      // Dauer nur, wenn NEBEN dem Text ein reines Zahlen-Feld am Ende steht
+      // (mind. 2 Felder nach dem slug) — „slug::42" bleibt Text, kein Timer.
+      if (rest.length >= 2 && /^\d+$/.test(rest[rest.length - 1])) {
+        secs = Number(rest.pop());
+      }
+      const text = rest.join('::').trim();
+      return { slug, text, secs };
     })
     .filter((it) => it.slug || it.text);
 }
