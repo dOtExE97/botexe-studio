@@ -67,6 +67,7 @@ export const IPC = {
   TTS_TEST: 'tts:test',
   TTS_PIPER_SETUP: 'tts:piper-setup',
   TTS_BYOK_PROVIDERS: 'tts:byok-providers',
+  TTS_TUNING_SPECS: 'tts:tuning-specs',
   TTS_BYOK_STATUS: 'tts:byok-status',
   TTS_BYOK_SET: 'tts:byok-set',
   // App-Info / Einstellungen

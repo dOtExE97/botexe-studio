@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { TTSService, isTransientTtsError, type TTSPlayback } from './tts-service';
+import { TTSService, isTransientTtsError, pickLocalFallbackVoice, type TTSPlayback } from './tts-service';
 
 function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'tts-'));
@@ -67,6 +67,28 @@ test('isTransientTtsError: permanente Fehler NICHT (kein sinnloser Retry)', () =
     'voice not found',
     'unauthorized 401',
   ]) assert.equal(isTransientTtsError(m), false, m);
+});
+
+// — Lokaler Fallback (Notnagel, wenn die Online-Stimme streikt — Issue #16:
+// 30s Stille trotz fertig eingerichtetem Piper). Echte IDs aus PIPER_VOICES.
+const piperFake = (readyIds: string[]) => ({
+  hasBinary: () => readyIds.length > 0,
+  voiceReady: (id: string) => readyIds.includes(id),
+});
+
+test('pickLocalFallbackVoice: nimmt eine bereite Piper-Stimme, wenn online scheitert', () => {
+  assert.equal(
+    pickLocalFallbackVoice(piperFake(['de-karlsson']) as never, 'edge:de-DE-KatjaNeural'),
+    'piper:de-karlsson',
+  );
+});
+
+test('pickLocalFallbackVoice: nichts bereit ⇒ null', () => {
+  assert.equal(pickLocalFallbackVoice(piperFake([]) as never, 'edge:de-DE-KatjaNeural'), null);
+});
+
+test('pickLocalFallbackVoice: schon lokal ⇒ null (kein Ringelreihen)', () => {
+  assert.equal(pickLocalFallbackVoice(piperFake(['de-karlsson']) as never, 'piper:de-karlsson'), null);
 });
 
 test('sanitize entfernt auch NACKTE Domains (Scam-/Werbe-Links)', () => {

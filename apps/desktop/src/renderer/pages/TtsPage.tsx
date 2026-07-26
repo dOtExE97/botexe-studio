@@ -13,7 +13,128 @@ import {
   ChevronUp,
   Lightbulb,
   AlertTriangle,
+  Sliders,
+  RotateCcw,
 } from 'lucide-react';
+import { providerFromVoice } from '../../shared/tts-voice';
+
+/** Ein Regler aus TUNING_SPECS (main/services/tts-tuning.ts) — reine Daten,
+ *  kommen per IPC (getTuningSpecs) in den Renderer, siehe TuningSection unten. */
+interface TuningParam {
+  key: string;
+  label: string;
+  hint: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  default: number | string;
+  options?: Array<{ value: string; label: string }>;
+}
+
+/** Anzeigename je Anbieter für die Feineinstellungs-Überschrift — bekannte
+ *  Anbieter bekommen einen kurzen, Streamer-verständlichen Namen; unbekannte
+ *  (z.B. neue BYOK-Anbieter) fallen auf den Anfang ihres Gruppen-Labels zurück. */
+const PROVIDER_FRIENDLY_LABEL: Record<string, string> = {
+  edge: 'Edge (online)',
+  piper: 'Lokal (Piper)',
+  gtts: 'Google Robo',
+  openai: 'OpenAI-kompatibel',
+  polly: 'Amazon Polly',
+  elevenlabs: 'ElevenLabs',
+  ttsmonster: 'TTS.Monster',
+};
+
+function friendlyProviderLabel(provider: string, groups: VoiceGroup[]): string {
+  if (PROVIDER_FRIENDLY_LABEL[provider]) return PROVIDER_FRIENDLY_LABEL[provider];
+  const group = groups.find((g) => g.provider === provider);
+  return group ? (group.label.split(' — ')[0] ?? group.label) : provider;
+}
+
+/** Feineinstellung — zeigt NUR die Regler, die der Anbieter der gewählten
+ *  Stimme tatsächlich unterstützt (statt der alten festen Tempo/Tonhöhe-Regler,
+ *  die bei Piper stillschweigend gar nichts taten). Jeder Regler erklärt sich
+ *  selbst per sichtbarem Hinweistext, nicht nur per Tooltip. */
+function TuningSection({
+  provider,
+  providerLabel,
+  params,
+  values,
+  onChange,
+  onReset,
+}: {
+  provider: string;
+  providerLabel: string;
+  params: TuningParam[];
+  values: Record<string, number | string>;
+  onChange: (key: string, value: number | string) => void;
+  onReset: () => void;
+}) {
+  return (
+    <section className="bx-card p-5">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
+          <Sliders size={15} /> Feineinstellung — {providerLabel}
+        </h2>
+        {params.length > 0 && (
+          <button
+            onClick={onReset}
+            className="flex items-center gap-1.5 text-[11px] text-studio-muted hover:text-studio-accent"
+          >
+            <RotateCcw size={12} /> Auf Standard zurücksetzen
+          </button>
+        )}
+      </div>
+      {params.length === 0 ? (
+        <p className="text-[11px] text-studio-muted">
+          Für diese Stimme gibt es keine Feineinstellungen.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {params.map((p) => {
+            const value = values[p.key] ?? p.default;
+            return (
+              <div key={p.key} className="flex flex-col gap-1">
+                <div className="flex items-center gap-3">
+                  <span className="w-40 shrink-0 text-xs font-bold text-studio-fg">{p.label}</span>
+                  {p.options ? (
+                    <select
+                      value={String(value)}
+                      onChange={(e) => onChange(p.key, e.target.value)}
+                      className="bx-select flex-1 text-xs"
+                    >
+                      {p.options.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <>
+                      <input
+                        type="range"
+                        min={p.min}
+                        max={p.max}
+                        step={p.step}
+                        value={Number(value)}
+                        onChange={(e) => onChange(p.key, Number(e.target.value))}
+                        className="min-w-0 flex-1 accent-[#21e6c1]"
+                      />
+                      <span className="w-12 shrink-0 text-right font-mono text-xs">{value}</span>
+                    </>
+                  )}
+                </div>
+                <p className="pl-[10.75rem] text-[10px] leading-snug text-studio-muted">{p.hint}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {provider === 'gtts' && (
+        <p className="mt-3 text-[10px] leading-snug text-studio-muted/80">
+          Google Robo ist ein inoffizieller Dienst ohne bestätigte Einstell-Parameter — kann jederzeit brechen.
+        </p>
+      )}
+    </section>
+  );
+}
 
 interface TtsVoice {
   id: string;
@@ -47,6 +168,8 @@ interface TtsSettings {
   readPrefix?: string;
   announceFollow?: AnnounceCfg;
   announceGift?: GiftAnnounceCfg;
+  /** Regler-Werte PRO ANBIETER (edge/piper/openai/…), siehe tts-tuning.ts. */
+  tuning?: Record<string, Record<string, number | string>>;
 }
 
 const READ_GROUP_LABELS: { id: ReadGroup; label: string }[] = [
@@ -170,6 +293,7 @@ export default function TtsPage() {
   const [byokStatus, setByokStatus] = useState<Record<string, boolean>>({});
   const [byokDrafts, setByokDrafts] = useState<Record<string, Record<string, string>>>({});
   const [openProvider, setOpenProvider] = useState<string | null>(null);
+  const [tuningSpecs, setTuningSpecs] = useState<Record<string, TuningParam[]>>({});
 
   const refreshVoices = () =>
     window.studio.getTtsVoices().then((v: VoiceGroup[]) => setGroups(v));
@@ -181,6 +305,7 @@ export default function TtsPage() {
     void refreshByok();
     void window.studio.getByokProviders().then((p: ByokProvider[]) => setByokProviders(p));
     void window.studio.getSettings().then((s: { tts: TtsSettings }) => setTts(s.tts));
+    void window.studio.getTuningSpecs().then((s: Record<string, TuningParam[]>) => setTuningSpecs(s));
   }, []);
 
   const saveByok = async (provider: string) => {
@@ -214,6 +339,24 @@ export default function TtsPage() {
   const allVoices = groups.flatMap((g) => g.voices);
   const selectedVoice = allVoices.find((v) => v.id === currentVoice);
   const needsPiperSetup = currentVoice.startsWith('piper:') && selectedVoice && !selectedVoice.ready;
+
+  // Feineinstellung: nur die Regler des Anbieters der GEWÄHLTEN Stimme —
+  // vorher gab es feste Tempo/Tonhöhe-Regler, die bei Piper stillschweigend
+  // nichts bewirkten (echte Nutzer-Beschwerde).
+  const tuningProvider = providerFromVoice(tts.voice);
+  const tuningParams = tuningSpecs[tuningProvider] ?? [];
+  const tuningValues = tts.tuning?.[tuningProvider] ?? {};
+  const setTuning = (key: string, value: number | string) => {
+    update({
+      tuning: {
+        ...(tts.tuning ?? {}),
+        [tuningProvider]: { ...(tts.tuning?.[tuningProvider] ?? {}), [key]: value },
+      },
+    });
+  };
+  const resetTuning = () => {
+    update({ tuning: { ...(tts.tuning ?? {}), [tuningProvider]: {} } });
+  };
 
   const runPiperSetup = async () => {
     setPiperBusy(true);
@@ -289,25 +432,10 @@ export default function TtsPage() {
             />
             <span className="w-9 font-mono">{Math.round(tts.volume * 100)}%</span>
           </label>
-          <label className="flex w-56 items-center gap-2 text-xs text-studio-muted" title="Sprech-Tempo — wirkt bei den Edge-Stimmen (Standard-Stimmen).">
-            Tempo
-            <input
-              type="range" min={-50} max={50} step={5} value={tts.rate ?? 0}
-              onChange={(e) => update({ rate: Number(e.target.value) })}
-              className="flex-1 accent-[#21e6c1]"
-            />
-            <span className="w-9 font-mono">{(tts.rate ?? 0) >= 0 ? '+' : ''}{tts.rate ?? 0}%</span>
-          </label>
-          <label className="flex w-56 items-center gap-2 text-xs text-studio-muted" title="Tonhöhe — wirkt bei den Edge-Stimmen.">
-            Tonhöhe
-            <input
-              type="range" min={-20} max={20} step={2} value={tts.pitch ?? 0}
-              onChange={(e) => update({ pitch: Number(e.target.value) })}
-              className="flex-1 accent-[#21e6c1]"
-            />
-            <span className="w-9 font-mono">{(tts.pitch ?? 0) >= 0 ? '+' : ''}{tts.pitch ?? 0}</span>
-          </label>
         </div>
+        <p className="mt-1 text-[10px] text-studio-muted/70">
+          Lautstärke wirkt global (Mischpult) — Tempo/Klang je Anbieter stellst du unten bei „Feineinstellung" ein.
+        </p>
         {!needsPiperSetup && selectedVoice?.ready && (
           <p className="mt-2 flex items-center gap-1.5 text-[11px] text-studio-teal">
             <Check size={13} /> Diese Stimme ist sofort bereit — kein Download nötig{currentVoice.startsWith('edge:') ? ' (Cloud-Stimme über Microsoft Edge, gratis)' : ''}. Tipp ein Wort und klick VORLESEN.
@@ -327,6 +455,15 @@ export default function TtsPage() {
           </button>
         </div>
       </section>
+
+      <TuningSection
+        provider={tuningProvider}
+        providerLabel={friendlyProviderLabel(tuningProvider, groups)}
+        params={tuningParams}
+        values={tuningValues}
+        onChange={setTuning}
+        onReset={resetTuning}
+      />
 
       {/* Chat vorlesen */}
       <section className="bx-card p-5">

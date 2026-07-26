@@ -73,6 +73,8 @@ const api = {
   testTts: (text: string, voice?: string) => ipcRenderer.invoke(IPC.TTS_TEST, text, voice),
   setupPiper: (voiceId: string) => ipcRenderer.invoke(IPC.TTS_PIPER_SETUP, voiceId),
   getByokProviders: () => ipcRenderer.invoke(IPC.TTS_BYOK_PROVIDERS),
+  /** Feineinstellungs-Regler pro Anbieter (edge/piper/openai/…), siehe tts-tuning.ts. */
+  getTuningSpecs: () => ipcRenderer.invoke(IPC.TTS_TUNING_SPECS),
   getByokStatus: () => ipcRenderer.invoke(IPC.TTS_BYOK_STATUS),
   setByokCredentials: (provider: string, fields: Record<string, string>) =>
     ipcRenderer.invoke(IPC.TTS_BYOK_SET, provider, fields),

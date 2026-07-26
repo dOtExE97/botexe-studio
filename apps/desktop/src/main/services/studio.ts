@@ -44,6 +44,7 @@ import type { SportProvider } from './sport-normalize';
 import { ObsService, type ObsStatus } from './obs-service';
 import { StreamerbotService, type StreamerbotStatus } from './streamerbot-service';
 import { TTSService } from './tts-service';
+import { resolveTuning } from './tts-tuning';
 import { log } from '../core/logger';
 
 export interface SoundCommand {
@@ -230,7 +231,7 @@ export class Studio {
       },
       () => this.settings.get().ttsCredentials,
       (message) => this.hooks.onToast?.({ type: 'error', message }),
-      () => ({ rate: this.settings.peek().tts.rate ?? 0, pitch: this.settings.peek().tts.pitch ?? 0 }),
+      (provider) => resolveTuning(provider, this.settings.peek().tts.tuning?.[provider]),
     );
 
     this.server = new OverlayServer(this.bus, {
