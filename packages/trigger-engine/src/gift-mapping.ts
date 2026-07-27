@@ -9,9 +9,20 @@ import type { TriggerAction, TriggerRule } from './index';
 // Rad-Widget (wheel.js) anzeigt — keine zweite, von Hand synchron zu
 // haltende Kopie mehr. Kein Typen-Paket nötig: gift-rules.js ist DOM-frei
 // reines JS, allowJs übernimmt es unverändert (siehe tsconfig.json).
-import { itemsFromRules } from '../../widget-kit/gift-rules.js';
+import { itemsFromRules, giftKey } from '../../widget-kit/gift-rules.js';
 
-/** Stabile id der kanonischen Galerie-Regel eines Gifts. */
+/** Stabile id der kanonischen Galerie-Regel eines Gifts.
+ *
+ *  WICHTIG: normalisiert bewusst NUR mit trim()+toLowerCase(), NICHT mit dem
+ *  strengeren giftKey() (das zusätzlich alle Nicht-Alphanumerischen Zeichen
+ *  entfernt) — diese ID wird in settings.json PERSISTIERT (Regel-id). Würde
+ *  man hier auf giftKey() umstellen, änderte sich die ID jedes bestehenden
+ *  Gifts mit Satzzeichen/Leerzeichen im Slug (z.B. "Finger Heart's") beim
+ *  nächsten Speichern — findGiftRule() fände die alte Regel nicht mehr
+ *  wieder ⇒ verwaiste Duplikat-Regel. Der eigentliche Matching-Bug (zwei
+ *  Schreibweisen desselben Gifts = zwei „kanonische" Regeln) wird stattdessen
+ *  in otherGiftRules() unten behoben, wo giftKey() ohne ID-Migration
+ *  nachgezogen werden kann. */
 export function giftRuleId(slug: string): string {
   return `giftmap-${slug.trim().toLowerCase()}`;
 }
@@ -46,17 +57,26 @@ export function upsertGiftRule(
   return existing ? rules.map((r) => (r.id === id ? rule : r)) : [...rules, rule];
 }
 
-/** Fremde (nicht von der Galerie verwaltete) Regeln, die dasselbe Gift referenzieren. */
+/** Fremde (nicht von der Galerie verwaltete) Regeln, die dasselbe Gift referenzieren.
+ *
+ *  Vergleicht mit giftKey() (nicht trim()+toLowerCase()) — DIESELBE Normali-
+ *  sierung, die die Trigger-Engine beim tatsächlichen Matching verwendet
+ *  (conditionHolds, gift_slug_is) und die gift-rules.js/wheel.js/gift-menu.js
+ *  teilen. Vorher driftete das auseinander: ein Slug mit Satzzeichen/
+ *  Leerzeichen (z.B. "Finger Heart's" vs. "Finger Hearts") wurde HIER als
+ *  zwei verschiedene Gifts behandelt, obwohl die Engine sie als dasselbe
+ *  matcht — Streamer sahen scheinbar zwei „fremde" Regeln für ein Gift, das
+ *  eigentlich nur eins war. Betrifft NUR den Vergleich, nicht giftRuleId()
+ *  (siehe deren Kommentar oben — dort bleibt die alte, schwächere
+ *  Normalisierung bewusst stehen, um persistierte IDs nicht zu brechen). */
 export function otherGiftRules(rules: TriggerRule[], slug: string): TriggerRule[] {
   const id = giftRuleId(slug);
-  const key = slug.trim().toLowerCase();
+  const key = giftKey(slug);
   return rules.filter(
     (r) =>
       r.id !== id &&
       r.event === 'gift' &&
-      (r.conditions ?? []).some(
-        (c) => c.kind === 'gift_slug_is' && c.value.trim().toLowerCase() === key,
-      ),
+      (r.conditions ?? []).some((c) => c.kind === 'gift_slug_is' && giftKey(c.value) === key),
   );
 }
 

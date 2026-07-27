@@ -56,6 +56,35 @@ test('otherGiftRules findet fremde Regeln, die dasselbe Gift referenzieren — o
   assert.equal(others[0]?.id, 'rule-custom');
 });
 
+test('otherGiftRules findet auch Regeln mit abweichender Satzzeichen-/Leerzeichen-Schreibweise (giftKey-Fix)', () => {
+  // Vorher verglich otherGiftRules nur mit trim()+toLowerCase() — das
+  // tatsächliche Matching (conditionHolds, giftKey) ignoriert zusätzlich
+  // Satzzeichen/Leerzeichen. "Finger Heart's" (Galerie-Slug) und
+  // "finger hearts" (fremde Regel, andere Schreibweise) sind laut Engine
+  // DASSELBE Gift, wurden hier aber als zwei verschiedene behandelt.
+  const own = upsertGiftRule([], "Finger Heart's", [{ kind: 'play_sound', soundId: 'a.mp3' }]);
+  const manual: TriggerRule = {
+    id: 'rule-custom',
+    name: 'Eigene Regel',
+    event: 'gift',
+    conditions: [{ kind: 'gift_slug_is', value: 'finger hearts' }],
+    actions: [{ kind: 'speak', template: 'Danke!' }],
+    enabled: true,
+  };
+  const rules = [...own, manual];
+  const others = otherGiftRules(rules, "Finger Heart's");
+  assert.equal(others.length, 1);
+  assert.equal(others[0]?.id, 'rule-custom');
+});
+
+test('giftRuleId bleibt bei der schwächeren Normalisierung (Bestandsschutz persistierter IDs)', () => {
+  // giftRuleId erzeugt die PERSISTIERTE Regel-id — hier bewusst NICHT auf
+  // giftKey() umgestellt (siehe Kommentar in gift-mapping.ts): sonst würde
+  // sich die id jedes bestehenden Gifts mit Satzzeichen/Leerzeichen beim
+  // nächsten Speichern ändern und die alte Regel verwaisen.
+  assert.equal(giftRuleId("Finger Heart's"), "giftmap-finger heart's");
+});
+
 // orderedGiftKeys: Server-Pendant zu itemsFromRules (widget-kit/gift-menu.js) —
 // MUSS dessen Einschluss-/Dedup-/Reihenfolge-Logik exakt spiegeln, sonst zeigt
 // das Rad ein anderes Feld als das, dessen Aktion serverseitig gefeuert wird.
