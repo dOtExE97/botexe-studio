@@ -283,6 +283,15 @@ export default function TriggersPage() {
     if (!rule.enabled) { toast('warn', 'Regel ist AUS — zum Testen erst aktivieren.'); return; }
     void window.studio.sendTestEvent(ev);
     toast('success', `Test-Event geschickt — läuft durch die ECHTE Kette (inkl. Bedingung & Cooldown). Nichts passiert? Dann greift die Regel so nicht.`);
+    // Sounds/Ansagen laufen LOKAL in der App — Widget-Animationen dagegen nur in
+    // einem verbundenen Overlay. Ohne offene Quelle hört man also etwas, sieht
+    // aber nichts, und das Widget wirkt kaputt (real passiert: Handherz-Tests
+    // ohne offenes Overlay → „keine Animation im Geschenke-Slider").
+    void (window.studio.getDiagnostics() as Promise<{ clientCount?: number }>).then((d) => {
+      if ((d.clientCount ?? 0) === 0) {
+        toast('warn', 'Nur zur Info: Gerade ist kein Overlay verbunden — Sounds/Ansagen hörst du, Widget-Animationen siehst du erst, wenn die Quelle in OBS/TikTok Studio läuft oder die Vorschau offen ist.');
+      }
+    }).catch(() => { /* Diagnose optional */ });
   };
 
   const setSoundAction = (rule: TriggerRule, soundId: string) => {
