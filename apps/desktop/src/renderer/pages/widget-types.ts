@@ -652,7 +652,12 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'live-poll', label: 'Live-Umfrage', desc: 'Frage + 2–4 Optionen. Zuschauer stimmen per Chat ab (Zahl tippen, z.B. „1") — eine Stimme pro Person. Balken füllen sich live, am Ende Sieger-Reveal. (Zwei Designs)',
-    w: 480, h: 280, props: { style: 'bars', question: 'Was sollen wir spielen?', options: 'Fortnite, Just Chatting, Zuschauer-Games', durationSec: 45, autoNewRound: false, roundDelayMs: 6000, revealSoundId: 'botexe-gewinn.wav', accent: '#7c5cff', theme: 'glas' },
+    // autoNewRound: true — muss mit live-poll.js übereinstimmen (dort macht
+    // `props.autoNewRound !== false` ein FEHLENDES Prop zu true, wie bei
+    // bingo/guess-number/gift-battle; vorher stand hier fälschlich false,
+    // während ein Layout ohne den Schlüssel trotzdem automatisch neue Runden
+    // startete — siehe widget-defaults-parity.test.ts).
+    w: 480, h: 280, props: { style: 'bars', question: 'Was sollen wir spielen?', options: 'Fortnite, Just Chatting, Zuschauer-Games', durationSec: 45, autoNewRound: true, roundDelayMs: 6000, revealSoundId: 'botexe-gewinn.wav', accent: '#7c5cff', theme: 'glas' },
     fields: [
       styleField([
         { value: 'bars', label: 'Balken (untereinander)' },
