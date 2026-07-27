@@ -612,6 +612,15 @@ function registerIpc(): void {
     }
     return updateState;
   });
+  // P2-3-Audit: reiner Pull des aktuellen Update-Zustands, OHNE Seiteneffekt
+  // (im Gegensatz zu UPDATE_CHECK, das ggf. einen neuen Check anstößt). Ein
+  // bereits heruntergeladenes Update wurde bisher NUR per Push (UPDATE_STATUS)
+  // gemeldet — startete die Renderer-Seite NEU (Fenster neu erzeugt, App-
+  // Update selbst noch nicht installiert), lief der Push ins Leere, weil der
+  // main-Prozess `updateState` schon lange vorher gesetzt hatte. Die Banner-
+  // UI blieb dann dauerhaft unsichtbar, obwohl ein Neustart das Update sofort
+  // anwenden würde — der Streamer erfährt nie, dass ein Neustart ansteht.
+  ipcMain.handle(IPC.UPDATE_GET_STATUS, () => updateState);
   ipcMain.handle(IPC.UPDATE_INSTALL, () => {
     if (updateState.state === 'downloaded') {
       try { autoUpdater.quitAndInstall(); } catch (err) { log.warn('Update', 'quitAndInstall', (err as Error).message); }

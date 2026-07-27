@@ -135,6 +135,11 @@ const api = {
   checkForUpdate: () => ipcRenderer.invoke(IPC.UPDATE_CHECK),
   installUpdate: () => ipcRenderer.invoke(IPC.UPDATE_INSTALL),
   onUpdateStatus: listen<{ state: string; version?: string; message?: string }>(IPC.UPDATE_STATUS),
+  // P2-3-Audit: seitenffektfreier Pull des Ist-Stands (siehe UpdateBanner.tsx) —
+  // ein bereits heruntergeladenes Update muss nach einem Renderer-/Fenster-
+  // Neustart wieder sichtbar sein, auch wenn der Push davor ins Leere ging.
+  getUpdateStatus: (): Promise<{ state: string; version?: string; message?: string }> =>
+    ipcRenderer.invoke(IPC.UPDATE_GET_STATUS),
   // OBS-Studio
   setObsConfig: (cfg: { enabled: boolean; url: string; password: string }) => ipcRenderer.invoke(IPC.OBS_SET_CONFIG, cfg),
   getObsScenes: () => ipcRenderer.invoke(IPC.OBS_GET_SCENES),

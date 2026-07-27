@@ -11,11 +11,28 @@ export default function UpdateBanner() {
   const [restarting, setRestarting] = useState(false);
 
   useEffect(() => {
+    // P2-3-Audit: onUpdateStatus liefert nur PUSHES vom main-Prozess. Der
+    // Push „downloaded" kommt oft VOR diesem Mount (Auto-Update läuft im
+    // Hintergrund, während der Renderer neu erzeugt wird — z.B. nach einem
+    // Reload oder wenn das Fenster neu geöffnet wird) und geht dann ins
+    // Leere: kein Banner, obwohl main den Zustand längst kennt (`updateState`
+    // in main.ts). Der Streamer erfährt so nie, dass ein Neustart ansteht.
+    // Fix (analog zum Platform-Status-Pull in useStudio.ts, commit 65c3a35):
+    // zusätzlich zum Push den Ist-Stand EINMAL abholen (Pull), mit demselben
+    // „pushedSincePull"-Wächter — kommt zwischen Subscribe und Pull-Antwort
+    // noch ein echter Push rein, gewinnt IMMER der (neuere) Push.
+    let pushedSincePull = false;
     const off = window.studio?.onUpdateStatus?.((s) => {
+      pushedSincePull = true;
       if (s.state === 'downloaded') {
         setVersion(s.version ?? '');
         setDismissed(false); // neues Update → Banner wieder zeigen
       }
+    });
+    void window.studio?.getUpdateStatus?.().then((s) => {
+      if (pushedSincePull || !s || s.state !== 'downloaded') return;
+      setVersion(s.version ?? '');
+      setDismissed(false);
     });
     return () => off?.();
   }, []);
