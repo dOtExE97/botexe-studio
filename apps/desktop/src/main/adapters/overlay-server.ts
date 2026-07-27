@@ -83,6 +83,13 @@ export interface OverlayServerOptions {
   onSpotifyCallback?: (code: string, state: string) => Promise<{ ok: boolean; error?: string }>;
   /** Letzter Now-Playing-Stand für Late-Joiner (Spotify-Widget startet nicht leer). */
   getSpotifyState?: () => unknown;
+  /** P3c-Audit: laufendes Chat-Spiel (Quiz/Bingo/Hangman/…) für Late-Joiner —
+   *  ohne diesen Pull verschwindet ein laufendes Spiel aus dem Overlay, sobald
+   *  die Browser-Quelle neu lädt (siehe Kommentar an der Rehydrierungsstelle). */
+  getGameState?: () => { kind: string; state: unknown } | null;
+  /** P3c-Audit: gleicher Zweck für den Boss-Kampf (eigener Zustand in studio.ts,
+   *  nicht Teil von GameService). */
+  getBossState?: () => unknown;
   /** Anzahl verbundener Overlay-Clients hat sich geändert (connect/disconnect)
    *  — z.B. um bedarfsabhängiges Polling (Spotify) an/aus zu schalten. */
   onClientCountChange?: (count: number) => void;
@@ -668,6 +675,16 @@ export class OverlayServer {
       if (stats) this.sendTo(client, { kind: 'stats', stats }, true);
       const spotify = this.options.getSpotifyState?.();
       if (spotify) this.sendTo(client, { kind: 'spotify', state: spotify }, true);
+      // P3c-Audit: laufenden Spiel-/Boss-Zustand mitschicken — GameService/Boss
+      // senden `game-state` bisher NUR bei tatsächlicher Änderung (Chat-Antwort,
+      // Reveal, Start/Stop). Ohne diesen Pull verschwindet ein laufendes Quiz/
+      // Bingo/Boss aus dem Overlay, sobald die Browser-Quelle neu lädt — was
+      // AUTOMATISCH bei jedem App-Update passiert (Zeile ~661, `hello`-Version-
+      // Mismatch löst location.reload() aus), also potenziell MITTEN im Stream.
+      const game = this.options.getGameState?.();
+      if (game) this.sendTo(client, { kind: 'game-state', gameKind: game.kind, state: game.state }, true);
+      const boss = this.options.getBossState?.();
+      if (boss) this.sendTo(client, { kind: 'game-state', gameKind: 'boss', state: boss }, true);
       for (const e of this.bus.getAllLastValues()) {
         // sticky markieren: Rehydrierungs-Replay, KEIN neues Live-Event.
         // Effekt-/Zähler-Widgets überspringen sticky (sonst Geister-Alerts /

@@ -341,6 +341,47 @@ test('ws: client bekommt beim connect das aktive layout als erste nachricht', as
   }
 });
 
+test('P3c-Audit: ws-Reconnect bekommt laufenden Spiel- UND Boss-Zustand mit (nicht nur layout/stats/spotify)', async () => {
+  // Regression: GameService/Boss senden `game-state` bisher NUR bei echter
+  // Zustandsänderung — beim (Re-)Connect (z.B. Browser-Quelle lädt nach einem
+  // App-Update automatisch neu, siehe hello-Version-Mismatch) verschwand ein
+  // laufendes Quiz/Bingo/Boss aus dem Overlay, bis die nächste Chat-Interaktion
+  // einen neuen Push auslöste. getGameState/getBossState schließen die Lücke.
+  const { server } = await setup(0, {
+    getGameState: () => ({ kind: 'quiz', state: { status: 'running', question: 'Wie viel ist 6*7?' } }),
+    getBossState: () => ({ hp: 42, maxHp: 100 }),
+  });
+  try {
+    const client = await wsConnect(server.getWsUrl());
+    await client.next(); // layout
+    const msgs = [await client.next(), await client.next()];
+    const game = msgs.find((m) => m.kind === 'game-state' && m.gameKind === 'quiz');
+    const boss = msgs.find((m) => m.kind === 'game-state' && m.gameKind === 'boss');
+    assert.ok(game, 'quiz-game-state fehlt beim Reconnect');
+    assert.equal((game!.state as { status: string }).status, 'running');
+    assert.ok(boss, 'boss-game-state fehlt beim Reconnect');
+    assert.equal((boss!.state as { hp: number }).hp, 42);
+    client.close();
+  } finally {
+    await server.stop();
+  }
+});
+
+test('P3c-Audit: ohne laufendes Spiel/Boss bleibt die Rehydrierung wie vorher (kein leeres game-state-Rauschen)', async () => {
+  const { server } = await setup(0, {
+    getGameState: () => null,
+    getBossState: () => null,
+  });
+  try {
+    const client = await wsConnect(server.getWsUrl());
+    const msg = await client.next();
+    assert.equal(msg.kind, 'layout'); // keine game-state-Nachricht dazwischen
+    client.close();
+  } finally {
+    await server.stop();
+  }
+});
+
 test('bus-events erreichen verbundene clients', async () => {
   const { bus, server } = await setup();
   try {

@@ -278,6 +278,11 @@ export class Studio {
       getTriggerRules: () => this.getRulesForOverlay(),
       onSpotifyCallback: (code, state) => this.onSpotifyCallback(code, state),
       getSpotifyState: () => this.lastSpotify,
+      // P3c-Audit: laufendes Chat-Spiel + Boss-Kampf für Overlay-Reconnects
+      // (Late-Joiner UND App-Update-Reload während des Streams) — siehe
+      // Kommentar an der Rehydrierungsstelle in overlay-server.ts.
+      getGameState: () => this.games.getState(),
+      getBossState: () => this.getBossState(),
       getSportMatches: (provider, competition) => this.sport.getMatches(provider as SportProvider, competition),
       getSportStandings: (provider, competition) => this.sport.getStandings(provider as SportProvider, competition),
       listPanelButtons: () => this.getPanelButtons().map((b) => ({ id: b.id, label: b.label })),
