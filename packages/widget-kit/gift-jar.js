@@ -490,10 +490,14 @@ export default class GiftJar {
   }
 
   destroy() {
+    // Bugfix: Fall-Loop (rAF/Fallback-Timer über kick()/frame()) wurde bisher
+    // nicht gestoppt — anders als bei gift-cannon.js/gift-fireworks.js, die
+    // hier explizit cancelFrame() aufrufen.
+    if (this.cancelFrame) this.cancelFrame();
     if (this.pendingTimers) { for (const t of this.pendingTimers) clearTimeout(t); this.pendingTimers.clear(); }
     for (const t of this.toastTimers) clearTimeout(t); this.toastTimers.clear();
     for (const t of this.hitTimers) clearTimeout(t); this.hitTimers.clear();
-    this.observer.disconnect(); this.falling=[]; this.resting=[]; this.el.remove();
+    this.observer.disconnect(); this.running = false; this.falling=[]; this.resting=[]; this.el.remove();
   }
 }
 function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}

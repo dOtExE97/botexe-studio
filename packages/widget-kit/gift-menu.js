@@ -1472,6 +1472,10 @@ export default class GiftMenu {
     this.title = String(props.title ?? 'Geschenke & was sie auslösen');
     this.dwell = Math.max(1200, Number(props.intervalMs ?? 6000) || 6000);
     this.speed = Math.max(6, Number(props.speed ?? 26) || 26);
+    // Bugfix: wurde bisher nie von props übernommen, dadurch war die
+    // Shuffle-Animation IMMER 3000ms lang (Hardcode-Fallback in runLuckyDraw),
+    // egal was props.luckyDrawMs vorgab.
+    this.luckyDrawMs = props.luckyDrawMs;
 
     this.el = document.createElement('div');
     this.el.className = `bx-gm bx-st-${this.style} bx-gm-tp-${this.timerPlacement}`;
@@ -1568,6 +1572,7 @@ export default class GiftMenu {
 
   onEvent(event) {
     if (!event || event.type !== 'gift') return;
+    if (event.sticky) return; // Reconnect-Replay: sonst feiert das Menü das letzte Gift erneut (Geister-Celebration)
     const i = this.matchIndex(event.gift);
     if (i < 0) {
       // Kein Eintrag passt → es passiert absichtlich nichts. Ohne Hinweis sieht

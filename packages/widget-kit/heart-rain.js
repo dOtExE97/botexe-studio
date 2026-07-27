@@ -194,7 +194,10 @@ export default class HeartRain {
       const size = (2.4 + Math.random() * 2.4).toFixed(2);
       if (this.useEmojis) {
         e.textContent = this.emojis[Math.floor(Math.random() * this.emojis.length)] || '❤️';
-        e.style.fontSize = `clamp(14px, ${size}cqmin, 110px)`;
+        // Bugfix: Inline-Style überschrieb bisher die --bx-fs-skalierte CSS-Regel
+        // (.bx-hr-e) OHNE selbst den Faktor zu berücksichtigen — die Textgröße
+        // (fontScale) hatte bei eigenen Emojis dadurch keinerlei sichtbaren Effekt.
+        e.style.fontSize = `calc(clamp(14px, ${size}cqmin, 110px) * var(--bx-fs, 1))`;
       } else {
         e.style.width = `clamp(14px, ${size}cqmin, 110px)`;
         e.style.height = e.style.width;
