@@ -20,6 +20,8 @@ import type { OverlayLayout, MomentPayload } from '@botexe/overlay-engine';
 import type { StudioEvent, TriggerAction } from '@botexe/trigger-engine';
 import type { EventBus } from '../core/event-bus';
 import { log } from '../core/logger';
+import { TTLS_HOST } from '../services/ttls-link';
+import { isAllowedMyInstantsMp3, MAX_DOWNLOAD_BYTES } from '../services/myinstants';
 
 export type OverlayMessage =
   | { kind: 'hello'; version: string; seed: string } // App-Version (Reload-Handshake) + Session-Seed für deterministische Spiele
@@ -38,7 +40,11 @@ export type OverlayMessage =
 export function isAllowedWsOrigin(origin: string): boolean {
   try {
     const h = new URL(origin).hostname.toLowerCase();
-    return h === '127.0.0.1' || h === 'localhost' || h === 'localtest.me' || h.endsWith('.localtest.me');
+    // TTLS_HOST aus ttls-link.ts importiert statt als zweites Literal geführt
+    // (war vorher 'localtest.me' fest verdrahtet — bei einer künftigen
+    // Änderung von TTLS_HOST wäre diese Origin-Prüfung sonst NICHT
+    // mitgezogen worden und hätte TTLS-Overlays ausgesperrt).
+    return h === '127.0.0.1' || h === 'localhost' || h === TTLS_HOST || h.endsWith(`.${TTLS_HOST}`);
   } catch {
     return false;
   }
@@ -511,15 +517,15 @@ export class OverlayServer {
   /** MyInstants-mp3 server-seitig holen und durchreichen (Vorhören ohne Import).
    *  Allowlist gegen SSRF, Größen-Cap, kein Caching. */
   private async streamPreview(url: string, res: Response): Promise<void> {
-    // Host-basierte Allowlist (robust gegen Tricks wie myinstants.com.evil.tld) + .mp3.
-    let parsed: URL;
-    try { parsed = new URL(url); } catch { res.status(400).send('bad url'); return; }
-    const host = parsed.hostname.toLowerCase();
-    if ((host !== 'www.myinstants.com' && host !== 'myinstants.com') || parsed.protocol !== 'https:' || !/\.mp3$/i.test(parsed.pathname)) {
+    // isAllowedMyInstantsMp3 aus myinstants.ts importiert statt hier erneut
+    // (Host/Protokoll/Extension) inline geprüft — der Kommentar dort behauptete
+    // "identische Allowlist", ohne dass Code das erzwang; eine SSRF-Härtung an
+    // nur einer Stelle hätte die andere angreifbar gelassen.
+    if (!isAllowedMyInstantsMp3(url)) {
       res.status(400).send('bad url');
       return;
     }
-    const MAX = 5 * 1024 * 1024;
+    const MAX = MAX_DOWNLOAD_BYTES;
     try {
       // redirect:'manual' → KEIN Folgen auf interne IPs (SSRF). Timeout gegen Hänger.
       const upstream = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(8000) });

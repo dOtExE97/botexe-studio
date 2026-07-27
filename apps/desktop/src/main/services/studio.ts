@@ -21,6 +21,7 @@ import {
   type GiveawaySettings,
 } from './settings-store';
 import type { SoundCategory } from '../../shared/mixer';
+import { OVERLAY_PORT } from '../../shared/constants';
 import { parseApiAction, API_ACTION_KINDS } from './api-actions';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
@@ -246,7 +247,12 @@ export class Studio {
     );
 
     this.server = new OverlayServer(this.bus, {
-      port: 27415,
+      // Vorher hartcodiertes Literal, unabhängig von OVERLAY_PORT
+      // (shared/constants.ts) — das Overlay-Health-Banner im Renderer prüfte
+      // gegen die Konstante, während der ECHTE Server-Start am Literal hing.
+      // Beide identisch, aber strukturell entkoppelt: eine künftige
+      // Port-Änderung in constants.ts hätte den Server NICHT mitgezogen.
+      port: OVERLAY_PORT,
       token: this.getOrCreateControlToken(),
       appVersion: paths.appVersion,
       runtimeDir: paths.runtimeDir,

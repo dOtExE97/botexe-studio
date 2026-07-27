@@ -18,7 +18,9 @@ const BASE = 'https://www.myinstants.com';
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const FETCH_TIMEOUT_MS = 10_000;
-const MAX_DOWNLOAD_BYTES = 5 * 1024 * 1024;
+// Exportiert: overlay-server.ts (streamPreview, Vorhör-Pfad) teilt sich
+// denselben Größen-Cap statt ein zweites Literal zu pflegen.
+export const MAX_DOWNLOAD_BYTES = 5 * 1024 * 1024;
 const MIN_QUERY_INTERVAL_MS = 1000;
 
 const ALLOWED_HOSTS = new Set(['www.myinstants.com', 'myinstants.com']);
