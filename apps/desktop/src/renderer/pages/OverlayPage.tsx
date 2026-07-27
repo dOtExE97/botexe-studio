@@ -41,6 +41,7 @@ import StringListEditor from '../components/StringListEditor';
 import GiftPicker from '../components/GiftPicker';
 import WidgetPreview from '../components/WidgetPreview';
 import { toast, toastAction } from '../components/ToastHost';
+import { markTtlsLinkUsed } from '../components/OverlayHealthBanner';
 // Widget-Katalog (Typ, Standardgröße, Standard-Props, Panel-Felder) — eigenes
 // Modul, damit auch der Überlauf-Prüfer im CI dieselben Definitionen liest.
 import {
@@ -372,6 +373,7 @@ export default function OverlayPage() {
   const copyTtlsLink = async (id: string) => {
     const info = (await window.studio.getTtlsLink(id)) as { url: string; ready: boolean };
     await window.studio.copyText(info.url);
+    markTtlsLinkUsed();
     if (info.ready) {
       toast('success', `Link kopiert! In TTLS: Quelle hinzufügen → Link einfügen → Größe auf ${dimsFor(id)} (benutzerdefinierte Auflösung) → fertig.`);
     } else {

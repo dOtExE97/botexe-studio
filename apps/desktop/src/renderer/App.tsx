@@ -4,6 +4,7 @@ import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
 import ToastHost, { toast } from './components/ToastHost';
 import UpdateBanner from './components/UpdateBanner';
+import OverlayHealthBanner, { markTtlsLinkUsed } from './components/OverlayHealthBanner';
 import TelemetryConsent from './components/TelemetryConsent';
 import ProfileSwitcher from './components/ProfileSwitcher';
 import OnboardingTour from './components/OnboardingTour';
@@ -110,6 +111,7 @@ export default function App() {
   const copyTtls = async () => {
     const info = (await window.studio.getTtlsLink()) as { url: string; ready: boolean };
     await window.studio.copyText(info.url);
+    markTtlsLinkUsed();
     if (info.ready) {
       toast('success', 'Link kopiert — als Link-Quelle einfügen & benutzerdefinierte Auflösung 1080×1920 setzen.');
     } else {
@@ -123,6 +125,7 @@ export default function App() {
       <SoundPlayer />
       <ToastHost />
       <UpdateBanner />
+      <OverlayHealthBanner />
       <TelemetryConsent />
       <KeyWizard />
       <OnboardingTour onNavigate={(p) => {
