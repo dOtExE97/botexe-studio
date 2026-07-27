@@ -16,6 +16,9 @@ import { TUNING_SPECS } from './main/services/tts-tuning';
 import { log, initFileLogging, getLogDir, formatLocalStamp } from './main/core/logger';
 import { generateLayers, generateRules, listGeminiModels, type AiCatalogEntry, type AiTriggerContext } from './main/services/ai-overlay';
 import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, uninstallHostsEntry, TTLS_HOST } from './main/services/ttls-link';
+// Statisch (nicht dynamisch) importiert: der Start muss VOR dem 'ready'-Ereignis
+// passieren, ein nachgeladenes Modul käme zu spät. Siehe Block weiter unten.
+import { initMainTelemetry } from './main/telemetry-main';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
 // dann sofort beenden, sonst öffnen sich Geister-Fenster.
@@ -26,6 +29,27 @@ if (process.argv.some((a) => a === '--squirrel-uninstall')) {
 }
 if (started) {
   app.quit();
+}
+
+// Absturzberichte (Sentry) — MUSS hier oben stehen: das SDK verweigert den
+// Dienst, wenn es erst nach dem 'ready'-Ereignis startet („Sentry SDK should be
+// initialized before the Electron app 'ready' event is fired"). Genau das war
+// bis v0.39.1 der Fall — die Berichte kamen deshalb NIE an, obwohl zugestimmt.
+// Die Zustimmung wird darum direkt aus der settings.json gelesen; der
+// Einstellungs-Speicher selbst entsteht erst viel später mit dem Studio.
+// Hinweis: Das Modul wird zwar immer geladen, aber `initMainTelemetry` (und
+// damit Sentry selbst) läuft NUR bei ausdrücklicher Zustimmung — ohne 'on'
+// verlässt nichts den Rechner.
+try {
+  const datei = path.join(app.getPath('userData'), 'settings.json');
+  const roh = JSON.parse(fs.readFileSync(datei, 'utf-8')) as { telemetry?: string };
+  if (roh.telemetry === 'on') {
+    initMainTelemetry(app.getVersion(), app.isPackaged);
+    log.info('Main', 'Absturzberichte aktiv (Sentry) — mit Geheimnis-Filter');
+  }
+} catch {
+  // Keine/unlesbare Einstellungen (z.B. Erststart) → keine Telemetrie. Bewusst
+  // still: hier läuft noch kein Datei-Log, und ohne Zustimmung ist das normal.
 }
 
 // Performance neben dem Spiel: Chromium drosselt verdeckte/Hintergrund-Fenster
@@ -1201,18 +1225,8 @@ app.whenReady().then(async () => {
 
   studio = setupStudio();
 
-  // Absturzberichte (Sentry) — NUR wenn der Nutzer zugestimmt hat. Ohne 'on'
-  // wird Sentry gar nicht erst geladen, es geht nichts raus. Änderung der
-  // Einstellung wirkt beim nächsten Start (Konsens vor jedem Senden).
-  if (studio.settings.get().telemetry === 'on') {
-    try {
-      const { initMainTelemetry } = await import('./main/telemetry-main');
-      initMainTelemetry(app.getVersion(), app.isPackaged);
-      log.info('Main', 'Absturzberichte aktiv (Sentry) — mit Geheimnis-Filter');
-    } catch (e) {
-      log.warn('Main', 'Sentry-Init fehlgeschlagen', (e as Error).message);
-    }
-  }
+  // (Sentry startet ganz oben in dieser Datei — vor dem 'ready'-Ereignis, sonst
+  // verweigert das SDK den Dienst. Hier wäre es zu spät.)
 
   registerIpc();
   try {

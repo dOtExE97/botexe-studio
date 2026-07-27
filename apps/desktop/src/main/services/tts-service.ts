@@ -37,6 +37,10 @@ const MAX_CACHE_FILES = 60;
 /** Geduld für LOKALE Synthese (Piper): rechnet auf der CPU und darf länger brauchen
  *  als der kurze Online-Riegel. Passt zu Pipers eigenem 15s-Abbruch. */
 const LOCAL_SYNTH_TIMEOUT_MS = 15_000;
+/** So viele Fehlschläge in Folge, bis der Online-Dienst als „streikt" gilt. */
+const ONLINE_FEHLER_BIS_PAUSE = 3;
+/** So lange wird er dann übersprungen (danach automatisch wieder probiert). */
+const ONLINE_PAUSE_MS = 10 * 60_000;
 
 interface QueueItem {
   text: string;
@@ -72,6 +76,9 @@ export class TTSService {
   private readonly onAudio: (playback: TTSPlayback) => void;
   private queue: QueueItem[] = [];
   private processing = false;
+  /** Zähler/Sperre für den Online-Dienst (siehe processNext). */
+  private onlineFehler = 0;
+  private onlineGesperrtBis = 0;
   private dropped = 0;
   /** fileId → Auflöser, der feuert, wenn der Renderer das echte Audio-Ende meldet. */
   private pendingEnded = new Map<string, () => void>();
@@ -215,12 +222,23 @@ export class TTSService {
     }
     this.processing = true;
 
+    let playback: TTSPlayback | null = null;
+    let lastMsg = '';
+
+    // Ist der Online-Dienst gerade als „streikt" gemerkt, gar nicht erst warten:
+    // sonst kostet JEDE Ansage erneut ~19s Anlauf, bevor die lokale Stimme
+    // übernimmt (bei einem Nutzer mit dauerhaft blockiertem Edge-Zugang real
+    // beobachtet). Direkt lokal sprechen — das ist sofort da.
+    const pauseVoice = this.onlineGesperrtBis > Date.now() ? pickLocalFallbackVoice(this.piper, item.voice) : null;
+    if (pauseVoice) {
+      try { playback = await this.synthesize(item.text, pauseVoice); }
+      catch (err) { lastMsg = (err as Error)?.message || String(err) || 'unbekannter Fehler'; }
+    }
+
     // Bis zu 2 Versuche bei TRANSIENTEN Fehlern (z.B. Edge-TTS 503/Timeout) — schnell
     // scheitern statt lange Stille, danach greift der lokale Fallback unten. Permanente
     // Fehler (falscher Key etc.) brechen sofort ab.
-    let playback: TTSPlayback | null = null;
-    let lastMsg = '';
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; !playback && attempt <= 2; attempt++) {
       try { playback = await this.synthesize(item.text, item.voice); break; }
       catch (err) {
         lastMsg = (err as Error)?.message || String(err) || 'unbekannter Fehler';
@@ -236,12 +254,23 @@ export class TTSService {
     // statt komplett stumm zu bleiben (echter Nutzer-Bug: 30s Stille trotz fertig
     // eingerichtetem Piper).
     if (!playback) {
+      // Streik zählen: nach mehreren Fehlschlägen in Folge wird der Online-Dienst
+      // eine Weile übersprungen (siehe oben) — sonst wartet jede Ansage aufs Neue.
+      this.onlineFehler += 1;
+      if (this.onlineFehler >= ONLINE_FEHLER_BIS_PAUSE && this.onlineGesperrtBis <= Date.now()) {
+        this.onlineGesperrtBis = Date.now() + ONLINE_PAUSE_MS;
+        log.warn('TTS', `Online-Stimme mehrfach nicht erreichbar — für ${Math.round(ONLINE_PAUSE_MS / 60000)} Min. direkt die lokale Stimme nutzen.`);
+      }
       const local = pickLocalFallbackVoice(this.piper, item.voice);
       if (local) {
         log.warn('TTS', `Online-Stimme nicht erreichbar (${lastMsg}) → lokale Stimme ${local}`);
         try { playback = await this.synthesize(item.text, local); }
         catch (err) { lastMsg = (err as Error)?.message || lastMsg; }
       }
+    } else if (!pauseVoice) {
+      // Online hat wieder geklappt → Zähler zurück, Pause aufheben.
+      this.onlineFehler = 0;
+      this.onlineGesperrtBis = 0;
     }
     if (playback) {
       this.onAudio(playback);
