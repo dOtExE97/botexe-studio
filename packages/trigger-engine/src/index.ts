@@ -2,6 +2,16 @@
 // Cooldowns rechnen mit event.ts (nicht Wanduhr) → Replay-Tests sind exakt reproduzierbar.
 
 export { giftRuleId, findGiftRule, upsertGiftRule, otherGiftRules, orderedGiftKeys, type GiftKey } from './gift-mapping';
+// giftKey ist EINZIGE Quelle in packages/widget-kit/gift-rules.js (DOM-freies
+// reines JS, allowJs übernimmt es unverändert — s. tsconfig.json und der
+// bestehende itemsFromRules-Import in gift-mapping.ts). Vorher hatte diese
+// Datei eine eigene, textidentische Kopie von giftKey — 4. unabhängige Kopie
+// im Repo (neben gift-rules.js selbst, gift-counter.js und dem impliziten
+// Vertrag über orderedGiftKeys). Ändert sich die Normalisierungsregel künftig
+// (z.B. Unicode-Normalisierung für Emoji-Gift-Namen) nur an EINER Stelle,
+// drifteten Trigger-Matching (hier) und Rad/Slot/Tafel (gift-rules.js)
+// lautlos auseinander.
+import { giftKey } from '../../widget-kit/gift-rules.js';
 
 export type StudioEventType =
   | 'chat'
@@ -307,12 +317,6 @@ export function renderSpeakTemplate(template: string, event: StudioEvent): strin
     .replace(/\{gift\}/g, event.gift?.slug ?? '')
     .replace(/\{count\}/g, String(event.gift?.count ?? ''))
     .replace(/\{coins\}/g, String(event.gift?.totalCoins ?? ''));
-}
-
-/** Normalisierter Gift-Schlüssel (nur Buchstaben/Ziffern, klein) für tolerantes
- *  Matching — Apostroph/Leerzeichen/Schreibweise egal. */
-function giftKey(slug: string): string {
-  return slug.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolean {

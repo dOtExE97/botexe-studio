@@ -5,6 +5,14 @@
 // props: { giftSlug?, target?, label?, onReach?: 'raise'|'reset'|'keep',
 //          accent?, theme? }  — bei „raise" steigt das Ziel um die ursprüngliche
 //          Zielgröße (15 → 30 → 45 …).
+//
+// giftKey() kommt aus gift-rules.js (EINZIGE Quelle, s. dortiger Kommentar) —
+// vorher hatte diese Datei eine eigene, textidentische Kopie (4. unabhängige
+// Kopie im Repo neben trigger-engine/index.ts, gift-rules.js selbst und dem
+// Re-Export hier). Wird re-exportiert, falls jemand `giftKey` bisher von
+// HIER importiert (Kompatibilität), aber es gibt nur noch eine Implementierung.
+import { giftKey } from './gift-rules.js';
+export { giftKey };
 const STYLE_ID = 'bx-gco-style';
 // --u = „1px bei Standardgröße" (340×360): alle Maße sind Vielfache davon,
 // damit Icon und Zahlen mitwachsen, wenn das Widget größer gezogen wird.
@@ -93,13 +101,6 @@ html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow:
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 const GIFT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8"/><path d="M2 7h20v5H2z"/><path d="M12 21V7"/><path d="M12 7S10.5 3 8 3a2.2 2.2 0 0 0 0 4Z"/><path d="M12 7s1.5-4 4-4a2.2 2.2 0 0 1 0 4Z"/></svg>';
-
-/** Normalisierter Gift-Schlüssel: nur Buchstaben/Ziffern, klein. Macht das
- *  Matching tolerant gegen Apostroph/Leerzeichen/Schreibweise — so findet ein
- *  vorab gewähltes „Jollie's Community" beim Empfang zuverlässig zusammen. */
-export function giftKey(slug) {
-  return String(slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
 
 /** Gift-Icon im Katalog finden — über den normalisierten Slug.
  *  Liefert '' wenn nicht gefunden. Reine Logik → testbar. */
