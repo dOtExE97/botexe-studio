@@ -42,3 +42,25 @@ test('mergeGiftItems: leere/fehlende Listen brechen nicht (Guard gegen non-array
   assert.deepEqual(mergeGiftItems([], []), []);
   assert.deepEqual(mergeGiftItems(undefined, [{ slug: 'x', text: 'y' }]), [{ slug: 'x', text: 'y' }]);
 });
+
+// Diese Reihenfolge ist eine harte Zusage an den Server: bei Quelle „Trigger"
+// würfelt er den Gewinner (Glücksrad-Karte / Automat) NUR aus der Anzahl der
+// Trigger-Einträge — trifft im Widget aber Position N der GESAMTEN Liste.
+// Solange die abgeleiteten Einträge vorne stehen, zeigt Position N auf beiden
+// Seiten auf dasselbe Geschenk. Rutschen manuelle Einträge dazwischen, feuert
+// der Server das falsche Geschenk. Darum hier festgenagelt.
+test('mergeGiftItems: abgeleitete Einträge stehen VORNE (Index-Gleichlauf mit dem Server)', () => {
+  const derived = [
+    { slug: 'Rose', giftId: 0, text: 'Konfetti', ruleId: 'r1' },
+    { slug: 'Galaxy', giftId: 0, text: 'Songwunsch', ruleId: 'r2' },
+  ];
+  const manual = [
+    { slug: 'Hand Heart', text: 'Sound', secs: 0 },
+    { slug: 'Doughnut', text: 'Tode +1', secs: 0 },
+  ];
+  const merged = mergeGiftItems(derived, manual);
+  // Die ersten derived.length Positionen sind unverändert die abgeleiteten.
+  assert.deepEqual(merged.slice(0, derived.length), derived);
+  // Und die manuellen hängen hinten dran (verlieren also nie ihren Platz).
+  assert.equal(merged.length, derived.length + manual.length);
+});
