@@ -3,6 +3,26 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.39.2] — 2026-07-27
+
+### Behoben: Geschenke-Tafel feierte nicht mehr
+Ein Geschenk kam an, der Trigger feuerte (Sound/Ansage) — aber die **Geschenke-Tafel zeigte keine Animation**. Grund: Stand die Tafel auf „Automatisch aus meinen Geschenk-Triggern", wurden **selbst ausgewählte Geschenke stillschweigend verworfen**. Betroffen war vor allem, wer einen Trigger über eine **Coin-Schwelle** laufen lässt (statt über den Geschenk-Namen) — daraus lässt sich kein Geschenk ableiten, der Eintrag verschwand. Jetzt ergänzen deine eigenen Einträge die automatischen, statt ersetzt zu werden.
+
+### Behoben: Overlay im Stream
+- **Profilwechsel kam nicht an:** „Als Standard setzen" erreichte eine bereits laufende OBS-/TikTok-Studio-Quelle nicht — sie zeigte still weiter das alte Overlay.
+- **Geister-Alerts:** Nach jedem Neustart oder kurzen Verbindungsabbruch wurde das **letzte Geschenk erneut gefeiert**, obwohl es längst durch war.
+
+### Behoben: Sprachausgabe
+- **Absturzberichte gingen nie raus** — sie wurden zu spät gestartet, deshalb kam trotz Zustimmung nie eine Meldung an. (Betrifft nur die Fehlersuche, keine persönlichen Daten.)
+- **Alles doppelt angesagt:** Hatte ein Geschenk einen eigenen Ansage-Trigger, sagte die automatische Ansage dasselbe noch einmal.
+- **Kein langer Anlauf mehr:** Antwortet der Online-Vorlese-Dienst dauerhaft nicht, wird er 10 Minuten übersprungen und sofort die lokale Stimme genutzt — statt bei **jeder** Ansage erneut ~19 Sekunden zu warten.
+
+### Behoben: Widgets & Testen
+- **Geschenk-Glas:** Die Münz-Animation lief im Hintergrund weiter, auch nachdem das Widget entfernt war.
+- **Like-Herzen:** Eigene Emojis folgten dem Textgrößen-Regler nicht.
+- **Geschenke-Slider:** Die eingestellte Zieh-Dauer der Lucky-Card wurde ignoriert (immer 3 Sekunden).
+- **Regel testen:** Jeder Test zählte als *neuer* Zuschauer — dadurch stand im Top-Gifter fünfmal „Test-Zuschauer" statt einmal. Außerdem weist die App jetzt darauf hin, wenn beim Testen **kein Overlay verbunden** ist (dann hörst du Sounds, siehst aber keine Animation).
+
 ## [0.39.1] — 2026-07-27
 
 ### Behoben: Auto-Update ging nicht mehr (dringend)
