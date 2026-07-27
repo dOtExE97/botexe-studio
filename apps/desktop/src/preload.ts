@@ -144,6 +144,9 @@ const api = {
   setObsConfig: (cfg: { enabled: boolean; url: string; password: string }) => ipcRenderer.invoke(IPC.OBS_SET_CONFIG, cfg),
   getObsScenes: () => ipcRenderer.invoke(IPC.OBS_GET_SCENES),
   onObsStatus: listen<string>(IPC.OBS_STATUS),
+  // P3c-Audit: Pull des Ist-Status beim Seiten-Mount (Push allein reicht nicht —
+  // siehe Kommentar bei OBS_GET_STATUS in main.ts).
+  getObsStatus: (): Promise<string> => ipcRenderer.invoke(IPC.OBS_GET_STATUS),
   // TikTok-Login + Chat senden
   tiktokLogin: () => ipcRenderer.invoke(IPC.TIKTOK_LOGIN),
   tiktokLogout: () => ipcRenderer.invoke(IPC.TIKTOK_LOGOUT),
@@ -152,6 +155,8 @@ const api = {
   setStreamerbotConfig: (cfg: { enabled: boolean; url: string }) => ipcRenderer.invoke(IPC.SB_SET_CONFIG, cfg),
   getStreamerbotActions: () => ipcRenderer.invoke(IPC.SB_GET_ACTIONS),
   onStreamerbotStatus: listen<string>(IPC.SB_STATUS),
+  // P3c-Audit: gleicher Pull wie getObsStatus, für Streamer.bot.
+  getStreamerbotStatus: (): Promise<string> => ipcRenderer.invoke(IPC.SB_GET_STATUS),
   openLogs: () => ipcRenderer.invoke(IPC.LOGS_OPEN),
   resetSession: () => ipcRenderer.invoke(IPC.SESSION_RESET),
   getTtlsLink: (layoutId?: string) => ipcRenderer.invoke(IPC.TTLS_LINK_GET, layoutId),

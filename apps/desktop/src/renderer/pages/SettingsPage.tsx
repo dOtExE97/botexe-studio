@@ -125,8 +125,20 @@ export default function SettingsPage() {
     });
     void window.studio.getAppInfo().then((i: AppInfo) => setInfo(i));
     const offUpdate = window.studio.onUpdateStatus((s) => setUpdate(s));
-    const offObs = window.studio.onObsStatus((s) => setObsStatus(s));
-    const offSb = window.studio.onStreamerbotStatus((s) => setSbStatus(s));
+    // P3c-Audit: OBS/Streamer.bot-Status kamen bisher NUR per Push (onObsStatus/
+    // onStreamerbotStatus) — verlässt der Nutzer diese Seite (Unmount) und kommt
+    // später zurück, während die Verbindung längst steht, zeigt die Ampel
+    // fälschlich "Aus", bis der NÄCHSTE echte Statuswechsel einen neuen Push
+    // auslöst (kann Minuten/Stunden dauern oder nie passieren). Fix wie beim
+    // Platform-Status (useStudio.ts): zusätzlich zum Push den Ist-Stand einmal
+    // abholen (Pull), mit Wächter gegen die Race in der Gegenrichtung — kommt
+    // zwischen Subscribe und Pull-Antwort noch ein echter Push rein, gewinnt der.
+    let obsPushedSincePull = false;
+    const offObs = window.studio.onObsStatus((s) => { obsPushedSincePull = true; setObsStatus(s); });
+    void window.studio.getObsStatus().then((s) => { if (!obsPushedSincePull) setObsStatus(s); });
+    let sbPushedSincePull = false;
+    const offSb = window.studio.onStreamerbotStatus((s) => { sbPushedSincePull = true; setSbStatus(s); });
+    void window.studio.getStreamerbotStatus().then((s) => { if (!sbPushedSincePull) setSbStatus(s); });
     // Key-Assistent hat gespeichert → Status-Ampel sofort auf „Key gesetzt".
     const onKeySaved = () => setSignKeySet(true);
     window.addEventListener('bx-key-saved', onKeySaved);

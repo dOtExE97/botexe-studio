@@ -147,6 +147,11 @@ export const IPC = {
   OBS_SET_CONFIG: 'obs:set-config',
   OBS_GET_SCENES: 'obs:get-scenes',
   OBS_STATUS: 'obs:status',
+  /** P3c-Audit: Status-Änderungen liefen bisher NUR gepusht (OBS_STATUS).
+   *  Verlässt der Nutzer die Einstellungen-Seite und kommt später zurück,
+   *  während OBS schon länger verbunden ist, zeigte die UI fälschlich "Aus"
+   *  bis zum nächsten echten Statuswechsel — expliziter Pull beim Mount. */
+  OBS_GET_STATUS: 'obs:get-status',
   // TikTok-Login (Chat-Senden) + Chat senden
   TIKTOK_LOGIN: 'tiktok:login',
   TIKTOK_LOGOUT: 'tiktok:logout',
@@ -155,6 +160,8 @@ export const IPC = {
   SB_SET_CONFIG: 'sb:set-config',
   SB_GET_ACTIONS: 'sb:get-actions',
   SB_STATUS: 'sb:status',
+  /** P3c-Audit: gleiches Muster wie OBS_GET_STATUS, für Streamer.bot. */
+  SB_GET_STATUS: 'sb:get-status',
   // Auto-Update (GitHub Releases, Squirrel-Delta)
   UPDATE_CHECK: 'update:check',
   UPDATE_INSTALL: 'update:install',

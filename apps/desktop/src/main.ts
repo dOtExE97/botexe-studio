@@ -737,6 +737,11 @@ function registerIpc(): void {
     return { ok: true, status: isStudio().getObsStatus() };
   });
   ipcMain.handle(IPC.OBS_GET_SCENES, () => isStudio().getObsScenes());
+  // P3c-Audit: Renderer-Pull des Ist-Status beim Mount — sonst zeigt
+  // SettingsPage.tsx nach einem Unmount/Remount (Seitenwechsel) fälschlich
+  // "Aus", obwohl OBS längst verbunden ist (Push kommt erst beim NÄCHSTEN
+  // echten Statuswechsel, kann Minuten/Stunden dauern oder nie passieren).
+  ipcMain.handle(IPC.OBS_GET_STATUS, () => isStudio().getObsStatus());
   // Streamer.bot
   ipcMain.handle(IPC.SB_SET_CONFIG, (_e, cfg: unknown) => {
     const c = (cfg ?? {}) as Record<string, unknown>;
@@ -747,6 +752,8 @@ function registerIpc(): void {
     return { ok: true, status: isStudio().getStreamerbotStatus() };
   });
   ipcMain.handle(IPC.SB_GET_ACTIONS, () => isStudio().getStreamerbotActions());
+  // P3c-Audit: gleicher Pull wie OBS_GET_STATUS, für Streamer.bot.
+  ipcMain.handle(IPC.SB_GET_STATUS, () => isStudio().getStreamerbotStatus());
   // TikTok-Login-Fenster: nach dem Login den sessionid-Cookie auslesen.
   ipcMain.handle(IPC.TIKTOK_LOGIN, () => openTiktokLogin());
   ipcMain.handle(IPC.TIKTOK_LOGOUT, () => { isStudio().setTiktokSession(undefined); return { ok: true }; });
