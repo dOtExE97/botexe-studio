@@ -3,13 +3,16 @@
 // giftmap-<slug>), damit Zuordnungen idempotent sind. Zusätzliche, frei auf
 // der Trigger-Seite gebaute Regeln zum selben Gift bleiben unberührt.
 import type { TriggerAction, TriggerRule } from './index';
-// itemsFromRules ist reine, DOM-freie Logik aus packages/widget-kit — SIE ist
-// die einzige Quelle für „Gift-Regeln → Rad-/Tafel-Einträge". Damit gilt
-// orderedGiftKeys()' Index per Konstruktion für dasselbe Segment, das das
-// Rad-Widget (wheel.js) anzeigt — keine zweite, von Hand synchron zu
-// haltende Kopie mehr. Kein Typen-Paket nötig: gift-rules.js ist DOM-frei
-// reines JS, allowJs übernimmt es unverändert (siehe tsconfig.json).
-import { itemsFromRules, giftKey } from '../../widget-kit/gift-rules.js';
+// orderedGiftEntries ist reine, DOM-freie Logik aus packages/widget-kit — SIE
+// ist die einzige Quelle für „Gift-Regeln → gefilterte Rad-/Tafel-Einträge"
+// (itemsFromRules() + der Textfilter, den jede Anzeige-Seite ohnehin
+// braucht, in EINER Funktion statt als von Hand nachgebauter Filter pro
+// Aufrufer). Damit gilt orderedGiftKeys()' Index per Konstruktion für
+// dasselbe Segment, das das Rad-Widget (wheel.js) anzeigt — keine zweite,
+// von Hand synchron zu haltende Kopie mehr. Kein Typen-Paket nötig: gift-
+// rules.js ist DOM-frei reines JS, allowJs übernimmt es unverändert (siehe
+// tsconfig.json).
+import { orderedGiftEntries, giftKey } from '../../widget-kit/gift-rules.js';
 
 /** Stabile id der kanonischen Galerie-Regel eines Gifts.
  *
@@ -91,21 +94,22 @@ export interface GiftKey {
 /**
  * Gift-Regeln in Anzeigereihenfolge, dedupliziert und um textlose Einträge
  * bereinigt — DER GEWINNER-INDEX HIER IST PER KONSTRUKTION IDENTISCH ZU DEN
- * SICHTBAREN RAD-SEGMENTEN: beide entstehen aus derselben itemsFromRules()
- * (packages/widget-kit/gift-rules.js), und beide wenden denselben Textfilter
- * an (`.filter((it) => it.text)`), den wheel.js beim Segmentaufbau nutzt
- * (`this.segments = items.map(it => it.text).filter(Boolean)`). Eine
- * Gift-Regel ohne Aktion (leerer Text) zählt hier also NICHT mit — sie taucht
- * auf dem Rad ja auch nicht als Segment auf. Ohne diesen Filter würde der
- * Server-Index gegen die Rad-Segmente driften (Index N zählt eine Regel mit,
- * die das Rad gar nicht zeigt → falsches Feld feuert).
+ * SICHTBAREN RAD-SEGMENTEN: beide entstehen aus derselben, EINEN
+ * orderedGiftEntries() (packages/widget-kit/gift-rules.js) — inklusive deren
+ * Textfilter (`.filter((it) => it.text)`), den wheel.js/slot-machine.js/
+ * gift-menu.js beim Aufbau ihrer Anzeige-Liste ebenfalls über dieselbe
+ * Funktion anwenden (nicht mehr über eine eigene, lokale Kopie des Filters).
+ * Eine Gift-Regel ohne Aktion (leerer Text) zählt hier also NICHT mit — sie
+ * taucht auf dem Rad ja auch nicht als Segment auf. Ohne diesen (gemeinsamen)
+ * Filter würde der Server-Index gegen die Rad-Segmente driften (Index N
+ * zählt eine Regel mit, die das Rad gar nicht zeigt → falsches Feld feuert).
  */
 export function orderedGiftKeys(rules: TriggerRule[]): GiftKey[] {
-  const items = (itemsFromRules(Array.isArray(rules) ? rules : []) as Array<{
+  const items = orderedGiftEntries(Array.isArray(rules) ? rules : []) as Array<{
     slug: string;
     giftId: number;
     text: string;
     ruleId: string;
-  }>).filter((it) => it.text);
+  }>;
   return items.map((it) => ({ slug: it.slug, giftId: it.giftId, ruleId: it.ruleId }));
 }

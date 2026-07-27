@@ -3,7 +3,7 @@
 // Gewinn-Popup. Blendet sich beim Spin automatisch ein und nach dem
 // Ergebnis wieder aus (props.autoShow). props: { segments, accent, spinMs,
 //   autoShow?, title? }. rAF nur während der Show (TTLS-schonend).
-import { itemsFromRules } from './gift-rules.js';
+import { orderedGiftEntries } from './gift-rules.js';
 
 const STYLE_ID = 'bx-wh-style';
 const CSS = `
@@ -62,7 +62,7 @@ const COLORS = ['#ff5436','#ffd23e','#28e0c4','#5c9dff','#c45cff','#ff5e8a','#7d
 // Setzt auf itemsFromRules (gift-menu.js) auf: dort steckt schon die Logik,
 // welche Regel einen sprechenden Text liefert.
 export function segmentsFromRules(rules) {
-  return itemsFromRules(rules).map((it) => it.text).filter(Boolean);
+  return orderedGiftEntries(rules).map((it) => it.text);
 }
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 
@@ -149,11 +149,14 @@ export default class Wheel {
       if (!res.ok) return;
       const data = await res.json();
       const rules = Array.isArray(data) ? data : (data && Array.isArray(data.rules) ? data.rules : []);
-      // Textfilter ZUERST anwenden — segmentRules und segments müssen aus
-      // DERSELBEN gefilterten Liste kommen, sonst zeigt Index i bei segments
-      // ein anderes Gift als bei segmentRules (Rad-Bindung Task 1 hatte hier
-      // segmentRules unfiltered stehen, während segments schon filterte).
-      const items = itemsFromRules(rules).filter((it) => it.text);
+      // orderedGiftEntries() (gift-rules.js) — segmentRules und segments
+      // müssen aus DERSELBEN gefilterten, geordneten Liste kommen wie
+      // orderedGiftKeys() (Server) und gift-menu.js'/slot-machine.js'
+      // loadRules(); ein eigener/vergessener Filter hier ließe Index i bei
+      // segments auf ein anderes Gift zeigen als bei segmentRules (Rad-
+      // Bindung Task 1 hatte genau das: segmentRules unfiltered, segments
+      // schon gefiltert).
+      const items = orderedGiftEntries(rules);
       if (!items.length) return;
       this.segmentRules = items;
       this.segments = items.map((it) => it.text);

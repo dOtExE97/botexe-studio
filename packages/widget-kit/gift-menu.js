@@ -1371,8 +1371,8 @@ function escapeHtml(s) {
 // EINZIGE Quelle dieser Logik, die sich auch der Server (trigger-engine/
 // gift-mapping.ts) und das Rad-Widget (wheel.js) teilen. Hier importiert UND
 // re-exportiert, damit bestehende Imports von gift-menu.js weiter funktionieren.
-import { giftKey, actionLabel, itemsFromRules, mergeGiftItems } from './gift-rules.js';
-export { giftKey, actionLabel, itemsFromRules, mergeGiftItems };
+import { giftKey, actionLabel, itemsFromRules, orderedGiftEntries, mergeGiftItems } from './gift-rules.js';
+export { giftKey, actionLabel, itemsFromRules, orderedGiftEntries, mergeGiftItems };
 // Challenge-Countdown pro Eintrag: reiner Kern in gift-countdown.js (NICHT
 // countdown.js — das ist das unabhängige Premium-Countdown-Widget).
 import {
@@ -2046,14 +2046,13 @@ export default class GiftMenu {
       if (!res.ok) return;
       const data = await res.json();
       const rules = Array.isArray(data) ? data : (data && Array.isArray(data.rules) ? data.rules : []);
-      // Textfilter ZUERST anwenden — MUSS mit orderedGiftKeys() (Server,
+      // orderedGiftEntries() (gift-rules.js) statt itemsFromRules()+eigenem
+      // Filter — DIESELBE Funktion, die orderedGiftKeys() (Server,
       // gift-mapping.ts) sowie slot-machine.js' und wheel.js' loadRules()
-      // deckungsgleich bleiben: Der Server errechnet winnerIndex = floor(
-      // rollPick * orderedGiftKeys(rules).length), und orderedGiftKeys()
-      // filtert dieselbe itemsFromRules-Liste auf `.text`. Ein breiterer
-      // Filter hier (oder gar keiner) nimmt Einträge auf, die der Server
-      // nicht zählt → Index-Drift, der Server trifft die falsche Karte.
-      const derived = itemsFromRules(rules).filter((it) => it.text);
+      // verwenden. Ein eigener/vergessener Filter hier würde Einträge
+      // aufnehmen, die der Server nicht zählt → Index-Drift, der Server
+      // trifft die falsche Karte.
+      const derived = orderedGiftEntries(rules);
       // Manuelle Einträge (props.items, per GiftPicker gewählt) NIE
       // stillschweigend verwerfen — s. Kommentar bei mergeGiftItems()
       // (gift-rules.js): ein Trigger, der über einen Coin-/Combo-Schwellenwert

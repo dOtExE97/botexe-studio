@@ -102,6 +102,24 @@ export function itemsFromRules(rules) {
  *  Nutzer TROTZDEM per GiftPicker in der Liste unten ausgewählt hatte, wurde
  *  dabei stillschweigend verworfen: die Tafel feierte nie, obwohl der Sound
  *  hörbar lief. Mit dem Merge bleibt genau dieser manuelle Eintrag erhalten. */
+/** DIE kanonische, gefilterte, geordnete Gift-Eintragsliste — Server-
+ *  Gewinner-Index und Widget-Anzeige MÜSSEN beide exakt aus DIESER Funktion
+ *  kommen, nicht nur aus itemsFromRules() + einem von Hand nachgebauten
+ *  `.filter((it) => it.text)`.
+ *
+ *  Vorher wandte jeder Aufrufer (gift-mapping.ts' orderedGiftKeys, gift-
+ *  menu.js' loadRules, slot-machine.js' loadRules, wheel.js' loadRules) den
+ *  Textfilter selbst an — vier textidentische Kopien derselben einen Zeile,
+ *  nur durch Kommentar synchron gehalten ("MUSS mit orderedGiftKeys()
+ *  deckungsgleich bleiben"). Ein neuer Aufrufer, der diesen Kommentar nicht
+ *  liest oder den Filter vergisst, würde sofort einen Index-Drift einführen
+ *  — genau der Fehler, der Rad/Slot/Lucky-Draw je einmal real getroffen hat.
+ *  Jetzt gibt es nur noch DIESE eine Funktion; wer sie aufruft, kann den
+ *  Filter nicht mehr vergessen. */
+export function orderedGiftEntries(rules) {
+  return itemsFromRules(rules).filter((it) => it.text);
+}
+
 export function mergeGiftItems(derived, manual) {
   const seen = new Set(
     (Array.isArray(derived) ? derived : [])
