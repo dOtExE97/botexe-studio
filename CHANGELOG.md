@@ -3,6 +3,23 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.39.3] — 2026-07-27
+
+### Behoben: App startete manchmal gar nicht mehr (wichtig)
+War der Netzwerk-Anschluss belegt, den bOtExE Studio für das Overlay braucht (Port 27415), **startete die App überhaupt nicht** — kein Fenster, keine Fehlermeldung, nichts. Sie hätte eigentlich auf den nächsten freien Anschluss ausweichen sollen, kam aber nie so weit.
+
+Typische Auslöser: ein hängengebliebener Rest der App nach einem Absturz, oder ein anderes Programm, das denselben Anschluss belegt. Jetzt weicht die App wie vorgesehen aus und läuft normal weiter.
+
+**Falls die App bei dir zuletzt „einfach nicht mehr aufging": Das war vermutlich genau das.**
+
+### Neu: Warnung, wenn im Stream nichts vom Overlay ankommt
+Drei Situationen, in denen bisher **still gar nichts** zu sehen war, meldet die App jetzt aktiv:
+- **Anderer Anschluss als üblich** → deine bereits eingerichtete OBS-Quelle zeigt ins Leere. Mit einem Knopf **„Link neu kopieren"** direkt behoben.
+- **Du bist live, aber keine Overlay-Quelle ist verbunden** → im Stream ist nichts vom Overlay zu sehen. (Erst nach drei Minuten, damit kurze Aussetzer nicht nerven.)
+- **Der TikTok-Studio-Link antwortet nicht mehr** → kann mitten im Stream passieren (Router, VPN, DNS). Betrifft nur, wer diesen Weg nutzt.
+
+Alle Hinweise lassen sich wegklicken und verschwinden von selbst, sobald das Problem behoben ist.
+
 ## [0.39.2] — 2026-07-27
 
 ### Behoben: Geschenke-Tafel feierte nicht mehr
