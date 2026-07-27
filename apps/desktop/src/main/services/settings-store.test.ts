@@ -8,6 +8,7 @@ import {
   SETTINGS_SCHEMA_VERSION,
   redactSecretsForExport,
   stripSecretFieldsForImport,
+  sanitizeSettingsPatch,
 } from './settings-store';
 
 function tmpDir(): string {
@@ -168,4 +169,106 @@ test('Neues readGroups wird unverändert übernommen (nicht überschrieben)', ()
   writeSettings(dir, { schemaVersion: 6, tts: { enabled: true, readGroups: ['mods', 'subs'] } });
   const s = new SettingsStore(dir).get();
   assert.deepEqual(s.tts.readGroups, ['mods', 'subs']);
+});
+
+// ── P3a-Audit: sanitizeSettingsPatch — dieselbe Härtung, die vorher NUR im
+// IPC.SETTINGS_UPDATE-Handler lag, muss jetzt auch den Backup-Import
+// (studio.ts#importConfig) vor kaputten/manipulierten Feldern schützen. ──
+
+test('sanitizeSettingsPatch: kaputter mixer (String statt Objekt) wird verworfen — aktueller Mixer bleibt', () => {
+  const dir = tmpDir();
+  const store = new SettingsStore(dir);
+  store.update({ mixer: { master: 0.5, channels: store.get().mixer.channels } });
+  const current = store.get();
+
+  const patch = sanitizeSettingsPatch({ mixer: 'laut' }, current);
+  assert.equal(patch.mixer, undefined); // kein gültiges Objekt → nicht übernommen
+});
+
+test('sanitizeSettingsPatch: mixer.master als String wird von normalizeMixer geklemmt statt zu crashen', () => {
+  const dir = tmpDir();
+  const current = new SettingsStore(dir).get();
+  const patch = sanitizeSettingsPatch({ mixer: { master: 'laut', channels: {} } }, current);
+  assert.equal(typeof patch.mixer?.master, 'number');
+  assert.ok(patch.mixer && patch.mixer.master >= 0 && patch.mixer.master <= 1);
+});
+
+test('sanitizeSettingsPatch: points.perChat als String (kaputtes Backup) wird ignoriert — aktueller Wert bleibt', () => {
+  const dir = tmpDir();
+  const store = new SettingsStore(dir);
+  store.update({ points: { ...store.get().points, perChat: 7 } });
+  const current = store.get();
+
+  const patch = sanitizeSettingsPatch({ points: { perChat: '10' } }, current);
+  assert.equal(patch.points?.perChat, 7); // String verworfen, alter Wert bleibt
+});
+
+test('sanitizeSettingsPatch: obs mit falschen Feldtypen fällt pro Feld auf den aktuellen Wert zurück', () => {
+  const dir = tmpDir();
+  const store = new SettingsStore(dir);
+  store.update({ obs: { enabled: true, url: 'ws://echt', password: 'geheim' } });
+  const current = store.get();
+
+  const patch = sanitizeSettingsPatch({ obs: { enabled: 'ja', url: 123, password: 'neu' } }, current);
+  assert.equal(patch.obs?.enabled, true); // 'ja' ist kein boolean → alter Wert
+  assert.equal(patch.obs?.url, 'ws://echt'); // 123 ist kein string → alter Wert
+  assert.equal(patch.obs?.password, 'neu'); // gültiger String → übernommen
+});
+
+test('sanitizeSettingsPatch: unbekannte/kaputte Felder tauchen nicht im Ergebnis auf (kein Prototype-Pollution-Vektor)', () => {
+  const dir = tmpDir();
+  const current = new SettingsStore(dir).get();
+  const patch = sanitizeSettingsPatch(
+    { __proto__: { polluted: true }, notAField: 'x', telemetry: 'kaputt' },
+    current,
+  );
+  assert.equal((patch as Record<string, unknown>).notAField, undefined);
+  assert.equal(patch.telemetry, undefined); // nur 'on'/'off' sind gültig
+  assert.equal(({} as Record<string, unknown>).polluted, undefined);
+});
+
+test('sanitizeSettingsPatch: import-artiges Rundum-kaputtes Backup korrumpiert settings.json NICHT', () => {
+  // Simuliert genau das Szenario aus dem Audit: ein altes/manipuliertes Backup
+  // mit falschen Typen in mixer/points/obs/tts landet über importConfig() im
+  // Store — vorher ging das ROH durch settings.update() durch.
+  const dir = tmpDir();
+  const store = new SettingsStore(dir);
+  const before = store.get();
+
+  const malformedBackup = {
+    mixer: null,
+    points: { perChat: 'zehn', enabled: 'nein' },
+    obs: { enabled: 'ja', url: 42, password: {} },
+    tts: { enabled: 'nope', volume: 'laut', tuning: 'kaputt' },
+    moderation: { blockedWords: 'kein-array' },
+    telemetry: 'invalid',
+    autostart: 'yes',
+  };
+  const sanitized = sanitizeSettingsPatch(malformedBackup, before);
+  store.update(sanitized);
+  const after = store.get();
+
+  // Nichts crasht, und die kaputten Werte landen NICHT im persistierten Store.
+  assert.deepEqual(after.mixer, before.mixer);
+  assert.equal(after.points.perChat, before.points.perChat);
+  assert.equal(after.points.enabled, before.points.enabled);
+  assert.equal(after.obs.enabled, before.obs.enabled);
+  assert.equal(after.obs.url, before.obs.url);
+  assert.equal(after.tts.enabled, before.tts.enabled);
+  assert.equal(typeof after.tts.volume, 'number');
+  assert.deepEqual(after.moderation.blockedWords, before.moderation.blockedWords);
+  assert.equal(after.telemetry, before.telemetry);
+  assert.equal(after.autostart, before.autostart);
+
+  // Reload von Platte (simuliert Neustart) — bleibt konsistent, kein Crash.
+  const reloaded = new SettingsStore(dir).get();
+  assert.deepEqual(reloaded.mixer, before.mixer);
+});
+
+test('sanitizeSettingsPatch: gültige triggerRules/chatCommands werden durchgereicht (bereits vom Aufrufer validiert)', () => {
+  const dir = tmpDir();
+  const current = new SettingsStore(dir).get();
+  const rules = [{ id: 'r1', name: 'x', event: 'gift', actions: [], enabled: true }];
+  const patch = sanitizeSettingsPatch({ triggerRules: rules }, current);
+  assert.deepEqual(patch.triggerRules, rules);
 });

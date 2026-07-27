@@ -6,10 +6,9 @@ import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
 import type { StudioEvent } from '@botexe/trigger-engine';
 import { validateTriggerRules, validateChatCommands, validateRedemptions, validatePanelButtons, validateTriggerAction } from './main/services/validators';
 import { IPC } from './shared/constants';
-import { normalizeMixer } from './shared/mixer';
 import { parseChangelog } from './shared/changelog';
 import { Studio } from './main/services/studio';
-import type { TTSSettings } from './main/services/settings-store';
+import { sanitizeSettingsPatch } from './main/services/settings-store';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
 import { TUNING_SPECS } from './main/services/tts-tuning';
@@ -364,22 +363,6 @@ function setupStudio(): Studio {
 function isStudio(): Studio {
   if (!studio) throw new Error('Studio nicht initialisiert');
   return studio;
-}
-
-/** Einen TTS-Ansage-Block aus dem Renderer säubern (nested merge auf den
- *  aktuellen Stand, Bounds) — Teil der IPC-Allowlist-Härtung. */
-function sanitizeAnnounce<T extends { enabled: boolean; template: string; voice: string }>(
-  current: T,
-  incoming: unknown,
-): T {
-  if (typeof incoming !== 'object' || incoming === null) return current;
-  const i = incoming as Record<string, unknown>;
-  return {
-    ...current,
-    ...(typeof i.enabled === 'boolean' ? { enabled: i.enabled } : {}),
-    ...(typeof i.template === 'string' ? { template: i.template.slice(0, 300) } : {}),
-    ...(typeof i.voice === 'string' ? { voice: i.voice.slice(0, 100) } : {}),
-  };
 }
 
 function registerIpc(): void {
@@ -974,110 +957,12 @@ function registerIpc(): void {
   });
   ipcMain.handle(IPC.SETTINGS_UPDATE, (_e, patch: unknown) => {
     if (typeof patch !== 'object' || patch === null) return { ok: false };
-    // Nur bekannte, harmlose Felder durchlassen.
-    const allowed: Record<string, unknown> = {};
-    const p = patch as Record<string, unknown>;
-    if (typeof p.soundVolume === 'number') allowed.soundVolume = Math.min(1, Math.max(0, p.soundVolume));
-    if (typeof p.lastUsername === 'string') allowed.lastUsername = p.lastUsername;
-    // Audio-Ausgabegerät: war NICHT in der Allowlist → wurde nie persistiert
-    // (Ausgabe fiel nach jedem Neustart auf „System" zurück). Jetzt gespeichert.
-    if (typeof p.audioOutputId === 'string') allowed.audioOutputId = p.audioOutputId.slice(0, 200);
-    if (typeof p.audioOutputLabel === 'string') allowed.audioOutputLabel = p.audioOutputLabel.slice(0, 120);
-    if (typeof p.points === 'object' && p.points !== null) {
-      const pc = p.points as Record<string, unknown>;
-      const cur = isStudio().settings.get().points;
-      allowed.points = {
-        ...cur,
-        ...(typeof pc.enabled === 'boolean' ? { enabled: pc.enabled } : {}),
-        ...(typeof pc.perChat === 'number' ? { perChat: Math.max(0, pc.perChat) } : {}),
-        ...(typeof pc.perFollow === 'number' ? { perFollow: Math.max(0, pc.perFollow) } : {}),
-        ...(typeof pc.perLike === 'number' ? { perLike: Math.max(0, pc.perLike) } : {}),
-        ...(typeof pc.perCoin === 'number' ? { perCoin: Math.max(0, pc.perCoin) } : {}),
-        ...(typeof pc.perMinute === 'number' ? { perMinute: Math.max(0, pc.perMinute) } : {}),
-        ...(typeof pc.currencyName === 'string' ? { currencyName: pc.currencyName.slice(0, 24) } : {}),
-      };
-    }
-    if (typeof p.tts === 'object' && p.tts !== null) {
-      const t = p.tts as Record<string, unknown>;
-      const current = isStudio().settings.get().tts;
-      allowed.tts = {
-        ...current,
-        ...(typeof t.enabled === 'boolean' ? { enabled: t.enabled } : {}),
-        ...(typeof t.voice === 'string' ? { voice: t.voice } : {}),
-        ...(typeof t.volume === 'number' ? { volume: Math.min(1, Math.max(0, t.volume)) } : {}),
-        ...(typeof t.readChat === 'boolean' ? { readChat: t.readChat } : {}),
-        ...(t.chatVoiceMode === 'fixed' || t.chatVoiceMode === 'perUser' ? { chatVoiceMode: t.chatVoiceMode } : {}),
-        ...(typeof t.skipCommands === 'boolean' ? { skipCommands: t.skipCommands } : {}),
-        ...(typeof t.maxTextLen === 'number' ? { maxTextLen: Math.min(500, Math.max(20, t.maxTextLen)) } : {}),
-        ...(typeof t.chatTemplate === 'string' ? { chatTemplate: t.chatTemplate } : {}),
-        ...(typeof t.rate === 'number' ? { rate: Math.min(50, Math.max(-50, Math.round(t.rate))) } : {}),
-        ...(typeof t.pitch === 'number' ? { pitch: Math.min(20, Math.max(-20, Math.round(t.pitch))) } : {}),
-        ...(Array.isArray(t.readGroups)
-          ? {
-              readGroups: (t.readGroups as unknown[]).filter(
-                (g): g is 'all' | 'followers' | 'subs' | 'mods' | 'vips' =>
-                  typeof g === 'string' && ['all', 'followers', 'subs', 'mods', 'vips'].includes(g),
-              ),
-            }
-          : {}),
-        ...(typeof t.readPrefix === 'string' ? { readPrefix: t.readPrefix.slice(0, 3) } : {}),
-        ...(t.announceFollow !== undefined
-          ? { announceFollow: sanitizeAnnounce(current.announceFollow, t.announceFollow) }
-          : {}),
-        ...(t.announceGift !== undefined
-          ? {
-              announceGift: {
-                ...sanitizeAnnounce(current.announceGift, t.announceGift),
-                minCoins: (() => {
-                  const m = (t.announceGift as { minCoins?: unknown })?.minCoins;
-                  return typeof m === 'number' && Number.isFinite(m)
-                    ? Math.min(1_000_000, Math.max(0, Math.round(m)))
-                    : current.announceGift.minCoins;
-                })(),
-              },
-            }
-          : {}),
-        // Regler pro Anbieter — Werte werden ohnehin beim Anwenden über
-        // resolveTuning() geklemmt (tts-tuning.ts), hier nur roh durchlassen.
-        ...(typeof t.tuning === 'object' && t.tuning !== null ? { tuning: t.tuning as TTSSettings['tuning'] } : {}),
-      };
-    }
-    if (typeof p.sportApiKey === 'string') allowed.sportApiKey = p.sportApiKey.trim().slice(0, 120);
-    if (typeof p.aiApiKey === 'string') allowed.aiApiKey = p.aiApiKey.trim().slice(0, 200);
-    if (typeof p.ai === 'object' && p.ai !== null) {
-      const a = p.ai as Record<string, unknown>;
-      allowed.ai = {
-        provider: a.provider === 'ollama' ? 'ollama' : 'gemini',
-        model: typeof a.model === 'string' ? a.model.trim().slice(0, 60) : '',
-      };
-    }
-    if (typeof p.tiktokSignApiKey === 'string') allowed.tiktokSignApiKey = p.tiktokSignApiKey.trim().slice(0, 200);
-    if (p.tiktokConnectMode === 'cloud' || p.tiktokConnectMode === 'direct') allowed.tiktokConnectMode = p.tiktokConnectMode;
-    if (typeof p.autoLiveWatch === 'boolean') allowed.autoLiveWatch = p.autoLiveWatch;
-    if (typeof p.autostart === 'boolean') allowed.autostart = p.autostart;
-    if (typeof p.giftSoundGapSec === 'number') allowed.giftSoundGapSec = Math.min(600, Math.max(0, Math.round(p.giftSoundGapSec)));
-    if (typeof p.autoBackup === 'boolean') allowed.autoBackup = p.autoBackup;
-    // Telemetrie-Zustimmung: fehlte hier → die Wahl (Banner UND Schalter in den
-    // Einstellungen) wurde still verworfen. Folge: Das Banner kam nach jedem
-    // Neustart wieder und Sentry wurde NIE aktiviert (beim Start wird auf
-    // `telemetry === 'on'` geprüft) — es kam also nie ein Absturzbericht an.
-    if (p.telemetry === 'on' || p.telemetry === 'off') allowed.telemetry = p.telemetry;
-    // Mixer (Master + Kanal-Lautstärken): fehlte ebenfalls → jeder Regler fiel
-    // nach dem Neustart zurück. normalizeMixer validiert/clamped die Werte.
-    if (typeof p.mixer === 'object' && p.mixer !== null) allowed.mixer = normalizeMixer(p.mixer);
-    if (typeof p.spotifyClientId === 'string') allowed.spotifyClientId = p.spotifyClientId.trim().slice(0, 100);
-    if (typeof p.moderation === 'object' && p.moderation !== null) {
-      const m = p.moderation as Record<string, unknown>;
-      if (Array.isArray(m.blockedWords)) {
-        allowed.moderation = {
-          blockedWords: m.blockedWords
-            .filter((w): w is string => typeof w === 'string')
-            .map((w) => w.trim().slice(0, 60))
-            .filter(Boolean)
-            .slice(0, 200),
-        };
-      }
-    }
+    // Feld-für-Feld-Allowlist mit Typ-Checks/Clamping — jetzt zentral in
+    // settings-store.ts (sanitizeSettingsPatch), damit der Backup-Import
+    // (studio.ts#importConfig) dieselbe Härtung nutzt statt einer eigenen,
+    // unvollständigen Kopie (P3a-Audit: Import ließ mixer/tts/points/… roh
+    // durch, hier war schon immer alles geprüft).
+    const allowed = sanitizeSettingsPatch(patch, isStudio().settings.get());
     const saved = isStudio().settings.update(allowed);
     // Auto-Live-Watch sofort anwenden (nicht erst beim Neustart).
     if (typeof allowed.autoLiveWatch === 'boolean') isStudio().setAutoLiveWatch(allowed.autoLiveWatch);

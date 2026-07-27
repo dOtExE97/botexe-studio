@@ -376,6 +376,193 @@ export class SettingsStore {
   }
 }
 
+/** Einen TTS-Ansage-Block säubern (nested merge auf den aktuellen Stand,
+ *  Bounds) — Teil der Settings-Allowlist-Härtung, s. sanitizeSettingsPatch(). */
+function sanitizeAnnounce<T extends { enabled: boolean; template: string; voice: string }>(
+  current: T,
+  incoming: unknown,
+): T {
+  if (typeof incoming !== 'object' || incoming === null) return current;
+  const i = incoming as Record<string, unknown>;
+  return {
+    ...current,
+    ...(typeof i.enabled === 'boolean' ? { enabled: i.enabled } : {}),
+    ...(typeof i.template === 'string' ? { template: i.template.slice(0, 300) } : {}),
+    ...(typeof i.voice === 'string' ? { voice: i.voice.slice(0, 100) } : {}),
+  };
+}
+
+/** Feld-für-Feld-Allowlist mit Typ-Checks/Clamping für PARTIELLE Settings-
+ *  Patches — die EINE Härtung, die für `IPC.SETTINGS_UPDATE` UND für den
+ *  Backup-Import (`studio.ts#importConfig`) gilt (P3a-Audit).
+ *
+ *  Vorher lag diese Logik nur inline im `IPC.SETTINGS_UPDATE`-Handler
+ *  (main.ts) — der Import-Pfad validierte separat nur triggerRules/
+ *  chatCommands/redemptions/panelButtons und reichte ALLE anderen Felder
+ *  (mixer, tts, points, giveaway, obs, moderation, …) roh an
+ *  `SettingsStore.update()` durch. Das ist exakt dieselbe Fehlerklasse wie
+ *  der `actions:[null]`-Crash (Commit f5b6441), nur an einem zweiten,
+ *  ungepatchten Eingang zum selben Store: ein altes/manipuliertes Backup mit
+ *  z.B. `mixer.master: "laut"` oder `points.perChat: "10"` (String statt
+ *  Zahl) überschrieb den Live-Cache ungeprüft und wurde beim nächsten Write
+ *  wieder auf Platte persistiert.
+ *
+ *  Unbekannte/falsch typisierte Felder werden NICHT übernommen — der
+ *  jeweils aktuelle Wert (`current`) bleibt bestehen, statt auf einen
+ *  Default zurückzufallen (wichtig für PARTIELLE Updates: ein Patch, der nur
+ *  `mixer` ändert, darf `tts` nicht anfassen). */
+export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): Partial<StudioSettings> {
+  if (typeof patch !== 'object' || patch === null) return {};
+  const p = patch as Record<string, unknown>;
+  const allowed: Record<string, unknown> = {};
+
+  if (typeof p.soundVolume === 'number') allowed.soundVolume = Math.min(1, Math.max(0, p.soundVolume));
+  if (typeof p.lastUsername === 'string') allowed.lastUsername = p.lastUsername;
+  if (typeof p.lastLiveRoomId === 'string') allowed.lastLiveRoomId = p.lastLiveRoomId.slice(0, 60);
+  if (typeof p.audioOutputId === 'string') allowed.audioOutputId = p.audioOutputId.slice(0, 200);
+  if (typeof p.audioOutputLabel === 'string') allowed.audioOutputLabel = p.audioOutputLabel.slice(0, 120);
+  if (typeof p.uiZoom === 'number' && Number.isFinite(p.uiZoom)) allowed.uiZoom = Math.min(2, Math.max(0.5, p.uiZoom));
+  if (p.activeLayoutId === null || typeof p.activeLayoutId === 'string') allowed.activeLayoutId = p.activeLayoutId;
+
+  if (typeof p.points === 'object' && p.points !== null) {
+    const pc = p.points as Record<string, unknown>;
+    const cur = current.points;
+    allowed.points = {
+      ...cur,
+      ...(typeof pc.enabled === 'boolean' ? { enabled: pc.enabled } : {}),
+      ...(typeof pc.perChat === 'number' ? { perChat: Math.max(0, pc.perChat) } : {}),
+      ...(typeof pc.perFollow === 'number' ? { perFollow: Math.max(0, pc.perFollow) } : {}),
+      ...(typeof pc.perLike === 'number' ? { perLike: Math.max(0, pc.perLike) } : {}),
+      ...(typeof pc.perCoin === 'number' ? { perCoin: Math.max(0, pc.perCoin) } : {}),
+      ...(typeof pc.perMinute === 'number' ? { perMinute: Math.max(0, pc.perMinute) } : {}),
+      ...(typeof pc.currencyName === 'string' ? { currencyName: pc.currencyName.slice(0, 24) } : {}),
+    };
+  }
+  if (typeof p.tts === 'object' && p.tts !== null) {
+    const t = p.tts as Record<string, unknown>;
+    const cur = current.tts;
+    allowed.tts = {
+      ...cur,
+      ...(typeof t.enabled === 'boolean' ? { enabled: t.enabled } : {}),
+      ...(typeof t.voice === 'string' ? { voice: t.voice } : {}),
+      ...(typeof t.volume === 'number' ? { volume: Math.min(1, Math.max(0, t.volume)) } : {}),
+      ...(typeof t.readChat === 'boolean' ? { readChat: t.readChat } : {}),
+      ...(t.chatVoiceMode === 'fixed' || t.chatVoiceMode === 'perUser' ? { chatVoiceMode: t.chatVoiceMode } : {}),
+      ...(typeof t.skipCommands === 'boolean' ? { skipCommands: t.skipCommands } : {}),
+      ...(typeof t.maxTextLen === 'number' ? { maxTextLen: Math.min(500, Math.max(20, t.maxTextLen)) } : {}),
+      ...(typeof t.chatTemplate === 'string' ? { chatTemplate: t.chatTemplate } : {}),
+      ...(typeof t.rate === 'number' ? { rate: Math.min(50, Math.max(-50, Math.round(t.rate))) } : {}),
+      ...(typeof t.pitch === 'number' ? { pitch: Math.min(20, Math.max(-20, Math.round(t.pitch))) } : {}),
+      ...(Array.isArray(t.readGroups)
+        ? {
+            readGroups: (t.readGroups as unknown[]).filter(
+              (g): g is 'all' | 'followers' | 'subs' | 'mods' | 'vips' =>
+                typeof g === 'string' && ['all', 'followers', 'subs', 'mods', 'vips'].includes(g),
+            ),
+          }
+        : {}),
+      ...(typeof t.readPrefix === 'string' ? { readPrefix: t.readPrefix.slice(0, 3) } : {}),
+      ...(t.announceFollow !== undefined ? { announceFollow: sanitizeAnnounce(cur.announceFollow, t.announceFollow) } : {}),
+      ...(t.announceGift !== undefined
+        ? {
+            announceGift: {
+              ...sanitizeAnnounce(cur.announceGift, t.announceGift),
+              minCoins: (() => {
+                const m = (t.announceGift as { minCoins?: unknown })?.minCoins;
+                return typeof m === 'number' && Number.isFinite(m) ? Math.min(1_000_000, Math.max(0, Math.round(m))) : cur.announceGift.minCoins;
+              })(),
+            },
+          }
+        : {}),
+      // Regler pro Anbieter — Werte werden ohnehin beim Anwenden über
+      // resolveTuning() geklemmt (tts-tuning.ts), hier nur roh durchlassen.
+      ...(typeof t.tuning === 'object' && t.tuning !== null ? { tuning: t.tuning as TTSSettings['tuning'] } : {}),
+    };
+  }
+  if (typeof p.sportApiKey === 'string') allowed.sportApiKey = p.sportApiKey.trim().slice(0, 120);
+  if (typeof p.aiApiKey === 'string') allowed.aiApiKey = p.aiApiKey.trim().slice(0, 200);
+  if (typeof p.ai === 'object' && p.ai !== null) {
+    const a = p.ai as Record<string, unknown>;
+    allowed.ai = {
+      provider: a.provider === 'ollama' ? 'ollama' : 'gemini',
+      model: typeof a.model === 'string' ? a.model.trim().slice(0, 60) : '',
+    };
+  }
+  if (typeof p.tiktokSignApiKey === 'string') allowed.tiktokSignApiKey = p.tiktokSignApiKey.trim().slice(0, 200);
+  if (p.tiktokConnectMode === 'cloud' || p.tiktokConnectMode === 'direct') allowed.tiktokConnectMode = p.tiktokConnectMode;
+  if (typeof p.autoLiveWatch === 'boolean') allowed.autoLiveWatch = p.autoLiveWatch;
+  if (typeof p.autostart === 'boolean') allowed.autostart = p.autostart;
+  if (typeof p.giftSoundGapSec === 'number') allowed.giftSoundGapSec = Math.min(600, Math.max(0, Math.round(p.giftSoundGapSec)));
+  if (typeof p.autoBackup === 'boolean') allowed.autoBackup = p.autoBackup;
+  if (p.telemetry === 'on' || p.telemetry === 'off') allowed.telemetry = p.telemetry;
+  if (typeof p.mixer === 'object' && p.mixer !== null) allowed.mixer = normalizeMixer(p.mixer);
+  if (typeof p.spotifyClientId === 'string') allowed.spotifyClientId = p.spotifyClientId.trim().slice(0, 100);
+  if (typeof p.moderation === 'object' && p.moderation !== null) {
+    const m = p.moderation as Record<string, unknown>;
+    if (Array.isArray(m.blockedWords)) {
+      allowed.moderation = {
+        blockedWords: m.blockedWords
+          .filter((w): w is string => typeof w === 'string')
+          .map((w) => w.trim().slice(0, 60))
+          .filter(Boolean)
+          .slice(0, 200),
+      };
+    }
+  }
+  // OBS/Streamer.bot/Giveaway/Stammgast-Begrüßung haben sonst eigene, dedizierte
+  // Setter (setObsConfig/setStreamerbotConfig/setGiveawayConfig/setGreetReturning)
+  // mit derselben Art Härtung — die braucht aber jeder Aufrufer EINZELN. Der
+  // Backup-Import mergt alle Felder in EINEM Rutsch über settings.update(),
+  // also müssen sie auch hier (in der gemeinsamen Allowlist) behandelt werden,
+  // sonst bleibt genau diese Lücke bestehen (P3a-Audit).
+  if (typeof p.obs === 'object' && p.obs !== null) {
+    const o = p.obs as Record<string, unknown>;
+    const cur = current.obs;
+    allowed.obs = {
+      enabled: typeof o.enabled === 'boolean' ? o.enabled : cur.enabled,
+      url: typeof o.url === 'string' ? o.url.slice(0, 200) : cur.url,
+      password: typeof o.password === 'string' ? o.password.slice(0, 200) : cur.password,
+    };
+  }
+  if (typeof p.streamerbot === 'object' && p.streamerbot !== null) {
+    const s = p.streamerbot as Record<string, unknown>;
+    const cur = current.streamerbot;
+    allowed.streamerbot = {
+      enabled: typeof s.enabled === 'boolean' ? s.enabled : cur.enabled,
+      url: typeof s.url === 'string' ? s.url.slice(0, 200) : cur.url,
+    };
+  }
+  if (typeof p.giveaway === 'object' && p.giveaway !== null) {
+    const g = p.giveaway as Record<string, unknown>;
+    const cur = current.giveaway;
+    allowed.giveaway = {
+      enabled: typeof g.enabled === 'boolean' ? g.enabled : cur.enabled,
+      joinWord: typeof g.joinWord === 'string' && g.joinWord.trim() ? g.joinWord.trim().slice(0, 30) : cur.joinWord,
+      entryCost: typeof g.entryCost === 'number' && g.entryCost >= 0 ? Math.floor(g.entryCost) : cur.entryCost,
+    };
+  }
+  if (typeof p.greetReturning === 'object' && p.greetReturning !== null) {
+    const g = p.greetReturning as Record<string, unknown>;
+    const cur = current.greetReturning;
+    allowed.greetReturning = {
+      enabled: typeof g.enabled === 'boolean' ? g.enabled : cur.enabled,
+      minVisits: typeof g.minVisits === 'number' && g.minVisits >= 2 ? Math.floor(g.minVisits) : cur.minVisits,
+      template: typeof g.template === 'string' && g.template.trim() ? g.template.slice(0, 200) : cur.template,
+    };
+  }
+  // triggerRules/chatCommands/redemptions/panelButtons laufen NICHT über diese
+  // Allowlist — die werden von den Aufrufern (IPC RULES_SET/… bzw. der Import
+  // in studio.ts) bereits vorher durch die scharfen Trigger-Validatoren
+  // (validateTriggerRules etc.) gejagt. Hier nur unverändert durchreichen,
+  // wenn der Aufrufer sie bereits validiert und angehängt hat.
+  if (Array.isArray(p.triggerRules)) allowed.triggerRules = p.triggerRules;
+  if (Array.isArray(p.chatCommands)) allowed.chatCommands = p.chatCommands;
+  if (Array.isArray(p.redemptions)) allowed.redemptions = p.redemptions;
+  if (Array.isArray(p.panelButtons)) allowed.panelButtons = p.panelButtons;
+
+  return allowed as Partial<StudioSettings>;
+}
+
 /** Top-Level-Settings-Felder, die NIE in eine exportierte Backup-Datei dürfen
  *  UND NIE aus einer importierten Backup-Datei übernommen werden dürfen.
  *

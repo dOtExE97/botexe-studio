@@ -39,14 +39,16 @@ function fieldsSentByRenderer(): Set<string> {
   return out;
 }
 
-/** Alle Felder, die der SETTINGS_UPDATE-Handler in main.ts durchlässt. */
+/** Alle Felder, die die Settings-Allowlist durchlässt. Die Logik zog von
+ *  main.ts (IPC.SETTINGS_UPDATE) nach settings-store.ts#sanitizeSettingsPatch
+ *  um (P3a-Audit) — EINE Härtung für IPC-Update UND Backup-Import statt zwei
+ *  auseinanderlaufender Kopien. Der Test folgt an die neue Quelle. */
 function fieldsAllowedByHandler(): Set<string> {
-  const code = readFileSync(join(SRC, 'main.ts'), 'utf8');
-  const start = code.indexOf('IPC.SETTINGS_UPDATE');
-  assert.ok(start > 0, 'SETTINGS_UPDATE-Handler in main.ts nicht gefunden');
-  // Bis zum abschließenden settings.update(allowed) des Handlers lesen.
-  const end = code.indexOf('settings.update(allowed)', start);
-  assert.ok(end > start, 'Ende des SETTINGS_UPDATE-Handlers nicht gefunden');
+  const code = readFileSync(join(SRC, 'main', 'services', 'settings-store.ts'), 'utf8');
+  const start = code.indexOf('export function sanitizeSettingsPatch');
+  assert.ok(start > 0, 'sanitizeSettingsPatch in settings-store.ts nicht gefunden');
+  const end = code.indexOf('return allowed as Partial<StudioSettings>;', start);
+  assert.ok(end > start, 'Ende von sanitizeSettingsPatch nicht gefunden');
   const block = code.slice(start, end);
   const out = new Set<string>();
   for (const m of block.matchAll(/\bp\.([A-Za-z_$][\w$]*)/g)) {
@@ -68,12 +70,12 @@ function ttsFieldsSentByRenderer(): Set<string> {
   return out;
 }
 
-/** Alle tts-Unterfelder, die der `p.tts`-Block im SETTINGS_UPDATE-Handler
- *  als `t.<feld>` prüft. */
+/** Alle tts-Unterfelder, die der `p.tts`-Block in sanitizeSettingsPatch
+ *  (settings-store.ts) als `t.<feld>` prüft. */
 function ttsFieldsAllowedByHandler(): Set<string> {
-  const code = readFileSync(join(SRC, 'main.ts'), 'utf8');
+  const code = readFileSync(join(SRC, 'main', 'services', 'settings-store.ts'), 'utf8');
   const start = code.indexOf('typeof p.tts === ');
-  assert.ok(start > 0, 'p.tts-Block in main.ts nicht gefunden');
+  assert.ok(start > 0, 'p.tts-Block in settings-store.ts nicht gefunden');
   // Der Block endet, sobald ein nachfolgendes p.<anderesFeld> außerhalb von
   // t. beginnt — hier reicht das nächste "if (typeof p." nach dem Block-Start.
   const next = code.indexOf('if (typeof p.', start + 'typeof p.tts === '.length);

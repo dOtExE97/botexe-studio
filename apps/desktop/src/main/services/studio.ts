@@ -18,6 +18,7 @@ import {
   SettingsStore,
   redactSecretsForExport,
   stripSecretFieldsForImport,
+  sanitizeSettingsPatch,
   type GiveawaySettings,
 } from './settings-store';
 import type { SoundCategory } from '../../shared/mixer';
@@ -1300,7 +1301,16 @@ export class Studio {
         // dispatchAction/maybeRedeem). Gleiche strenge Validierung wie oben.
         if ('redemptions' in rest) rest.redemptions = validateRedemptions(rest.redemptions);
         if ('panelButtons' in rest) rest.panelButtons = validatePanelButtons(rest.panelButtons);
-        this.settings.update(rest as Parameters<typeof this.settings.update>[0]);
+        // P3a-Audit: ALLE anderen Felder (mixer, tts, points, giveaway, obs,
+        // moderation, streamerbot, …) gingen bisher UNGEPRÜFT in
+        // settings.update() — dieselbe Lücke wie der actions:[null]-Crash
+        // oben, nur an einem zweiten, ungepatchten Eingang zum selben Store.
+        // Ein altes/manipuliertes Backup mit z.B. mixer.master:"laut" oder
+        // points.perChat:"10" (String statt Zahl) überschrieb den Live-Cache
+        // ungeprüft. Dieselbe Allowlist-Härtung wie IPC.SETTINGS_UPDATE nutzen
+        // (sanitizeSettingsPatch), damit es nur EINE Härtung für den Store gibt.
+        const sanitized = sanitizeSettingsPatch(rest, this.settings.get());
+        this.settings.update(sanitized);
         this.engine.setRules(this.settings.get().triggerRules);
         this.refreshTimerTicker(); // Backup könnte Timer-Regeln mitbringen/entfernen
         this.obs.applyConfig(this.settings.get().obs); // OBS-Verbindung aus Backup übernehmen
