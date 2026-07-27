@@ -146,6 +146,16 @@ export class OverlayServer {
     this.server = createServer(this.expressApp);
     // maxPayload deckelt eingehende WS-Frames (Default 100 MB → Memory-DoS).
     this.wss = new WebSocketServer({ server: this.server, path: '/ws', maxPayload: 64 * 1024 });
+    // WICHTIG: Der WebSocket-Server hängt am HTTP-Server und reicht dessen Fehler
+    // weiter. Ohne diesen Listener wirft Node bei einem belegten Port
+    // (EADDRINUSE) eine unbehandelte Ausnahme — die App stirbt beim Start, BEVOR
+    // listenWithFallback() auf den nächsten Port ausweichen kann. Für den Nutzer:
+    // „App startet einfach nicht", kein Fenster, keine Meldung. Realistisch nach
+    // einem Absturz (Geisterprozess hält den Port) oder wenn andere Software ihn
+    // belegt. Hier nur protokollieren — das Ausweichen erledigt listenWithFallback.
+    this.wss.on('error', (err) => {
+      log.warn('Overlay', `WebSocket-Server meldet: ${(err as Error).message}`);
+    });
     this.setupRoutes();
     this.setupWebSocket();
   }

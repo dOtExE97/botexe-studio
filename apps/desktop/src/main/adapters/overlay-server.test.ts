@@ -482,3 +482,34 @@ test('profile: getOverlayUrl(id) hängt profile-param an', async () => {
     await server.stop();
   }
 });
+
+// Regression: Ein belegter Port darf die App NICHT umbringen.
+// Der WebSocket-Server hängt am HTTP-Server und reicht dessen Fehler weiter —
+// ohne eigenen 'error'-Listener wirft Node bei EADDRINUSE eine unbehandelte
+// Ausnahme, und die App stirbt beim Start, BEVOR listenWithFallback auf den
+// nächsten Port ausweichen kann. Für den Nutzer: „App startet einfach nicht",
+// kein Fenster, keine Meldung. (Per Mutation geprüft: ohne den Listener
+// stürzt genau dieser Test ab.)
+test('belegter Port: weicht aus statt abzustürzen', async () => {
+  const blocker = http.createServer((_req, res) => { res.end(); });
+  await new Promise<void>((r) => blocker.listen(0, '127.0.0.1', () => r()));
+  const belegt = (blocker.address() as { port: number }).port;
+
+  const bus = new EventBus();
+  const layout = createDefaultLayout('Port-Test', 'test-layout');
+  const server = new OverlayServer(bus, {
+    port: belegt,
+    ...makeDirs(),
+    heartbeatMs: 0,
+    getLayout: () => layout,
+    getDefaultLayoutId: () => 'test-layout',
+  });
+
+  await server.start(); // darf NICHT werfen und die App nicht killen
+  const genutzt = (server.getDiagnostics() as { port: number }).port;
+  assert.notEqual(genutzt, belegt, 'hätte auf einen freien Port ausweichen müssen');
+  assert.ok(genutzt > 0);
+
+  await server.stop();
+  blocker.close();
+});
