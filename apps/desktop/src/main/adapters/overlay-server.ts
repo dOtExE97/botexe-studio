@@ -555,10 +555,16 @@ export class OverlayServer {
         return;
       }
 
-      const profileId = url.searchParams.get('profile') || this.options.getDefaultLayoutId() || '';
+      // '' = "folgt dem Default-Profil" (KEIN fest aufgelöster Wert!) — sonst
+      // bleibt ein Client, der ohne ?profile= verbunden ist, für immer an das
+      // Profil gebunden, das beim Connect zufällig aktiv war. Wechselt der
+      // Streamer später das Default-Profil (makeDefault()), würde broadcastLayout()
+      // diesen Client sonst nie mehr treffen → Overlay zeigt still das alte Layout,
+      // bis die Browser-Quelle neu verbindet.
+      const profileId = url.searchParams.get('profile') || '';
       const client: TrackedClient = { ws, isAlive: true, profileId };
       this.clients.add(client);
-      log.info('Overlay', `Client verbunden, Profil "${profileId}" (${this.clients.size} aktiv)`);
+      log.info('Overlay', `Client verbunden, Profil "${profileId || '(default)'}" (${this.clients.size} aktiv)`);
       this.notifyClientCount();
 
       ws.on('pong', () => {
@@ -788,12 +794,18 @@ export class OverlayServer {
     }
   }
 
-  /** Aktuelles Layout eines Profils an genau dessen Clients pushen (nach Save). */
+  /** Aktuelles Layout eines Profils an genau dessen Clients pushen (nach Save
+   *  ODER nach Default-Wechsel). Default-Clients (profileId '') zählen mit,
+   *  wenn profileId gerade das aktive Default-Profil ist — sonst würde ein
+   *  Wechsel des Default-Profils sie nie erreichen (siehe Kommentar oben bei
+   *  profileId-Vergabe). */
   broadcastLayout(profileId: string): void {
     const layout = this.options.getLayout(profileId);
     if (!layout) return;
+    const defaultId = this.options.getDefaultLayoutId() ?? '';
     for (const client of this.clients) {
-      if (client.profileId === profileId) this.sendTo(client, { kind: 'layout', layout }, true);
+      const effectiveProfileId = client.profileId || defaultId;
+      if (effectiveProfileId === profileId) this.sendTo(client, { kind: 'layout', layout }, true);
     }
   }
 

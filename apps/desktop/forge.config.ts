@@ -15,8 +15,9 @@ const config: ForgeConfig = {
     name: 'bOtExE Studio',
     executableName: 'botexe-studio',
     // widget-kit + overlay-runtime liegen im Monorepo unter packages/ und werden
-    // vom Overlay-Server als statische Files ausgeliefert. Landen als
-    // <Resources>/widget-kit/ bzw. <Resources>/overlay-runtime/.
+    // vom Overlay-Server als statische Files ausgeliefert. extraResource kopiert
+    // nach dem BASENAME des Quellordners, landen also als <Resources>/widget-kit/
+    // bzw. <Resources>/runtime/ (siehe StudioService.resolvePaths()).
     extraResource: [
       'assets',
       path.resolve(__dirname, '../../packages/widget-kit'),

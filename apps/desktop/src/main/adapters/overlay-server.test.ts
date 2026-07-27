@@ -439,6 +439,40 @@ test('profile: layout-broadcast erreicht nur clients desselben profils', async (
   }
 });
 
+test('profile: Default-Client (ohne ?profile=) bekommt Update nach Default-Wechsel', async () => {
+  // Regression: profileId eines Default-Clients darf NICHT beim Connect fest
+  // aufgelöst werden — sonst erreicht ihn broadcastLayout() nach einem
+  // Default-Profil-Wechsel (makeDefault()) nie mehr (Overlay bleibt still auf
+  // dem alten Layout stehen).
+  let defaultId = 'test-layout';
+  const bus = new EventBus();
+  const layout = createDefaultLayout('Test-Layout', 'test-layout');
+  const profileB = createDefaultLayout('Profil-B', 'profile-b');
+  const server = new OverlayServer(bus, {
+    port: 0,
+    ...makeDirs(),
+    heartbeatMs: 0,
+    getLayout: (id) => (id === 'profile-b' ? profileB : id === 'test-layout' || !id ? layout : null),
+    getDefaultLayoutId: () => defaultId,
+  });
+  await server.start();
+  try {
+    // Client verbindet OHNE ?profile= — folgt also dem jeweils aktiven Default.
+    const client = await wsConnect(server.getWsUrl());
+    const initial = await client.next(); // initial layout
+    assert.equal((initial.layout as { id: string }).id, 'test-layout');
+
+    // Streamer wechselt das Default-Profil auf "profile-b" (makeDefault()).
+    defaultId = 'profile-b';
+    server.broadcastLayout('profile-b');
+    const updated = await client.next();
+    assert.equal((updated.layout as { id: string }).id, 'profile-b', 'Default-Client bekam das neue Default-Layout');
+    client.close();
+  } finally {
+    await server.stop();
+  }
+});
+
 test('profile: getOverlayUrl(id) hängt profile-param an', async () => {
   const { server } = await setup();
   try {
