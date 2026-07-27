@@ -58,3 +58,24 @@ test('delete invalidiert den Cache — Layout verschwindet aus list', () => {
   const ids = store.list().map((l) => l.id);
   assert.deepEqual(ids.sort(), ['b']);
 });
+
+// P2-1-Audit: pruneExcept() ist die Grundlage dafür, dass Studio#switchProfile
+// den gemeinsamen LayoutStore auf genau die Layouts des Ziel-Profils zuschneiden
+// kann — sonst bleiben Layouts des vorherigen Profils global in list() sichtbar.
+test('pruneExcept löscht alles außer den übergebenen IDs', () => {
+  const store = tmpStore();
+  store.save(layout('a', 'Profil A'));
+  store.save(layout('b', 'Profil B'));
+  store.list(); // Cache füllen
+  store.pruneExcept(new Set(['b']));
+  const ids = store.list().map((l) => l.id);
+  assert.deepEqual(ids, ['b'], 'nur die behaltene ID darf übrig bleiben');
+});
+
+test('pruneExcept invalidiert den Cache nur, wenn wirklich etwas gelöscht wurde', () => {
+  const store = tmpStore();
+  store.save(layout('a', 'Erstes'));
+  const before = store.list();
+  store.pruneExcept(new Set(['a'])); // nichts zu löschen
+  assert.equal(store.list(), before, 'keine Löschung → Cache bleibt (gleiche Referenz)');
+});

@@ -36,6 +36,27 @@ export class LayoutStore {
     this.cache = null;
   }
 
+  /** P2-1-Audit: Layouts liegen in EINEM gemeinsamen Verzeichnis (pro
+   *  userDataDir), nicht pro Profil. Beim Profilwechsel bleiben Layout-Dateien
+   *  des VORHERIGEN Profils sonst auf Disk liegen → list() mischt sie in die
+   *  Liste des neuen Profils, UND ein späterer Rückwechsel würde sie über
+   *  exportConfig()/saveBundle() ins falsche (das zwischenzeitlich aktive)
+   *  Profil-Bundle zurückschreiben. Fix: beim Aktivieren eines Profils ruft
+   *  Studio#switchProfile dies auf, um alle Layout-Dateien zu löschen, deren
+   *  ID NICHT im Ziel-Profil vorkommt — der Store enthält danach exakt (nur)
+   *  die Layouts des aktiven Profils. */
+  pruneExcept(keepIds: ReadonlySet<string>): void {
+    let changed = false;
+    for (const file of fs.readdirSync(this.dir)) {
+      if (!file.endsWith('.json')) continue;
+      const id = file.slice(0, -'.json'.length);
+      if (keepIds.has(id)) continue;
+      fs.unlinkSync(path.join(this.dir, file));
+      changed = true;
+    }
+    if (changed) this.invalidate();
+  }
+
   get(id: string): OverlayLayout | null {
     const file = this.fileFor(id);
     return fs.existsSync(file) ? this.loadFile(file) : null;

@@ -1013,13 +1013,28 @@ export class Studio {
   }
 
   /** Profil wechseln: aktuellen Stand ins bisher aktive Profil sichern (kein
-   *  Datenverlust), dann das Ziel-Profil laden + aktiv setzen. */
+   *  Datenverlust), dann das Ziel-Profil laden + aktiv setzen.
+   *
+   *  P2-1-Audit: der LayoutStore ist EIN gemeinsames Verzeichnis für alle
+   *  Profile (siehe layout-store.ts). importConfig() SCHREIBT nur die Layouts
+   *  des Ziel-Profils, LÖSCHT aber nie die des vorherigen — ohne pruneExcept()
+   *  blieben dessen Layout-Dateien global sichtbar (this.layouts.list() zeigt
+   *  Layouts BEIDER Profile) und würden beim nächsten Zurückwechseln über
+   *  exportConfig()/saveBundle() (Zeile oben) ins falsche, gerade verlassene
+   *  Profil-Bundle zurückgeschrieben. Daher NACH dem Import auf genau die
+   *  Layout-IDs des Ziel-Profils zuschneiden. */
   switchProfile(id: string): { ok: boolean; error?: string } {
     const target = this.profiles.get(id);
     if (!target) return { ok: false, error: 'Profil nicht gefunden' };
     const activeId = this.profiles.getActiveId();
     if (activeId && activeId !== id) this.profiles.saveBundle(activeId, this.exportConfig(), Date.now());
     this.importConfig(target.bundle);
+    const targetLayoutIds = new Set(
+      (Array.isArray(target.bundle.layouts) ? target.bundle.layouts : [])
+        .map((l) => (l && typeof l === 'object' ? (l as { id?: unknown }).id : undefined))
+        .filter((v): v is string => typeof v === 'string'),
+    );
+    this.layouts.pruneExcept(targetLayoutIds);
     this.profiles.setActiveId(id);
     log.info('Profil', `Gewechselt zu „${target.name}"`);
     return { ok: true };
