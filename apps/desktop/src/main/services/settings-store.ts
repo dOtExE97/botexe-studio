@@ -376,22 +376,49 @@ export class SettingsStore {
   }
 }
 
+/** Top-Level-Settings-Felder, die NIE in eine exportierte Backup-Datei dürfen
+ *  UND NIE aus einer importierten Backup-Datei übernommen werden dürfen.
+ *
+ *  EINE Liste für beide Richtungen (P1-Audit) — vorher hatte der Import eine
+ *  eigene, von Hand gepflegte Kopie dieser Liste in studio.ts#importConfig,
+ *  die beim Hinzufügen von aiApiKey zum Export NICHT mitgepflegt wurde. Ein
+ *  importiertes Backup konnte dadurch den lokal gespeicherten Gemini/KI-Key
+ *  überschreiben (Export strippte ihn korrekt, Import-Whitelist erlaubte ihn
+ *  aber weiterhin durch). Jetzt: eine Quelle, kein Auseinanderlaufen mehr. */
+export const SECRET_TOP_LEVEL_FIELDS = [
+  'tiktokSessionId',
+  'tiktokTargetIdc',
+  'tiktokSignApiKey',
+  'ttsCredentials',
+  'controlToken', // bleibt pro Maschine eigen
+  'sportApiKey',
+  'aiApiKey', // KI-Key nie ins Backup / nie aus Backup übernehmen
+  'spotifyTokens', // OAuth-Tokens nie ins Backup / nie aus Backup übernehmen
+] as const;
+
+function stripSecretFields(copy: Record<string, unknown>): Record<string, unknown> {
+  for (const k of SECRET_TOP_LEVEL_FIELDS) delete copy[k];
+  if (copy.obs && typeof copy.obs === 'object') {
+    delete (copy.obs as Record<string, unknown>).password;
+  }
+  return copy;
+}
+
 /** Tiefe Kopie der Einstellungen OHNE Geheimnisse — für Konfig-Backups, die der
  *  Nutzer als Datei speichert/teilt. Sonst lägen TikTok-Session, Sign-Key,
  *  OBS-Passwort, TTS-API-Keys und der Steuer-Token im Klartext im Backup.
  *  Mutiert das Original NICHT. */
 export function redactSecretsForExport(settings: StudioSettings): Record<string, unknown> {
   const copy = structuredClone(settings) as unknown as Record<string, unknown>;
-  delete copy.tiktokSessionId;
-  delete copy.tiktokTargetIdc;
-  delete copy.tiktokSignApiKey;
-  delete copy.ttsCredentials;
-  delete copy.controlToken; // bleibt pro Maschine eigen
-  delete copy.sportApiKey;
-  delete copy.aiApiKey; // KI-Key nie ins Backup
-  delete copy.spotifyTokens; // OAuth-Tokens nie ins Backup
-  if (copy.obs && typeof copy.obs === 'object') {
-    delete (copy.obs as Record<string, unknown>).password;
-  }
-  return copy;
+  return stripSecretFields(copy);
+}
+
+/** Entfernt dieselben Geheimnis-Felder aus einem IMPORTIERTEN Backup-Objekt
+ *  (neue Kopie, mutiert `raw` nicht) — verhindert, dass ein (ggf. manipuliertes
+ *  oder einfach altes) Backup lokale Secrets/Tokens überschreibt. Nutzt
+ *  bewusst dieselbe Feldliste wie redactSecretsForExport, siehe Kommentar dort. */
+export function stripSecretFieldsForImport(raw: Record<string, unknown>): Record<string, unknown> {
+  const copy = { ...raw };
+  delete copy.schemaVersion;
+  return stripSecretFields(copy);
 }

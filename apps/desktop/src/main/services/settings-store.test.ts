@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { SettingsStore, SETTINGS_SCHEMA_VERSION, redactSecretsForExport } from './settings-store';
+import {
+  SettingsStore,
+  SETTINGS_SCHEMA_VERSION,
+  redactSecretsForExport,
+  stripSecretFieldsForImport,
+} from './settings-store';
 
 function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'settings-'));
@@ -84,6 +89,7 @@ test('redactSecretsForExport: entfernt alle Geheimnisse, behält harmlose Felder
     tiktokSessionId: 'sess', tiktokTargetIdc: 'idc', tiktokSignApiKey: 'sign',
     ttsCredentials: { elevenlabs: { apiKey: 'k' } },
     controlToken: 'tok', sportApiKey: 'sport',
+    aiApiKey: 'gemini-key', spotifyTokens: { accessToken: 'at', refreshToken: 'rt' },
     obs: { enabled: true, url: 'ws://x', password: 'geheim' },
     points: { perChat: 1 },
   } as unknown as Parameters<typeof redactSecretsForExport>[0];
@@ -94,10 +100,39 @@ test('redactSecretsForExport: entfernt alle Geheimnisse, behält harmlose Felder
   assert.equal(out.ttsCredentials, undefined);
   assert.equal(out.controlToken, undefined);
   assert.equal(out.sportApiKey, undefined);
+  assert.equal(out.aiApiKey, undefined);
+  assert.equal(out.spotifyTokens, undefined);
   assert.equal((out.obs as Record<string, unknown>).password, undefined);
   assert.equal((out.obs as Record<string, unknown>).url, 'ws://x'); // harmlose OBS-Felder bleiben
   assert.equal(out.lastUsername, 'alex');
   assert.deepEqual(out.points, { perChat: 1 });
+});
+
+test('stripSecretFieldsForImport: P1-2 Regression — aiApiKey aus importiertem Backup kann lokalen KI-Key NICHT überschreiben', () => {
+  // Vorher: die Import-Whitelist in studio.ts#importConfig war eine von Hand
+  // gepflegte Kopie der Export-Feldliste und hatte aiApiKey/spotifyTokens vergessen
+  // → ein importiertes Backup konnte den lokal gespeicherten Gemini/KI-Key sowie
+  // Spotify-OAuth-Tokens überschreiben. Jetzt: dieselbe Liste wie beim Export.
+  const maliciousBackup = {
+    lastUsername: 'evil',
+    aiApiKey: 'stolen-or-stale-key',
+    spotifyTokens: { accessToken: 'stolen', refreshToken: 'stolen' },
+    tiktokSignApiKey: 'stolen-sign-key',
+    controlToken: 'stolen-token',
+    schemaVersion: 99,
+    obs: { enabled: true, url: 'ws://evil', password: 'stolen-obs-pw' },
+  } as Record<string, unknown>;
+  const out = stripSecretFieldsForImport(maliciousBackup);
+  assert.equal(out.aiApiKey, undefined);
+  assert.equal(out.spotifyTokens, undefined);
+  assert.equal(out.tiktokSignApiKey, undefined);
+  assert.equal(out.controlToken, undefined);
+  assert.equal(out.schemaVersion, undefined);
+  assert.equal((out.obs as Record<string, unknown>).password, undefined);
+  assert.equal((out.obs as Record<string, unknown>).url, 'ws://evil'); // harmlose OBS-Felder bleiben übernehmbar
+  assert.equal(out.lastUsername, 'evil'); // harmlose Felder bleiben übernehmbar
+  // Original bleibt unangetastet (neue Kopie zurückgegeben).
+  assert.equal(maliciousBackup.aiApiKey, 'stolen-or-stale-key');
 });
 
 test('redactSecretsForExport: mutiert das Original NICHT (tiefe Kopie)', () => {

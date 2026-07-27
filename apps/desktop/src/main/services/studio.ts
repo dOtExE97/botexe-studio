@@ -14,7 +14,12 @@ import { shouldAnnounceGift } from './tts-announce';
 import { TikTokAdapter, createDirectConnection, type AdapterStatusInfo } from '../adapters/tiktok-adapter';
 import { EulerCloudConnection } from '../adapters/tiktok-cloud';
 import { OverlayServer } from '../adapters/overlay-server';
-import { SettingsStore, redactSecretsForExport, type GiveawaySettings } from './settings-store';
+import {
+  SettingsStore,
+  redactSecretsForExport,
+  stripSecretFieldsForImport,
+  type GiveawaySettings,
+} from './settings-store';
 import type { SoundCategory } from '../../shared/mixer';
 import { parseApiAction, API_ACTION_KINDS } from './api-actions';
 import { LayoutStore } from './layout-store';
@@ -1227,12 +1232,12 @@ export class Studio {
     const d = data as { settings?: Record<string, unknown>; layouts?: unknown[]; viewers?: unknown[] };
     try {
       if (d.settings && typeof d.settings === 'object') {
-        const rest = { ...(d.settings as Record<string, unknown>) };
         // Backups dürfen KEINE Geheimnisse/Tokens unterschieben (ein manipuliertes
-        // Backup könnte sonst fremde Spotify-/TikTok-Tokens oder den Steuer-Token
-        // setzen). Dieselben Felder hart entfernen, die auch der Export strippt.
-        for (const k of ['schemaVersion', 'spotifyTokens', 'controlToken', 'tiktokSessionId', 'tiktokTargetIdc', 'tiktokSignApiKey', 'ttsCredentials', 'sportApiKey']) delete rest[k];
-        if (rest.obs && typeof rest.obs === 'object') delete (rest.obs as Record<string, unknown>).password;
+        // ODER einfach altes Backup könnte sonst fremde/veraltete Spotify-/TikTok-
+        // Tokens, den KI-Key oder den Steuer-Token setzen). Eine gemeinsame Liste
+        // mit dem Export nutzen (P1-Audit: aiApiKey fehlte hier vorher von Hand
+        // gepflegt in dieser Kopie — siehe stripSecretFieldsForImport).
+        const rest = stripSecretFieldsForImport(d.settings as Record<string, unknown>);
         // Trigger-Regeln + Chat-Befehle aus dem Backup hart validieren (whitelist-
         // basierter Rebuild): ein manipuliertes Backup darf keine ungültigen oder
         // mit Fremdfeldern (Prototype-Pollution) versehenen Strukturen einschleusen.
