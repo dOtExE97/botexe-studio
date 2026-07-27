@@ -96,6 +96,15 @@ function nonNegInt(value: unknown): number | null {
 
 // ── TriggerAction ─────────────────────────────────────────────────────────────
 
+// WICHTIG (P2-Audit, gleiche Fehlerklasse wie CONDITION_KINDS oben): dieser
+// switch MUSS jeden `kind` aus TriggerActionKind (@botexe/trigger-engine,
+// packages/trigger-engine/src/index.ts) kennen. spin_slot, start_gift_challenge
+// und lucky_draw fehlten hier, obwohl die Engine sie unterstützt (sie werden
+// heute nur server-seitig synthetisiert — slot-gift.ts/lucky-draw.ts — und
+// liefen daher noch nie über diesen Validator; sobald sie es tun, z.B. über
+// PANEL_FIRE oder einen Backup-Import, würden sie sonst kommentarlos beim
+// `default: return null` verworfen). validators-exhaustiveness.test.ts prüft
+// das automatisiert gegen die Engine-Union.
 /**
  * Validiert eine einzelne Aktion. Gibt ein neu aufgebautes, getyptes Objekt
  * zurück (nur valide Felder) oder null bei unbekanntem kind / fehlenden
@@ -159,6 +168,28 @@ export function validateTriggerAction(input: unknown): TriggerAction | null {
       const out: { kind: 'spin_wheel'; targetId: string; cost?: number } = { kind, targetId };
       const cost = num(input['cost']);
       if (cost !== null) out.cost = cost;
+      action = out;
+      break;
+    }
+    case 'spin_slot': {
+      // win/winnerIndex/roll würfelt der SERVER (slot-gift.ts) beim Geschenk-
+      // Empfang zentral — hier defensiv wie bei spin_wheel nur durchreichen,
+      // falls vorhanden und vom richtigen Typ.
+      const targetId = str(input['targetId'], CAP_SHORT);
+      if (targetId === null) return null;
+      const out: {
+        kind: 'spin_slot';
+        targetId: string;
+        win?: boolean;
+        winnerIndex?: number;
+        roll?: number;
+      } = { kind, targetId };
+      const win = bool(input['win']);
+      if (win !== null) out.win = win;
+      const winnerIndex = nonNegInt(input['winnerIndex']);
+      if (winnerIndex !== null) out.winnerIndex = winnerIndex;
+      const roll = num(input['roll']);
+      if (roll !== null) out.roll = roll;
       action = out;
       break;
     }
@@ -248,6 +279,46 @@ export function validateTriggerAction(input: unknown): TriggerAction | null {
       const query = strAllowEmpty(input['query'], CAP_SHORT);
       if (query === null) return null;
       action = { kind, query };
+      break;
+    }
+    case 'start_gift_challenge': {
+      // Reine Anzeige-Aktion (gift-menu-Challenge starten) — targetId + slug
+      // sind Pflicht, who optional (Gruppen-Filter wie bei ChatCommand).
+      const targetId = str(input['targetId'], CAP_SHORT);
+      const slug = str(input['slug'], CAP_SHORT);
+      if (targetId === null || slug === null) return null;
+      const out: { kind: 'start_gift_challenge'; targetId: string; slug: string; who?: string } = {
+        kind,
+        targetId,
+        slug,
+      };
+      const who = str(input['who'], CAP_SHORT);
+      if (who !== null) out.who = who;
+      action = out;
+      break;
+    }
+    case 'lucky_draw': {
+      // win/winnerIndex/roll würfelt der SERVER zentral — hier wie bei
+      // spin_slot nur defensiv durchreichen, falls vorhanden.
+      const targetId = str(input['targetId'], CAP_SHORT);
+      if (targetId === null) return null;
+      const out: {
+        kind: 'lucky_draw';
+        targetId: string;
+        win?: boolean;
+        winnerIndex?: number;
+        roll?: number;
+        who?: string;
+      } = { kind, targetId };
+      const win = bool(input['win']);
+      if (win !== null) out.win = win;
+      const winnerIndex = nonNegInt(input['winnerIndex']);
+      if (winnerIndex !== null) out.winnerIndex = winnerIndex;
+      const roll = num(input['roll']);
+      if (roll !== null) out.roll = roll;
+      const who = str(input['who'], CAP_SHORT);
+      if (who !== null) out.who = who;
+      action = out;
       break;
     }
     default:

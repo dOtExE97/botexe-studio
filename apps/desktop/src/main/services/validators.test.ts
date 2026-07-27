@@ -108,6 +108,29 @@ test('Action: unbekannte Felder werden nicht durchgereicht', () => {
   assert.equal((a as Record<string, unknown>)['evil'], undefined);
 });
 
+test('Action: spin_slot/start_gift_challenge/lucky_draw werden NICHT gefiltert (P2-Audit Regression)', () => {
+  // Diese drei kinds unterstützt die Trigger-Engine (TriggerActionKind in
+  // packages/trigger-engine/src/index.ts), fehlten aber im switch — der
+  // `default: return null`-Zweig hätte sie stillschweigend verworfen.
+  assert.deepEqual(
+    validateTriggerAction({ kind: 'spin_slot', targetId: 't1', win: true, winnerIndex: 2, roll: 0.5 }),
+    { kind: 'spin_slot', targetId: 't1', win: true, winnerIndex: 2, roll: 0.5 },
+  );
+  assert.equal(validateTriggerAction({ kind: 'spin_slot' }), null); // targetId fehlt
+
+  assert.deepEqual(
+    validateTriggerAction({ kind: 'start_gift_challenge', targetId: 'gm1', slug: 'rose', who: 'ExE' }),
+    { kind: 'start_gift_challenge', targetId: 'gm1', slug: 'rose', who: 'ExE' },
+  );
+  assert.equal(validateTriggerAction({ kind: 'start_gift_challenge', targetId: 'gm1' }), null); // slug fehlt
+
+  assert.deepEqual(
+    validateTriggerAction({ kind: 'lucky_draw', targetId: 'gm1', win: false, winnerIndex: 0 }),
+    { kind: 'lucky_draw', targetId: 'gm1', win: false, winnerIndex: 0 },
+  );
+  assert.equal(validateTriggerAction({ kind: 'lucky_draw' }), null); // targetId fehlt
+});
+
 test('Action: spotify_control nur mit gültigem control', () => {
   assert.deepEqual(validateTriggerAction({ kind: 'spotify_control', control: 'play' }), {
     kind: 'spotify_control',
