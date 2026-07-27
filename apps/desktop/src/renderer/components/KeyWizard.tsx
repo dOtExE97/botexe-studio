@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyRound, ExternalLink, X, CheckCircle2, XCircle, Loader2, ClipboardPaste } from 'lucide-react';
 import { toast } from './ToastHost';
+import { EpochGuard } from '../lib/epoch-guard';
 
 type TestState = 'idle' | 'testing' | 'valid' | 'invalid' | 'offline';
 
@@ -16,9 +17,19 @@ export default function KeyWizard() {
   const [test, setTest] = useState<TestState>('idle');
   const [saved, setSaved] = useState(false);
   const testedKey = useRef(''); // letzter geprüfter Wert (kein Doppel-Test)
+  // P1-4: Clipboard-Poll (alle 1s) und manuelle Eingabe (onBlur/Enter) können
+  // validate() für ZWEI VERSCHIEDENE Kandidaten parallel anstoßen. Ohne
+  // Wächter kann die ÄLTERE, langsamere Prüfung NACH der neueren fertig werden
+  // und ihr Ergebnis drüberschreiben — dabei wird ein veralteter Key
+  // gespeichert UND das Feld über `disabled={saved}` dauerhaft gesperrt,
+  // obwohl der Nutzer inzwischen einen anderen/neueren Key eingegeben hat.
+  const guard = useRef(new EpochGuard());
 
   useEffect(() => {
-    const show = () => { setOpen(true); setKey(''); setTest('idle'); setSaved(false); testedKey.current = ''; };
+    const show = () => {
+      setOpen(true); setKey(''); setTest('idle'); setSaved(false); testedKey.current = '';
+      guard.current.invalidate(); // alte, noch laufende Prüfungen vom vorigen Öffnen entwerten
+    };
     window.addEventListener('bx-key-wizard', show);
     return () => window.removeEventListener('bx-key-wizard', show);
   }, []);
@@ -28,11 +39,14 @@ export default function KeyWizard() {
     const k = candidate.trim();
     if (!k || testedKey.current === k) return;
     testedKey.current = k;
+    const myEpoch = guard.current.start(); // diese Runde ist jetzt die aktuellste
     setTest('testing');
     const result = await window.studio.testSignKey(k);
+    if (!guard.current.isCurrent(myEpoch)) return; // eine neuere Prüfung ist inzwischen dran — verwerfen
     if (result.ok) {
       setTest('valid');
       await window.studio.updateSettings({ tiktokSignApiKey: k });
+      if (!guard.current.isCurrent(myEpoch)) return; // während des Speicherns überholt — Key NICHT als gespeichert markieren
       setSaved(true);
       // Live-Seite/Settings sofort informieren (Key-Gate verschwindet ohne Neustart).
       window.dispatchEvent(new CustomEvent('bx-key-saved'));
