@@ -394,7 +394,12 @@ export class Studio {
       if (this.stats.apply(e)) { this.scheduleStatsBroadcast(); this.scheduleStatsSave(); }
 
       // 3. Trigger-Engine: Regeln auswerten, Aktionen ausführen (mit Sequenz-Delay)
+      // Dabei merken, ob eine Regel für DIESES Ereignis schon vorliest — sonst
+      // sagt die automatische Gift-Ansage weiter unten dasselbe ein zweites Mal
+      // an (bei einem Nutzer real: Trigger „…" → TTS-Ansage UND Gift-Ansage).
+      let regelLiestVor = false;
       for (const match of this.engine.evaluate(e)) {
+        if (match.action.kind === 'speak') regelLiestVor = true;
         this.dispatchAction(match.ruleId, match.action, e);
       }
 
@@ -414,7 +419,7 @@ export class Studio {
       if (e.type === 'sub' && e.user) this.maybePlayWelcomeMedia(e.user);
 
       // 3b3. Event-Ansagen per TTS (unabhängig vom Chat-Vorlesen).
-      if (e.type === 'follow') this.maybeAnnounceFollow(e);
+      if (e.type === 'follow') this.maybeAnnounceFollow(e, regelLiestVor);
 
       // 3c. Widget-Sounds: Feuerwerk-Knall / Alert-Sound direkt am Widget
       // konfiguriert — gespielt LOKAL über die App (nie im Overlay).
@@ -484,7 +489,9 @@ export class Studio {
         for (const { ruleId, action } of planLuckyDraws(matchingLuckyLayers(layers, e.gift.slug), this.getRules(), Math.random, e.user?.nickname)) {
           this.dispatchAction(ruleId, action, e);
         }
-        this.maybeAnnounceGift(e); // TTS-Ansage ab Coin-Schwelle
+        // TTS-Ansage ab Coin-Schwelle — aber nur, wenn nicht ohnehin schon eine
+        // Trigger-Regel für dieses Geschenk vorliest (sonst doppelt).
+        this.maybeAnnounceGift(e, regelLiestVor);
       }
 
       // 4. Live-Feed an die App-Shell
@@ -1689,18 +1696,28 @@ export class Studio {
   }
 
   /** Ansage „neuer Follower" — eigener Schalter/Text/Stimme, unabhängig vom Chat. */
-  private maybeAnnounceFollow(event: StudioEvent): void {
+  private maybeAnnounceFollow(event: StudioEvent, regelLiestSchonVor = false): void {
     const cfg = this.settings.peek().tts.announceFollow;
     if (!cfg?.enabled) return;
+    // Wie bei Geschenken: liest schon eine Trigger-Regel vor, nicht doppeln.
+    if (regelLiestSchonVor) {
+      log.info('TTS', 'Follower-Ansage übersprungen — eine Trigger-Regel liest diesen Follow bereits vor');
+      return;
+    }
     log.info('TTS', `Follower-Ansage: ${event.user?.nickname ?? '—'}`);
     this.speakForEvent(cfg.template, event, cfg.voice || undefined);
   }
 
   /** Ansage „großes Gift" ab eingestellter Coin-Schwelle. */
-  private maybeAnnounceGift(event: StudioEvent): void {
+  private maybeAnnounceGift(event: StudioEvent, regelLiestSchonVor = false): void {
     const cfg = this.settings.peek().tts.announceGift;
     if (!cfg?.enabled || !event.gift) return;
     if (!shouldAnnounceGift(event.gift.totalCoins, cfg)) return;
+    // Eine Trigger-Regel liest dieses Geschenk bereits vor → nicht doppelt ansagen.
+    if (regelLiestSchonVor) {
+      log.info('TTS', 'Gift-Ansage übersprungen — eine Trigger-Regel liest dieses Geschenk bereits vor');
+      return;
+    }
     log.info('TTS', `Gift-Ansage: ${event.user?.nickname ?? '—'} (${event.gift.totalCoins} Coins)`);
     this.speakForEvent(cfg.template, event, cfg.voice || undefined);
   }
