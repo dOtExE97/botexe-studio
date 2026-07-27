@@ -232,7 +232,11 @@ export default class SlotMachine {
     // Der Server (slot-gift.ts planSlotSpins) verzögert die Gewinn-Aktion um
     // exakt dasselbe props.spinMs (gleicher Default 2000) — ändert sich hier
     // die Dreh-Dauer, verschiebt sich automatisch auch der Feuer-Zeitpunkt,
-    // die beiden können nie auseinanderlaufen.
+    // die beiden können nie auseinanderlaufen. Default 2000 MUSS mit
+    // WIDGET_TIMING_DEFAULTS.SLOT_SPIN_MS (apps/desktop/src/shared/constants.ts)
+    // übereinstimmen — reines Browser-JS kann diese TS-Konstante nicht
+    // importieren, darum hier lokal kopiert; bei Änderung dort von Hand
+    // mitziehen.
     this.spinMs = Math.max(1200, Number(props.spinMs ?? 2000));
 
     this.items = parseSlotItems(props.items);

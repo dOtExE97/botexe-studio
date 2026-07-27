@@ -3,6 +3,24 @@ export const OVERLAY_PORT = 27415;
 
 export const APP_NAME = 'bOtExE Studio';
 
+/** Dreh-/Ziehungsdauer-Defaults (ms) für Rad (wheel) und Automat
+ *  (slot-machine) — WAR 3–4× als nackte Zahl unabhängig kopiert
+ *  (widget-types.ts, wheel-gift.ts/slot-gift.ts, widget-sounds.ts). Diese
+ *  Werte sind die EINZIGE Quelle für die TS-Seite; alle vier Stellen müssen
+ *  denselben Wert nutzen, da Client-Animation (wann Rad/Walzen optisch
+ *  stoppen) und Server-Timing (wann die Gewinn-Aktion feuert) exakt
+ *  zusammenpassen müssen — sonst feuert der Preis vor/nach dem sichtbaren
+ *  Stopp.
+ *
+ *  packages/widget-kit/wheel.js + slot-machine.js sind reines Browser-JS
+ *  (kein TS-Import ohne Bundler-Kopplung) und behalten daher lokale, per
+ *  Kommentar EXPLIZIT auf diese Konstanten verweisende Defaults — die Zahl
+ *  muss bei Änderung hier UND dort synchron bleiben. */
+export const WIDGET_TIMING_DEFAULTS = {
+  WHEEL_SPIN_MS: 5000,
+  SLOT_SPIN_MS: 2000,
+} as const;
+
 /** IPC-Kanäle Main ↔ Renderer. Nur benannte Kanäle — kein generisches invoke(). */
 export const IPC = {
   // Plattform-Verbindung

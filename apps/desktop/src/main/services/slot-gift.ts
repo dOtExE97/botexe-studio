@@ -6,6 +6,7 @@
 // alle Overlay-Quellen (OBS + TTLS) dasselbe Ergebnis zeigen. Pure Logik,
 // kein I/O — RNG wird injiziert, testbar.
 import { orderedGiftKeys, type TriggerAction, type TriggerRule } from '@botexe/trigger-engine';
+import { WIDGET_TIMING_DEFAULTS } from '../../shared/constants';
 
 export type SlotLayer = { id: string; widgetType: string; visible: boolean; props?: Record<string, unknown> };
 
@@ -84,10 +85,11 @@ export function planSlotSpins(
       action: { kind: 'spin_slot', targetId: layer.id, win, winnerIndex, roll: rng() },
     });
     if (win) {
-      // Default (2000) MUSS mit widget-types.ts' slot-machine-Standard
-      // übereinstimmen — sonst feuert die Aktion (unkonfiguriert) zu einem
-      // anderen Zeitpunkt als die Walzen im Widget tatsächlich stoppen.
-      const spinMs = Number(p.spinMs ?? 2000);
+      // WIDGET_TIMING_DEFAULTS.SLOT_SPIN_MS — MUSS mit widget-types.ts' und
+      // slot-machine.js' Standard übereinstimmen, sonst feuert die Aktion
+      // (unkonfiguriert) zu einem anderen Zeitpunkt als die Walzen im Widget
+      // tatsächlich stoppen.
+      const spinMs = Number(p.spinMs ?? WIDGET_TIMING_DEFAULTS.SLOT_SPIN_MS);
       const rule = rules.find((r) => r.id === keys[winnerIndex]?.ruleId);
       if (rule) {
         for (const act of rule.actions) {

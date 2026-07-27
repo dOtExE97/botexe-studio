@@ -103,6 +103,12 @@ export default class Wheel {
     // Geschenk-Triggern des Nutzers (Muster: gift-menu.js loadRules).
     this.source = props.source === 'trigger' ? 'trigger' : 'liste';
     this.segmentRules = []; // Index = Segment-Index — Grundlage für spätere Aufgaben (Auto-Auslösen)
+    // Default 5000 MUSS mit WIDGET_TIMING_DEFAULTS.WHEEL_SPIN_MS
+    // (apps/desktop/src/shared/constants.ts) übereinstimmen — reines Browser-
+    // JS kann diese TS-Konstante nicht importieren, darum hier lokal
+    // kopiert; wheel-gift.ts/widget-sounds.ts/widget-types.ts lesen sie von
+    // dort. Ändert sich der Wert dort, MUSS er hier von Hand mitgezogen
+    // werden (sonst driftet Client-Optik vom Server-Timing).
     this.spinMs = Math.max(2000, Number(props.spinMs ?? 5000));
     this.autoShow = props.autoShow !== false;
     this.showTrigger = props.showTrigger !== false; // Banner „wer hat gedreht" (TikFinity-Style)

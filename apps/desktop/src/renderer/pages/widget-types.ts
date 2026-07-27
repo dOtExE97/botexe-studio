@@ -7,6 +7,11 @@
 // Katalog laden, statt eine Kopie davon zu pflegen, die auseinanderläuft.
 // Hier NUR Daten/Typen ergänzen — nichts, was den Renderer mitzieht.
 
+// spinMs-Defaults (Dreh-/Ziehungsdauer) EINZIGE Quelle für die TS-Seite —
+// siehe shared/constants.ts (dort auch, warum wheel.js/slot-machine.js als
+// reines JS eigene, per Kommentar synchron gehaltene Kopien behalten).
+import { WIDGET_TIMING_DEFAULTS } from '../../shared/constants';
+
 export interface PropField {
   key: string;
   label: string;
@@ -565,7 +570,7 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'wheel', label: 'Glücksrad', desc: 'Dreht bei einer Trigger-Aktion (z.B. !spin gegen Punkte) und zeigt den Gewinn. Preise frei wählbar.',
-    w: 480, h: 560, props: { style: 'classic', segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', source: 'liste', spinMs: 5000, accent: '#ff5436', autoShow: true, showTrigger: true, title: 'Glücksrad', spinSoundId: 'botexe-rad.wav', resultSoundId: 'botexe-gewinn.wav', spinGift: '', autoFire: false },
+    w: 480, h: 560, props: { style: 'classic', segments: '100 Coins|Nichts|VIP-Tag|Shoutout|50 Punkte|Joker|Doppelt|Pech', source: 'liste', spinMs: WIDGET_TIMING_DEFAULTS.WHEEL_SPIN_MS, accent: '#ff5436', autoShow: true, showTrigger: true, title: 'Glücksrad', spinSoundId: 'botexe-rad.wav', resultSoundId: 'botexe-gewinn.wav', spinGift: '', autoFire: false },
     fields: [
       styleField([
         { value: 'classic', label: '🎡 Bunt (Standard)' },
@@ -593,7 +598,7 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'slot-machine', label: 'Gambling-Automat', desc: 'Spielautomat: ein Geschenk lässt die Walzen drehen — mit einstellbarer Gewinnchance wird zufällig eins deiner Geschenke gezogen und ausgelöst.',
-    w: 640, h: 480, props: { source: 'trigger', items: '', style: 'neon', accent: '#ff5e8a', spinGift: '', winChance: 60, spinMs: 2000 },
+    w: 640, h: 480, props: { source: 'trigger', items: '', style: 'neon', accent: '#ff5e8a', spinGift: '', winChance: 60, spinMs: WIDGET_TIMING_DEFAULTS.SLOT_SPIN_MS },
     fields: [
       { key: 'source', label: 'Woher kommen die Symbole', type: 'select', options: [
         { value: 'trigger', label: 'Automatisch aus meinen Geschenk-Triggern' },

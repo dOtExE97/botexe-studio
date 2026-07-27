@@ -4,6 +4,7 @@
 // eine Trigger-Regel angelegt werden muss (die würde in der Regel-Liste des
 // Nutzers als Fremdkörper auftauchen). Pure Logik, kein I/O — testbar.
 import { orderedGiftKeys, type TriggerAction, type TriggerRule } from '@botexe/trigger-engine';
+import { WIDGET_TIMING_DEFAULTS } from '../../shared/constants';
 
 export type WheelLayer = { id: string; widgetType: string; visible: boolean; props?: Record<string, unknown> };
 
@@ -46,7 +47,7 @@ export function planWheelSpins(
       const keys = orderedGiftKeys(rules);
       if (keys.length) {
         const idx = pickIndex(keys.length);
-        const spinMs = Number(p.spinMs ?? 5000);
+        const spinMs = Number(p.spinMs ?? WIDGET_TIMING_DEFAULTS.WHEEL_SPIN_MS);
         out.push({ ruleId: 'wheel-gift', action: { kind: 'spin_wheel', targetId: layer.id, segmentIndex: idx } });
         const rule = rules.find((r) => r.id === keys[idx]?.ruleId);
         if (rule) {

@@ -3,6 +3,7 @@
 // Overlay-Browser) — so gibt es keinen Doppel-Ton, wenn das Overlay in OBS
 // UND TikTok Live Studio gleichzeitig offen ist. Pure Logik, testbar.
 import type { OverlayLayout } from '@botexe/overlay-engine';
+import { WIDGET_TIMING_DEFAULTS } from '../../shared/constants';
 
 /** Widgets, deren soundId bei einem Gift-Event SOFORT (server-seitig) feuert.
  *  gift-fireworks NICHT mehr hier: das spielt Pfeife/Boom selbst, zeitlich
@@ -42,7 +43,7 @@ export function findWheelSounds(layouts: OverlayLayout[], targetId: string): Whe
       return {
         spin: typeof props.spinSoundId === 'string' ? props.spinSoundId : '',
         result: typeof props.resultSoundId === 'string' ? props.resultSoundId : '',
-        spinMs: Math.max(2000, Number(props.spinMs ?? 5000)),
+        spinMs: Math.max(2000, Number(props.spinMs ?? WIDGET_TIMING_DEFAULTS.WHEEL_SPIN_MS)),
       };
     }
   }
