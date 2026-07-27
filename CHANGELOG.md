@@ -3,6 +3,29 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.39.4] — 2026-07-27
+
+### Behoben: Regeln verloren still ihre Beschränkung (wichtig)
+Eine Trigger-Regel, die **nur bei einem bestimmten Geschenk** auslösen sollte, konnte diese Beschränkung beim Importieren oder Prüfen **verlieren** — und danach bei **jedem** Geschenk feuern. Dasselbe betraf Regeln für Like-Meilensteine und für den allerersten Follow. Ohne Fehlermeldung, ohne sichtbare Änderung.
+
+### Behoben: Sicherung konnte deine Schlüssel überschreiben
+Beim Erstellen einer Sicherung werden Zugangsschlüssel (z. B. der KI-Schlüssel) korrekt **weggelassen**. Beim **Einspielen** einer Sicherung waren sie aber nicht geschützt — eine fremde oder ältere Datei konnte deine lokalen Schlüssel überschreiben. Beim Import bleiben deine gespeicherten Schlüssel jetzt in jedem Fall erhalten.
+
+### Behoben: Profile vermischten ihre Overlays
+Alle Profile teilten sich denselben Ablageort. Nach einem Profilwechsel blieben die Overlays des vorherigen Profils sichtbar — und konnten beim nächsten Speichern **ins falsche Profil geraten**. Jetzt sauber getrennt.
+
+### Behoben: Weiteres
+- **„Offline", obwohl der Live-Wächter lief:** Die Statusmeldung ging verloren, bevor die Oberfläche zuhörte. „Verbinden" löste dadurch eine zweite, überflüssige Verbindung aus.
+- **Key-Assistent konnte sich selbst sperren:** Zwei gleichzeitige Prüfungen konnten einen veralteten Schlüssel speichern und das Eingabefeld blockieren.
+- **Eine defekte Aktion legte mehr lahm als sich selbst:** Ein fehlerhafter Eintrag bei Punkte-Einlösungen oder Panel-Knöpfen konnte die **gesamte** Verarbeitung der betroffenen Chat-Nachricht abbrechen. Solche Einträge werden jetzt beim Speichern und beim Einspielen geprüft.
+- **Update-Hinweis verschwand:** War ein Update schon geladen und das Fenster startete neu, kam der Hinweis „Jetzt neu starten" nie wieder — das Update blieb ungenutzt liegen.
+
+### Neu: Einstellungen, die es vorher nur intern gab
+- **Quiz:** Live-Stimmenbalken ein-/ausschaltbar
+- **Geschenke-Slider:** Zieh-Dauer der Lucky-Card einstellbar
+- **Follow-Alert:** auswählbar, worauf reagiert wird (Follow / Abo / Teilen)
+- **Aktions-Fenster:** sechs neue Felder für Warteschlange, Wiederholungs-Schutz und Sound
+
 ## [0.39.3] — 2026-07-27
 
 ### Behoben: App startete manchmal gar nicht mehr (wichtig)
