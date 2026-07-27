@@ -6,6 +6,10 @@ import {
   validateChatCommand,
   validateTriggerRules,
   validateChatCommands,
+  validateRedemption,
+  validateRedemptions,
+  validatePanelButton,
+  validatePanelButtons,
 } from './validators';
 
 // ── validateTriggerAction ─────────────────────────────────────────────────────
@@ -309,4 +313,92 @@ test('validateChatCommands: filtert Müll, kein Array → []', () => {
   assert.equal(out.length, 1);
   assert.equal(out[0]?.id, 'c1');
   assert.deepEqual(validateChatCommands('nope'), []);
+});
+
+// ── validateRedemption / validatePanelButton (P2-2-Audit) ─────────────────────
+//
+// Vorher wurden Einlösungen/Panel-Knöpfe an der IPC-/Backup-Grenze nur
+// oberflächlich geprüft (Array.isArray, kein Check der einzelnen Aktionen).
+// `actions: [null]` kam so bis zum Dispatcher durch und riss dort per
+// TypeError den gesamten Event-Handler für dieses Ereignis ab.
+
+const validRedemption = {
+  id: 're1',
+  name: 'Airhorn',
+  command: '!airhorn',
+  cost: 100,
+  enabled: true,
+  actions: [{ kind: 'play_sound', soundId: 's1' }],
+};
+
+test('Redemption: gültige Einlösung → durch', () => {
+  const r = validateRedemption(validRedemption);
+  assert.ok(r);
+  assert.equal(r.command, '!airhorn');
+  assert.equal(r.cost, 100);
+  assert.equal(r.actions.length, 1);
+});
+
+test('Redemption: actions: [null] → Aktion gefiltert, keine gültige übrig → gesamte Einlösung null', () => {
+  // Das ist genau das P2-2-Szenario: ein manipuliertes/kaputtes Backup mit
+  // `actions: [null]` darf NIE bis zum Dispatcher durchkommen.
+  assert.equal(validateRedemption({ ...validRedemption, actions: [null] }), null);
+});
+
+test('Redemption: gemischtes actions-Array — nur die gültige Aktion überlebt', () => {
+  const r = validateRedemption({ ...validRedemption, actions: [null, { kind: 'nope' }, { kind: 'obs_scene', scene: 'A' }] });
+  assert.ok(r);
+  assert.deepEqual(r.actions, [{ kind: 'obs_scene', scene: 'A' }]);
+});
+
+test('Redemption: cost muss eine nicht-negative Zahl sein', () => {
+  assert.equal(validateRedemption({ ...validRedemption, cost: -5 }), null);
+  assert.equal(validateRedemption({ ...validRedemption, cost: 'free' }), null);
+  const r = validateRedemption({ ...validRedemption, cost: 12.7 });
+  assert.ok(r);
+  assert.equal(r.cost, 12); // nonNegInt rundet ab
+});
+
+test('Redemption: fehlende Pflichtfelder / kein Objekt → null', () => {
+  assert.equal(validateRedemption(null), null);
+  assert.equal(validateRedemption({ ...validRedemption, id: undefined }), null);
+  assert.equal(validateRedemption({ ...validRedemption, command: '' }), null);
+  assert.equal(validateRedemption({ ...validRedemption, actions: 'nope' }), null);
+});
+
+test('validateRedemptions: filtert Müll aus gemischtem Array, kein Array → []', () => {
+  const out = validateRedemptions([
+    validRedemption,
+    null,
+    { ...validRedemption, id: 're2', actions: [null] }, // raus: keine gültige Aktion
+    { ...validRedemption, id: 're3' },
+  ]);
+  assert.deepEqual(out.map((r) => r.id), ['re1', 're3']);
+  assert.deepEqual(validateRedemptions('nope'), []);
+});
+
+const validPanelButton = { id: 'b1', label: 'Airhorn', action: { kind: 'play_sound', soundId: 's1' } };
+
+test('PanelButton: gültiger Knopf → durch, inkl. optionalem accelerator', () => {
+  const b = validatePanelButton({ ...validPanelButton, accelerator: 'CommandOrControl+1' });
+  assert.ok(b);
+  assert.equal(b.label, 'Airhorn');
+  assert.equal(b.accelerator, 'CommandOrControl+1');
+});
+
+test('PanelButton: action: null → gesamter Knopf null (P2-2-Regression)', () => {
+  assert.equal(validatePanelButton({ ...validPanelButton, action: null }), null);
+  assert.equal(validatePanelButton({ ...validPanelButton, action: { kind: 'nope' } }), null);
+});
+
+test('PanelButton: fehlende Pflichtfelder / kein Objekt → null', () => {
+  assert.equal(validatePanelButton(null), null);
+  assert.equal(validatePanelButton({ ...validPanelButton, label: '' }), null);
+});
+
+test('validatePanelButtons: filtert Müll aus gemischtem Array, kein Array → []', () => {
+  const out = validatePanelButtons([validPanelButton, null, { ...validPanelButton, id: 'b2', action: null }, 5]);
+  assert.equal(out.length, 1);
+  assert.equal(out[0]?.id, 'b1');
+  assert.deepEqual(validatePanelButtons('nope'), []);
 });

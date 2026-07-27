@@ -10,6 +10,8 @@ import type {
   TriggerAction,
   ChatCommand,
   StudioEventType,
+  Redemption,
+  PanelButton,
 } from '@botexe/trigger-engine';
 
 // ── Längen-Caps (gegen aufgeblähte/missbräuchliche Strings aus Importen) ──────
@@ -421,6 +423,95 @@ export function validateChatCommands(input: unknown): ChatCommand[] {
   for (const item of input) {
     const cmd = validateChatCommand(item);
     if (cmd !== null) out.push(cmd);
+  }
+  return out;
+}
+
+// ── Redemption / PanelButton (P2-2-Audit) ─────────────────────────────────────
+//
+// Vorher prüfte isValidRedemption (settings-store.ts, nur beim LADEN von
+// settings.json) lediglich `Array.isArray(r.actions)` — NICHT, dass jedes
+// Element darin eine valide TriggerAction ist. Und dieser Shape-Check lief NUR
+// beim initialen Laden der Datei, NICHT bei SettingsStore#update() (das ein
+// Backup/Import oder REDEMPTIONS_SET/PANEL_SET direkt aufrufen). Ein
+// manipuliertes/kaputtes Backup ODER ein fehlerhafter IPC-Aufruf konnte so
+// z.B. `actions: [null]` bis zum Dispatcher durchreichen — dort wirft
+// `action.kind` (logTrigger/maybeRedeem) eine TypeError, die den GESAMTEN
+// synchronen Event-Handler (wireBus) für dieses Ereignis abbricht: alle
+// nachfolgenden Schritte (Chat-Befehle, TTS-Vorlesen, Gift-Katalog, Stats...)
+// fallen für dieses Ereignis ersatzlos aus. Fix: dieselbe strenge, whitelist-
+// basierte Validierung wie bei TriggerRule/ChatCommand — ungültige Aktionen
+// werden gefiltert statt durchgereicht zu werden.
+
+/** Validiert eine Einlösung. null wenn id/name/command/cost/actions ungültig
+ *  sind ODER nach dem Filtern KEINE gültige Aktion übrig bleibt. */
+export function validateRedemption(input: unknown): Redemption | null {
+  if (!isObject(input)) return null;
+
+  const id = str(input['id'], CAP_ID);
+  const name = str(input['name'], CAP_NAME);
+  const command = str(input['command'], CAP_COMMAND);
+  if (id === null || name === null || command === null) return null;
+
+  const cost = nonNegInt(input['cost']);
+  if (cost === null) return null;
+
+  const rawActions = input['actions'];
+  if (!Array.isArray(rawActions)) return null;
+  const actions: TriggerAction[] = [];
+  for (const a of rawActions) {
+    const action = validateTriggerAction(a);
+    if (action !== null) actions.push(action);
+  }
+  if (actions.length === 0) return null; // keine gültige Aktion → Einlösung verwerfen
+
+  const enabled = bool(input['enabled']) ?? false;
+
+  const red: Redemption = { id, name, command, cost, actions, enabled };
+
+  const cooldownMs = nonNegInt(input['cooldownMs']);
+  if (cooldownMs !== null) red.cooldownMs = cooldownMs;
+
+  return red;
+}
+
+/** Erwartet ein Array; filtert ungültige Einlösungen raus. Kein Array → []. */
+export function validateRedemptions(input: unknown): Redemption[] {
+  if (!Array.isArray(input)) return [];
+  const out: Redemption[] = [];
+  for (const item of input) {
+    const red = validateRedemption(item);
+    if (red !== null) out.push(red);
+  }
+  return out;
+}
+
+/** Validiert einen Panel-Knopf. null wenn id/label/action ungültig sind. */
+export function validatePanelButton(input: unknown): PanelButton | null {
+  if (!isObject(input)) return null;
+
+  const id = str(input['id'], CAP_ID);
+  const label = str(input['label'], CAP_NAME);
+  if (id === null || label === null) return null;
+
+  const action = validateTriggerAction(input['action']);
+  if (action === null) return null;
+
+  const btn: PanelButton = { id, label, action };
+
+  const accelerator = str(input['accelerator'], CAP_SHORT);
+  if (accelerator !== null) btn.accelerator = accelerator;
+
+  return btn;
+}
+
+/** Erwartet ein Array; filtert ungültige Panel-Knöpfe raus. Kein Array → []. */
+export function validatePanelButtons(input: unknown): PanelButton[] {
+  if (!Array.isArray(input)) return [];
+  const out: PanelButton[] = [];
+  for (const item of input) {
+    const btn = validatePanelButton(item);
+    if (btn !== null) out.push(btn);
   }
   return out;
 }

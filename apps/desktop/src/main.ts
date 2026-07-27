@@ -3,8 +3,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
-import type { StudioEvent, Redemption, PanelButton } from '@botexe/trigger-engine';
-import { validateTriggerRules, validateChatCommands } from './main/services/validators';
+import type { StudioEvent } from '@botexe/trigger-engine';
+import { validateTriggerRules, validateChatCommands, validateRedemptions, validatePanelButtons, validateTriggerAction } from './main/services/validators';
 import { IPC } from './shared/constants';
 import { normalizeMixer } from './shared/mixer';
 import { parseChangelog } from './shared/changelog';
@@ -774,10 +774,14 @@ function registerIpc(): void {
   });
 
   // Einlöse-Store
+  // P2-2-Audit: vorher nur Array.isArray() + roher Cast — z.B. `actions: [null]`
+  // kam so ungeprüft bis zum Dispatcher durch und riss dort per TypeError die
+  // gesamte Event-Verarbeitung ab (siehe validators.ts). Jetzt dieselbe
+  // whitelist-basierte Validierung wie bei Trigger-Regeln/Chat-Befehlen.
   ipcMain.handle(IPC.REDEMPTIONS_GET, () => isStudio().getRedemptions());
   ipcMain.handle(IPC.REDEMPTIONS_SET, (_e, reds: unknown) => {
     if (!Array.isArray(reds)) return { ok: false, error: 'redemptions muss ein Array sein' };
-    isStudio().setRedemptions(reds as Redemption[]);
+    isStudio().setRedemptions(validateRedemptions(reds));
     return { ok: true };
   });
   ipcMain.handle(IPC.COMMANDS_GET, () => isStudio().getChatCommands());
@@ -803,15 +807,18 @@ function registerIpc(): void {
   });
 
   // Manuelles Auslöse-Panel + Hotkeys
+  // P2-2-Audit: gleiches Problem wie bei den Einlösungen — nur Array.isArray()
+  // + roher Cast, kein Check der einzelnen action-Objekte.
   ipcMain.handle(IPC.PANEL_GET, () => isStudio().getPanelButtons());
   ipcMain.handle(IPC.PANEL_SET, (_e, buttons: unknown) => {
     if (!Array.isArray(buttons)) return { ok: false, error: 'buttons muss ein Array sein' };
-    isStudio().setPanelButtons(buttons as PanelButton[]);
+    isStudio().setPanelButtons(validatePanelButtons(buttons));
     registerPanelHotkeys();
     return { ok: true };
   });
   ipcMain.handle(IPC.PANEL_FIRE, (_e, action: unknown) => {
-    if (action && typeof action === 'object') isStudio().fireManual(action as Parameters<Studio['fireManual']>[0]);
+    const valid = validateTriggerAction(action);
+    if (valid) isStudio().fireManual(valid);
     return { ok: true };
   });
 

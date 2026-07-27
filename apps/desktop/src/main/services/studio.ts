@@ -41,7 +41,7 @@ import { ViewerCardService, type ViewerInfo } from './viewer-card';
 import { GameService, type GameKind } from './game-service';
 import { pickQuestions, QUIZ_THEMES } from './games/quiz-questions';
 import { BossService, bossKillMoment } from './boss';
-import { validateTriggerRules, validateChatCommands } from './validators';
+import { validateTriggerRules, validateChatCommands, validateRedemptions, validatePanelButtons } from './validators';
 import { SpotifyService, type NowPlaying } from './spotify-service';
 import { StatsHistory, type StatsRange, type StatsSummary } from './stats-history';
 import { SportService } from './sport-service';
@@ -513,6 +513,15 @@ export class Studio {
 
   /** Aktion einplanen — mit Verzögerung (Combo-Sequenz) oder sofort. */
   private dispatchAction(ruleId: string, action: import('@botexe/trigger-engine').TriggerAction, event: StudioEvent): void {
+    // P2-2-Audit: defensiv, auch wenn die Boundary (IPC/Backup) inzwischen
+    // validiert — eine einzelne malformte Aktion (z.B. `null` aus einer alten,
+    // schon-auf-Disk liegenden settings.json) darf NIE den ganzen synchronen
+    // Event-Handler (wireBus) per TypeError abreißen und damit nachfolgende
+    // Schritte (Chat-Befehle, TTS, Stats...) für dieses Ereignis verschlucken.
+    if (!action || typeof action !== 'object' || typeof (action as { kind?: unknown }).kind !== 'string') {
+      log.warn('Trigger', `„${this.ruleLabel(ruleId)}": ungültige Aktion übersprungen (kein kind)`);
+      return;
+    }
     this.logTrigger(ruleId, action, event);
     // Clamp: schützt vor setTimeout-Overflow (>2^31 ms feuert sofort statt nie).
     const delay = Math.min(Math.max(0, action.delayMs ?? 0), 600_000);
@@ -586,6 +595,11 @@ export class Studio {
     if (red.cooldownMs) this.redemptionCooldowns.set(red.id, event.ts);
     if (red.cost > 0) this.scheduleStatsBroadcast();
     for (const action of red.actions) {
+      // Defensiv (P2-2-Audit): `action.kind` hier liest VOR dispatchAction()
+      // zu — eine malformte Aktion (z.B. `null`) würde sonst schon hier
+      // (nicht erst im Dispatcher) eine TypeError werfen und den ganzen
+      // Event-Handler für dieses Ereignis abreißen.
+      if (!action || typeof action !== 'object') continue;
       // Die Einlösung hat schon kassiert — ein Spin-Rad als Belohnung darf NICHT
       // ein zweites Mal Punkte abziehen (sonst doppelter Abzug).
       const a = action.kind === 'spin_wheel' ? { ...action, cost: 0 } : action;
@@ -1271,6 +1285,15 @@ export class Studio {
         // mit Fremdfeldern (Prototype-Pollution) versehenen Strukturen einschleusen.
         if ('triggerRules' in rest) rest.triggerRules = validateTriggerRules(rest.triggerRules);
         if ('chatCommands' in rest) rest.chatCommands = validateChatCommands(rest.chatCommands);
+        // P2-2-Audit: Redemptions/Panel-Buttons wurden hier bisher UNGEPRÜFT
+        // durchgereicht (isValidRedemption in settings-store.ts prüft nur beim
+        // Laden von settings.json, nicht bei diesem Import-Pfad, und selbst dort
+        // nur `Array.isArray(actions)`, nie die einzelnen Aktionen). Ein
+        // manipuliertes/kaputtes Backup mit z.B. `actions: [null]` riss sonst
+        // beim nächsten Chat-Event den kompletten Event-Handler ab (siehe
+        // dispatchAction/maybeRedeem). Gleiche strenge Validierung wie oben.
+        if ('redemptions' in rest) rest.redemptions = validateRedemptions(rest.redemptions);
+        if ('panelButtons' in rest) rest.panelButtons = validatePanelButtons(rest.panelButtons);
         this.settings.update(rest as Parameters<typeof this.settings.update>[0]);
         this.engine.setRules(this.settings.get().triggerRules);
         this.refreshTimerTicker(); // Backup könnte Timer-Regeln mitbringen/entfernen
