@@ -416,6 +416,14 @@ async function renderLayout(layout) {
               }
             } catch { /* nie eskalieren */ }
           },
+          // Hinweis ins App-Log (Diagnose-Seite). Für Fälle, in denen ein Widget
+          // absichtlich NICHTS tut und der Streamer sonst rätselt — z.B. ein
+          // Geschenk kommt an, passt aber zu keinem Eintrag der Liste, also
+          // bleibt die Animation aus. In der Vorschau still (Demo-Daten).
+          notify: (message) => {
+            if (PREVIEW || SINGLE) return;
+            reportClientError(layer.widgetType, message);
+          },
         });
         if (lastStats) entry.widget?.onStats?.(lastStats);
         if (lastSpotify) entry.widget?.onSpotify?.(lastSpotify);

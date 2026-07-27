@@ -83,3 +83,34 @@ export function itemsFromRules(rules) {
   }
   return out;
 }
+
+/** gift-menu.js, source:'trigger': trigger-abgeleitete Einträge (`derived`,
+ *  aus itemsFromRules) mit den manuell eingetragenen Geschenken (`manual`,
+ *  parseItems(props.items) — dasselbe Feld, das per GiftPicker befüllt wird)
+ *  zusammenführen. Trigger-Einträge haben Vorrang und bleiben automatisch
+ *  aktuell; ein manueller Eintrag ergänzt NUR, was itemsFromRules nicht
+ *  ableiten konnte.
+ *
+ *  Realer Fehlerfall (Nutzer-Meldung): eine Trigger-Regel feuert über einen
+ *  Coin-/Combo-Schwellenwert (`gift_coins_gte`/`gift_count_gte`, TriggersPage
+ *  „Gift-Wert mindestens … Coins") statt über den Gift-Namen
+ *  (`gift_slug_is`/`gift_id_is`). itemsFromRules() kennt dann korrekterweise
+ *  KEINEN Gift-Namen für diese Regel (mehrere Geschenke könnten die Schwelle
+ *  reißen) und lässt sie aus — der Sound/Alarm feuert trotzdem, denn die
+ *  Trigger-Engine wertet dieselbe Regel unabhängig aus. Vorher überschrieb
+ *  loadRules() `this.items` komplett mit `derived` — ein Geschenk, das der
+ *  Nutzer TROTZDEM per GiftPicker in der Liste unten ausgewählt hatte, wurde
+ *  dabei stillschweigend verworfen: die Tafel feierte nie, obwohl der Sound
+ *  hörbar lief. Mit dem Merge bleibt genau dieser manuelle Eintrag erhalten. */
+export function mergeGiftItems(derived, manual) {
+  const seen = new Set(
+    (Array.isArray(derived) ? derived : [])
+      .map((it) => (it && it.slug ? giftKey(it.slug) : (it && it.giftId ? `#${it.giftId}` : '')))
+      .filter(Boolean),
+  );
+  const extra = (Array.isArray(manual) ? manual : []).filter((it) => {
+    const key = it && it.slug ? giftKey(it.slug) : '';
+    return !!key && !seen.has(key);
+  });
+  return [...(Array.isArray(derived) ? derived : []), ...extra];
+}

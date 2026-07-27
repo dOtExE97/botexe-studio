@@ -1371,8 +1371,8 @@ function escapeHtml(s) {
 // EINZIGE Quelle dieser Logik, die sich auch der Server (trigger-engine/
 // gift-mapping.ts) und das Rad-Widget (wheel.js) teilen. Hier importiert UND
 // re-exportiert, damit bestehende Imports von gift-menu.js weiter funktionieren.
-import { giftKey, actionLabel, itemsFromRules } from './gift-rules.js';
-export { giftKey, actionLabel, itemsFromRules };
+import { giftKey, actionLabel, itemsFromRules, mergeGiftItems } from './gift-rules.js';
+export { giftKey, actionLabel, itemsFromRules, mergeGiftItems };
 // Challenge-Countdown pro Eintrag: reiner Kern in gift-countdown.js (NICHT
 // countdown.js — das ist das unabhängige Premium-Countdown-Widget).
 import {
@@ -1569,7 +1569,19 @@ export default class GiftMenu {
   onEvent(event) {
     if (!event || event.type !== 'gift') return;
     const i = this.matchIndex(event.gift);
-    if (i < 0) return;
+    if (i < 0) {
+      // Kein Eintrag passt → es passiert absichtlich nichts. Ohne Hinweis sieht
+      // das aber aus wie ein kaputtes Widget („Handherz geschickt, keine
+      // Animation"). Einmal je Geschenk-Art melden, nicht bei jedem Gift.
+      const key = event.gift?.slug ? giftKey(event.gift.slug) : `#${event.gift?.giftId || '?'}`;
+      if (!this.unbekannteGifts) this.unbekannteGifts = new Set();
+      if (key && !this.unbekannteGifts.has(key)) {
+        this.unbekannteGifts.add(key);
+        const name = event.gift?.slug || `Gift #${event.gift?.giftId || '?'}`;
+        this.ctx?.notify?.(`Geschenk „${name}" kam an, steht aber nicht in der Liste dieses Geschenk-Menüs — deshalb keine Animation. Eintrag ergänzen oder Quelle auf „aus meinen Geschenk-Triggern" stellen.`);
+      }
+      return;
+    }
     this.celebrate(i, event.user && event.user.nickname);
   }
 
@@ -2036,7 +2048,15 @@ export default class GiftMenu {
       // filtert dieselbe itemsFromRules-Liste auf `.text`. Ein breiterer
       // Filter hier (oder gar keiner) nimmt Einträge auf, die der Server
       // nicht zählt → Index-Drift, der Server trifft die falsche Karte.
-      const items = itemsFromRules(rules).filter((it) => it.text);
+      const derived = itemsFromRules(rules).filter((it) => it.text);
+      // Manuelle Einträge (props.items, per GiftPicker gewählt) NIE
+      // stillschweigend verwerfen — s. Kommentar bei mergeGiftItems()
+      // (gift-rules.js): ein Trigger, der über einen Coin-/Combo-Schwellenwert
+      // statt über den Gift-Namen feuert, taucht in `derived` gar nicht auf,
+      // obwohl er real feuert. Ohne den Merge verlor die Tafel dann JEDEN
+      // manuell zugeordneten Eintrag, sobald irgendeine Trigger-Regel Text
+      // lieferte (auch nur eine einzige, unabhängig vom Geschenk).
+      const items = mergeGiftItems(derived, parseItems(this.props.items));
       if (!items.length) return;
       this.items = items;
       this.demo = false;
