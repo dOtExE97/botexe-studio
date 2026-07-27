@@ -716,7 +716,16 @@ function registerIpc(): void {
   ipcMain.handle(IPC.GIFT_CATALOG_GET, () => isStudio().getGiftCatalog());
   ipcMain.handle(IPC.GIFT_META_SET, (_e, slug: unknown, patch: unknown) => {
     if (typeof slug !== 'string' || typeof patch !== 'object' || patch === null) return {};
-    return isStudio().setGiftMeta(slug, patch as { favorite?: boolean; customName?: string });
+    // P3d-Audit: bisher nur ein TS-Cast, kein Runtime-Check der Feldtypen —
+    // ein `customName:{}` oder `favorite:"ja"` lief ungeprüft in
+    // giftCatalog.setMeta() (reines Merge/Write, kein eigener Schutz dort).
+    // Gleiches Muster wie bei den anderen IPC-Handlern: nur bekannte Felder
+    // mit korrektem Typ übernehmen.
+    const raw = patch as Record<string, unknown>;
+    const safe: { favorite?: boolean; customName?: string } = {};
+    if (typeof raw.favorite === 'boolean') safe.favorite = raw.favorite;
+    if (typeof raw.customName === 'string') safe.customName = raw.customName.slice(0, 80);
+    return isStudio().setGiftMeta(slug, safe);
   });
   ipcMain.handle(IPC.OBS_SET_CONFIG, (_e, cfg: unknown) => {
     const c = (cfg ?? {}) as Record<string, unknown>;
