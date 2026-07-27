@@ -36,13 +36,23 @@ const EVENT_TYPES: ReadonlySet<string> = new Set<StudioEventType>([
 const WHO_VALUES: ReadonlySet<string> = new Set(['all', 'followers', 'subs', 'mods']);
 const SPOTIFY_CONTROLS: ReadonlySet<string> = new Set(['play', 'pause', 'next', 'previous']);
 
+// WICHTIG (P1-Audit): diese Liste MUSS mit dem TriggerCondition-Union in
+// @botexe/trigger-engine (packages/trigger-engine/src/index.ts) übereinstimmen.
+// Fehlt hier ein `kind`, den die Engine kennt, wird er beim Import/Speichern
+// STILLSCHWEIGEND aus rule.conditions gefiltert — z.B. verliert eine auf ein
+// EINZELNES Geschenk beschränkte Regel (gift_id_is) ihre Einschränkung und
+// feuert danach auf JEDES Geschenk. gift_id_is/follow_first_time/
+// like_count_gte fehlten hier, obwohl die Engine sie unterstützt.
 const CONDITION_KINDS: ReadonlySet<string> = new Set([
   'gift_coins_gte',
   'gift_count_gte',
   'gift_slug_is',
+  'gift_id_is',
   'chat_keyword',
   'chat_command',
   'chat_first_time',
+  'follow_first_time',
+  'like_count_gte',
   'viewer_count_gte',
 ]);
 
@@ -268,7 +278,17 @@ function validateCondition(
   switch (kind) {
     case 'gift_coins_gte':
     case 'gift_count_gte':
+    case 'like_count_gte':
     case 'viewer_count_gte': {
+      const value = num(input['value']);
+      if (value === null) return null;
+      return { kind, value };
+    }
+    case 'gift_id_is': {
+      // Stabile numerische TikTok-Gift-ID (siehe TriggerCondition in
+      // trigger-engine) — bewusst `num`, nicht `nonNegInt`: einzelne Gift-IDs
+      // sind nicht garantiert positiv/ganzzahlig dokumentiert, die Engine
+      // vergleicht nur auf Gleichheit.
       const value = num(input['value']);
       if (value === null) return null;
       return { kind, value };
@@ -281,6 +301,7 @@ function validateCondition(
       return { kind, value };
     }
     case 'chat_first_time':
+    case 'follow_first_time':
       return { kind };
     default:
       return null;

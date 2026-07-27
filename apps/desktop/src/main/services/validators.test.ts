@@ -149,6 +149,36 @@ test('Rule: conditions + cooldownMs werden valide übernommen', () => {
   ]);
 });
 
+test('Rule: gift_id_is/follow_first_time/like_count_gte werden NICHT gefiltert (P1-1 Regression)', () => {
+  // Diese drei kinds unterstützt die Trigger-Engine (siehe TriggerCondition in
+  // packages/trigger-engine/src/index.ts), fehlten aber in CONDITION_KINDS —
+  // eine auf ein einzelnes Geschenk beschränkte Regel verlor dadurch beim
+  // Import/Speichern ihre Einschränkung und feuerte auf JEDES Geschenk.
+  const r = validateTriggerRule({
+    ...validRule,
+    conditions: [
+      { kind: 'gift_id_is', value: 5655 },
+      { kind: 'follow_first_time' },
+      { kind: 'like_count_gte', value: 1000 },
+    ],
+  });
+  assert.ok(r);
+  assert.deepEqual(r.conditions, [
+    { kind: 'gift_id_is', value: 5655 },
+    { kind: 'follow_first_time' },
+    { kind: 'like_count_gte', value: 1000 },
+  ]);
+});
+
+test('Rule: gift_id_is ohne numerischen value → gefiltert', () => {
+  const r = validateTriggerRule({
+    ...validRule,
+    conditions: [{ kind: 'gift_id_is', value: 'not-a-number' }],
+  });
+  assert.ok(r);
+  assert.deepEqual(r.conditions, []);
+});
+
 test('Rule: ungültige Action wird gefiltert, Regel überlebt wenn ≥1 gültig', () => {
   const r = validateTriggerRule({
     ...validRule,
