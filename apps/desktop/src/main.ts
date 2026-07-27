@@ -400,6 +400,11 @@ function registerIpc(): void {
     return { ok: true };
   });
 
+  // P1-3: Renderer-Pull des Ist-Status beim Mount — sonst verpasst die UI den
+  // Push, wenn Auto-Live-Watch schon während studio.start() (VOR diesem
+  // Fenster) läuft, und hängt fälschlich bei "disconnected" fest.
+  ipcMain.handle(IPC.PLATFORM_GET_STATUS, () => isStudio().getPlatformStatus());
+
   ipcMain.handle(IPC.OVERLAY_GET_INFO, () => isStudio().getOverlayInfo());
 
   ipcMain.handle(IPC.APP_INFO, () => ({

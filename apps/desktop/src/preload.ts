@@ -18,6 +18,8 @@ const api = {
   // Plattform
   platformConnect: (username: string) => ipcRenderer.invoke(IPC.PLATFORM_CONNECT, username),
   platformDisconnect: () => ipcRenderer.invoke(IPC.PLATFORM_DISCONNECT),
+  /** Ist-Status abholen (P1-3) — Ergänzung zu onPlatformStatus (Push), s.dort. */
+  getPlatformStatus: () => ipcRenderer.invoke(IPC.PLATFORM_GET_STATUS),
 
   // Overlay
   getOverlayInfo: () => ipcRenderer.invoke(IPC.OVERLAY_GET_INFO),

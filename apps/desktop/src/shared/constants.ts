@@ -9,6 +9,13 @@ export const IPC = {
   PLATFORM_CONNECT: 'platform:connect',
   PLATFORM_DISCONNECT: 'platform:disconnect',
   PLATFORM_STATUS: 'platform:status',
+  /** Aktuellen Verbindungs-Status ABHOLEN (P1-3) — der Renderer bekommt
+   *  Status-Änderungen sonst nur GEPUSHT (PLATFORM_STATUS); startet der
+   *  Push aber schon während des App-Starts (Auto-Live-Watch läuft VOR
+   *  createMainWindow()), verpasst der Renderer ihn und hängt bei
+   *  "disconnected" fest, obwohl im Hintergrund längst gewartet/verbunden
+   *  wird. Mit diesem Pull holt sich useStudio den Ist-Stand beim Mounten. */
+  PLATFORM_GET_STATUS: 'platform:get-status',
   // Event-Bus → Renderer (Live-Feed in der App-Shell)
   BUS_EVENT: 'bus:event',
   STATS_UPDATE: 'stats:update',

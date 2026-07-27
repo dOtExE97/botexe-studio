@@ -188,6 +188,12 @@ export class Studio {
   private readonly boss = new BossService();
   private bossActive = false;
   private lastPlatformStatus: { status: string; detail?: string; at: number } = { status: 'disconnected', at: 0 };
+  /** Voller letzter Status (P1-3) — separat von lastPlatformStatus (das ist die
+   *  abgespeckte Diagnose-Projektion), damit getPlatformStatus() dem Renderer
+   *  GENAU dasselbe Objekt liefern kann, das sonst per PLATFORM_STATUS gepusht
+   *  wird. Wird per IPC-Pull abgeholt (useStudio.ts beim Mount), falls der
+   *  Push (z.B. Auto-Live-Watch beim App-Start, VOR dem Fenster) verpasst wurde. */
+  private lastPlatformStatusInfo: AdapterStatusInfo = { status: 'disconnected', isReconnect: false };
   /** Rollen-Gedächtnis (Mod/Teamherz/Follower) pro Stream — einmal erkannt =
    *  für die Session gemerkt, da TikTok Rollen nicht in jeder Nachricht liefert. */
   private sessionRoles = new SessionRoles();
@@ -344,6 +350,7 @@ export class Studio {
           log.info('TikTok', `Verbindungsmodus: ${mode === 'cloud' ? 'Cloud (Euler)' : 'Direkt'}`);
         }
         this.lastPlatformStatus = { status: info.status, detail: info.detail, at: Date.now() };
+        this.lastPlatformStatusInfo = info;
         this.hooks.onStatus(info);
         if (info.status === 'error') {
           this.hooks.onToast?.({ type: 'error', message: `Verbindung fehlgeschlagen${info.detail ? `: ${info.detail}` : ''}` });
@@ -794,6 +801,12 @@ export class Studio {
   }
 
   // ── Plattform ─────────────────────────────────────────────────────────
+
+  /** Aktuellen Verbindungs-Status ABHOLEN (P1-3) — für den Renderer-Pull beim
+   *  Mount, siehe lastPlatformStatusInfo. */
+  getPlatformStatus(): AdapterStatusInfo {
+    return this.lastPlatformStatusInfo;
+  }
 
   async connect(username: string): Promise<void> {
     this.settings.update({ lastUsername: username });
