@@ -13,7 +13,10 @@ export interface PropField {
   /** seconds = im UI in Sekunden, gespeichert als ms · boolean = Schalter
    *  media = visueller Bild/Video-Picker mit Import · sound = Sound-Dropdown
    *  (abgespielt über die App, nie im Overlay) */
-  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound' | 'gift-list' | 'gift' | 'gift-command-list' | 'list';
+  type: 'number' | 'text' | 'select' | 'color' | 'boolean' | 'seconds' | 'media' | 'sound' | 'gift-list' | 'gift' | 'gift-command-list' | 'list' | 'checkboxes';
+  /** Für 'select' und 'checkboxes'. Bei 'checkboxes' wird der Prop-Wert als
+   *  echtes String-Array gespeichert (nicht als getrennter Text) — das Widget
+   *  muss also `Array.isArray(props.x)` lesen, kein `split(',')`. */
   options?: { value: string; label: string }[];
   hint?: string;
   /** Nur für 'gift-command-list' und 'list': Platzhalter im Textfeld je Zeile. */
@@ -188,6 +191,7 @@ export const WIDGET_TYPES: {
     w: 420, h: 240, props: { channels: '', types: '', sizeMode: 'standard', queueMode: 'priority', maxQueue: 6, minPriority: 0, dedupeMs: 1500, defaultSkin: 'premium', animation: 'pop', showAvatar: true, showStats: true, soundMode: 'moment', accent: '#ff5436' },
     fields: [
       { key: 'channels', label: 'Kanäle', type: 'text', hint: 'Leer = alle. Sonst kommagetrennt: vip, viewer, game, mastery, boss, loot, manual, clip.' },
+      { key: 'types', label: 'Nur diese Momentarten', type: 'text', hint: 'Leer = alle Arten. Sonst kommagetrennt, z.B. vip-welcome, returning-viewer, manual-card, boss-damage, boss-kill, game-level-up, game-winner, quiz-reveal, loot-drop, card-drop, clip-marker. Feiner als „Kanäle" — damit blendest du z.B. nur den Boss-Kill dieses Kanals ein, nicht auch den Boss-Schaden.' },
       { key: 'sizeMode', label: 'Karten-Format', type: 'select', hint: 'Wie groß die Momente-Karte auftritt. (Die Textgröße stellst du weiter unten.)', options: [
         { value: 'compact', label: 'Kompakt' }, { value: 'standard', label: 'Standard' }, { value: 'full', label: 'Groß (kurz)' },
       ] },
@@ -198,14 +202,27 @@ export const WIDGET_TYPES: {
         { value: 'pop', label: 'Pop' }, { value: 'slide', label: 'Slide' }, { value: 'flip', label: 'Flip' }, { value: 'fade', label: 'Fade' },
       ] },
       { key: 'minPriority', label: 'Mindest-Priorität', type: 'number', hint: '0 = alles. Höher = nur wichtige Momente (Boss=100, VIP=70, Game-Win=35).' },
+      { key: 'queueMode', label: 'Reihenfolge bei Stau', type: 'select', hint: 'Kommen mehrere Momente schneller rein, als die Karte anzeigen kann: „Wichtigstes zuerst" zeigt zuerst die höchste Priorität (Boss vor Viewer), „Der Reihe nach" hält die Ankunftsreihenfolge ein.', options: [
+        { value: 'priority', label: 'Wichtigstes zuerst' }, { value: 'fifo', label: 'Der Reihe nach' },
+      ] },
+      { key: 'maxQueue', label: 'Warteschlange (max.)', type: 'number', hint: 'Wie viele Momente gleichzeitig auf ihre Anzeige warten dürfen. Ist sie voll, fliegt bei einem wichtigeren Neuankömmling der unwichtigste raus.' },
+      { key: 'dedupeMs', label: 'Wiederholungssperre', type: 'seconds', hint: 'Verhindert, dass derselbe Moment (gleiche Art + gleicher Zuschauer) zu kurz hintereinander doppelt einblendet — z.B. bei schnell aufeinanderfolgenden Boss-Treffern.' },
       { key: 'showAvatar', label: 'Profilbild zeigen', type: 'boolean' },
       { key: 'showStats', label: 'Stats zeigen', type: 'boolean' },
+      { key: 'soundMode', label: 'Sound', type: 'select', hint: 'Bestimmt, was beim Einblenden abgespielt wird: der zum jeweiligen Moment mitgelieferte Sound, ein fest von dir gewählter Sound für ALLE Momente, oder gar keiner.', options: [
+        { value: 'moment', label: 'Passend zum Moment (Standard)' }, { value: 'custom', label: 'Fester Sound (unten wählen)' }, { value: 'off', label: 'Kein Sound' },
+      ] },
+      { key: 'soundId', label: 'Fester Sound', type: 'sound', hint: 'Spielt bei JEDEM Moment über die App, egal welche Art.', showIf: (p) => p.soundMode === 'custom' },
       ACCENT_FIELD,
     ],
   },
   {
     type: 'quiz-game', label: 'Quiz', desc: 'Chat-Quiz: Zuschauer antworten mit A/B/C/D, Live-Stimmen-Balken, Auflösung mit Gewinner. Starten/Auflösen auf der Live-Seite.',
-    w: 420, h: 240, props: { accent: '#7c5cff', showVotes: true }, fields: [ACCENT_FIELD],
+    w: 420, h: 240, props: { accent: '#7c5cff', showVotes: true },
+    fields: [
+      { key: 'showVotes', label: 'Live-Stimmen-Balken zeigen', type: 'boolean', hint: 'An: Zuschauer sehen während der Abstimmung, wie die Balken hinter A/B/C/D wachsen. Aus: die Antworten stehen ohne Balken da, erst die Auflösung zeigt den Gewinner — spannender, wenn du keinen Zwischenstand verraten willst.' },
+      ACCENT_FIELD,
+    ],
   },
   {
     type: 'hangman-game', label: 'Galgenmännchen', desc: 'Chat rät Buchstaben (oder „!guess wort"). Wort-Zeile, Fehlversuche, geratene Buchstaben.',
@@ -255,7 +272,7 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'follow-alert', label: 'Follow-Alert', desc: 'Einblendung für Follows, Subs und Shares — in 4 Stilen.',
-    w: 460, h: 90, props: { durationMs: 3600, style: 'glas', colorByType: true },
+    w: 460, h: 90, props: { durationMs: 3600, style: 'glas', colorByType: true, events: ['follow', 'sub', 'share'] },
     fields: [
       styleField([
         { value: 'glas', label: 'Glas (edel)' },
@@ -264,6 +281,11 @@ export const WIDGET_TYPES: {
         { value: 'hype', label: 'Hype (fett, gefüllt)' },
       ]),
       { key: 'durationMs', label: 'Anzeigedauer', type: 'seconds', hint: 'Wie lange jede Einblendung sichtbar bleibt.' },
+      { key: 'events', label: 'Bei welchen Ereignissen', type: 'checkboxes', hint: 'Häkchen weg = dieses Ereignis blendet nichts mehr ein. Alle drei aus wäre ein stummes Widget — dann lieber ausblenden statt platzieren.', options: [
+        { value: 'follow', label: 'Neuer Follower' },
+        { value: 'sub', label: 'Neuer Sub' },
+        { value: 'share', label: 'Stream geteilt' },
+      ] },
       { key: 'colorByType', label: 'Eigene Farbe pro Typ', type: 'boolean', hint: 'An: Follow türkis, Sub gold, Share rot. Aus: überall deine Akzentfarbe.' },
       ACCENT_FIELD,
     ],
@@ -824,6 +846,7 @@ export const WIDGET_TYPES: {
       { key: 'luckyMode', label: 'Lucky-Draw aktivieren', type: 'boolean', hint: 'Statt fest zuzuordnen: EIN Geschenk shuffelt erst durch alle Karten und landet dann per Zufall auf einer — nur bei Gewinn löst die Karte aus (Glücksrad-Gefühl statt Preistafel).' },
       { key: 'luckyGift', label: 'Bei welchem Geschenk ziehen?', type: 'gift', hint: 'Schickt das jemand, shuffeln die Karten. Leer = nie.', showIf: (p) => p.luckyMode === true },
       { key: 'luckyChance', label: 'Gewinnchance (%)', type: 'number', hint: '0 = nie ein Gewinn, 100 = immer. Bestimmt, wie oft die gezogene Karte tatsächlich auslöst.', showIf: (p) => p.luckyMode === true },
+      { key: 'luckyDrawMs', label: 'Ziehungsdauer', type: 'seconds', hint: 'Wie lange die Karten shuffeln, bevor die gezogene Karte stehen bleibt. Kürzer = schneller zur Auflösung, länger = mehr Spannung.', showIf: (p) => p.luckyMode === true },
       { key: 'luckyCommand', label: 'Chat-Befehl (optional)', type: 'text', hint: 'z.B. !lucky — schreibt das jemand, läuft die Ziehung. Leer = nur per Geschenk.', showIf: (p) => p.luckyMode === true },
       ACCENT_FIELD,
       THEME_FIELD,

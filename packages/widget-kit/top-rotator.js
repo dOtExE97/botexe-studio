@@ -28,6 +28,8 @@ const CSS = `
 /* Eigener Größen-Container, damit der Fallback-Buchstabe (.bx-av::after) mitwächst. */
 .bx-tr-pic { height: 74%; aspect-ratio: 1/1; width: auto; flex: none; border-radius: 50%; container-type: size;
   box-shadow: 0 0 0 3px #5c9dff, 0 4px 10px rgba(0,0,0,.5); }
+/* Bewusst OHNE --bx-fs: der Buchstabe sitzt in einem Kreis fester Größe und
+   würde sonst herauslaufen — die Textgrößen-Einstellung wirkt auf echte Texte. */
 .bx-tr-pic::after { font-size: 52cqmin; }
 .bx-tr-row[data-rank="1"] .bx-tr-pic { box-shadow: 0 0 0 3px var(--bx-gold), 0 0 18px -2px var(--bx-gold), 0 4px 10px rgba(0,0,0,.5); }
 .bx-tr-row[data-rank="2"] .bx-tr-pic { box-shadow: 0 0 0 3px #d7deec, 0 4px 10px rgba(0,0,0,.5); }

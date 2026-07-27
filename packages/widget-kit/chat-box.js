@@ -16,6 +16,8 @@ const CSS = `
 /* Eigener Groessen-Container, damit der Fallback-Buchstabe (.bx-av::after) mitwaechst. */
 .bx-cb-pic { width: clamp(17px,min(6.6cqi,7.5cqh),46px); aspect-ratio: 1/1; height: auto; border-radius: 50%; flex: none; margin-top: 1px;
   container-type: size; box-shadow: 0 0 0 2px rgba(255,255,255,.12); }
+/* Bewusst OHNE --bx-fs: der Buchstabe sitzt in einem Kreis fester Größe und
+   würde sonst herauslaufen — die Textgrößen-Einstellung wirkt auf echte Texte. */
 .bx-cb-pic::after { font-size: 52cqmin; }
 .bx-cb-body { min-width: 0; }
 .bx-cb-name { font-family: var(--bx-font-display); font-size: calc((clamp(9px,min(3.4cqi,4.2cqh),22px)) * var(--bx-fs, 1)); text-transform: uppercase; letter-spacing: .03em;

@@ -44,6 +44,8 @@ const CSS = `
 /* — Avatar mit Medaillen-Ring auf den Podestplätzen — */
 /* Eigener Größen-Container, damit der Fallback-Buchstabe (.bx-av::after) mitwächst. */
 .bx-pb-pic { height:78%; aspect-ratio:1/1; width:auto; border-radius:50%; flex:none; container-type:size; box-shadow: 0 0 0 2px rgba(255,255,255,.12); }
+/* Bewusst OHNE --bx-fs: der Buchstabe sitzt in einem Kreis fester Größe und
+   würde sonst herauslaufen — die Textgrößen-Einstellung wirkt auf echte Texte. */
 .bx-pb-pic::after { font-size:52cqmin; }
 .bx-pb-row[data-rank="1"] .bx-pb-pic { box-shadow: 0 0 0 2px var(--bx-gold), 0 0 14px -3px var(--bx-gold); }
 .bx-pb-row[data-rank="2"] .bx-pb-pic { box-shadow: 0 0 0 2px #d7deec; }

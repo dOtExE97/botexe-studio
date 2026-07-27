@@ -22,6 +22,8 @@ const CSS = `
 .bx-spo-art { position:relative; width:min(76cqh, 26cqi); aspect-ratio:1/1; height:auto; flex:none; border-radius:.28em;
   background:linear-gradient(150deg,#2a2f45,#171a28) center/cover no-repeat;
   box-shadow: 0 6px 16px -6px rgba(0,0,0,.65); }
+/* Bewusst OHNE --bx-fs: die Note sitzt in einem Cover-Platzhalter fester Größe
+   und würde sonst herauslaufen — die Textgrößen-Einstellung wirkt auf echte Texte. */
 .bx-spo-art::after { content:'♪'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   font-size:min(42cqh, 14cqi); line-height:1; color:rgba(255,255,255,.5); }
 .bx-spo-art.has-art { background-color:#1a1c28; }

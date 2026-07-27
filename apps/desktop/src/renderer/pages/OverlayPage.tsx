@@ -1309,6 +1309,39 @@ export default function OverlayPage() {
                       );
                     }
 
+                    // Mehrfachauswahl (z.B. „bei welchen Ereignissen") — der Prop-
+                    // Wert ist ein echtes String-Array, nicht getrennter Text
+                    // (das Widget prüft Array.isArray, siehe PropField-Kommentar).
+                    if (field.type === 'checkboxes') {
+                      const selectedValues = Array.isArray(value)
+                        ? (value as unknown[]).map(String)
+                        : (field.options ?? []).map((o) => o.value);
+                      const toggle = (v: string, checked: boolean) => {
+                        const next = checked
+                          ? [...selectedValues, v]
+                          : selectedValues.filter((x) => x !== v);
+                        setProp(next);
+                      };
+                      return (
+                        <div key={field.key} className="text-[10px] uppercase tracking-widest text-studio-muted">
+                          <FieldLabel label={field.label} hint={field.hint} />
+                          <div className="mt-1.5 flex flex-col gap-1">
+                            {field.options?.map((o) => (
+                              <label key={o.value} className="flex cursor-pointer items-center gap-2 text-xs normal-case tracking-normal text-studio-text">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedValues.includes(o.value)}
+                                  onChange={(e) => toggle(o.value, e.target.checked)}
+                                  className="accent-[#ff4d2e]"
+                                />
+                                <span>{o.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+
                     // Boolean = Schalter in eigener Zeile
                     if (field.type === 'boolean') {
                       return (

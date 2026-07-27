@@ -16,6 +16,8 @@ const CSS = `
    um welches Ereignis es geht. */
 .bx-af-ava { position: relative; flex: none; width: clamp(20px,min(9cqi,10cqh),58px); aspect-ratio: 1/1; }
 .bx-af-av { position: absolute; inset: 0; border-radius: 50%; container-type: size; box-shadow: 0 0 0 2px rgba(255,255,255,.14); }
+/* Bewusst OHNE --bx-fs: der Buchstabe sitzt in einem Kreis fester Größe und
+   würde sonst herauslaufen — die Textgrößen-Einstellung wirkt auf echte Texte. */
 .bx-af-av::after { font-size: 52cqmin; }
 .bx-af-badge { position: absolute; right: -10%; bottom: -10%; width: 56%; height: 56%; display: flex; align-items: center; justify-content: center;
   border-radius: 50%; color: #0a0b10; box-shadow: 0 0 0 2px rgba(10,11,18,.85); }
