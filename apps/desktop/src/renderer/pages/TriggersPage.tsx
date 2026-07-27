@@ -240,7 +240,12 @@ export default function TriggersPage() {
    *  die Aktionen blind zu feuern. So prüft man wirklich „greift meine Regel?". */
   const eventForRule = (rule: TriggerRule): Record<string, unknown> | null => {
     const c = rule.conditions?.[0] as (TriggerCondition & { value?: string | number }) | undefined;
-    const user = { id: `test-${Date.now().toString(36)}`, nickname: 'Test-Zuschauer' };
+    // STABILE Test-Kennung: vorher steckte hier ein Zeitstempel, jede Prüfung
+    // erzeugte also einen NEUEN „Zuschauer". Folge: Top-Gifter & Co. listeten
+    // denselben Test fünfmal statt einmal mit der Summe (real im Stream-Overlay
+    // gesehen) — und die „pro Zuschauer"-Cooldowns griffen beim Testen nie,
+    // obwohl der Test laut Kommentar oben genau die echte Kette prüfen soll.
+    const user = { id: 'test-zuschauer', nickname: 'Test-Zuschauer' };
     switch (rule.event) {
       case 'gift': {
         const slug = c?.kind === 'gift_slug_is' ? String(c.value || 'Rose') : 'Rose';
