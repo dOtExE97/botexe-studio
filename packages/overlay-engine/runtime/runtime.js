@@ -805,8 +805,20 @@ setTimeout(() => {
       // Mit dem 60er-Cap ist ~60 der Gesund-Wert → als INFO melden, nicht als
       // WARN (sonst sieht jedes normale Log alarmierend aus). Nur echte
       // Drosselung (Browser bremst hart) bleibt eine Warnung.
+      //
+      // AUSNAHME Editor-Vorschau: Chromium drosselt jedes nicht sichtbare
+      // Fenster absichtlich auf ~10 fps. Wer die App wegklickt oder auf eine
+      // andere Seite wechselt, erzeugt also garantiert eine „Warnung", die
+      // nichts über den Stream aussagt — die Vorschau sieht niemand außer dem
+      // Streamer. Echte Warnungen kämen darin unter. Deshalb: Vorschau nur INFO.
+      const preview = !!cfg.preview && !cfg.perf;
       const healthy = fps >= 50;
-      reportClientError('fps', `~${fps} fps (rAF) [${ctx}]${fps < 12 ? ' — Browser drosselt, Widgets nutzen Fallback (~18fps)' : ''}`, healthy ? 'info' : 'warn');
+      const zusatz = fps < 12
+        ? preview
+          ? ' — Vorschau lief im Hintergrund (normal, betrifft den Stream nicht)'
+          : ' — Browser drosselt, Widgets nutzen Fallback (~18fps)'
+        : '';
+      reportClientError('fps', `~${fps} fps (rAF) [${ctx}]${zusatz}`, healthy || preview ? 'info' : 'warn');
     }
   };
   requestAnimationFrame(count);
