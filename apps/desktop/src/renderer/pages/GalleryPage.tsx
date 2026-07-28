@@ -4,7 +4,7 @@
 // legt im Hintergrund eine Trigger-Regel an (wie bei TikFinity). Der Erst-
 // Schenker jedes Gifts ist mit Datum verewigt. 🏆
 import { useEffect, useMemo, useState } from 'react';
-import { Gift, Search, Crown, Coins, Volume2, Sparkles, Mic, Plus, Trash2, Play, X, Star, Clock } from 'lucide-react';
+import { Gift, Search, Crown, Coins, Volume2, Sparkles, Mic, Plus, Trash2, Play, X, Star, Clock, Download } from 'lucide-react';
 import type { TriggerRule, TriggerAction } from '@botexe/trigger-engine';
 import { findGiftRule, upsertGiftRule, otherGiftRules } from '@botexe/trigger-engine';
 import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
@@ -49,6 +49,30 @@ export default function GalleryPage() {
   useEffect(() => {
     void window.studio.getGiftListStatus?.().then(setGiftListStatus).catch(() => setGiftListStatus('unbekannt'));
   }, []);
+
+  // Einmaliger Download des Bild-Pakets (~25 MB) — schliesst die Luecke, die
+  // der kostenpflichtige Gift-Listen-Abruf laesst.
+  const [paketLaeuft, setPaketLaeuft] = useState(false);
+  const [paketProzent, setPaketProzent] = useState(0);
+  useEffect(() => window.studio.onGiftImagesProgress?.((p) => {
+    setPaketProzent(p.gesamt > 0 ? Math.round((p.geladen / p.gesamt) * 100) : 0);
+  }), []);
+
+  const bilderLaden = () => {
+    setPaketLaeuft(true);
+    setPaketProzent(0);
+    void window.studio.downloadGiftImages?.()
+      .then((r) => {
+        if (r?.ok) {
+          toast('success', `${r.geschrieben ?? 0} Geschenk-Bilder geladen.`);
+          reload();
+        } else {
+          toast('error', `Bilder-Download fehlgeschlagen: ${r?.error ?? 'unbekannt'}`);
+        }
+      })
+      .catch((e: Error) => toast('error', `Bilder-Download fehlgeschlagen: ${e.message}`))
+      .finally(() => setPaketLaeuft(false));
+  };
   const [sort, setSort] = useState<Sort>('coins');
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
@@ -137,6 +161,16 @@ export default function GalleryPage() {
           <option value="name">Name (A→Z)</option>
           <option value="recent">Zuletzt gesehen</option>
         </select>
+        {/* Bild-Paket: der eine Klick, der alle Platzhalter verschwinden laesst. */}
+        <button
+          onClick={bilderLaden}
+          disabled={paketLaeuft}
+          title="Lädt einmalig alle Geschenk-Bilder (~25 MB). Deine eigenen Bilder bleiben unangetastet."
+          className="flex items-center gap-1.5 rounded-lg border border-studio-gold/50 bg-studio-gold/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-studio-gold hover:bg-studio-gold/20 disabled:opacity-60"
+        >
+          <Download size={13} />
+          {paketLaeuft ? (paketProzent > 0 ? `Lädt… ${paketProzent}%` : 'Lädt…') : 'Bilder laden'}
+        </button>
         <button
           onClick={toggleLang}
           title="Geschenk-Namen auf Deutsch oder Englisch anzeigen (Suche findet immer beide)"
@@ -167,10 +201,12 @@ export default function GalleryPage() {
               mit Bild hier und bleibt für immer. Bis dahin zeigen Widgets für solche Geschenke ein
               graues Platzhalter-Symbol.
               <span className="mt-1.5 block">
-                Du hast eigene Geschenk-Bilder? Leg sie unter{' '}
-                <b className="text-studio-text">Einstellungen → Geschenk-Bilder öffnen</b> ab und benenne
-                sie nach dem Geschenk (<code>Hat and Mustache.png</code>) — Groß-/Kleinschreibung,
-                Binde­striche und Leerzeichen sind egal.
+                <b className="text-studio-text">Schneller geht's mit „Bilder laden" oben</b> — das holt
+                einmalig alle Geschenk-Bilder, danach hat jedes Widget sofort ein Bild. Eigene Bilder
+                kannst du auch selbst ablegen (<b className="text-studio-text">Einstellungen →
+                Geschenk-Bilder öffnen</b>), benannt nach dem Geschenk
+                (<code>Hat and Mustache.png</code>) — Schreibweise egal. Deine eigenen Bilder werden
+                vom Download nie überschrieben.
               </span>
             </p>
           )}

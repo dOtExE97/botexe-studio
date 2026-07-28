@@ -157,6 +157,10 @@ const api = {
   onStreamerbotStatus: listen<string>(IPC.SB_STATUS),
   // P3c-Audit: gleicher Pull wie getObsStatus, für Streamer.bot.
   getStreamerbotStatus: (): Promise<string> => ipcRenderer.invoke(IPC.SB_GET_STATUS),
+  // Geschenk-Bilder-Paket einmalig laden (Fortschritt per onGiftImagesProgress).
+  downloadGiftImages: (): Promise<{ ok: boolean; geschrieben?: number; uebersprungen?: number; error?: string }> =>
+    ipcRenderer.invoke(IPC.GIFT_IMAGES_DOWNLOAD),
+  onGiftImagesProgress: listen<{ geladen: number; gesamt: number }>(IPC.GIFT_IMAGES_PROGRESS),
   // Warum fehlen Gift-Bilder? (siehe GIFT_LIST_STATUS)
   getGiftListStatus: (): Promise<'unbekannt' | 'ok' | 'plan-noetig' | 'fehler'> =>
     ipcRenderer.invoke(IPC.GIFT_LIST_STATUS),

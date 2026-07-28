@@ -170,6 +170,11 @@ export const IPC = {
   // TikTok-Live-Studio-Link (Domain-Form + hosts-Setup)
   TTLS_LINK_GET: 'ttls:link-get',
   TTLS_SETUP: 'ttls:setup',
+  /** Einmaliger Download des Geschenk-Bilder-Pakets (~25 MB, GitHub-Anhang).
+   *  Schliesst die Luecke, die der kostenpflichtige Gift-Listen-Abruf laesst. */
+  GIFT_IMAGES_DOWNLOAD: 'gift:images-download',
+  /** Fortschritt dieses Downloads (Main -> Renderer). */
+  GIFT_IMAGES_PROGRESS: 'gift:images-progress',
   /** Ergebnis des Gift-Listen-Abrufs — erklaert der Oberflaeche, warum bei
    *  manchen Geschenken nur ein Platzhalter statt Bild steht. */
   GIFT_LIST_STATUS: 'gift:list-status',

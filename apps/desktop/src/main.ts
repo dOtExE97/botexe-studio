@@ -18,6 +18,7 @@ import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, un
 // Statisch (nicht dynamisch) importiert: der Start muss VOR dem 'ready'-Ereignis
 // passieren, ein nachgeladenes Modul käme zu spät. Siehe Block weiter unten.
 import { initMainTelemetry, sendTelemetryTest } from './main/telemetry-main';
+import { ladeBildPaket } from './main/services/gift-image-pack';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
 // dann sofort beenden, sonst öffnen sich Geister-Fenster.
@@ -45,6 +46,9 @@ if (started) {
 // Zeile im Log" wurde als „Sentry ist aus" gelesen, obwohl der Nutzer
 // zugestimmt hatte. Der Zustand wird deshalb gemerkt und nach dem Start des
 // Datei-Logs nachgetragen.
+/** Läuft gerade ein Geschenk-Bilder-Download? (nur einer gleichzeitig) */
+let giftBilderLaufend = false;
+
 let telemetrieStatus = 'aus (nicht zugestimmt)';
 // Läuft der Melder in DIESEM Programmlauf wirklich? Nicht dasselbe wie der
 // gespeicherte Schalter: eine frische Zustimmung wirkt erst beim nächsten Start.
@@ -425,8 +429,27 @@ function registerIpc(): void {
     return { ok: true };
   });
   ipcMain.handle(IPC.APP_OPEN_GIFT_IMAGES, () => {
+    // Merker verwerfen: wer gerade Bilder hineinkopiert, soll sie sofort sehen.
+    isStudio().giftCatalog.vergisseEigeneBilder();
     void shell.openPath(isStudio().giftCatalog.getImagesDir());
     return { ok: true };
+  });
+  // Geschenk-Bilder-Paket einmalig laden. Läuft nur einmal gleichzeitig — zwei
+  // parallele Downloads würden dieselben Dateien schreiben.
+  ipcMain.handle(IPC.GIFT_IMAGES_DOWNLOAD, async (e) => {
+    if (giftBilderLaufend) return { ok: false, error: 'Download läuft bereits.' };
+    giftBilderLaufend = true;
+    try {
+      const ordner = isStudio().giftCatalog.getImagesDir();
+      const r = await ladeBildPaket(ordner, (p) => {
+        if (!e.sender.isDestroyed()) e.sender.send(IPC.GIFT_IMAGES_PROGRESS, p);
+      });
+      // Neu entpackte Bilder sollen ohne Neustart zählen.
+      isStudio().giftCatalog.vergisseEigeneBilder();
+      return r;
+    } finally {
+      giftBilderLaufend = false;
+    }
   });
   ipcMain.handle(IPC.SPOTIFY_BEGIN_AUTH, () => {
     const r = isStudio().spotifyBeginAuth();
