@@ -3,6 +3,13 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.41.1] — 2026-07-28
+
+### Overlay startet wieder leichtgewichtig
+Seit 0.41.0 kennt die App alle 5000+ TikTok-Geschenke — dadurch wurde die Geschenk-Liste, die Widgets beim Start holen, deutlich größer. Fünf Widget-Arten (Geschenk-Menü, Gambling-Automat, Bingo, Geschenk-Zähler, Befehls-Karussell) holten sie **jede für sich**: bei mehreren Widgets in OBS *und* TikTok Live Studio summierte sich das auf mehrere Megabyte, immer mit demselben Inhalt.
+
+Jetzt holen sich alle Widgets eines Overlays die Liste **gemeinsam, einmal**. Nebenbei zuverlässiger: Vorher konnten zwei Widgets unterschiedliche Stände erwischen.
+
 ## [0.41.0] — 2026-07-28
 
 ### Geschenk-Bilder erscheinen jetzt überall (wichtig)
