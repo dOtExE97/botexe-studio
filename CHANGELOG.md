@@ -3,6 +3,39 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.41.0] — 2026-07-28
+
+### Geschenk-Bilder erscheinen jetzt überall (wichtig)
+Ein Geschenk ließ sich in der App mit Bild auswählen — im Stream zeigte dasselbe Geschenk dann ein **graues Platzhalter-Kästchen**. Es sah aus, als sei das Widget kaputt, dabei stimmte die Einstellung.
+
+Der Grund: Die App kennt intern **alle 5726 TikTok-Geschenke samt Bild**, gab dieses Wissen aber nur ihrem eigenen Fenster und nie den Overlay-Widgets. Jetzt sehen beide dasselbe. Ohne Zutun, ohne Klick.
+
+Zusätzlich: Schickt TikTok bei einem Geschenk mal kein Bild mit, wird es nachgeschlagen — davon profitieren **Coin-Glas, Gift-Feuerwerk, Gift-Kanone, Gift-Alert, Activity-Feed** und alle anderen, die das Bild direkt aus dem Ereignis nehmen.
+
+### Behoben: Geschenke wurden an sechs Stellen unterschiedlich erkannt
+**Glücksrad, Gambling-Automat, Lucky-Card, Geschenk-Schlacht, Bingo** und **Befehls-Karussell** verglichen Geschenknamen buchstabengenau. Ein Apostroph, ein Bindestrich oder ein doppeltes Leerzeichen — und dasselbe Geschenk passte nicht mehr. Das Rad drehte nicht, obwohl der Sound daneben spielte; die Bingo-Zelle hakte sich nie ab.
+
+Alle sechs vergleichen jetzt so tolerant wie der Rest der App.
+
+### Neu: Deutsche Geschenknamen im Overlay (abschaltbar)
+Unter *Einstellungen → Geschenke* neu: **„Deutsche Geschenknamen im Overlay"**. Aus (Standard) sehen deine Zuschauer die Namen wie in ihrer eigenen TikTok-Ansicht (*Finger Heart*); an sehen sie den deutschen Namen (*Fingerherz*) — und **deine eigenen Umbenennungen** aus der Geschenke-Galerie.
+
+Deine Trigger und Zuordnungen bleiben davon unberührt.
+
+### Neu: Geschenk-Bilder-Paket für den Offline-Betrieb
+In der Geschenke-Galerie lädt der Knopf **„Bilder laden"** einmalig alle Geschenk-Bilder auf deinen Rechner (36 MB). Nötig ist das nicht mehr — die Bilder kommen jetzt von selbst. Es macht dich nur unabhängig von TikToks Servern. Eigene Bilder werden dabei nie überschrieben.
+
+Wer eigene Bilder hat, kann sie weiterhin selbst ablegen (*Einstellungen → Geschenk-Bilder öffnen*), benannt nach dem Geschenk — Schreibweise egal, führende Nummern wie `0001_Rose.png` werden erkannt.
+
+### Behoben: Kleinigkeiten
+- **Drei fehlende Einstellungen ergänzt:** Schadensliste beim Stream-Boss abschaltbar, eigenes Wort für die Einheit beim Ziel-Countdown, Akzentfarbe bei Emojify.
+- **Absturzberichte:** Es steht jetzt in den Einstellungen, ob der Melder wirklich läuft — samt Knopf für eine Testmeldung. Vorher war das nicht erkennbar.
+- **Log-Rauschen weg:** Die Vorschau in der App meldete eine Warnung, sobald man das Fenster wegklickte. Das ist normal und keine Warnung mehr.
+- **Ehrlichere Auskunft**, warum manche Geschenke keine Bilder haben (die vollständige Liste gibt TikTok nur gegen Aufpreis heraus).
+
+### Unter der Haube
+Vier neue automatische Prüfungen wachen künftig darüber, dass Fenster und Overlay dasselbe wissen, dass kein Regler ohne Wirkung bleibt und dass keine Einstellung ohne Regler existiert.
+
 ## [0.40.0] — 2026-07-28
 
 ### Behoben: Laufende Spiele überlebten keinen Overlay-Neustart (wichtig)
