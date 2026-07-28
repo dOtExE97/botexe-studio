@@ -2,8 +2,12 @@
 // dem Main-Prozess und mischt ihn mit der eingebauten Master-Liste ALLER
 // aktuellen TikTok-Gifts. So sind auch nie-erhaltene Gifts (z.B. neue Event-
 // Gifts) vorab auswählbar. Genutzt von der Geschenke-Galerie und vom <GiftPicker>.
+//
+// Die Zusammenführung steckt in shared/gift-master.ts — DIESELBE Funktion nutzt
+// der Overlay-Server für die Widgets. Vorher lag sie nur hier, weshalb das
+// App-Fenster Bilder zeigte, die im Overlay fehlten.
 import { useEffect, useState } from 'react';
-import GIFT_MASTER from '../lib/gift-master.json';
+import { mergeMitMaster, type KatalogEintrag } from '../../shared/gift-master';
 
 export interface GiftEntry {
   slug: string;
@@ -20,11 +24,6 @@ export interface GiftEntry {
   customName?: string;
 }
 
-interface MasterGift { id: number; name: string; de?: string; coins: number; icon?: string }
-const MASTER = GIFT_MASTER as MasterGift[];
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-const DE_BY_KEY = new Map(MASTER.filter((m) => m.de).map((m) => [norm(m.name), m.de as string]));
-
 export function useGiftCatalog(): { gifts: GiftEntry[]; loaded: boolean; reload: () => void } {
   const [gifts, setGifts] = useState<GiftEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -33,21 +32,9 @@ export function useGiftCatalog(): { gifts: GiftEntry[]; loaded: boolean; reload:
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const cat = (await window.studio.getGiftCatalog()) as Record<string, GiftEntry>;
+      const cat = (await window.studio.getGiftCatalog()) as Record<string, KatalogEintrag>;
       if (!alive) return;
-      // Erhaltene Gifts (echte Daten + Bild) zuerst; deutschen Namen ergänzen.
-      const received = Object.values(cat).map((g) => ({ ...g, de: g.de ?? DE_BY_KEY.get(norm(g.slug)) }));
-      const seen = new Set(received.map((g) => norm(g.slug)));
-      // Alle übrigen aktuellen Gifts aus der Master-Liste — sofort wählbar inkl.
-      // Bild (TikTok-CDN-URL), echten Coins und deutschem Namen.
-      const extra: GiftEntry[] = MASTER.filter((m) => !seen.has(norm(m.name))).map((m) => ({
-        slug: m.name.trim(), // manche Master-Namen haben führende Leerzeichen
-        coins: m.coins,
-        count: 0,
-        de: m.de,
-        icon: m.icon,
-      }));
-      setGifts([...received, ...extra]);
+      setGifts(mergeMitMaster(cat) as GiftEntry[]);
       setLoaded(true);
     })();
     return () => {

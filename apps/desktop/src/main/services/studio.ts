@@ -23,6 +23,7 @@ import {
 } from './settings-store';
 import type { SoundCategory } from '../../shared/mixer';
 import { OVERLAY_PORT } from '../../shared/constants';
+import { mergeMitMasterAlsMap, type KatalogEintrag } from '../../shared/gift-master';
 import { parseApiAction, API_ACTION_KINDS } from './api-actions';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
@@ -985,9 +986,17 @@ export class Studio {
 
   /** Kompletter Gift-Katalog für Galerie + Overlay-Widgets. Lokal gespeicherte
    *  Gift-Bilder werden auf eine 127.0.0.1-URL umgeschrieben (überleben ablaufende
-   *  CDN-Links + laden offline); ohne lokale Datei bleibt die CDN-URL als Fallback. */
+   *  CDN-Links + laden offline); ohne lokale Datei bleibt die CDN-URL als Fallback.
+   *
+   *  Enthält seit v0.41 AUCH die eingebaute Master-Liste aller TikTok-Geschenke.
+   *  Vorher mischte nur das App-Fenster sie dazu — die Overlay-Widgets bekamen
+   *  bloß die selbst gesammelten. Deshalb ließ sich ein Geschenk im Fenster mit
+   *  Bild auswählen, während dasselbe Geschenk im Stream als grauer Platzhalter
+   *  erschien. Beide Seiten nutzen jetzt dieselbe Zusammenführung. */
   getGiftCatalog(): Record<string, import('./gift-catalog').GiftEntry> {
-    const cat = this.giftCatalog.all();
+    const cat = mergeMitMasterAlsMap(
+      this.giftCatalog.all() as unknown as Record<string, KatalogEintrag>,
+    ) as unknown as Record<string, import('./gift-catalog').GiftEntry>;
     const base = `http://127.0.0.1:${this.server.getPort()}`;
     const token = this.server.getToken();
     for (const e of Object.values(cat)) {
