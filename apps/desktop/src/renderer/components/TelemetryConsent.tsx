@@ -34,6 +34,12 @@ export default function TelemetryConsent() {
           <b className="text-studio-text"> Keine persönlichen Daten, keine Keys</b> — alles Sensible
           wird vorher entfernt. Du kannst das jederzeit in den Einstellungen ändern.
         </div>
+        {/* Wichtig zu sagen: Der Melder startet nur BEIM Programmstart mit — ein
+            „Ja" wirkt also erst nach dem nächsten Öffnen. Ohne diesen Hinweis
+            denkt man, es läuft sofort, und wundert sich über leere Berichte. */}
+        <div className="mt-1.5 text-[11px] text-studio-muted/80">
+          Ein „Ja" wird sofort gespeichert und greift beim nächsten App-Start.
+        </div>
         <div className="mt-2.5 flex gap-2">
           <button onClick={() => decide('on')} className="bx-btn-accent text-xs">
             Ja, gerne

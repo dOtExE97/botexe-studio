@@ -39,16 +39,25 @@ if (started) {
 // Hinweis: Das Modul wird zwar immer geladen, aber `initMainTelemetry` (und
 // damit Sentry selbst) läuft NUR bei ausdrücklicher Zustimmung — ohne 'on'
 // verlässt nichts den Rechner.
+// Merker für die Log-Zeile: hier oben läuft das Datei-Log noch NICHT (das
+// startet erst in app.whenReady), ein log.info() an dieser Stelle landet also
+// nie in der Datei. Genau daran ist die Ferndiagnose gescheitert — „keine
+// Zeile im Log" wurde als „Sentry ist aus" gelesen, obwohl der Nutzer
+// zugestimmt hatte. Der Zustand wird deshalb gemerkt und nach dem Start des
+// Datei-Logs nachgetragen.
+let telemetrieStatus = 'aus (nicht zugestimmt)';
 try {
   const datei = path.join(app.getPath('userData'), 'settings.json');
   const roh = JSON.parse(fs.readFileSync(datei, 'utf-8')) as { telemetry?: string };
   if (roh.telemetry === 'on') {
     initMainTelemetry(app.getVersion(), app.isPackaged);
-    log.info('Main', 'Absturzberichte aktiv (Sentry) — mit Geheimnis-Filter');
+    telemetrieStatus = 'AKTIV (Sentry) — mit Geheimnis-Filter';
+  } else {
+    telemetrieStatus = `aus (Zustimmung: ${roh.telemetry ?? 'noch nicht gefragt'})`;
   }
 } catch {
-  // Keine/unlesbare Einstellungen (z.B. Erststart) → keine Telemetrie. Bewusst
-  // still: hier läuft noch kein Datei-Log, und ohne Zustimmung ist das normal.
+  // Keine/unlesbare Einstellungen (z.B. Erststart) → keine Telemetrie.
+  telemetrieStatus = 'aus (keine Einstellungen gefunden — Erststart?)';
 }
 
 // Performance neben dem Spiel: Chromium drosselt verdeckte/Hintergrund-Fenster
@@ -1113,6 +1122,9 @@ app.whenReady().then(async () => {
   if (!gotLock) return;
   // Datei-Logging zuerst — damit ALLE Start-Logs/Fehler in die Datei wandern.
   initFileLogging(app.getPath('userData'), formatLocalStamp(new Date()));
+  // Jetzt erst nachtragen (siehe Merker ganz oben): steht im Log, damit man aus
+  // der Ferne SIEHT, ob Absturzberichte laufen — statt es raten zu müssen.
+  log.info('Main', `Absturzberichte: ${telemetrieStatus}`);
   installAppMenu(); // deutsches Menü statt Electrons englischem Standard
 
   // Media-Permission auto-gewähren: ohne sie maskiert Chromium die Audio-Geräte-
