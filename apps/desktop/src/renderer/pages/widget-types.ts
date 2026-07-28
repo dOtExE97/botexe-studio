@@ -252,6 +252,7 @@ export const WIDGET_TYPES: {
     type: 'stream-boss', label: 'Stream-Boss', desc: 'Gemeinsamer Boss mit HP-Leiste — Gifts fügen Schaden zu (nach Coins). Top-Schadensliste, Level-Aufstieg, Kill-Moment. Boss-Modus auf der Live-Seite an.',
     w: 440, h: 190, props: { style: 'glas', accent: '#ff3b6b', showDamagers: true },
     fields: [
+      { key: 'showDamagers', label: 'Schadensliste zeigen', type: 'boolean', hint: 'Wer wie viel Schaden gemacht hat, unter der Lebensleiste. Aus = nur der Boss.' },
       styleField([
         { value: 'glas', label: 'Glas (Standard)' },
         { value: 'arcade', label: '🕹️ Arcade (LED-Lebensbalken)' },
@@ -368,6 +369,7 @@ export const WIDGET_TYPES: {
         { value: 'uniqueViewers', label: 'Zuschauer gesamt (verschiedene)' },
       ] },
       { key: 'target', label: 'Ziel', type: 'number', hint: 'Erstes Ziel. Bei „weiterzählen" steigt es danach in dieser Schrittweite (1000 → 2000 → …).' },
+      { key: 'label', label: 'Eigenes Wort für die Einheit', type: 'text', hint: 'Wird im Text für {label} eingesetzt. Leer = „Coins" / „Likes" / „Follower" je nach Ziel.' },
       { key: 'template', label: 'Text', type: 'text', hint: 'Platzhalter: {n} = verbleibend, {label} = Metrik, {target} = Ziel. Z.B. „Noch {n} {label} bis zum Ziel!".' },
       { key: 'doneText', label: 'Bei Erreichen', type: 'text', hint: 'Text, wenn das Ziel erreicht ist (im Modus „stehenbleiben").' },
       { key: 'onReach', label: 'Bei Ziel', type: 'select', options: [
@@ -791,6 +793,7 @@ export const WIDGET_TYPES: {
     type: 'emojify', label: 'Emojify (Chat-Emojis)', desc: 'Jedes Emoji, das Zuschauer in den Chat schreiben, fliegt animiert über den Bildschirm.',
     w: 1080, h: 900, props: { style: 'float', max: 6, size: 52, accent: '#ff5436' },
     fields: [
+      ACCENT_FIELD,
       styleField([
         { value: 'float', label: 'Aufsteigen (mit Drift)' },
         { value: 'cross', label: 'Quer fliegen' },
