@@ -120,8 +120,17 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
           {!loaded ? (
             <p className="p-4 text-center text-xs text-studio-muted">Lade Katalog…</p>
           ) : gifts.length === 0 ? (
-            <p className="p-4 text-center text-xs text-studio-muted">
-              Noch keine Gifts im Katalog — einmal live verbinden, dann sind alle da.
+            /* Stand bisher: „einmal live verbinden, dann sind alle da" — das
+               stimmt nur mit einem eulerstream-Bezahlplan. Mit dem Gratis-Key
+               scheitert der Abruf der kompletten Room-Liste, und der Katalog
+               füllt sich NUR mit Geschenken, die wirklich jemand geschickt hat.
+               Die falsche Zusage ließ fehlende Bilder wie einen Fehler aussehen. */
+            <p className="p-4 text-center text-xs leading-relaxed text-studio-muted">
+              Noch keine Gifts im Katalog.
+              <span className="mt-1 block">
+                Sie sammeln sich, sobald du live bist — jedes Geschenk, das ankommt, landet mit
+                Bild hier und bleibt dauerhaft.
+              </span>
             </p>
           ) : (
             <div className="grid max-h-64 grid-cols-3 gap-1 overflow-y-auto">

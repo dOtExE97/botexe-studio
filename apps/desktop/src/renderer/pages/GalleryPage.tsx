@@ -41,6 +41,14 @@ export default function GalleryPage() {
   const [sounds, setSounds] = useState<SoundEntry[]>([]);
   const [layers, setLayers] = useState<LayerRef[]>([]);
   const [view, setView] = useState<View>('lastRoom');
+  // Warum ist „Letztes Live" leer / warum fehlen Bilder? Der Abruf der
+  // kompletten Room-Gift-Liste braucht einen eulerstream-Bezahlplan; mit dem
+  // Gratis-Key kommen nur tatsächlich geschickte Gifts in den Katalog. Das war
+  // bisher unsichtbar und sah nach einem Fehler aus.
+  const [giftListStatus, setGiftListStatus] = useState<string>('unbekannt');
+  useEffect(() => {
+    void window.studio.getGiftListStatus?.().then(setGiftListStatus).catch(() => setGiftListStatus('unbekannt'));
+  }, []);
   const [sort, setSort] = useState<Sort>('coins');
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
@@ -148,6 +156,16 @@ export default function GalleryPage() {
                 : view === 'received'
                   ? 'Noch keine Gifts erhalten. Sobald welche reinkommen, erscheinen sie hier.'
                   : 'Katalog ist leer.'}
+            </p>
+          )}
+          {giftListStatus === 'plan-noetig' && (
+            <p className="col-span-full rounded-xl border border-studio-gold/40 bg-studio-gold/5 p-3 text-xs leading-relaxed text-studio-muted">
+              <b className="text-studio-gold">Warum fehlen manche Geschenke (und deren Bilder)?</b>{' '}
+              TikTok gibt die vollständige Geschenk-Liste deines Streams nur gegen Aufpreis heraus —
+              mit dem kostenlosen Zugang kommt sie nicht. Deshalb sammelt die App die Geschenke
+              selbst: <b className="text-studio-text">jedes, das wirklich jemand schickt</b>, landet
+              mit Bild hier und bleibt für immer. Bis dahin zeigen Widgets für solche Geschenke ein
+              graues Platzhalter-Symbol.
             </p>
           )}
           {shown.map((g) => {

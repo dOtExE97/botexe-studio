@@ -778,6 +778,10 @@ export class Studio {
     this.settings.update({ obs: next });
     this.obs.applyConfig(next);
   }
+  /** Konnte die komplette Gift-Liste des Rooms geholt werden? Entscheidet, ob
+   *  im Katalog Bilder für NIE geschickte Gifts stehen können (siehe Kommentar
+   *  in tiktok-adapter.ts) — die Oberfläche erklärt damit fehlende Bilder. */
+  getGiftListStatus(): 'unbekannt' | 'ok' | 'plan-noetig' | 'fehler' { return this.adapter.getGiftListStatus(); }
   getObsStatus(): ObsStatus { return this.obs.getStatus(); }
   getObsScenes(): Promise<string[]> { return this.obs.getScenes(); }
 

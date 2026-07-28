@@ -197,23 +197,36 @@ export class TikTokAdapter {
       ? () => own.call(conn)
       : () => this.fetchGiftsViaSeparateConnection();
     void fetchGifts()
-      .then((gifts) => { if (epoch === this.epoch && gifts) cb(gifts); })
+      .then((gifts) => { if (epoch === this.epoch && gifts) { this.giftListStatus = 'ok'; cb(gifts); } })
       .catch((err: Error) => {
         const msg = err?.message ?? '';
         // Der gift/list-Abruf braucht einen kostenpflichtigen Euler-Plan. Mit
         // Gratis-Key erwartbar → einmalig & freundlich melden, nicht bei jedem
         // Connect als Warnung. Gesendete Gifts werden ohnehin lokal gecacht.
         if (/business plan|requires a .*plan/i.test(msg)) {
+          this.giftListStatus = 'plan-noetig';
           if (!this.giftListPlanNoted) {
             this.giftListPlanNoted = true;
             log.info('TikTok', 'Komplette Gift-Liste vorab nur mit Euler-Bezahlplan abrufbar — gesendete Gifts werden trotzdem gespeichert.');
           }
         } else {
+          this.giftListStatus = 'fehler';
           log.warn('TikTok', `Gift-Liste nicht abrufbar: ${msg}`);
         }
       });
   }
   private giftListPlanNoted = false;
+
+  /** Ergebnis des letzten Gift-Listen-Abrufs. Nur hier bekannt, aber die
+   *  Oberfläche MUSS es wissen: schlägt der Abruf fehl (Gratis-Key), bleiben im
+   *  Katalog nur die Gifts, die wirklich jemand geschickt hat — alle anderen
+   *  zeigen einen Platzhalter statt Bild. Ohne diese Auskunft sah das nach einem
+   *  Fehler aus, und der Gift-Picker versprach fälschlich „dann sind alle da". */
+  private giftListStatus: 'unbekannt' | 'ok' | 'plan-noetig' | 'fehler' = 'unbekannt';
+
+  getGiftListStatus(): 'unbekannt' | 'ok' | 'plan-noetig' | 'fehler' {
+    return this.giftListStatus;
+  }
 
   /** Cloud-Modus: nur die Gift-Liste über eine Wegwerf-Direkt-Verbindung holen
    *  (fetchRoomId → fetchAvailableGifts, signiert via Euler-Key; kein Live-WS). */

@@ -767,6 +767,7 @@ function registerIpc(): void {
   ipcMain.handle(IPC.SB_GET_ACTIONS, () => isStudio().getStreamerbotActions());
   // P3c-Audit: gleicher Pull wie OBS_GET_STATUS, für Streamer.bot.
   ipcMain.handle(IPC.SB_GET_STATUS, () => isStudio().getStreamerbotStatus());
+  ipcMain.handle(IPC.GIFT_LIST_STATUS, () => isStudio().getGiftListStatus());
   // Absturzberichte: Ist-Zustand + Testmeldung. Getrennt vom gespeicherten
   // Schalter, weil beides auseinanderlaufen KANN und genau das die Verwirrung
   // stiftete („zugestimmt, aber nichts kommt an" = Neustart fehlt noch).

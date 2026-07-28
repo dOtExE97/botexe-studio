@@ -170,6 +170,9 @@ export const IPC = {
   // TikTok-Live-Studio-Link (Domain-Form + hosts-Setup)
   TTLS_LINK_GET: 'ttls:link-get',
   TTLS_SETUP: 'ttls:setup',
+  /** Ergebnis des Gift-Listen-Abrufs — erklaert der Oberflaeche, warum bei
+   *  manchen Geschenken nur ein Platzhalter statt Bild steht. */
+  GIFT_LIST_STATUS: 'gift:list-status',
   /** Absturzberichte: echter Laufzeit-Zustand (nicht nur der gespeicherte
    *  Schalter). Beides kann auseinanderlaufen — der Melder startet nur beim
    *  Programmstart, eine frische Zustimmung wirkt also erst danach. */

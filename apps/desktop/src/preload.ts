@@ -157,6 +157,9 @@ const api = {
   onStreamerbotStatus: listen<string>(IPC.SB_STATUS),
   // P3c-Audit: gleicher Pull wie getObsStatus, für Streamer.bot.
   getStreamerbotStatus: (): Promise<string> => ipcRenderer.invoke(IPC.SB_GET_STATUS),
+  // Warum fehlen Gift-Bilder? (siehe GIFT_LIST_STATUS)
+  getGiftListStatus: (): Promise<'unbekannt' | 'ok' | 'plan-noetig' | 'fehler'> =>
+    ipcRenderer.invoke(IPC.GIFT_LIST_STATUS),
   // Absturzberichte: echter Laufzeit-Zustand + Testmeldung (siehe main.ts).
   getTelemetryStatus: (): Promise<{ laeuft: boolean; zustimmung: string; grund: string }> =>
     ipcRenderer.invoke(IPC.TELEMETRY_GET_STATUS),
