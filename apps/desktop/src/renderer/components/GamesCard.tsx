@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { Gamepad2, Play, Square, Sparkles, Skull } from 'lucide-react';
 import { toast, toastAction } from './ToastHost';
+import GameGuide from './GameGuide';
 
 type Kind = 'quiz' | 'hangman' | 'tic-tac-toe' | 'connect-four';
 type Theme = { id: string; label: string; count: number };
@@ -93,14 +94,18 @@ export default function GamesCard() {
           </div>
         </div>
         <button onClick={() => void startQuiz()} disabled={!themes.length} className="bx-btn-accent mt-2 w-full text-xs disabled:opacity-50"><Play size={11} className="inline" /> Auto-Quiz starten</button>
+        <GameGuide spiel="quiz" titel="Auto-Quiz" />
       </div>
 
       {/* Galgenmännchen */}
-      <div className="mb-3 flex items-end gap-2 rounded-lg border border-studio-border p-2.5">
-        <label className="flex-1 text-xs font-bold text-studio-muted">Galgenmännchen
-          <input value={word} onChange={(e) => setWord(e.target.value)} placeholder="geheimes Wort…" className="bx-input mt-1 w-full text-sm" />
-        </label>
-        <button onClick={() => word.trim() ? void start('hangman', { word: word.trim() }) : toast('warn', 'Wort eingeben')} className="bx-btn-accent text-xs"><Play size={11} className="inline" /> Start</button>
+      <div className="mb-3 rounded-lg border border-studio-border p-2.5">
+        <div className="flex items-end gap-2">
+          <label className="flex-1 text-xs font-bold text-studio-muted">Galgenmännchen
+            <input value={word} onChange={(e) => setWord(e.target.value)} placeholder="geheimes Wort…" className="bx-input mt-1 w-full text-sm" />
+          </label>
+          <button onClick={() => word.trim() ? void start('hangman', { word: word.trim() }) : toast('warn', 'Wort eingeben')} className="bx-btn-accent text-xs"><Play size={11} className="inline" /> Start</button>
+        </div>
+        <GameGuide spiel="hangman" titel="Galgenmännchen" />
       </div>
 
       {/* Duell-Spiele */}
@@ -108,13 +113,16 @@ export default function GamesCard() {
         <button onClick={() => void start('tic-tac-toe')} className="flex-1 rounded-lg border border-studio-border py-2 text-xs hover:border-studio-accent/50">⭕ Tic Tac Toe</button>
         <button onClick={() => void start('connect-four')} className="flex-1 rounded-lg border border-studio-border py-2 text-xs hover:border-studio-accent/50">🔴 4 Gewinnt</button>
       </div>
-      <p className="mt-2 text-[10px] text-studio-muted">Duell-Spiele: Zuschauer schreiben „!join", dann Feld/Spalte als Zahl. Lege das passende Spiel-Widget ins Overlay.</p>
+      <div className="flex gap-2">
+        <div className="flex-1"><GameGuide spiel="tic-tac-toe" titel="Tic Tac Toe" /></div>
+        <div className="flex-1"><GameGuide spiel="connect-four" titel="4 Gewinnt" /></div>
+      </div>
 
       {/* Stream-Boss */}
       <button onClick={() => void toggleBoss()} className={`mt-3 flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs font-bold transition ${bossOn ? 'bg-studio-accent text-black' : 'border border-studio-border hover:border-studio-accent/50'}`}>
         <Skull size={13} /> {bossOn ? 'Boss-Modus läuft — aus' : 'Stream-Boss starten (Gifts = Schaden)'}
       </button>
-      <p className="mt-1.5 text-[10px] text-studio-muted">Boss-Modus: jedes Gift macht Schaden (nach Coins). Bei Kill gibt's einen Moment + stärkeren Boss. „Stream-Boss"-Widget ins Overlay legen.</p>
+      <GameGuide spiel="boss" titel="Stream-Boss" />
     </div>
   );
 }
