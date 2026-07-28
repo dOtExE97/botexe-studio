@@ -174,3 +174,22 @@ test('planSlotSpins: ohne who ⇒ Challenge-Aktion trägt kein who-Feld', () => 
     action: { kind: 'start_gift_challenge', targetId: 'gm1', slug: 'galaxy', delayMs: 4000 },
   });
 });
+
+// Gleiche Regression wie beim Rad (siehe wheel-gift.test.ts): das eingestellte
+// Geschenk und der Name im Ereignis sind selten zeichengleich.
+test('planSlotSpins: findet den Automaten auch bei abweichender Schreibweise', () => {
+  const rules: TriggerRule[] = [
+    {
+      id: 'r-hm', name: 'Hut', event: 'gift', enabled: true,
+      conditions: [{ kind: 'gift_slug_is', value: 'Hat and Mustache' }],
+      actions: [{ kind: 'play_sound', soundId: 'boom.mp3' }],
+    },
+  ];
+  const layers = [
+    { id: 's1', widgetType: 'slot-machine', visible: true, props: { spinGift: 'Hat and Mustache', source: 'trigger' } },
+  ];
+  for (const gesendet of ['hat and mustache', 'HAT-AND-MUSTACHE']) {
+    assert.ok(planSlotSpins(layers, gesendet, rules, () => 0).length > 0, `Automat muss bei "${gesendet}" drehen`);
+  }
+  assert.equal(planSlotSpins(layers, 'Rose', rules, () => 0).length, 0, 'fremdes Geschenk loest nicht aus');
+});

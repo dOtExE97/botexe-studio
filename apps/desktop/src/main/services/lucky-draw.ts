@@ -9,7 +9,7 @@
 // selbst nicht mehr: studio.ts wählt vorher per matchingLuckyLayers() ODER
 // matchLuckyCommand() die passenden Layer aus und reicht NUR die durch — ein
 // einziger Dispatch-Pfad für beide Auslöser.
-import { commandMatches, orderedGiftKeys, type TriggerAction, type TriggerRule } from '@botexe/trigger-engine';
+import { commandMatches, orderedGiftKeys, giftKey, type TriggerAction, type TriggerRule } from '@botexe/trigger-engine';
 import { planSlotOutcome } from './slot-gift';
 
 export type LuckyLayer = { id: string; widgetType: string; visible: boolean; props?: Record<string, unknown> };
@@ -25,13 +25,15 @@ export type LuckyLayer = { id: string; widgetType: string; visible: boolean; pro
  */
 export function matchingLuckyLayers(layers: LuckyLayer[], giftSlug: string): LuckyLayer[] {
   const slug = String(giftSlug || '');
-  if (!slug) return [];
+  // Tolerant vergleichen — siehe Kommentar in wheel-gift.ts.
+  const key = giftKey(slug);
+  if (!key) return [];
   return layers.filter(
     (l) =>
       l.widgetType === 'gift-menu' &&
       l.visible &&
       l.props?.luckyMode === true &&
-      String(l.props?.luckyGift || '') === slug,
+      giftKey(String(l.props?.luckyGift || '')) === key,
   );
 }
 

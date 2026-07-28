@@ -10,6 +10,19 @@ test('matchTeam: Slug der jeweiligen Liste zuordnen (case-insensitiv)', () => {
   assert.equal(matchTeam('Rocket', ['rose'], ['galaxy']), null);
 });
 
+test('matchTeam: Schreibweise/Trennzeichen egal (giftKey wie ueberall sonst)', () => {
+  // Die Liste kommt aus einem Textfeld, der Name aus dem TikTok-Ereignis —
+  // beide sind selten zeichengleich. Vorher normalisierte matchTeam nur mit
+  // trim().toLowerCase(), wodurch das Geschenk still keinem Team zufiel.
+  const a = ['hatandmustache'];   // so sieht die Liste nach tokens() aus
+  assert.equal(matchTeam('Hat and Mustache', a, []), 'a');
+  assert.equal(matchTeam('hat-and-mustache', a, []), 'a');
+  assert.equal(matchTeam('HAT  AND  MUSTACHE', a, []), 'a');
+  assert.equal(matchTeam("Jollie's Community", ['jolliescommunity'], []), 'a');
+  // Fremdes Geschenk faellt weiterhin durch.
+  assert.equal(matchTeam('Rose', a, []), null);
+});
+
 test('matchTeam: leere Listen → alles zählt fürs jeweils andere Team (Auto-Split)', () => {
   // Beide leer: jedes Gift zählt für A (Single-Team-Fallback wäre sinnlos) → null,
   // der Aufrufer behandelt das. Hier nur: leere Liste matcht nie.

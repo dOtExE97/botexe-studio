@@ -3,7 +3,7 @@
 // genau dieses Geschenk an, soll das Rad automatisch drehen — ohne dass dafür
 // eine Trigger-Regel angelegt werden muss (die würde in der Regel-Liste des
 // Nutzers als Fremdkörper auftauchen). Pure Logik, kein I/O — testbar.
-import { orderedGiftKeys, type TriggerAction, type TriggerRule } from '@botexe/trigger-engine';
+import { orderedGiftKeys, giftKey, type TriggerAction, type TriggerRule } from '@botexe/trigger-engine';
 import { WIDGET_TIMING_DEFAULTS } from '../../shared/constants';
 
 export type WheelLayer = { id: string; widgetType: string; visible: boolean; props?: Record<string, unknown> };
@@ -12,10 +12,14 @@ export type WheelLayer = { id: string; widgetType: string; visible: boolean; pro
  *  Layer statt nur ID — Task 3 braucht props.source/autoFire/spinMs fürs
  *  Auto-Feuern). */
 export function matchingWheelLayers(layers: WheelLayer[], giftSlug: string): WheelLayer[] {
-  const slug = String(giftSlug || '');
-  if (!slug) return [];
+  // giftKey statt exaktem Vergleich: das eingestellte Geschenk und der Name im
+  // Ereignis sind oft NICHT zeichengleich (Schreibweise, Apostroph,
+  // Leerzeichen). Die Trigger-Engine matcht laengst tolerant — hier war es
+  // buchstabengenau, also drehte das Rad bei genau demselben Geschenk nicht.
+  const key = giftKey(giftSlug);
+  if (!key) return [];
   return layers.filter(
-    (l) => l.widgetType === 'wheel' && l.visible && String(l.props?.spinGift || '') === slug,
+    (l) => l.widgetType === 'wheel' && l.visible && giftKey(String(l.props?.spinGift || '')) === key,
   );
 }
 

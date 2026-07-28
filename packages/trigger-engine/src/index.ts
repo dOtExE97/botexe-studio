@@ -2,6 +2,11 @@
 // Cooldowns rechnen mit event.ts (nicht Wanduhr) → Replay-Tests sind exakt reproduzierbar.
 
 export { giftRuleId, findGiftRule, upsertGiftRule, otherGiftRules, orderedGiftKeys, type GiftKey } from './gift-mapping';
+// giftKey nach außen: JEDER Vergleich „ist das dieses Geschenk?" muss ihn
+// benutzen. Die Widget-Bindungen (Rad/Automat/Lucky-Card) verglichen die
+// Namen vorher buchstabengenau und verfehlten dadurch dasselbe Geschenk in
+// anderer Schreibweise — obwohl die Trigger-Engine daneben korrekt matchte.
+export { giftKey } from '../../widget-kit/gift-rules.js';
 // giftKey ist EINZIGE Quelle in packages/widget-kit/gift-rules.js (DOM-freies
 // reines JS, allowJs übernimmt es unverändert — s. tsconfig.json und der
 // bestehende itemsFromRules-Import in gift-mapping.ts). Vorher hatte diese

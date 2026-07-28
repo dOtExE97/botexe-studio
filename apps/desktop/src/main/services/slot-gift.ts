@@ -5,7 +5,7 @@
 // entscheidet der SERVER (zentraler Zufall, siehe planSlotOutcome), damit
 // alle Overlay-Quellen (OBS + TTLS) dasselbe Ergebnis zeigen. Pure Logik,
 // kein I/O — RNG wird injiziert, testbar.
-import { orderedGiftKeys, type TriggerAction, type TriggerRule } from '@botexe/trigger-engine';
+import { orderedGiftKeys, giftKey, type TriggerAction, type TriggerRule } from '@botexe/trigger-engine';
 import { WIDGET_TIMING_DEFAULTS } from '../../shared/constants';
 
 export type SlotLayer = { id: string; widgetType: string; visible: boolean; props?: Record<string, unknown> };
@@ -22,12 +22,14 @@ export type SlotLayer = { id: string; widgetType: string; visible: boolean; prop
  */
 export function matchingSlotLayers(layers: SlotLayer[], giftSlug: string): SlotLayer[] {
   const slug = String(giftSlug || '');
-  if (!slug) return [];
+  // Tolerant vergleichen — siehe Kommentar in wheel-gift.ts.
+  const key = giftKey(slug);
+  if (!key) return [];
   return layers.filter(
     (l) =>
       l.widgetType === 'slot-machine' &&
       l.visible &&
-      String(l.props?.spinGift || '') === slug &&
+      giftKey(String(l.props?.spinGift || '')) === key &&
       l.props?.source === 'trigger',
   );
 }

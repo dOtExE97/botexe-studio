@@ -5,10 +5,20 @@
 // props: { style?, teamA?, teamB?, giftsA?, giftsB?, metric?('coins'|'count'),
 //          durationSec?, autoNewRound?, roundDelayMs?, winSoundId?, accent?, theme? }
 
+// giftKey aus der gemeinsamen Quelle — dieselbe Normalisierung wie Trigger,
+// Tafel, Rad und Automat (siehe gift-rules.js).
+import { giftKey } from './gift-rules.js';
+
 // ── Reine Logik (DOM-frei, getestet) ───────────────────────────────────────
-/** Slug einem Team zuordnen. Listen sind lowercase-Tokens. null = keinem. */
+/** Slug einem Team zuordnen. Listen sind giftKey-Tokens. null = keinem.
+ *
+ *  Vergleicht ueber giftKey() wie JEDE andere Gift-Zuordnung der App. Vorher
+ *  stand hier nur `.trim().toLowerCase()` — damit verfehlte „Hat-and-Mustache"
+ *  in der Team-Liste dasselbe Geschenk, wenn TikTok es als „Hat and Mustache"
+ *  schickt, und das Geschenk fiel still unter den Tisch (dieselbe Klasse wie
+ *  der otherGiftRules-Fehler). */
 export function matchTeam(slug, listA, listB) {
-  const s = String(slug || '').trim().toLowerCase();
+  const s = giftKey(slug);
   if (!s) return null;
   if (Array.isArray(listA) && listA.includes(s)) return 'a';
   if (Array.isArray(listB) && listB.includes(s)) return 'b';
@@ -129,7 +139,8 @@ function bxHit(el, timers) {
   timers.add(t);
 }
 
-function tokens(str) { return String(str || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean); }
+// Beide Seiten MUESSEN durch dieselbe Normalisierung — sonst matcht nichts.
+function tokens(str) { return String(str || '').split(',').map(giftKey).filter(Boolean); }
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(Math.round(n)));
 
 export default class GiftBattle {

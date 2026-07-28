@@ -9,6 +9,10 @@
 // anderes (Seed kommt pro Session vom Server via hello/reset).
 // props: { size?, gifts?, likeStep?, coinStep?, followStep?, autoNewRound?,
 //          cellSoundId?, bingoSoundId?, title?, accent? }
+// giftKey aus der gemeinsamen Quelle — dieselbe Normalisierung wie Trigger,
+// Tafel, Rad, Automat und Geschenk-Schlacht (siehe gift-rules.js).
+import { giftKey } from './gift-rules.js';
+
 const STYLE_ID = 'bx-bingo-style';
 const CSS = `
 .bx-bg { position:absolute; inset:0; display:flex; flex-direction:column; gap:8px; padding:3.5cqmin;
@@ -156,7 +160,7 @@ export default class BingoWidget {
     this.el.querySelector('.bx-bg-title').textContent = props.title || 'Stream-Bingo';
     this.gridEl = this.el.querySelector('.bx-bg-grid');
     root.appendChild(this.el);
-    this.icons = {}; // slug(lowercase) → Bild-URL aus dem Gift-Katalog
+    this.icons = {}; // giftKey(slug) → Bild-URL aus dem Gift-Katalog
     this.newRound(false);
     this.loadCatalog();
 
@@ -191,7 +195,9 @@ export default class BingoWidget {
       const list = [];
       for (const [slug, entry] of Object.entries(cat)) {
         if (entry && entry.icon) {
-          this.icons[slug] = entry.icon;
+          // Schluessel per giftKey — wie ueberall sonst in der App. Befuellung
+          // UND Nachschlagen muessen dieselbe Normalisierung nutzen.
+          this.icons[giftKey(slug)] = entry.icon;
           list.push({ slug: entry.slug || slug, coins: Number(entry.coinsPerUnit ?? entry.coins ?? 0) });
         }
       }
@@ -222,7 +228,7 @@ export default class BingoWidget {
   applyIcons() {
     for (const cell of this.cells) {
       if (cell.kind !== 'gift' || cell.icon) continue;
-      const url = this.icons[cell.slug.toLowerCase()];
+      const url = this.icons[giftKey(cell.slug)];
       if (url) { cell.icon = url; this.injectIcon(cell); }
     }
   }
@@ -248,7 +254,7 @@ export default class BingoWidget {
     const base = this.baseStats ?? { likes: 0, coins: 0, follows: 0 };
     const pool = [];
     const giftSlugs = this.gifts.length ? this.gifts : (this.autoGifts || []);
-    for (const g of giftSlugs) pool.push({ kind: 'gift', slug: g, label: g, icon: (this.icons || {})[g.toLowerCase()] });
+    for (const g of giftSlugs) pool.push({ kind: 'gift', slug: g, label: g, icon: (this.icons || {})[giftKey(g)] });
     for (let i = 1; i <= 4; i++) {
       if (this.likeStep) pool.push({ kind: 'likes', target: base.likes + i * this.likeStep, label: `+${fmt(i * this.likeStep)} Likes` });
       if (this.coinStep) pool.push({ kind: 'coins', target: base.coins + i * this.coinStep, label: `+${fmt(i * this.coinStep)} Coins` });
@@ -373,9 +379,12 @@ export default class BingoWidget {
   onEvent(event) {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'gift' || !event.gift) return;
-    const slug = event.gift.slug.toLowerCase();
+    // giftKey statt toLowerCase: sonst verfehlt eine Zelle „Hat-and-Mustache"
+    // dasselbe Geschenk, das TikTok als „Hat and Mustache" schickt — die Zelle
+    // haekt sich nie ab, obwohl das Geschenk ankam.
+    const slug = giftKey(event.gift.slug);
     for (const cell of this.cells) {
-      if (cell.kind === 'gift' && !cell.done && cell.slug.toLowerCase() === slug) {
+      if (cell.kind === 'gift' && !cell.done && giftKey(cell.slug) === slug) {
         if (!cell.icon && event.gift.icon) {
           cell.icon = event.gift.icon; // echtes Gift-Bild nachrüsten
           this.icons[slug] = event.gift.icon;

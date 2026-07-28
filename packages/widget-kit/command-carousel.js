@@ -4,6 +4,9 @@
 // props: { items?, speed?, style?: 'sticker'|'glas'|'neon', accent?, theme? }
 //   items: "rose::!feuer | heart::Liebe | gg::GG"  (Gift-Slug :: Text, mit | getrennt)
 //   Legacy (weiter unterstützt): "🔥 !feuer | 🎵 Musik"  (führendes Emoji + Text)
+// giftKey aus der gemeinsamen Quelle (siehe gift-rules.js).
+import { giftKey } from './gift-rules.js';
+
 const STYLE_ID = 'bx-cc-style';
 const CSS = `
 /* Die Sticker-Leiste ist ein BREITES Band. Ohne container-type liefen die
@@ -104,7 +107,7 @@ export default class CommandCarousel {
     const chip = (it, i) => {
       const grad = style === 'sticker' ? ` style="background:${GRADIENTS[i % GRADIENTS.length]}"` : '';
       let lead = '';
-      if (it.slug) lead = `<img class="bx-cc-gift" data-slug="${escapeHtml(it.slug.toLowerCase())}" alt="">`;
+      if (it.slug) lead = `<img class="bx-cc-gift" data-slug="${escapeHtml(giftKey(it.slug))}" alt="">`;
       else if (it.emoji) lead = `<span class="bx-cc-emo">${it.emoji}</span>`;
       const lbl = it.label ? `<span>${escapeHtml(it.label)}</span>` : '';
       return `<span class="bx-cc-chip"${grad}>${lead}${lbl}</span>`;
@@ -126,7 +129,9 @@ export default class CommandCarousel {
       fetch(`${this.ctx.baseUrl}/gift-catalog?token=${this.ctx.token}`)
         .then((r) => r.json())
         .then((cat) => {
-          for (const [slug, e] of Object.entries(cat || {})) if (e && e.icon) this.icons[String(slug).toLowerCase()] = e.icon;
+          // Beide Seiten per giftKey — wie ueberall sonst. Vorher reichte
+          // toLowerCase, wodurch ein anders geschriebener Eintrag kein Bild fand.
+          for (const [slug, e] of Object.entries(cat || {})) if (e && e.icon) this.icons[giftKey(slug)] = e.icon;
           this.applyIcons();
         })
         .catch(() => {});

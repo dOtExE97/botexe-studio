@@ -197,3 +197,14 @@ test('planLuckyDraws: ohne who ⇒ Aktion trägt kein who-Feld', () => {
   const plan = planLuckyDraws(matchingLuckyLayers(layers, 'galaxy'), rules, () => 0);
   assert.ok(!('who' in (plan[0]?.action ?? {})));
 });
+
+// Gleiche Regression wie bei Rad und Automat (siehe wheel-gift.test.ts).
+test('matchingLuckyLayers: findet die Karte auch bei abweichender Schreibweise', () => {
+  const layers = [
+    { id: 'm1', widgetType: 'gift-menu', visible: true, props: { luckyMode: true, luckyGift: 'Hat and Mustache' } },
+  ];
+  for (const gesendet of ['Hat and Mustache', 'hat and mustache', 'HAT-AND-MUSTACHE']) {
+    assert.equal(matchingLuckyLayers(layers, gesendet).length, 1, `muss bei "${gesendet}" ziehen`);
+  }
+  assert.equal(matchingLuckyLayers(layers, 'Rose').length, 0, 'fremdes Geschenk zieht nicht');
+});
