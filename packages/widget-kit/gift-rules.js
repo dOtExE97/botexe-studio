@@ -21,6 +21,36 @@ export function giftKey(slug) {
   return String(slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+// ── Geteilter Geschenk-Katalog ───────────────────────────────────────────────
+// Fünf Widget-Arten brauchen den Katalog (Geschenk-Menü, Automat, Bingo,
+// Geschenk-Zähler, Befehls-Karussell). Jede Instanz holte ihn bisher SELBST.
+// Solange der Katalog nur die selbst gesammelten Geschenke enthielt, fiel das
+// nicht auf — seit er alle 5000+ TikTok-Geschenke kennt, sind das rund 860 KB
+// PRO Widget. Bei vier Widgets in zwei Overlay-Quellen (OBS + TikTok Live
+// Studio) also mehrere Megabyte und ebenso oft JSON-Verarbeitung, jedes Mal
+// mit demselben Ergebnis.
+//
+// Ein Overlay-Dokument holt ihn deshalb genau EINMAL; alle Widgets darin teilen
+// sich die Antwort. Das ist nebenbei konsistenter: vorher konnten zwei Widgets
+// unterschiedliche Momentaufnahmen erwischen.
+let katalogPromise = null;
+
+/** Geschenk-Katalog holen — geteilt über alle Widgets dieses Overlays.
+ *  Liefert im Fehlerfall ein leeres Objekt (Widgets zeigen dann Platzhalter). */
+export function ladeGiftKatalog(baseUrl, token) {
+  if (!katalogPromise) {
+    katalogPromise = fetch(`${baseUrl}/gift-catalog?token=${token}`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .catch(() => ({}));
+  }
+  return katalogPromise;
+}
+
+/** Nur für Tests: den geteilten Abruf vergessen. */
+export function vergissGiftKatalog() {
+  katalogPromise = null;
+}
+
 /** Name, den ein Widget für ein Geschenk ANZEIGEN soll.
  *
  *  Der Hauptprozess hängt `displayName` an, wenn der Streamer unter

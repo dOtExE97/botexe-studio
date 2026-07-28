@@ -13,7 +13,7 @@
 // dortigen Kommentar). Icons kommen wie im Geschenke-Menü aus dem
 // App-Katalog (/gift-catalog, /gift-img) — kein TikTok-Bild wird je
 // mitgeliefert (siehe CLAUDE.md).
-import { orderedGiftEntries, giftKey } from './gift-rules.js';
+import { orderedGiftEntries, giftKey, ladeGiftKatalog } from './gift-rules.js';
 // gift-countdown.js — reiner Kern (kein DOM/Timer), schon für den
 // Challenge-Countdown im Geschenke-Slider genutzt (Stück 2). Task 3
 // verwendet hier NUR stackRemaining (Draufstapeln + Deckel bei Mehrfach-
@@ -344,8 +344,7 @@ export default class SlotMachine {
    *  loadCatalog(). */
   async loadCatalog() {
     try {
-      const res = await fetch(`${this.host.baseUrl}/gift-catalog?token=${this.host.token}`);
-      const cat = await res.json();
+      const cat = await ladeGiftKatalog(this.host.baseUrl, this.host.token);
       for (const [slug, e] of Object.entries(cat || {})) {
         if (!e) continue;
         const key = giftKey(e.slug || slug);

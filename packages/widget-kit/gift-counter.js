@@ -11,7 +11,7 @@
 // Kopie im Repo neben trigger-engine/index.ts, gift-rules.js selbst und dem
 // Re-Export hier). Wird re-exportiert, falls jemand `giftKey` bisher von
 // HIER importiert (Kompatibilität), aber es gibt nur noch eine Implementierung.
-import { giftKey } from './gift-rules.js';
+import { giftKey, ladeGiftKatalog } from './gift-rules.js';
 export { giftKey };
 const STYLE_ID = 'bx-gco-style';
 // --u = „1px bei Standardgröße" (340×360): alle Maße sind Vielfache davon,
@@ -155,8 +155,7 @@ export default class GiftCounter {
    *  statt erst nach dem ersten Eingang. Nur bei festem Gift (giftSlug gesetzt). */
   preloadIcon() {
     if (!this.giftSlug || !this.ctx.baseUrl) return;
-    fetch(`${this.ctx.baseUrl}/gift-catalog?token=${this.ctx.token}`)
-      .then((r) => r.json())
+    ladeGiftKatalog(this.ctx.baseUrl, this.ctx.token)
       .then((cat) => {
         const icon = findGiftIcon(cat, this.giftSlug);
         if (icon) { this.lastIcon = icon; this.renderIcon(); this.persist(); }

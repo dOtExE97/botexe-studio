@@ -11,7 +11,7 @@
 //          cellSoundId?, bingoSoundId?, title?, accent? }
 // giftKey aus der gemeinsamen Quelle — dieselbe Normalisierung wie Trigger,
 // Tafel, Rad, Automat und Geschenk-Schlacht (siehe gift-rules.js).
-import { giftKey } from './gift-rules.js';
+import { giftKey, ladeGiftKatalog } from './gift-rules.js';
 
 const STYLE_ID = 'bx-bingo-style';
 const CSS = `
@@ -190,8 +190,7 @@ export default class BingoWidget {
   /** Echte Gift-Bilder aus dem App-Katalog (alles, was je gesehen wurde). */
   async loadCatalog() {
     try {
-      const res = await fetch(`${this.ctx.baseUrl}/gift-catalog?token=${this.ctx.token}`);
-      const cat = await res.json();
+      const cat = await ladeGiftKatalog(this.ctx.baseUrl, this.ctx.token);
       const list = [];
       for (const [slug, entry] of Object.entries(cat)) {
         if (entry && entry.icon) {

@@ -1371,7 +1371,7 @@ function escapeHtml(s) {
 // EINZIGE Quelle dieser Logik, die sich auch der Server (trigger-engine/
 // gift-mapping.ts) und das Rad-Widget (wheel.js) teilen. Hier importiert UND
 // re-exportiert, damit bestehende Imports von gift-menu.js weiter funktionieren.
-import { giftKey, actionLabel, itemsFromRules, orderedGiftEntries, mergeGiftItems } from './gift-rules.js';
+import { giftKey, actionLabel, itemsFromRules, orderedGiftEntries, mergeGiftItems, ladeGiftKatalog } from './gift-rules.js';
 export { giftKey, actionLabel, itemsFromRules, orderedGiftEntries, mergeGiftItems };
 // Challenge-Countdown pro Eintrag: reiner Kern in gift-countdown.js (NICHT
 // countdown.js — das ist das unabhängige Premium-Countdown-Widget).
@@ -2004,8 +2004,7 @@ export default class GiftMenu {
    *  lokale Kopie unter /gift-img, sonst die TikTok-CDN-URL). */
   async loadCatalog() {
     try {
-      const res = await fetch(`${this.ctx.baseUrl}/gift-catalog?token=${this.ctx.token}`);
-      const cat = await res.json();
+      const cat = await ladeGiftKatalog(this.ctx.baseUrl, this.ctx.token);
       for (const [slug, e] of Object.entries(cat || {})) {
         if (!e) continue;
         const key = giftKey(e.slug || slug);

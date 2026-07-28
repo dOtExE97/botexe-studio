@@ -5,7 +5,7 @@
 //   items: "rose::!feuer | heart::Liebe | gg::GG"  (Gift-Slug :: Text, mit | getrennt)
 //   Legacy (weiter unterstützt): "🔥 !feuer | 🎵 Musik"  (führendes Emoji + Text)
 // giftKey aus der gemeinsamen Quelle (siehe gift-rules.js).
-import { giftKey } from './gift-rules.js';
+import { giftKey, ladeGiftKatalog } from './gift-rules.js';
 
 const STYLE_ID = 'bx-cc-style';
 const CSS = `
@@ -126,8 +126,7 @@ export default class CommandCarousel {
 
     // Gift-Bilder async aus dem App-Katalog nachladen (wie bingo.js).
     if (this.ctx.baseUrl && list.some((it) => it.slug)) {
-      fetch(`${this.ctx.baseUrl}/gift-catalog?token=${this.ctx.token}`)
-        .then((r) => r.json())
+      ladeGiftKatalog(this.ctx.baseUrl, this.ctx.token)
         .then((cat) => {
           // Beide Seiten per giftKey — wie ueberall sonst. Vorher reichte
           // toLowerCase, wodurch ein anders geschriebener Eintrag kein Bild fand.
