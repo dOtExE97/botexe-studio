@@ -170,6 +170,8 @@ export const IPC = {
   // TikTok-Live-Studio-Link (Domain-Form + hosts-Setup)
   TTLS_LINK_GET: 'ttls:link-get',
   TTLS_SETUP: 'ttls:setup',
+  /** Persönliches Intro eines Zuschauers zum Ansehen abspielen. */
+  INTRO_PREVIEW: 'intro:preview',
   /** Einmaliger Download des Geschenk-Bilder-Pakets (~25 MB, GitHub-Anhang).
    *  Schliesst die Luecke, die der kostenpflichtige Gift-Listen-Abruf laesst. */
   GIFT_IMAGES_DOWNLOAD: 'gift:images-download',

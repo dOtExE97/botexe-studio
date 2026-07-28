@@ -33,6 +33,7 @@ import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { planWheelSpins } from './wheel-gift';
 import { planSlotSpins } from './slot-gift';
+import { sollIntroLaufen } from './intro';
 import { matchingLuckyLayers, matchLuckyCommand, planLuckyDraws, type LuckyLayer } from './lucky-draw';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
@@ -465,8 +466,16 @@ export class Studio {
         this.maybeReadChat(e);
       }
 
-      // 3b2. Teamherz (Sub): persönliches Begrüßungs-Medium des Zuschauers spielen.
-      if (e.type === 'sub' && e.user) this.maybePlayWelcomeMedia(e.user);
+      // 3b2. Persönliches Intro des Zuschauers — je nach Einstellung beim
+      // Betreten, beim Teamherz oder bei beidem.
+      if (e.user && sollIntroLaufen({
+        typ: e.type,
+        synthetic: e.synthetic,
+        schonGezeigt: this.introGezeigt.has(e.user.id),
+        wann: this.settings.peek().introTrigger ?? 'sub',
+      })) {
+        this.maybePlayWelcomeMedia(e.user);
+      }
 
       // 3b3. Event-Ansagen per TTS (unabhängig vom Chat-Vorlesen).
       if (e.type === 'follow') this.maybeAnnounceFollow(e, regelLiestVor);
@@ -1717,6 +1726,9 @@ export class Studio {
     this.giveawayParticipants.clear();
     this.lastGiveawayWinner = '';
     this.greetedThisSession.clear();
+    // Neuer Stream → jeder darf sein Intro wieder einmal bekommen.
+    this.introGezeigt.clear();
+    this.introBuehneGemeldet = false;
     this.momentShownSession.clear();
     // Laufende Chat-Spiele + Boss-Modus beenden — sonst reagiert ein altes Spiel
     // (oder der Boss) im NEUEN Stream weiter auf Chat/Gifts und bleibt im Overlay.
@@ -1926,24 +1938,64 @@ export class Studio {
   }
 
   /** Persönliches Begrüßungs-Medium eines Zuschauers (bei Teamherz) abspielen. */
-  private maybePlayWelcomeMedia(user: { id: string }): void {
+  /** Wer sein Intro in dieser Sitzung schon hatte. Zuschauer gehen bei TikTok
+   *  ständig raus und rein — ohne diese Bremse liefe dasselbe Video mehrfach
+   *  pro Stream, und bei mehreren Leuten gleichzeitig wäre es unerträglich.
+   *  Wird mit der Sitzung zurückgesetzt (resetSession). */
+  private introGezeigt = new Set<string>();
+  /** Fehlende Intro-Bühne nur EINMAL melden, nicht bei jedem Zuschauer. */
+  private introBuehneGemeldet = false;
+
+  /** Intro eines Zuschauers zum Ansehen abspielen (Knopf in der Zuschauerliste).
+   *  Nutzt bewusst DENSELBEN Weg wie das echte Intro — eine zweite
+   *  Vorschau-Route würde irgendwann anders aussehen als der Ernstfall.
+   *  Einziger Unterschied: die Einmal-pro-Stream-Bremse wird übergangen. */
+  introVorschau(userId: string): { ok: boolean; error?: string } {
+    const mediaId = this.points.welcomeMediaFor(userId);
+    if (!mediaId) return { ok: false, error: 'Für diesen Zuschauer ist kein Intro hinterlegt.' };
+    const hatteSchon = this.introGezeigt.delete(userId);
+    this.maybePlayWelcomeMedia({ id: userId, nickname: 'Vorschau' });
+    const lief = this.introGezeigt.has(userId);
+    // Zustand wiederherstellen: Eine Vorschau darf das echte Intro im Stream
+    // weder verbrauchen noch nachträglich freischalten.
+    if (hatteSchon) this.introGezeigt.add(userId);
+    else this.introGezeigt.delete(userId);
+    return lief
+      ? { ok: true }
+      : { ok: false, error: 'Kein Medien-Widget im Overlay (Modus „Auslöser") — dort wird das Intro abgespielt.' };
+  }
+
+  private maybePlayWelcomeMedia(user: { id: string; nickname?: string }): void {
     const mediaId = this.points.welcomeMediaFor(user.id);
     if (!mediaId) return;
+    if (this.introGezeigt.has(user.id)) return;   // einmal pro Stream reicht
     const entry = this.media.list().find((m) => m.id === mediaId);
-    if (!entry) return;
+    if (!entry) {
+      log.warn('Intro', `Intro von ${user.nickname ?? user.id} übersprungen — die hinterlegte Datei gibt es nicht mehr.`);
+      return;
+    }
     // Erstes Trigger-Medium-Widget im aktiven Layout als Bühne nutzen.
     const layout = this.getActiveLayout();
     const layer = layout?.layers.find(
       (l) => l.widgetType === 'media' && l.visible && (l.props?.mode ?? 'trigger') !== 'static',
     );
-    if (!layer) return;
+    if (!layer) {
+      // Stiller Verwurf war hier besonders gemein: Der Streamer hat das Intro
+      // zugewiesen, sieht aber nie etwas — ohne jeden Hinweis, dass die Bühne fehlt.
+      if (!this.introBuehneGemeldet) {
+        this.introBuehneGemeldet = true;
+        log.warn('Intro', 'Kein Medien-Widget im aktiven Overlay — persönliche Intros können nirgends abgespielt werden. Leg ein „Medien"-Widget ins Layout (Modus: Auslöser).');
+      }
+      return;
+    }
+    this.introGezeigt.add(user.id);
     const action = {
       kind: 'play_media' as const,
       targetId: layer.id,
       params: { mediaUrl: this.mediaUrl(mediaId), kind: entry.kind },
     };
     this.server.broadcast({ kind: 'action', ruleId: 'welcome-media', action });
-    log.info('Begrüßung', `Begrüßungs-Medium für Zuschauer ${user.id} abgespielt`);
+    log.info('Intro', `Intro für ${user.nickname ?? user.id} abgespielt`);
   }
 
   /** Gift-Liste der Lib (untypisiert/variabel) defensiv in den Katalog laden. */

@@ -11,10 +11,18 @@ const CSS = `
 .bx-media-el { width:100%; height:100%; display:block; }
 .bx-media.frame .bx-media-el { border-radius: var(--bx-radius); box-shadow: var(--bx-shadow), 0 0 50px -18px var(--bx-accent); }
 .bx-media-hidden { opacity:0; pointer-events:none; }
-.bx-media-play { animation: bx-media-in 460ms cubic-bezier(.2,1.5,.35,1); }
+.bx-media-play { animation: bx-media-in var(--bx-media-in-ms, 460ms) cubic-bezier(.2,1.5,.35,1); }
 @keyframes bx-media-in { 0% { opacity:0; transform: scale(.82); } 100% { opacity:1; transform: scale(1); } }
-.bx-media-out { animation: bx-media-out 380ms ease forwards; }
+.bx-media-out { animation: bx-media-out var(--bx-media-out-ms, 380ms) ease forwards; }
 @keyframes bx-media-out { to { opacity:0; transform: scale(.96); } }
+/* Sanft: nur Deckkraft, kein Zoom — ruhiger, wenn oft etwas eingeblendet wird. */
+.bx-media.ein-sanft .bx-media-play { animation: bx-media-in-sanft var(--bx-media-in-ms, 460ms) ease; }
+@keyframes bx-media-in-sanft { from { opacity:0; } to { opacity:1; } }
+.bx-media.ein-sanft .bx-media-out { animation: bx-media-out-sanft var(--bx-media-out-ms, 380ms) ease forwards; }
+@keyframes bx-media-out-sanft { to { opacity:0; } }
+/* Hart: gar keine Animation — erscheint und verschwindet sofort. */
+.bx-media.ein-hart .bx-media-play,
+.bx-media.ein-hart .bx-media-out { animation: none; }
 /* Platzhalter skaliert mit der Box mit (vorher feste 14px/34px → in einem
    großen Media-Rahmen kaum zu sehen). */
 /* box-sizing ist Pflicht: 100% + gestrichelter Rahmen + Innenabstand ragten
@@ -83,8 +91,20 @@ export default class MediaWidget {
     this.timers = new Set(); // Premium-Auslöser → bei destroy clearen
 
     this.el = document.createElement('div');
-    this.el.className = 'bx-media' + (props.frame ? ' frame' : '');
+    // Ein-/Ausblenden: Art + Dauer einstellbar. „schwung" ist das bisherige
+    // Verhalten (leichter Zoom), „sanft" nur Deckkraft, „hart" ohne Animation.
+    const art = props.fadeStyle === 'sanft' || props.fadeStyle === 'hart' ? props.fadeStyle : 'schwung';
+    this.el.className = 'bx-media' + (props.frame ? ' frame' : '')
+      + (art === 'sanft' ? ' ein-sanft' : art === 'hart' ? ' ein-hart' : '');
+    const einMs = Math.max(0, Math.min(4000, Number(props.fadeInMs ?? 460) || 0));
+    const ausMs = Math.max(0, Math.min(4000, Number(props.fadeOutMs ?? 380) || 0));
+    this.el.style.setProperty('--bx-media-in-ms', `${einMs}ms`);
+    this.el.style.setProperty('--bx-media-out-ms', `${ausMs}ms`);
+    this.fadeOutMs = ausMs;
     root.appendChild(this.el);
+
+    // Vorschau-Kennung früh setzen — die leere-Medium-Behandlung unten braucht sie.
+    this.preview = !!(ctx && ctx.preview);
 
     // URL bauen: bevorzugt fertige mediaUrl (Editor), sonst aus baseUrl+token+id
     this.url = props.mediaUrl || '';
@@ -93,7 +113,17 @@ export default class MediaWidget {
     }
 
     if (!this.url) {
-      this.el.innerHTML = `<div class="bx-media-empty"><span>🎬</span>Kein Medium gewählt</div>`;
+      // Kein festes Medium gewählt. Im EDITOR den Platzhalter zeigen, damit man
+      // das Widget sieht und platzieren kann — im echten Overlay aber NICHTS.
+      //
+      // Sonst stünde bei jedem Intro-Widget dauerhaft „Kein Medium gewählt" im
+      // Stream: Für persönliche Intros ist genau das der Normalfall, denn das
+      // Medium kommt erst mit der Aktion (je Zuschauer ein anderes).
+      if (this.preview) {
+        this.el.innerHTML = `<div class="bx-media-empty"><span>🎬</span>Kein Medium gewählt</div>`;
+      } else {
+        this.el.classList.add('bx-media-hidden');
+      }
       return;
     }
 
@@ -186,7 +216,7 @@ export default class MediaWidget {
       this.el.classList.add('bx-media-hidden');
       this.el.classList.remove('bx-media-out', 'bx-media-play');
       if (this.kind === 'video') { try { this.media.pause(); this.media.currentTime = 0; } catch { /* noop */ } }
-    }, 380);
+    }, this.fadeOutMs ?? 380);   // an die eingestellte Ausblend-Dauer gekoppelt
   }
 
   destroy() {

@@ -64,6 +64,12 @@ export interface StudioSettings {
    *  eigene Umbenennungen aus der Galerie. Betrifft nur die Anzeige im Stream —
    *  Trigger und Zuordnungen laufen immer über den Originalnamen. */
   giftNameLang?: 'original' | 'de';
+  /** Wann das persönliche Intro eines Zuschauers läuft:
+   *  'join'      = wenn er den Stream betritt (das übliche „Intro")
+   *  'sub'       = bei einem Teamherz (bisheriges Verhalten)
+   *  'beides'    = bei beidem
+   *  'aus'       = nie */
+  introTrigger?: 'join' | 'sub' | 'beides' | 'aus';
   soundVolume: number;
   /** Audio-Ausgabegerät für lokale Sounds/TTS (deviceId), '' = Standard. */
   audioOutputId: string;
@@ -182,6 +188,7 @@ const DEFAULTS: StudioSettings = {
   lastUsername: '',
   telemetry: 'unset',
   giftNameLang: 'original',
+  introTrigger: 'sub',   // bisheriges Verhalten bleibt Standard
   soundVolume: 0.7,
   audioOutputId: '',
   audioOutputLabel: '',
@@ -506,6 +513,9 @@ export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): 
   if (typeof p.autoBackup === 'boolean') allowed.autoBackup = p.autoBackup;
   if (p.telemetry === 'on' || p.telemetry === 'off') allowed.telemetry = p.telemetry;
   if (p.giftNameLang === 'original' || p.giftNameLang === 'de') allowed.giftNameLang = p.giftNameLang;
+  if (p.introTrigger === 'join' || p.introTrigger === 'sub' || p.introTrigger === 'beides' || p.introTrigger === 'aus') {
+    allowed.introTrigger = p.introTrigger;
+  }
   if (typeof p.mixer === 'object' && p.mixer !== null) allowed.mixer = normalizeMixer(p.mixer);
   if (typeof p.spotifyClientId === 'string') allowed.spotifyClientId = p.spotifyClientId.trim().slice(0, 100);
   if (typeof p.moderation === 'object' && p.moderation !== null) {

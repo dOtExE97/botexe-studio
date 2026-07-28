@@ -1,7 +1,8 @@
 // ViewersPage — Zuschauer-Verwaltung: Punkte, VIP, TTS-Sperre, eigene Stimme.
 // Basis fürs Glücksrad und das spätere Kartenspiel.
 import { useEffect, useState } from 'react';
-import { Users, Search, Star, VolumeX, Minus, Plus } from 'lucide-react';
+import { Users, Search, Star, VolumeX, Minus, Plus, Play } from 'lucide-react';
+import { toast } from '../components/ToastHost';
 
 interface Viewer {
   id: string;
@@ -92,6 +93,13 @@ export default function ViewersPage() {
     void window.studio.setViewerWelcomeMedia(v.id, mediaId);
   };
 
+  /** Intro einmal ansehen. Läuft über denselben Weg wie im echten Stream —
+   *  eine eigene Vorschau-Route würde irgendwann anders aussehen. */
+  const introVorschau = async (v: Viewer) => {
+    const r = await window.studio.previewIntro(v.id);
+    if (!r.ok) toast('warn', r.error ?? 'Vorschau nicht möglich.');
+  };
+
   return (
     <div className="flex h-full flex-col gap-4 p-6">
       <div className="flex items-center justify-between gap-4">
@@ -177,18 +185,31 @@ export default function ViewersPage() {
                 ))}
               </select>
 
-              {/* Begrüßungs-Medium (spielt bei Teamherz) */}
-              <select
-                value={v.welcomeMediaId ?? ''}
-                onChange={(e) => setWelcomeMedia(v, e.target.value)}
-                title="Begrüßungs-Bild/Video — spielt automatisch bei einem Teamherz dieses Zuschauers (braucht ein Media-Widget im Overlay)"
-                className="bx-select max-w-40 py-1.5 text-[11px]"
-              >
-                <option value="">Begrüßung: keine</option>
-                {media.map((m) => (
-                  <option key={m.id} value={m.id}>{m.kind === 'video' ? '🎬' : '🖼️'} {m.filename}</option>
-                ))}
-              </select>
+              {/* Persönliches Intro. WANN es läuft (Betreten/Teamherz), steht in
+                  den Einstellungen — hier nur, WER welches bekommt. */}
+              <div className="flex items-center gap-1">
+                <select
+                  value={v.welcomeMediaId ?? ''}
+                  onChange={(e) => setWelcomeMedia(v, e.target.value)}
+                  title="Persönliches Intro dieses Zuschauers. Wann es läuft (beim Betreten oder beim Teamherz), stellst du unter Einstellungen ein. Braucht ein Medien-Widget im Overlay."
+                  className="bx-select max-w-40 py-1.5 text-[11px]"
+                >
+                  <option value="">Intro: keins</option>
+                  {media.map((m) => (
+                    <option key={m.id} value={m.id}>{m.kind === 'video' ? '🎬' : '🖼️'} {m.filename}</option>
+                  ))}
+                </select>
+                {/* Vorschau: sonst sieht man erst im echten Stream, ob es passt. */}
+                {v.welcomeMediaId && (
+                  <button
+                    onClick={() => void introVorschau(v)}
+                    title="Jetzt im Overlay abspielen — so wie es später beim Zuschauer aussieht"
+                    className="rounded px-1.5 py-1 text-studio-muted transition-colors hover:bg-studio-raised hover:text-studio-teal"
+                  >
+                    <Play size={12} />
+                  </button>
+                )}
+              </div>
 
               {/* Flags */}
               <button

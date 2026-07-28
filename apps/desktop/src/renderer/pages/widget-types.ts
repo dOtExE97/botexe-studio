@@ -711,8 +711,15 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'media', label: 'Bild / Video', desc: 'Eigenes Bild oder Video einblenden — dauerhaft (Logo/Banner) oder per Trigger (z.B. Begrüßungsvideo bei einem Superfan).',
-    w: 600, h: 400, props: { mediaId: '', mode: 'trigger', fit: 'contain', durationMs: 6000, frame: false, loop: true, muted: true },
+    w: 600, h: 400, props: { fadeStyle: 'schwung', fadeInMs: 460, fadeOutMs: 380, mediaId: '', mode: 'trigger', fit: 'contain', durationMs: 6000, frame: false, loop: true, muted: true },
     fields: [
+      { key: 'fadeStyle', label: 'Ein-/Ausblenden', type: 'select', options: [
+        { value: 'schwung', label: 'Mit Schwung — kommt leicht herangezoomt (Standard)' },
+        { value: 'sanft', label: 'Sanft — blendet nur weich auf, ohne Bewegung' },
+        { value: 'hart', label: 'Hart — erscheint und verschwindet sofort' },
+      ], hint: 'Wie das Medium auftaucht und wieder geht. Läuft bei dir oft etwas hintereinander, ist „sanft" ruhiger.' },
+      { key: 'fadeInMs', label: 'Einblenden (ms)', type: 'number', hint: 'Wie lange das Auftauchen dauert. 0 = sofort da.' },
+      { key: 'fadeOutMs', label: 'Ausblenden (ms)', type: 'number', hint: 'Wie lange das Verschwinden dauert.' },
       { key: 'mediaId', label: 'Medium', type: 'media', hint: 'Bild/Video wählen oder neues importieren (PNG, JPG, GIF, WEBP, MP4, WEBM).' },
       { key: 'mode', label: 'Modus', type: 'select', options: [
         { value: 'trigger', label: 'Per Trigger (blendet sich ein/aus)' },

@@ -436,6 +436,10 @@ function registerIpc(): void {
   });
   // Geschenk-Bilder-Paket einmalig laden. Läuft nur einmal gleichzeitig — zwei
   // parallele Downloads würden dieselben Dateien schreiben.
+  ipcMain.handle(IPC.INTRO_PREVIEW, (_e, userId: unknown) =>
+    typeof userId === 'string' && userId
+      ? isStudio().introVorschau(userId)
+      : { ok: false, error: 'Kein Zuschauer angegeben' });
   ipcMain.handle(IPC.GIFT_IMAGES_DOWNLOAD, async (e) => {
     if (giftBilderLaufend) return { ok: false, error: 'Download läuft bereits.' };
     giftBilderLaufend = true;

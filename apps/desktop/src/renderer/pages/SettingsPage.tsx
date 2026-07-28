@@ -62,6 +62,7 @@ export default function SettingsPage() {
   // Anzeigesprache der Geschenknamen IM OVERLAY (nicht in der App — die hat
   // ihren eigenen DE/EN-Schalter in der Galerie).
   const [giftNameLang, setGiftNameLang] = useState<'original' | 'de'>('original');
+  const [introTrigger, setIntroTrigger] = useState<'join' | 'sub' | 'beides' | 'aus'>('sub');
   const [autoBackup, setAutoBackup] = useState(true);
   const [telemetry, setTelemetry] = useState<'unset' | 'on' | 'off'>('unset');
   // Ist-Zustand aus dem Hauptprozess — NICHT dasselbe wie der Schalter oben:
@@ -121,6 +122,8 @@ export default function SettingsPage() {
       const sy = s as unknown as { giftSoundGapSec?: number; autoBackup?: boolean; telemetry?: 'unset' | 'on' | 'off'; giftNameLang?: 'original' | 'de' };
       setGiftSoundGap(sy.giftSoundGapSec ?? 0);
       setGiftNameLang(sy.giftNameLang === 'de' ? 'de' : 'original');
+      const si = s as unknown as { introTrigger?: 'join' | 'sub' | 'beides' | 'aus' };
+      setIntroTrigger(si.introTrigger ?? 'sub');
       setAutoBackup(sy.autoBackup !== false);
       setTelemetry(sy.telemetry ?? 'unset');
       // Pull statt Push: beim Betreten der Seite den echten Zustand holen.
@@ -1008,6 +1011,33 @@ export default function SettingsPage() {
             <span className="mt-0.5 block text-[11px] text-studio-muted/80">
               Hilft mir, Fehler zu finden, die sonst niemand meldet. <b>Keine persönlichen Daten, keine Keys</b> — alles Sensible wird vorher entfernt. Jederzeit hier ausschaltbar.
             </span>
+          </span>
+        </label>
+
+        {/* Persönliche Intros: WANN sie laufen. Die Zuordnung „wer bekommt was"
+            steht bei den Zuschauern — hier nur der Auslöser. */}
+        <label className="mt-4 block border-t border-studio-border pt-3 text-xs">
+          <span className="text-studio-text">Persönliches Intro abspielen</span>
+          <select
+            value={introTrigger}
+            onChange={(e) => {
+              const v = e.target.value as 'join' | 'sub' | 'beides' | 'aus';
+              setIntroTrigger(v);
+              void window.studio.updateSettings({ introTrigger: v });
+            }}
+            className="bx-select mt-1 w-full text-xs"
+          >
+            <option value="join">wenn der Zuschauer den Stream betritt</option>
+            <option value="sub">bei einem Teamherz</option>
+            <option value="beides">bei beidem</option>
+            <option value="aus">gar nicht</option>
+          </select>
+          <span className="mt-1 block text-[11px] leading-relaxed text-studio-muted/80">
+            Wem welches Video oder Bild gehört, stellst du unter <b className="text-studio-text">Zuschauer</b> ein —
+            dort hat jede Person ein eigenes Feld. Pro Stream läuft das Intro einer Person nur
+            <b className="text-studio-text"> einmal</b>, auch wenn sie mehrfach rein- und rausgeht.
+            Damit es überhaupt zu sehen ist, muss ein <b className="text-studio-text">Medien-Widget</b> im
+            Overlay liegen (Modus „Auslöser") — das ist die Bühne, auf der es abgespielt wird.
           </span>
         </label>
 
