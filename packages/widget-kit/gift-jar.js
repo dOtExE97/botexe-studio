@@ -5,6 +5,9 @@
 
 import { comboPlan } from './combo.js';
 
+// Anzeigename (deutscher/eigener Name, falls eingestellt) — gemeinsame Quelle.
+import { giftName } from './gift-rules.js';
+
 const STYLE_ID = 'bx-jar-style';
 // --u = „1px bei Standardgröße" (440×520): Badge, Label und Toasts sind
 // Vielfache davon und wachsen mit, wenn das Glas größer gezogen wird.
@@ -293,7 +296,7 @@ export default class GiftJar {
   addToast(event) {
     const wrap = this.el.querySelector('.bx-jar-toasts');
     const nick = escapeHtml(event.user?.nickname || 'Jemand');
-    const slug = escapeHtml(event.gift.slug || 'Gift');
+    const slug = escapeHtml(giftName(event.gift) || 'Gift');
     const cnt = event.gift.count > 1 ? ` ×${event.gift.count}` : '';
     const av = event.user?.profilePic ? `<img src="${escapeHtml(event.user.profilePic)}" alt="">` : '';
     const gi = event.gift.icon ? `<img class="g" src="${escapeHtml(event.gift.icon)}" alt="">` : '';

@@ -1,4 +1,11 @@
-// gift-names-de.ts — Deutsche Namen für die gängigsten TikTok-Gifts.
+// gift-names-de.ts — Deutsche Namen für TikTok-Gifts.
+//
+// Liegt in shared/, weil BEIDE Seiten sie brauchen: das App-Fenster für Galerie
+// und Auswähler, der Hauptprozess für den Anzeigenamen, den er den Overlay-
+// Widgets mitschickt. Vorher lag sie unter renderer/lib und war dem Overlay
+// unbekannt — im Fenster stand „Handherz", im Stream „Finger Heart".
+import { DE_BY_KEY as DE_AUS_MASTER } from './gift-master';
+
 // TikTok liefert die Namen NUR auf Englisch (auch in der DE-App / bei TikFinity);
 // es gibt keine offizielle DE-Liste. Diese Map ist kuratiert. Keys = slug in
 // LOWERCASE (so liegen sie im Gift-Katalog). Nicht enthaltene Gifts fallen auf
@@ -179,9 +186,22 @@ const GIFT_NAMES_DE: Record<string, string> = {
   'hot air balloon': 'Heißluftballon',
 };
 
-/** Deutscher Name oder null (slug case-insensitiv). */
+// Nachschlagewerk mit der überall gleichen Normalisierung (nur Buchstaben und
+// Ziffern). Die Map oben ist von Hand gepflegt und dadurch uneinheitlich
+// geschrieben („love you so much" mit Leerzeichen, „gg" ohne) — mit einem
+// bloßen toLowerCase verfehlte „Love You So Much" aus einem echten Ereignis
+// den Eintrag. Dieselbe Falle wie bei den Gift-Zuordnungen.
+const DE_KURATIERT = new Map(
+  Object.entries(GIFT_NAMES_DE).map(([k, v]) => [k.toLowerCase().replace(/[^a-z0-9]/g, ''), v]),
+);
+
+/** Deutscher Name oder null. Schreibweise, Bindestriche und Leerzeichen egal. */
 export function giftNameDe(slug: string): string | null {
-  return GIFT_NAMES_DE[String(slug ?? '').trim().toLowerCase()] ?? null;
+  const key = String(slug ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!key) return null;
+  // Handverlesen geht vor: die kuratierten 52 sind die gängigsten Geschenke und
+  // besser übersetzt als die automatische Liste.
+  return DE_KURATIERT.get(key) ?? DE_AUS_MASTER.get(key) ?? null;
 }
 
 /** Anzeigename je Sprache + optionaler eigener Name (eigener Name gewinnt immer). */

@@ -1,5 +1,8 @@
 // activity-feed.js — kombinierter Aktivitäts-Ticker (Follow, Sub, Share, Gift).
 // Glas-Zeilen mit Icon-Badge je Typ. props: { max?, ttlMs?, accent? }
+// Anzeigename (deutscher/eigener Name, falls eingestellt) — gemeinsame Quelle.
+import { giftName } from './gift-rules.js';
+
 const STYLE_ID = 'bx-af-style';
 const CSS = `
 .bx-af { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: clamp(3px,1.6cqh,12px);
@@ -166,7 +169,7 @@ export default class ActivityFeed {
     const name = event.user?.nickname || 'Jemand';
     let line;
     if (event.type === 'gift' && event.gift) {
-      line = `<b>${escapeHtml(name)}</b> schickt <b>${escapeHtml(event.gift.slug)}</b> (+${fmt(event.gift.totalCoins)})`;
+      line = `<b>${escapeHtml(name)}</b> schickt <b>${escapeHtml(giftName(event.gift))}</b> (+${fmt(event.gift.totalCoins)})`;
     } else {
       line = `<b>${escapeHtml(name)}</b> ${def.txt}`;
     }

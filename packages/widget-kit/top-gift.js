@@ -1,5 +1,8 @@
 // top-gift.js — Highlight des größten Einzel-Gifts der Session. Glas-Karte,
 // Gift-Bild + Spender, Bounce bei neuem Rekord. props: { accent?, title? }
+// Anzeigename (deutscher/eigener Name, falls eingestellt) — gemeinsame Quelle.
+import { giftName } from './gift-rules.js';
+
 const STYLE_ID = 'bx-tg-style';
 // --u = „1px bei Standardgröße" (320×320): alle Größen sind Vielfache davon,
 // damit Schrift/Gift-Bild mitwachsen, wenn das Widget größer gezogen wird.
@@ -236,7 +239,7 @@ export default class TopGift {
     if (event.gift.totalCoins <= this.max) return;
     this.render({
       coins: event.gift.totalCoins,
-      slug: event.gift.slug,
+      slug: giftName(event.gift),
       icon: event.gift.icon,
       nickname: event.user?.nickname,
       avatar: event.user?.profilePic,

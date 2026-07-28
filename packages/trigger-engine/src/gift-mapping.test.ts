@@ -4,8 +4,9 @@
 // Gift referenzieren — beides soll nebeneinander existieren.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { TriggerRule } from './index';
+import type { TriggerRule, StudioEvent } from './index';
 import { giftRuleId, findGiftRule, upsertGiftRule, otherGiftRules } from './gift-mapping';
+import { TriggerEngine } from './index';
 
 test('upsertGiftRule legt eine neue kanonische Regel für das Gift an', () => {
   const rules = upsertGiftRule([], 'Rose', [{ kind: 'play_sound', soundId: 's.mp3' }]);
@@ -189,4 +190,30 @@ test('orderedGiftKeys deckt sich exakt mit den Rad-Segmenten (Golden Fixture)', 
     ['r-rose', 'r-fingerheart', 'r-giftid'],
     'r-empty (leerer Text), r-rose-dup (Duplikat), r-disabled und r-follow fallen bei BEIDEN Seiten gleichermaßen weg',
   );
+});
+
+// Der Anzeigename (deutsch / eigene Umbenennung, seit v0.41) darf die
+// Zuordnung NIEMALS beeinflussen. Sonst würde ein Streamer, der „Rocket" in
+// „fette Rakete" umbenennt, still alle seine Regeln für dieses Geschenk
+// verlieren — ohne jede Fehlermeldung.
+test('displayName ist reine Anzeige — Trigger matchen weiter über den Originalnamen', () => {
+  const regel: TriggerRule = {
+    id: 'r1', name: 'Raketen-Sound', event: 'gift', enabled: true,
+    conditions: [{ kind: 'gift_slug_is', value: 'Rocket' }],
+    actions: [{ kind: 'play_sound', soundId: 'boom.mp3' }],
+  };
+  const mitAnzeigename: StudioEvent = {
+    type: 'gift', ts: 0,
+    gift: { slug: 'Rocket', displayName: 'fette Rakete', count: 1, coinsPerUnit: 100, totalCoins: 100 },
+  };
+  const engine = new TriggerEngine();
+  engine.setRules([regel]);
+  assert.equal(engine.evaluate(mitAnzeigename).length, 1, 'Regel muss trotz Umbenennung feuern');
+
+  // Und andersherum: Der Anzeigename allein darf NICHT matchen.
+  const nurAnzeigename: StudioEvent = {
+    type: 'gift', ts: 0,
+    gift: { slug: 'Etwas Anderes', displayName: 'Rocket', count: 1, coinsPerUnit: 1, totalCoins: 1 },
+  };
+  assert.equal(engine.evaluate(nurAnzeigename).length, 0, 'Anzeigename darf nicht als Zuordnung gelten');
 });

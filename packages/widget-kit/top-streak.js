@@ -2,6 +2,9 @@
 // Zeigt Spender-Avatar + Gift-Bild + die Streak-Zahl „xN" groß. Bounce bei
 // neuem Rekord. Hydratisiert nach Overlay-Reload aus den Session-Stats.
 // props: { accent?, title? }
+// Anzeigename (deutscher/eigener Name, falls eingestellt) — gemeinsame Quelle.
+import { giftName } from './gift-rules.js';
+
 const STYLE_ID = 'bx-ts-style';
 // --u = „1px bei Standardgröße" (340×320): alle Größen sind Vielfache davon,
 // damit die Karte beim Größerziehen wirklich mitwächst statt leer zu wirken.
@@ -235,7 +238,7 @@ export default class TopStreak {
     if (event.type !== 'gift' || !event.gift) return;
     const count = event.gift.count || 1;
     if (count <= this.max) return;
-    this.render({ count, slug: event.gift.slug, icon: event.gift.icon, nickname: event.user?.nickname, avatar: event.user?.profilePic });
+    this.render({ count, slug: giftName(event.gift), icon: event.gift.icon, nickname: event.user?.nickname, avatar: event.user?.profilePic });
   }
   onStats(stats) {
     const t = stats?.topStreak;

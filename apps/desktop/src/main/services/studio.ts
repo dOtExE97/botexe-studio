@@ -24,6 +24,7 @@ import {
 import type { SoundCategory } from '../../shared/mixer';
 import { OVERLAY_PORT } from '../../shared/constants';
 import { mergeMitMasterAlsMap, masterIcon, type KatalogEintrag } from '../../shared/gift-master';
+import { giftDisplayName } from '../../shared/gift-names-de';
 import { parseApiAction, API_ACTION_KINDS } from './api-actions';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
@@ -401,9 +402,20 @@ export class Studio {
       // Ereignis kein Bild — was vorkommt, je nach Verbindungsart und Gift —,
       // zeigten sie einen faden Platzhalter, obwohl die App das Bild längst
       // kennt. Einmal hier nachschlagen versorgt alle zehn auf einen Schlag.
-      if (e.type === 'gift' && e.gift && !e.gift.icon) {
-        const bild = this.giftBildFuer(e.gift.slug, e.gift.giftId);
-        if (bild) e.gift.icon = bild;
+      if (e.type === 'gift' && e.gift) {
+        if (!e.gift.icon) {
+          const bild = this.giftBildFuer(e.gift.slug, e.gift.giftId);
+          if (bild) e.gift.icon = bild;
+        }
+        // 0b. Anzeigename für die Widgets — nur wenn der Nutzer es will
+        // (Einstellung „Geschenknamen im Overlay"). Der Originalname bleibt in
+        // `slug` und bleibt die Grundlage JEDER Zuordnung; hier kommt bloß ein
+        // zweites Feld für die Anzeige dazu.
+        if (this.settings.peek().giftNameLang === 'de') {
+          const eigen = this.giftCatalog.all()[e.gift.slug.trim().toLowerCase()]?.customName;
+          const anzeige = giftDisplayName(e.gift.slug, 'de', eigen);
+          if (anzeige && anzeige !== e.gift.slug) e.gift.displayName = anzeige;
+        }
       }
 
       // 0b. Rollen-Gedächtnis: Live-Follow macht zum Follower; erkannte Rollen

@@ -1,5 +1,8 @@
 // gift-feed.js — Premium Gift-Ticker. Glas-Zeilen, Avatar-Glow, Gift-Bild,
 // Slide-In, TTL-Expiry. props: { max?, ttlMs?, accent? }
+// Anzeigename (deutscher/eigener Name, falls eingestellt) — gemeinsame Quelle.
+import { giftName } from './gift-rules.js';
+
 const STYLE_ID = 'bx-gf-style';
 const CSS = `
 .bx-gf { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: clamp(3px,1.6cqh,12px);
@@ -150,7 +153,7 @@ export default class GiftFeed {
     if (event.gift.icon) item.querySelector('.bx-gf-img').src = event.gift.icon;
     const [nameEl, giftEl] = item.querySelectorAll('.bx-gf-text b');
     nameEl.textContent = event.user?.nickname || 'Jemand';
-    giftEl.textContent = `${event.gift.count > 1 ? `${event.gift.count}× ` : ''}${event.gift.slug}`;
+    giftEl.textContent = `${event.gift.count > 1 ? `${event.gift.count}× ` : ''}${giftName(event.gift)}`;
     item.querySelector('.bx-gf-coins').textContent = `+${fmt(event.gift.totalCoins)}`;
     avSet(item.querySelector('.bx-gf-pic'), event.user?.nickname, event.user?.profilePic);
     this.el.appendChild(item);

@@ -2,6 +2,9 @@
 // Glas-Karte, Avatar-Ring, schwebendes Gift-Bild, Neon-Name, Coin-Chip,
 // Shimmer + Spring-Pop + Partikel-Burst. Nutzt widget-base.css.
 
+// Anzeigename (deutscher/eigener Name, falls eingestellt) — gemeinsame Quelle.
+import { giftName } from './gift-rules.js';
+
 const STYLE_ID = 'bx-ga-style';
 const CSS = `
 /* container-type: size → alle Größen unten skalieren mit der Widget-Box mit.
@@ -185,7 +188,7 @@ export default class GiftAlert {
     this.leavePreview();
     this.enqueue({
       name: event.user?.nickname || 'Jemand',
-      gift: `${event.gift.count > 1 ? `${event.gift.count}× ` : ''}${event.gift.slug}`,
+      gift: `${event.gift.count > 1 ? `${event.gift.count}× ` : ''}${giftName(event.gift)}`,
       coins: event.gift.totalCoins,
       icon: event.gift.icon,
       pic: event.user?.profilePic,

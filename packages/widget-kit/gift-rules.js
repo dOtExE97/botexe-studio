@@ -21,6 +21,21 @@ export function giftKey(slug) {
   return String(slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+/** Name, den ein Widget für ein Geschenk ANZEIGEN soll.
+ *
+ *  Der Hauptprozess hängt `displayName` an, wenn der Streamer unter
+ *  Einstellungen „Geschenknamen im Overlay: Deutsch" gewählt hat — dann steht
+ *  dort der deutsche Name oder seine eigene Umbenennung aus der Galerie. Ohne
+ *  die Einstellung fehlt das Feld und es bleibt beim Originalnamen.
+ *
+ *  NUR für die Anzeige: Jede Zuordnung (welches Geschenk löst was aus) läuft
+ *  weiter über `slug`, sonst würde eine Umbenennung die Regeln des Nutzers
+ *  still ins Leere laufen lassen. */
+export function giftName(gift) {
+  if (!gift) return '';
+  return String(gift.displayName || gift.slug || '');
+}
+
 /** Aktions-Art → verständlicher deutscher Text für Tafel/Rad. */
 export function actionLabel(action) {
   if (!action || typeof action !== 'object') return '';

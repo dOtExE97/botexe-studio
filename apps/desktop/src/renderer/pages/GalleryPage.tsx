@@ -8,7 +8,7 @@ import { Gift, Search, Crown, Coins, Volume2, Sparkles, Mic, Plus, Trash2, Play,
 import type { TriggerRule, TriggerAction } from '@botexe/trigger-engine';
 import { findGiftRule, upsertGiftRule, otherGiftRules } from '@botexe/trigger-engine';
 import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
-import { giftDisplayName, giftNameDe } from '../lib/gift-names-de';
+import { giftDisplayName, giftNameDe } from '../../shared/gift-names-de';
 import { toast } from '../components/ToastHost';
 
 interface SoundEntry { id: string; filename: string }

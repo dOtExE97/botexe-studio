@@ -55,6 +55,14 @@ export interface StudioGift {
   totalCoins: number;
   /** Offizielles TikTok-Gift-Bild (aus giftDetails), für Alerts/Feeds. */
   icon?: string;
+  /** Name, den die Overlay-Widgets ANZEIGEN sollen — deutscher Name oder die
+   *  eigene Umbenennung aus der Galerie, je nach Einstellung `giftNameLang`.
+   *  Studio reichert das an; fehlt es, zeigen die Widgets `slug`.
+   *
+   *  WICHTIG: Nur für die Anzeige. Jede Zuordnung (Trigger, Rad, Automat,
+   *  Zähler) läuft weiter über `slug` — sonst würde eine Umbenennung still
+   *  alle Regeln des Nutzers ins Leere laufen lassen. */
+  displayName?: string;
 }
 
 /** Normalisiertes Live-Event — vom TikTok-Adapter erzeugt, von Engine/Overlays konsumiert. */

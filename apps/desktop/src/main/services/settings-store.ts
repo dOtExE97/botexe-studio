@@ -56,6 +56,11 @@ export interface StudioSettings {
    *  Nachfrage), 'on' = zugestimmt, 'off' = abgelehnt. Ohne 'on' wird Sentry
    *  gar nicht initialisiert — es geht nichts raus. */
   telemetry?: 'unset' | 'on' | 'off';
+  /** Geschenknamen im OVERLAY: 'original' = wie TikTok sie schickt (Standard,
+   *  Zuschauer kennen sie aus der TikTok-Oberfläche), 'de' = deutscher Name und
+   *  eigene Umbenennungen aus der Galerie. Betrifft nur die Anzeige im Stream —
+   *  Trigger und Zuordnungen laufen immer über den Originalnamen. */
+  giftNameLang?: 'original' | 'de';
   soundVolume: number;
   /** Audio-Ausgabegerät für lokale Sounds/TTS (deviceId), '' = Standard. */
   audioOutputId: string;
@@ -173,6 +178,7 @@ const DEFAULTS: StudioSettings = {
   schemaVersion: SETTINGS_SCHEMA_VERSION,
   lastUsername: '',
   telemetry: 'unset',
+  giftNameLang: 'original',
   soundVolume: 0.7,
   audioOutputId: '',
   audioOutputLabel: '',
@@ -495,6 +501,7 @@ export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): 
   if (typeof p.giftSoundGapSec === 'number') allowed.giftSoundGapSec = Math.min(600, Math.max(0, Math.round(p.giftSoundGapSec)));
   if (typeof p.autoBackup === 'boolean') allowed.autoBackup = p.autoBackup;
   if (p.telemetry === 'on' || p.telemetry === 'off') allowed.telemetry = p.telemetry;
+  if (p.giftNameLang === 'original' || p.giftNameLang === 'de') allowed.giftNameLang = p.giftNameLang;
   if (typeof p.mixer === 'object' && p.mixer !== null) allowed.mixer = normalizeMixer(p.mixer);
   if (typeof p.spotifyClientId === 'string') allowed.spotifyClientId = p.spotifyClientId.trim().slice(0, 100);
   if (typeof p.moderation === 'object' && p.moderation !== null) {

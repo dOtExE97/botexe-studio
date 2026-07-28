@@ -59,6 +59,9 @@ export default function SettingsPage() {
   const [autoLiveWatch, setAutoLiveWatch] = useState(true);
   const [autostart, setAutostart] = useState(false);
   const [giftSoundGap, setGiftSoundGap] = useState(0);
+  // Anzeigesprache der Geschenknamen IM OVERLAY (nicht in der App — die hat
+  // ihren eigenen DE/EN-Schalter in der Galerie).
+  const [giftNameLang, setGiftNameLang] = useState<'original' | 'de'>('original');
   const [autoBackup, setAutoBackup] = useState(true);
   const [telemetry, setTelemetry] = useState<'unset' | 'on' | 'off'>('unset');
   // Ist-Zustand aus dem Hauptprozess — NICHT dasselbe wie der Schalter oben:
@@ -115,8 +118,9 @@ export default function SettingsPage() {
       setConnectMode(s.tiktokConnectMode === 'direct' ? 'direct' : 'cloud');
       setAutoLiveWatch(s.autoLiveWatch !== false);
       setAutostart(s.autostart === true);
-      const sy = s as unknown as { giftSoundGapSec?: number; autoBackup?: boolean; telemetry?: 'unset' | 'on' | 'off' };
+      const sy = s as unknown as { giftSoundGapSec?: number; autoBackup?: boolean; telemetry?: 'unset' | 'on' | 'off'; giftNameLang?: 'original' | 'de' };
       setGiftSoundGap(sy.giftSoundGapSec ?? 0);
+      setGiftNameLang(sy.giftNameLang === 'de' ? 'de' : 'original');
       setAutoBackup(sy.autoBackup !== false);
       setTelemetry(sy.telemetry ?? 'unset');
       // Pull statt Push: beim Betreten der Seite den echten Zustand holen.
@@ -517,6 +521,28 @@ export default function SettingsPage() {
         <p className="mt-2 text-[10px] text-studio-muted/70">
           Gilt für die Sounds der Gift-Widgets (Alert & Co.). Trigger-Regeln haben zusätzlich ihren eigenen Cooldown — auch in der Geschenke-Galerie einstellbar.
         </p>
+
+        <label className="mt-4 flex cursor-pointer items-start gap-2 border-t border-studio-border pt-3 text-xs">
+          <input
+            type="checkbox"
+            checked={giftNameLang === 'de'}
+            onChange={(e) => {
+              const v = e.target.checked ? 'de' : 'original';
+              setGiftNameLang(v);
+              void window.studio.updateSettings({ giftNameLang: v });
+              toast('info', v === 'de' ? 'Overlay zeigt jetzt deutsche Namen.' : 'Overlay zeigt wieder die Originalnamen.');
+            }}
+            className="mt-0.5 accent-[#ff4d2e]"
+          />
+          <span>
+            Deutsche Geschenknamen im Overlay
+            <span className="mt-0.5 block text-[11px] text-studio-muted/80">
+              Aus: Deine Zuschauer sehen die Namen so, wie TikTok sie schickt (<i>Finger Heart</i>) — genau wie in ihrer eigenen TikTok-Ansicht.
+              An: Sie sehen den deutschen Namen (<i>Fingerherz</i>) und deine eigenen Umbenennungen aus der Geschenke-Galerie.
+              Betrifft nur die Anzeige im Stream — deine Trigger und Zuordnungen bleiben unberührt.
+            </span>
+          </span>
+        </label>
       </section>
 
       {/* Spotify */}
