@@ -5,37 +5,12 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Search, ChevronDown, X, Star } from 'lucide-react';
 import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
+import { passt } from '../../shared/suche';
 
-/** Nur Buchstaben/Ziffern, klein — macht die Suche tolerant gegen Apostroph,
- *  Leerzeichen & Co. (z.B. „Jollie's Community" → „jolliescommunity"). */
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-/** Levenshtein-Distanz, früh abgebrochen — für Tippfehler-Toleranz („jolly"→„jollie"). */
-function lev(a: string, b: string): number {
-  if (Math.abs(a.length - b.length) > 2) return 99;
-  let prevRow = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 0; i < a.length; i++) {
-    const curRow = [i + 1];
-    for (let j = 0; j < b.length; j++) {
-      curRow.push(Math.min(
-        (curRow[j] ?? 0) + 1,
-        (prevRow[j + 1] ?? 0) + 1,
-        (prevRow[j] ?? 0) + (a[i] === b[j] ? 0 : 1),
-      ));
-    }
-    prevRow = curRow;
-  }
-  return prevRow[b.length] ?? 99;
-}
-
-/** Passt der Suchbegriff aufs Gift? Teilstring (sonderzeichen-tolerant) ODER ein
- *  Wort des Namens mit ≤2 Tippfehlern — so findet „jolly" auch „Jollie's …". */
+// Suche kommt aus shared/suche.ts — dieselbe, die auch die Widget-Palette
+// nutzt. Vorher lag hier eine eigene Kopie mit eigener Normalisierung.
 function matchGift(needle: string, slug: string): boolean {
-  const n = norm(needle);
-  if (!n) return true;
-  if (norm(slug).includes(n)) return true;
-  if (n.length < 4) return false;
-  return slug.toLowerCase().split(/[^a-z0-9]+/).some((w) => w.length >= 4 && lev(w, n) <= 2);
+  return passt(needle, slug);
 }
 
 interface Props {

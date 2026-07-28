@@ -3,6 +3,7 @@
 // am Objekt draggen/resizen, Eigenschaften rechts im Panel. TikTok-SafeZones
 // werden als Guides eingeblendet (wo Chat/Buttons der TikTok-UI liegen).
 // Speichern validiert (ajv) und pusht live.
+import { passt } from '../../shared/suche';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
@@ -60,6 +61,11 @@ import {
 // Palette-Kategorien — Tab-Chips oben, es ist immer NUR eine Kategorie sichtbar
 // (Feedback: „riesen unübersichtliche Liste"). „Beliebt" ist ein kuratierter
 // Quer-Tab mit den wichtigsten Widgets. Mapping per Typ, Einträge oben unberührt.
+/** Wie viel von einem Widget mindestens auf der Fläche bleiben muss, wenn man
+ *  es über den Rand hinauszieht. Ohne diesen Rest wäre es im Editor nicht mehr
+ *  anfassbar — man müsste es über die Ebenenliste zurückholen. */
+const SICHTBAR_MIN = 24;
+
 const PALETTE_CATEGORIES: { id: string; label: string; icon: typeof Star }[] = [
   { id: 'beliebt', label: 'Beliebt', icon: Star },
   { id: 'alerts', label: 'Alerts', icon: Zap },
@@ -624,8 +630,13 @@ export default function OverlayPage() {
     const dy = (e.clientY - drag.startY) / scale;
     const patch: Partial<OverlayLayer> = drag.mode === 'move'
       ? {
-          x: Math.round(Math.max(0, Math.min(canvasW - drag.orig.w, drag.orig.x + dx))),
-          y: Math.round(Math.max(0, Math.min(canvasH - drag.orig.h, drag.orig.y + dy))),
+          // Über den Rand hinaus erlaubt: Ein Widget soll auch halb aus dem Bild
+          // ragen dürfen (Laufband, das seitlich reinschiebt; Alert, der oben
+          // angeschnitten sitzt). Vorher klebte alles hart an der Kante.
+          // Begrenzt bleibt es trotzdem — ein Rest muss sichtbar bleiben, sonst
+          // verschwindet das Widget und ist im Editor nicht mehr greifbar.
+          x: Math.round(Math.max(SICHTBAR_MIN - drag.orig.w, Math.min(canvasW - SICHTBAR_MIN, drag.orig.x + dx))),
+          y: Math.round(Math.max(SICHTBAR_MIN - drag.orig.h, Math.min(canvasH - SICHTBAR_MIN, drag.orig.y + dy))),
         }
       : {
           w: Math.round(Math.max(60, drag.orig.w + dx)),
@@ -660,11 +671,14 @@ export default function OverlayPage() {
   // Bei aktiver Suche wird ALLES durchsucht (auch eingeklappte Varianten und
   // Spezialfälle) — wer einen Namen kennt, muss ihn finden.
   const visibleItems = useMemo(() => {
-    const q = paletteQuery.trim().toLowerCase();
+    const q = paletteQuery.trim();
     if (q) {
-      return WIDGET_TYPES.filter(
-        (w) => w.label.toLowerCase().includes(q) || w.desc.toLowerCase().includes(q),
-      );
+      // Tolerante Suche (shared/suche.ts): Umlaute in beiden Schreibweisen,
+      // Bindestriche/Leerzeichen egal, Tippfehler verziehen. Vorher stumpfes
+      // `includes` — „Glucksrad" fand nichts, „gift jar" auch nicht.
+      // Der interne Typ zählt mit: wer „gift-jar" aus einer Anleitung kennt,
+      // findet damit das Coin-Glas.
+      return WIDGET_TYPES.filter((w) => passt(q, w.label, w.desc, w.type));
     }
     if (activeCat === 'beliebt') {
       return POPULAR_WIDGETS

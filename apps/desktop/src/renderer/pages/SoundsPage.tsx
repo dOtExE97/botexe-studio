@@ -1,9 +1,10 @@
 // SoundsPage — lokale Sound-Bibliothek: importieren, probehören, löschen.
 // Wiedergabe läuft immer über den App-SoundPlayer (wie im echten Trigger-Fall).
 import { useEffect, useState } from 'react';
-import { Volume2, Play, Trash2, Music, Search, Upload, Download } from 'lucide-react';
+import { Volume2, Play, Trash2, Music, Search, Upload, Download, Square } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
 import { toast } from '../components/ToastHost';
+import { stoppeAlleSounds } from '../components/SoundPlayer';
 
 interface SoundEntry {
   id: string;
@@ -69,7 +70,10 @@ export default function SoundsPage() {
       const res = (await window.studio.importMyInstants(r.mp3Url, r.title)) as { ok: boolean; id?: string; error?: string };
       if (res.ok) {
         await refresh();
-        if (res.id) void window.studio.testSound(res.id); // direkt probehören
+        // Bewusst NICHT automatisch abspielen: Beim Importieren mehrerer Sounds
+        // hintereinander plärrte sonst jeder sofort los — mitten im Stream.
+        // Zum Anhören gibt es den Abspielen-Knopf in der Liste.
+        toast('success', 'Sound importiert.');
       } else {
         toast('error', `Import fehlgeschlagen: ${res.error ?? 'unbekannt'}`);
       }
@@ -101,6 +105,17 @@ export default function SoundsPage() {
           className="bx-btn-accent"
         >
           <Upload size={15} /> Sounds importieren
+        </button>
+        {/* Not-Aus direkt am Soundboard — der Griff, den man im Stream sucht. */}
+        <button
+          onClick={() => {
+            const n = stoppeAlleSounds();
+            toast(n ? 'info' : 'info', n ? `${n} Sound${n === 1 ? '' : 's'} gestoppt.` : 'Es lief gerade nichts.');
+          }}
+          className="flex items-center gap-2 rounded-lg border border-studio-accent/50 bg-studio-accent/10 px-4 py-2 text-sm font-bold text-studio-accent transition-colors hover:bg-studio-accent hover:text-black"
+          title="Alle laufenden Sounds und Ansagen sofort stoppen"
+        >
+          <Square size={14} fill="currentColor" /> Alles stoppen
         </button>
       </div>
 

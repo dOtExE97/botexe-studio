@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal, Stethoscope, Sliders } from 'lucide-react';
+import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal, Stethoscope, Sliders, Square } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
 import ToastHost, { toast } from './components/ToastHost';
@@ -7,6 +7,7 @@ import UpdateBanner from './components/UpdateBanner';
 import OverlayHealthBanner, { markTtlsLinkUsed } from './components/OverlayHealthBanner';
 import TelemetryConsent from './components/TelemetryConsent';
 import ProfileSwitcher from './components/ProfileSwitcher';
+import { stoppeAlleSounds, laufenSounds } from './components/SoundPlayer';
 import OnboardingTour from './components/OnboardingTour';
 import WhatsNew from './components/WhatsNew';
 import KeyWizard from './components/KeyWizard';
@@ -66,6 +67,16 @@ export default function App() {
   const [page, setPage] = useState<Page>('live');
   const studio = useStudio();
   const [copied, setCopied] = useState(false);
+  // Laeuft gerade Ton? Der SoundPlayer meldet jede Aenderung per Event — so
+  // erscheint der Stopp-Knopf nur, wenn er auch etwas zu tun hat.
+  const [soundsLaufen, setSoundsLaufen] = useState(false);
+  useEffect(() => {
+    const pruefe = () => setSoundsLaufen(laufenSounds());
+    window.addEventListener('bx-sounds-changed', pruefe);
+    // Zusaetzlich pollen: das Ende eines Sounds meldet sich nicht als Event.
+    const t = setInterval(pruefe, 500);
+    return () => { window.removeEventListener('bx-sounds-changed', pruefe); clearInterval(t); };
+  }, []);
   const [version, setVersion] = useState('');
 
   useEffect(() => {
@@ -192,6 +203,18 @@ export default function App() {
             </div>
           )}
           <ProfileSwitcher />
+          {/* Not-Aus fuer Ton: erscheint nur, wenn wirklich etwas laeuft. Ein
+              versehentlich ausgeloester Dauer-Sound liess sich bisher nur durch
+              Abwarten beenden — im Stream die laengsten Sekunden. */}
+          {soundsLaufen && (
+            <button
+              onClick={() => { const n = stoppeAlleSounds(); if (n) toast('info', `${n} Sound${n === 1 ? '' : 's'} gestoppt.`); }}
+              className="clip-slant flex items-center gap-1.5 border border-studio-accent/60 bg-studio-accent/15 px-3 py-1.5 text-[11px] font-bold tracking-widest text-studio-accent transition-colors hover:bg-studio-accent hover:text-black"
+              title="Alle laufenden Sounds und Ansagen sofort stoppen"
+            >
+              <Square size={11} fill="currentColor" /> STOPP
+            </button>
+          )}
           <div className="flex-1" />
           <button
             onClick={copyLink}

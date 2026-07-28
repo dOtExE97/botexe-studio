@@ -19,6 +19,31 @@ const DUCK = 0.3; // andere Sounds auf 30%, während TTS spricht (Ducking)
 /** <audio> mit setSinkId — nicht in den DOM-Typen, daher schmales Interface. */
 type SinkAudio = HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
 
+/** Alle gerade laufenden Sounds — mit ihrer Abschluss-Funktion, damit ein
+ *  vorzeitiger Stopp dieselben Aufräumschritte auslöst wie ein normales Ende
+ *  (Ducking zurücknehmen, Zähler senken, Vorlese-Warteschlange freigeben).
+ *  Ohne diese Freigabe würde die Warteschlange nach einem Stopp hängen. */
+const laufende = new Set<{ a: HTMLAudioElement; beenden: () => void }>();
+
+/** Alles sofort still: Soundboard, Alerts UND laufende Ansagen. */
+export function stoppeAlleSounds(): number {
+  const anzahl = laufende.size;
+  for (const l of [...laufende]) {
+    try {
+      l.a.pause();
+      l.a.currentTime = 0;
+    } catch { /* egal — Hauptsache der Rest laeuft */ }
+    l.beenden();
+  }
+  laufende.clear();
+  return anzahl;
+}
+
+/** Läuft gerade irgendein Sound? (für die Anzeige des Stopp-Knopfs) */
+export function laufenSounds(): boolean {
+  return laufende.size > 0;
+}
+
 export default function SoundPlayer() {
   const playing = useRef(0);
   const sinkId = useRef('');
@@ -106,6 +131,7 @@ export default function SoundPlayer() {
       let reported = false;
       const report = () => { if (!reported) { reported = true; window.studio.reportSoundEnded(cmd.soundId); } };
       const done = () => {
+        laufende.delete(eintrag);
         playing.current = Math.max(0, playing.current - 1);
         if (isTts) {
           ttsActive.current = Math.max(0, ttsActive.current - 1);
@@ -115,6 +141,10 @@ export default function SoundPlayer() {
         }
         report(); // echtes Audio-Ende ans Main melden (TTS-Sequencing)
       };
+      const eintrag = { a: audio as HTMLAudioElement, beenden: done };
+      laufende.add(eintrag);
+      // Anzeige aktualisieren (Stopp-Knopf ein-/ausblenden).
+      window.dispatchEvent(new CustomEvent('bx-sounds-changed'));
       audio.addEventListener('ended', done, { once: true });
       audio.addEventListener('error', () => { done(); toast('error', 'Sound konnte nicht abgespielt werden.'); }, { once: true });
       const start = () => void audio.play().catch(done);
