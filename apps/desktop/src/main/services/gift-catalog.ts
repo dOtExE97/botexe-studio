@@ -36,6 +36,15 @@ interface Serialized {
   gifts: GiftEntry[];
 }
 
+/** Dateiname/Geschenkname auf einen vergleichbaren Kern reduzieren — dieselbe
+ *  Regel wie giftKey() in packages/widget-kit/gift-rules.js (dort nicht direkt
+ *  importierbar: reines Browser-JS ohne Bundler-Kopplung in den Main-Prozess).
+ *  Sorgt dafür, dass „Hat and Mustache", „hat-and-mustache" und
+ *  „hatandmustache" dieselbe Datei finden. */
+function normalisiereBildname(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 /** Stabiler Kurz-Hash für Slugs ohne Gift-ID (Dateiname). */
 function slugHash(slug: string): string {
   let h = 0;
@@ -68,10 +77,51 @@ export class GiftCatalog {
     return this.imagesDir;
   }
 
-  /** Lokaler Dateiname eines Eintrags, wenn die Datei wirklich existiert — sonst ''. */
+  /** Lokaler Dateiname eines Eintrags, wenn die Datei wirklich existiert — sonst ''.
+   *
+   *  Zweite Quelle: SELBST hineingelegte Bilder. TikTok gibt die komplette
+   *  Gift-Liste nur gegen Aufpreis heraus, deshalb kennt die App von Haus aus
+   *  nur Bilder zu Geschenken, die wirklich mal jemand geschickt hat — alle
+   *  anderen zeigen im Overlay einen grauen Platzhalter. Wer eigene Bilder
+   *  besitzt, legt sie einfach in den Ordner (Einstellungen → „Gift-Bilder
+   *  öffnen") und benennt sie nach dem Geschenk: `Hat and Mustache.png`,
+   *  `hat-and-mustache.webp` und `hatandmustache.PNG` greifen alle. */
   localIconFile(entry: GiftEntry): string {
     if (entry.iconFile && fs.existsSync(path.join(this.imagesDir, entry.iconFile))) return entry.iconFile;
-    return '';
+    return this.eigenesBild(entry.slug);
+  }
+
+  /** Name → Dateiname der selbst hinterlegten Bilder. Wird gecacht, weil
+   *  localIconFile() für JEDEN Katalog-Eintrag läuft (bei 800+ Gifts sonst
+   *  ein Verzeichnis-Scan pro Eintrag). */
+  private eigeneBilder: Map<string, string> | null = null;
+  private eigeneBilderGelesen = 0;
+
+  /** Merker der eigenen Bilder verwerfen — für Tests und nach „Ordner öffnen",
+   *  damit frisch hineinkopierte Dateien sofort zählen. */
+  vergisseEigeneBilder(): void {
+    this.eigeneBilder = null;
+  }
+
+  private eigenesBild(slug: string): string {
+    // Alle 5 s neu einlesen — legt der Nutzer Bilder in den offenen Ordner,
+    // sollen sie ohne App-Neustart erscheinen, ohne bei jedem Aufruf zu scannen.
+    const jetzt = Date.now();
+    if (!this.eigeneBilder || jetzt - this.eigeneBilderGelesen > 5_000) {
+      this.eigeneBilder = new Map();
+      this.eigeneBilderGelesen = jetzt;
+      try {
+        for (const name of fs.readdirSync(this.imagesDir)) {
+          const m = name.match(/^(.*)\.(png|webp|jpe?g|gif)$/i);
+          // Die selbst heruntergeladenen Bilder heißen `gift-<id>.<ext>` und
+          // laufen bereits über entry.iconFile — hier nur die Eigenen.
+          if (!m || /^gift-\w+$/i.test(m[1] ?? '')) continue;
+          const key = normalisiereBildname(m[1] ?? '');
+          if (key && !this.eigeneBilder.has(key)) this.eigeneBilder.set(key, name);
+        }
+      } catch { /* Ordner fehlt/unlesbar → keine eigenen Bilder */ }
+    }
+    return this.eigeneBilder.get(normalisiereBildname(slug)) ?? '';
   }
 
   /** Gift-Bild von der CDN-URL lokal sichern (einmalig, dedupliziert, best-effort).

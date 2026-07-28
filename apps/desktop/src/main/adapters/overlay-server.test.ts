@@ -252,6 +252,38 @@ test('http: /media liefert Bild aus + unterstützt Range, lehnt Fremd-Endung ab'
   }
 });
 
+test('http: /gift-img liefert auch SELBST benannte Bilder aus, wehrt Ausbrüche ab', async () => {
+  const giftDir = fs.mkdtempSync(path.join(os.tmpdir(), 'botexe-giftimg-'));
+  // Beide Quellen: heruntergeladen (gift-<id>) und selbst hineingelegt.
+  fs.writeFileSync(path.join(giftDir, 'gift-42.png'), Buffer.from('PNGDATA'));
+  fs.writeFileSync(path.join(giftDir, 'Hat and Mustache.png'), Buffer.from('PNGDATA'));
+  // Geheime Datei NEBEN dem Ordner — Ziel eines Ausbruchsversuchs.
+  fs.writeFileSync(path.join(giftDir, '..', 'geheim.png'), Buffer.from('SECRET'));
+
+  const { server } = await setup(0, { giftImagesDir: giftDir });
+  try {
+    const base = `http://127.0.0.1:${server.getPort()}`;
+    const token = server.getToken();
+
+    const geladen = await fetch(`${base}/gift-img/gift-42.png?token=${token}`);
+    assert.equal(geladen.status, 200, 'heruntergeladenes Bild');
+
+    // Kern der Änderung: eigene Dateinamen (Leerzeichen, Großschreibung) —
+    // vorher wies das strikte `gift-<id>`-Muster sie mit 400 ab.
+    const eigen = await fetch(`${base}/gift-img/${encodeURIComponent('Hat and Mustache.png')}?token=${token}`);
+    assert.equal(eigen.status, 200, 'selbst hinterlegtes Bild');
+    assert.equal(eigen.headers.get('content-type'), 'image/png');
+
+    // Grenzen bleiben dicht.
+    assert.equal((await fetch(`${base}/gift-img/notiz.txt?token=${token}`)).status, 400, 'Fremd-Endung');
+    assert.notEqual((await fetch(`${base}/gift-img/..%2Fgeheim.png?token=${token}`)).status, 200, 'Ausbruch nach oben');
+    assert.notEqual((await fetch(`${base}/gift-img/unter%2Fbild.png?token=${token}`)).status, 200, 'Unterordner');
+    assert.equal((await fetch(`${base}/gift-img/gift-42.png`)).status, 403, 'ohne Token');
+  } finally {
+    await server.stop();
+  }
+});
+
 test('http: widget-files werden ausgeliefert, path-traversal abgewehrt', async () => {
   const { server } = await setup();
   try {

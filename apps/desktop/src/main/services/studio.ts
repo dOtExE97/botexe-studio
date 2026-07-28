@@ -992,7 +992,14 @@ export class Studio {
     const token = this.server.getToken();
     for (const e of Object.values(cat)) {
       const file = this.giftCatalog.localIconFile(e);
-      if (file) e.icon = `${base}/gift-img/${encodeURIComponent(file)}?token=${token}`;
+      if (file) {
+        e.icon = `${base}/gift-img/${encodeURIComponent(file)}?token=${token}`;
+        // Auch selbst hinterlegte Bilder als iconFile melden: Widgets bauen die
+        // URL daraus relativ zu IHRER Basis. Über den TikTok-Live-Studio-Link
+        // läuft das Overlay nicht auf 127.0.0.1 — die absolute Adresse oben
+        // wäre dort eine fremde Herkunft, die relative funktioniert immer.
+        e.iconFile = file;
+      }
     }
     return cat;
   }

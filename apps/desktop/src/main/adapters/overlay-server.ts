@@ -272,9 +272,26 @@ export class OverlayServer {
       if (!dir) { res.status(404).send('Gift-Bilder nicht konfiguriert'); return; }
       const raw = req.params.filename;
       const filename = path.basename(Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? ''));
-      if (!/^gift-[a-z0-9]+\.(png|webp|jpe?g|gif)$/i.test(filename)) { res.status(400).send('Invalid filename'); return; }
-      const target = path.join(dir, filename);
-      if (!target.startsWith(dir) || !fs.existsSync(target)) { res.status(404).send('Not found'); return; }
+      // Bis v0.40.0 waren NUR die selbst geladenen `gift-<id>.<ext>` erlaubt.
+      // Seit eigene Bilder erlaubt sind (beliebige Namen wie „Hat and
+      // Mustache.png"), reicht das Muster nicht mehr — sonst kommt das Bild nie
+      // an. Statt den Namen zu raten wird der aufgelöste PFAD geprüft: er muss
+      // direkt im Bilder-Ordner liegen (kein Unterordner, kein „..").
+      if (!/\.(png|webp|jpe?g|gif)$/i.test(filename)) { res.status(400).send('Invalid filename'); return; }
+      const basis = path.resolve(dir);
+      const target = path.resolve(basis, filename);
+      const rel = path.relative(basis, target);
+      // Zweite Verteidigungslinie. Das `path.basename()` oben schneidet bereits
+      // jeden Pfadanteil ab, weshalb ein Ausbruchsversuch hier gar nicht mehr
+      // ankommt — ein Test kann diese Zeile deshalb nicht isoliert scharf
+      // stellen (per Mutation geprüft: Entfernen ändert kein Testergebnis).
+      // Sie bleibt trotzdem: fällt basename je weg oder ändert sich, hält sie.
+      // `startsWith(dir)` wäre hier zu schwach gewesen — ein Nachbarordner mit
+      // gleichem Präfix (…/gift-imagesX) hätte den Test bestanden.
+      if (rel === '' || rel.startsWith('..') || rel.includes(path.sep) || path.isAbsolute(rel)) {
+        res.status(400).send('Invalid filename'); return;
+      }
+      if (!fs.existsSync(target)) { res.status(404).send('Not found'); return; }
       const ext = path.extname(filename).slice(1).toLowerCase();
       const mime: Record<string, string> = { png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif' };
       res.setHeader('Content-Type', mime[ext] ?? 'image/png');

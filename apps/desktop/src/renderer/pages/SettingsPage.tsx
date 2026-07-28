@@ -981,7 +981,11 @@ export default function SettingsPage() {
           <button onClick={() => void window.studio.openDataDir()} className="bx-pill hover:text-studio-teal">
             <FolderOpen size={13} /> Datenordner öffnen
           </button>
-          <button onClick={() => void window.studio.openGiftImages()} className="bx-pill hover:text-studio-teal" title="Lokal gespeicherte Gift-Bilder (werden beim Verbinden automatisch gesichert)">
+          <button
+            onClick={() => void window.studio.openGiftImages()}
+            className="bx-pill hover:text-studio-teal"
+            title="Geschenk-Bilder: gesendete Geschenke sichert die App hier automatisch. Eigene Bilder kannst du dazulegen — benenne sie nach dem Geschenk (z. B. „Hat and Mustache.png“)."
+          >
             <Gift size={13} /> Geschenk-Bilder öffnen
           </button>
           <button onClick={() => void window.studio.openLogs()} className="bx-pill hover:text-studio-teal">

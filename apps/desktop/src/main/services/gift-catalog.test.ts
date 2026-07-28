@@ -20,6 +20,38 @@ test('Gift-Bilder: Ordner wird angelegt, localIconFile nur bei echter Datei', ()
   assert.equal(c.localIconFile({ slug: 'x', coins: 0, count: 0, iconFile: 'gift-1.png' }), 'gift-1.png');
 });
 
+test('eigene Bilder: nach Geschenknamen benannte Dateien werden gefunden (Schreibweise egal)', () => {
+  const c = new GiftCatalog(tmpDir());
+  const dir = c.getImagesDir();
+  // Ohne passende Datei: kein Bild.
+  assert.equal(c.localIconFile({ slug: 'Hat and Mustache', coins: 0, count: 0 }), '');
+
+  fs.writeFileSync(path.join(dir, 'Hat and Mustache.png'), 'PNGDATA');
+  fs.writeFileSync(path.join(dir, 'galaxy.webp'), 'WEBPDATA');
+  // Der 5-s-Cache darf einen frisch angelegten Ordnerinhalt nicht verstecken:
+  // die erste Abfrage oben lief auf dem leeren Ordner.
+  c.vergisseEigeneBilder();
+
+  // Exakt, andere Schreibweise, andere Endung — alle finden dieselbe Datei.
+  assert.equal(c.localIconFile({ slug: 'Hat and Mustache', coins: 0, count: 0 }), 'Hat and Mustache.png');
+  assert.equal(c.localIconFile({ slug: 'hat-and-mustache', coins: 0, count: 0 }), 'Hat and Mustache.png');
+  assert.equal(c.localIconFile({ slug: 'HATANDMUSTACHE', coins: 0, count: 0 }), 'Hat and Mustache.png');
+  assert.equal(c.localIconFile({ slug: 'Galaxy', coins: 0, count: 0 }), 'galaxy.webp');
+  // Nicht hinterlegt → weiterhin leer (Platzhalter im Widget).
+  assert.equal(c.localIconFile({ slug: 'Rose', coins: 0, count: 0 }), '');
+});
+
+test('eigene Bilder: heruntergeladene gift-<id>-Dateien laufen weiter über iconFile', () => {
+  const c = new GiftCatalog(tmpDir());
+  // Eine gift-42.png darf NICHT als „eigenes Bild" für ein Gift namens
+  // „gift 42" gelten — sonst kollidieren die beiden Quellen.
+  fs.writeFileSync(path.join(c.getImagesDir(), 'gift-42.png'), 'PNGDATA');
+  c.vergisseEigeneBilder();
+  assert.equal(c.localIconFile({ slug: 'gift 42', coins: 0, count: 0 }), '');
+  // Über iconFile (der vorgesehene Weg) wird sie sehr wohl gefunden.
+  assert.equal(c.localIconFile({ slug: 'irgendwas', coins: 0, count: 0, iconFile: 'gift-42.png' }), 'gift-42.png');
+});
+
 test('record sammelt Gifts mit Bild + Zähler, all() liefert sie slug-normalisiert', () => {
   const c = new GiftCatalog(tmpDir());
   c.record({ slug: 'Rose', icon: 'https://cdn/rose.png', coinsPerUnit: 1, count: 2 });

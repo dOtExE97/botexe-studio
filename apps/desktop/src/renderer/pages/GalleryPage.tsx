@@ -166,6 +166,12 @@ export default function GalleryPage() {
               selbst: <b className="text-studio-text">jedes, das wirklich jemand schickt</b>, landet
               mit Bild hier und bleibt für immer. Bis dahin zeigen Widgets für solche Geschenke ein
               graues Platzhalter-Symbol.
+              <span className="mt-1.5 block">
+                Du hast eigene Geschenk-Bilder? Leg sie unter{' '}
+                <b className="text-studio-text">Einstellungen → Geschenk-Bilder öffnen</b> ab und benenne
+                sie nach dem Geschenk (<code>Hat and Mustache.png</code>) — Groß-/Kleinschreibung,
+                Binde­striche und Leerzeichen sind egal.
+              </span>
             </p>
           )}
           {shown.map((g) => {
