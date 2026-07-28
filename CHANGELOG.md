@@ -3,6 +3,23 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.40.0] — 2026-07-28
+
+### Behoben: Laufende Spiele überlebten keinen Overlay-Neustart (wichtig)
+Lud deine Browser-Quelle neu, war ein **laufendes Quiz, Bingo oder der Stream-Boss weg** — mitten im Spiel. Besonders ärgerlich: Bei einem App-Update lädt die Quelle automatisch neu. Jetzt holt sich das Overlay den aktuellen Spielstand zurück und macht da weiter, wo es war.
+
+### Behoben: Aktionen konnten still verschwinden
+Die Aktionen **Automat drehen**, **Karte ziehen** und **Challenge starten** waren dem internen Prüfer unbekannt — beim Einspielen einer Sicherung konnten sie deshalb kommentarlos aus deinen Regeln entfernt werden. (Gleiche Ursache wie bei den Bedingungen in 0.39.4.)
+
+### Behoben: Weiteres
+- **Umfrage-Widget:** Die Einstellung „automatisch neue Runde" zeigte *aus*, das Widget verhielt sich aber wie *an*.
+- **Sicherungen werden vollständig geprüft:** Bisher wurden beim Einspielen nur Regeln, Befehle, Einlösungen und Panel-Knöpfe kontrolliert — alle übrigen Einstellungen (Mischpult, Sprachausgabe, Punkte, Verlosung, OBS …) gingen ungeprüft durch.
+- **OBS und Streamer.bot** zeigten nach einem Fenster-Neustart „Aus", obwohl sie verbunden waren.
+- **Geschenke-Galerie** verglich Geschenk-Namen anders als der Rest der App — dieselbe Ursache wie fehlende Animationen.
+
+### Unter der Haube: weniger Stellen, an denen etwas auseinanderlaufen kann
+Ein Großteil der Fehler der letzten Tage hatte dieselbe Wurzel: **dasselbe Wissen wurde an mehreren Stellen gepflegt** und lief dann auseinander. Diese Stellen sind jetzt zusammengeführt (Geschenk-Vergleich, Zeit-Vorgaben, Adressen, Freigabelisten), und **automatische Prüfungen schlagen künftig Alarm**, sobald zwei Seiten nicht mehr zusammenpassen — bevor es jemandem im Stream auffällt.
+
 ## [0.39.4] — 2026-07-27
 
 ### Behoben: Regeln verloren still ihre Beschränkung (wichtig)
