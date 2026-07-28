@@ -17,7 +17,7 @@ import { generateLayers, generateRules, listGeminiModels, type AiCatalogEntry, t
 import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, uninstallHostsEntry, TTLS_HOST } from './main/services/ttls-link';
 // Statisch (nicht dynamisch) importiert: der Start muss VOR dem 'ready'-Ereignis
 // passieren, ein nachgeladenes Modul käme zu spät. Siehe Block weiter unten.
-import { initMainTelemetry } from './main/telemetry-main';
+import { initMainTelemetry, sendTelemetryTest } from './main/telemetry-main';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
 // dann sofort beenden, sonst öffnen sich Geister-Fenster.
@@ -46,11 +46,15 @@ if (started) {
 // zugestimmt hatte. Der Zustand wird deshalb gemerkt und nach dem Start des
 // Datei-Logs nachgetragen.
 let telemetrieStatus = 'aus (nicht zugestimmt)';
+// Läuft der Melder in DIESEM Programmlauf wirklich? Nicht dasselbe wie der
+// gespeicherte Schalter: eine frische Zustimmung wirkt erst beim nächsten Start.
+let telemetrieLaeuft = false;
 try {
   const datei = path.join(app.getPath('userData'), 'settings.json');
   const roh = JSON.parse(fs.readFileSync(datei, 'utf-8')) as { telemetry?: string };
   if (roh.telemetry === 'on') {
     initMainTelemetry(app.getVersion(), app.isPackaged);
+    telemetrieLaeuft = true;
     telemetrieStatus = 'AKTIV (Sentry) — mit Geheimnis-Filter';
   } else {
     telemetrieStatus = `aus (Zustimmung: ${roh.telemetry ?? 'noch nicht gefragt'})`;
@@ -763,6 +767,26 @@ function registerIpc(): void {
   ipcMain.handle(IPC.SB_GET_ACTIONS, () => isStudio().getStreamerbotActions());
   // P3c-Audit: gleicher Pull wie OBS_GET_STATUS, für Streamer.bot.
   ipcMain.handle(IPC.SB_GET_STATUS, () => isStudio().getStreamerbotStatus());
+  // Absturzberichte: Ist-Zustand + Testmeldung. Getrennt vom gespeicherten
+  // Schalter, weil beides auseinanderlaufen KANN und genau das die Verwirrung
+  // stiftete („zugestimmt, aber nichts kommt an" = Neustart fehlt noch).
+  ipcMain.handle(IPC.TELEMETRY_GET_STATUS, () => ({
+    laeuft: telemetrieLaeuft,
+    zustimmung: isStudio().settings.get().telemetry ?? 'unset',
+    grund: telemetrieStatus,
+  }));
+  ipcMain.handle(IPC.TELEMETRY_TEST, async () => {
+    if (!telemetrieLaeuft) return { ok: false, error: 'Absturzberichte laufen in diesem Programmlauf nicht.' };
+    try {
+      const raus = await sendTelemetryTest();
+      log.info('Main', `Telemetrie-Testmeldung ${raus ? 'zugestellt' : 'NICHT zugestellt (Zeitüberschreitung)'}`);
+      return raus ? { ok: true } : { ok: false, error: 'Zeitüberschreitung — kam nicht durch (Netz/Firewall?).' };
+    } catch (e) {
+      const nachricht = (e as Error).message;
+      log.warn('Main', `Telemetrie-Testmeldung fehlgeschlagen: ${nachricht}`);
+      return { ok: false, error: nachricht };
+    }
+  });
   // TikTok-Login-Fenster: nach dem Login den sessionid-Cookie auslesen.
   ipcMain.handle(IPC.TIKTOK_LOGIN, () => openTiktokLogin());
   ipcMain.handle(IPC.TIKTOK_LOGOUT, () => { isStudio().setTiktokSession(undefined); return { ok: true }; });

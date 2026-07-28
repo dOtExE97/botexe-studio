@@ -61,6 +61,12 @@ export default function SettingsPage() {
   const [giftSoundGap, setGiftSoundGap] = useState(0);
   const [autoBackup, setAutoBackup] = useState(true);
   const [telemetry, setTelemetry] = useState<'unset' | 'on' | 'off'>('unset');
+  // Ist-Zustand aus dem Hauptprozess — NICHT dasselbe wie der Schalter oben:
+  // der Melder startet nur beim Programmstart, eine frische Zustimmung wirkt
+  // also erst nach einem Neustart. Genau diese Lücke war unsichtbar.
+  const [telLaeuft, setTelLaeuft] = useState<boolean | null>(null);
+  const [telTest, setTelTest] = useState<'idle' | 'laeuft' | 'ok' | 'fehler'>('idle');
+  const [telTestFehler, setTelTestFehler] = useState('');
   const [aiProvider, setAiProvider] = useState<'gemini' | 'ollama'>('gemini');
   const [aiModel, setAiModel] = useState('');
   const [aiKey, setAiKey] = useState('');
@@ -113,6 +119,8 @@ export default function SettingsPage() {
       setGiftSoundGap(sy.giftSoundGapSec ?? 0);
       setAutoBackup(sy.autoBackup !== false);
       setTelemetry(sy.telemetry ?? 'unset');
+      // Pull statt Push: beim Betreten der Seite den echten Zustand holen.
+      void window.studio.getTelemetryStatus?.().then((t) => setTelLaeuft(!!t?.laeuft)).catch(() => setTelLaeuft(null));
       const sx = s as unknown as { ai?: { provider?: string; model?: string }; aiKeySet?: boolean };
       setAiProvider(sx.ai?.provider === 'ollama' ? 'ollama' : 'gemini');
       setAiModel(sx.ai?.model ?? '');
@@ -900,10 +908,57 @@ export default function SettingsPage() {
           <span>
             Anonyme Absturzberichte senden
             <span className="mt-0.5 block text-[11px] text-studio-muted/80">
-              Hilft mir, Fehler zu finden, die sonst niemand meldet. <b>Keine persönlichen Daten, keine Keys</b> — alles Sensible wird vorher entfernt. Jederzeit hier ausschaltbar. (Wirkt beim nächsten Start.)
+              Hilft mir, Fehler zu finden, die sonst niemand meldet. <b>Keine persönlichen Daten, keine Keys</b> — alles Sensible wird vorher entfernt. Jederzeit hier ausschaltbar.
             </span>
           </span>
         </label>
+
+        {/* Ist-Zustand + Testmeldung. Ohne das war nicht erkennbar, ob der
+            Melder wirklich läuft — „nichts in Sentry" konnte „alles gut" oder
+            „kommt nie an" heißen, und beides sah identisch aus. */}
+        {telLaeuft !== null && (
+          <div className="mt-3 rounded-lg border border-studio-border bg-studio-control/60 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                  telLaeuft ? 'bg-studio-teal/15 text-studio-teal' : 'bg-studio-raised text-studio-muted'
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${telLaeuft ? 'bg-studio-teal' : 'bg-studio-muted'}`} />
+                {telLaeuft ? 'Läuft gerade' : 'Läuft nicht'}
+              </span>
+
+              {telLaeuft && (
+                <button
+                  onClick={() => {
+                    setTelTest('laeuft');
+                    setTelTestFehler('');
+                    void window.studio.sendTelemetryTest?.().then((r) => {
+                      setTelTest(r?.ok ? 'ok' : 'fehler');
+                      setTelTestFehler(r?.error ?? '');
+                    }).catch((e: Error) => { setTelTest('fehler'); setTelTestFehler(e.message); });
+                  }}
+                  disabled={telTest === 'laeuft'}
+                  className="bx-pill hover:text-studio-teal disabled:opacity-50"
+                >
+                  <ShieldCheck size={13} /> {telTest === 'laeuft' ? 'Sende…' : 'Testmeldung senden'}
+                </button>
+              )}
+            </div>
+
+            <div className="mt-1.5 text-[11px] leading-relaxed text-studio-muted">
+              {!telLaeuft && telemetry === 'on' && (
+                <>Du hast zugestimmt — der Melder startet aber erst beim <b className="text-studio-text">nächsten App-Start</b>. Einmal schließen und neu öffnen, dann steht hier „Läuft gerade".</>
+              )}
+              {!telLaeuft && telemetry !== 'on' && <>Absturzberichte sind aus. Häkchen oben setzen und die App neu starten.</>}
+              {telLaeuft && telTest === 'idle' && <>Alles bereit. Mit der Testmeldung kannst du prüfen, ob wirklich etwas ankommt — ohne auf einen Absturz zu warten.</>}
+              {telLaeuft && telTest === 'ok' && <span className="text-studio-teal">Angekommen ✓ Die Meldung ist durch — es funktioniert.</span>}
+              {telLaeuft && telTest === 'fehler' && (
+                <span className="text-studio-accent">Kam nicht durch: {telTestFehler || 'unbekannter Grund'}</span>
+              )}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* App-Info */}

@@ -24,3 +24,18 @@ export function initMainTelemetry(version: string, packaged: boolean): void {
     },
   });
 }
+
+/**
+ * Schickt eine harmlose Testmeldung — der einzige Weg, die Leitung zu prüfen,
+ * ohne auf einen echten Absturz zu warten. Genau daran ist die Ferndiagnose
+ * bisher gescheitert: „nichts in Sentry" konnte heißen „alles gut" ODER
+ * „Meldung kommt nie an", und beides sah gleich aus.
+ *
+ * Wartet, bis die Meldung wirklich raus ist, damit die Oberfläche ehrlich
+ * „angekommen" statt nur „abgeschickt" melden kann.
+ */
+export async function sendTelemetryTest(): Promise<boolean> {
+  Sentry.captureMessage('Testmeldung aus den Einstellungen', 'info');
+  // flush() liefert false, wenn nicht alles innerhalb der Frist rausging.
+  return Sentry.flush(8000);
+}

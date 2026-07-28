@@ -170,6 +170,13 @@ export const IPC = {
   // TikTok-Live-Studio-Link (Domain-Form + hosts-Setup)
   TTLS_LINK_GET: 'ttls:link-get',
   TTLS_SETUP: 'ttls:setup',
+  /** Absturzberichte: echter Laufzeit-Zustand (nicht nur der gespeicherte
+   *  Schalter). Beides kann auseinanderlaufen — der Melder startet nur beim
+   *  Programmstart, eine frische Zustimmung wirkt also erst danach. */
+  TELEMETRY_GET_STATUS: 'telemetry:get-status',
+  /** Schickt eine Testmeldung, damit man die Leitung prüfen kann, ohne auf
+   *  einen echten Absturz zu warten. */
+  TELEMETRY_TEST: 'telemetry:test',
   // Logs / Diagnose
   LOGS_OPEN: 'logs:open',
   LOG_RENDERER: 'log:renderer',

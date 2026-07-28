@@ -157,6 +157,10 @@ const api = {
   onStreamerbotStatus: listen<string>(IPC.SB_STATUS),
   // P3c-Audit: gleicher Pull wie getObsStatus, für Streamer.bot.
   getStreamerbotStatus: (): Promise<string> => ipcRenderer.invoke(IPC.SB_GET_STATUS),
+  // Absturzberichte: echter Laufzeit-Zustand + Testmeldung (siehe main.ts).
+  getTelemetryStatus: (): Promise<{ laeuft: boolean; zustimmung: string; grund: string }> =>
+    ipcRenderer.invoke(IPC.TELEMETRY_GET_STATUS),
+  sendTelemetryTest: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke(IPC.TELEMETRY_TEST),
   openLogs: () => ipcRenderer.invoke(IPC.LOGS_OPEN),
   resetSession: () => ipcRenderer.invoke(IPC.SESSION_RESET),
   getTtlsLink: (layoutId?: string) => ipcRenderer.invoke(IPC.TTLS_LINK_GET, layoutId),
