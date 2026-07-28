@@ -232,7 +232,18 @@ export default class GiftBattle {
     if (team === null && this.listA.length === 0 && this.listB.length === 0) {
       team = (event.gift.coinsPerUnit ?? 0) >= 50 ? 'b' : 'a';
     }
-    if (team === null) return;
+    if (team === null) {
+      // Kein Team passt → absichtlich nichts. Ohne Hinweis sieht das aus wie
+      // ein kaputtes Widget („Geschenk kam an, Balken rührt sich nicht").
+      // Einmal je Geschenk-Art melden, nicht bei jedem Gift (Rosen-Regen).
+      const key = giftKey(event.gift.slug);
+      if (!this.unbekannteGifts) this.unbekannteGifts = new Set();
+      if (key && !this.unbekannteGifts.has(key)) {
+        this.unbekannteGifts.add(key);
+        this.ctx?.notify?.(`Geschenk „${event.gift.slug}" kam an, steht aber in keiner der beiden Team-Listen — zählt deshalb für niemanden. Trag es bei Team A oder B ein, oder lass BEIDE Listen leer (dann wird automatisch nach Coin-Wert aufgeteilt).`);
+      }
+      return;
+    }
     const amount = this.metric === 'count' ? (event.gift.count || 1) : (event.gift.totalCoins || event.gift.coinsPerUnit || 0);
     if (team === 'a') this.scoreA += amount; else this.scoreB += amount;
     this.render();

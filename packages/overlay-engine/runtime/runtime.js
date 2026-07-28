@@ -367,7 +367,10 @@ async function renderLayout(layout) {
     // Widget-Baum), Größe per Inhalt-Zoom (skaliert Schrift + Abstände).
     const mountEl = applyWidgetStyle(el, layer.props || {});
 
-    const entry = { el, widget: null };
+    // Typ und Name mitführen: Ohne sie stand bei einem Fehler nur „onEvent" im
+    // Log — bei zwanzig Widgets im Overlay war damit nicht erkennbar, WELCHES
+    // gestolpert ist. Der Name ist der, den der Streamer selbst vergeben hat.
+    const entry = { el, widget: null, typ: layer.widgetType, name: layer.name || layer.widgetType };
     liveLayers.set(layer.id, entry);
 
     const WidgetClass = await loadWidgetClass(layer.widgetType);
@@ -442,12 +445,12 @@ async function renderLayout(layout) {
 
 // ── Nachrichten-Verteilung ────────────────────────────────────────────────
 function dispatchEvent(event) {
-  for (const { widget } of liveLayers.values()) {
+  for (const { widget, typ, name } of liveLayers.values()) {
     try {
       widget?.onEvent?.(event);
     } catch (err) {
       console.warn('[overlay] Widget-Fehler bei onEvent:', err);
-      reportClientError('onEvent', err && err.message ? err.message : String(err));
+      reportClientError(typ || 'onEvent', `„${name}" stolperte bei einem ${event?.type ?? '?'}-Ereignis: ${err && err.message ? err.message : String(err)}`);
     }
   }
 }
@@ -789,6 +792,44 @@ function connect() {
 }
 
 window.addEventListener('resize', scaleStage);
+
+// Auffangnetz für alles, was NEBEN den bekannten Wegen schiefgeht.
+//
+// Die Aufrufe ins Widget (onEvent, onAction, onStats …) sind einzeln
+// abgesichert — ein stolperndes Widget reißt die anderen nicht mit und landet
+// im App-Log. Widgets arbeiten aber zum großen Teil in Zeitgebern und
+// Animationen: Ein Fehler DORT läuft an allen diesen Sicherungen vorbei und
+// landete bisher nur in der Browser-Konsole, die im Stream niemand sieht. Eine
+// Animation blieb dann einfach stehen, ohne jede Spur im Log.
+//
+// Beide Fälle abfangen: geworfene Fehler und abgelehnte Zusagen (async).
+// Gedrosselt, damit ein Fehler in einer 60-Bilder-Schleife nicht das Log flutet
+// — der Server begrenzt zwar auch, aber erst nachdem gesendet wurde.
+const gemeldeteFehler = new Set();
+function meldeEinmal(quelle, text, schluesselText) {
+  // Schlüssel OHNE Fundstelle: Derselbe Fehler aus einer Animationsschleife
+  // feuert sonst mit jeder Zeilennummer neu und flutet das Log trotzdem.
+  const schluessel = `${quelle}:${schluesselText ?? text}`.slice(0, 160);
+  if (gemeldeteFehler.has(schluessel)) return;
+  gemeldeteFehler.add(schluessel);
+  // Nach 200 verschiedenen Fehlern aufhören zu sammeln (Speicher).
+  if (gemeldeteFehler.size > 200) gemeldeteFehler.clear();
+  reportClientError(quelle, text);
+}
+
+window.addEventListener('error', (e) => {
+  // Fehlgeschlagene Bilder/Skripte melden sich hier ohne `error`-Objekt —
+  // die sind meist harmlos (abgelaufene Gift-Adresse) und würden nur rauschen.
+  if (!e?.error) return;
+  const datei = String(e.filename || '').split('/').pop() || '?';
+  const nachricht = e.error.message || e.message;
+  meldeEinmal('laufzeit', `${nachricht} (${datei}:${e.lineno || '?'})`, nachricht);
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  const grund = e?.reason;
+  meldeEinmal('laufzeit', `unbehandelt: ${grund?.message || String(grund).slice(0, 120)}`);
+});
 
 // FPS-Diagnose: einmalig nach dem Start die echte rAF-Rate messen und ins
 // App-Log melden (Einstellungen → Logs öffnen) — zeigt sofort, ob der
