@@ -34,6 +34,24 @@ export const DE_BY_KEY = new Map(
   MASTER.filter((m) => m.de).map((m) => [masterKey(m.name), m.de as string]),
 );
 
+// Nachschlagewerke statt linearer Suche: Das Bild wird bei JEDEM eingehenden
+// Geschenk gesucht. Bei einem Rosen-Regen (Dutzende pro Sekunde) wären das je
+// Geschenk 5726 Vergleiche — im Stream genau die Sorte Arbeit, die man nicht
+// haben will. Einmal aufbauen, danach ist jede Abfrage konstant schnell.
+const ICON_BY_KEY = new Map<string, string>();
+const ICON_BY_ID = new Map<number, string>();
+for (const m of MASTER) {
+  if (!m.icon) continue;
+  const k = masterKey(m.name);
+  if (k && !ICON_BY_KEY.has(k)) ICON_BY_KEY.set(k, m.icon);
+  if (m.id && !ICON_BY_ID.has(m.id)) ICON_BY_ID.set(m.id, m.icon);
+}
+
+/** Bild-Adresse aus der eingebauten Liste — über den Namen, sonst über die ID. */
+export function masterIcon(slug: string, giftId?: number): string {
+  return ICON_BY_KEY.get(masterKey(slug)) ?? (giftId ? ICON_BY_ID.get(giftId) ?? '' : '');
+}
+
 /** Ein Katalog-Eintrag, wie ihn Fenster UND Overlay sehen. */
 export interface KatalogEintrag {
   slug: string;

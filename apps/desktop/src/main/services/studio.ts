@@ -23,7 +23,7 @@ import {
 } from './settings-store';
 import type { SoundCategory } from '../../shared/mixer';
 import { OVERLAY_PORT } from '../../shared/constants';
-import { mergeMitMasterAlsMap, type KatalogEintrag } from '../../shared/gift-master';
+import { mergeMitMasterAlsMap, masterIcon, type KatalogEintrag } from '../../shared/gift-master';
 import { parseApiAction, API_ACTION_KINDS } from './api-actions';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
@@ -392,6 +392,19 @@ export class Studio {
       // 0. Anreichern: allererster Auftritt dieses Zuschauers? (für die
       // „Erste Nachricht"-Begrüßung — VOR recordEvent, das legt den Eintrag an.)
       if (e.user && !this.points.get(e.user.id)) e.firstOfUser = true;
+
+      // 0a. Fehlendes Geschenk-Bild ergänzen — MUSS hier ganz oben stehen, vor
+      // jedem Verbraucher (Katalog, Widgets, Overlay-Broadcast).
+      //
+      // Zehn Widgets (Coin-Glas, Feuerwerk, Kanone, Alert, Feed …) zeigen das
+      // Bild AUS DEM EREIGNIS und holen keinen Katalog. Liefert TikTok im
+      // Ereignis kein Bild — was vorkommt, je nach Verbindungsart und Gift —,
+      // zeigten sie einen faden Platzhalter, obwohl die App das Bild längst
+      // kennt. Einmal hier nachschlagen versorgt alle zehn auf einen Schlag.
+      if (e.type === 'gift' && e.gift && !e.gift.icon) {
+        const bild = this.giftBildFuer(e.gift.slug, e.gift.giftId);
+        if (bild) e.gift.icon = bild;
+      }
 
       // 0b. Rollen-Gedächtnis: Live-Follow macht zum Follower; erkannte Rollen
       // (Mod/Teamherz/Follower) für die Session merken UND anwenden — TikTok
@@ -982,6 +995,26 @@ export class Studio {
     this.settings.update({ triggerRules: rules });
     this.engine.setRules(rules);
     this.refreshTimerTicker(); // Timer-Regel hinzugekommen/entfernt → Ticker neu bewerten
+  }
+
+  /**
+   * Bild-Adresse für ein Geschenk — in der Reihenfolge, in der sie am
+   * verlässlichsten ist:
+   *   1. lokal gesicherte Datei (überlebt abgelaufene TikTok-Adressen, lädt offline)
+   *   2. Adresse aus dem eigenen Katalog (zuletzt gesehene TikTok-Adresse)
+   *   3. eingebaute Master-Liste (kennt auch nie erhaltene Geschenke)
+   * Leerer String, wenn nichts passt — dann bleibt der Platzhalter.
+   */
+  private giftBildFuer(slug: string, giftId?: number): string {
+    const eigen = this.giftCatalog.all()[slug.trim().toLowerCase()];
+    if (eigen) {
+      const datei = this.giftCatalog.localIconFile(eigen);
+      if (datei) {
+        return `http://127.0.0.1:${this.server.getPort()}/gift-img/${encodeURIComponent(datei)}?token=${this.server.getToken()}`;
+      }
+      if (eigen.icon) return eigen.icon;
+    }
+    return masterIcon(slug, giftId);
   }
 
   /** Kompletter Gift-Katalog für Galerie + Overlay-Widgets. Lokal gespeicherte

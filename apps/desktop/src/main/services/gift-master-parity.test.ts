@@ -13,7 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { MASTER, mergeMitMaster, mergeMitMasterAlsMap, masterKey } from '../../shared/gift-master';
+import { MASTER, mergeMitMaster, mergeMitMasterAlsMap, masterKey, masterIcon } from '../../shared/gift-master';
 
 const SRC = existsSync(join(process.cwd(), 'src', 'main.ts'))
   ? join(process.cwd(), 'src')
@@ -90,3 +90,24 @@ function eintraege(dir: string): { name: string; isDirectory(): boolean }[] {
     return [];
   }
 }
+
+test('masterIcon: findet das Bild ueber Namen UND ueber die Gift-ID', () => {
+  // Diese Funktion versorgt die zehn Widgets, die ihr Bild aus dem Ereignis
+  // nehmen (Coin-Glas, Feuerwerk, Kanone, Alert, Feed ...). Liefert TikTok im
+  // Ereignis kein Bild mit, springt sie ein.
+  for (const n of ['Galaxy', 'Lion', 'Rose', 'Hat and Mustache']) {
+    assert.ok(masterIcon(n).startsWith('http'), `${n} ohne Bild`);
+  }
+  // Schreibweise egal — wie ueberall in der App.
+  assert.equal(masterIcon('hat-and-mustache'), masterIcon('Hat and Mustache'));
+  assert.equal(masterIcon('GALAXY'), masterIcon('Galaxy'));
+
+  // Ueber die ID, falls der Name unbekannt ist (TikTok schickt manchmal nur die ID).
+  const mitId = MASTER.find((m) => m.icon && m.id > 0);
+  assert.ok(mitId);
+  assert.equal(masterIcon('vollkommen-unbekanntes-geschenk', mitId?.id), mitId?.icon);
+
+  // Nichts Passendes -> leer, damit der Aufrufer den Platzhalter behaelt.
+  assert.equal(masterIcon('gibtesnicht12345'), '');
+  assert.equal(masterIcon(''), '');
+});
