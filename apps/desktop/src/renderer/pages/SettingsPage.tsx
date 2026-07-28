@@ -559,18 +559,63 @@ export default function SettingsPage() {
 
         {!spotify.connected ? (
           <>
-            <p className="mb-2 text-[11px] text-studio-muted">
-              Zeigt „läuft gerade" im Overlay & lässt dich Spotify steuern. Einmalig einrichten (wie bei TikFinity):
+            <p className="mb-1 text-[11px] text-studio-muted">
+              Zeigt im Overlay, was gerade läuft — und du kannst Spotify aus der App steuern
+              (oder Zuschauer per Songwunsch).
             </p>
-            <ol className="mb-3 ml-4 list-decimal space-y-1.5 text-[11px] text-studio-muted">
-              <li>Auf <button onClick={() => void window.studio.openExternal('https://developer.spotify.com/dashboard')} className="font-bold text-studio-teal hover:underline">developer.spotify.com</button> eine App anlegen → <b>Client ID</b> kopieren.</li>
-              <li>Dort als <b>Redirect URI</b> exakt eintragen:<br/>
-                <span className="mt-1 inline-flex items-center gap-1.5">
-                  <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-studio-fg">{spotify.redirectUri || 'http://127.0.0.1:27415/spotify/callback'}</code>
-                  <button onClick={() => void window.studio.copyText(spotify.redirectUri)} className="bx-pill px-2 py-0.5 text-[10px] hover:text-studio-accent">kopieren</button>
+            <p className="mb-3 text-[10px] leading-relaxed text-studio-muted/80">
+              Die Einrichtung wirkt umständlicher als sie ist: Spotify verlangt, dass sich jedes
+              Programm einmal anmeldet. Du legst dir dafür einen kostenlosen Zugang an — das dauert
+              zwei Minuten und ist danach für immer erledigt. Ein Spotify-Konto reicht, du brauchst
+              nichts zu bezahlen (nur fürs <i>Steuern</i> braucht es Premium).
+            </p>
+
+            <ol className="mb-3 space-y-2.5 text-[11px] text-studio-muted">
+              <li className="flex gap-2">
+                <span className="flex-none font-bold text-studio-gold">1.</span>
+                <span>
+                  Öffne{' '}
+                  <button
+                    onClick={() => void window.studio.openExternal('https://developer.spotify.com/dashboard')}
+                    className="font-bold text-studio-teal hover:underline"
+                  >
+                    developer.spotify.com
+                  </button>{' '}
+                  und melde dich mit deinem normalen Spotify-Konto an. Dann auf{' '}
+                  <b className="text-studio-text/90">Create app</b>.
                 </span>
               </li>
-              <li>Client ID hier einfügen → <b>Mit Spotify anmelden</b>.</li>
+              <li className="flex gap-2">
+                <span className="flex-none font-bold text-studio-gold">2.</span>
+                <span>
+                  Name und Beschreibung sind egal — schreib z.B. zweimal <i>bOtExE Studio</i> rein.
+                  Bei <b className="text-studio-text/90">Which API/SDKs are you planning to use?</b>{' '}
+                  reicht <b className="text-studio-text/90">Web API</b>.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="flex-none font-bold text-studio-gold">3.</span>
+                <span>
+                  Bei <b className="text-studio-text/90">Redirect URI</b> genau diese Adresse
+                  eintragen und auf <b className="text-studio-text/90">Add</b> klicken:
+                  <span className="mt-1 flex items-center gap-1.5">
+                    <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-studio-fg">{spotify.redirectUri || 'http://127.0.0.1:27415/spotify/callback'}</code>
+                    <button onClick={() => void window.studio.copyText(spotify.redirectUri)} className="bx-pill px-2 py-0.5 text-[10px] hover:text-studio-accent">kopieren</button>
+                  </span>
+                  <span className="mt-1 block text-[10px] text-studio-muted/70">
+                    Muss <b>zeichengenau</b> stimmen — kein Schrägstrich zu viel, kein „s" bei http.
+                    Das ist der Punkt, an dem es am häufigsten hakt.
+                  </span>
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="flex-none font-bold text-studio-gold">4.</span>
+                <span>
+                  Speichern, dann in deiner neuen App auf <b className="text-studio-text/90">Settings</b>.
+                  Dort steht die <b className="text-studio-text/90">Client ID</b> — die kopierst du
+                  und fügst sie hier unten ein. (Das <i>Client Secret</i> brauchen wir nicht.)
+                </span>
+              </li>
             </ol>
             <input
               type="text" value={spotifyClientId}
@@ -585,7 +630,34 @@ export default function SettingsPage() {
             >
               <Music size={14} /> Mit Spotify anmelden
             </button>
-            <p className="mt-2 text-[10px] text-studio-muted/70">Steuern (Play/Skip) braucht <b>Spotify Premium</b> + ein aktives Spotify-Gerät.</p>
+            <p className="mt-2 text-[10px] text-studio-muted/70">
+              Danach öffnet sich dein Browser und Spotify fragt einmal um Erlaubnis. Das war&apos;s.
+              <br />
+              <b>Anzeigen</b> im Overlay geht mit jedem Konto. <b>Steuern</b> (Play, Skip, Songwünsche)
+              verlangt Spotify Premium und dass irgendwo gerade Spotify läuft.
+            </p>
+
+            {/* Fehlerhilfe: Die drei Meldungen, an denen wirklich jeder haengenbleibt.
+                Ohne Uebersetzung sagen sie einem Nicht-Entwickler gar nichts. */}
+            <details className="mt-2.5 text-[10px] text-studio-muted/80">
+              <summary className="cursor-pointer hover:text-studio-teal">Es klappt nicht — woran liegt&apos;s?</summary>
+              <div className="mt-1.5 space-y-1.5 border-l-2 border-studio-border pl-2.5 leading-relaxed">
+                <p>
+                  <b className="text-studio-text/90">„INVALID_CLIENT: Invalid redirect URI"</b> — die
+                  Adresse aus Schritt 3 stimmt nicht überein. Häufigster Grund: bei Spotify vergessen
+                  auf <i>Add</i> zu klicken, oder ein Zeichen zu viel/zu wenig.
+                </p>
+                <p>
+                  <b className="text-studio-text/90">„Invalid client"</b> — die Client ID ist nicht
+                  vollständig kopiert. Sie ist 32 Zeichen lang, ohne Leerzeichen.
+                </p>
+                <p>
+                  <b className="text-studio-text/90">Angemeldet, aber „läuft gerade nichts"</b> —
+                  Spotify meldet nur etwas, wenn auf irgendeinem Gerät wirklich abgespielt wird.
+                  Starte einen Song in der Spotify-App, dann erscheint er hier.
+                </p>
+              </div>
+            </details>
           </>
         ) : (
           <>
