@@ -34,6 +34,7 @@ import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { planWheelSpins } from './wheel-gift';
 import { planSlotSpins } from './slot-gift';
 import { sollIntroLaufen } from './intro';
+import { besterRang, type RangStand } from '../adapters/tiktok-rank';
 import { matchingLuckyLayers, matchLuckyCommand, planLuckyDraws, type LuckyLayer } from './lucky-draw';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
@@ -92,6 +93,8 @@ export interface StudioHooks {
   onObsStatus?: (status: ObsStatus) => void;
   /** Streamer.bot-Verbindungsstatus → Settings-UI. */
   onStreamerbotStatus?: (status: StreamerbotStatus) => void;
+  /** TikTok-Ranglisten-Stand („dein Platz") → Live-/Analyse-Seite. */
+  onRankChange?: (stand: RangStand) => void;
   /** Spotify Now-Playing → an den Renderer (Steuerleiste/Status). */
   onSpotifyState?: (np: NowPlaying | null) => void;
 }
@@ -323,6 +326,7 @@ export class Studio {
       // Komplette Gift-Liste (mit Bildern) nach dem Connect in den Katalog —
       // so kennt z.B. das Bingo ALLE Gift-Bilder, bevor das erste Gift kommt.
       onAvailableGifts: (gifts) => this.importAvailableGifts(gifts),
+      onRank: (staende) => this.merkeRang(staende),
       onStatus: (info) => {
         // Bei einem NEUEN Stream (erster Connect ODER erneutes Live nach Ende)
         // die Session frisch starten: alte Session sichern, dann Stats/Cooldowns
@@ -1016,6 +1020,28 @@ export class Studio {
     this.settings.update({ triggerRules: rules });
     this.engine.setRules(rules);
     this.refreshTimerTicker(); // Timer-Regel hinzugekommen/entfernt → Ticker neu bewerten
+  }
+
+  /** Letzter bekannter Ranglisten-Stand (bester Platz). Zustand, kein Ereignis
+   *  — die Oberfläche holt ihn beim Öffnen ab UND bekommt Änderungen gepusht.
+   *  (Nur Push wäre der Fehler, den wir bei OBS/Live-Status schon hatten.) */
+  private rangStand: RangStand | null = null;
+
+  private merkeRang(staende: RangStand[]): void {
+    const beste = besterRang(staende);
+    if (!beste) return;
+    const vorher = this.rangStand;
+    this.rangStand = beste;
+    // Nur bei echter Änderung ins Log — TikTok schickt den Stand im Minutentakt.
+    if (!vorher || vorher.platz !== beste.platz || vorher.artNr !== beste.artNr) {
+      log.info('Rangliste', `${beste.art}: Platz ${beste.platz}${beste.restSek ? ` (noch ${Math.round(beste.restSek / 60)} min)` : ''}`);
+    }
+    this.hooks.onRankChange?.(beste);
+  }
+
+  /** Aktueller Ranglisten-Stand zum Abholen (Pull beim Seiten-Aufruf). */
+  getRang(): RangStand | null {
+    return this.rangStand;
   }
 
   /**
@@ -1729,6 +1755,7 @@ export class Studio {
     // Neuer Stream → jeder darf sein Intro wieder einmal bekommen.
     this.introGezeigt.clear();
     this.introBuehneGemeldet = false;
+    this.rangStand = null;   // neuer Stream → alter Platz ist bedeutungslos
     this.momentShownSession.clear();
     // Laufende Chat-Spiele + Boss-Modus beenden — sonst reagiert ein altes Spiel
     // (oder der Boss) im NEUEN Stream weiter auf Chat/Gifts und bleibt im Overlay.

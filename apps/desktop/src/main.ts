@@ -372,6 +372,7 @@ function setupStudio(): Studio {
     onTriggerLog: (entry) => sendToRenderer(IPC.TRIGGER_LOG, entry),
     onObsStatus: (status) => sendToRenderer(IPC.OBS_STATUS, status),
     onStreamerbotStatus: (status) => sendToRenderer(IPC.SB_STATUS, status),
+    onRankChange: (stand) => sendToRenderer(IPC.RANK_STATUS, stand),
   });
 }
 
@@ -436,6 +437,7 @@ function registerIpc(): void {
   });
   // Geschenk-Bilder-Paket einmalig laden. Läuft nur einmal gleichzeitig — zwei
   // parallele Downloads würden dieselben Dateien schreiben.
+  ipcMain.handle(IPC.RANK_GET, () => isStudio().getRang());
   ipcMain.handle(IPC.INTRO_PREVIEW, (_e, userId: unknown) =>
     typeof userId === 'string' && userId
       ? isStudio().introVorschau(userId)

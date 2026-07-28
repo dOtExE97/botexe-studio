@@ -12,6 +12,7 @@
 import type { StudioEvent } from '@botexe/trigger-engine';
 import type { EventBus } from '../core/event-bus';
 import { log } from '../core/logger';
+import { leseRangUpdate, type RangStand } from './tiktok-rank';
 import {
   normalizeChat,
   normalizeGift,
@@ -60,6 +61,8 @@ export interface TikTokAdapterOptions {
   onStatus?: (info: AdapterStatusInfo) => void;
   /** Komplette Gift-Liste des Rooms (mit Bildern) nach dem Connect. */
   onAvailableGifts?: (gifts: unknown) => void;
+  /** TikToks Live-Ranglisten („dein Platz") — Zustand, kein Bus-Ereignis. */
+  onRank?: (staende: RangStand[]) => void;
   maxReconnect?: number;
   baseReconnectDelayMs?: number;
   jitterMs?: number;
@@ -111,6 +114,7 @@ export class TikTokAdapter {
   private readonly factory: ConnectionFactory;
   private readonly onStatus: (info: AdapterStatusInfo) => void;
   private readonly onAvailableGifts?: (gifts: unknown) => void;
+  private readonly onRank?: (staende: RangStand[]) => void;
   private readonly maxReconnect: number;
   private readonly baseReconnectDelayMs: number;
   private readonly jitterMs: number;
@@ -144,6 +148,7 @@ export class TikTokAdapter {
     this.factory = options.factory ?? defaultFactory;
     this.onStatus = options.onStatus ?? (() => undefined);
     this.onAvailableGifts = options.onAvailableGifts;
+    this.onRank = options.onRank;
     this.maxReconnect = options.maxReconnect ?? DEFAULTS.maxReconnect;
     this.baseReconnectDelayMs = options.baseReconnectDelayMs ?? DEFAULTS.baseReconnectDelayMs;
     this.jitterMs = options.jitterMs ?? DEFAULTS.jitterMs;
@@ -428,6 +433,15 @@ export class TikTokAdapter {
     on('share', guard((d: Parameters<typeof normalizeSocial>[0]) => { if (!dedup(d)) publish(normalizeSocial(d, 'share', this.now())); }));
     on('member', guard((d: Parameters<typeof normalizeSocial>[0]) => { if (!dedup(d)) publish(normalizeSocial(d, 'join', this.now())); }));
     on('roomUser', guard((d: Parameters<typeof normalizeViewerCount>[0]) => publish(normalizeViewerCount(d, this.now()))));
+    // Ranglisten-Stand: nicht auf den Bus, sondern direkt an den Aufrufer —
+    // es ist ein Zustand („Platz 12"), kein Vorfall, den Trigger auswerten müssten.
+    if (this.onRank) {
+      const melde = this.onRank;
+      on('rankUpdate', guard((d: unknown) => {
+        const staende = leseRangUpdate(d, this.now());
+        if (staende.length) melde(staende);
+      }));
+    }
 
     on('streamEnd', guard(() => {
       log.info('TikTok', 'Stream beendet');

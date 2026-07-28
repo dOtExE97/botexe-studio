@@ -157,6 +157,10 @@ const api = {
   onStreamerbotStatus: listen<string>(IPC.SB_STATUS),
   // P3c-Audit: gleicher Pull wie getObsStatus, für Streamer.bot.
   getStreamerbotStatus: (): Promise<string> => ipcRenderer.invoke(IPC.SB_GET_STATUS),
+  /** TikTok-Ranglisten-Stand (Push + Pull, siehe constants.ts). */
+  onRankStatus: listen<{ art: string; artNr: number; platz: number; restSek: number; at: number }>(IPC.RANK_STATUS),
+  getRank: (): Promise<{ art: string; artNr: number; platz: number; restSek: number; at: number } | null> =>
+    ipcRenderer.invoke(IPC.RANK_GET),
   /** Intro eines Zuschauers zum Ansehen abspielen (Zuschauerliste). */
   previewIntro: (userId: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke(IPC.INTRO_PREVIEW, userId),

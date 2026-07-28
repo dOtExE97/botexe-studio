@@ -170,6 +170,11 @@ export const IPC = {
   // TikTok-Live-Studio-Link (Domain-Form + hosts-Setup)
   TTLS_LINK_GET: 'ttls:link-get',
   TTLS_SETUP: 'ttls:setup',
+  /** TikTok-Ranglisten-Stand: Push bei Änderung, Pull beim Seiten-Aufruf.
+   *  Beides, weil reines Pushen schon zweimal dazu führte, dass eine Seite
+   *  nach dem Wiederbetreten veraltete Werte zeigte (OBS-/Live-Status). */
+  RANK_STATUS: 'rank:status',
+  RANK_GET: 'rank:get',
   /** Persönliches Intro eines Zuschauers zum Ansehen abspielen. */
   INTRO_PREVIEW: 'intro:preview',
   /** Einmaliger Download des Geschenk-Bilder-Pakets (~25 MB, GitHub-Anhang).
