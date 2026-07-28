@@ -116,8 +116,15 @@ export class GiftCatalog {
           // Die selbst heruntergeladenen Bilder heißen `gift-<id>.<ext>` und
           // laufen bereits über entry.iconFile — hier nur die Eigenen.
           if (!m || /^gift-\w+$/i.test(m[1] ?? '')) continue;
-          const key = normalisiereBildname(m[1] ?? '');
-          if (key && !this.eigeneBilder.has(key)) this.eigeneBilder.set(key, name);
+          const roh = m[1] ?? '';
+          // Zwei Schlüssel je Datei: der volle Name UND der Name ohne führende
+          // Sortiernummer. Die verbreiteten Gift-Bilder-Sammlungen liefern
+          // `0001_Rose.png`, `0002_Flame_heart.png` — ohne das Abschneiden
+          // würde daraus „0001rose" und die Datei fände ihr Geschenk nie.
+          for (const kandidat of [roh, roh.replace(/^\d+\s*[_\-.]\s*/, '')]) {
+            const key = normalisiereBildname(kandidat);
+            if (key && !this.eigeneBilder.has(key)) this.eigeneBilder.set(key, name);
+          }
         }
       } catch { /* Ordner fehlt/unlesbar → keine eigenen Bilder */ }
     }

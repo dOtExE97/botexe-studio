@@ -41,6 +41,28 @@ test('eigene Bilder: nach Geschenknamen benannte Dateien werden gefunden (Schrei
   assert.equal(c.localIconFile({ slug: 'Rose', coins: 0, count: 0 }), '');
 });
 
+test('eigene Bilder: fuehrende Sortiernummer im Dateinamen wird ignoriert', () => {
+  const c = new GiftCatalog(tmpDir());
+  const dir = c.getImagesDir();
+  // Namensschema der verbreiteten Gift-Sammlungen (Alex' Archiv auf dem
+  // Heimserver): 0001_Rose.png, 0002_Flame_heart.png, 0003_You_re_awesome.png.
+  fs.writeFileSync(path.join(dir, '0001_Rose.png'), 'PNGDATA');
+  fs.writeFileSync(path.join(dir, '0002_Flame_heart.png'), 'PNGDATA');
+  fs.writeFileSync(path.join(dir, '0003_You_re_awesome.png'), 'PNGDATA');
+  fs.writeFileSync(path.join(dir, '0008_Ice_Cream_Cone.png'), 'PNGDATA');
+  c.vergisseEigeneBilder();
+
+  // So heissen die Geschenke im TikTok-Ereignis.
+  assert.equal(c.localIconFile({ slug: 'Rose', coins: 0, count: 0 }), '0001_Rose.png');
+  assert.equal(c.localIconFile({ slug: 'Flame heart', coins: 0, count: 0 }), '0002_Flame_heart.png');
+  assert.equal(c.localIconFile({ slug: "You're awesome", coins: 0, count: 0 }), '0003_You_re_awesome.png');
+  assert.equal(c.localIconFile({ slug: 'Ice Cream Cone', coins: 0, count: 0 }), '0008_Ice_Cream_Cone.png');
+  // Der volle Name (mit Nummer) findet die Datei ebenfalls.
+  assert.equal(c.localIconFile({ slug: '0001 Rose', coins: 0, count: 0 }), '0001_Rose.png');
+  // Fremdes Geschenk weiterhin ohne Bild.
+  assert.equal(c.localIconFile({ slug: 'Galaxy', coins: 0, count: 0 }), '');
+});
+
 test('eigene Bilder: heruntergeladene gift-<id>-Dateien laufen weiter über iconFile', () => {
   const c = new GiftCatalog(tmpDir());
   // Eine gift-42.png darf NICHT als „eigenes Bild" für ein Gift namens
