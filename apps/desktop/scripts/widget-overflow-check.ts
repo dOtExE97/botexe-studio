@@ -48,6 +48,8 @@ interface Messung {
   name: string;
   w: number;
   h: number;
+  /** Anzahl sichtbarer Elemente nach den Test-Ereignissen (0 = nichts zu sehen) */
+  sichtbar?: number;
   /** sichtbarer Überhang (nicht weggeschnitten) in x/y */
   ox: number;
   oy: number;
@@ -210,12 +212,25 @@ for(const [name,w,h] of ${JSON.stringify(boxen)}){
       if(clipped){ if(dx>cx)cx=dx; if(dy>cy)cy=dy; continue; }
       if(dx>ox||dy>oy){ if(dx>ox)ox=dx; if(dy>oy)oy=dy; who=el.className||el.tagName; }
     }
-    out.push({name,w,h,ox:Math.round(ox),oy:Math.round(oy),cx:Math.round(cx),cy:Math.round(cy),who:String(who).slice(0,34)});
+    let sichtbar=0;
+    for(const el of host.querySelectorAll('*')){
+      const cs=getComputedStyle(el);
+      if(cs.display==='none'||cs.visibility==='hidden'||parseFloat(cs.opacity)===0) continue;
+      const r=el.getBoundingClientRect();
+      if(r.width>0&&r.height>0) sichtbar++;
+    }
+    out.push({name,w,h,ox:Math.round(ox),oy:Math.round(oy),cx:Math.round(cx),cy:Math.round(cy),who:String(who).slice(0,34),sichtbar});
   }catch(e){ out.push({name,w,h,ox:0,oy:0,cx:0,cy:0,who:'',err:e.message.slice(0,60)}); }
 }
 console.log('ERG '+JSON.stringify(out));
 </script></body></html>`;
 }
+
+/** Widgets, die per Definition unsichtbar bleiben, bis ein bestimmter Anlass
+ *  kommt — bei ihnen ist „nichts zu sehen" der Normalzustand, kein Defekt.
+ *  action-screen ist das „Moment"-Widget: es blitzt bei einer Aktion kurz auf
+ *  (VIP-Welcome, Level-Up, Boss-Kill) und verschwindet wieder. */
+const ABSICHTLICH_UNSICHTBAR = new Set(['action-screen']);
 
 async function main() {
   const browser = findeBrowser();
@@ -267,6 +282,16 @@ async function main() {
     console.log(`\n— FEHLER (${fehler.length}, der Prüfer konnte nicht messen):`);
     for (const r of fehler) console.log(`  ${r.type.padEnd(22)} ${r.name.padEnd(9)} ${r.err}`);
   }
+  // LEER-Prüfung: Nach einem Gift-, Chat- und Like-Ereignis muss ein Widget
+  // etwas Sichtbares zeigen. Bleibt es leer, ist es im Stream schlicht nicht da
+  // — ein Defekt, den die Überlauf-Messung allein nie bemerkt (nichts da,
+  // nichts ragt raus).
+  const leer = rows.filter((r) => !r.err && (r.sichtbar ?? 1) === 0 && !ABSICHTLICH_UNSICHTBAR.has(r.type));
+  if (leer.length) {
+    const typen = [...new Set(leer.map((r) => r.type))];
+    console.log(`\n— LEER (${typen.length}) — zeigt nach Gift/Chat/Like nichts Sichtbares:`);
+    for (const t of typen) console.log(`  ${t}`);
+  }
   if (raus.length) {
     console.log(`\n— RAGT-RAUS (${raus.length}) — Inhalt steht sichtbar über der Box:`);
     for (const r of raus) {
@@ -278,8 +303,8 @@ async function main() {
   // Nur echte Defekte machen rot: RAGT-RAUS und nicht gemessene Widgets.
   // „abgeschnitten" bleibt bewusst grün — sonst wäre der Lauf durch die
   // Einflug-Animationen dauerhaft rot und würde ignoriert.
-  const rot = raus.length + fehler.length;
-  console.log(rot === 0 ? '\nOK — kein Widget ragt aus seiner Box.' : `\nFEHLGESCHLAGEN — ${rot} Befund(e).`);
+  const rot = raus.length + fehler.length + leer.length;
+  console.log(rot === 0 ? '\nOK — kein Widget ragt aus seiner Box, jedes zeigt etwas.' : `\nFEHLGESCHLAGEN — ${rot} Befund(e).`);
   process.exit(rot === 0 ? 0 : 1);
 }
 
