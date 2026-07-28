@@ -171,3 +171,42 @@ test('normalizeChat: reichert user mit Rollen an (Mod wird erkannt → wird vorg
   assert.equal(e.user?.isMod, true);
   assert.ok(!e.user?.isSub); // kein Sub → bleibt unbesetzt (Filter prüft truthy)
 });
+
+// Teamherz-Stufe: TikTok liefert sie je nach Nachrichtenart an einer von drei
+// Stellen (belegt in tiktok-live-proto/v3). Alle drei müssen greifen, sonst
+// bleibt die Stufe bei manchen Ereignissen auf 0 und eine Schwelle wie
+// „erst ab Stufe 3 vorlesen" würde still nie erfüllt.
+test('Teamherz-Stufe: aus fansClub.data.level', () => {
+  const e = normalizeChat({ user: { uniqueId: 'anna', nickname: 'Anna', fansClub: { data: { level: 5, clubName: 'Löwen' } } }, comment: 'hi' }, 0);
+  assert.equal(e?.user?.teamLevel, 5);
+});
+
+test('Teamherz-Stufe: aus fansClubInfo.fansLevel (kommt als Text)', () => {
+  const e = normalizeChat({ user: { uniqueId: 'ben', nickname: 'Ben', fansClubInfo: { fansLevel: '3' } }, comment: 'hi' }, 0);
+  assert.equal(e?.user?.teamLevel, 3);
+});
+
+test('Teamherz-Stufe: aus der Abzeichen-Liste (sceneType FANS)', () => {
+  const e = normalizeChat({
+    user: { uniqueId: 'cara', nickname: 'Cara', badgeList: [
+      { sceneType: 8, privilegeLogExtra: { level: '12' } },   // Geschenke-Stufe
+      { sceneType: 10, privilegeLogExtra: { level: '7' } },   // Teamherz
+    ] },
+    comment: 'hi',
+  }, 0);
+  assert.equal(e?.user?.teamLevel, 7, 'muss die FANS-Stufe nehmen, nicht die Geschenke-Stufe');
+  assert.equal(e?.user?.gifterLevel, 12);
+});
+
+test('Teamherz-Stufe: ohne Angabe bleibt das Feld WEG (überschreibt nichts)', () => {
+  // Wichtig: Nicht 0 setzen. Sonst würde ein Ereignis ohne Abzeichen-Daten das
+  // überschreiben, was das Rollen-Gedächtnis vom Chat schon weiß.
+  const e = normalizeChat({ user: { uniqueId: 'dee', nickname: 'Dee' }, comment: 'hi' }, 0);
+  assert.equal('teamLevel' in (e?.user ?? {}), false);
+  assert.equal('gifterLevel' in (e?.user ?? {}), false);
+});
+
+test('Teamherz-Stufe: Geschenke-Stufe aus payGrade', () => {
+  const e = normalizeChat({ user: { uniqueId: 'eve', nickname: 'Eve', payGrade: { level: 21 } }, comment: 'hi' }, 0);
+  assert.equal(e?.user?.gifterLevel, 21);
+});

@@ -165,6 +165,7 @@ interface TtsSettings {
   maxTextLen: number;
   chatTemplate: string;
   readGroups?: ReadGroup[];
+  teamMinLevel?: number;
   readPrefix?: string;
   announceFollow?: AnnounceCfg;
   announceGift?: GiftAnnounceCfg;
@@ -528,6 +529,29 @@ export default function TtsPage() {
               Vorgelesen wird, wer in mindestens einer angekreuzten Gruppe ist. Deine ★VIPs werden immer
               vorgelesen, Stumm-geschaltete nie. „Alle" liest jeden.
             </span>
+            {/* Erscheint nur, wenn „Teamherz" angekreuzt ist — sonst waere es ein
+                Regler ohne Wirkung. */}
+            {(tts.readGroups ?? ['all']).includes('subs') && (
+              <label className="mt-2 flex items-center gap-2 normal-case tracking-normal text-xs text-studio-text">
+                Erst ab Teamherz-Stufe
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={tts.teamMinLevel ?? 0}
+                  onChange={(e) => update({ teamMinLevel: Math.max(0, Math.min(50, Number(e.target.value) || 0)) })}
+                  className="bx-input w-16 font-mono text-xs"
+                />
+                <span className="text-[10px] text-studio-muted">0 = jede Stufe</span>
+              </label>
+            )}
+            {(tts.readGroups ?? ['all']).includes('subs') && (tts.teamMinLevel ?? 0) > 0 && (
+              <span className="mt-1 block text-[9px] normal-case tracking-normal text-studio-muted/80">
+                TikTok schickt die Teamherz-Stufe mit. Kommt sie bei einer Nachricht ausnahmsweise
+                nicht mit, wird trotzdem vorgelesen — lieber einmal zu viel, als einen echten
+                Unterstützer stumm zu schalten.
+              </span>
+            )}
           </div>
           <label className="text-[10px] uppercase tracking-widest text-studio-muted">
             Nur mit Start-Zeichen

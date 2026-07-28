@@ -9,12 +9,51 @@ interface RawUser {
   uniqueId?: string;
   nickname?: string;
   profilePicture?: { url?: string[] };
+  /** Teamherz: TikTok nennt es im Protokoll „Fan-Club". Die Stufe steckt je
+   *  nach Nachrichtenart an einer von drei Stellen — deshalb werden alle drei
+   *  geprüft. (Belegt in tiktok-live-proto/v3: User.fansClub.data.level,
+   *  User.fansClubInfo.fansLevel, sowie das Abzeichen mit sceneType FANS=10.) */
+  fansClub?: { data?: { level?: number; clubName?: string } };
+  fansClubInfo?: { fansLevel?: string | number };
+  /** Geschenke-Stufe des Zuschauers bei TikTok insgesamt. */
+  payGrade?: { level?: number };
+  /** Abzeichen-Liste — enthält Stufen als Text unter privilegeLogExtra.level. */
+  badgeList?: Array<{
+    sceneType?: number;
+    badgeSceneType?: number;
+    privilegeLogExtra?: { level?: string };
+  }>;
+}
+
+/** Abzeichen-Arten laut Protokoll (tiktok-live-proto/v3, BadgeSceneType). */
+const BADGE_FANS = 10;
+const BADGE_USER_GRADE = 8;
+
+/** Erste brauchbare Zahl aus mehreren Kandidaten — TikTok liefert Stufen mal
+ *  als Zahl, mal als Text, und je nach Nachrichtenart an anderer Stelle. */
+function ersteZahl(...werte: unknown[]): number {
+  for (const w of werte) {
+    const n = typeof w === 'string' ? parseInt(w, 10) : typeof w === 'number' ? w : NaN;
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
+}
+
+/** Stufe aus der Abzeichen-Liste (beide Feldnamen, je nach Protokoll-Fassung). */
+function abzeichenStufe(raw: RawUser, art: number): number {
+  const treffer = (raw.badgeList ?? []).find((b) => (b.sceneType ?? b.badgeSceneType) === art);
+  return ersteZahl(treffer?.privilegeLogExtra?.level);
 }
 
 function toUser(raw: RawUser | undefined): StudioUser | undefined {
   if (!raw) return undefined;
   const id = raw.uniqueId || raw.userId || '';
   if (!id) return undefined;
+  const teamLevel = ersteZahl(
+    raw.fansClub?.data?.level,
+    raw.fansClubInfo?.fansLevel,
+  ) || abzeichenStufe(raw, BADGE_FANS);
+  const gifterLevel = ersteZahl(raw.payGrade?.level) || abzeichenStufe(raw, BADGE_USER_GRADE);
   return {
     id,
     // Zweiter Schlüssel fürs Rollen-Gedächtnis: rohe userId, falls sie von der
@@ -23,6 +62,10 @@ function toUser(raw: RawUser | undefined): StudioUser | undefined {
     ...(raw.userId && raw.userId !== id ? { userId: raw.userId } : {}),
     nickname: raw.nickname || id,
     profilePic: raw.profilePicture?.url?.[0],
+    // Stufen nur setzen, wenn wirklich eine kam — sonst überschreibt ein
+    // Ereignis ohne Abzeichen-Daten das, was das Rollen-Gedächtnis schon weiß.
+    ...(teamLevel > 0 ? { teamLevel } : {}),
+    ...(gifterLevel > 0 ? { gifterLevel } : {}),
   };
 }
 

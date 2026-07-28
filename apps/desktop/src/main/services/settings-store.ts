@@ -23,6 +23,9 @@ export interface TTSSettings {
   rate: number;
   /** Tonhöhe in Hz-Versatz (-20..+20, 0 = normal) — wirkt bei den Edge-Stimmen. */
   pitch: number;
+  /** Mindest-Teamherz-Stufe, damit die Gruppe „Teamherz" vorgelesen wird
+   *  (0 = jede Stufe). TikTok liefert die Stufe als Fan-Club-Level mit. */
+  teamMinLevel?: number;
   /** Nachrichten, die mit ! beginnen, nicht vorlesen (Befehle). */
   skipCommands: boolean;
   maxTextLen: number;
@@ -457,6 +460,7 @@ export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): 
       ...(typeof t.skipCommands === 'boolean' ? { skipCommands: t.skipCommands } : {}),
       ...(typeof t.maxTextLen === 'number' ? { maxTextLen: Math.min(500, Math.max(20, t.maxTextLen)) } : {}),
       ...(typeof t.chatTemplate === 'string' ? { chatTemplate: t.chatTemplate } : {}),
+      ...(typeof t.teamMinLevel === 'number' ? { teamMinLevel: Math.min(50, Math.max(0, Math.round(t.teamMinLevel))) } : {}),
       ...(typeof t.rate === 'number' ? { rate: Math.min(50, Math.max(-50, Math.round(t.rate))) } : {}),
       ...(typeof t.pitch === 'number' ? { pitch: Math.min(20, Math.max(-20, Math.round(t.pitch))) } : {}),
       ...(Array.isArray(t.readGroups)

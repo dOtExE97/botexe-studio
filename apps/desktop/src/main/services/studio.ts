@@ -1791,7 +1791,7 @@ export class Studio {
     // Wer-Filter (Teamherz/Mod/Follower/VIP) + optionaler Prefix-Modus.
     const isVip = event.user ? this.points.isVip(event.user.id) : false;
     const prefix = tts.readPrefix ?? '';
-    const decision = shouldReadChat(event, tts.readGroups ?? ['all'], prefix, isVip);
+    const decision = shouldReadChat(event, tts.readGroups ?? ['all'], prefix, isVip, tts.teamMinLevel ?? 0);
     if (!decision.read) {
       // Klarer Grund: Prefix fehlt (gilt AUCH für Mods/Follower!) vs. nicht in
       // gewählter Gruppe — sonst führt das Log auf die falsche Fährte.
@@ -1818,7 +1818,15 @@ export class Studio {
     }
     if (user.isSub && !this.loggedRoleUsers.has(`sub:${user.id}`)) {
       this.loggedRoleUsers.add(`sub:${user.id}`);
-      log.info('TikTok', `Teamherz erkannt: ${user.nickname}`);
+      // Stufe mitschreiben: Erst ein echter Stream zeigt, ob TikTok sie
+      // wirklich liefert. „Stufe unbekannt" heißt nicht, dass jemand keine hat
+      // — nicht jede Nachrichtenart trägt die Abzeichen-Daten mit.
+      const stufe = user.teamLevel ? `Stufe ${user.teamLevel}` : 'Stufe nicht mitgeliefert';
+      log.info('TikTok', `Teamherz erkannt: ${user.nickname} (${stufe})`);
+    }
+    if (user.gifterLevel && !this.loggedRoleUsers.has(`grade:${user.id}`)) {
+      this.loggedRoleUsers.add(`grade:${user.id}`);
+      log.info('TikTok', `Geschenke-Stufe erkannt: ${user.nickname} → ${user.gifterLevel}`);
     }
     if (user.isFollower && !this.loggedFollowerOnce) {
       this.loggedFollowerOnce = true;

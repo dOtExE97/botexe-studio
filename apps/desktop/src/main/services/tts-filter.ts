@@ -23,11 +23,21 @@ export function migrateReadWho(who: string): ReadGroup[] {
   }
 }
 
-function groupMatches(group: ReadGroup, u: StudioEvent['user']): boolean {
+function groupMatches(group: ReadGroup, u: StudioEvent['user'], teamMinLevel = 0): boolean {
   switch (group) {
     case 'all': return true;
     case 'mods': return !!u?.isMod;
-    case 'subs': return !!u?.isSub;
+    case 'subs': {
+      if (!u?.isSub) return false;
+      // Mindest-Stufe: TikTok schickt die Teamherz-Stufe mit (Fan-Club-Level).
+      // 0 = keine Schwelle, jedes Teamherz zählt.
+      if (teamMinLevel <= 0) return true;
+      // Stufe unbekannt (nicht jedes Ereignis trägt Abzeichen-Daten) → zulassen.
+      // Lieber einmal zu viel vorlesen als einen echten Unterstützer stumm
+      // schalten, nur weil TikTok die Stufe gerade nicht mitgeschickt hat.
+      if (u.teamLevel === undefined) return true;
+      return u.teamLevel >= teamMinLevel;
+    }
     case 'followers': return !!u?.isFollower;
     case 'vips': return false; // nur App-VIPs (separat behandelt)
   }
@@ -57,6 +67,8 @@ export function shouldReadChat(
   groups: ReadGroup[],
   prefix: string,
   isAppVip: boolean,
+  /** Mindest-Teamherz-Stufe für die Gruppe „Teamherz" (0 = egal). */
+  teamMinLevel = 0,
 ): ReadDecision {
   const raw = event.text ?? '';
 
@@ -70,7 +82,7 @@ export function shouldReadChat(
 
   // App-VIPs (von dir markiert) immer; sonst: in mind. einer angekreuzten Gruppe.
   const u = event.user;
-  const groupOk = isAppVip || groups.some((g) => groupMatches(g, u));
+  const groupOk = isAppVip || groups.some((g) => groupMatches(g, u, teamMinLevel));
 
   return groupOk ? { read: true, text } : { read: false, text, reason: 'group' };
 }

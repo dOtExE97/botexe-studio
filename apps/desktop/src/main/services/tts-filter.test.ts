@@ -72,3 +72,29 @@ test('migrateReadWho: alte Einstellung → Gruppen-Array (altes Verhalten erhalt
   assert.deepEqual(migrateReadWho('vips'), ['vips']);
   assert.deepEqual(migrateReadWho('quatsch'), ['all']); // Fallback
 });
+
+// Mindest-Teamherz-Stufe: TikTok liefert die Stufe als Fan-Club-Level mit.
+// „Erst ab Stufe 3 vorlesen" ist ein Wunsch von Streamern mit vielen Teamherzen.
+test('teamMinLevel: unter der Schwelle wird nicht vorgelesen', () => {
+  const e = { type: 'chat', ts: 0, text: 'hi', user: { id: 'a', nickname: 'A', isSub: true, teamLevel: 2 } } as StudioEvent;
+  assert.equal(shouldReadChat(e, ['subs'], '', false, 3).read, false);
+  assert.equal(shouldReadChat(e, ['subs'], '', false, 2).read, true, 'genau auf der Schwelle zaehlt');
+  assert.equal(shouldReadChat(e, ['subs'], '', false, 0).read, true, '0 = keine Schwelle');
+});
+
+test('teamMinLevel: UNBEKANNTE Stufe wird zugelassen', () => {
+  // Nicht jedes Ereignis traegt Abzeichen-Daten. Wuerde man hier sperren, waere
+  // ein echter Unterstuetzer je nach Nachrichtenart mal stumm, mal nicht — ein
+  // Fehler, den niemand nachvollziehen koennte. Lieber einmal zu viel vorlesen.
+  const e = { type: 'chat', ts: 0, text: 'hi', user: { id: 'a', nickname: 'A', isSub: true } } as StudioEvent;
+  assert.equal(shouldReadChat(e, ['subs'], '', false, 5).read, true);
+});
+
+test('teamMinLevel: gilt NUR fuer die Teamherz-Gruppe', () => {
+  // Ein Mod mit niedriger Stufe darf nicht wegen der Teamherz-Schwelle rausfallen.
+  const mod = { type: 'chat', ts: 0, text: 'hi', user: { id: 'm', nickname: 'M', isMod: true, isSub: true, teamLevel: 1 } } as StudioEvent;
+  assert.equal(shouldReadChat(mod, ['mods', 'subs'], '', false, 9).read, true, 'als Mod trotzdem vorlesen');
+  // Und „alle" bleibt unberuehrt.
+  const jeder = { type: 'chat', ts: 0, text: 'hi', user: { id: 'x', nickname: 'X', isSub: true, teamLevel: 1 } } as StudioEvent;
+  assert.equal(shouldReadChat(jeder, ['all'], '', false, 9).read, true);
+});

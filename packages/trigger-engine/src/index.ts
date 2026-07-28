@@ -45,6 +45,14 @@ export interface StudioUser {
   isMod?: boolean;
   /** Folgt dem Streamer. */
   isFollower?: boolean;
+  /** Teamherz-Stufe (TikToks Fan-Club-Level, 0 = kein Teamherz).
+   *
+   *  TikTok schickt das an jedem Nutzer mit — wir haben es bisher weggeworfen.
+   *  Damit lässt sich z.B. das Vorlesen erst ab einer Stufe freigeben. */
+  teamLevel?: number;
+  /** Geschenke-Stufe des Zuschauers bei TikTok insgesamt (payGrade), nicht
+   *  bezogen auf diesen Stream. 0 = unbekannt. */
+  gifterLevel?: number;
 }
 
 export interface StudioGift {
