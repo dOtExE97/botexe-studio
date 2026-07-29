@@ -1181,7 +1181,7 @@ export default function OverlayPage() {
         {/* Ebenen-Liste — IMMER sichtbar, auch wenn nichts ausgewählt ist.
             Genau dann braucht man sie: um ein verdecktes Widget zu erreichen
             oder eins auszublenden, das man gar nicht anklicken kann. */}
-        <div className="mb-3 max-h-52 border-b border-studio-border pb-3">
+        <div className="mb-3 flex-none border-b border-studio-border pb-3">
           <EbenenListe
             layers={layout.layers}
             selectedId={selectedId}

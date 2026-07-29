@@ -32,7 +32,7 @@ export default function EbenenListe({
   const sortiert = [...layers].sort((a, b) => b.z - a.z);
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <div className="flex flex-col">
       <div className="mb-1.5 flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-studio-gold">
           <Layers size={12} /> Ebenen
@@ -45,7 +45,12 @@ export default function EbenenListe({
           Noch keine Widgets. Zieh eins aus der Palette auf die Fläche.
         </p>
       ) : (
-        <ul className="flex min-h-0 flex-col gap-0.5 overflow-y-auto pr-0.5">
+        // Die Höhenbegrenzung sitzt HIER am <ul>, nicht am Elternteil. Ein
+        // max-h weiter oben wirkt nicht: Der Inhalt wächst trotzdem weiter und
+        // schiebt sich über das, was darunter kommt — die Eigenschaften des
+        // gewählten Widgets lagen dadurch mitten in der Liste und ließen sich
+        // nicht mehr bedienen.
+        <ul className="flex max-h-48 flex-col gap-0.5 overflow-y-auto pr-0.5">
           {sortiert.map((l, i) => {
             const aktiv = l.id === selectedId;
             return (
