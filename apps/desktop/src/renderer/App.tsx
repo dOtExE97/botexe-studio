@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal, Stethoscope, Sliders, Square } from 'lucide-react';
+import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal, Stethoscope, Sliders, Square, BarChart3 } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
 import ToastHost, { toast } from './components/ToastHost';
@@ -12,6 +12,7 @@ import OnboardingTour from './components/OnboardingTour';
 import WhatsNew from './components/WhatsNew';
 import KeyWizard from './components/KeyWizard';
 import LivePage from './pages/LivePage';
+import AnalysePage from './pages/AnalysePage';
 import OverlayPage from './pages/OverlayPage';
 import DiagnosePage from './pages/DiagnosePage';
 import TriggersPage from './pages/TriggersPage';
@@ -25,10 +26,11 @@ import GalleryPage from './pages/GalleryPage';
 import CommandsPage from './pages/CommandsPage';
 import MixerPage from './pages/MixerPage';
 
-type Page = 'live' | 'overlay' | 'triggers' | 'commands' | 'gallery' | 'store' | 'panel' | 'sounds' | 'tts' | 'mixer' | 'viewers' | 'diagnose' | 'settings';
+type Page = 'live' | 'analyse' | 'overlay' | 'triggers' | 'commands' | 'gallery' | 'store' | 'panel' | 'sounds' | 'tts' | 'mixer' | 'viewers' | 'diagnose' | 'settings';
 
 const NAV: { id: Page; label: string; icon: typeof Radio; group: string; hint: string }[] = [
   { id: 'live', label: 'Live', icon: Radio, group: 'Stream', hint: 'Mit TikTok verbinden, Live-Zahlen & Chat-Spiele starten' },
+  { id: 'analyse', label: 'Auswertung', icon: BarChart3, group: 'Stream', hint: 'Deine Streams im Vergleich: Verlauf, starke Wochentage, bester Stream' },
   { id: 'overlay', label: 'Overlay', icon: LayoutPanelTop, group: 'Stream', hint: 'Overlay bauen: Widgets aufs Bild ziehen, Link für OBS/TikTok kopieren' },
   { id: 'gallery', label: 'Geschenke', icon: Images, group: 'Reaktionen', hint: 'Geschenke-Galerie: einem Gift direkt einen Sound/eine Aktion zuweisen (wird zur Trigger-Regel)' },
   { id: 'triggers', label: 'Trigger', icon: Zap, group: 'Reaktionen', hint: 'Reaktion auf Gift/Follow/Like/Sub — „wenn X passiert, dann tu Y"' },
@@ -236,6 +238,7 @@ export default function App() {
 
         <main className="min-h-0 flex-1 overflow-y-auto">
           {page === 'live' && <LivePage studio={studio} />}
+          {page === 'analyse' && <AnalysePage studio={studio} />}
           {page === 'overlay' && <OverlayPage />}
           {page === 'triggers' && <TriggersPage />}
           {page === 'commands' && <CommandsPage />}

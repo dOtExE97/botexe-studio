@@ -49,7 +49,7 @@ import { pickQuestions, QUIZ_THEMES } from './games/quiz-questions';
 import { BossService, bossKillMoment } from './boss';
 import { validateTriggerRules, validateChatCommands, validateRedemptions, validatePanelButtons } from './validators';
 import { SpotifyService, type NowPlaying } from './spotify-service';
-import { StatsHistory, type StatsRange, type StatsSummary } from './stats-history';
+import { StatsHistory, type StatsRange, type StatsSummary, type StatsHistoryEntry } from './stats-history';
 import { SportService } from './sport-service';
 import type { SportProvider } from './sport-normalize';
 import { ObsService, type ObsStatus } from './obs-service';
@@ -867,6 +867,13 @@ export class Studio {
     sum.peakViewers = Math.max(sum.peakViewers, t.peakViewers);
     if (t.coins + t.gifts + t.likes + t.chats > 0) sum.sessions += 1;
     return sum;
+  }
+
+  /** Alle vergangenen Streams einzeln (für die Analyse-Seite). Die laufende
+   *  Sitzung ist NICHT dabei — sie zählt erst, wenn sie beendet ist, sonst
+   *  verzerrt ein gerade begonnener Stream jeden Durchschnitt. */
+  getStreamHistorie(): StatsHistoryEntry[] {
+    return this.statsHistory.all();
   }
 
   // ── Plattform ─────────────────────────────────────────────────────────

@@ -170,6 +170,8 @@ export const IPC = {
   // TikTok-Live-Studio-Link (Domain-Form + hosts-Setup)
   TTLS_LINK_GET: 'ttls:link-get',
   TTLS_SETUP: 'ttls:setup',
+  /** Alle vergangenen Streams einzeln — Grundlage der Analyse-Seite. */
+  STATS_HISTORY_ENTRIES: 'stats:history-entries',
   /** TikTok-Ranglisten-Stand: Push bei Änderung, Pull beim Seiten-Aufruf.
    *  Beides, weil reines Pushen schon zweimal dazu führte, dass eine Seite
    *  nach dem Wiederbetreten veraltete Werte zeigte (OBS-/Live-Status). */
