@@ -50,6 +50,10 @@ export interface OverlayLayer {
   h: number;
   z: number;
   visible: boolean;
+  /** Gesperrt: bleibt sichtbar, lässt sich auf der Fläche aber nicht mehr
+   *  anfassen. Für Widgets, die man einmal platziert hat und die anderen
+   *  ständig im Weg liegen (z.B. ein bildschirmfüllendes Feuerwerk). */
+  locked?: boolean;
   opacity?: number;
   props?: Record<string, unknown>;
 }
@@ -97,6 +101,7 @@ const layoutJsonSchema = {
           w: { type: 'number', minimum: 0 },
           h: { type: 'number', minimum: 0 },
           z: { type: 'number' },
+          locked: { type: 'boolean' },
           visible: { type: 'boolean' },
           opacity: { type: 'number', minimum: 0, maximum: 1 },
           props: { type: 'object' },

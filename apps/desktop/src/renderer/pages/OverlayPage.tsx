@@ -4,6 +4,7 @@
 // werden als Guides eingeblendet (wo Chat/Buttons der TikTok-UI liegen).
 // Speichern validiert (ajv) und pusht live.
 import { passt } from '../../shared/suche';
+import EbenenListe from '../components/EbenenListe';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   X,
@@ -619,11 +620,35 @@ export default function OverlayPage() {
 
   // Drag & Resize direkt am Canvas
   const onPointerDown = (e: React.PointerEvent, layer: OverlayLayer, mode: 'move' | 'resize') => {
+    // Gesperrt: gar nicht erst reagieren. Der Klick geht dann an das Widget
+    // DARUNTER — genau dafür ist die Sperre da (ein bildschirmfüllendes
+    // Feuerwerk soll den Rest nicht unerreichbar machen).
+    if (layer.locked) return;
     e.stopPropagation();
     setSelectedId(layer.id);
     dragRef.current = { id: layer.id, mode, startX: e.clientX, startY: e.clientY, orig: { ...layer } };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
+  /** Ein Widget im Stapel verschieben: mit dem Nachbarn die Position tauschen.
+   *  Tauschen statt „z+1" — sonst landen zwei Widgets auf demselben Wert und
+   *  die Reihenfolge wird zufällig. */
+  const moveLayer = (id: string, richtung: 1 | -1) => {
+    if (!layout) return;
+    const sortiert = [...layout.layers].sort((a, b) => a.z - b.z);
+    const i = sortiert.findIndex((l) => l.id === id);
+    const j = i + richtung;
+    if (i < 0 || j < 0 || j >= sortiert.length) return;
+    const a = sortiert[i];
+    const b = sortiert[j];
+    if (!a || !b) return;
+    const zA = a.z;
+    void persist({
+      ...layout,
+      layers: layout.layers.map((l) =>
+        l.id === a.id ? { ...l, z: b.z } : l.id === b.id ? { ...l, z: zA } : l),
+    });
+  };
+
   const onPointerMove = (e: React.PointerEvent) => {
     const drag = dragRef.current;
     if (!drag) return;
@@ -1111,6 +1136,9 @@ export default function OverlayPage() {
                           : '0 0 0 1px rgba(33,230,193,.5)'
                         : 'none',
                     opacity: layer.visible ? 1 : 0.35,
+                    // Gesperrte Widgets sind für die Maus durchlässig — nur so
+                    // erreicht man, was darunter liegt.
+                    pointerEvents: layer.locked ? 'none' : undefined,
                   }}
                 >
                   {showLabel && showPreview ? (
@@ -1150,6 +1178,23 @@ export default function OverlayPage() {
 
       {/* Property-Panel */}
       <aside className="overflow-y-auto border-l border-studio-border bg-studio-panel p-4">
+        {/* Ebenen-Liste — IMMER sichtbar, auch wenn nichts ausgewählt ist.
+            Genau dann braucht man sie: um ein verdecktes Widget zu erreichen
+            oder eins auszublenden, das man gar nicht anklicken kann. */}
+        <div className="mb-3 max-h-52 border-b border-studio-border pb-3">
+          <EbenenListe
+            layers={layout.layers}
+            selectedId={selectedId}
+            hoveredId={hoveredId}
+            labelFor={(l) => WIDGET_LABELS[l.widgetType] ?? l.widgetType}
+            onSelect={setSelectedId}
+            onHover={setHoveredId}
+            onPatch={(id, patch) => updateLayer(id, patch, true)}
+            onMove={moveLayer}
+            onDelete={removeLayer}
+          />
+        </div>
+
         {!selected && (
           <div className="mt-2 flex flex-col gap-3 text-xs leading-relaxed text-studio-muted">
             <p>Klick links ein Widget, um es auf den Screen zu legen — oder wähl eins auf dem Canvas aus, um es hier einzustellen.</p>
@@ -1446,15 +1491,26 @@ export default function OverlayPage() {
                         </label>
                       ))}
                     </div>
-                    <label className="mt-2.5 flex items-center gap-2 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={selected.visible}
-                        onChange={(e) => updateLayer(selected.id, { visible: e.target.checked }, true)}
-                        className="accent-[#ff4d2e]"
-                      />
-                      Sichtbar
-                    </label>
+                    <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selected.visible}
+                          onChange={(e) => updateLayer(selected.id, { visible: e.target.checked }, true)}
+                          className="accent-[#ff4d2e]"
+                        />
+                        Sichtbar
+                      </label>
+                      <label className="flex items-center gap-2" title="Bleibt sichtbar, lässt sich auf der Fläche aber nicht mehr anfassen — praktisch bei großen Widgets, die anderen im Weg liegen.">
+                        <input
+                          type="checkbox"
+                          checked={!!selected.locked}
+                          onChange={(e) => updateLayer(selected.id, { locked: e.target.checked }, true)}
+                          className="accent-[#ffd23e]"
+                        />
+                        Gesperrt
+                      </label>
+                    </div>
                   </PanelSection>
 
                   {content.length > 0 && (
