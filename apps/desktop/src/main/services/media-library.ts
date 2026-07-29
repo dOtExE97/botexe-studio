@@ -8,7 +8,11 @@ import path from 'node:path';
 export type MediaKind = 'image' | 'video';
 
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
-const VIDEO_EXT = new Set(['.mp4', '.webm']);
+// .mov ist erlaubt, aber ein Sonderfall: Der Container sagt nichts darüber,
+// ob der Browser den Inhalt abspielen kann. MOV mit H.264 läuft, MOV mit HEVC
+// (der iPhone-Standard!) oder ProRes NICHT. Deshalb prüft die Oberfläche jede
+// frisch hinzugefügte Datei einmal wirklich ab — siehe MediaPage.
+const VIDEO_EXT = new Set(['.mp4', '.webm', '.mov']);
 // Videos dürfen größer sein als Sounds — Begrüßungsclips sind kurz, aber HD.
 const MAX_BYTES = 50 * 1024 * 1024;
 

@@ -29,11 +29,39 @@ interface Verwendung {
 
 const groesse = (b: number) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
+/**
+ * Kann der Browser dieses Video wirklich abspielen?
+ *
+ * Nötig, weil die Dateiendung nichts über den Inhalt sagt. Eine .mov-Datei
+ * spielt, wenn H.264 drinsteckt — bei HEVC (der iPhone-Standard) oder ProRes
+ * (Schnittprogramme) bleibt das Bild schwarz. Auch .mp4 kann HEVC enthalten.
+ *
+ * `canPlayType` hilft hier NICHT: Für „video/quicktime" antwortet Chromium
+ * mit „nein", obwohl H.264-MOVs einwandfrei laufen. Nur ein echter Ladeversuch
+ * gibt eine verlässliche Antwort.
+ */
+function videoSpielbar(url: string): Promise<boolean> {
+  return new Promise((fertig) => {
+    const v = document.createElement('video');
+    v.muted = true;
+    let erledigt = false;
+    const antwort = (ok: boolean) => { if (!erledigt) { erledigt = true; v.src = ''; fertig(ok); } };
+    v.addEventListener('loadeddata', () => antwort(true), { once: true });
+    v.addEventListener('error', () => antwort(false), { once: true });
+    // Hängt der Decoder, gilt das als „nicht spielbar" — im Stream wäre es das auch.
+    setTimeout(() => antwort(false), 6000);
+    v.src = url;
+    v.load();
+  });
+}
+
 export default function MediaPage() {
   const [medien, setMedien] = useState<MediaItem[]>([]);
   const [geladen, setGeladen] = useState(false);
   const [suche, setSuche] = useState('');
   const [loeschKandidat, setLoeschKandidat] = useState<{ item: MediaItem; verwendung: Verwendung } | null>(null);
+  /** Videos, die der Browser nicht abspielen kann (falscher Codec im Container). */
+  const [nichtSpielbar, setNichtSpielbar] = useState<string[]>([]);
 
   const laden = useCallback(async () => {
     const list = (await window.studio.listMedia()) as MediaItem[];
@@ -46,8 +74,17 @@ export default function MediaPage() {
   const importieren = async () => {
     const res = (await window.studio.importMedia()) as { ok: boolean; imported?: MediaItem[]; error?: string };
     await laden();
-    if (!res?.ok) toast('error', `Import fehlgeschlagen: ${res?.error ?? 'unbekannt'}`);
-    else if (res.imported?.length) toast('success', `${res.imported.length} Datei${res.imported.length === 1 ? '' : 'en'} hinzugefügt.`);
+    if (!res?.ok) { toast('error', `Import fehlgeschlagen: ${res?.error ?? 'unbekannt'}`); return; }
+    if (!res.imported?.length) return;
+    toast('success', `${res.imported.length} Datei${res.imported.length === 1 ? '' : 'en'} hinzugefügt.`);
+
+    // Jedes neue Video einmal wirklich anspielen. Sonst merkt man erst im
+    // Stream, dass der Codec nicht geht — und sieht einen schwarzen Kasten.
+    const kaputt: string[] = [];
+    for (const m of res.imported.filter((x) => x.kind === 'video')) {
+      if (!(await videoSpielbar(m.url))) kaputt.push(m.filename);
+    }
+    if (kaputt.length) setNichtSpielbar((prev) => [...new Set([...prev, ...kaputt])]);
   };
 
   /** Vor dem Löschen nachsehen, was daran hängt. */
@@ -80,13 +117,43 @@ export default function MediaPage() {
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-studio-muted">
             Deine Dateien für Intros, Overlay-Einblendungen und Trigger-Aktionen.
             Unterstützt werden <b className="text-studio-text/90">PNG, JPG, GIF, WebP</b> sowie{' '}
-            <b className="text-studio-text/90">MP4 und WebM</b>.
+            <b className="text-studio-text/90">MP4, WebM und MOV</b>.
           </p>
         </div>
         <button onClick={() => void importieren()} className="bx-btn-accent">
           <Upload size={15} /> Dateien hinzufügen
         </button>
       </div>
+
+      {/* Codec-Warnung: Die Endung sagt nichts darüber, ob der Inhalt läuft.
+          Ohne diesen Hinweis stünde im Stream ein schwarzer Kasten. */}
+      {nichtSpielbar.length > 0 && (
+        <div className="rounded-lg border border-studio-accent/50 bg-studio-accent/10 p-3 text-xs leading-relaxed">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={15} className="mt-0.5 flex-none text-studio-accent" />
+            <div>
+              <b className="text-studio-accent">
+                {nichtSpielbar.length === 1 ? 'Dieses Video lässt sich nicht abspielen' : 'Diese Videos lassen sich nicht abspielen'}:
+              </b>{' '}
+              {nichtSpielbar.join(', ')}
+              <p className="mt-1 text-studio-muted">
+                Die Datei ist in Ordnung — nur ihr Inhalt passt nicht. Handy-Videos sind oft{' '}
+                <b className="text-studio-text/90">HEVC</b>, Schnittprogramme liefern{' '}
+                <b className="text-studio-text/90">ProRes</b>; beides kann die Anzeige nicht.
+                Speichere das Video als <b className="text-studio-text/90">MP4 mit H.264</b> —
+                jedes Schnittprogramm und jeder Online-Wandler kann das.
+                Im Stream würde es sonst ein schwarzer Kasten bleiben.
+              </p>
+              <button
+                onClick={() => setNichtSpielbar([])}
+                className="mt-1.5 text-[10px] text-studio-muted underline hover:text-studio-text"
+              >
+                Hinweis ausblenden
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex flex-1 items-center gap-2 rounded-lg border border-studio-border bg-studio-bg px-2.5 py-1.5">

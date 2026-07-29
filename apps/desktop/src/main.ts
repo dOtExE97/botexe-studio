@@ -955,7 +955,7 @@ function registerIpc(): void {
     if (!mainWindow) return { ok: false, error: 'Kein Fenster' };
     const picked = await dialog.showOpenDialog(mainWindow, {
       title: 'Bild oder Video importieren',
-      filters: [{ name: 'Medien', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'webm'] }],
+      filters: [{ name: 'Medien', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'webm', 'mov'] }],
       properties: ['openFile', 'multiSelections'],
     });
     if (picked.canceled) return { ok: true, imported: [] };

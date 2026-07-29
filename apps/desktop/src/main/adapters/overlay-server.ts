@@ -429,6 +429,7 @@ export class OverlayServer {
         '.webp': 'image/webp',
         '.mp4': 'video/mp4',
         '.webm': 'video/webm',
+        '.mov': 'video/quicktime',
       };
       if (!mime[ext]) {
         res.status(400).send('Invalid extension');
