@@ -3,6 +3,43 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.42.0] — 2026-07-29
+
+### Neu: Auswertung deiner Streams
+Eine eigene Seite, die deine vergangenen Streams vergleicht: Verlauf als Balken pro Stream, stärkster Stream mit Datum, **starke Wochentage** — und während du live bist: *„4.200 Coins — 38 % über deinem Schnitt"*.
+
+Zwei Dinge macht die Seite bewusst **nicht**: Ein Wochentag zählt erst ab zwei Streams (sonst wäre ein einzelner guter Abend „dein bester Tag"), und Schwankungen unter 10 % gelten als stabil statt als „Trend".
+
+### Neu: Persönliches Intro beim Betreten 🎬
+Jedem Zuschauer lässt sich ein eigenes Video oder Bild zuweisen (unter *Zuschauer*) — das läuft jetzt auf Wunsch, **wenn er den Stream betritt**. Pro Stream einmal, auch wenn jemand mehrfach rein- und rausgeht.
+
+Dazu: Vorschau-Knopf zum Ansehen, einstellbares Ein- und Ausblenden (mit Schwung, sanft oder hart), und ein Hinweis, falls kein Medien-Widget im Overlay liegt — vorher passierte in dem Fall einfach nichts.
+
+**Wichtig behoben:** Ein Medien-Widget ohne festes Medium zeigte im Stream dauerhaft „🎬 Kein Medium gewählt". Für Intros ist genau das der Normalfall — der Platzhalter erscheint jetzt nur noch im Editor.
+
+### Neu: Dein Ranglisten-Platz 🏆
+TikTok schickt bei jedem Live deinen aktuellen Platz mit — wir haben ihn nie abgeholt. Jetzt steht er auf der Live-Seite, mit Restzeit bis Rundenende. Stehen mehrere Ranglisten an, zeigt die Karte die beste.
+
+### Neu: Verlaufs-Kurven und System-Ampel
+Bei Coins und Likes zeigt eine Mini-Kurve den **Zuwachs** der letzten halben Stunde. Der reine Gesamtstand steigt schließlich immer und sieht auch bei totem Stream nach Erfolg aus.
+
+Daneben eine Ampel für **Live · Overlay · Ansagen**. Die wichtigste ist „Overlay": Ist keine Browser-Quelle verbunden, laufen zwar alle Widgets — aber niemand sieht sie.
+
+### Neu: Vorlesen erst ab einer Teamherz-Stufe
+Unter *Stimme* neu einstellbar. TikTok liefert die Stufe mit; kommt sie bei einer Nachricht ausnahmsweise nicht mit, wird trotzdem vorgelesen — lieber einmal zu viel, als einen echten Unterstützer stumm zu schalten.
+
+### Behoben und verbessert
+- **Sound-Stopp:** Ein versehentlich ausgelöster Dauer-Sound ließ sich bisher nur durch Abwarten beenden. Jetzt gibt es einen **STOPP**-Knopf im Soundboard und oben in der App. Und ein frisch importierter Sound plärrt nicht mehr sofort los.
+- **Widgets über den Rand ziehbar:** Ein Widget darf jetzt halb aus dem Bild ragen (ein Rest bleibt greifbar).
+- **Widget-Suche:** „Glucksrad" ohne Umlaut fand nichts, „gift jar" auch nicht. Jetzt verzeiht die Suche Schreibweise, Trennzeichen und Tippfehler.
+- **Drei fehlende Einstellungen** ergänzt: Schadensliste beim Stream-Boss, eigenes Wort beim Ziel-Countdown, Akzentfarbe bei Emojify.
+- **Anleitungen:** Jedes Chat-Spiel hat jetzt ein aufklappbares „So funktioniert's" mit den echten Chat-Befehlen. Die Spotify-Einrichtung ist Schritt für Schritt erklärt, samt der typischen Fehlermeldungen.
+
+### Unter der Haube: Fehler im Overlay sind endlich auffindbar
+Stolperte ein Widget, stand im Log nur „onEvent" — bei zwanzig Widgets nicht zuzuordnen. Jetzt steht dort **welches** Widget, mit dem Namen, den du ihm gegeben hast.
+
+Und ein Auffangnetz für Fehler in Animationen: Die liefen bisher an allen Sicherungen vorbei und landeten nur in der Browser-Konsole, die im Stream niemand sieht — eine Animation blieb einfach stehen, ohne jede Spur im Log.
+
 ## [0.41.1] — 2026-07-28
 
 ### Overlay startet wieder leichtgewichtig
