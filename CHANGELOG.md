@@ -5,6 +5,13 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht]
 
+### Behoben: Bestenliste wurde bei wenigen Einträgen riesig 🔍
+Wenn die rotierende Bestenliste auf eine Ansicht mit nur einem oder zwei Einträgen umschaltete — am Stream-Anfang, oder bei „Top Gewinner" mit einem einzigen Gewinner —, blies sich der Inhalt auf ein Vielfaches auf: In einem 420×400-Kästchen wurde das Profilbild **263 statt 33 Pixel** groß, und der Name samt Coins-Zahl flog ganz aus dem Bild. Übrig blieben ein Riesen-Kreis und eine Riesen-Zahl ohne jede Information.
+
+Ursache: Die Zeilen teilten sich die verfügbare Höhe auf. Bei einer Zeile bekam diese eine also alles — und Rang-Kasten, Profilbild und Krone wuchsen ungebremst mit. Jetzt gibt es eine Obergrenze, die sich an der Widget-Höhe orientiert. Bei vielen Einträgen bleibt alles wie vorher.
+
+Nebenbei sind zwei ältere Fehler mitverschwunden: Im „Banner"-Stil ragte der Inhalt bei einem Eintrag 55 Pixel aus dem Kästchen, im „Siegel"-Stil wurde eine Zeile 428 Pixel hoch — in einem 400 Pixel hohen Kästchen.
+
 ### Neu: Die App hat ein Gesicht 🎨
 bOtExE Studio lief bisher mit dem Electron-Standardsymbol — dem grauen Atom, das jede zweite App hat. Jetzt trägt sie überall ihr eigenes:
 

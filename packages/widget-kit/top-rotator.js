@@ -11,14 +11,27 @@ const CSS = `
   -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent), 0 3px 5px rgba(0,0,0,.5);
   transition: opacity .35s, transform .35s; }
-.bx-tr-list { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* Mittig, weil die Zeilen seit dem Höhen-Deckel (s. .bx-tr-row) nicht mehr die
+   ganze Fläche füllen: eine Liste mit zwei Einträgen soll nicht oben kleben. */
+.bx-tr-list { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
 .bx-tr-list.out .bx-tr-row { opacity: 0; transform: translateY(-14px); }
 .bx-tr-list.in .bx-tr-row { animation: bx-tr-rowin .45s cubic-bezier(.2,1.1,.3,1) backwards; }
 @keyframes bx-tr-rowin { from { opacity: 0; transform: translateY(18px); } }
 /* Zeile = eigener Größen-Container: Badge, Bild und Schrift bemessen sich an
    der Zeilenhöhe (cqh) statt an festen Pixeln. */
+/* max-height ist hier KEIN Schönheitsdetail, sondern der Deckel gegen ein echtes
+   Ärgernis: flex: 1 1 0 macht die 54px wirkungslos — die Zeilen teilen sich die
+   Listenhöhe. Bei EINEM Eintrag bekam diese eine Zeile also die ganze Fläche, und
+   weil Rang-Kasten (54%) und Profilbild (74%) über aspect-ratio mitwachsen, wurde
+   das Bild in einem 420x400-Widget 263x263 groß — bei acht Einträgen sind es 33px.
+   Im Stream fiel das genau dann auf, wenn die Rotation auf eine Quelle mit wenigen
+   Einträgen umschaltete (Stream-Anfang, „Top Gewinner" mit einem Gewinner).
+   Der Deckel bezieht sich auf die WIDGET-Höhe: container-type auf diesem Element
+   gilt für seine Nachkommen, nicht für seine eigenen Eigenschaften — cqh meint hier
+   also den Vorfahren-Container. Schrumpfen bleibt erlaubt, damit acht Zeilen weiter
+   in ein flaches Widget passen. */
 .bx-tr-row { display: flex; align-items: center; gap: clamp(4px,2.4cqi,22px); height: 54px; padding: 0 clamp(3px,1.4cqi,16px);
-  flex: 1 1 0; min-height: 0; container-type: size; transition: opacity .3s, transform .3s; }
+  flex: 1 1 0; min-height: 0; max-height: 26cqh; container-type: size; transition: opacity .3s, transform .3s; }
 .bx-tr-rank { height: 54%; aspect-ratio: 1/1; width: auto; flex: none; display: flex; align-items: center; justify-content: center;
   font-family: var(--bx-font-display); font-size: calc(clamp(10px,27cqh,34px) * var(--bx-fs, 1)); color: #0a0b12; border-radius: 22%; background: #525873;
   -webkit-text-stroke: 0; box-shadow: 0 3px 8px rgba(0,0,0,.4); }

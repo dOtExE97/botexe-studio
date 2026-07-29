@@ -45,6 +45,11 @@ const TOLERANZ_PX = 2;
 
 interface Messung {
   type: string;
+  /** Datenlage: 'voll' = gefüllte Listen, 'karg' = je ein Eintrag.
+   *  Bewusst ein eigenes Feld statt eines Zusatzes am Typ-Namen: Ausnahmelisten
+   *  wie ABSICHTLICH_UNSICHTBAR schlagen auf `type` nach und würden ein
+   *  „action-screen (karg)" nicht wiedererkennen. */
+  lage: 'voll' | 'karg';
   name: string;
   w: number;
   h: number;
@@ -163,19 +168,39 @@ function starteBrowser(browser: string, url: string): Promise<string> {
   });
 }
 
-/** Prüfseite: instanziiert das Widget in allen Boxgrößen und misst den Überhang. */
-function baueSeite(type: string, props: Record<string, unknown>, boxen: [string, number, number][]): string {
+/** Prüfseite: instanziiert das Widget in allen Boxgrößen und misst den Überhang.
+ *
+ *  `karg` = Listen mit nur EINEM Eintrag. Diese Lage fehlte lange und hat einen
+ *  echten Fehler durchgelassen: Im top-rotator teilen sich die Zeilen die
+ *  Listenhöhe (`flex: 1 1 0`), bei einem Eintrag bekam diese eine Zeile also die
+ *  ganze Fläche — Profilbild 263px statt 33px, der Name flog ganz aus dem Bild.
+ *  Im Stream trat das beim Umschalten der Rotation auf (Stream-Anfang,
+ *  „Top Gewinner" mit einem Gewinner). Mit vollen Listen ist davon nichts zu
+ *  sehen, deshalb prüfen wir jetzt beide Lagen. */
+function baueSeite(
+  type: string,
+  props: Record<string, unknown>,
+  boxen: [string, number, number][],
+  karg = false,
+): string {
   return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/widget-base.css">
 <style>html,body{margin:0;background:#14102a}
 /* container-type wie in runtime.js auf der Widget-Box — sonst misst der Test
    etwas anderes als der Nutzer sieht. */
 .box{position:absolute;left:0;top:0;overflow:visible;container-type:size}</style></head><body>
 <script type="module">
-const stats={totals:{viewers:342,likes:1240,follows:12,coins:680,gifts:37,shares:4,uniqueViewers:180,peakViewers:410,chats:88},
+const voll={totals:{viewers:342,likes:1240,follows:12,coins:680,gifts:37,shares:4,uniqueViewers:180,peakViewers:410,chats:88},
  topGifters:[{id:'1',nickname:'BigBen',coins:8400},{id:'2',nickname:'Mia',coins:5200},{id:'3',nickname:'LeonGG',coins:3100},{id:'4',nickname:'Nova',coins:1800}],
  topLikers:[{id:'1',nickname:'Mia',likes:320},{id:'2',nickname:'Nova',likes:145}],
  topPoints:[{id:'1',nickname:'Mia',points:1250},{id:'2',nickname:'Nova',points:840}],
  topWinners:[{id:'1',nickname:'Mia',wins:4}]};
+// Karg = frisch gestarteter Stream: je EIN Eintrag. Siehe Kommentar an baueSeite().
+const karg={...voll,
+ topGifters:[{id:'1',nickname:'BigBen',coins:8400}],
+ topLikers:[{id:'1',nickname:'Mia',likes:320}],
+ topPoints:[{id:'1',nickname:'Mia',points:1250}],
+ topWinners:[{id:'1',nickname:'Mia',wins:4}]};
+const stats = ${karg ? 'karg' : 'voll'};
 const user={id:'u1',nickname:'Maximiliane',profilePic:''};
 const gift={slug:'Finger Heart',count:3,coinsPerUnit:5,totalCoins:15,icon:''};
 const M=(await import('/${type}.js')).default;
@@ -244,27 +269,37 @@ async function main() {
     process.exit(2);
   }
 
+  // Zwei Datenlagen je Widget: volle Listen UND je ein Eintrag (frischer Stream).
+  const LAGEN: [string, boolean][] = [['voll', false], ['karg', true]];
   const pages = new Map<string, string>();
   for (const def of defs) {
     const boxen = SCALES.map(([n, sx, sy]) => [n, Math.round(def.w * sx), Math.round(def.h * sy)] as [string, number, number]);
-    pages.set(`/_check_${def.type}.html`, baueSeite(def.type, def.props, boxen));
+    for (const [lage, karg] of LAGEN) {
+      pages.set(`/_check_${def.type}_${lage}.html`, baueSeite(def.type, def.props, boxen, karg));
+    }
   }
 
   const { port, stop } = await starteServer(pages);
   const rows: Messung[] = [];
   try {
     for (const def of defs) {
-      const raw = await starteBrowser(browser, `http://127.0.0.1:${port}/_check_${def.type}.html`);
-      const m = raw.match(/ERG (\[.*\])/);
-      if (!m?.[1]) {
-        rows.push({ type: def.type, name: '-', w: def.w, h: def.h, ox: 0, oy: 0, cx: 0, cy: 0, who: '', err: 'keine Messung (Seite lud nicht)' });
-        continue;
+      for (const [lage] of LAGEN) {
+        const raw = await starteBrowser(browser, `http://127.0.0.1:${port}/_check_${def.type}_${lage}.html`);
+        const m = raw.match(/ERG (\[.*\])/);
+        const l = lage as 'voll' | 'karg';
+        if (!m?.[1]) {
+          rows.push({ type: def.type, lage: l, name: '-', w: def.w, h: def.h, ox: 0, oy: 0, cx: 0, cy: 0, who: '', err: 'keine Messung (Seite lud nicht)' });
+          continue;
+        }
+        for (const r of JSON.parse(m[1]) as Omit<Messung, 'type' | 'lage'>[]) rows.push({ type: def.type, lage: l, ...r });
       }
-      for (const r of JSON.parse(m[1]) as Omit<Messung, 'type'>[]) rows.push({ type: def.type, ...r });
     }
   } finally {
     stop();
   }
+
+  /** Anzeigename: Typ, bei karger Datenlage mit Zusatz. */
+  const bez = (r: Messung) => (r.lage === 'karg' ? `${r.type} (karg)` : r.type);
 
   const raus = rows.filter((r) => !r.err && (r.ox > TOLERANZ_PX || r.oy > TOLERANZ_PX));
   const clip = rows.filter((r) => !r.err && (r.cx > TOLERANZ_PX || r.cy > TOLERANZ_PX));
@@ -275,12 +310,12 @@ async function main() {
   if (clip.length) {
     console.log(`\n— abgeschnitten (${clip.length}, nur Bericht — bei Laufband/Einflug-Alert Absicht):`);
     for (const r of clip) {
-      console.log(`  ${r.type.padEnd(22)} ${r.name.padEnd(9)} ${`${r.w}x${r.h}`.padEnd(10)} +${r.cx}/${r.cy}`);
+      console.log(`  ${bez(r).padEnd(24)} ${r.name.padEnd(9)} ${`${r.w}x${r.h}`.padEnd(10)} +${r.cx}/${r.cy}`);
     }
   }
   if (fehler.length) {
     console.log(`\n— FEHLER (${fehler.length}, der Prüfer konnte nicht messen):`);
-    for (const r of fehler) console.log(`  ${r.type.padEnd(22)} ${r.name.padEnd(9)} ${r.err}`);
+    for (const r of fehler) console.log(`  ${bez(r).padEnd(24)} ${r.name.padEnd(9)} ${r.err}`);
   }
   // LEER-Prüfung: Nach einem Gift-, Chat- und Like-Ereignis muss ein Widget
   // etwas Sichtbares zeigen. Bleibt es leer, ist es im Stream schlicht nicht da
@@ -288,14 +323,14 @@ async function main() {
   // nichts ragt raus).
   const leer = rows.filter((r) => !r.err && (r.sichtbar ?? 1) === 0 && !ABSICHTLICH_UNSICHTBAR.has(r.type));
   if (leer.length) {
-    const typen = [...new Set(leer.map((r) => r.type))];
+    const typen = [...new Set(leer.map((r) => bez(r)))];
     console.log(`\n— LEER (${typen.length}) — zeigt nach Gift/Chat/Like nichts Sichtbares:`);
     for (const t of typen) console.log(`  ${t}`);
   }
   if (raus.length) {
     console.log(`\n— RAGT-RAUS (${raus.length}) — Inhalt steht sichtbar über der Box:`);
     for (const r of raus) {
-      console.log(`  ${r.type.padEnd(22)} ${r.name.padEnd(9)} ${`${r.w}x${r.h}`.padEnd(10)} +${r.ox}/${r.oy}  (${r.who})`);
+      console.log(`  ${bez(r).padEnd(24)} ${r.name.padEnd(9)} ${`${r.w}x${r.h}`.padEnd(10)} +${r.ox}/${r.oy}  (${r.who})`);
     }
     console.log('\nMeist: container-type auf der Widget-Wurzel + cq-Einheiten in DERSELBEN Regel.');
   }
