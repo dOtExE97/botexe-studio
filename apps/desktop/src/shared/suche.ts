@@ -77,7 +77,15 @@ export function passt(suche: string, ...texte: (string | undefined)[]): boolean 
     }
   }
 
-  if ((gesucht[0] ?? '').length < 4) return false;
+  const laenge = (gesucht[0] ?? '').length;
+  if (laenge < 4) return false;
+
+  // Wie viele Tippfehler sind erlaubt? An die Wortlänge gekoppelt, sonst wird
+  // die Suche bei kurzen Wörtern absurd: „rose" und „lowe" (= Löwe) trennen
+  // nur zwei Buchstaben — bei vier Zeichen die halbe Länge. Genau so fand eine
+  // Suche nach „Rose" das Geschenk „Lion".
+  const erlaubt = laenge >= 7 ? 2 : 1;
+
   for (const t of texte) {
     if (!t) continue;
     const woerter = t
@@ -85,7 +93,7 @@ export function passt(suche: string, ...texte: (string | undefined)[]): boolean 
       .split(/[^a-zA-ZäöüßÄÖÜ0-9]+/)
       .flatMap(lesarten)
       .filter((w) => w.length >= 4);
-    if (woerter.some((w) => gesucht.some((n) => lev(w, n) <= 2))) return true;
+    if (woerter.some((w) => gesucht.some((n) => lev(w, n) <= erlaubt))) return true;
   }
   return false;
 }

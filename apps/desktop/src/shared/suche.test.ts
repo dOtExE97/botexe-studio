@@ -40,3 +40,41 @@ test('passt: leere Suche zeigt alles, Unsinn nichts', () => {
 test('passt: durchsucht mehrere Felder (Name UND Beschreibung)', () => {
   assert.equal(passt('Walzen', 'Gambling-Automat', 'Spielautomat: ein Geschenk lässt die Walzen drehen'), true);
 });
+
+// Praxis-Proben mit echten Geschenknamen — so sucht die Geschenke-Galerie
+// wirklich (Originalname + deutscher Name + eigener Name).
+//
+// Der Anlass: „Rose" fand das Geschenk „Lion". Grund war die Tippfehler-
+// Toleranz — der deutsche Name ist „Löwe", und „rose" zu „lowe" sind nur zwei
+// Buchstaben. Bei vier Zeichen ist das die halbe Länge. Seitdem hängt die
+// erlaubte Fehlerzahl an der Wortlänge.
+import { giftNameDe as _de } from './gift-names-de';
+const galerie = (suche: string, slug: string, eigener?: string) =>
+  passt(suche, slug, _de(slug) ?? undefined, eigener);
+
+test('Geschenke: deutscher Name wird gefunden, in jeder Schreibweise', () => {
+  for (const eingabe of ['Löwe', 'löwe', 'Lowe', 'Loewe', 'Löw', 'Lion', 'LION', 'Löwr']) {
+    assert.equal(galerie(eingabe, 'Lion'), true, `„${eingabe}" muss Lion finden`);
+  }
+  assert.equal(galerie('Handherz', 'Hand Heart'), true);
+  assert.equal(galerie('Schnurrbart', 'Hat and Mustache'), true);
+  assert.equal(galerie('Geldpistole', 'Money Gun'), true);
+  assert.equal(galerie('fette Rakete', 'Rocket', 'fette Rakete'), true, 'eigener Name');
+});
+
+test('Geschenke: keine Fehlalarme bei kurzen, ähnlichen Wörtern', () => {
+  // Diese Paare sind sich zufällig ähnlich — sie dürfen sich NICHT finden.
+  assert.equal(galerie('Rose', 'Lion'), false, '„Rose" darf nicht Lion (Löwe) finden');
+  assert.equal(galerie('Rose', 'Rocket'), false);
+  assert.equal(galerie('Katze', 'Dog'), false);
+  assert.equal(galerie('Bier', 'Pizza'), false);
+  assert.equal(galerie('Hase', 'Whale'), false);
+});
+
+test('Tippfehler-Toleranz haengt an der Wortlaenge', () => {
+  // Lange Wörter dürfen zwei Fehler haben, kurze nur einen — sonst trifft
+  // bei vier Buchstaben plötzlich alles auf alles.
+  assert.equal(passt('Feuerwerck', 'Gift-Feuerwerk'), true, 'lang: zwei Fehler ok');
+  assert.equal(passt('Kase', 'Hase'), true, 'kurz: EIN Fehler ok');
+  assert.equal(passt('Kise', 'Hase'), false, 'kurz: zwei Fehler zu viel');
+});
