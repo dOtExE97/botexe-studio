@@ -13,6 +13,10 @@ function matchGift(needle: string, slug: string): boolean {
   return passt(needle, slug);
 }
 
+/** So viele Kacheln passen sinnvoll ins Popover. Mehr zu zeigen hilft nicht —
+ *  ab da muss man ohnehin suchen. */
+const MAX_ANZEIGE = 60;
+
 interface Props {
   value: string;
   onChange: (slug: string) => void;
@@ -45,15 +49,39 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
     const list = needle
       ? gifts.filter((g) => matchGift(needle, g.slug) || (g.de ? matchGift(needle, g.de) : false))
       : gifts;
-    // Schon erhaltene Gifts (count>0) zuerst — die kommen bei DIR wirklich vor;
-    // danach günstige zuerst. So sind die drei „Jollies" leicht auseinanderzuhalten.
+
+    // Reihenfolge nach NÜTZLICHKEIT, nicht nach Preis.
+    //
+    // Der Anlass: Von den 5726 bekannten Geschenken sind über 4000 Fan-Club-
+    // Abzeichen FREMDER Streamer („2ACT Crew", „805Chiefz", …) — allesamt für
+    // 1 Coin. Da „günstig zuerst" sortiert wurde, standen genau die ganz oben,
+    // und wer die Geldpistole suchte, hat sich durch hunderte davon gescrollt.
+    //
+    // Nichts wird ausgeblendet: Wer so ein Abzeichen wirklich braucht, findet
+    // es weiterhin über die Suche. Es steht nur nicht mehr im Weg.
+    const rang = (g: GiftEntry): number => {
+      if (g.count > 0) return 0;                 // schon erhalten — kommt bei DIR wirklich vor
+      if (g.de) return 1;                        // bekanntes Geschenk (hat einen deutschen Namen)
+      if ((g.coins || 0) > 1) return 2;          // echtes Geschenk mit Preis
+      return 3;                                  // vermutlich fremdes Fan-Club-Abzeichen
+    };
+
     return [...list]
       .sort((a, b) =>
-        (b.count > 0 ? 1 : 0) - (a.count > 0 ? 1 : 0) ||
-        (a.coins || 0) - (b.coins || 0) ||
-        a.slug.localeCompare(b.slug),
+        rang(a) - rang(b)
+        // Innerhalb einer Gruppe: günstige zuerst (dort sucht man meistens),
+        // bei gleichem Preis alphabetisch.
+        || (a.coins || 0) - (b.coins || 0)
+        || a.slug.localeCompare(b.slug),
       )
-      .slice(0, 60);
+      .slice(0, MAX_ANZEIGE);
+  }, [gifts, q]);
+
+  /** Wie viele Treffer es INSGESAMT gäbe — für den Hinweis, dass gekürzt wurde. */
+  const gesamtTreffer = useMemo(() => {
+    const needle = q.trim();
+    if (!needle) return gifts.length;
+    return gifts.filter((g) => matchGift(needle, g.slug) || (g.de ? matchGift(needle, g.de) : false)).length;
   }, [gifts, q]);
 
   return (
@@ -108,11 +136,28 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
               </span>
             </p>
           ) : (
-            <div className="grid max-h-64 grid-cols-3 gap-1 overflow-y-auto">
-              {results.map((g) => (
-                <GiftCell key={g.slug} gift={g} active={g.slug === value} onPick={() => { onChange(g.slug); setOpen(false); }} />
-              ))}
-            </div>
+            <>
+              <div className="grid max-h-64 grid-cols-3 gap-1 overflow-y-auto">
+                {results.map((g) => (
+                  <GiftCell key={g.slug} gift={g} active={g.slug === value} onPick={() => { onChange(g.slug); setOpen(false); }} />
+                ))}
+              </div>
+              {/* Ohne diesen Hinweis scrollt man durch die Liste und wundert
+                  sich, warum das gesuchte Geschenk nicht auftaucht — bei über
+                  5000 Einträgen ist Scrollen aussichtslos. */}
+              {gesamtTreffer > results.length && (
+                <p className="mt-1.5 px-1 text-center text-[10px] leading-relaxed text-studio-muted">
+                  {q.trim()
+                    ? `${gesamtTreffer} Treffer — die ersten ${results.length} werden gezeigt. Tipp genauer, um einzugrenzen.`
+                    : <>Von <b className="text-studio-text/80">{gesamtTreffer.toLocaleString('de-DE')}</b> Geschenken werden die {results.length} gängigsten gezeigt. <b className="text-studio-text/80">Tipp oben einfach den Namen</b> — auch deutsch („Geldpistole") und mit Tippfehlern.</>}
+                </p>
+              )}
+              {gesamtTreffer === 0 && (
+                <p className="mt-1.5 px-1 text-center text-[10px] text-studio-muted">
+                  Nichts gefunden. Versuch den englischen Namen — oder weniger Buchstaben.
+                </p>
+              )}
+            </>
           )}
         </div>
       )}
