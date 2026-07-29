@@ -13,6 +13,7 @@ import WhatsNew from './components/WhatsNew';
 import KeyWizard from './components/KeyWizard';
 import LivePage from './pages/LivePage';
 import AnalysePage from './pages/AnalysePage';
+import MediaPage from './pages/MediaPage';
 import OverlayPage from './pages/OverlayPage';
 import DiagnosePage from './pages/DiagnosePage';
 import TriggersPage from './pages/TriggersPage';
@@ -26,7 +27,7 @@ import GalleryPage from './pages/GalleryPage';
 import CommandsPage from './pages/CommandsPage';
 import MixerPage from './pages/MixerPage';
 
-type Page = 'live' | 'analyse' | 'overlay' | 'triggers' | 'commands' | 'gallery' | 'store' | 'panel' | 'sounds' | 'tts' | 'mixer' | 'viewers' | 'diagnose' | 'settings';
+type Page = 'live' | 'analyse' | 'media' | 'overlay' | 'triggers' | 'commands' | 'gallery' | 'store' | 'panel' | 'sounds' | 'tts' | 'mixer' | 'viewers' | 'diagnose' | 'settings';
 
 const NAV: { id: Page; label: string; icon: typeof Radio; group: string; hint: string }[] = [
   { id: 'live', label: 'Live', icon: Radio, group: 'Stream', hint: 'Mit TikTok verbinden, Live-Zahlen & Chat-Spiele starten' },
@@ -38,6 +39,7 @@ const NAV: { id: Page; label: string; icon: typeof Radio; group: string; hint: s
   { id: 'store', label: 'Store', icon: Gift, group: 'Reaktionen', hint: 'Zuschauer geben ihre gesammelten Punkte für Aktionen aus' },
   { id: 'panel', label: 'Panel', icon: Gamepad2, group: 'Reaktionen', hint: 'Deine eigenen Knöpfe/Hotkeys, um selbst Aktionen auszulösen' },
   { id: 'sounds', label: 'Sounds', icon: Volume2, group: 'Medien', hint: 'Sound-Dateien hochladen & verwalten' },
+  { id: 'media', label: 'Bilder & Videos', icon: Images, group: 'Medien', hint: 'Deine Bilder und Videos für Intros, Einblendungen und Trigger — hinzufügen, ansehen, löschen' },
   { id: 'tts', label: 'Stimme', icon: Mic, group: 'Medien', hint: 'Text-to-Speech: Chat-Nachrichten vorlesen lassen' },
   { id: 'mixer', label: 'Mixer', icon: Sliders, group: 'Medien', hint: 'Lautstärke, Mute & Ausgabegerät pro Sound-Quelle (TTS, Alerts, Soundboard, Spiele)' },
   { id: 'viewers', label: 'Zuschauer', icon: Users, group: 'Mehr', hint: 'Zuschauer-Liste mit Punkten, VIPs, Besuchen' },
@@ -239,6 +241,7 @@ export default function App() {
         <main className="min-h-0 flex-1 overflow-y-auto">
           {page === 'live' && <LivePage studio={studio} />}
           {page === 'analyse' && <AnalysePage studio={studio} />}
+          {page === 'media' && <MediaPage />}
           {page === 'overlay' && <OverlayPage />}
           {page === 'triggers' && <TriggersPage />}
           {page === 'commands' && <CommandsPage />}

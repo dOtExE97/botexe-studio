@@ -869,6 +869,31 @@ export class Studio {
     return sum;
   }
 
+  /** Wo wird ein Medium überall benutzt? Vor dem Löschen wissen, was man
+   *  kaputtmacht — ein gelöschtes Intro wäre sonst still weg, und der Streamer
+   *  merkt es erst, wenn im Stream nichts passiert. */
+  medienVerwendung(mediaId: string): { widgets: string[]; zuschauer: string[]; regeln: string[] } {
+    const widgets: string[] = [];
+    for (const layout of this.layouts.list()) {
+      for (const l of layout.layers) {
+        if (l.props?.mediaId === mediaId) widgets.push(`${l.name || l.widgetType} (${layout.name})`);
+      }
+    }
+    const zuschauer = this.points.exportEntries()
+      .filter((v) => v.welcomeMediaId === mediaId)
+      .map((v) => v.nickname || v.id);
+    const regeln: string[] = [];
+    for (const r of this.getRules()) {
+      for (const a of r.actions ?? []) {
+        if (a.kind === 'play_media' && (a as { mediaId?: string }).mediaId === mediaId) {
+          regeln.push(r.name || r.id);
+          break;
+        }
+      }
+    }
+    return { widgets, zuschauer, regeln };
+  }
+
   /** Alle vergangenen Streams einzeln (für die Analyse-Seite). Die laufende
    *  Sitzung ist NICHT dabei — sie zählt erst, wenn sie beendet ist, sonst
    *  verzerrt ein gerade begonnener Stream jeden Durchschnitt. */

@@ -87,6 +87,8 @@ export const IPC = {
   MEDIA_LIST: 'media:list',
   MEDIA_IMPORT: 'media:import',
   MEDIA_DELETE: 'media:delete',
+  /** Wo wird ein Medium benutzt? (vor dem Löschen zeigen, was betroffen ist) */
+  MEDIA_USAGE: 'media:usage',
   // TTS
   TTS_VOICES: 'tts:voices',
   TTS_TEST: 'tts:test',

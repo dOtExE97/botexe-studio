@@ -439,6 +439,8 @@ function registerIpc(): void {
   // parallele Downloads würden dieselben Dateien schreiben.
   ipcMain.handle(IPC.RANK_GET, () => isStudio().getRang());
   ipcMain.handle(IPC.STATS_HISTORY_ENTRIES, () => isStudio().getStreamHistorie());
+  ipcMain.handle(IPC.MEDIA_USAGE, (_e, id: unknown) =>
+    typeof id === 'string' ? isStudio().medienVerwendung(id) : { widgets: [], zuschauer: [], regeln: [] });
   ipcMain.handle(IPC.INTRO_PREVIEW, (_e, userId: unknown) =>
     typeof userId === 'string' && userId
       ? isStudio().introVorschau(userId)

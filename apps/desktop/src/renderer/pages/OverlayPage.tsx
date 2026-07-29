@@ -6,6 +6,7 @@
 import { passt } from '../../shared/suche';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  X,
   ChevronDown,
   ChevronUp,
   ChevronRight,
@@ -1275,6 +1276,21 @@ export default function OverlayPage() {
                                   ) : (
                                     <img src={m.url} alt="" className="h-full w-full object-cover" />
                                   )}
+                                  {/* Abwählen direkt auf der gewählten Kachel — dort sucht man
+                                      es. Der Textlink darunter war so unscheinbar, dass Nutzer
+                                      dachten, man KÖNNE die Auswahl nicht entfernen. */}
+                                  {sel && (
+                                    <span
+                                      role="button"
+                                      tabIndex={0}
+                                      onClick={(ev) => { ev.stopPropagation(); setProp(''); }}
+                                      onKeyDown={(ev) => { if (ev.key === 'Enter') { ev.stopPropagation(); setProp(''); } }}
+                                      title="Auswahl entfernen — das Widget zeigt dann nichts Festes mehr"
+                                      className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/75 text-white hover:bg-studio-accent hover:text-black"
+                                    >
+                                      <X size={10} />
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })}
@@ -1291,8 +1307,11 @@ export default function OverlayPage() {
                             </button>
                           </div>
                           {value ? (
-                            <button onClick={() => setProp('')} className="mt-1 text-[9px] normal-case tracking-normal text-studio-muted hover:text-studio-accent">
-                              Auswahl entfernen
+                            <button
+                              onClick={() => setProp('')}
+                              className="mt-1.5 flex items-center gap-1 rounded border border-studio-border px-2 py-1 text-[10px] normal-case tracking-normal text-studio-muted hover:border-studio-accent/60 hover:text-studio-accent"
+                            >
+                              <X size={10} /> Auswahl entfernen
                             </button>
                           ) : null}
                         </div>

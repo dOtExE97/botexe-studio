@@ -69,6 +69,9 @@ const api = {
   listMedia: () => ipcRenderer.invoke(IPC.MEDIA_LIST),
   importMedia: () => ipcRenderer.invoke(IPC.MEDIA_IMPORT),
   deleteMedia: (id: string) => ipcRenderer.invoke(IPC.MEDIA_DELETE, id),
+  /** Wo wird dieses Medium benutzt? (Warnung vor dem Löschen) */
+  getMediaUsage: (id: string): Promise<{ widgets: string[]; zuschauer: string[]; regeln: string[] }> =>
+    ipcRenderer.invoke(IPC.MEDIA_USAGE, id),
 
   // TTS
   getTtsVoices: () => ipcRenderer.invoke(IPC.TTS_VOICES),
