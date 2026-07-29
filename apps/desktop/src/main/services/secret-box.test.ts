@@ -6,7 +6,7 @@
 // lieber Klartext gehabt.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { packe, entpacke, SECRET_BLOCK, _resetWarnung, type Krypto } from './secret-box';
+import { packe, entpacke, echterSchutz, SECRET_BLOCK, _resetWarnung, type Krypto } from './secret-box';
 import { SECRET_TOP_LEVEL_FIELDS } from './settings-store';
 
 /** safeStorage-Ersatz: „verschlüsselt" durch Umdrehen — reicht, um zu prüfen,
@@ -127,6 +127,25 @@ test('manipulierter Tresor kann keine fremden Unterfelder setzen', () => {
   assert.equal(gelesen.obs?.password, 'echt-pw', 'das erlaubte Unterfeld kommt an');
   assert.equal(gelesen.obs?.enabled, undefined, 'obs.enabled ist kein Geheimnis-Feld');
   assert.equal(gelesen.tts, undefined, 'tts steht gar nicht in der Liste');
+});
+
+test('Linux ohne Schlüsselbund: „verfügbar", aber kein echter Schutz', () => {
+  // Die heimtückische Falle: isEncryptionAvailable() sagt true, Chromium nutzt
+  // aber einen fest eingebauten Schlüssel. Verschlüsselt wird trotzdem (nicht
+  // schlechter als vorher) — es darf nur niemand für echten Schutz halten.
+  const attrappe: Krypto = { ...echt, getSelectedStorageBackend: () => 'basic_text' };
+  assert.equal(echterSchutz(attrappe), false, 'basic_text ist KEIN echter Schutz');
+  const gepackt = packe(beispiel(), FELDER, attrappe);
+  assert.ok(gepackt[SECRET_BLOCK], 'verschlüsselt wird trotzdem');
+  assert.deepEqual(entpacke(gepackt, attrappe), beispiel(), 'und der Rückweg stimmt');
+});
+
+test('echter Schlüsselbund gilt als echter Schutz', () => {
+  assert.equal(echterSchutz({ ...echt, getSelectedStorageBackend: () => 'gnome_libsecret' }), true);
+  assert.equal(echterSchutz({ ...echt, getSelectedStorageBackend: () => 'kwallet6' }), true);
+  // Windows/macOS: die Methode existiert dort gar nicht → kein Verdachtsfall.
+  assert.equal(echterSchutz(echt), true, 'ohne die Methode (Windows/macOS) ist es echter Schutz');
+  assert.equal(echterSchutz(aus), false, 'gar keine Verschlüsselung ist kein Schutz');
 });
 
 test('kaputter Block-Inhalt wirft nicht', () => {

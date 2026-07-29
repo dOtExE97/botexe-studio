@@ -280,6 +280,8 @@ function electronKrypto(): Krypto {
       if (!safeStorage) throw new Error('safeStorage nicht verfügbar');
       return safeStorage.decryptString(b);
     },
+    // Nur Linux hat das; auf Windows/macOS gibt es die Methode nicht.
+    getSelectedStorageBackend: () => safeStorage?.getSelectedStorageBackend?.() ?? 'unknown',
   };
 }
 

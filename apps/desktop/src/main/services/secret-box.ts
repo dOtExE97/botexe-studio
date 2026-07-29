@@ -24,6 +24,33 @@ export interface Krypto {
   isEncryptionAvailable(): boolean;
   encryptString(plain: string): Buffer;
   decryptString(enc: Buffer): string;
+  /** Nur Linux: welcher Schlüsselbund es geworden ist. Siehe echterSchutz(). */
+  getSelectedStorageBackend?(): string;
+}
+
+/**
+ * Ist die Verschlüsselung mehr als Fassade?
+ *
+ * Wichtig und leicht zu übersehen: Auf Linux OHNE Schlüsselbund meldet
+ * `isEncryptionAvailable()` trotzdem `true` — Chromium fällt dann auf das
+ * Backend `basic_text` zurück, das mit einem FEST EINGEBAUTEN Schlüssel
+ * arbeitet. Entschlüsseln kann das jeder, der den kennt (er steht im
+ * Chromium-Quellcode). Das ist Verschleierung, kein Schutz.
+ *
+ * Wir verschlüsseln in dem Fall trotzdem — es ist nicht schlechter als vorher
+ * und der Rückweg funktioniert. Aber es muss im Log stehen, damit niemand
+ * (auch nicht wir) sich in falscher Sicherheit wiegt.
+ *
+ * Auf Windows (DPAPI) und macOS (Keychain) gibt es das Problem nicht.
+ */
+export function echterSchutz(krypto: Krypto): boolean {
+  try {
+    if (!krypto.isEncryptionAvailable()) return false;
+    const backend = krypto.getSelectedStorageBackend?.();
+    return backend !== 'basic_text';
+  } catch {
+    return false;
+  }
 }
 
 /** Feldname im JSON, unter dem der verschlüsselte Block liegt. */
@@ -151,12 +178,24 @@ function sicher(krypto: Krypto): boolean {
   } catch {
     ok = false;
   }
-  if (!ok && !gewarnt) {
+  if (!gewarnt) {
     gewarnt = true;
-    log.warn(
-      'Secrets',
-      'Kein System-Schlüsselbund verfügbar — API-Keys und TikTok-Login liegen unverschlüsselt in settings.json.',
-    );
+    if (!ok) {
+      log.warn(
+        'Secrets',
+        'Kein System-Schlüsselbund verfügbar — API-Keys und TikTok-Login liegen unverschlüsselt in settings.json.',
+      );
+    } else if (!echterSchutz(krypto)) {
+      // Siehe echterSchutz(): sieht verschlüsselt aus, schützt aber nicht.
+      log.warn(
+        'Secrets',
+        'Schlüsselbund-Backend „basic_text" — die Verschlüsselung nutzt einen fest eingebauten Schlüssel und '
+          + 'schützt NICHT vor fremdem Zugriff. Für echten Schutz einen Schlüsselbund einrichten '
+          + '(gnome-keyring oder kwallet).',
+      );
+    } else {
+      log.info('Secrets', `Geheimnisse verschlüsselt (${krypto.getSelectedStorageBackend?.() ?? 'System-Schlüsselbund'})`);
+    }
   }
   return ok;
 }
