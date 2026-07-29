@@ -3,6 +3,16 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.43.1] — 2026-07-29
+
+### Behoben: Ebenen-Liste war bei vielen Widgets unbrauchbar
+Die neue Liste wuchs über ihren Rahmen hinaus und schob sich über die Einstellungen darunter — Schrift lag auf Schrift, und bedienen ließ sich dort nichts mehr. Ab etwa zehn Widgets trat das auf.
+
+Die Liste ist jetzt sauber begrenzt und scrollt, wenn mehr Widgets da sind als hineinpassen.
+
+### Unter der Haube
+Electron und einige Entwickler-Werkzeuge auf den aktuellen Stand gebracht.
+
 ## [0.43.0] — 2026-07-29
 
 ### Neu: Ebenen-Liste im Overlay-Editor 🎛️
