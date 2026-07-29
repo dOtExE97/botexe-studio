@@ -3,6 +3,48 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.43.0] — 2026-07-29
+
+### Neu: Ebenen-Liste im Overlay-Editor 🎛️
+Liegt ein großes Widget über den anderen — ein bildschirmfüllendes Gift-Feuerwerk zum Beispiel —, ließ sich das Darunterliegende nicht mehr anklicken. Und den „Sichtbar"-Haken gab es nur in den Eigenschaften des *ausgewählten* Widgets: Zum Ausblenden musstest du es also erst treffen können.
+
+Die neue Liste in der rechten Spalte ist **immer** da und zeigt alle Widgets:
+
+- **👁 Auge** — aus- und einblenden, ohne das Widget vorher treffen zu müssen
+- **🔒 Schloss** — das gesperrte Widget bleibt sichtbar, fängt aber keine Klicks mehr ab. Der Klick geht ans Widget **darunter**. Genau das löst das Feuerwerk-Problem.
+- **⌃ ⌄ Pfeile** — Reihenfolge ändern; oben in der Liste heißt oben im Bild
+- **🗑** — direkt entfernen
+
+Beim Drüberfahren leuchtet das passende Widget auf der Fläche auf.
+
+### Neu: Eigene Seite „Bilder & Videos"
+Der Import lag bisher nur im Overlay-Editor, versteckt in den Eigenschaften eines Medien-Widgets. Wer ein Intro-Video hinzufügen wollte, musste erst ein Widget anlegen — und einen Überblick über seine Dateien gab es gar nicht.
+
+Jetzt eine eigene Seite unter *Medien*: hinzufügen, suchen, Vorschau (Videos spielen beim Drüberfahren), löschen.
+
+**Löschen zeigt vorher, wo die Datei überall hängt** — als Intro welcher Zuschauer, in welchen Widgets, in welchen Trigger-Regeln. Ohne diese Warnung verschwindet ein Intro still und fällt erst im Stream auf.
+
+### Neu: MOV-Dateien — mit ehrlicher Prüfung
+MOV ließ sich bisher gar nicht hinzufügen. Jetzt schon, aber mit einem wichtigen Zusatz: Die Endung sagt nichts darüber, ob ein Video wirklich läuft. **MOV mit H.264 spielt, MOV mit HEVC (der iPhone-Standard) oder ProRes nicht.**
+
+Deshalb wird jedes neue Video einmal wirklich angespielt. Klappt es nicht, erklärt ein Hinweis warum und was zu tun ist — statt dass im Stream ein schwarzer Kasten steht.
+
+### Behoben: Die Suche war in der halben App unzuverlässig
+Jede Seite hatte ihren eigenen Filter. „Glucksrad" ohne Umlaut fand nichts, „gift jar" nichts, ein Tippfehler nichts — und zwar je nach Seite unterschiedlich.
+
+**Zuschauer, Geschenke, Trigger und Sounds** suchen jetzt genauso tolerant wie die Widget-Palette. Dabei gleich erweitert:
+
+- **Zuschauer** findest du auch über die TikTok-Kennung
+- **Trigger** über ihren Klartext-Inhalt: `sound` findet alle Regeln mit Sound, `glücksrad` alle, die das Rad drehen, `rose` alles rund um das Geschenk
+
+### Behoben: Geschenk-Auswähler war unbrauchbar geworden
+Beim Auswählen eines Geschenks standen hunderte Fan-Club-Abzeichen **fremder** Streamer ganz oben — über 4000 der 5726 bekannten Geschenke sind solche Abzeichen, alle für 1 Coin, und sortiert wurde nach Preis. Wer die Geldpistole suchte, hat sich durchgescrollt.
+
+Jetzt zuerst deine eigenen Geschenke, dann die bekannten, ganz zuletzt die fremden Abzeichen. Und unter der Liste steht, dass man einfach tippen kann — auch deutsch und mit Tippfehlern.
+
+### Kleinigkeiten
+- Die Auswahl eines Bildes im Widget ließ sich zwar entfernen, der Knopf war aber winzig und grau — jetzt ein **X** direkt auf der gewählten Kachel.
+
 ## [0.42.0] — 2026-07-29
 
 ### Neu: Auswertung deiner Streams
