@@ -61,6 +61,27 @@ lokalen HTTP-Server referenzieren, nie nach `packages/widget-kit/` kopieren.
 Danach prüfen: `find . -name "*.webp" -not -path "./node_modules/*"` muss `0` liefern.
 (`.gitignore` blockt `packages/widget-kit/_*` gegen versehentliche Testreste.)
 
+## Symbole und Startbild (`apps/desktop/assets/`)
+
+| Datei | Wofür | Wer liest sie |
+|---|---|---|
+| `icon.ico` | Windows-Programmsymbol, Installer | `forge.config.ts` (`packagerConfig.icon`, `setupIcon`) |
+| `icon.png` | Fenster-/Taskleistensymbol (dev + Linux) | `main.ts` → `BrowserWindow({ icon })` |
+| `tray-16.png` / `tray-32.png` | Infobereich, 100 %/200 % Bildschirmskalierung | `tray.ts#ladeSymbol` |
+| `splash.jpg` | Startbild | `splash.ts` |
+
+Der Ordner hängt in `extraResource` und landet im Paket unter `<Resources>/assets/` —
+zur Laufzeit über `assetsDir()` in `main.ts` aufgelöst (gepackt vs. dev).
+
+Zwei Fallen:
+- **Das Tray-Symbol ist NICHT das verkleinerte Logo.** Bei 16 px verschwinden Verläufe,
+  Schatten und 3D-Kanten zu Brei. Es ist eine eigene, flache Zeichnung in denselben
+  Farben. Wer das Logo tauscht, muss die 16er-Fassung getrennt prüfen.
+- **Das Startbild ist ein echtes Fenster.** Schließt es sich, bevor das Hauptfenster
+  existiert, sinkt die Fensterzahl auf 0 und Electron würde die App beenden. Dagegen
+  steht `darfBeenden()` in `lebenszyklus.ts` — dort NICHTS vereinfachen, ohne
+  `lebenszyklus.test.ts` zu lesen.
+
 ## Geheimnisse in den Einstellungen
 
 Eine Quelle für „was ist geheim": `SECRET_TOP_LEVEL_FIELDS` in `settings-store.ts`.

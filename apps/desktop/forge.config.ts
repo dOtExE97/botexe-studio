@@ -14,6 +14,9 @@ const config: ForgeConfig = {
     asar: true,
     name: 'bOtExE Studio',
     executableName: 'botexe-studio',
+    // App-Symbol: OHNE Endung angeben — der Packager nimmt sich je Plattform die
+    // passende Datei (Windows .ico, macOS .icns, Linux .png).
+    icon: path.resolve(__dirname, 'assets/icon'),
     // widget-kit + overlay-runtime liegen im Monorepo unter packages/ und werden
     // vom Overlay-Server als statische Files ausgeliefert. extraResource kopiert
     // nach dem BASENAME des Quellordners, landen also als <Resources>/widget-kit/
@@ -46,6 +49,8 @@ const config: ForgeConfig = {
       name: 'botexe-studio',
       authors: 'dotexe',
       description: 'Lokales TikTok-Live Overlay-Studio',
+      // Symbol des Installers und des Start-menü-/Desktop-Verweises.
+      setupIcon: path.resolve(__dirname, 'assets/icon.ico'),
       // NICHT `remoteReleases` setzen — auch wenn es verlockend ist, weil es
       // Delta-Pakete brächte (~90 statt ~150 MB pro Update):
       // Damit listet die RELEASES-Datei die ganze Versions-Historie. Unser Updater

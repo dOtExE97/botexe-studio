@@ -20,6 +20,8 @@ import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, un
 import { initMainTelemetry, sendTelemetryTest } from './main/telemetry-main';
 import { ladeBildPaket } from './main/services/gift-image-pack';
 import { starteTray, stoppeTray, trayLaeuft } from './main/services/tray';
+import { zeigeSplash, schliesseSplash } from './main/services/splash';
+import { darfBeenden } from './main/services/lebenszyklus';
 import { nachDemAufwachen, AUFWACH_WARTEZEIT_MS } from './main/services/standby';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
@@ -193,6 +195,15 @@ let studio: Studio | null = null;
  *  des Fensters die App wirklich beenden statt sie in den Infobereich zu legen. */
 let beendetWirklich = false;
 
+/** true, sobald das Hauptfenster einmal erzeugt wurde.
+ *
+ *  Nötig, weil das Startbild ein echtes Fenster ist: Schließt es sich, während
+ *  das Hauptfenster noch nicht existiert (Notaus-Zeitschaltung, weil der
+ *  Overlay-Server ungewöhnlich lange braucht), sinkt die Fensterzahl auf 0 —
+ *  und Electrons 'window-all-closed' würde die App beenden, bevor sie je
+ *  sichtbar war. */
+let hauptfensterErzeugt = false;
+
 /** Ordner mit den mitgelieferten Bildern (Tray-Symbol). */
 function assetsDir(): string {
   return app.isPackaged && process.resourcesPath
@@ -251,6 +262,7 @@ function sendToRenderer(channel: string, payload: unknown): void {
 }
 
 function createMainWindow(): void {
+  hauptfensterErzeugt = true;
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -258,6 +270,9 @@ function createMainWindow(): void {
     minHeight: 640,
     backgroundColor: '#0c0c10',
     show: false,
+    // Fenster-/Taskleisten-Symbol. Auf Windows steckt es schon in der .exe
+    // (setupIcon), im Entwicklungsbetrieb und auf Linux braucht es das hier.
+    icon: path.join(assetsDir(), 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -271,7 +286,10 @@ function createMainWindow(): void {
     },
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  mainWindow.once('ready-to-show', () => {
+    schliesseSplash();
+    mainWindow?.show();
+  });
 
   // Zoomstufe merken. Strg +/- (bzw. Ansicht → Größer/Kleiner) hat die
   // Oberfläche bisher nur bis zum Neustart vergrößert — wer die App dauerhaft
@@ -354,7 +372,7 @@ function hinweisInfobereich(): void {
     title: 'bOtExE Studio läuft weiter',
     body: 'Die App liegt jetzt unten rechts im Infobereich — deine Overlays in OBS laufen weiter. '
       + 'Zum Beenden dort rechtsklicken → Beenden.',
-    icon: path.join(assetsDir(), 'tray.png'),
+    icon: path.join(assetsDir(), 'icon.png'),
   }).show();
 }
 
@@ -1240,6 +1258,10 @@ app.whenReady().then(async () => {
   // der Ferne SIEHT, ob Absturzberichte laufen — statt es raten zu müssen.
   log.info('Main', `Absturzberichte: ${telemetrieStatus}`);
   installAppMenu(); // deutsches Menü statt Electrons englischem Standard
+  // Startbild SOFORT — alles darunter (Port binden, Einstellungen, Renderer)
+  // dauert auf langsameren Rechnern mehrere Sekunden, in denen sonst sichtbar
+  // nichts passiert. Schließt sich beim 'ready-to-show' des Hauptfensters.
+  zeigeSplash(assetsDir());
 
   // Media-Permission auto-gewähren: ohne sie maskiert Chromium die Audio-Geräte-
   // IDs (leer/instabil über Neustarts) → die gewählte Ausgabe (setSinkId) „verfällt"
@@ -1403,8 +1425,14 @@ app.on('window-all-closed', () => {
   // Mit Infobereich-Symbol lebt die App ohne Fenster weiter (Overlay-Server
   // läuft). Ohne Tray bleibt es beim alten Verhalten, sonst gäbe es einen
   // Prozess, den man nicht mehr loswird.
-  if (process.platform === 'darwin') return;
-  if (trayLaeuft() && !beendetWirklich && studio?.settings.get().minimizeToTray !== false) return;
+  // Die vier Bedingungen und ihr Warum stehen in lebenszyklus.ts (mit Tests).
+  if (!darfBeenden({
+    hauptfensterErzeugt,
+    beendetWirklich,
+    trayLaeuft: trayLaeuft(),
+    minimizeToTray: studio?.settings.get().minimizeToTray !== false,
+    istMac: process.platform === 'darwin',
+  })) return;
   app.quit();
 });
 

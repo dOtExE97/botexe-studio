@@ -5,6 +5,13 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht]
 
+### Neu: Die App hat ein Gesicht 🎨
+bOtExE Studio lief bisher mit dem Electron-Standardsymbol — dem grauen Atom, das jede zweite App hat. Jetzt trägt sie überall ihr eigenes:
+
+- **Programmsymbol** in Taskleiste, Fenster, Startmenü und im Installer
+- **Startbild** beim Öffnen, statt ein paar Sekunden „passiert da was?"
+- **Symbol im Infobereich** in einer eigenen, vereinfachten Fassung — bei 16 Pixeln übersteht kein Verlauf und kein Schatten die Verkleinerung, deshalb ist es dort bewusst flach und kontraststark gezeichnet
+
 ### Neu: Deine Zugangsdaten liegen nicht mehr offen auf der Platte 🔐
 Bisher standen dein TikTok-Login, die API-Schlüssel, das OBS-Passwort und die Stimmen-Zugänge im Klartext in `settings.json`. Wer die Datei in die Hände bekam — über ein Backup-Programm, einen Cloud-Ordner oder einen geteilten Rechner — konnte sich damit als **du** bei TikTok ausgeben.
 

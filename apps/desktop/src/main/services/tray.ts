@@ -18,7 +18,7 @@ import { log } from '../core/logger';
 
 export interface TrayOptionen {
   fenster: () => BrowserWindow | null;
-  /** Ordner mit tray.png (im Paket <Resources>/assets, in dev apps/desktop/assets). */
+  /** Ordner mit tray-16/32.png (im Paket <Resources>/assets, in dev apps/desktop/assets). */
   assetsDir: string;
   /** Overlay-Adresse für den Menüeintrag „Overlay-Adresse kopieren". */
   overlayUrl: () => string;
@@ -31,17 +31,25 @@ export interface TrayOptionen {
 let tray: Tray | null = null;
 
 /** Symbol laden. Fehlt die Datei (unerwarteter Paket-Inhalt), lieber kein Tray
- *  als ein unsichtbares Symbol, das man nicht mehr anklicken kann. */
+ *  als ein unsichtbares Symbol, das man nicht mehr anklicken kann.
+ *
+ *  Zwei Größen: 16px ist die native Größe der Windows-Taskleiste, die 32er
+ *  kommt als „@2x"-Fassung dazu. Ohne die zweite Fassung skaliert Windows auf
+ *  einem 4K-Bildschirm das 16er hoch — das sieht ausgefranst aus. */
 function ladeSymbol(assetsDir: string): Electron.NativeImage | null {
-  // 16px ist die native Größe der Windows-Taskleiste; die 32er dient als
-  // Rückfall und für hohe Skalierung.
-  for (const name of ['tray-klein.png', 'tray.png']) {
-    const p = path.join(assetsDir, name);
-    if (!fs.existsSync(p)) continue;
-    const img = nativeImage.createFromPath(p);
-    if (!img.isEmpty()) return img;
+  const klein = path.join(assetsDir, 'tray-16.png');
+  if (!fs.existsSync(klein)) return null;
+  const img = nativeImage.createFromPath(klein);
+  if (img.isEmpty()) return null;
+
+  const gross = path.join(assetsDir, 'tray-32.png');
+  if (fs.existsSync(gross)) {
+    const grossBuf = nativeImage.createFromPath(gross);
+    if (!grossBuf.isEmpty()) {
+      img.addRepresentation({ scaleFactor: 2, buffer: grossBuf.toPNG() });
+    }
   }
-  return null;
+  return img;
 }
 
 export function starteTray(opt: TrayOptionen): boolean {
