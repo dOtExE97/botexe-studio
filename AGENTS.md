@@ -61,6 +61,24 @@ lokalen HTTP-Server referenzieren, nie nach `packages/widget-kit/` kopieren.
 Danach prüfen: `find . -name "*.webp" -not -path "./node_modules/*"` muss `0` liefern.
 (`.gitignore` blockt `packages/widget-kit/_*` gegen versehentliche Testreste.)
 
+## Geheimnisse in den Einstellungen
+
+Eine Quelle für „was ist geheim": `SECRET_TOP_LEVEL_FIELDS` in `settings-store.ts`.
+Die Liste steuert **drei** Dinge gleichzeitig — Export-Redigierung, Import-Filter und
+seit v0.44 die Verschlüsselung auf der Platte (`secret-box.ts`, Electrons `safeStorage`).
+Ein neues Geheimnis wird also nur dort eingetragen, nirgends sonst.
+
+Merkpunkte:
+- `secret-box.ts` importiert **bewusst kein `electron`** — nur so ist es unter `node:test`
+  prüfbar. Der `SettingsStore` reicht die Krypto per Konstruktor herein.
+- Ohne System-Schlüsselbund (Linux ohne Keyring, CI) bleibt alles im Klartext und die App
+  läuft normal weiter. Lieber unverschlüsselt als eine App, die nicht startet.
+- Scheitert das **Ent**schlüsseln (Datei von einem anderen Rechner), gehen NUR die
+  Geheimnisse verloren — Layouts, Trigger und Punkte bleiben. Das ist der Fall, den
+  `secret-box.test.ts` unter „Fremder Rechner" absichert.
+- Der `SETTINGS_GET`-IPC-Handler ist eine **Deny**list: neue Felder gehen automatisch an
+  den Renderer. Ein neues Geheimnis dort explizit löschen.
+
 ## Screenshots (headless Chrome) — die drei Fallen
 
 1. **KEIN `--disable-gpu`.** Das schaltet den Compositor ab, es entstehen nie Frames, `Page.captureScreenshot` hängt endlos. Stattdessen `--enable-unsafe-swiftshader` (Software-GL).

@@ -58,6 +58,7 @@ export default function SettingsPage() {
   const [connectMode, setConnectMode] = useState<'cloud' | 'direct'>('cloud');
   const [autoLiveWatch, setAutoLiveWatch] = useState(true);
   const [autostart, setAutostart] = useState(false);
+  const [minimizeToTray, setMinimizeToTray] = useState(true);
   const [giftSoundGap, setGiftSoundGap] = useState(0);
   // Anzeigesprache der Geschenknamen IM OVERLAY (nicht in der App — die hat
   // ihren eigenen DE/EN-Schalter in der Galerie).
@@ -109,7 +110,7 @@ export default function SettingsPage() {
   const [spotify, setSpotify] = useState<{ connected: boolean; clientIdSet: boolean; redirectUri: string; nowPlaying: { title: string; artist: string; albumArt: string; isPlaying: boolean } | null }>({ connected: false, clientIdSet: false, redirectUri: '', nowPlaying: null });
 
   useEffect(() => {
-    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; tiktokConnectMode?: 'cloud' | 'direct'; autoLiveWatch?: boolean; autostart?: boolean; spotifyClientId?: string; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
+    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; tiktokConnectMode?: 'cloud' | 'direct'; autoLiveWatch?: boolean; autostart?: boolean; minimizeToTray?: boolean; spotifyClientId?: string; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
       setPoints(s.points);
       setAudioOut(s.audioOutputId ?? '');
       setBlockedWords((s.moderation?.blockedWords ?? []).join(', '));
@@ -119,6 +120,7 @@ export default function SettingsPage() {
       setConnectMode(s.tiktokConnectMode === 'direct' ? 'direct' : 'cloud');
       setAutoLiveWatch(s.autoLiveWatch !== false);
       setAutostart(s.autostart === true);
+      setMinimizeToTray(s.minimizeToTray !== false);
       const sy = s as unknown as { giftSoundGapSec?: number; autoBackup?: boolean; telemetry?: 'unset' | 'on' | 'off'; giftNameLang?: 'original' | 'de' };
       setGiftSoundGap(sy.giftSoundGapSec ?? 0);
       setGiftNameLang(sy.giftNameLang === 'de' ? 'de' : 'original');
@@ -378,6 +380,18 @@ export default function SettingsPage() {
           />
           <span>
             <b className="text-studio-fg">Mit Windows automatisch starten</b> — behebt das „Browser-Quelle nach Neustart leer"-Problem: bOtExE Studio (und damit der Overlay-Server) läuft dann schon, <b>bevor</b> du OBS/TikTok Live Studio öffnest. So muss deine Browser-Quelle nie wieder neu eingefügt werden.
+          </span>
+        </label>
+
+        {/* Weiterlaufen im Infobereich */}
+        <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-studio-border/60 p-3 text-[11px] text-studio-muted">
+          <input
+            type="checkbox" checked={minimizeToTray}
+            onChange={(e) => { setMinimizeToTray(e.target.checked); void window.studio.updateSettings({ minimizeToTray: e.target.checked }); }}
+            className="mt-0.5"
+          />
+          <span>
+            <b className="text-studio-fg">Beim Schließen weiterlaufen lassen</b> — das X schließt dann nur das Fenster, die App legt sich unten rechts neben die Uhr. Deine Overlays in OBS laufen weiter. Ohne diesen Haken beendet das X die App sofort — und damit mitten im Stream auch alle Overlays. Beendet wird über einen Rechtsklick auf das Symbol → <i>Beenden</i>.
           </span>
         </label>
       </section>

@@ -1,4 +1,4 @@
-import { app, autoUpdater, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, session, shell } from 'electron';
+import { app, autoUpdater, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, Notification, powerMonitor, session, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
@@ -19,6 +19,8 @@ import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, un
 // passieren, ein nachgeladenes Modul käme zu spät. Siehe Block weiter unten.
 import { initMainTelemetry, sendTelemetryTest } from './main/telemetry-main';
 import { ladeBildPaket } from './main/services/gift-image-pack';
+import { starteTray, stoppeTray, trayLaeuft } from './main/services/tray';
+import { nachDemAufwachen, AUFWACH_WARTEZEIT_MS } from './main/services/standby';
 
 // Squirrel-Installer (Windows) startet die App während Install/Update kurz —
 // dann sofort beenden, sonst öffnen sich Geister-Fenster.
@@ -187,6 +189,34 @@ function setupAutoUpdate(): void {
 let mainWindow: BrowserWindow | null = null;
 let studio: Studio | null = null;
 
+/** true ab „Beenden" (Menü/Tray/Herunterfahren) — erst dann darf das Schließen
+ *  des Fensters die App wirklich beenden statt sie in den Infobereich zu legen. */
+let beendetWirklich = false;
+
+/** Ordner mit den mitgelieferten Bildern (Tray-Symbol). */
+function assetsDir(): string {
+  return app.isPackaged && process.resourcesPath
+    ? path.join(process.resourcesPath, 'assets')
+    : path.join(app.getAppPath(), 'assets');
+}
+
+/** Fenster in den Vordergrund holen — aus dem Infobereich oder minimiert. */
+function fensterZeigen(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createMainWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+/** Wirklich beenden (Tray-Menü). */
+function beendeApp(): void {
+  beendetWirklich = true;
+  app.quit();
+}
+
 /** Zoomstufen der App-Oberfläche. Bewusst grob und begrenzt: 60 % ist noch
  *  bedienbar, 200 % hilft auf großen Fernsehern und bei schlechten Augen. */
 const UI_ZOOM_STEPS = [0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
@@ -296,9 +326,36 @@ function createMainWindow(): void {
     if (template.length && mainWindow) Menu.buildFromTemplate(template).popup({ window: mainWindow });
   });
 
+  // Schließen legt die App in den Infobereich, statt sie zu beenden — sonst
+  // reißt ein versehentliches Klicken aufs X mitten im Stream ALLE Overlays in
+  // OBS ab (der Overlay-Server lebt in diesem Prozess). Beendet wird über das
+  // Tray-Menü oder Datei → Beenden.
+  mainWindow.on('close', (e) => {
+    if (beendetWirklich || !trayLaeuft()) return;
+    if (studio?.settings.get().minimizeToTray === false) return;
+    e.preventDefault();
+    mainWindow?.hide();
+    hinweisInfobereich();
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+}
+
+/** Beim ERSTEN Verstecken einmal erklären, wohin die App verschwunden ist —
+ *  sonst sucht der Nutzer eine App, die scheinbar nicht mehr da ist. Danach
+ *  nie wieder (Merker in den Einstellungen). */
+function hinweisInfobereich(): void {
+  if (!studio || studio.settings.get().trayHinweisGezeigt) return;
+  studio.settings.update({ trayHinweisGezeigt: true });
+  if (!Notification.isSupported()) return;
+  new Notification({
+    title: 'bOtExE Studio läuft weiter',
+    body: 'Die App liegt jetzt unten rechts im Infobereich — deine Overlays in OBS laufen weiter. '
+      + 'Zum Beenden dort rechtsklicken → Beenden.',
+    icon: path.join(assetsDir(), 'tray.png'),
+  }).show();
 }
 
 const CHROME_UA =
@@ -1276,17 +1333,85 @@ app.whenReady().then(async () => {
   setTimeout(runAutoBackup, 20_000);
   setInterval(runAutoBackup, 24 * 3600 * 1000);
 
+  // Symbol im Infobereich — damit das Fenster zugehen darf, ohne die Overlays
+  // in OBS mitzureißen.
+  const trayOk = starteTray({
+    fenster: () => mainWindow,
+    assetsDir: assetsDir(),
+    overlayUrl: () => {
+      const info = studio?.getOverlayInfo();
+      return info ? `http://127.0.0.1:${info.port}/` : '';
+    },
+    kopiere: (t) => clipboard.writeText(t),
+    beende: beendeApp,
+    fensterZeigen,
+  });
+  log.info('Tray', trayOk
+    ? `Symbol im Infobereich aktiv (Weiterlaufen beim Schließen: ${studio.settings.get().minimizeToTray !== false ? 'an' : 'aus'})`
+    : 'Kein Symbol im Infobereich — Schließen beendet die App wie bisher');
+
+  einrichtenStandby();
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });
 });
 
+/** Ruhezustand des Rechners: sauber trennen und nach dem Aufwachen wieder
+ *  verbinden (s. standby.ts — dort steht das Warum). */
+function einrichtenStandby(): void {
+  let warVerbunden = false;
+  let aufwachTimer: ReturnType<typeof setTimeout> | null = null;
+
+  powerMonitor.on('suspend', () => {
+    if (aufwachTimer) { clearTimeout(aufwachTimer); aufwachTimer = null; }
+    warVerbunden = studio?.getPlatformStatus().status === 'connected';
+    if (!warVerbunden) return;
+    log.info('Standby', 'Rechner geht schlafen — TikTok-Verbindung wird sauber getrennt.');
+    void studio?.disconnect();
+  });
+
+  powerMonitor.on('resume', () => {
+    log.info('Standby', 'Rechner ist wieder wach.');
+    if (aufwachTimer) clearTimeout(aufwachTimer);
+    // Kurz warten: direkt nach dem Aufwachen ist das Netz meist noch nicht da.
+    aufwachTimer = setTimeout(() => {
+      aufwachTimer = null;
+      const e = nachDemAufwachen({
+        warVerbunden,
+        username: studio?.settings.get().lastUsername ?? '',
+        jetztVerbunden: studio?.getPlatformStatus().status === 'connected',
+      });
+      warVerbunden = false;
+      if (e.tu === 'nichts') {
+        log.info('Standby', `Kein Wiederverbinden: ${e.grund}`);
+        return;
+      }
+      log.info('Standby', `Verbinde nach dem Aufwachen wieder mit @${e.username}`);
+      void studio?.connect(e.username).catch((err) => {
+        log.warn('Standby', 'Wiederverbinden fehlgeschlagen', (err as Error).message);
+        sendToRenderer(IPC.TOAST_SHOW, {
+          type: 'error',
+          message: 'Nach dem Ruhezustand konnte die TikTok-Verbindung nicht wiederhergestellt werden — bitte neu verbinden.',
+        });
+      });
+    }, AUFWACH_WARTEZEIT_MS);
+  });
+}
+
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  // Mit Infobereich-Symbol lebt die App ohne Fenster weiter (Overlay-Server
+  // läuft). Ohne Tray bleibt es beim alten Verhalten, sonst gäbe es einen
+  // Prozess, den man nicht mehr loswird.
+  if (process.platform === 'darwin') return;
+  if (trayLaeuft() && !beendetWirklich && studio?.settings.get().minimizeToTray !== false) return;
+  app.quit();
 });
 
 app.on('before-quit', () => {
+  beendetWirklich = true; // Datei → Beenden, Alt+F4-Kette, Herunterfahren
   globalShortcut.unregisterAll();
+  stoppeTray();
   void studio?.stop();
 });
 

@@ -3,6 +3,27 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [Unveröffentlicht]
+
+### Neu: Deine Zugangsdaten liegen nicht mehr offen auf der Platte 🔐
+Bisher standen dein TikTok-Login, die API-Schlüssel, das OBS-Passwort und die Stimmen-Zugänge im Klartext in `settings.json`. Wer die Datei in die Hände bekam — über ein Backup-Programm, einen Cloud-Ordner oder einen geteilten Rechner — konnte sich damit als **du** bei TikTok ausgeben.
+
+Diese Angaben werden jetzt vom Betriebssystem verschlüsselt (Windows bindet sie an dein Benutzerkonto). Eine kopierte Datei nützt woanders nichts mehr.
+
+Du musst nichts tun: Beim nächsten Speichern zieht die App alles von selbst um. Die harmlosen Einstellungen bleiben lesbar, damit man bei der Fehlersuche weiter hineinschauen kann.
+
+### Neu: Das X schließt nur noch das Fenster 🪟
+Das Fenster wegzuklicken hat bisher die ganze App beendet — mitten im Stream waren damit **alle Overlays in OBS** weg, weil der Overlay-Server in diesem Programm läuft.
+
+Jetzt legt sich bOtExE Studio beim Schließen unten rechts neben die Uhr und läuft weiter. Rechtsklick auf das Symbol → *Beenden*, wenn du wirklich Schluss machen willst. Beim ersten Mal erklärt dir ein kurzer Hinweis, wo die App hin ist.
+
+Wer das alte Verhalten lieber mag: Einstellungen → *Beim Schließen weiterlaufen lassen* abschalten.
+
+### Neu: Nach dem Ruhezustand wieder verbunden 😴
+Ging der Stream-PC schlafen, sah die App danach „verbunden" aus, bekam aber keine Ereignisse mehr — auffallen tat das erst, wenn das erste Geschenk nicht ankam.
+
+Jetzt wird vor dem Einschlafen sauber getrennt und nach dem Aufwachen automatisch wieder verbunden (mit ein paar Sekunden Vorlauf, bis das WLAN wieder steht). Klappt es nicht, sagt die App Bescheid, statt still zu schweigen.
+
 ## [0.43.1] — 2026-07-29
 
 ### Behoben: Ebenen-Liste war bei vielen Widgets unbrauchbar

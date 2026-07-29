@@ -9,6 +9,7 @@ import { migrateReadWho, type ReadGroup } from './tts-filter';
 import type { AnnounceConfig, GiftAnnounceConfig } from './tts-announce';
 import { DEFAULT_MIXER, normalizeMixer, type MixerSettings } from '../../shared/mixer';
 import { log } from '../core/logger';
+import { packe, entpacke, type Krypto } from './secret-box';
 
 export const SETTINGS_SCHEMA_VERSION = 7;
 
@@ -128,6 +129,13 @@ export interface StudioSettings {
   /** App automatisch mit Windows starten — damit Overlay-Server läuft, BEVOR
    *  OBS/TTLS die Browser-Quelle lädt (sonst „Seite nicht erreichbar"). */
   autostart: boolean;
+  /** Fenster schließen legt die App in den Infobereich, statt sie zu beenden.
+   *  Schützt vor dem versehentlichen Klick aufs X mitten im Stream — der
+   *  Overlay-Server läuft in diesem Prozess. */
+  minimizeToTray: boolean;
+  /** Merker: Der einmalige Hinweis „App liegt jetzt im Infobereich" wurde
+   *  gezeigt. Nur damit er nicht bei jedem Schließen wiederkommt. */
+  trayHinweisGezeigt: boolean;
   /** Streamer.bot-Brücke (WebSocket-Client). */
   streamerbot: { enabled: boolean; url: string };
   /** Spotify: vom Nutzer registrierte App-Client-ID (öffentlich, PKCE). */
@@ -213,6 +221,8 @@ const DEFAULTS: StudioSettings = {
   tiktokConnectMode: 'cloud',
   autoLiveWatch: true,
   autostart: false,
+  minimizeToTray: true,
+  trayHinweisGezeigt: false,
   giftSoundGapSec: 0,
   autoBackup: true,
   ai: { provider: 'gemini', model: '' },
@@ -247,20 +257,52 @@ function isValidRedemption(red: unknown): red is Redemption {
   );
 }
 
+/** Electrons safeStorage, verpackt und ausfallsicher. Wird per require geholt
+ *  statt importiert, damit dieser Store auch außerhalb von Electron läuft
+ *  (node:test) — dort meldet er schlicht „keine Verschlüsselung" und alles
+ *  verhält sich wie vor dem Tresor. */
+function electronKrypto(): Krypto {
+  const safeStorage = (() => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      return (require('electron') as typeof import('electron')).safeStorage;
+    } catch {
+      return null;
+    }
+  })();
+  return {
+    isEncryptionAvailable: () => safeStorage?.isEncryptionAvailable() ?? false,
+    encryptString: (s) => {
+      if (!safeStorage) throw new Error('safeStorage nicht verfügbar');
+      return safeStorage.encryptString(s);
+    },
+    decryptString: (b) => {
+      if (!safeStorage) throw new Error('safeStorage nicht verfügbar');
+      return safeStorage.decryptString(b);
+    },
+  };
+}
+
 export class SettingsStore {
   private readonly file: string;
+  private readonly krypto: Krypto;
   private cache: StudioSettings;
 
-  constructor(userDataDir: string) {
+  /** `krypto` nur für Tests — im Betrieb immer Electrons safeStorage. */
+  constructor(userDataDir: string, krypto: Krypto = electronKrypto()) {
     fs.mkdirSync(userDataDir, { recursive: true });
     this.file = path.join(userDataDir, 'settings.json');
+    this.krypto = krypto;
     this.cache = this.load();
   }
 
   private load(): StudioSettings {
     if (!fs.existsSync(this.file)) return { ...DEFAULTS };
     try {
-      const raw = JSON.parse(fs.readFileSync(this.file, 'utf-8')) as Partial<StudioSettings>;
+      const roh = JSON.parse(fs.readFileSync(this.file, 'utf-8')) as Record<string, unknown>;
+      // Geheimnisse aus dem verschlüsselten Block zurückholen (s. secret-box.ts).
+      // Eine alte Klartext-Datei hat keinen Block und geht unverändert durch.
+      const raw = entpacke(roh, this.krypto) as Partial<StudioSettings>;
       if (typeof raw.schemaVersion === 'number' && raw.schemaVersion > SETTINGS_SCHEMA_VERSION) {
         // Neuere Version (Downgrade-Szenario): nichts kaputt-migrieren,
         // bekannte Felder defensiv übernehmen.
@@ -386,7 +428,10 @@ export class SettingsStore {
   update(patch: Partial<Omit<StudioSettings, 'schemaVersion'>>): StudioSettings {
     this.cache = { ...this.cache, ...patch, schemaVersion: SETTINGS_SCHEMA_VERSION };
     const tmp = `${this.file}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(this.cache, null, 2), 'utf-8');
+    // Geheimnisse wandern in den verschlüsselten Block, statt im Klartext auf
+    // der Platte zu liegen (s. secret-box.ts).
+    const aufPlatte = packe(this.cache as unknown as Record<string, unknown>, SECRET_TOP_LEVEL_FIELDS, this.krypto);
+    fs.writeFileSync(tmp, JSON.stringify(aufPlatte, null, 2), 'utf-8');
     fs.renameSync(tmp, this.file);
     return this.get();
   }
@@ -509,6 +554,8 @@ export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): 
   if (p.tiktokConnectMode === 'cloud' || p.tiktokConnectMode === 'direct') allowed.tiktokConnectMode = p.tiktokConnectMode;
   if (typeof p.autoLiveWatch === 'boolean') allowed.autoLiveWatch = p.autoLiveWatch;
   if (typeof p.autostart === 'boolean') allowed.autostart = p.autostart;
+  if (typeof p.minimizeToTray === 'boolean') allowed.minimizeToTray = p.minimizeToTray;
+  if (typeof p.trayHinweisGezeigt === 'boolean') allowed.trayHinweisGezeigt = p.trayHinweisGezeigt;
   if (typeof p.giftSoundGapSec === 'number') allowed.giftSoundGapSec = Math.min(600, Math.max(0, Math.round(p.giftSoundGapSec)));
   if (typeof p.autoBackup === 'boolean') allowed.autoBackup = p.autoBackup;
   if (p.telemetry === 'on' || p.telemetry === 'off') allowed.telemetry = p.telemetry;
