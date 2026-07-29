@@ -4,10 +4,12 @@ import { useEffect, useState, type ComponentType } from 'react';
 import GiveawayCard from '../components/GiveawayCard';
 import GamesCard from '../components/GamesCard';
 import TriggerLogCard from '../components/TriggerLogCard';
-import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Radio, Gift, UserPlus, MessageSquare, Heart, Wifi, WifiOff, CircleDot, Square, Play, Star, Share2, RotateCcw, ChevronDown, ChevronUp, Trophy } from 'lucide-react';
 import SetupChecklist from '../components/SetupChecklist';
 import type { useStudio } from '../hooks/useStudio';
 import ConfirmButton from '../components/ConfirmButton';
+import Sparkline from '../components/Sparkline';
+import SystemAmpel from '../components/SystemAmpel';
 import { toast } from '../components/ToastHost';
 import type { StudioEvent } from '@botexe/trigger-engine';
 
@@ -224,16 +226,41 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
             </button>
           )}
 
+      {/* Ranglisten-Platz + System-Ampel — beides auf einen Blick, ohne suchen. */}
+      <div className="flex flex-wrap items-stretch gap-3">
+        {studio.rang && (
+          <div className="bx-card flex items-center gap-3 px-4 py-3">
+            <Trophy size={20} className="flex-none text-studio-gold" />
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.28em] text-studio-muted">{studio.rang.art}</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl leading-none text-studio-gold" style={{ fontFamily: 'var(--font-chunky)' }}>
+                  #{studio.rang.platz}
+                </span>
+                {studio.rang.restSek > 0 && (
+                  <span className="font-mono text-[10px] text-studio-muted">
+                    noch {studio.rang.restSek >= 3600
+                      ? `${Math.floor(studio.rang.restSek / 3600)} h ${Math.round((studio.rang.restSek % 3600) / 60)} min`
+                      : `${Math.max(1, Math.round(studio.rang.restSek / 60))} min`}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        <SystemAmpel verbunden={studio.status.status === 'connected'} />
+      </div>
+
       {/* Stats-Karten */}
       <div className="grid grid-cols-7 gap-3">
         {[
-          { label: 'Zuschauer', value: t?.viewers ?? 0, peak: t?.peakViewers },
-          { label: 'Gesamt dabei', value: t?.uniqueViewers ?? 0 },
-          { label: 'Coins', value: t?.coins ?? 0 },
-          { label: 'Gifts', value: t?.gifts ?? 0 },
-          { label: 'Follower', value: t?.follows ?? 0 },
-          { label: 'Likes', value: t?.likes ?? 0 },
-          { label: 'Kommentare', value: t?.chats ?? 0 },
+          { label: 'Zuschauer', value: t?.viewers ?? 0, peak: t?.peakViewers, kurve: null },
+          { label: 'Gesamt dabei', value: t?.uniqueViewers ?? 0, kurve: null },
+          { label: 'Coins', value: t?.coins ?? 0, kurve: studio.verlauf.map((v) => v.coins) },
+          { label: 'Gifts', value: t?.gifts ?? 0, kurve: null },
+          { label: 'Follower', value: t?.follows ?? 0, kurve: null },
+          { label: 'Likes', value: t?.likes ?? 0, kurve: studio.verlauf.map((v) => v.likes) },
+          { label: 'Kommentare', value: t?.chats ?? 0, kurve: null },
         ].map((card) => (
           <div key={card.label} className="bx-card overflow-hidden p-4">
             <div
@@ -249,6 +276,14 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
             </div>
             {card.peak !== undefined && card.peak > 0 && (
               <div className="mt-1 font-mono text-[10px] text-studio-muted">Peak {card.peak}</div>
+            )}
+            {/* Zuwachs der letzten halben Stunde — zeigt, ob gerade etwas
+                passiert. Der reine Gesamtstand steigt immer und sieht auch bei
+                totem Stream nach Erfolg aus. */}
+            {card.kurve && card.kurve.length > 2 && (
+              <div className="mt-1.5 text-studio-accent" title="Zuwachs der letzten ~30 Minuten">
+                <Sparkline werte={card.kurve} />
+              </div>
             )}
           </div>
         ))}
