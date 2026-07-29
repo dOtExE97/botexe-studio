@@ -13,9 +13,36 @@ updates:
         dependency-type: development
       production-dependencies:
         dependency-type: production
-    # Electron + TikTok-Connector bewusst manuell prüfen (Breaking-Changes).
     ignore:
+      # Electron + TikTok-Connector bewusst manuell prüfen (Breaking-Changes).
       - dependency-name: electron
+        update-types: [version-update:semver-major]
+
+      # Die folgenden Major-Sprünge sind KEIN gewöhnliches Update, sondern
+      # jeweils ein eigener Umbau. Dependabot hat sie wochenlang als roten PR
+      # vorgeschlagen — das erzeugt nur Rauschen und verdeckt echte Funde.
+      # Wenn wir sie angehen, dann bewusst und einzeln, nicht per Merge-Klick.
+
+      # @electron/fuses 2.x ist von außen blockiert: @electron-forge/plugin-fuses
+      # verlangt auch in der neuesten Fassung noch ^1.0.0 (geprüft 29.07.2026).
+      # Nichts, was wir hier lösen könnten — erst muss electron-forge nachziehen.
+      - dependency-name: "@electron/fuses"
+        update-types: [version-update:semver-major]
+
+      # TypeScript 7 entfernt baseUrl und moduleResolution=node10 und verlangt
+      # relative Pfade. Zieht außerdem Vite 8 nach (Vite 5 exportiert
+      # defineConfig nicht TS7-tauglich) und bricht an den rootDir-Grenzen des
+      # Monorepos. Ausprobiert am 29.07.2026: kein Nebenbei-Fix.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: vite
+        update-types: [version-update:semver-major]
+
+      # ESLint 10 verlangt die neue Flat-Config (eslint.config.js statt
+      # .eslintrc) samt passender @typescript-eslint-Generation.
+      - dependency-name: eslint
+        update-types: [version-update:semver-major]
+      - dependency-name: "@typescript-eslint/*"
         update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
