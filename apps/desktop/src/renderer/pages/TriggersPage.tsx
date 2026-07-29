@@ -5,6 +5,7 @@ import { Zap, Filter, Play, Plus, Trash2, Power, Clock, AlertTriangle, Copy } fr
 import ConfirmButton from '../components/ConfirmButton';
 import GiftPicker from '../components/GiftPicker';
 import { toast, toastAction } from '../components/ToastHost';
+import { passt } from '../../shared/suche';
 import type { TriggerRule, TriggerCondition, TriggerAction, StudioEventType } from '@botexe/trigger-engine';
 import type { OverlayLayout } from '@botexe/overlay-engine';
 
@@ -222,9 +223,15 @@ export default function TriggersPage() {
   };
 
   const eventLabel = (ev: string) => EVENT_OPTIONS.find((o) => o.value === ev)?.label ?? ev;
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
+  // Tolerante Suche (shared/suche.ts) — und zusätzlich über den KLARTEXT-Satz
+  // der Regel. Damit findet „sound" alle Regeln mit Sound, „rose" alle rund um
+  // das Geschenk, „glücksrad" alle, die das Rad drehen. Vorher ging nur der
+  // selbst vergebene Name, und den kennt man bei 40 Regeln nicht auswendig.
+  const layerName = (id: string) => layers.find((l) => l.id === id)?.name ?? '?';
+  const soundName = (id: string) => sounds.find((so) => so.id === id)?.filename?.replace(/\.[a-z0-9]+$/i, '') ?? '?';
   const shownRules = q
-    ? rules.filter((r) => r.name.toLowerCase().includes(q) || eventLabel(r.event).toLowerCase().includes(q))
+    ? rules.filter((r) => passt(q, r.name, eventLabel(r.event), ruleToSentence(r, layerName, soundName)))
     : rules;
 
   const patchRule = (id: string, patch: Partial<TriggerRule>) =>

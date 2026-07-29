@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { StudioEvent } from '@botexe/trigger-engine';
 import { log } from '../core/logger';
+import { passt } from '../../shared/suche';
 
 export const POINTS_SCHEMA_VERSION = 2;
 
@@ -233,9 +234,13 @@ export class PointsStore {
   }
 
   search(query: string, limit: number): PointsEntry[] {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
+    // Tolerante Suche wie überall in der App (shared/suche.ts): Umlaute in
+    // beiden Schreibweisen, Trennzeichen egal, Tippfehler verziehen. Zusätzlich
+    // wird die TikTok-Kennung durchsucht — der angezeigte Name ändert sich, die
+    // Kennung nicht, und manchmal weiß man nur die.
     return Array.from(this.viewers.values())
-      .filter((e) => !q || e.nickname.toLowerCase().includes(q))
+      .filter((e) => !q || passt(q, e.nickname, e.id))
       .sort((a, b) => b.points - a.points)
       .slice(0, limit)
       .map((e) => ({ ...e }));

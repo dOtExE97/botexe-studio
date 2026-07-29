@@ -10,6 +10,7 @@ import { findGiftRule, upsertGiftRule, otherGiftRules } from '@botexe/trigger-en
 import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
 import { giftDisplayName, giftNameDe } from '../../shared/gift-names-de';
 import { toast } from '../components/ToastHost';
+import { passt } from '../../shared/suche';
 
 interface SoundEntry { id: string; filename: string }
 interface LayerRef { id: string; name: string; widgetType: string }
@@ -98,18 +99,15 @@ export default function GalleryPage() {
     void window.studio.setGiftMeta(slug, patch).then(reload);
 
   const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = q.trim();
     let list = gifts;
     if (view === 'favorites') list = list.filter((g) => g.favorite);
     else if (view === 'lastRoom') list = list.filter((g) => g.inLastRoom);
     else if (view === 'received') list = list.filter((g) => g.count > 0);
     // Suche matcht BEIDE Sprachen + eigenen Namen: „Herz", „Heart" oder „fette Rakete".
-    if (needle) list = list.filter((g) => {
-      const de = giftNameDe(g.slug);
-      return g.slug.toLowerCase().includes(needle)
-        || (!!de && de.toLowerCase().includes(needle))
-        || (!!g.customName && g.customName.toLowerCase().includes(needle));
-    });
+    // Tolerante Suche über beide Sprachen UND den eigenen Namen: „Herz",
+    // „Heart", „Hertz" (Tippfehler) oder „fette Rakete" finden alle etwas.
+    if (needle) list = list.filter((g) => passt(needle, g.slug, giftNameDe(g.slug) ?? undefined, g.customName));
     const sorted = [...list];
     const dn = (g: GiftEntry) => giftDisplayName(g.slug, lang, g.customName);
     if (sort === 'coins') sorted.sort((a, b) => (b.coins || 0) - (a.coins || 0) || dn(a).localeCompare(dn(b)));

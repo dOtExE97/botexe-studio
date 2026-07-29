@@ -5,6 +5,7 @@ import { Volume2, Play, Trash2, Music, Search, Upload, Download, Square } from '
 import ConfirmButton from '../components/ConfirmButton';
 import { toast } from '../components/ToastHost';
 import { stoppeAlleSounds } from '../components/SoundPlayer';
+import { passt } from '../../shared/suche';
 
 interface SoundEntry {
   id: string;
@@ -222,7 +223,9 @@ export default function SoundsPage() {
         </label>
       )}
       <div className="grid grid-cols-3 gap-3">
-        {sounds.filter((s) => !libQuery.trim() || s.filename.toLowerCase().includes(libQuery.trim().toLowerCase())).map((s) => (
+        {/* Tolerante Suche wie überall (shared/suche.ts) — Dateinamen sind oft
+            kryptisch, da helfen Tippfehler-Toleranz und egale Trennzeichen. */}
+        {sounds.filter((s) => passt(libQuery, s.filename)).map((s) => (
           <div
             key={s.id}
             className="flex items-center gap-3 rounded-lg border border-studio-border bg-studio-raised/40 px-4 py-3 transition-colors hover:border-studio-accent/30"
