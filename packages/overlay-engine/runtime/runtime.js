@@ -525,8 +525,30 @@ function dispatchAction(ruleId, action) {
   }
   // fire_alert & co.: das Ziel-Widget entscheidet, was zu tun ist.
   const entry = liveLayers.get(action.targetId);
+  // Kein Ziel? Das war bisher ein stiller Fehlschlag: Der Hauptprozess sucht
+  // passende Widgets in ALLEN Layouts und meldet die Aktion als ausgeführt —
+  // hier liegen aber nur die Layer des GERADE angezeigten Layouts. Liegt das
+  // Ziel in einem anderen Layout, passierte im Stream nichts und nichts stand
+  // im Log. Genau so gemeldet: „Karten-Ziehung ausgelöst, aber nichts zu sehen".
+  if (!entry) {
+    meldeEinmal(
+      'aktion',
+      `Aktion „${action.kind}" hatte kein Ziel in diesem Overlay (Widget ${String(action.targetId).slice(0, 12)}). `
+        + 'Meist liegt das Widget in einem anderen Layout als dem gerade angezeigten.',
+      `ziel:${action.kind}:${action.targetId}`,
+    );
+    return;
+  }
+  if (typeof entry.widget?.onAction !== 'function') {
+    meldeEinmal(
+      'aktion',
+      `Aktion „${action.kind}" ging an ein Widget, das damit nichts anfangen kann.`,
+      `kannnicht:${action.kind}`,
+    );
+    return;
+  }
   try {
-    entry?.widget?.onAction?.(action, ruleId);
+    entry.widget.onAction(action, ruleId);
   } catch (err) {
     console.warn('[overlay] Widget-Fehler bei onAction:', err);
     reportClientError('onAction', err && err.message ? err.message : String(err));

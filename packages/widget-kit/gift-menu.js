@@ -1615,9 +1615,22 @@ export default class GiftMenu {
    *  ggf. die Challenge) + kurze Gewinn-Feier-Klasse; Niete → nur ein kurzes
    *  "daneben"-Aufblitzen, KEIN celebrate. */
   runLuckyDraw(action) {
-    if (this.luckyRunning) return; // keine zwei Draws gleichzeitig
+    // Die beiden Ausstiege hier waren stumm — der Server loggt derweil
+    // „Karten-Ziehung ausgeführt". Im Stream sah man nichts und im Log stand
+    // nichts, was weitergeholfen hätte (aufgefallen bei einem Fireworks-Gift
+    // über 1088 Coins). Jetzt sagt das Widget, warum es nichts tut.
+    if (this.luckyRunning) {
+      this.ctx?.notify?.('Karten-Ziehung übersprungen — es läuft gerade schon eine. '
+        + 'Bei mehreren Geschenken kurz hintereinander normal; sonst die Zieh-Dauer verkürzen.');
+      return;
+    }
     const n = (this.cards && this.cards.length) || this.list.length;
-    if (!n) return;
+    if (!n) {
+      this.ctx?.notify?.('Karten-Ziehung ausgelöst, aber dieses Geschenk-Menü hat KEINE Einträge — '
+        + 'deshalb ist nichts zu sehen. Geschenke eintragen oder die Quelle auf „aus meinen '
+        + 'Geschenk-Triggern" stellen.');
+      return;
+    }
     const winner = Math.max(0, Math.min(n - 1, Number(action.winnerIndex) || 0));
     const totalMs = Math.max(600, Number(this.luckyDrawMs) || 3000);
     const schedule = shuffleSchedule(16, totalMs);
