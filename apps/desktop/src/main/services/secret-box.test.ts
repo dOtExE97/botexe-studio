@@ -6,7 +6,7 @@
 // lieber Klartext gehabt.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { packe, entpacke, echterSchutz, SECRET_BLOCK, _resetWarnung, type Krypto } from './secret-box';
+import { packe, entpacke, echterSchutz, backendName, SECRET_BLOCK, _resetWarnung, type Krypto } from './secret-box';
 import { SECRET_TOP_LEVEL_FIELDS } from './settings-store';
 
 /** safeStorage-Ersatz: „verschlüsselt" durch Umdrehen — reicht, um zu prüfen,
@@ -146,6 +146,18 @@ test('echter Schlüsselbund gilt als echter Schutz', () => {
   // Windows/macOS: die Methode existiert dort gar nicht → kein Verdachtsfall.
   assert.equal(echterSchutz(echt), true, 'ohne die Methode (Windows/macOS) ist es echter Schutz');
   assert.equal(echterSchutz(aus), false, 'gar keine Verschlüsselung ist kein Schutz');
+});
+
+test('Log-Name: Windows meldet DPAPI statt „unknown"', () => {
+  // Genau das stand nach dem ersten echten Windows-Start im Log. Die Methode
+  // gibt es dort nicht — der Plattform-Name muss einspringen.
+  const ohne: Krypto = { ...echt, getSelectedStorageBackend: undefined };
+  assert.match(backendName(ohne, 'win32'), /DPAPI/);
+  assert.match(backendName({ ...echt, getSelectedStorageBackend: () => 'unknown' }, 'win32'), /DPAPI/);
+  assert.match(backendName(ohne, 'darwin'), /macOS/);
+  assert.equal(backendName({ ...echt, getSelectedStorageBackend: () => 'kwallet6' }, 'linux'), 'kwallet6',
+    'auf Linux gewinnt das echte Backend');
+  assert.doesNotThrow(() => backendName({ ...echt, getSelectedStorageBackend: () => { throw new Error('x'); } }, 'linux'));
 });
 
 test('kaputter Block-Inhalt wirft nicht', () => {

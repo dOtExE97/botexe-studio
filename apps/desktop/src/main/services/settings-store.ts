@@ -280,8 +280,10 @@ function electronKrypto(): Krypto {
       if (!safeStorage) throw new Error('safeStorage nicht verfügbar');
       return safeStorage.decryptString(b);
     },
-    // Nur Linux hat das; auf Windows/macOS gibt es die Methode nicht.
-    getSelectedStorageBackend: () => safeStorage?.getSelectedStorageBackend?.() ?? 'unknown',
+    // Nur Linux liefert hier etwas Sinnvolles; auf Windows/macOS fehlt die
+    // Methode (oder meldet 'unknown'). Den Rohwert durchreichen — wie er im Log
+    // benannt wird, entscheidet backendName() in secret-box.ts.
+    getSelectedStorageBackend: () => safeStorage?.getSelectedStorageBackend?.() ?? '',
   };
 }
 

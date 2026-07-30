@@ -168,6 +168,29 @@ export function entpacke(
   return raus;
 }
 
+/**
+ * Klartext-Name des Schutzes fürs Log.
+ *
+ * `getSelectedStorageBackend()` ist Linux-Sache: Auf Windows und macOS fehlt die
+ * Methode (oder meldet 'unknown'). Genau das stand nach dem ersten Windows-Start
+ * im Log — „Geheimnisse verschlüsselt (unknown)". Fachlich richtig, aber es liest
+ * sich, als wüsste die App nicht, was sie tut. Deshalb hier der Plattform-Name,
+ * sobald das Backend nichts hergibt.
+ */
+export function backendName(krypto: Krypto, plattform: string = process.platform): string {
+  const roh = (() => {
+    try {
+      return krypto.getSelectedStorageBackend?.() ?? '';
+    } catch {
+      return '';
+    }
+  })();
+  if (roh && roh !== 'unknown') return roh;
+  if (plattform === 'win32') return 'Windows-Benutzerkonto, DPAPI';
+  if (plattform === 'darwin') return 'macOS-Schlüsselbund';
+  return 'System-Schlüsselbund';
+}
+
 /** Einmal-Warnung, damit nicht jeder Speichervorgang eine Zeile schreibt. */
 let gewarnt = false;
 
@@ -194,7 +217,7 @@ function sicher(krypto: Krypto): boolean {
           + '(gnome-keyring oder kwallet).',
       );
     } else {
-      log.info('Secrets', `Geheimnisse verschlüsselt (${krypto.getSelectedStorageBackend?.() ?? 'System-Schlüsselbund'})`);
+      log.info('Secrets', `Geheimnisse verschlüsselt (${backendName(krypto)})`);
     }
   }
   return ok;
