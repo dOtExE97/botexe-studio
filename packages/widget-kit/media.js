@@ -83,6 +83,7 @@ export default class MediaWidget {
   constructor(root, props, ctx) {
     ensureStyle();
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
+    this.ctx = ctx || {}; // für ctx.notify() aus onAction heraus
     this.props = props || {};
     this.mode = props.mode === 'static' ? 'static' : 'trigger';
     this.kind = kindFor(props);
@@ -173,13 +174,31 @@ export default class MediaWidget {
   // play_media-Aktion → einblenden + abspielen. Mit params.mediaUrl wird ein
   // anderes Medium gespielt (z.B. das Begrüßungsvideo eines bestimmten Zuschauers).
   onAction(action) {
-    if (!action || action.kind !== 'play_media' || !this.media) return;
+    if (!action || action.kind !== 'play_media') return;
     const p = action.params || {};
+    // `!this.media` durfte hier NICHT aussteigen: Bei persönlichen Intros ist
+    // genau das der Normalfall — das Widget hat kein festes Medium, der
+    // Konstruktor bricht vor `this.media = …` ab, und das Video kommt erst mit
+    // der Aktion. Das Intro spielte deshalb nie, während der Hauptprozess
+    // „Intro abgespielt" ins Log schrieb und sich den Zuschauer als erledigt
+    // merkte (der bekam also auch beim nächsten Betreten keins mehr).
+    if (!this.media && !p.mediaUrl) {
+      this.ctx?.notify?.('Medien-Widget soll abspielen, hat aber kein Medium — '
+        + 'entweder im Widget eins auswählen oder die Aktion mit einem Video/Bild schicken.');
+      return;
+    }
     if (p.mediaUrl && p.mediaUrl !== this.url) {
       this.url = String(p.mediaUrl);
       if (p.kind === 'video' || p.kind === 'image') this.kind = p.kind;
       const next = this.buildMedia();
-      this.media.replaceWith(next);
+      if (this.media) {
+        this.media.replaceWith(next);
+      } else {
+        // Erstes Medium für dieses Widget — im Editor liegt hier noch der
+        // „Kein Medium gewählt"-Platzhalter, der sonst darüber stehen bliebe.
+        this.el.innerHTML = '';
+        this.el.appendChild(next);
+      }
       this.media = next;
     }
     this.show();
