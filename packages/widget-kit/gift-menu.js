@@ -1512,6 +1512,19 @@ export default class GiftMenu {
 
   // ── Aufbau ──────────────────────────────────────────────────────────────
   build() {
+    // Läuft gerade eine Ziehung, den Neuaufbau AUFSCHIEBEN statt sie
+    // abzuräumen. Vorher galt: build() löscht alle Timer und setzt
+    // luckyRunning zurück — fiel also ein Nachladen von Katalog oder Regeln
+    // (beide rufen build() asynchron) in eine laufende Ziehung, brach sie
+    // mitten in der Animation ab. Ohne Gewinner, ohne Niete, ohne Meldung.
+    // Genau das Bild: Der Hauptprozess meldet die Ziehung, im Stream ist
+    // nichts zu sehen. Die Ziehung hat einen festen Fahrplan (luckyDrawMs),
+    // der Nachbau kommt also verlässlich gleich danach.
+    if (this.luckyRunning) {
+      this.rebuildAusstehend = true;
+      return;
+    }
+    this.rebuildAusstehend = false;
     if (this.rotTimer) { clearInterval(this.rotTimer); this.rotTimer = null; }
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
@@ -1601,7 +1614,14 @@ export default class GiftMenu {
     if (action.kind === 'lucky_draw') { this.runLuckyDraw(action); return; }
     if (action.kind !== 'start_gift_challenge') return;
     const i = this.matchIndex({ slug: action.slug });
-    if (i < 0) return;
+    if (i < 0) {
+      // Wie bei einem echten Geschenk melden (s. onEvent): Der Server hat die
+      // Challenge als gestartet geloggt, dieses Menü kennt das Geschenk aber
+      // nicht und zeigt deshalb nichts.
+      this.ctx?.notify?.(`Challenge für „${action.slug}" gestartet, aber dieses Geschenk steht nicht `
+        + 'in der Liste dieses Geschenk-Menüs — deshalb kein Countdown.');
+      return;
+    }
     this.celebrate(i, action.who);
   }
 
@@ -1666,6 +1686,12 @@ export default class GiftMenu {
    *  bzw. Niete-Blitz) und `luckyRunning` freigeben. */
   finishLuckyDraw(action, winner, chips) {
     this.luckyRunning = false;
+    // Aufgeschobenen Neuaufbau nachholen (s. build()). Nach der Feier, damit
+    // Gewinn-/Niete-Optik noch zu sehen ist, bevor das DOM ersetzt wird.
+    if (this.rebuildAusstehend) {
+      const t = setTimeout(() => { this.timers.delete(t); this.build(); }, 1200);
+      this.timers.add(t);
+    }
     for (const c of chips) c.classList.remove('bx-gm-lucky-flash');
     if (action.win) {
       this.celebrate(winner, action.who);

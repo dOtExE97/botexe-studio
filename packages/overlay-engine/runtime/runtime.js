@@ -513,6 +513,17 @@ function dispatchToWidgets(method, arg) {
 function dispatchAction(ruleId, action) {
   if (action.kind === 'show_layer' || action.kind === 'hide_layer') {
     const entry = liveLayers.get(action.targetId);
+    if (!entry) {
+      // Wie beim allgemeinen Dispatch: ein fehlendes Ziel ist ein echter
+      // Fehlschlag, kein Normalfall. Bisher passierte hier stumm nichts.
+      meldeEinmal(
+        'aktion',
+        `„${action.kind}" hatte kein Ziel in diesem Overlay (Widget ${String(action.targetId).slice(0, 12)}). `
+          + 'Meist liegt das Widget in einem anderen Layout als dem gerade angezeigten.',
+        `ziel:${action.kind}:${action.targetId}`,
+      );
+      return;
+    }
     if (entry) {
       entry.el.style.display = action.kind === 'show_layer' ? '' : 'none';
       if (action.kind === 'show_layer' && action.durationMs) {
@@ -538,6 +549,16 @@ function dispatchAction(ruleId, action) {
       `ziel:${action.kind}:${action.targetId}`,
     );
     return;
+  }
+  // Ziel ist da, aber ausgeblendet: Das Widget arbeitet die Aktion brav ab —
+  // nur sieht sie niemand, weil der Layer auf display:none steht. Sieht für
+  // den Streamer genauso aus wie ein Totalausfall.
+  if (entry.el?.style.display === 'none') {
+    meldeEinmal(
+      'aktion',
+      `„${action.kind}" ging an „${entry.name}", aber das Widget ist im Overlay ausgeblendet (Auge in der Ebenen-Liste).`,
+      `unsichtbar:${action.targetId}`,
+    );
   }
   if (typeof entry.widget?.onAction !== 'function') {
     meldeEinmal(

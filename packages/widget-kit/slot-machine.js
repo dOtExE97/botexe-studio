@@ -401,9 +401,19 @@ export default class SlotMachine {
   }
 
   onAction(action) {
-    if (!action || action.kind !== 'spin_slot' || this.spinning) return;
+    if (!action || action.kind !== 'spin_slot') return;
+    // Siehe wheel.js: Der Server plant die Folgeaktionen des Gewinns
+    // unabhängig davon, ob die Walzen sichtbar liefen.
+    if (this.spinning) {
+      this.host?.notify?.('Walzen-Lauf übersprungen — es läuft schon einer. Bei mehreren Geschenken '
+        + 'kurz hintereinander normal.');
+      return;
+    }
     const n = this.items.length;
-    if (n < 1) return;
+    if (n < 1) {
+      this.host?.notify?.('Walzen-Lauf ausgelöst, aber dieser Automat hat keine Einträge — nichts zu sehen.');
+      return;
+    }
     const [r0, r1, r2] = slotReels(!!action.win, Number(action.winnerIndex) || 0, n, Number(action.roll) || 0);
     this.spinning = true;
     this.cab.classList.add('spinning');

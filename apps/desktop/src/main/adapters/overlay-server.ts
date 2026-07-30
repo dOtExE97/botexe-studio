@@ -836,7 +836,17 @@ export class OverlayServer {
 
   broadcast(message: OverlayMessage): void {
     this.lastBroadcastAt = Date.now();
-    if (this.clients.size === 0) return;
+    if (this.clients.size === 0) {
+      // Ohne Overlay ist eine Aktion schlicht verloren — der Hauptprozess hat
+      // sie vorher aber schon als ausgeführt geloggt. Bei laufenden Daten
+      // (stats/event) ist „niemand hört zu" der Normalfall und nicht der Rede
+      // wert; bei einer ausgelösten Aktion ist es ein echter Ausfall.
+      if (message.kind === 'action') {
+        log.warn('Overlay', 'Aktion ausgelöst, aber KEIN Overlay verbunden — im Stream passiert nichts. '
+          + 'Browser-Quelle in OBS prüfen.');
+      }
+      return;
+    }
     // Einmal serialisieren statt pro Client: bei mehreren offenen Overlays
     // (OBS + TTLS + Editor-Vorschau) wäre dasselbe Event sonst N-mal stringified.
     const payload = JSON.stringify(message);

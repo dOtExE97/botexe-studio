@@ -184,7 +184,15 @@ export default class Wheel {
     this.draw();
   }
   onAction(action) {
-    if (action.kind !== 'spin_wheel' || this.spinning) return;
+    if (action.kind !== 'spin_wheel') return;
+    // Zweiter Spin während einer laufenden Drehung: Der Server plant die
+    // Gewinner-Folgeaktionen trotzdem — es kann also etwas ausgelöst werden,
+    // ohne dass jemand das Rad dazu drehen sah. Nicht mehr stumm verwerfen.
+    if (this.spinning) {
+      this.ctx?.notify?.('Rad-Dreh übersprungen — es dreht schon eins. Bei mehreren Geschenken kurz '
+        + 'hintereinander normal; sonst die Drehdauer verkürzen.');
+      return;
+    }
     const n = this.segments.length, seg = (Math.PI*2)/n;
     // Gewinner: fester segmentIndex > Server-roll (gleich auf allen Quellen) >
     // lokaler Zufall (nur Fallback, z.B. Editor-Vorschau ohne Server-roll).
