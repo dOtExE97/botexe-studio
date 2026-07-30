@@ -214,6 +214,15 @@ export class TTSService {
     });
   }
 
+  /** Warteschlange abarbeiten.
+   *
+   *  Der ganze Rumpf liegt in einem try/catch: Wirft irgendetwas nach dem
+   *  Setzen von `processing` (onAudio, onError, waitForPlayback), wurde der
+   *  abschließende processNext()-Aufruf früher übersprungen — `processing`
+   *  blieb true, und speak() pumpte nie wieder an. Die Sprachausgabe war damit
+   *  für den Rest der Sitzung tot: Nachrichten landeten weiter in der Queue,
+   *  aber nichts wurde mehr vorgelesen. Ohne Fehler, ohne Meldung, mitten im
+   *  Stream. Jetzt wird der Fehler gemeldet und die Queue läuft weiter. */
   private async processNext(): Promise<void> {
     const item = this.queue.shift();
     if (!item) {
@@ -221,6 +230,16 @@ export class TTSService {
       return;
     }
     this.processing = true;
+    try {
+      await this.processItem(item);
+    } catch (err) {
+      log.error('TTS', 'Vorlesen abgebrochen', err instanceof Error ? err.message : String(err));
+      this.onError?.('Sprachausgabe hat einen Eintrag übersprungen — die Warteschlange läuft weiter.');
+    }
+    void this.processNext();
+  }
+
+  private async processItem(item: QueueItem): Promise<void> {
 
     let playback: TTSPlayback | null = null;
     let lastMsg = '';
@@ -284,8 +303,6 @@ export class TTSService {
           `Piper-Stimme vorbereiten — die läuft ohne Internet.`,
       );
     }
-
-    void this.processNext();
   }
 
   async synthesize(text: string, voice: string): Promise<TTSPlayback> {

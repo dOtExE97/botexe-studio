@@ -328,6 +328,19 @@ let pendingEvents = [];
 const FULLBLEED_FX = new Set(['gift-fireworks', 'heart-rain', 'milestone-confetti', 'emojify', 'gift-cannon']);
 
 async function renderLayout(layout) {
+  // Der ganze Aufbau in try/catch: Wirft hier irgendetwas (kaputtes Layout,
+  // DOM-Fehler, scaleStage), bliebe die rendering-Sperre sonst für immer
+  // gesetzt — siehe gibRenderingFrei().
+  try {
+    await renderLayoutIntern(layout);
+  } catch (err) {
+    meldeEinmal('laufzeit', `Layout-Aufbau fehlgeschlagen: ${err && err.message ? err.message : err}`);
+  } finally {
+    gibRenderingFrei();
+  }
+}
+
+async function renderLayoutIntern(layout) {
   // Komplett-Rebuild: Layout-Wechsel ist selten (Editor-Save), Einfachheit
   // schlägt Diffing. Events laufen danach wieder in frische Widgets.
   rendering = true;
@@ -437,10 +450,26 @@ async function renderLayout(layout) {
     }
   }
 
+}
+
+/** Rendering-Sperre lösen und aufgestaute Ereignisse zustellen.
+ *
+ *  MUSS auch im Fehlerfall laufen: Bleibt `rendering` auf true hängen, sammeln
+ *  sich ab da ALLE Ereignisse in pendingEvents und werden nie zugestellt — das
+ *  Overlay wirkt dann komplett tot, ohne Fehler und ohne Meldung. Nur ein
+ *  Neuladen der Browser-Quelle hilft. Deshalb steht der Aufruf zusätzlich im
+ *  catch/finally des Aufrufers. */
+function gibRenderingFrei() {
   rendering = false;
   const queued = pendingEvents;
   pendingEvents = [];
-  for (const e of queued) dispatchEvent(e);
+  for (const e of queued) {
+    try {
+      dispatchEvent(e);
+    } catch (err) {
+      meldeEinmal('laufzeit', `Ereignis nach Layout-Aufbau: ${err && err.message ? err.message : err}`);
+    }
+  }
 }
 
 // ── Nachrichten-Verteilung ────────────────────────────────────────────────
