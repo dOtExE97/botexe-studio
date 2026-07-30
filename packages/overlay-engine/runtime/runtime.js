@@ -715,6 +715,12 @@ function previewTest(widgetType, layerId) {
   const user = { id: u.id, nickname: u.nickname, profilePic: u.profilePic };
   if (widgetType === 'wheel') { dispatchAction('preview-test', { kind: 'spin_wheel', targetId: layerId }); return; }
   if (widgetType === 'media') { dispatchAction('preview-test', { kind: 'play_media', targetId: layerId }); return; }
+  // Geschenke-Slider mit Lucky-Draw lässt sich hier NICHT sinnvoll testen: Die
+  // Ziehung plant der Hauptprozess (planLuckyDraws), und die Palette-Vorschau
+  // läuft mit den Standard-Eigenschaften — dort ist luckyMode immer aus. Wer
+  // die Ziehung ausprobieren will, nimmt „Testen ohne Live" mit dem
+  // eingestellten Auslöser-Geschenk (Live-Seite): Das geht durch denselben
+  // Weg wie ein echtes Geschenk, inklusive Server-Planung und Zustellung.
   if (widgetType === 'giveaway') {
     const names = DEMO_USERS.map((x) => x.nickname);
     dispatchAction('preview-test', { kind: 'giveaway_draw', params: { winner: { nickname: names[0] }, names } });

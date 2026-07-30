@@ -549,7 +549,9 @@ export class Studio {
         // matchingLuckyLayers() — planLuckyDraws() selbst kennt den Auslöser
         // nicht mehr (siehe maybeLuckyDrawByCommand() für den zweiten
         // Auslöser per Chat-Befehl, Task 3, derselbe Dispatch-Pfad).
-        for (const { ruleId, action } of planLuckyDraws(matchingLuckyLayers(layers, e.gift.slug), this.getRules(), Math.random, e.user?.nickname)) {
+        const luckyLayers = matchingLuckyLayers(layers, e.gift.slug);
+        this.meldeZielLayout('Karten-Ziehung', luckyLayers.map((l) => l.id));
+        for (const { ruleId, action } of planLuckyDraws(luckyLayers, this.getRules(), Math.random, e.user?.nickname)) {
           this.dispatchAction(ruleId, action, e);
         }
         // TTS-Ansage ab Coin-Schwelle — aber nur, wenn nicht ohnehin schon eine
@@ -560,6 +562,40 @@ export class Studio {
       // 4. Live-Feed an die App-Shell
       this.hooks.onBusEvent(e);
     });
+  }
+
+  /**
+   * Ins Log schreiben, in WELCHEM Overlay-Layout die Ziel-Widgets liegen — und
+   * warnen, wenn das nicht das gerade aktive ist.
+   *
+   * Der Anlass: Ein Feuerwerk-Geschenk löste laut Log eine Karten-Ziehung aus,
+   * im Stream war nichts zu sehen. Aus dem Log ließ sich das nicht klären, denn
+   * die Suche nach passenden Widgets läuft über ALLE Layouts
+   * (`this.layouts.list()`), das Overlay zeigt aber nur EINES. Liegt das Widget
+   * in einem anderen Layout, verpufft die Aktion — der Hauptprozess meldete
+   * trotzdem Erfolg, weil er den Unterschied nie geprüft hat.
+   *
+   * Bewusst nur eine Meldung, kein Filtern: Mehrere Overlay-Quellen dürfen
+   * verschiedene Profile zeigen, ein Treffer in einem anderen Layout kann also
+   * völlig richtig sein. Wer die Ziehung vermisst, sieht ab jetzt aber sofort,
+   * wo sie hingegangen ist.
+   */
+  private meldeZielLayout(was: string, layerIds: string[]): void {
+    if (!layerIds.length) return;
+    const aktiv = this.settings.get().activeLayoutId;
+    for (const id of layerIds) {
+      const layout = this.layouts.list().find((l) => l.layers.some((x) => x.id === id));
+      if (!layout) continue;
+      if (layout.id === aktiv) {
+        log.info('Trigger', `${was} geht an „${layout.name}" (aktives Overlay)`);
+      } else {
+        log.warn(
+          'Trigger',
+          `${was} geht an das Widget im Layout „${layout.name}" — aktiv ist aber ein anderes. `
+            + 'Im Stream ist davon nichts zu sehen, solange dieses Layout nicht die angezeigte Browser-Quelle ist.',
+        );
+      }
+    }
   }
 
   /** Aktion einplanen — mit Verzögerung (Combo-Sequenz) oder sofort. */
