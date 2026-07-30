@@ -3,6 +3,34 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.44.1] — 2026-07-30
+
+### Behoben: Persönliche Intro-Videos liefen nie 🎬
+Das Widget für Begrüßungsvideos hat die Aufgabe angenommen und nichts getan — und zwar von Anfang an. In der App stand trotzdem „Intro abgespielt", und der Zuschauer galt danach als erledigt, hätte also auch beim nächsten Betreten keins bekommen. Doppelt unsichtbar.
+
+### Behoben: Karten-Ziehung brach mittendrin ab 🎴
+Der Geschenke-Slider lädt seine Daten im Hintergrund nach. Fiel das in eine laufende Ziehung, wurde sie abgeräumt — ohne Gewinner, ohne Niete, ohne Ton. Der Nachbau wartet jetzt, bis die Ziehung durch ist.
+
+### Behoben: Overlay konnte einfrieren 🧊
+Ging beim Aufbau eines Layouts etwas schief, verarbeitete das Overlay ab da **gar keine Ereignisse** mehr. Es sah normal aus, reagierte aber auf nichts — kein Geschenk, kein Follow, kein Chat. Nur ein Neuladen der Browser-Quelle half.
+
+### Behoben: Sprachausgabe konnte dauerhaft verstummen 🔇
+Stolperte das Vorlesen an einer Stelle, wurde die Warteschlange nie wieder angeschoben. Nachrichten liefen weiter hinein, vorgelesen wurde nichts mehr — bis zum Neustart der App.
+
+### Neu: Die App sagt, wenn etwas ins Leere läuft 🔍
+Bisher meldete sie „Aktion ausgeführt", auch wenn im Stream nichts passierte. Jetzt steht im Log, **warum**:
+
+- Widget liegt in einem anderen Layout als dem angezeigten
+- Widget ist ausgeblendet
+- gar kein Overlay verbunden
+- Geschenk steht nicht in der Liste dieses Widgets
+- Rad oder Automat drehen schon
+
+Und beim Start listet sie auf, welche Karten-Ziehungen scharf sind und auf welches Geschenk sie warten. Wer eine ausbleibende Animation sucht, sieht die Ursache jetzt in Sekunden statt sie zu raten.
+
+### Unter der Haube
+Der Verschlüsselungs-Hinweis im Log nennt auf Windows jetzt „DPAPI" statt „unknown".
+
 ## [0.44.0] — 2026-07-30
 
 ### Behoben: Bestenliste wurde bei wenigen Einträgen riesig 🔍
