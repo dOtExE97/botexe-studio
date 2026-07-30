@@ -582,17 +582,27 @@ export class Studio {
    */
   private meldeZielLayout(was: string, layerIds: string[]): void {
     if (!layerIds.length) return;
-    const aktiv = this.settings.get().activeLayoutId;
+    // Gegen die WIRKLICH verbundenen Overlay-Quellen prüfen, nicht gegen
+    // activeLayoutId: Eine Browser-Quelle in OBS kann per `?profile=…` ein
+    // beliebiges Layout zeigen. Ein Vergleich mit dem Default-Profil würde
+    // dann falschen Alarm geben — und eine Warnung, die zu Unrecht kommt, ist
+    // schlimmer als keine.
+    const standard = this.settings.get().activeLayoutId;
+    const gezeigt = new Set(
+      this.server.getDiagnostics().clients.map((c) => c.profileId || standard),
+    );
     for (const id of layerIds) {
       const layout = this.layouts.list().find((l) => l.layers.some((x) => x.id === id));
       if (!layout) continue;
-      if (layout.id === aktiv) {
-        log.info('Trigger', `${was} geht an „${layout.name}" (aktives Overlay)`);
+      if (gezeigt.has(layout.id)) {
+        log.info('Trigger', `${was} geht an „${layout.name}" — dieses Overlay ist gerade verbunden.`);
+      } else if (gezeigt.size === 0) {
+        log.warn('Trigger', `${was} geplant, aber es ist gar kein Overlay verbunden — im Stream ist nichts zu sehen.`);
       } else {
         log.warn(
           'Trigger',
-          `${was} geht an das Widget im Layout „${layout.name}" — aktiv ist aber ein anderes. `
-            + 'Im Stream ist davon nichts zu sehen, solange dieses Layout nicht die angezeigte Browser-Quelle ist.',
+          `${was} geht an ein Widget im Layout „${layout.name}", aber keine verbundene Overlay-Quelle zeigt dieses Layout `
+            + `(verbunden: ${[...gezeigt].map((p) => p || '(Standard)').join(', ')}). Im Stream ist davon nichts zu sehen.`,
         );
       }
     }
