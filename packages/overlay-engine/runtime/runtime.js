@@ -322,25 +322,53 @@ function scaleStage() {
 // sonst verpuffen — z.B. der Sticky-Replay direkt nach dem WS-Connect.
 let rendering = false;
 let pendingEvents = [];
+// Dasselbe für Aktionen und Momente: Sie liefen bisher SOFORT gegen die noch
+// nicht gemounteten Widgets. Der Streamer sah dann „Trigger ausgeführt" im Log,
+// im Overlay passierte nichts — und die Overlay-Meldung nannte auch noch die
+// falsche Ursache („liegt in einem anderen Layout"). Gedeckelt, damit ein
+// Geschenke-Sturm während eines langen Mounts das Array nicht sprengt.
+let pendingActions = [];
+const PENDING_ACTIONS_MAX = 50;
+
+// Letzter Spielzustand JE Spielart, zum Nachreichen beim Widget-Mount (wie
+// lastStats/lastSpotify). Muss eine Map sein, keine einzelne Variable: der
+// Server schickt beim Verbinden zwei davon (laufendes Spiel + Boss), eine
+// einzelne Variable würde die erste verschlucken.
+const lastGameStates = new Map();
+
+// Laufende Layout-Aufbauten durchnummerieren. Zwei `layout`-Nachrichten kurz
+// hintereinander (Editor-Save, Profilwechsel) starten zwei Aufbauten, die sich
+// beim `await` des Widget-Moduls überholen können — ohne diese Nummer mountet
+// der ältere Lauf seine Widgets auf DOM-Knoten, die der jüngere längst entfernt
+// hat (Geister-Widget mit ewig laufenden Timern) und hängt seine restlichen
+// Ebenen zusätzlich in den neuen Stage (gemischtes Layout).
+let layoutEpoch = 0;
 
 // Vollflächige Effekt-Widgets bekommen KEIN Mount-Einschweben (.bx-enter) —
 // sie bringen ihren eigenen Auftritt mit (Burst/Regen/Konfetti/Fontäne).
 const FULLBLEED_FX = new Set(['gift-fireworks', 'heart-rain', 'milestone-confetti', 'emojify', 'gift-cannon']);
 
 async function renderLayout(layout) {
+  // Eigene Nummer ziehen, BEVOR irgendetwas awaited wird — ab hier ist jeder
+  // ältere Lauf veraltet und darf nichts mehr in Stage/liveLayers schreiben.
+  const meine = ++layoutEpoch;
   // Der ganze Aufbau in try/catch: Wirft hier irgendetwas (kaputtes Layout,
   // DOM-Fehler, scaleStage), bliebe die rendering-Sperre sonst für immer
   // gesetzt — siehe gibRenderingFrei().
   try {
-    await renderLayoutIntern(layout);
+    await renderLayoutIntern(layout, meine);
   } catch (err) {
     meldeEinmal('laufzeit', `Layout-Aufbau fehlgeschlagen: ${err && err.message ? err.message : err}`);
   } finally {
-    gibRenderingFrei();
+    // Nur der NEUESTE Lauf gibt frei. Täte es ein überholter, würden die
+    // gestauten Ereignisse in einen halb aufgebauten Stage zugestellt. Der
+    // neueste Lauf durchläuft sein finally immer — die Sperre kann also nicht
+    // hängenbleiben.
+    if (meine === layoutEpoch) gibRenderingFrei();
   }
 }
 
-async function renderLayoutIntern(layout) {
+async function renderLayoutIntern(layout, epoch) {
   // Komplett-Rebuild: Layout-Wechsel ist selten (Editor-Save), Einfachheit
   // schlägt Diffing. Events laufen danach wieder in frische Widgets.
   rendering = true;
@@ -387,6 +415,9 @@ async function renderLayoutIntern(layout) {
     liveLayers.set(layer.id, entry);
 
     const WidgetClass = await loadWidgetClass(layer.widgetType);
+    // Hat uns während des Modul-Ladens ein neueres Layout überholt, gehört der
+    // Stage jetzt ihm: nichts mehr mounten, nichts mehr anhängen.
+    if (epoch !== layoutEpoch) return;
     if (WidgetClass) {
       try {
         entry.widget = new WidgetClass(mountEl, layer.props || {}, {
@@ -443,6 +474,12 @@ async function renderLayoutIntern(layout) {
         });
         if (lastStats) entry.widget?.onStats?.(lastStats);
         if (lastSpotify) entry.widget?.onSpotify?.(lastSpotify);
+        // Laufendes Quiz/Bingo/Boss nachreichen. Der Server schickt den Zustand
+        // direkt nach dem Layout — da stehen die Widgets aber noch nicht, und
+        // ein zweites Mal kommt er nur bei echter Änderung. Ohne diese Zeile
+        // war das Spiel nach jedem Neuladen der Browser-Quelle (passiert bei
+        // jedem App-Update automatisch, mitten im Stream) aus dem Overlay weg.
+        for (const zustand of lastGameStates.values()) entry.widget?.onGameState?.(zustand);
       } catch (err) {
         console.warn(`[overlay] Widget "${layer.widgetType}" crash beim mount:`, err);
         reportClientError(layer.widgetType, `Crash beim Mount: ${err && err.message ? err.message : err}`);
@@ -452,13 +489,31 @@ async function renderLayoutIntern(layout) {
 
 }
 
-/** Rendering-Sperre lösen und aufgestaute Ereignisse zustellen.
+/** Eine Aktion/einen Moment für die Zeit des Layout-Aufbaus zurückstellen.
+ *  Läuft der Puffer über (Geschenke-Sturm während eines langen Mounts), wird
+ *  verworfen — aber NICHT stumm: „passiert nichts und keiner weiß warum" ist
+ *  genau der Fehler, den diese Warteschlange beseitigen soll. */
+function merkeAktion(eintrag, art) {
+  if (pendingActions.length < PENDING_ACTIONS_MAX) {
+    pendingActions.push(eintrag);
+    return;
+  }
+  meldeEinmal(
+    'aktion',
+    `Zu viele Aktionen während des Overlay-Aufbaus — „${art || '?'}" wurde verworfen `
+      + `(mehr als ${PENDING_ACTIONS_MAX} in der Warteschlange).`,
+    'puffer-voll',
+  );
+}
+
+/** Rendering-Sperre lösen und aufgestaute Ereignisse/Aktionen zustellen.
  *
  *  MUSS auch im Fehlerfall laufen: Bleibt `rendering` auf true hängen, sammeln
  *  sich ab da ALLE Ereignisse in pendingEvents und werden nie zugestellt — das
  *  Overlay wirkt dann komplett tot, ohne Fehler und ohne Meldung. Nur ein
- *  Neuladen der Browser-Quelle hilft. Deshalb steht der Aufruf zusätzlich im
- *  catch/finally des Aufrufers. */
+ *  Neuladen der Browser-Quelle hilft. Deshalb steht der Aufruf im `finally` von
+ *  renderLayout(). Freigeben darf nur der ZULETZT gestartete Aufbau (Epoch) —
+ *  dessen finally läuft immer, die Sperre kann also nicht hängenbleiben. */
 function gibRenderingFrei() {
   rendering = false;
   const queued = pendingEvents;
@@ -468,6 +523,18 @@ function gibRenderingFrei() {
       dispatchEvent(e);
     } catch (err) {
       meldeEinmal('laufzeit', `Ereignis nach Layout-Aufbau: ${err && err.message ? err.message : err}`);
+    }
+  }
+  // Aktionen NACH den Ereignissen: Ein Alert soll die Zähler-Ereignisse
+  // derselben Sekunde nicht überholen.
+  const queuedAktionen = pendingActions;
+  pendingActions = [];
+  for (const a of queuedAktionen) {
+    try {
+      if (a.art === 'moment') dispatchMoment(a.moment);
+      else dispatchAction(a.ruleId, a.action);
+    } catch (err) {
+      meldeEinmal('laufzeit', `Aktion nach Layout-Aufbau: ${err && err.message ? err.message : err}`);
     }
   }
 }
@@ -509,6 +576,9 @@ function dispatchSpotify(state) {
 // Neuer Stream → akkumulierende Widgets (Top-Listen, Zähler, Glas) zurücksetzen.
 function dispatchReset() {
   lastStats = null;
+  // Spiele sind mit dem alten Stream vorbei — sonst taucht ein beendetes Quiz
+  // beim nächsten Widget-Mount wieder auf.
+  lastGameStates.clear();
   for (const { widget } of liveLayers.values()) {
     try {
       widget?.onReset?.();
@@ -828,6 +898,12 @@ function connect() {
     // alten im Speicher zu behalten.
     if (msg.kind === 'hello') {
       if (msg.seed) sessionSeed = msg.seed; // Session-Seed für deterministische Spiele
+      // Gemerkte Spielzustände verwerfen: Der Server schickt gleich nach dem
+      // `hello` NUR das, was wirklich noch läuft — für „läuft nichts mehr" gibt
+      // es keine Nachricht. Ohne dieses Leeren würde ein Quiz, das während der
+      // Trennung zu Ende ging, beim nächsten Widget-Mount als Zombie wieder
+      // auftauchen und dort stehen bleiben.
+      lastGameStates.clear();
       // Editor-Vorschau (PREVIEW) NICHT neuladen — würde mitten im Bearbeiten
       // neu starten; sie wird beim App-Neustart ohnehin frisch geladen.
       if (seenVersion !== null && seenVersion !== msg.version && !PREVIEW) {
@@ -846,12 +922,23 @@ function connect() {
       if (rendering) pendingEvents.push(msg.event);
       else dispatchEvent(msg.event);
     }
-    else if (msg.kind === 'action') dispatchAction(msg.ruleId, msg.action);
+    else if (msg.kind === 'action') {
+      if (rendering) merkeAktion({ art: 'aktion', ruleId: msg.ruleId, action: msg.action }, msg.action?.kind);
+      else dispatchAction(msg.ruleId, msg.action);
+    }
     else if (msg.kind === 'stats') dispatchStats(msg.stats);
     else if (msg.kind === 'spotify') dispatchSpotify(msg.state);
     else if (msg.kind === 'reset') { if (msg.seed) sessionSeed = msg.seed; dispatchReset(); }
-    else if (msg.kind === 'moment') dispatchMoment(msg.moment);
-    else if (msg.kind === 'game-state') dispatchToWidgets('onGameState', { gameKind: msg.gameKind, state: msg.state });
+    else if (msg.kind === 'moment') {
+      if (rendering) merkeAktion({ art: 'moment', moment: msg.moment }, 'moment');
+      else dispatchMoment(msg.moment);
+    }
+    else if (msg.kind === 'game-state') {
+      // Zustand merken (Mount-Nachreichung), dann normal verteilen.
+      const zustand = { gameKind: msg.gameKind, state: msg.state };
+      lastGameStates.set(String(msg.gameKind ?? ''), zustand);
+      dispatchToWidgets('onGameState', zustand);
+    }
     // `type` = `event` mitschicken: einige Widgets lesen msg.type / msg.event.type
     // statt des Event-Strings — ohne dies fielen Win-Celebration/Reveal-Sound aus.
     else if (msg.kind === 'game-event') dispatchToWidgets('onGameEvent', { gameKind: msg.gameKind, event: msg.event, type: msg.event, payload: msg.payload });

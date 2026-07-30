@@ -3,6 +3,47 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.45.0] — 2026-07-31
+
+### Behoben: OBS trennte sich alle 8 Sekunden 🔌
+Ein Klick ins URL- oder Passwort-Feld der OBS-Einstellungen genügte — schon riss die Verbindung für den Rest des Streams im Dauertakt kurz ab. In genau diesen Sekundenbruchteilen verpufften Szenenwechsel und Quellen-Schaltungen aus deinen Triggern **stumm**: Das Geschenk kam, im Stream passierte nichts. Ursache: Beim Verbinden schließt OBS zuerst die alte Verbindung, und die App legte daraufhin einen Wiederholungs-Timer, der die frische Verbindung wieder abriss.
+
+### Behoben: Laufendes Quiz/Bingo/Boss verschwand nach jedem Update 🎲
+Ein App-Update lädt deine Browser-Quelle automatisch neu — mitten im Stream. Der Spielstand kam danach nicht zurück, weil die App ihn schickt, bevor die Widgets überhaupt da sind. Jetzt wird er nachgereicht.
+
+### Behoben: Trigger beim Overlay-Start liefen ins Leere 🎬
+Feuerte ein Trigger genau während des Aufbaus, passierte im Stream nichts — und im Log stand die **falsche** Ursache („liegt in einem anderen Layout"). Aktionen warten jetzt, bis die Widgets stehen. Läuft die Warteschlange über, sagt die App das jetzt, statt still zu verwerfen.
+
+### Behoben: Rad, Coin-Glas und Feuerwerk konnten sich selbst aussperren 🎡
+War die Ebene im Overlay ausgeblendet, konnte sich das Glücksrad beim ersten Dreh dauerhaft blockieren: Es drehte nie wieder, die App führte die Gewinn-Aktion aber weiter aus, und im Log stand kein Wort dazu. Gleiches Muster im Coin-Glas (sehr flach gezogen) und im Feuerwerk (nach wenigen Geschenken tot, dazu unnötige Dauerlast). Zusätzlich: Rad und Automat tauschen ihre Felder nicht mehr mitten in der Drehung aus — sie blieben sonst auf einem anderen Feld stehen als dem, das die App ausgelost hatte.
+
+### Behoben: Combos zählten als ein einziges Geschenk 🌹
+Eine 50er-Rosen-Combo erhöhte die Coins um 50, den Geschenk-Zähler aber nur um 1. Ein „Geschenk-Ziel 100" füllte sich deshalb praktisch nie, und der Gift-Chip zeigte weniger an als der Geschenkzähler direkt daneben. **Hinweis:** Geschenk-Zahlen ab diesem Update sind nicht mit älteren vergleichbar — Coins und Punkte bleiben unverändert.
+
+### Behoben: Streams standen doppelt in der Analyse 📊
+Beim Beenden landete die Session in der Historie — und beim nächsten „Live" noch einmal. Wochen-, Monats- und Jahressummen waren dadurch zu hoch, die Stream-Anzahl auch.
+
+### Behoben: Ein neuer Stream startete mit den alten Zahlen 🔢
+Wer die App nach dem Stream schloss und Stunden später neu streamte, begann mit vollem Coin-Glas und halb gefülltem Ziel-Balken — vor allen Zuschauern. Die App unterscheidet jetzt sauber zwischen „Neustart mitten im Stream" (weiterzählen) und „neuer Stream" (bei null anfangen). Und: Ein fertiger Stream kann nicht mehr verloren gehen, egal wie du die App verlässt.
+
+### Behoben: Testereignisse von außen waren gar keine Tests 🧪
+Die Schnittstelle `POST /api/test-event` hat Punkte verteilt, Geschenke dauerhaft in deinen Katalog geschrieben (inklusive „Erstsender") und laufende Aufnahmen verunreinigt. Jetzt verhält sie sich wie der Test-Knopf in der App: Trigger, Overlay, Sounds und Zähler reagieren, deine echten Daten bleiben sauber.
+
+### Behoben: Spotify meldete „Verbunden" und spielte trotzdem nichts 🎵
+Hattest du der App im Spotify-Konto den Zugriff entzogen, blieb der Status grün, das Widget für immer leer und die Steuerung wirkungslos — ohne einen Hinweis. Jetzt trennt die App sauber und sagt dir, dass du dich neu anmelden musst. Außerdem kann nach dem Abmelden kein alter Song mehr zurückkommen und stehen bleiben.
+
+### Behoben: Karten-Ziehung wurde ausgelöst, ohne dass jemand Karten sah 🎴
+Kam ein zweites Auslöser-Geschenk, während die Ziehung noch lief, lehnte das Widget ab — die App führte die Gewinn-Aktion (Sound, Punkte, Challenge) aber trotzdem aus. Beide Seiten entscheiden jetzt nach derselben Regel.
+
+### Behoben: Die Trigger-Seite brauchte 4 Sekunden zum Öffnen ⏳
+Wer Streamer.bot mit Authentifizierung nutzt, wartete bei jedem Öffnen — die Seite hing an einer Anfrage, die nie beantwortet wird. Und wird eine Streamer.bot-Aktion ohne Verbindung ausgelöst, steht der Grund jetzt im Log, statt dass einfach nichts passiert.
+
+### Behoben: Verzögerte Aktionen aus dem alten Stream 🔁
+Nach „Session zurücksetzen" oder beim Start eines neuen Streams konnte noch ein Alert oder Sound mit dem Namen aus dem vorherigen Stream aufploppen.
+
+### Neu: Die empfohlene Größe der Browser-Quelle steht direkt am Link 📐
+Oben neben den Link-Knöpfen, in der Diagnose und in der Startklar-Liste — und in der Meldung beim Kopieren. Diese Größe musst du in OBS (Breite/Höhe) bzw. TikTok Live Studio (benutzerdefinierte Auflösung) von Hand eintragen. Stimmt sie nicht, wird dein Overlay verkleinert und mittig eingepasst, und deine Widgets sitzen nicht mehr dort, wo du sie gebaut hast.
+
 ## [0.44.1] — 2026-07-30
 
 ### Behoben: Persönliche Intro-Videos liefen nie 🎬

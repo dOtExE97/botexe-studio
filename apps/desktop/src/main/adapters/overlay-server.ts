@@ -481,6 +481,13 @@ export class OverlayServer {
       const clean: StudioEvent = {
         type: e.type as StudioEvent['type'],
         ts: Date.now(),
+        // Wie der Test-Knopf in der App: simuliert, nicht echt. Trigger, Stats,
+        // Overlay und Sounds laufen unverändert — aber Punkte-Konto,
+        // Gift-Katalog („Erstsender"!), Erst-Follow-Gedächtnis und eine
+        // laufende Aufnahme bleiben sauber. Das Feld steht bewusst HIER und
+        // nicht als Durchreiche aus dem Request: sonst könnte ein Aufrufer
+        // `synthetic:false` schicken und die Absicherung aushebeln.
+        synthetic: true,
         ...(e.user ? { user: e.user } : {}),
         ...(typeof e.text === 'string' ? { text: e.text } : {}),
         ...(e.gift ? { gift: e.gift } : {}),

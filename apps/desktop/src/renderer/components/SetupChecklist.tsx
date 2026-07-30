@@ -13,6 +13,8 @@ interface Diag {
   activeLayers: number;
   clientCount: number;
   overlayUrl: string;
+  /** Empfohlene Größe der Browser-Quelle — muss in OBS/TTLS von Hand gesetzt werden. */
+  overlaySize?: { width: number; height: number };
 }
 
 const DISMISS_KEY = 'bx-setup-dismissed';
@@ -63,10 +65,17 @@ export default function SetupChecklist({ connected }: { connected: boolean }) {
     },
     {
       done: diag.clientCount > 0,
-      label: 'Overlay-Link als Browser-Quelle in OBS / TikTok Live Studio',
+      label: diag.overlaySize
+        ? `Overlay-Link als Browser-Quelle in OBS / TikTok Live Studio (Größe ${diag.overlaySize.width}×${diag.overlaySize.height})`
+        : 'Overlay-Link als Browser-Quelle in OBS / TikTok Live Studio',
       action: {
         label: 'Link kopieren',
-        run: () => { void window.studio.copyText(diag.overlayUrl); toast('success', 'Link kopiert — in OBS/Live Studio als Browser-Quelle einfügen. Der Haken kommt, sobald die Quelle verbunden ist.'); },
+        run: () => {
+          void window.studio.copyText(diag.overlayUrl);
+          toast('success', diag.overlaySize
+            ? `Link kopiert — in OBS/Live Studio als Browser-Quelle einfügen und die Größe auf ${diag.overlaySize.width}×${diag.overlaySize.height} stellen. Der Haken kommt, sobald die Quelle verbunden ist.`
+            : 'Link kopiert — in OBS/Live Studio als Browser-Quelle einfügen. Der Haken kommt, sobald die Quelle verbunden ist.');
+        },
       },
       hint: diag.clientCount === 0 ? 'hakt sich automatisch ab, sobald OBS/Live Studio den Link offen hat' : undefined,
     },

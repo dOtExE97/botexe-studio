@@ -245,7 +245,9 @@ export class TikTokAdapter {
       await c.fetchRoomId?.();
       return await c.fetchAvailableGifts?.();
     } finally {
-      try { c.disconnect?.(); } catch { /* egal */ }
+      // Auch hier den Promise-Fall mitfangen: Der echte Direkt-Client liefert
+      // aus disconnect() ein Promise, ein Reject liefe am try/catch vorbei.
+      try { void Promise.resolve(c.disconnect?.()).catch(() => undefined); } catch { /* egal */ }
     }
   }
 
@@ -256,7 +258,7 @@ export class TikTokAdapter {
         disconnect?: () => void;
       };
       const live = await conn.fetchIsLive?.();
-      try { conn.disconnect?.(); } catch { /* egal */ }
+      try { void Promise.resolve(conn.disconnect?.()).catch(() => undefined); } catch { /* egal */ }
       return Boolean(live);
     } catch {
       return false;
@@ -320,7 +322,9 @@ export class TikTokAdapter {
         // Während des Connects kam ein neuer connect()/disconnect() — diese
         // Connection ist schon wieder Geschichte.
         conn.removeAllListeners();
-        void conn.disconnect();
+        // Promise-Fall mitfangen (siehe cleanupConnection) — sonst wird aus einem
+        // gescheiterten Trennen eine unbeschriftete unhandledRejection.
+        void Promise.resolve(conn.disconnect()).catch(() => undefined);
         return;
       }
       this.reconnectAttempts = 0;
@@ -532,7 +536,16 @@ export class TikTokAdapter {
     this.connection = null;
     old.removeAllListeners();
     try {
-      void old.disconnect();
+      // disconnect() darf laut Interface ein Promise liefern (der Direkt-Weg tut
+      // das auch) — ein `void` davor verwirft zwar den Wert, fängt aber KEIN
+      // Reject: das try/catch drumherum greift nur bei synchronen Würfen. Sonst
+      // landet der Fehler als nacktes „unhandledRejection" im Log statt mit
+      // dieser Erklärung. NICHT auf await umbauen: cleanupConnection läuft im
+      // synchronen Teil von doConnect, ein await würde genau das Zeitfenster
+      // aufreißen, gegen das die Epoch-Prüfung gebaut wurde.
+      void Promise.resolve(old.disconnect()).catch((err: unknown) => {
+        log.warn('TikTok', 'Fehler beim Trennen der alten Connection', (err as Error)?.message ?? String(err));
+      });
     } catch (err) {
       log.warn('TikTok', 'Fehler beim Trennen der alten Connection', (err as Error).message);
     }

@@ -19,6 +19,11 @@ export class ObsService {
   private status: ObsStatus = 'off';
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private wantConnected = false;
+  /** Laufende Verbindungsversuche durchnummerieren. Zwei applyConfig-Aufrufe
+   *  (die Einstellungsseite feuert je einmal beim Verlassen des URL- UND des
+   *  Passwort-Feldes) starten sonst überlappende Versuche, und der ältere setzt
+   *  hinterher noch Status/Retry für eine Konfiguration, die es nicht mehr gibt. */
+  private connectSeq = 0;
   private readonly onStatus: (s: ObsStatus, detail?: string) => void;
 
   constructor(onStatus: (s: ObsStatus, detail?: string) => void = () => undefined) {
@@ -42,6 +47,7 @@ export class ObsService {
       void this.connect();
     } else {
       this.wantConnected = false;
+      this.connectSeq++; // hängenden Verbindungsversuch entwerten
       this.clearRetry();
       void this.obs.disconnect().catch(() => undefined);
       this.setStatus('off');
@@ -50,16 +56,31 @@ export class ObsService {
 
   private async connect(): Promise<void> {
     if (!this.wantConnected) return;
+    const gen = ++this.connectSeq;
     this.clearRetry();
     this.setStatus('connecting');
     try {
       await this.obs.connect(this.config.url, this.config.password || undefined);
+      // Ein neuerer Versuch besitzt den Socket bereits — dieser hier hat nichts
+      // mehr zu melden (und darf vor allem nicht trennen).
+      if (gen !== this.connectSeq) return;
       // Während des await könnte OBS deaktiviert worden sein (wantConnected=false) —
       // dann nicht fälschlich „connected" melden, sondern sauber wieder trennen.
       if (!this.wantConnected) { await this.obs.disconnect().catch(() => { /* egal */ }); return; }
       this.setStatus('connected');
+      // WICHTIG: obs.connect() schließt intern zuerst einen bestehenden Socket.
+      // Das löst unseren ConnectionClosed-Handler aus, der einen 8-s-Retry legt
+      // — der würde die gerade aufgebaute Verbindung 8 Sekunden später wieder
+      // abreißen, immer und immer wieder. Ein einziger Klick ins URL-Feld der
+      // Einstellungen genügte, damit OBS für den Rest des Streams im
+      // 8-Sekunden-Takt trennt und Szenenwechsel zufällig verpuffen.
+      this.clearRetry();
       log.info('OBS', 'Verbunden');
     } catch (err) {
+      // Veralteter Versuch (neue Konfiguration läuft schon) oder OBS wurde
+      // inzwischen abgeschaltet: kein „Fehler" melden, sonst steht die Pille
+      // dauerhaft rot, obwohl das Feature aus ist bzw. gerade neu verbindet.
+      if (gen !== this.connectSeq || !this.wantConnected) return;
       this.setStatus('error', (err as Error).message);
       this.scheduleRetry();
     }

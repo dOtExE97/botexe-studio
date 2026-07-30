@@ -95,6 +95,10 @@ export class SpotifyService {
   private pendingVerifier: string | null = null;
   private pendingState: string | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
+  /** Letztes geloggtes API-Fehlerbild ('' = alles gut) — gegen Log-Flut. */
+  private letztesApiFehlerbild = '';
+  /** Laufender Token-Refresh — zweite Anfragen warten mit, statt selbst zu erneuern. */
+  private refreshLaeuft: Promise<string | null> | null = null;
 
   constructor(deps: SpotifyDeps) {
     this.deps = deps;
@@ -155,11 +159,23 @@ export class SpotifyService {
     this.deps.onState?.(null);
   }
 
-  /** Gültiges Access-Token holen — bei Bedarf per Refresh erneuern. */
+  /** Gültiges Access-Token holen — bei Bedarf per Refresh erneuern.
+   *
+   *  Ein Refresh läuft immer NUR EINMAL gleichzeitig: Spotify rotiert
+   *  Refresh-Tokens, zwei parallele Anfragen (der 8-Sekunden-Takt trifft auf
+   *  eine Nutzer-Aktion) erneuern also mit demselben alten Token — die zweite
+   *  bekommt zu Recht `invalid_grant` und hätte die gerade erneuerte Anmeldung
+   *  weggeworfen. Wer währenddessen fragt, wartet einfach mit. */
   private async accessToken(): Promise<string | null> {
     const t = this.deps.getTokens();
     if (!t?.refreshToken) return null;
     if (t.accessToken && this.now() < t.expiresAt) return t.accessToken;
+    if (this.refreshLaeuft) return this.refreshLaeuft;
+    this.refreshLaeuft = this.erneuereToken(t).finally(() => { this.refreshLaeuft = null; });
+    return this.refreshLaeuft;
+  }
+
+  private async erneuereToken(t: SpotifyTokens): Promise<string | null> {
     try {
       const res = await this.fetchFn(TOKEN_URL, {
         method: 'POST',
@@ -170,7 +186,30 @@ export class SpotifyService {
           client_id: this.deps.getClientId().trim(),
         }).toString(),
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        // Endgültig ungültiges Refresh-Token (Zugriff im Spotify-Konto
+        // entzogen) → Tokens wegwerfen, sonst steht in den Einstellungen für
+        // immer „Verbunden", während Widget und Steuerung nichts mehr tun und
+        // die App alle 8 s erfolglos anklopft. NUR bei invalid_grant: ein
+        // Netzaussetzer (catch), 429 oder 5xx darf den Nutzer nicht ausloggen.
+        if (res.status === 400) {
+          let code = '';
+          try { code = ((await res.json()) as { error?: string })?.error ?? ''; } catch { /* Body egal */ }
+          // NUR ausloggen, wenn das abgelehnte Token noch das aktuelle ist:
+          // Spotify rotiert Refresh-Tokens. Laufen zwei Refreshes parallel
+          // (8-s-Poll trifft auf eine Nutzer-Aktion), erneuert der erste das
+          // Token — der zweite läuft noch mit dem alten und bekommt dafür
+          // völlig zu Recht invalid_grant. Ohne diese Prüfung würde er die
+          // frisch gültige Anmeldung wegwerfen und den Streamer ausloggen.
+          if (code === 'invalid_grant' && this.deps.getTokens()?.refreshToken === t.refreshToken) {
+            log.warn('Spotify', 'Refresh-Token ungültig (invalid_grant) — Verbindung getrennt, bitte in den Einstellungen neu anmelden.');
+            this.deps.saveTokens(null);
+            this.stopPolling(); // sonst klopft der 8-s-Takt weiter ins Leere
+            this.deps.onState?.(null);
+          }
+        }
+        return null;
+      }
       const j = (await res.json()) as { access_token: string; refresh_token?: string; expires_in: number };
       const next: SpotifyTokens = {
         accessToken: j.access_token,
@@ -184,15 +223,34 @@ export class SpotifyService {
     }
   }
 
-  private async api(path: string, method = 'GET', body?: unknown): Promise<Response | null> {
+  private async api(path: string, method = 'GET', body?: unknown, schonWiederholt = false): Promise<Response | null> {
     const token = await this.accessToken();
     if (!token) return null;
     try {
-      return await this.fetchFn(`${API}${path}`, {
+      const res = await this.fetchFn(`${API}${path}`, {
         method,
         headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
+      // 401 heißt: Das Access-Token ist tot, obwohl sein Ablaufdatum noch in der
+      // Zukunft liegt (typisch, wenn der Nutzer der App im Spotify-Konto den
+      // Zugriff entzogen hat). Ohne diesen Schritt hätte die App bis zu einer
+      // Stunde lang stumm nichts getan. Also einmalig — und nur einmalig — einen
+      // Refresh erzwingen; ist der auch hinüber, trennt accessToken() sauber.
+      if (res.status === 401 && !schonWiederholt) {
+        const t = this.deps.getTokens();
+        if (t) this.deps.saveTokens({ ...t, expiresAt: 0 });
+        return this.api(path, method, body, true);
+      }
+      // Nur bei WECHSELNDEM Fehlerbild loggen: Der Now-Playing-Abruf läuft alle
+      // 8 Sekunden — eine ungedrosselte Zeile pro Antwort würde die Logdatei bei
+      // einem Dauerfehler zumüllen und die interessanten Meldungen verdrängen.
+      const fehlerbild = res.ok ? '' : `${method} ${path} ${res.status}`;
+      if (fehlerbild && fehlerbild !== this.letztesApiFehlerbild) {
+        log.warn('Spotify', `API ${method} ${path} → HTTP ${res.status}`);
+      }
+      this.letztesApiFehlerbild = fehlerbild;
+      return res;
     } catch (err) {
       log.warn('Spotify', `API ${method} ${path} fehlgeschlagen`, (err as Error).message);
       return null;
@@ -231,7 +289,14 @@ export class SpotifyService {
    *  Steuerungs-Aktion, ohne dass dafür ein Dauer-Polling laufen muss). */
   async pollOnce(): Promise<void> {
     if (!this.isConnected()) return;
-    this.deps.onState?.(await this.getNowPlaying());
+    const np = await this.getNowPlaying();
+    // Zweite Prüfung NACH dem Request: Fällt der Klick auf „Abmelden" in die
+    // Sekundenbruchteile, in denen die Antwort unterwegs ist, meldete pollOnce
+    // den alten Song danach noch einmal — und weil der Timer schon gestoppt war,
+    // blieb er für immer im Overlay stehen (auch nach Overlay-Neustart, der
+    // Server liefert Late-Joinern denselben Schnappschuss aus).
+    if (!this.isConnected()) return;
+    this.deps.onState?.(np);
   }
 
   /** Now-Playing periodisch pollen und per onState melden (fürs Overlay).

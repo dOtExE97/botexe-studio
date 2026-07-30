@@ -6,6 +6,32 @@ import type { StudioEvent } from '@botexe/trigger-engine';
 export const STATS_SCHEMA_VERSION = 1;
 const TOP_GIFTERS_LIMIT = 10;
 
+/**
+ * Wie viele Geschenke steckt EIN Gift-Ereignis? Antwort: die Stückzahl, nicht
+ * eins — eine 50er-Rosen-Combo kommt als ein Ereignis mit `count: 50` an
+ * (`normalizeGift` verwirft die Zwischenstufen), und `totalCoins` ist bereits
+ * `coinsPerUnit × count`. Mit „+1" zählte dieselbe Combo als 1 Geschenk,
+ * während die Coins um 50 stiegen: Ein „Geschenk-Ziel 100" füllte sich
+ * praktisch nie, und der Gift-Chip zeigte weniger als der Geschenkzähler
+ * direkt daneben (der zählt seit jeher `count`).
+ *
+ * Die Bedingung `totalCoins > 0` ist die Sicherung dagegen, dass daraus je eine
+ * Doppelzählung wird: Die Combo-Zwischenstufen werden nur unterdrückt, wenn das
+ * Ereignis die Gift-Details der Plattform trägt — und genau daher stammt auch
+ * der Coin-Preis. Kommen (etwa von einem fremden Anbieter) Ereignisse OHNE
+ * diese Details, rutschen alle Zwischenstufen durch und ihre `count`-Werte
+ * summierten sich zu 1+2+3+… statt 50. Ohne Coins zählt deshalb jedes Ereignis
+ * als genau ein Geschenk — so wie vorher.
+ *
+ * EINE Quelle für SessionStats und PointsStore. Das gift-counter-Widget zählt
+ * ebenfalls `count` — allerdings ohne diese Coin-Bedingung; im Regelfall (echte
+ * TikTok-Geschenke kosten mindestens 1 Coin) kommen beide auf dieselbe Zahl.
+ */
+export function giftStueckzahl(gift: { count?: number; totalCoins?: number }): number {
+  if (!(Number(gift.totalCoins) > 0)) return 1;
+  return Math.max(1, Math.floor(Number(gift.count) || 1));
+}
+
 export interface GifterEntry {
   id: string;
   nickname: string;
@@ -120,8 +146,13 @@ export class SessionStats {
     switch (event.type) {
       case 'gift': {
         if (!event.gift) return false;
-        this.totals.gifts += 1;
-        this.totals.coins += event.gift.totalCoins;
+        const stueck = giftStueckzahl(event.gift);
+        // Coins über Number()+||0: Ein Ereignis von außen (Steuer-API) darf
+        // `totalCoins` weglassen — ohne diese Absicherung würde die Summe zu
+        // NaN und BLIEBE es für den Rest der Session (jede Anzeige „NaN Coins").
+        const coins = Number(event.gift.totalCoins) || 0;
+        this.totals.gifts += stueck;
+        this.totals.coins += coins;
         const user = event.user;
         if (user) {
           const entry = this.gifters.get(user.id) ?? {
@@ -130,8 +161,8 @@ export class SessionStats {
             coins: 0,
             gifts: 0,
           };
-          entry.coins += event.gift.totalCoins;
-          entry.gifts += 1;
+          entry.coins += coins;
+          entry.gifts += stueck;
           entry.nickname = user.nickname;
           if (user.profilePic) entry.profilePic = user.profilePic;
           this.gifters.set(user.id, entry);

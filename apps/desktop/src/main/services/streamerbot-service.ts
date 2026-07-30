@@ -22,6 +22,8 @@ export class StreamerbotService {
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private actions: SbAction[] = [];
   private reqSeq = 0;
+  /** Für welchen Status wurde „Aktion nicht ausgelöst" schon gemeldet? */
+  private stummSeitStatus: StreamerbotStatus | null = null;
   private pending = new Map<string, (data: unknown) => void>();
   private readonly onStatus: (s: StreamerbotStatus) => void;
 
@@ -89,7 +91,22 @@ export class StreamerbotService {
 
   /** Streamer.bot-Aktion per Name (oder GUID) auslösen. */
   doAction(nameOrId: string): void {
-    if (this.status !== 'connected' || !nameOrId) return;
+    if (!nameOrId) return;
+    // Nicht mehr stumm verwerfen: Nach einem Streamer.bot-Absturz zeigt die
+    // Trigger-Seite weiter die zuletzt geholte Aktionsliste (das ist Absicht —
+    // sonst verschwände das Auswahlfeld samt bereits eingestellter Aktion).
+    // Der Streamer stellt also eine Aktion ein, im Stream passiert nichts, und
+    // bisher stand nirgends warum.
+    if (this.status !== 'connected') {
+      // Nur melden, wenn die Brücke überhaupt eingeschaltet ist ('off' heißt:
+      // der Streamer will sie nicht) — und pro Zustandswechsel nur einmal,
+      // sonst schreibt eine Regel bei jedem Geschenk eine Zeile ins Log.
+      if (this.status !== 'off' && this.stummSeitStatus !== this.status) {
+        this.stummSeitStatus = this.status;
+        log.warn('Streamerbot', `Aktion „${nameOrId}" nicht ausgelöst — keine Verbindung zu Streamer.bot (Status: ${this.status}).`);
+      }
+      return;
+    }
     const byId = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(nameOrId);
     void this.send('DoAction', { action: byId ? { id: nameOrId } : { name: nameOrId } });
   }
@@ -100,7 +117,16 @@ export class StreamerbotService {
   }
   private clearRetry(): void { if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; } }
   private close(): void { try { this.ws?.removeAllListeners?.(); this.ws?.close(); } catch { /* egal */ } this.ws = null; }
-  private setStatus(s: StreamerbotStatus): void { if (this.status === s) return; this.status = s; this.onStatus(s); }
+  private setStatus(s: StreamerbotStatus): void {
+    if (this.status === s) return;
+    this.status = s;
+    // Drosselung der „Aktion nicht ausgelöst"-Warnung zurücksetzen: Jeder neue
+    // Zustand darf sich wieder EINMAL melden. Hier und nicht in doAction(),
+    // sonst bliebe die Meldung nach einer Erholung stumm, solange niemand
+    // zufällig im verbundenen Zustand eine Aktion auslöst.
+    this.stummSeitStatus = null;
+    this.onStatus(s);
+  }
 
   dispose(): void { this.wantConnected = false; this.clearRetry(); this.close(); }
 }

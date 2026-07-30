@@ -339,6 +339,7 @@ export default function OverlayPage() {
     if (activeId === id && rest[0]) {
       await window.studio.setActiveLayout(rest[0].id);
       setActiveId(rest[0].id);
+      meldeGroessenwechsel();
     }
   };
 
@@ -359,7 +360,14 @@ export default function OverlayPage() {
     if (!layout) return;
     await window.studio.setActiveLayout(layout.id);
     setActiveId(layout.id);
+    meldeGroessenwechsel();
   };
+
+  /** Der Kopfzeile Bescheid sagen: Die empfohlene Browserquellen-Größe hängt am
+   *  Standard-Profil. Wechselt es (oder ändert sich sein Format), zeigt die
+   *  Pille dort sonst eine veraltete Zahl — ausgerechnet auf DIESER Seite, wo
+   *  man den Wechsel gerade vorgenommen hat. */
+  const meldeGroessenwechsel = () => window.dispatchEvent(new CustomEvent('bx-overlay-groesse'));
 
   /** Empfohlene Browserquellen-Größe eines Profils, z.B. „1080×1920". */
   const dimsFor = (id: string) => {
@@ -517,6 +525,7 @@ export default function OverlayPage() {
       h: Math.min(l.h, dims.height),
     }));
     void persist({ ...layout, canvas: { ...layout.canvas, width: dims.width, height: dims.height }, layers });
+    meldeGroessenwechsel();
   };
 
   /** Fertiges Beispiel-Overlay: die sechs Widgets, die fast jeder Stream braucht,

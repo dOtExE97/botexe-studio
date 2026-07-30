@@ -29,13 +29,18 @@ test('parseNowPlaying: mappt Titel/Künstler/Cover/Fortschritt; null ohne item',
   assert.equal(parseNowPlaying(null), null);
 });
 
-function makeService(opts: { tokens?: SpotifyTokens | null; t?: number } = {}) {
+/** Antwort-Übersteuerung für Fehlerfälle: liefert `undefined` = Standard-Antwort. */
+type AntwortHook = (url: string) => { ok: boolean; status: number; json: () => Promise<unknown> } | undefined;
+
+function makeService(opts: { tokens?: SpotifyTokens | null; t?: number; antwort?: AntwortHook } = {}) {
   let tokens: SpotifyTokens | null = opts.tokens ?? null;
   const calls: Array<{ url: string; method: string; body?: string }> = [];
   const states: Array<unknown> = [];
   let t = opts.t ?? 1_000_000;
   const fetchFn = (async (url: string, init?: { method?: string; body?: string }) => {
     calls.push({ url: String(url), method: init?.method ?? 'GET', body: init?.body });
+    const eigene = opts.antwort?.(String(url));
+    if (eigene) return eigene;
     if (String(url).includes('/api/token')) {
       return { ok: true, status: 200, json: async () => ({ access_token: 'AT', refresh_token: 'RT2', expires_in: 3600 }) };
     }
@@ -92,6 +97,78 @@ test('pollOnce: meldet Now-Playing per onState (nur wenn verbunden)', async () =
   await on.svc.pollOnce();
   assert.equal(on.states.length, 1, 'verbunden → genau ein onState-Push');
   assert.equal((on.states[0] as { title?: string })?.title, 'X');
+});
+
+test('pollOnce: Abmelden während der Anfrage → kein Geister-Song mehr', async () => {
+  // Der Klick auf „Abmelden" fällt genau in die Zeit, in der die Antwort
+  // unterwegs ist. Ohne die zweite Prüfung blieb der alte Song danach für
+  // immer im Overlay stehen.
+  let ref: { svc: { logout: () => void } } | null = null;
+  const s = makeService({
+    tokens: { accessToken: 'AT', refreshToken: 'RT', expiresAt: 9_999_999_999 },
+    antwort: (url) => {
+      if (!url.includes('/currently-playing')) return undefined;
+      ref?.svc.logout(); // mitten im Request abmelden
+      return { ok: true, status: 200, json: async () => ({ is_playing: true, item: { name: 'Alt', id: 'i', duration_ms: 1, artists: [{ name: 'Q' }], album: { name: 'a', images: [] } } }) };
+    },
+  });
+  ref = { svc: s.svc };
+  await s.svc.pollOnce();
+  assert.deepEqual(s.states, [null], 'nur das null aus logout(), kein alter Song hinterher');
+});
+
+test('Refresh mit invalid_grant: Tokens werden verworfen (Status wird ehrlich)', async () => {
+  const s = makeService({
+    tokens: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 0 },
+    antwort: (url) => (url.includes('/api/token')
+      ? { ok: false, status: 400, json: async () => ({ error: 'invalid_grant' }) }
+      : undefined),
+  });
+  assert.equal(s.svc.isConnected(), true);
+  await s.svc.getNowPlaying();
+  assert.equal(s.getTokens(), null, 'ungültiges Refresh-Token muss weg');
+  assert.equal(s.svc.isConnected(), false, 'sonst steht ewig „Verbunden"');
+  assert.deepEqual(s.states, [null]);
+});
+
+test('Refresh mit Serverfehler/Netzproblem: Tokens bleiben erhalten', async () => {
+  for (const status of [429, 500, 503]) {
+    const s = makeService({
+      tokens: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 0 },
+      antwort: (url) => (url.includes('/api/token')
+        ? { ok: false, status, json: async () => ({ error: 'server_error' }) }
+        : undefined),
+    });
+    await s.svc.getNowPlaying();
+    assert.equal(s.getTokens()?.refreshToken, 'RT', `HTTP ${status} darf nicht ausloggen`);
+  }
+});
+
+test('API-401: genau EIN erzwungener Refresh, dann normale Antwort', async () => {
+  let erstes401 = true;
+  const s = makeService({
+    tokens: { accessToken: 'AT', refreshToken: 'RT', expiresAt: 9_999_999_999 },
+    antwort: (url) => {
+      if (!url.includes('/currently-playing')) return undefined;
+      if (erstes401) { erstes401 = false; return { ok: false, status: 401, json: async () => ({}) }; }
+      return undefined; // zweiter Versuch → Standard-Antwort mit Song
+    },
+  });
+  const np = await s.svc.getNowPlaying();
+  assert.equal(np?.title, 'X', 'nach dem erzwungenen Refresh kommt der Song');
+  assert.equal(s.calls.filter((c) => c.url.includes('/api/token')).length, 1, 'genau ein Refresh');
+  assert.equal(s.calls.filter((c) => c.url.includes('/currently-playing')).length, 2, 'genau ein Wiederholungsversuch');
+});
+
+test('Zwei gleichzeitige Anfragen lösen NUR EINEN Refresh aus', async () => {
+  // Spotify rotiert Refresh-Tokens: Ein zweiter paralleler Refresh liefe mit
+  // dem alten Token und bekäme invalid_grant — und hätte früher die frisch
+  // gültige Anmeldung weggeworfen (Streamer ausgeloggt).
+  const s = makeService({ tokens: { accessToken: 'OLD', refreshToken: 'RT', expiresAt: 0 } });
+  await Promise.all([s.svc.getNowPlaying(), s.svc.getNowPlaying()]);
+  assert.equal(s.calls.filter((c) => c.url.includes('/api/token')).length, 1, 'nur ein Token-Tausch');
+  assert.equal(s.getTokens()?.refreshToken, 'RT2', 'die erneuerte Anmeldung bleibt gültig');
+  assert.equal(s.svc.isConnected(), true);
 });
 
 test('isPolling: false → startPolling true → stopPolling false', () => {

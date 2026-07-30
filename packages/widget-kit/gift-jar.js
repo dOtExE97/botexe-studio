@@ -456,16 +456,23 @@ export default class GiftJar {
   }
   drawBall(x, y, r, b) {
     const ctx = this.ctx;
+    // Radien nie negativ werden lassen: Bei einem sehr flach gezogenen Glas
+    // (der Editor erlaubt bis 40 px Höhe) ist der Ball eines 1-Coin-Geschenks
+    // kleiner als 1,5 px — arc() mit negativem Radius wirft (IndexSizeError),
+    // und weil das im Animations-Bild passiert, blieb danach die running-Sperre
+    // stehen: Es fiel für den Rest des Streams kein einziger Ball mehr.
+    const rInnen = Math.max(0.5, r - 1.5);
+    const rRand = Math.max(0.5, r - 0.5);
     // weißer ball-grund + leichter schatten-ring
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.beginPath(); ctx.arc(x, y, Math.max(0.5, r), 0, Math.PI*2);
     ctx.fillStyle = '#f4f6fb'; ctx.fill();
     if (b.img && b.img.complete && b.img.naturalWidth > 0) {
-      ctx.save(); ctx.beginPath(); ctx.arc(x, y, r-1.5, 0, Math.PI*2); ctx.clip();
+      ctx.save(); ctx.beginPath(); ctx.arc(x, y, rInnen, 0, Math.PI*2); ctx.clip();
       ctx.drawImage(b.img, x-r, y-r, r*2, r*2); ctx.restore();
     } else {
-      ctx.beginPath(); ctx.arc(x, y, r-1.5, 0, Math.PI*2); ctx.fillStyle = b.color; ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, rInnen, 0, Math.PI*2); ctx.fillStyle = b.color; ctx.fill();
     }
-    ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(x, y, r-0.5, 0, Math.PI*2); ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(x, y, rRand, 0, Math.PI*2); ctx.stroke();
     ctx.beginPath(); ctx.arc(x-r*0.32, y-r*0.32, r*0.26, 0, Math.PI*2); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fill();
   }
   // Neuer Stream → Glas leeren, Coin-Zähler auf 0. WICHTIG: ausstehende Spawn-

@@ -332,11 +332,39 @@ export default class SlotMachine {
       // Server trifft das falsche Symbol (siehe gift-rules.js oben).
       const items = orderedGiftEntries(rules);
       if (!items.length) return;
-      this.items = items;
-      this.demo = false;
-      this.buildStrips();
-      this.applyIcons();
+      // Läuft gerade eine Drehung, dürfen die Symbole NICHT getauscht werden:
+      // Die Lande-Timer rechnen mit der alten Listenlänge, die Walzen hielten
+      // sonst auf einem anderen Symbol als der Server ausgelost hat — bei einer
+      // kürzeren Liste fahren sie sogar ins Leere und die Jackpot-Feier fällt
+      // ganz aus. Nachziehen erst nach der Feier (Muster: gift-menu.js).
+      if (this.spinning) { this.ausstehendeItems = items; return; }
+      this.uebernehmeItems(items);
     } catch { /* Route (noch) nicht da — manuelle/Demo-Liste bleibt */ }
+  }
+
+  /** Symbolliste übernehmen und Walzen neu bauen. */
+  uebernehmeItems(items) {
+    this.items = items;
+    this.demo = false;
+    this.buildStrips();
+    this.applyIcons();
+  }
+
+  /** Aufgeschobenen Symbolwechsel nachholen — erst wenn die Gewinn-/Niete-Optik
+   *  durch ist (sonst springen die Walzen mitten in der Feier auf Position 0).
+   *  Vorbild: holeRebuildNach() in gift-menu.js. */
+  holeItemsNach() {
+    // Wert sofort übernehmen und das Feld leeren — sonst planen zwei Aufrufe
+    // zwei Timer (siehe holeSegmenteNach in wheel.js).
+    const items = this.ausstehendeItems;
+    if (!items) return;
+    this.ausstehendeItems = null;
+    const t = setTimeout(() => {
+      this.timers.delete(t);
+      if (this.spinning) { this.ausstehendeItems = items; return; }
+      try { this.uebernehmeItems(items); } catch { /* Aufbau darf nie eskalieren */ }
+    }, 2600); // etwas länger als die Gewinn-Meldung (2,4 s)
+    this.timers.add(t);
   }
 
   /** Gift-Bilder/Namen aus dem App-Katalog (nur offizielle Quelle: lokale
@@ -468,6 +496,7 @@ export default class SlotMachine {
 
   finish(win, winnerIndex) {
     this.spinning = false;
+    this.holeItemsNach(); // während der Drehung eingetroffene Symbolliste nachziehen
     this.cab.classList.remove('spinning');
     for (const reel of this.reels) reel.classList.remove('spin');
     // winnerIndex kommt aus slotReels() (targets[0]) und ist dort bereits auf
@@ -549,6 +578,7 @@ export default class SlotMachine {
   }
 
   destroy() {
+    this.spinning = false; this.ausstehendeItems = null; // Sperre + Nachzieher aufräumen
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
     clearTimeout(this.demoT); clearInterval(this.demoInterval);

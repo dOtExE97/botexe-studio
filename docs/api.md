@@ -74,7 +74,7 @@ Antwort: `{ "ok": true }` oder `{ "ok": false, "error": "…" }`.
 
 ## Weitere (bereits vorhandene) Endpunkte
 - `GET /api/panel` — Panel-Knöpfe auflisten · `POST /api/panel/fire` `{id}` — Knopf auslösen
-- `POST /api/test-event` — ein TikTok-Event simulieren (`{type, user, gift, …}`) — läuft durch die komplette Kette (Trigger/Stats/Overlay/Sounds)
+- `POST /api/test-event` — ein TikTok-Event simulieren (`{type, user, gift, …}`) — läuft durch die komplette Kette (Trigger/Stats/Overlay/Sounds). Wie der Test-Knopf in der App: **simuliert**, also ohne Punkte-Gutschrift, ohne Eintrag im Geschenk-Katalog und ohne Einfluss auf eine laufende Aufnahme.
 
 ---
 

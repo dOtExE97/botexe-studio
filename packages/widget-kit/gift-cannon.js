@@ -114,6 +114,10 @@ export default class GiftCannon {
   }
 
   shoot(avatar, gift, tint, name = '') {
+    // Ohne vermessene Fläche nicht schießen (Vorbild: spawn() in gift-jar.js) —
+    // bei ausgeblendeter Ebene ist this.w/this.h undefiniert, die Bälle bekämen
+    // NaN-Koordinaten und hielten die Animationsschleife dauerhaft am Laufen.
+    if (!this.w || !this.h) { this.resize(); if (!this.w || !this.h) return; }
     if (this.balls.length >= this.maxBalls) this.balls.shift(); // ältesten verdrängen
     const s = this.s || 1;
     const r = ((this.perf ? 22 : 26) + Math.random() * 8) * s;

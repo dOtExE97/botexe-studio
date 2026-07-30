@@ -190,6 +190,13 @@ export default class GiftFireworks {
   }
 
   spawnRocket(power, icon, img, name = '') {
+    // Ohne vermessene Fläche keine Rakete (Vorbild: spawn() in gift-jar.js).
+    // Ist die Ebene beim Overlay-Start ausgeblendet, liefert getBoundingClientRect
+    // 0 → resize() steigt aus → this.w/this.h bleiben undefiniert. Die Raketen
+    // bekämen dann NaN-Koordinaten, explodierten nie, würden nie aufgeräumt —
+    // nach ~28 Stück war der Deckel voll und das Feuerwerk für den Rest des
+    // Streams tot, während die Animationsschleife dauerhaft weiterlief (CPU).
+    if (!this.w || !this.h) { this.resize(); if (!this.w || !this.h) return; }
     if (this.rockets.length >= this.rocketCap) return; // backpressure
     // Aufstiegs-Pfeifen (Server dedupliziert mehrfaches Auslösen einer Salve).
     if (this.whistleSound) this.host.playSound?.(this.whistleSound);

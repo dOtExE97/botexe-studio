@@ -230,7 +230,18 @@ export default class ActionScreen {
     if (this.busy || !this.queue.length) return;
     this.busy = true;
     const m = this.queue.shift();
-    this.show(m);
+    // `busy` fällt normalerweise erst im Ausblend-Timer am Ende von show().
+    // Stolpert show() vorher, wäre die Warteschlange für den Rest der Sitzung
+    // gesperrt — kein Moment würde je wieder erscheinen. Die Sperre deshalb im
+    // Fehlerfall lösen, den Fehler aber weiterreichen (die Runtime meldet ihn
+    // ins App-Log). Bewusst KEIN finally: das würde den nächsten Moment starten,
+    // während eine halb aufgebaute Karte noch im Bild hängt.
+    try {
+      this.show(m);
+    } catch (err) {
+      this.busy = false;
+      throw err;
+    }
   }
 
   show(m) {

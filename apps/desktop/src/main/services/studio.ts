@@ -35,7 +35,8 @@ import { planWheelSpins } from './wheel-gift';
 import { planSlotSpins } from './slot-gift';
 import { sollIntroLaufen } from './intro';
 import { besterRang, type RangStand } from '../adapters/tiktok-rank';
-import { matchingLuckyLayers, matchLuckyCommand, planLuckyDraws, type LuckyLayer } from './lucky-draw';
+import { matchingLuckyLayers, matchLuckyCommand, planLuckyDraws, luckyDrawDauerMs, type LuckyLayer } from './lucky-draw';
+import { kannFortsetzung, istFortsetzung } from './session-continuity';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { ProfileStore, type ProfileMeta } from './profile-store';
@@ -165,10 +166,20 @@ export class Studio {
   /** Persistenz der laufenden Session-Stats (überlebt App-Update/Neustart). */
   private statsFile = '';
   private statsSaveTimer: ReturnType<typeof setTimeout> | null = null;
-  /** true, wenn beim Start eine laufende Session aus der Datei wiederhergestellt
-   *  wurde → der ERSTE Connect danach ist eine Fortsetzung (App-Update mitten im
-   *  Stream), kein neuer Stream → NICHT resetten. */
-  private restoredStatsValid = false;
+  /** Speicher-Zeitpunkt der beim Start wiederhergestellten Session-Datei
+   *  (null = nichts wiederhergestellt). Bewusst der ZEITPUNKT und nicht das
+   *  Alter: Entschieden wird erst beim ersten „Live", und zwischen App-Start und
+   *  „Live" können Stunden liegen — ein beim Start berechnetes Alter wäre dann
+   *  längst falsch. Siehe session-continuity.ts. */
+  private restoredStatsAt: number | null = null;
+  /** Zeitpunkt des letzten ECHTEN (nicht synthetischen) Ereignisses dieser
+   *  Session; 0 = noch keins. Beantwortet zwei Fragen:
+   *  · Ist das überhaupt ein Stream oder nur eine Testrunde? (Nur ein Stream
+   *    gehört in die Historie.)
+   *  · Lief der Stream beim Beenden noch? Der Verbindungsstatus taugt dafür
+   *    NICHT: Reißt die Verbindung ab, steht dort „reconnecting"/„error" —
+   *    und genau dann startet der Streamer die App neu. */
+  private letztesEchtesEventAt = 0;
 
   private readonly engine = new TriggerEngine();
   private readonly adapter: TikTokAdapter;
@@ -345,12 +356,17 @@ export class Studio {
           this.watchTimeTimer = null;
         }
         if (info.status === 'connected' && info.freshStream) {
-          if (this.restoredStatsValid) {
+          // Die Fortsetzungs-Frage wird genau EINMAL beantwortet — beim ersten
+          // Live nach dem Start. Das Alter wird JETZT gerechnet, nicht beim
+          // Start: Zwischen App-Start und „Live" liegen oft Stunden.
+          const gespeichertAm = this.restoredStatsAt;
+          this.restoredStatsAt = null;
+          if (gespeichertAm !== null
+            && istFortsetzung(Date.now() - gespeichertAm, info.roomId, this.settings.peek().lastLiveRoomId)) {
             // App wurde mitten in der Session neugestartet (Update) → fortsetzen,
             // NICHT resetten (sonst wären die wiederhergestellten Stats sofort weg).
-            this.restoredStatsValid = false;
           } else {
-            this.flushSessionToHistory();
+            // resetSession() schreibt die alte Session selbst in die Historie.
             this.resetSession();
           }
         }
@@ -446,7 +462,14 @@ export class Studio {
       //    Test-/Replay-Events (synthetic) dürfen die echte Punkte-DB NICHT
       //    verändern (sonst kriegen echte User-IDs beim Testen Punkte gutgeschrieben).
       if (!e.synthetic) this.points.recordEvent(e, this.settings.peek().points);
-      if (this.stats.apply(e)) { this.scheduleStatsBroadcast(); this.scheduleStatsSave(); }
+      if (this.stats.apply(e)) {
+        // Test-Events dürfen die Zähler bewusst bewegen (sonst könnte man
+        // Widgets nicht testen) — aber sie machen aus einer Testrunde keinen
+        // Stream: nur echte Ereignisse berechtigen zum Historie-Eintrag.
+        if (!e.synthetic) this.letztesEchtesEventAt = Date.now();
+        this.scheduleStatsBroadcast();
+        this.scheduleStatsSave();
+      }
 
       // 3. Trigger-Engine: Regeln auswerten, Aktionen ausführen (mit Sequenz-Delay)
       // Dabei merken, ob eine Regel für DIESES Ereignis schon vorliest — sonst
@@ -550,8 +573,20 @@ export class Studio {
         // nicht mehr (siehe maybeLuckyDrawByCommand() für den zweiten
         // Auslöser per Chat-Befehl, Task 3, derselbe Dispatch-Pfad).
         const luckyLayers = matchingLuckyLayers(layers, e.gift.slug);
-        this.meldeZielLayout('Karten-Ziehung', luckyLayers.map((l) => l.id));
-        for (const { ruleId, action } of planLuckyDraws(luckyLayers, this.getRules(), Math.random, e.user?.nickname)) {
+        // Cooldown auch auf dem GESCHENK-Weg (bisher nur beim Chat-Befehl):
+        // Das Widget lehnt eine zweite Ziehung ab, solange die erste läuft
+        // (luckyRunning) — der Server plante die Gewinn-Folgeaktionen aber
+        // trotzdem. Ergebnis: Es wurde etwas ausgelöst (Sound, Punkte,
+        // Challenge), ohne dass jemand die Karten dazu ziehen sah. Jetzt
+        // entscheiden beide Seiten nach derselben Regel.
+        const luckyBereit = this.luckyLayersOhneCooldown(luckyLayers);
+        // Ziel-Layout nur für die melden, die wirklich ziehen — sonst behauptet
+        // die Diagnose „geht an …", während der Cooldown gerade abgelehnt hat.
+        this.meldeZielLayout('Karten-Ziehung', luckyBereit.map((l) => l.id));
+        if (luckyLayers.length > luckyBereit.length) {
+          log.info('Trigger', `Karten-Ziehung übersprungen (${luckyLayers.length - luckyBereit.length}×) — die vorherige läuft noch (Sperre = Zieh-Dauer).`);
+        }
+        for (const { ruleId, action } of planLuckyDraws(luckyBereit, this.getRules(), Math.random, e.user?.nickname)) {
           this.dispatchAction(ruleId, action, e);
         }
         // TTS-Ansage ab Coin-Schwelle — aber nur, wenn nicht ohnehin schon eine
@@ -876,9 +911,19 @@ export class Studio {
     if (this.statsLogTimer) { clearInterval(this.statsLogTimer); this.statsLogTimer = null; }
     for (const t of this.actionTimers) clearTimeout(t);
     this.actionTimers.clear();
-    this.flushSessionToHistory();
+    // Beim Beenden wird NICHT entschieden, ob der Stream vorbei ist — das kann
+    // hier niemand wissen (die Verbindung kann gerade abgerissen sein, genau
+    // deshalb startet man ja neu). Also: alles hinterlegen, was echte Ereignisse
+    // hatte, und die Entscheidung beim nächsten Start EINMAL treffen (siehe
+    // restoreSessionStats + session-continuity.ts). Hatte die Session nur
+    // Test-Events, ist nichts aufzuheben — dann muss die Datei weg, sonst
+    // laufen die Testzahlen in den nächsten Stream.
     if (this.statsSaveTimer) { clearTimeout(this.statsSaveTimer); this.statsSaveTimer = null; }
-    this.saveSessionStats();
+    if (this.letztesEchtesEventAt > 0) {
+      this.saveSessionStats();
+    } else {
+      try { fs.rmSync(this.statsFile, { force: true }); } catch { /* egal */ }
+    }
     this.points.save();
     this.giftCatalog.save();
     this.statsHistory.save();
@@ -924,9 +969,31 @@ export class Studio {
     return (s.tiktokSessionId ?? '').length > 0 && (s.tiktokTargetIdc ?? '').length > 0;
   }
 
-  /** Aktuelle Session-Totals (falls Aktivität) in die persistente Historie kippen. */
+  /** Die laufende Session in die persistente Historie kippen — und damit
+   *  abschließen. Steht VOR jedem Weg, der die Session verwirft (resetSession,
+   *  auch der Knopf „Session zurücksetzen"), damit ein fertiger Stream nicht
+   *  einfach verschwinden kann.
+   *
+   *  Drei Eigenschaften, alle drei teuer gelernt:
+   *  - **Einmalig.** Nach dem Eintrag steht der Zähler auf 0, ein zweiter Aufruf
+   *    tut nichts. Sonst stünde derselbe Stream doppelt in der Analyse, sobald
+   *    zwei Wege hintereinander laufen (erst flush, dann resetSession).
+   *  - **Reine Test-Sessions bleiben draußen.** Wer vor dem Stream fünfmal auf
+   *    „Test-Gift 100 Coins" drückt und dann live geht, hatte sonst einen
+   *    Phantom-Stream mit 500 Coins in der Analyse stehen.
+   *  - **Sofort auf die Platte.** Gleich nach diesem Aufruf verschwindet die
+   *    laufende Session-Datei. Zwischen beidem lag die Session bisher NIRGENDS
+   *    (StatsHistory schreibt sonst erst 3 s später) — ein Absturz in diesem
+   *    Fenster löschte den kompletten letzten Stream.
+   *
+   *  Der Zeitstempel ist das letzte echte Ereignis, nicht „jetzt": Eine aus der
+   *  letzten Sitzung wiederhergestellte Session gehört in die Analyse an den
+   *  Abend, an dem sie lief. */
   private flushSessionToHistory(): void {
-    this.statsHistory.record(this.stats.snapshot().totals, Date.now());
+    if (this.letztesEchtesEventAt === 0) return;
+    this.statsHistory.record(this.stats.snapshot().totals, Math.min(this.letztesEchtesEventAt, Date.now()));
+    this.statsHistory.save();
+    this.letztesEchtesEventAt = 0;
   }
 
   /** Stream-Historie als CSV (für Tabellen/Auswertung). */
@@ -1307,6 +1374,8 @@ export class Studio {
       username: s.lastUsername ?? '',
       layoutCount: this.layouts.list().length,
       activeLayoutId: s.activeLayoutId ?? '',
+      // Die Größe, die in OBS/TTLS von Hand an der Browser-Quelle stehen muss.
+      overlaySize: this.standardCanvas(),
       // Für Startklar-Check + Spiel-Wächter: Was liegt wirklich im aktiven Layout?
       ...(() => {
         const all = this.layouts.list();
@@ -1720,17 +1789,39 @@ export class Studio {
     const layers = this.layouts.list().flatMap((layout) => layout.layers) as LuckyLayer[];
     const matched = matchLuckyCommand(layers, event.text);
     if (!matched.length) return;
-    const now = event.ts;
-    const eligible = matched.filter((l) => {
-      const last = this.luckyDrawCooldowns.get(l.id) ?? 0;
-      const cooldownMs = Math.max(600, Number(l.props?.luckyDrawMs ?? 3000));
-      return now - last >= cooldownMs;
-    });
+    const eligible = this.luckyLayersOhneCooldown(matched);
     if (!eligible.length) return;
-    for (const l of eligible) this.luckyDrawCooldowns.set(l.id, now);
     for (const { ruleId, action } of planLuckyDraws(eligible, this.getRules(), Math.random, event.user?.nickname)) {
       this.dispatchAction(ruleId, action, event);
     }
+  }
+
+  /**
+   * Cooldown-Filter für Karten-Ziehungen — EINE Regel für beide Auslöser
+   * (Geschenk und Chat-Befehl). Liefert die Slider, die ziehen dürfen, und
+   * stempelt sie gleich ab.
+   *
+   * Sperrzeit ist die Zieh-Dauer selbst (luckyDrawMs, Fallback 3000 ms, wie in
+   * planLuckyDraws()/gift-menu.js): Genau so lange lehnt auch das Widget eine
+   * zweite Ziehung ab. Beide Seiten müssen dieselbe Regel benutzen, sonst plant
+   * der Server Gewinn-Aktionen für eine Ziehung, die im Overlay nie stattfindet.
+   */
+  private luckyLayersOhneCooldown(matched: LuckyLayer[]): LuckyLayer[] {
+    // Wanduhr, NICHT event.ts: Die Sperre im Widget läuft in echter Zeit ab.
+    // Bei einer Replay-Wiedergabe (alte Zeitstempel) oder Test-Events würde ein
+    // Vergleich in Ereigniszeit sonst dauerhaft blockieren oder gar nicht greifen.
+    const now = Date.now();
+    // In EINEM Durchgang prüfen und stempeln: Käme derselbe Slider zweimal in
+    // der Liste vor, rutschten sonst beide durch (beide lesen den alten Stand,
+    // erst danach wird gestempelt) — und das Widget zöge nur einmal.
+    const eligible: LuckyLayer[] = [];
+    for (const l of matched) {
+      const last = this.luckyDrawCooldowns.get(l.id) ?? 0;
+      if (now - last < luckyDrawDauerMs(l.props)) continue;
+      this.luckyDrawCooldowns.set(l.id, now);
+      eligible.push(l);
+    }
+    return eligible;
   }
 
   // ── Einlöse-Store ─────────────────────────────────────────────────────
@@ -1781,7 +1872,11 @@ export class Studio {
   // ── Layout ────────────────────────────────────────────────────────────
 
   getActiveLayout() {
-    const id = this.settings.get().activeLayoutId;
+    // peek() statt get(): Es wird nur eine ID gelesen, nichts verändert — und
+    // die Funktion hängt inzwischen an der Diagnose, die im Sekundentakt von
+    // vier Stellen gepollt wird. get() würde dabei jedes Mal die kompletten
+    // Einstellungen tief kopieren (inkl. entschlüsselter Geheimnisse).
+    const id = this.settings.peek().activeLayoutId;
     return id ? this.layouts.get(id) : null;
   }
 
@@ -1813,15 +1908,50 @@ export class Studio {
   private restoreSessionStats(): SessionStats {
     try {
       if (fs.existsSync(this.statsFile)) {
-        const ageMs = Date.now() - fs.statSync(this.statsFile).mtimeMs;
-        if (ageMs < 6 * 3_600_000) {
-          const restored = SessionStats.fromJSON(fs.readFileSync(this.statsFile, 'utf-8'));
-          if (restored) {
-            log.info('Studio', 'Laufende Session-Stats wiederhergestellt (Update/Neustart)');
-            this.restoredStatsValid = true; // erster Connect = Fortsetzung, kein Reset
-            return restored;
-          }
+        const mtimeMs = fs.statSync(this.statsFile).mtimeMs;
+        const restored = SessionStats.fromJSON(fs.readFileSync(this.statsFile, 'utf-8'));
+        if (!restored) {
+          // Unlesbar oder fremdes Schema. Liegen lassen bringt nichts — die
+          // Datei wird beim nächsten Speichern überschrieben. Stattdessen zur
+          // Seite legen: So kann man die Zahlen notfalls von Hand retten, und
+          // im Log steht, dass es sie gibt.
+          const beiseite = `${this.statsFile}.kaputt`;
+          try { fs.renameSync(this.statsFile, beiseite); } catch { /* dann eben nicht */ }
+          log.warn('Studio', `session-stats.json war nicht lesbar — Session nicht wiederhergestellt. Datei liegt als ${path.basename(beiseite)} daneben.`);
+          return new SessionStats();
         }
+        // DIE Entscheidung, an genau einer Stelle: Ist diese Session noch
+        // fortsetzbar (Update-/Absturz-Neustart), oder ist der Stream vorbei?
+        if (kannFortsetzung(Date.now() - mtimeMs)) {
+          log.info('Studio', 'Laufende Session-Stats wiederhergestellt (Update/Neustart)');
+          // Fortsetzbar heißt noch nicht „wird fortgesetzt": Beim ersten „Live"
+          // prüft istFortsetzung() zusätzlich die Room-ID und die dann
+          // vergangene Zeit (zwischen Start und Live können Stunden liegen).
+          this.restoredStatsAt = mtimeMs;
+          // Der letzte Speicherzeitpunkt ist zugleich die beste Schätzung für
+          // das letzte echte Ereignis. stop() legt die Datei nur an, wenn es
+          // echte Ereignisse gab — eine reine Test-Session kommt hier also gar
+          // nicht an (außer nach einem Absturz; dann lieber ein seltener
+          // Phantom-Eintrag als ein verlorener echter Stream).
+          this.letztesEchtesEventAt = mtimeMs;
+          return restored;
+        }
+        // Nicht mehr fortsetzbar → der Stream ist vorbei. Er gehört jetzt in die
+        // Historie, sonst fiele er ganz aus der Analyse.
+        // Reihenfolge: ERST löschen, DANN eintragen. Andersherum stünde die
+        // Session doppelt in der Historie, falls das Löschen scheitert (Datei
+        // gesperrt) — und ein doppelter Eintrag fällt niemandem auf.
+        try {
+          fs.rmSync(this.statsFile, { force: true });
+        } catch (err) {
+          log.warn('Studio', 'Alte session-stats.json ließ sich nicht löschen — Historie-Eintrag verschoben', (err as Error).message);
+          return new SessionStats();
+        }
+        // Zeitstempel nie in der Zukunft (verstellte Uhr): Die Zeitraum-Summen
+        // überspringen Einträge mit `at > jetzt` — der Eintrag wäre unsichtbar.
+        this.statsHistory.record(restored.snapshot().totals, Math.min(mtimeMs, Date.now()));
+        this.statsHistory.save();
+        log.info('Studio', 'Beendete Session aus der letzten Sitzung in die Historie übernommen');
       }
     } catch (err) {
       log.warn('Studio', 'Session-Stats-Restore fehlgeschlagen', (err as Error).message);
@@ -1850,7 +1980,22 @@ export class Studio {
   }
 
   resetSession(): void {
+    // Erst wegschreiben, dann wegwerfen. Dieser Weg wird auch vom Knopf
+    // „Session zurücksetzen" auf der Live-Seite genommen — ohne diese Zeile
+    // könnte ein fertiger Stream damit spurlos verschwinden (er stand dann nur
+    // noch in der laufenden Session-Datei, die gleich darunter gelöscht wird).
+    // Doppelte Einträge kann das nicht geben: flushSessionToHistory() ist
+    // einmalig.
+    this.flushSessionToHistory();
     this.stats.reset();
+    this.letztesEchtesEventAt = 0;
+    // Verzögerte Trigger-Aktionen aus der ALTEN Session abbrechen (dieselben
+    // zwei Zeilen wie in stop()). Sonst ploppt nach „Session zurücksetzen" oder
+    // beim Start des neuen Streams noch ein Alert/Sound mit dem Namen aus dem
+    // alten Stream ins Overlay — vor allen Zuschauern, obwohl die App gerade
+    // „alles leer" gemeldet hat.
+    for (const t of this.actionTimers) clearTimeout(t);
+    this.actionTimers.clear();
     // Neuer Stream → „Letztes Live"-Gift-Markierung leeren (NUR hier, an freshStream
     // gekoppelt — NICHT bei jedem Reconnect, sonst verschwinden mitten im Stream
     // alle bereits erhaltenen Gifts aus der Galerie).
@@ -2227,12 +2372,29 @@ export class Studio {
 
   // ── Info ──────────────────────────────────────────────────────────────
 
-  getOverlayInfo(): { url: string; port: number; connected: boolean } {
+  getOverlayInfo(): { url: string; port: number; connected: boolean; width?: number; height?: number } {
     return {
       url: this.server.getOverlayUrl(),
       port: this.server.getPort(),
       connected: this.adapter.isConnected(),
+      ...(this.standardCanvas() ?? {}),
     };
+  }
+
+  /** Empfohlene Browserquellen-Größe des Standard-Profils — genau die Zahl, die
+   *  der Streamer in OBS/TikTok Live Studio von Hand eintragen muss. Stimmt sie
+   *  nicht, wird sein Overlay verkleinert eingepasst und die Widgets sitzen
+   *  nicht mehr an den Bildrändern. EINE Quelle für Header, Diagnose und Toasts.
+   *
+   *  Fragt bewusst `getActiveLayout()` — also GENAU die Funktion, die auch der
+   *  Overlay-Server für den Link ohne Profil-Parameter fragt (siehe `getLayout`
+   *  im Konstruktor). Ein eigener Fallback („sonst halt das erste Profil")
+   *  würde eine Größe für ein Profil anzeigen, das dieser Link gar nicht
+   *  ausliefert. Kein Standard-Profil gesetzt → `null`, dann zeigt die
+   *  Oberfläche gar keine Größe an (statt einer erfundenen). */
+  standardCanvas(): { width: number; height: number } | null {
+    const active = this.getActiveLayout();
+    return active ? { width: active.canvas.width, height: active.canvas.height } : null;
   }
 
   /** Basis-URL + Token für externe Steuerung (Stream-Deck-Plugin, Web-Requests). */

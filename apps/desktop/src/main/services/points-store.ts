@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { StudioEvent } from '@botexe/trigger-engine';
 import { log } from '../core/logger';
+import { giftStueckzahl } from '../core/session-stats';
 import { passt } from '../../shared/suche';
 
 export const POINTS_SCHEMA_VERSION = 2;
@@ -162,7 +163,9 @@ export class PointsStore {
     e.firstSeen = e.firstSeen ?? event.ts;
     e.lastSeen = event.ts;
     if (event.type === 'gift' && event.gift) {
-      e.gifts = (e.gifts ?? 0) + 1;
+      // Stückzahl, nicht Ereignisse — DIESELBE Funktion wie in SessionStats,
+      // damit die Zuschauerkarte nicht andere Zahlen zeigt als das Overlay.
+      e.gifts = (e.gifts ?? 0) + giftStueckzahl(event.gift);
       e.coins = (e.coins ?? 0) + event.gift.totalCoins;
     } else if (event.type === 'like') {
       // NUR die eigenen Likes dieses Zuschauers aufaddieren. event.totalLikes ist

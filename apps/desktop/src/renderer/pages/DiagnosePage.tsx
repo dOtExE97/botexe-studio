@@ -12,6 +12,7 @@ interface Diag {
   recentClientIssues: { at: number; text: string }[];
   keySet: boolean; connectMode: string; username: string;
   layoutCount: number; activeLayoutId: string;
+  overlaySize?: { width: number; height: number };
   platformConnected: boolean; platformStatus: string;
 }
 
@@ -105,10 +106,20 @@ export default function DiagnosePage() {
         <div className="mb-2 text-sm font-bold">Dein Overlay-Link</div>
         <div className="flex items-center gap-2">
           <code className="flex-1 truncate rounded bg-studio-bg px-2.5 py-2 font-mono text-[11px] text-studio-teal">{d.overlayUrl}</code>
-          <button onClick={() => { void window.studio.copyText(d.overlayUrl); toast('success', 'Link kopiert'); }} className="bx-btn-accent text-xs"><Copy size={12} className="inline" /> Kopieren</button>
+          {d.overlaySize && (
+            <span
+              className="flex-none rounded border border-studio-border bg-studio-raised px-2.5 py-2 font-mono text-[11px] font-bold tabular-nums text-studio-text"
+              title="Breite und Höhe der Browser-Quelle — in OBS die Felder Breite/Höhe, in TikTok Live Studio die benutzerdefinierte Auflösung."
+            >
+              {d.overlaySize.width}×{d.overlaySize.height}
+            </span>
+          )}
+          <button onClick={() => { void window.studio.copyText(d.overlayUrl); toast('success', d.overlaySize ? `Link kopiert — Breite/Höhe der Browser-Quelle auf ${d.overlaySize.width}×${d.overlaySize.height} stellen.` : 'Link kopiert'); }} className="bx-btn-accent text-xs"><Copy size={12} className="inline" /> Kopieren</button>
         </div>
         <p className="mt-2 text-[11px] text-studio-muted">
-          In OBS/TikTok Live Studio als <b>Browser-Quelle</b> einfügen (transparenter Hintergrund). Tipp: den fertigen Link findest du auch oben im Overlay-Editor.
+          In OBS/TikTok Live Studio als <b>Browser-Quelle</b> einfügen (transparenter Hintergrund)
+          {d.overlaySize && <> und die Größe von Hand auf <b>{d.overlaySize.width}×{d.overlaySize.height}</b> stellen (OBS: Breite/Höhe · TikTok Live Studio: benutzerdefinierte Auflösung) — sonst wird dein Overlay verkleinert eingepasst und die Widgets sitzen nicht mehr an den Bildrändern</>}.
+          Tipp: den fertigen Link findest du auch oben im Overlay-Editor.
           {broadcastAgo !== null && <> · Letztes Event ans Overlay: vor {broadcastAgo}s.</>}
         </p>
       </div>

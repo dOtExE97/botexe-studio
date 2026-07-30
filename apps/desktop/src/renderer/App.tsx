@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal, Stethoscope, Sliders, Square, BarChart3 } from 'lucide-react';
+import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal, Stethoscope, Sliders, Square, BarChart3, Frame } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer from './components/SoundPlayer';
 import ToastHost, { toast } from './components/ToastHost';
@@ -82,10 +82,26 @@ export default function App() {
     return () => { window.removeEventListener('bx-sounds-changed', pruefe); clearInterval(t); };
   }, []);
   const [version, setVersion] = useState('');
+  // Empfohlene Größe der Browser-Quelle (Standard-Profil). Steht direkt neben den
+  // Link-Knöpfen, weil man sie in TikTok Live Studio nach dem Einfügen von Hand
+  // setzen muss — vergisst man das, ist das Overlay verzerrt und nichts sagt
+  // einem warum. Beim Seitenwechsel neu holen: im Overlay-Editor kann das
+  // Standard-Profil (und damit die Größe) gewechselt haben.
+  const [overlaySize, setOverlaySize] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     void window.studio.getAppInfo().then((i: { version?: string }) => setVersion(i?.version ?? ''));
   }, []);
+
+  useEffect(() => {
+    void holeGroesse();
+    // Der Overlay-Editor meldet, wenn das Standard-Profil oder sein Format
+    // wechselt — dort bleibt man nach dem Klick auf derselben Seite, ein reiner
+    // Seitenwechsel-Effekt würde die Pille also genau dann veralten lassen.
+    const onGroesse = () => { void holeGroesse(); };
+    window.addEventListener('bx-overlay-groesse', onGroesse);
+    return () => window.removeEventListener('bx-overlay-groesse', onGroesse);
+  }, [page]);
 
   // Globales Navigations-Event: Seiten können gezielt woandershin springen
   // (z.B. Live-Seite → „Gratis-Key holen" → Einstellungen).
@@ -113,10 +129,25 @@ export default function App() {
     }).catch(() => { /* Diagnose optional */ });
   };
 
+  // Größe frisch holen und die Anzeige gleich mitziehen — das Standard-Profil
+  // kann gewechselt worden sein, ohne dass die Seite gewechselt wurde.
+  const holeGroesse = async (): Promise<{ width: number; height: number } | null> => {
+    try {
+      const i = (await window.studio.getOverlayInfo()) as { width?: number; height?: number };
+      const g = i?.width && i?.height ? { width: i.width, height: i.height } : null;
+      setOverlaySize(g);
+      return g;
+    } catch {
+      return overlaySize;
+    }
+  };
+
   const copyLink = () => {
-    void window.studio.copyText(studio.overlayUrl).then(() => {
+    void window.studio.copyText(studio.overlayUrl).then(async () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
+      const g = await holeGroesse();
+      if (g) toast('success', `Link kopiert — Breite/Höhe der Browser-Quelle auf ${g.width}×${g.height} stellen.`);
       warnIfOverlayEmpty();
     });
   };
@@ -127,8 +158,9 @@ export default function App() {
     const info = (await window.studio.getTtlsLink()) as { url: string; ready: boolean };
     await window.studio.copyText(info.url);
     markTtlsLinkUsed();
+    const g = await holeGroesse();
     if (info.ready) {
-      toast('success', 'Link kopiert — als Link-Quelle einfügen & benutzerdefinierte Auflösung 1080×1920 setzen.');
+      toast('success', `Link kopiert — als Link-Quelle einfügen & benutzerdefinierte Auflösung ${g ? `${g.width}×${g.height}` : '1080×1920'} setzen.`);
     } else {
       toast('warn', 'Link kopiert — einmalige Einrichtung fehlt noch: Einstellungen → TikTok Live Studio.');
     }
@@ -236,6 +268,14 @@ export default function App() {
           >
             <Clapperboard size={13} /> TIKTOK-STUDIO-LINK
           </button>
+          {overlaySize && (
+            <span
+              className="clip-slant-r flex flex-none items-center gap-1.5 whitespace-nowrap border border-studio-border bg-studio-raised px-3 py-1.5 font-mono text-[11px] font-bold tabular-nums text-studio-text"
+              title={`Größe der Browser-Quelle: nach dem Einfügen von Hand auf ${overlaySize.width}×${overlaySize.height} stellen — in OBS die Felder Breite/Höhe, in TikTok Live Studio „benutzerdefinierte Auflösung". Stimmt sie nicht, wird dein Overlay verkleinert und mittig eingepasst: Die Widgets sitzen dann nicht mehr an den Bildrändern, wo du sie gebaut hast.`}
+            >
+              <Frame size={12} /> {overlaySize.width}×{overlaySize.height}
+            </span>
+          )}
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto">

@@ -158,10 +158,42 @@ export default class Wheel {
       // schon gefiltert).
       const items = orderedGiftEntries(rules);
       if (!items.length) return;
-      this.segmentRules = items;
-      this.segments = items.map((it) => it.text);
-      this.draw();
+      // Dreht das Rad gerade, dürfen die Felder NICHT ausgetauscht werden: Die
+      // laufende Drehung ist auf die alte Feldzahl gerechnet, der Zeiger bliebe
+      // also auf einem anderen Feld stehen als dem, das der Server ausgelost hat
+      // (und das Gewinn-Fenster könnte leer bleiben). Kommt die Antwort mitten
+      // im Dreh, wird sie erst nach dem Ergebnis eingespielt — dasselbe Muster
+      // wie luckyRunning/rebuildAusstehend in gift-menu.js.
+      if (this.spinning) { this.ausstehendeSegmente = items; return; }
+      this.uebernehmeSegmente(items);
     } catch { /* Route (noch) nicht da — manuelle Liste bleibt */ }
+  }
+
+  /** Radfelder übernehmen. segmentRules und segments MÜSSEN zusammen wechseln —
+   *  sonst zeigt Index i bei beiden auf verschiedene Geschenke. */
+  uebernehmeSegmente(items) {
+    this.segmentRules = items;
+    this.segments = items.map((it) => it.text);
+    this.draw();
+  }
+
+  /** Aufgeschobenen Feld-Wechsel nachholen — erst wenn die Gewinn-Anzeige
+   *  vorbei ist (sonst springt das Rad dem Zuschauer vor der Nase um).
+   *  Vorbild: holeRebuildNach() in gift-menu.js. */
+  holeSegmenteNach() {
+    // Wert SOFORT übernehmen und das Feld leeren: Sonst könnten zwei Aufrufe
+    // (Ende der Drehung + Abbruch im Fehlerfall) zwei Timer planen, und der
+    // zweite fände nichts mehr vor.
+    const items = this.ausstehendeSegmente;
+    if (!items) return;
+    this.ausstehendeSegmente = null;
+    const t = setTimeout(() => {
+      this.timers.delete(t);
+      // Inzwischen dreht schon wieder eins → erneut zurückstellen.
+      if (this.spinning) { this.ausstehendeSegmente = items; return; }
+      try { this.uebernehmeSegmente(items); } catch { /* Zeichnen darf nie eskalieren */ }
+    }, 3400); // etwas länger als das Gewinn-Fenster (3 s)
+    this.timers.add(t);
   }
   resize() {
     const r = this.el.getBoundingClientRect(); if (r.width===0) return;
@@ -189,7 +221,11 @@ export default class Wheel {
     // Gewinner-Folgeaktionen trotzdem — es kann also etwas ausgelöst werden,
     // ohne dass jemand das Rad dazu drehen sah. Nicht mehr stumm verwerfen.
     if (this.spinning) {
-      this.ctx?.notify?.('Rad-Dreh übersprungen — es dreht schon eins. Bei mehreren Geschenken kurz '
+      // `this.ctx` ist hier der Canvas-Kontext (Zeile ~128), NICHT der
+      // App-Kontext — der heißt `this.host`. Über ctx ging diese Meldung ins
+      // Leere, das Log blieb stumm, obwohl der Kommentar oben das Gegenteil
+      // verspricht. slot-machine.js macht es richtig.
+      this.host?.notify?.('Rad-Dreh übersprungen — es dreht schon eins. Bei mehreren Geschenken kurz '
         + 'hintereinander normal; sonst die Drehdauer verkürzen.');
       return;
     }
@@ -218,6 +254,30 @@ export default class Wheel {
     this.cancelFrame = scheduleFrame(this.frame);
   }
   frame(now) {
+    // Die Sperre `spinning` fällt sonst NUR auf dem sauberen Weg (unten im
+    // else-Zweig). Stolpert irgendetwas dazwischen — z.B. draw() mit noch
+    // undefinierter Geometrie, wenn die Ebene beim Overlay-Start ausgeblendet
+    // war —, bliebe sie für den Rest der Sitzung stehen: Das Rad dreht sich nie
+    // wieder, während der Server brav weiter Gewinn-Aktionen feuert. Und weil
+    // der Fehler im Animations-Callback passiert, sieht ihn niemand: das
+    // try/catch der Runtime um onAction greift dort nicht.
+    try {
+      this.frameIntern(now);
+    } catch (err) {
+      this.spinning = false;
+      this.pointerDefl = 0;
+      // Die Kette WIRKLICH beenden: scheduleFrame() stellt zwei Wecker (rAF und
+      // einen 55-ms-Notnagel). Abgeräumt werden sie erst NACH dem draw() — wirft
+      // das, bleibt der Notnagel scharf und wirft 55 ms später erneut. Also hier
+      // selbst abbestellen, sonst kommt jede Meldung doppelt.
+      if (this.cancelFrame) { this.cancelFrame(); this.cancelFrame = null; }
+      // Ein während der Drehung eingetroffener Feldwechsel wartet sonst ewig.
+      this.holeSegmenteNach();
+      this.host?.notify?.(`Rad-Drehung abgebrochen: ${err && err.message ? err.message : err}`);
+    }
+  }
+
+  frameIntern(now) {
     now = now || performance.now();
     if (!this.startT) { this.startT = now; this.lastAngle = this.fromAngle; }
     // max(0,…): rAF und der Fallback-Timer aus scheduleFrame liefern Zeitstempel
@@ -238,7 +298,10 @@ export default class Wheel {
     this.draw();
     if (this.cancelFrame) this.cancelFrame();
     if (t < 1) this.cancelFrame = scheduleFrame(this.frame);
-    else { this.spinning = false; this.pointerDefl = 0; this.draw(); this.showResult(); }
+    else {
+      this.spinning = false; this.pointerDefl = 0; this.draw(); this.showResult();
+      this.holeSegmenteNach(); // während der Drehung eingetroffene Feldliste nachziehen
+    }
   }
   showResult() {
     const res = this.el.querySelector('.bx-wh-result');
@@ -253,7 +316,23 @@ export default class Wheel {
     if (this.autoShow && !this.preview) this.hideT = setTimeout(() => this.el.classList.add('hidden'), 3200);
   }
   draw() {
-    const ctx = this.ctx, n = this.segments.length, seg = (Math.PI*2)/n, R = this.radius;
+    // Ohne brauchbare Geometrie nicht zeichnen. Zwei Fälle, beide werfen sonst:
+    // (a) Die Ebene ist im Overlay ausgeblendet → resize() steigt bei 0 Pixel
+    //     Breite aus und lässt radius/cx/cy undefiniert → createLinearGradient
+    //     bekommt NaN („non-finite value"). Dieser Wurf ließ die Dreh-Sperre
+    //     hängen und das Rad war für die Sitzung tot.
+    // (b) Das Rad ist winzig — dann zeichnen die Ringe mit radius-4 bzw.
+    //     radius-6, also mit NEGATIVEM Radius, und arc() wirft ebenfalls.
+    //     Wichtig: NICHT einfach ab einer Mindestgröße aussteigen. `radius`
+    //     kommt aus getBoundingClientRect() und ist damit in ECHTEN
+    //     Bildschirm-Pixeln — bei einer klein skalierten Bühne (Browser-Quelle
+    //     kleiner als der Canvas) wäre ein normal großes Rad plötzlich
+    //     unsichtbar. Also die Ringe klemmen statt das Zeichnen abzubrechen.
+    if (!Number.isFinite(this.radius) || !Number.isFinite(this.cx) || !Number.isFinite(this.cy)
+      || !Number.isFinite(this.w) || !Number.isFinite(this.h)) return;
+    const ctx = this.ctx, n = this.segments.length, seg = (Math.PI*2)/n, R = Math.max(1, this.radius);
+    /** Ring-Radius, nie negativ (siehe oben). */
+    const ring = (abzug) => Math.max(0.5, R - abzug);
     ctx.clearRect(0,0,this.w,this.h);
     const casino = this.style === 'casino', neon = this.style === 'neon';
     // ── Standfuß (hinter dem Rad) — Neon: freistehend, kein Fuß ──
@@ -307,13 +386,13 @@ export default class Wheel {
       const rim = ctx.createLinearGradient(this.cx-R, this.cy-R, this.cx+R, this.cy+R);
       rim.addColorStop(0,'#ffe88a'); rim.addColorStop(.5,'#c9962c'); rim.addColorStop(1,'#ffe88a');
       ctx.beginPath(); ctx.arc(this.cx,this.cy,R+2,0,Math.PI*2); ctx.lineWidth=12; ctx.strokeStyle=rim; ctx.stroke();
-      ctx.beginPath(); ctx.arc(this.cx,this.cy,R-6,0,Math.PI*2); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,232,138,.8)'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(this.cx,this.cy,ring(6),0,Math.PI*2); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,232,138,.8)'; ctx.stroke();
     } else if (neon) {
       ctx.beginPath(); ctx.arc(this.cx,this.cy,R+1,0,Math.PI*2); ctx.lineWidth=5; ctx.strokeStyle=this.accent;
       ctx.shadowColor=this.accent; ctx.shadowBlur=22; ctx.stroke(); ctx.shadowBlur=0;
     } else {
       ctx.beginPath(); ctx.arc(this.cx,this.cy,R,0,Math.PI*2); ctx.lineWidth=7; ctx.strokeStyle='rgba(255,255,255,.42)'; ctx.stroke();
-      ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(this.cx,this.cy,R-4,0,Math.PI*2); ctx.stroke();
+      ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(this.cx,this.cy,ring(4),0,Math.PI*2); ctx.stroke();
     }
     // Glühbirnen-Kette am Rand (fest, rotiert NICHT mit) — Casino/Jahrmarkt-Look.
     // Läuft während des Spins (Phase aus der Zeit), idle = schön alternierend.
@@ -351,6 +430,7 @@ export default class Wheel {
     ctx.restore();
   }
   destroy() { if (this.cancelFrame) this.cancelFrame(); clearTimeout(this.hideT); clearTimeout(this.demoT); clearInterval(this.demoInterval);
+    this.spinning = false; this.ausstehendeSegmente = null; // wie gift-menu.js: Sperre + Nachzieher aufräumen
     for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.observer.disconnect(); this.el.remove(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

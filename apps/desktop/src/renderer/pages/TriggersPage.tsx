@@ -201,9 +201,15 @@ export default function TriggersPage() {
       setSounds((await window.studio.listSounds()) as SoundEntry[]);
       const layouts = (await window.studio.listLayouts()) as OverlayLayout[];
       setLayers((layouts[0]?.layers ?? []).map((l) => ({ id: l.id, name: `${l.name} (${l.widgetType})`, widgetType: l.widgetType })));
-      setObsScenes((await window.studio.getObsScenes().catch(() => [])) as string[]);
-      setSbActions((await window.studio.getStreamerbotActions().catch(() => [])) as { id: string; name: string }[]);
       setLoaded(true);
+      // OBS-Szenen und Streamer.bot-Aktionen NICHT abwarten: Beides hängt an
+      // fremden Programmen. Läuft z.B. Streamer.bot mit aktivierter
+      // WebSocket-Authentifizierung, antwortet es nie und die Anfrage läuft erst
+      // nach 4 Sekunden in den Timeout — die ganze Trigger-Seite stand so lange
+      // auf „Lade…", mitten im Stream. Die beiden Auswahlfelder füllen sich
+      // einfach nach.
+      void window.studio.getObsScenes().then((s) => setObsScenes(s as string[])).catch(() => undefined);
+      void window.studio.getStreamerbotActions().then((a) => setSbActions(a as { id: string; name: string }[])).catch(() => undefined);
     })();
   }, []);
 

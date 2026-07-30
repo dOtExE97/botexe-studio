@@ -68,6 +68,43 @@ test('gifts erhöhen totals und gifter-aggregation', () => {
   assert.equal(snap.topGifters[1]?.coins, 15);
 });
 
+test('combo zählt als count geschenke, nicht als eins', () => {
+  const s = new SessionStats();
+  // Eine 50er-Rosen-Combo: EIN Ereignis, 50 Geschenke, 50 Coins.
+  s.apply(gift('anna', 50, 50));
+  const snap = s.snapshot();
+  assert.equal(snap.totals.gifts, 50);
+  assert.equal(snap.totals.coins, 50);
+  assert.equal(snap.topGifters[0]?.gifts, 50);
+});
+
+test('geschenk OHNE coins zählt als eins — auch mit count (Doppelzähl-Schutz)', () => {
+  // Fehlen die Gift-Details der Plattform, sind auch die Coins 0 — und dann
+  // laufen ALLE Combo-Zwischenstufen durch. Würde man dort count aufaddieren,
+  // ergäbe eine 50er-Combo 1+2+3+…+50 = 1275 Geschenke.
+  const s = new SessionStats();
+  for (let n = 1; n <= 5; n++) {
+    s.apply({
+      type: 'gift',
+      ts: n,
+      user: { id: 'anna', nickname: 'ANNA' },
+      gift: { slug: 'rose', count: n, coinsPerUnit: 0, totalCoins: 0 },
+    });
+  }
+  assert.equal(s.snapshot().totals.gifts, 5, '5 Ereignisse = 5 Geschenke, nicht 15');
+});
+
+test('geschenk ohne count zählt trotzdem als eins', () => {
+  const s = new SessionStats();
+  s.apply({
+    type: 'gift',
+    ts: 1,
+    user: { id: 'anna', nickname: 'ANNA' },
+    gift: { slug: 'rose', count: 0, coinsPerUnit: 0, totalCoins: 7 },
+  });
+  assert.equal(s.snapshot().totals.gifts, 1);
+});
+
 test('topGifters ist auf 10 einträge begrenzt', () => {
   const s = new SessionStats();
   for (let i = 0; i < 15; i++) s.apply(gift(`user${i}`, i + 1));

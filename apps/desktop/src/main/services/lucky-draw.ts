@@ -15,6 +15,23 @@ import { planSlotOutcome } from './slot-gift';
 export type LuckyLayer = { id: string; widgetType: string; visible: boolean; props?: Record<string, unknown> };
 
 /**
+ * Wie lange dauert eine Karten-Ziehung? Diese Formel MUSS exakt der im Widget
+ * entsprechen (`gift-menu.js`, runLuckyDraw: `Math.max(600, Number(this.luckyDrawMs) || 3000)`),
+ * denn sie beantwortet drei Fragen gleichzeitig: wann die Gewinn-Aktion feuert,
+ * wie lange der Server eine zweite Ziehung sperrt und wie lange das Widget
+ * selbst blockiert. Laufen die auseinander, plant der Server eine Ziehung, die
+ * im Overlay gar nicht stattfindet — oder feuert den Gewinn, bevor die Karten
+ * stehen.
+ *
+ * Achtung beim Anfassen: `|| 3000` statt `?? 3000` ist Absicht. Ein LEERES Feld
+ * im Editor kommt als 0 an, und 0 ist kein gültiger Wert — `??` würde die 0
+ * durchlassen (das war genau die Lücke: Server 600 ms, Widget 3000 ms).
+ */
+export function luckyDrawDauerMs(props?: Record<string, unknown>): number {
+  return Math.max(600, Number(props?.luckyDrawMs) || 3000);
+}
+
+/**
  * Sichtbare Geschenke-Slider (gift-menu), deren luckyGift-Prop auf diesen
  * Gift-Slug passt UND bei denen Lucky-Draw aktiviert ist (luckyMode:true).
  * Anders als beim Automat gilt das für BEIDE Quellen (source:'trigger' UND
@@ -142,12 +159,9 @@ export function planLuckyDraws(
       },
     });
     if (win && String(p.source ?? 'liste') === 'trigger') {
-      // Default (3000) MUSS mit dem Fallback übereinstimmen, das die
-      // Lucky-Card in gift-menu.js für ihre Shuffle-Dauer verwendet
-      // (runLuckyDraw: `Math.max(600, Number(this.luckyDrawMs) || 3000)`) —
-      // sonst feuert die Aktion zu einem anderen Zeitpunkt als die Karten im
-      // Widget tatsächlich landen.
-      const luckyDrawMs = Number(p.luckyDrawMs ?? 3000);
+      // Eine Quelle für die Zieh-Dauer (siehe luckyDrawDauerMs) — sonst feuert
+      // die Aktion zu einem anderen Zeitpunkt, als die Karten im Widget landen.
+      const luckyDrawMs = luckyDrawDauerMs(p);
       const rule = rules.find((r) => r.id === keys[winnerIndex]?.ruleId);
       if (rule) {
         for (const act of rule.actions) {
