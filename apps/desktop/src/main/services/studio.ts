@@ -565,6 +565,40 @@ export class Studio {
   }
 
   /**
+   * Beim Start einmal auflisten, welche Geschenke-Slider eine Karten-Ziehung
+   * auslösen können — und auf welches Geschenk sie warten.
+   *
+   * Warum: Bleibt die Ziehung im Stream aus, gibt es vier mögliche Gründe
+   * (Widget nicht sichtbar, Haken nicht gesetzt, anderes Auslöser-Geschenk,
+   * falsches Layout) und keinen davon konnte man von außen sehen. Genau diese
+   * Ratearbeit hat einen ganzen Abend gekostet. Eine Zeile beim Start beendet
+   * das: Steht der Slider nicht in der Liste, ist die Einstellung das Problem;
+   * steht er drin, liegt es an Zustellung oder Layout (s. meldeZielLayout).
+   */
+  private meldeLuckyDrawStatus(): void {
+    const treffer: string[] = [];
+    let ausgeblendet = 0;
+    for (const layout of this.layouts.list()) {
+      for (const l of layout.layers) {
+        if (l.widgetType !== 'gift-menu' || l.props?.luckyMode !== true) continue;
+        if (!l.visible) { ausgeblendet++; continue; }
+        const gift = String(l.props?.luckyGift || '').trim();
+        const befehl = String(l.props?.luckyCommand || '').trim();
+        const ausloeser = [gift ? `Geschenk „${gift}"` : '', befehl ? `Chat „${befehl}"` : '']
+          .filter(Boolean).join(' oder ') || 'NICHTS (kein Geschenk gewählt → zieht nie)';
+        treffer.push(`„${l.name || 'Geschenke-Menü'}" in „${layout.name}" ← ${ausloeser}`);
+      }
+    }
+    if (!treffer.length && !ausgeblendet) return; // niemand nutzt die Ziehung
+    if (treffer.length) {
+      log.info('Overlay', `Karten-Ziehung bereit: ${treffer.join(' · ')}`);
+    }
+    if (ausgeblendet) {
+      log.warn('Overlay', `${ausgeblendet}× Geschenke-Slider mit Karten-Ziehung ist AUSGEBLENDET — zieht nicht.`);
+    }
+  }
+
+  /**
    * Ins Log schreiben, in WELCHEM Overlay-Layout die Ziel-Widgets liegen — und
    * warnen, wenn das nicht das gerade aktive ist.
    *
@@ -803,6 +837,8 @@ export class Studio {
       log.info('TikTok', `Auto-Live-Watch: beobachte @${s.lastUsername} — verbinde automatisch, sobald live`);
       this.adapter.watchForLive(s.lastUsername.trim());
     }
+
+    this.meldeLuckyDrawStatus();
 
     // Spotify: Polling nur, wenn es auch jemand sieht (Client + Widget).
     this.refreshSpotifyPolling();
