@@ -124,6 +124,9 @@ interface TrackedClient {
 }
 
 export class OverlayServer {
+  /** Merker gegen Log-Flut: Warnung „kein Overlay verbunden" nur einmal je
+   *  Phase ohne Clients (s. broadcast). Fällt beim nächsten Client zurück. */
+  private ohneClientsGemeldet = false;
   private readonly bus: EventBus;
   private readonly options: OverlayServerOptions;
   private readonly expressApp: Express;
@@ -605,6 +608,7 @@ export class OverlayServer {
       const profileId = url.searchParams.get('profile') || '';
       const client: TrackedClient = { ws, isAlive: true, profileId };
       this.clients.add(client);
+      this.ohneClientsGemeldet = false; // wieder wer da → Warnung darf erneut kommen
       log.info('Overlay', `Client verbunden, Profil "${profileId || '(default)'}" (${this.clients.size} aktiv)`);
       this.notifyClientCount();
 
@@ -841,9 +845,13 @@ export class OverlayServer {
       // sie vorher aber schon als ausgeführt geloggt. Bei laufenden Daten
       // (stats/event) ist „niemand hört zu" der Normalfall und nicht der Rede
       // wert; bei einer ausgelösten Aktion ist es ein echter Ausfall.
-      if (message.kind === 'action') {
+      // Einmal pro „niemand da"-Phase, nicht pro Aktion: Eine Timer-Regel
+      // feuert sonst im Sekundentakt dieselbe Warnung und macht das Log
+      // unlesbar. Der Merker fällt beim nächsten verbundenen Client zurück.
+      if (message.kind === 'action' && !this.ohneClientsGemeldet) {
+        this.ohneClientsGemeldet = true;
         log.warn('Overlay', 'Aktion ausgelöst, aber KEIN Overlay verbunden — im Stream passiert nichts. '
-          + 'Browser-Quelle in OBS prüfen.');
+          + 'Browser-Quelle in OBS prüfen. (Weitere Meldungen unterdrückt, bis wieder ein Overlay da ist.)');
       }
       return;
     }

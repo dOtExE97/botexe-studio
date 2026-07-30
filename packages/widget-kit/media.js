@@ -189,7 +189,12 @@ export default class MediaWidget {
     }
     if (p.mediaUrl && p.mediaUrl !== this.url) {
       this.url = String(p.mediaUrl);
+      // Typ mitziehen. Fehlt die Angabe, aus der Adresse ableiten statt beim
+      // alten Typ zu bleiben — ein leeres Widget steht auf 'image', und ein
+      // Intro-VIDEO wäre dann in einem <img> gelandet (also unsichtbar).
       if (p.kind === 'video' || p.kind === 'image') this.kind = p.kind;
+      else if (/\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(this.url)) this.kind = 'video';
+      else if (/\.(png|jpe?g|gif|webp|avif|svg)(\?|$)/i.test(this.url)) this.kind = 'image';
       const next = this.buildMedia();
       if (this.media) {
         this.media.replaceWith(next);

@@ -1672,11 +1672,24 @@ export default class GiftMenu {
       const isLast = step === schedule.length - 1;
       const t = setTimeout(() => {
         this.timers.delete(t);
-        const idx = isLast ? winner : Math.floor(((seed * 9301 + step * 49297) % 1) * n);
-        const safeIdx = ((idx % n) + n) % n;
-        if (this.mode === 'leiste') highlightChip(safeIdx);
-        else if (this.cards && this.cards.length) this.show(safeIdx);
-        if (isLast) this.finishLuckyDraw(action, winner, chips);
+        try {
+          const idx = isLast ? winner : Math.floor(((seed * 9301 + step * 49297) % 1) * n);
+          const safeIdx = ((idx % n) + n) % n;
+          if (this.mode === 'leiste') highlightChip(safeIdx);
+          else if (this.cards && this.cards.length) this.show(safeIdx);
+          if (isLast) this.finishLuckyDraw(action, winner, chips);
+        } catch (err) {
+          // Stolpert der letzte Schritt, bliebe luckyRunning sonst für immer
+          // true — und seit build() sich zurückhält, solange eine Ziehung
+          // läuft, würde das Widget dann NIE wieder aktualisiert. Die Sperre
+          // muss also auch im Fehlerfall fallen.
+          if (isLast) {
+            this.luckyRunning = false;
+            this.el.classList.remove('bx-gm-lucky');
+            this.holeRebuildNach();
+            this.ctx?.notify?.(`Karten-Ziehung abgebrochen: ${err && err.message ? err.message : err}`);
+          }
+        }
       }, at);
       this.timers.add(t);
     });
@@ -1684,14 +1697,25 @@ export default class GiftMenu {
 
   /** Landeergebnis nach dem letzten Shuffle-Schritt anzeigen (Gewinn-Feier
    *  bzw. Niete-Blitz) und `luckyRunning` freigeben. */
+  /** Aufgeschobenen Neuaufbau nachholen (s. build()). Nach der Feier, damit
+   *  Gewinn-/Niete-Optik noch zu sehen ist, bevor das DOM ersetzt wird.
+   *
+   *  build() ALLEIN reicht nicht: Beide Aufrufer (loadCatalog/loadRules) machen
+   *  `build(); applyIcons();` — ohne den zweiten Schritt fehlten nach dem
+   *  nachgeholten Aufbau alle Geschenk-Bilder. */
+  holeRebuildNach() {
+    if (!this.rebuildAusstehend) return;
+    const t = setTimeout(() => {
+      this.timers.delete(t);
+      this.build();
+      this.applyIcons();
+    }, 1200);
+    this.timers.add(t);
+  }
+
   finishLuckyDraw(action, winner, chips) {
     this.luckyRunning = false;
-    // Aufgeschobenen Neuaufbau nachholen (s. build()). Nach der Feier, damit
-    // Gewinn-/Niete-Optik noch zu sehen ist, bevor das DOM ersetzt wird.
-    if (this.rebuildAusstehend) {
-      const t = setTimeout(() => { this.timers.delete(t); this.build(); }, 1200);
-      this.timers.add(t);
-    }
+    this.holeRebuildNach();
     for (const c of chips) c.classList.remove('bx-gm-lucky-flash');
     if (action.win) {
       this.celebrate(winner, action.who);
