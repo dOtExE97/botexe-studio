@@ -3,7 +3,7 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
-## [Unveröffentlicht]
+## [0.44.0] — 2026-07-30
 
 ### Behoben: Bestenliste wurde bei wenigen Einträgen riesig 🔍
 Wenn die rotierende Bestenliste auf eine Ansicht mit nur einem oder zwei Einträgen umschaltete — am Stream-Anfang, oder bei „Top Gewinner" mit einem einzigen Gewinner —, blies sich der Inhalt auf ein Vielfaches auf: In einem 420×400-Kästchen wurde das Profilbild **263 statt 33 Pixel** groß, und der Name samt Coins-Zahl flog ganz aus dem Bild. Übrig blieben ein Riesen-Kreis und eine Riesen-Zahl ohne jede Information.
