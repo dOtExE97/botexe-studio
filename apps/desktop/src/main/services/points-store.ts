@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { StudioEvent } from '@botexe/trigger-engine';
 import { log } from '../core/logger';
+import { schreibeAtomar } from '../core/atomar-schreiben';
 import { giftStueckzahl } from '../core/session-stats';
 import { passt } from '../../shared/suche';
 
@@ -333,10 +334,8 @@ export class PointsStore {
       schemaVersion: POINTS_SCHEMA_VERSION,
       viewers: Array.from(this.viewers.values()),
     };
-    const tmp = `${this.file}.tmp`;
     try {
-      fs.writeFileSync(tmp, JSON.stringify(data), 'utf-8');
-      fs.renameSync(tmp, this.file);
+      schreibeAtomar(this.file, JSON.stringify(data));
     } catch (err) {
       log.error('Points', 'Speichern fehlgeschlagen', (err as Error).message);
     }

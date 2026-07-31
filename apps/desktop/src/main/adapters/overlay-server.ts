@@ -372,6 +372,12 @@ export class OverlayServer {
         return;
       }
       res.setHeader('Content-Type', filename.endsWith('.wav') ? 'audio/wav' : 'audio/mpeg');
+      // Länge MITSCHICKEN: Ohne sie kann Chromium bei manchen Formaten (ogg,
+      // mp3 ohne Xing-Kopf) die Spieldauer nicht bestimmen und meldet dem
+      // Renderer `duration = Infinity`. Alles, was daran hängt — Fortschritt,
+      // Restzeit, Seeken — arbeitet dann blind.
+      res.setHeader('Content-Length', fs.statSync(target).size);
+      res.setHeader('Accept-Ranges', 'bytes');
       fs.createReadStream(target).pipe(res);
     });
 
@@ -410,6 +416,10 @@ export class OverlayServer {
       }
       res.setHeader('Content-Type', mime[ext]);
       res.setHeader('Cache-Control', 'public, max-age=300');
+      // Länge mitschicken (siehe /sounds) — sonst kennt der Renderer die Dauer
+      // einer Ansage nicht.
+      res.setHeader('Content-Length', fs.statSync(target).size);
+      res.setHeader('Accept-Ranges', 'bytes');
       fs.createReadStream(target).pipe(res);
     });
 

@@ -142,6 +142,23 @@ export default class GiftCannon {
   kick() { if (!this.running) { this.running = true; this.lastT = 0; this.cancelFrame = scheduleFrame(this.frame); } }
 
   frame(now) {
+    // Die Sperre `running` fällt sonst NUR am regulären Ende dieser Schleife.
+    // Stolpert das Zeichnen dazwischen (negativer Radius bei sehr flach
+    // gezogener Box, NaN-Geometrie bei ausgeblendeter Ebene), bliebe sie für
+    // den Rest der Sitzung stehen: Ein neues Geschenk ruft kick(), das sieht
+    // running=true und plant kein Bild mehr — das Widget ist tot, ohne dass
+    // irgendwo etwas im Log steht (ein Wurf im Animations-Callback läuft an
+    // allen try/catch der Runtime vorbei). Gleiches Muster wie in wheel.js.
+    try {
+      this.frameIntern(now);
+    } catch (err) {
+      this.running = false;
+      if (this.cancelFrame) { this.cancelFrame(); this.cancelFrame = null; }
+      this.host?.notify?.(`Geschenke-Kanone: Bild abgebrochen — ${err && err.message ? err.message : err}`);
+    }
+  }
+
+  frameIntern(now) {
     if (this.cancelFrame) this.cancelFrame();
     // Untere Schranke 0 ist PFLICHT: rAF und der Fallback-Timer aus scheduleFrame
     // liefern Zeitstempel aus verschiedenen Quellen — gewinnt der Timer, kann

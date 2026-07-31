@@ -1,6 +1,6 @@
 {
   "name": "botexe-studio",
-  "version": "0.45.0",
+  "version": "0.45.1",
   "private": true,
   "description": "Lokales TikTok-Live Overlay-Studio — TikFinity/TikTory-Ersatz (MVP Pur-Kern: Events → Trigger → Overlays/Alerts/Sounds)",
   "license": "SEE LICENSE IN LICENSE",
@@ -8,6 +8,10 @@
     "apps/*",
     "packages/*"
   ],
+  "engines": {
+    "//": "Node 24, weil die ausgelieferte App genau darauf läuft (Electron 43 bringt Node 24 mit). Tests und CI müssen dieselbe Laufzeit benutzen — sonst prüfen sie Verhalten, das es in der App gar nicht gibt (oder übersehen welches, das es nur dort gibt: fs-Schreibvorgänge mit `flush` wirken erst ab Node 21). Node 20 ist seit 30.04.2026 ohne Sicherheitsupdates.",
+    "node": ">=24"
+  },
   "scripts": {
     "dev:desktop": "npm --workspace apps/desktop start",
     "build:desktop": "npm --workspace apps/desktop run make",

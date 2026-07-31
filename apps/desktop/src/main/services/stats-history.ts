@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { log } from '../core/logger';
+import { schreibeAtomar } from '../core/atomar-schreiben';
 import type { StatsTotals } from '../core/session-stats';
 
 const SCHEMA_VERSION = 1;
@@ -94,10 +95,8 @@ export class StatsHistory {
 
   save(): void {
     const data: Serialized = { schemaVersion: SCHEMA_VERSION, entries: this.entries };
-    const tmp = `${this.file}.tmp`;
     try {
-      fs.writeFileSync(tmp, JSON.stringify(data), 'utf-8');
-      fs.renameSync(tmp, this.file);
+      schreibeAtomar(this.file, JSON.stringify(data));
     } catch (err) {
       log.error('StatsHistory', 'Speichern fehlgeschlagen', (err as Error).message);
     }

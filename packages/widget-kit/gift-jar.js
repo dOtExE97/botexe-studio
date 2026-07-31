@@ -118,6 +118,11 @@ function scheduleFrame(cb) {
 export default class GiftJar {
   constructor(root, props, ctx) {
     ensureStyle();
+    // App-Kontext festhalten (wie in den Schwester-Widgets): `this.ctx` ist hier
+    // weiter unten der Canvas-2D-Kontext, der App-Kontext braucht deshalb einen
+    // eigenen Namen. Gebraucht wird er für notify() — ohne ihn liefe eine
+    // Fehlermeldung aus der Animationsschleife ins Leere.
+    this.host = ctx || {};
     root.style.setProperty('--bx-accent', props.accent || '#ffd23e');
     this.target = Math.max(1, Number(props.target ?? 1000));
     this.coinsValue = 0;
@@ -310,6 +315,23 @@ export default class GiftJar {
   }
   kick() { if (!this.running) { this.running = true; this.lastT = 0; this.cancelFrame = scheduleFrame(this.frame); } }
   frame(now) {
+    // Die Sperre `running` fällt sonst NUR am regulären Ende dieser Schleife.
+    // Stolpert das Zeichnen dazwischen (negativer Radius bei sehr flach
+    // gezogener Box, NaN-Geometrie bei ausgeblendeter Ebene), bliebe sie für
+    // den Rest der Sitzung stehen: Ein neues Geschenk ruft kick(), das sieht
+    // running=true und plant kein Bild mehr — das Widget ist tot, ohne dass
+    // irgendwo etwas im Log steht (ein Wurf im Animations-Callback läuft an
+    // allen try/catch der Runtime vorbei). Gleiches Muster wie in wheel.js.
+    try {
+      this.frameIntern(now);
+    } catch (err) {
+      this.running = false;
+      if (this.cancelFrame) { this.cancelFrame(); this.cancelFrame = null; }
+      this.host?.notify?.(`Coin-Glas: Bild abgebrochen — ${err && err.message ? err.message : err}`);
+    }
+  }
+
+  frameIntern(now) {
     now = now || performance.now();
     // Delta-Time in 60fps-Frames (gedeckelt) → framerate-unabhängig, robust
     // auch wenn das Overlay-Fenster gedrosselt wird (Bälle setzen sich trotzdem).

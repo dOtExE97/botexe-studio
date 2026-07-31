@@ -3,6 +3,59 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.45.1] — 2026-07-31
+
+Ergebnis einer Prüfung, bei der zuerst die offiziellen Anleitungen der
+eingesetzten Technik nachgelesen und dann der Code dagegengehalten wurde.
+
+### Behoben: Geschenke im Verbindungsmodus „Direkt" 🎁
+TikTok hat die Struktur seiner Geschenk-Daten umbenannt, und die App las nur die
+alte Schreibweise. Wer den Modus „Direkt" nutzt, bekam dadurch alles falsch:
+Combos zählten vielfach, Coins blieben auf 0 (Coin-Glas und Ziel-Balken tot),
+jedes Geschenk hieß nur noch „gift" — womit **keine einzige Geschenk-Regel**
+mehr griff — und kein Ereignis hatte einen Zuschauer dran (leere Bestenlisten).
+Im Standard-Modus „Cloud" war und ist alles korrekt; die App versteht jetzt
+beide Schreibweisen und ist damit auch für eine künftige Umstellung gerüstet.
+
+### Behoben: Zweiter App-Start holt das Fenster nach vorn 🪟
+Liegt die App im Infobereich, ist ihr Fenster versteckt — ein Klick auf die
+Verknüpfung bewirkte dann sichtbar gar nichts.
+
+### Behoben: Feuerwerk, Kanone und Coin-Glas können sich nicht mehr aussperren 🎆
+Stolperte eines dieser Widgets ein einziges Mal beim Zeichnen, war es für den
+Rest des Streams tot — ohne eine Zeile im Log. Dieselbe Absicherung, die das
+Glücksrad seit v0.45.0 hat.
+
+### Behoben: OBS klopft nicht mehr endlos an — und hängt nicht mehr ewig 🔌
+Lehnt OBS die Verbindung ab (falsches Passwort, Sitzung beendet), versucht es
+die App jetzt im Minutentakt statt alle 8 Sekunden — und findet trotzdem von
+selbst zurück, sobald du es in OBS in Ordnung bringst. Antwortet die Gegenstelle
+gar nicht, bricht der Versuch nach 12 Sekunden ab, statt für immer auf
+„Verbinde…" stehen zu bleiben (OBS wäre sonst den Rest des Streams tot).
+
+### Behoben: Sounds können die Warteschlange nicht mehr blockieren 🔊
+Blieb ein Sound beim Laden hängen, wartete die Sprachausgabe ewig auf sein Ende
+— ab da blieb es still. Jetzt wird die Warteschlange freigegeben, sobald sich
+20 Sekunden lang nichts mehr tut. Außerdem werden Sounds und Ansagen mit
+korrekter Längenangabe ausgeliefert, damit die Wiedergabe ihre Dauer kennt.
+
+### Behoben: Einstellungen scheitern nicht mehr stumm ⚙️
+Konnte die App deine Einstellungen nicht speichern (z.B. weil ein Virenscanner
+oder ein Backup-Programm den Ordner blockiert), wirkten sie im Fenster — und
+waren nach dem Neustart spurlos weg. Jetzt sagt die App Bescheid.
+
+### Sicherer: Deine Daten überleben auch einen Stromausfall 💾
+Alle Dateien (Einstellungen, Punkte, Layouts, Profile, Statistik) werden jetzt
+über einen gemeinsamen Weg gespeichert, der das Betriebssystem anweist, sie
+wirklich auf die Platte zu schreiben statt nur in den Zwischenspeicher. Dabei
+kam heraus, dass eine der Dateien — welches Profil aktiv ist — als einzige
+ungeschützt geschrieben wurde.
+
+### Unter der Haube
+Tests und Programmbau laufen jetzt auf derselben Node-Fassung, die auch in der
+fertigen App steckt. Vorher prüften sie mit einer älteren Version — Sicherungen,
+die es nur in der neueren gibt, wurden dabei stillschweigend übergangen.
+
 ## [0.45.0] — 2026-07-31
 
 ### Behoben: OBS trennte sich alle 8 Sekunden 🔌

@@ -9,6 +9,7 @@ import { migrateReadWho, type ReadGroup } from './tts-filter';
 import type { AnnounceConfig, GiftAnnounceConfig } from './tts-announce';
 import { DEFAULT_MIXER, normalizeMixer, type MixerSettings } from '../../shared/mixer';
 import { log } from '../core/logger';
+import { schreibeAtomar } from '../core/atomar-schreiben';
 import { packe, entpacke, type Krypto } from './secret-box';
 
 export const SETTINGS_SCHEMA_VERSION = 7;
@@ -293,10 +294,16 @@ export class SettingsStore {
   private cache: StudioSettings;
 
   /** `krypto` nur für Tests — im Betrieb immer Electrons safeStorage. */
-  constructor(userDataDir: string, krypto: Krypto = electronKrypto()) {
+  /** Wird gerufen, wenn Einstellungen NICHT auf die Platte kamen — das Studio
+   *  hängt daran eine sichtbare Meldung. Optional, damit der Store in Tests
+   *  ohne Drumherum funktioniert. */
+  private readonly onSchreibfehler?: (text: string) => void;
+
+  constructor(userDataDir: string, krypto: Krypto = electronKrypto(), onSchreibfehler?: (text: string) => void) {
     fs.mkdirSync(userDataDir, { recursive: true });
     this.file = path.join(userDataDir, 'settings.json');
     this.krypto = krypto;
+    this.onSchreibfehler = onSchreibfehler;
     this.cache = this.load();
   }
 
@@ -430,13 +437,29 @@ export class SettingsStore {
   }
 
   update(patch: Partial<Omit<StudioSettings, 'schemaVersion'>>): StudioSettings {
+    // Der Cache wird ZUERST gesetzt, und das ist Absicht: Scheitert das
+    // Schreiben (Virenscanner oder Backup-Tool hält settings.json offen →
+    // EBUSY/EPERM), soll die Sitzung trotzdem mit dem neuen Stand weiterlaufen.
+    // Andersherum entstünde echter Schaden — etwa bei Spotify: Die App bekommt
+    // beim Erneuern ein NEUES Refresh-Token, kann es nicht speichern, arbeitet
+    // weiter mit dem alten, und das lehnt Spotify beim nächsten Versuch zu
+    // Recht ab. Ergebnis wäre eine Zwangs-Abmeldung mitten im Stream.
     this.cache = { ...this.cache, ...patch, schemaVersion: SETTINGS_SCHEMA_VERSION };
-    const tmp = `${this.file}.tmp`;
     // Geheimnisse wandern in den verschlüsselten Block, statt im Klartext auf
     // der Platte zu liegen (s. secret-box.ts).
     const aufPlatte = packe(this.cache as unknown as Record<string, unknown>, SECRET_TOP_LEVEL_FIELDS, this.krypto);
-    fs.writeFileSync(tmp, JSON.stringify(aufPlatte, null, 2), 'utf-8');
-    fs.renameSync(tmp, this.file);
+    try {
+      schreibeAtomar(this.file, JSON.stringify(aufPlatte, null, 2));
+    } catch (err) {
+      // Das war der eigentliche Mangel: Der Fehlschlag war vollkommen stumm.
+      // Der Streamer sah seine Änderung wirken und fand sie nach dem Neustart
+      // nicht wieder, ohne je einen Hinweis bekommen zu haben.
+      log.error('Settings', 'Einstellungen konnten NICHT gespeichert werden', (err as Error).message);
+      this.onSchreibfehler?.(
+        'Einstellungen konnten nicht gespeichert werden — sie gelten nur bis zum Beenden. '
+        + 'Blockiert ein Virenscanner oder ein Backup-Programm den Ordner?',
+      );
+    }
     return this.get();
   }
 }

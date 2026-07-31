@@ -1189,10 +1189,13 @@ function registerPanelHotkeys(): void {
 // ── App-Lifecycle ──────────────────────────────────────────────────────────
 
 app.on('second-instance', () => {
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
-  }
+  // fensterZeigen() statt nur focus(): Die App lebt standardmäßig im
+  // Infobereich weiter, das Fenster ist dann VERSTECKT (nicht minimiert) oder
+  // ganz weg. focus() auf ein verstecktes Fenster tut nichts — der Streamer
+  // klickte also auf die Verknüpfung und es passierte sichtbar gar nichts.
+  // fensterZeigen() deckt alle drei Fälle ab: zerstört → neu bauen,
+  // minimiert → wiederherstellen, versteckt → show + focus.
+  fensterZeigen();
 });
 
 /** Deutsches Anwendungsmenü. Ohne das zeigt Electron sein englisches Standard-

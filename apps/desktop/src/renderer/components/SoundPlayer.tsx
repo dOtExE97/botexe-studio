@@ -15,6 +15,10 @@ import {
 
 const MAX_PARALLEL = 4;
 const DUCK = 0.3; // andere Sounds auf 30%, während TTS spricht (Ducking)
+/** Wachhund: So lange darf sich die Abspielposition eines Sounds NICHT bewegen,
+ *  bevor er als hängengeblieben gilt. Großzügig — lieber einmal zu spät
+ *  freigeben als einen laufenden Sound abwürgen. */
+const WACHHUND_FENSTER_MS = 20_000;
 
 /** <audio> mit setSinkId — nicht in den DOM-Typen, daher schmales Interface. */
 type SinkAudio = HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
@@ -130,7 +134,20 @@ export default function SoundPlayer() {
       playing.current++;
       let reported = false;
       const report = () => { if (!reported) { reported = true; window.studio.reportSoundEnded(cmd.soundId); } };
+      // Genau EINMAL abräumen. Es gibt mehrere Wege hierher (ended, error, ein
+      // abgelehntes play(), der Wachhund weiter unten, der Not-Aus-Knopf), und
+      // zwei davon können nacheinander eintreten — z.B. der Wachhund und kurz
+      // darauf doch noch 'ended'. Ohne diese Sperre würde der Zähler der
+      // laufenden Sounds doppelt heruntergezählt, und der Deckel gegen
+      // Sound-Bombing wäre für den Rest des Streams zu lasch.
+      let fertig = false;
+      let wachhund: ReturnType<typeof setTimeout> | null = null;
       const done = () => {
+        if (fertig) return;
+        fertig = true;
+        // Wachhund HIER abräumen, nicht am 'ended'-Ereignis: Damit ist jeder
+        // Weg abgedeckt — auch der Not-Aus-Knopf und ein abgelehntes play().
+        if (wachhund) { clearTimeout(wachhund); wachhund = null; }
         laufende.delete(eintrag);
         playing.current = Math.max(0, playing.current - 1);
         if (isTts) {
@@ -147,12 +164,50 @@ export default function SoundPlayer() {
       window.dispatchEvent(new CustomEvent('bx-sounds-changed'));
       audio.addEventListener('ended', done, { once: true });
       audio.addEventListener('error', () => { done(); toast('error', 'Sound konnte nicht abgespielt werden.'); }, { once: true });
-      const start = () => void audio.play().catch(done);
+
+      // Wachhund gegen den dritten Fall: Ein Sound, der beim Laden HÄNGT, feuert
+      // laut Spezifikation weder 'ended' noch 'error' — er wartet einfach.
+      // Ohne diesen Wecker liefe done() nie, und die Vorlese-Warteschlange im
+      // Kern wartet ewig auf die Ende-Meldung: Ab da bliebe es still.
+      //
+      // Er misst FORTSCHRITT, nicht Länge. Das ist der entscheidende Punkt: Die
+      // App liefert ihre Sounds über den eigenen Server ohne Längenangabe aus,
+      // und Chromium meldet dafür `duration = Infinity`. Ein Wecker, der sich
+      // auf die Länge verlässt, würde damit jeden längeren Sound nach kurzer
+      // Zeit abwürgen — eine Musikdatei mitten im Stream oder eine lange
+      // Ansage mitten im Satz. Bewegt sich die Abspielposition, ist alles gut:
+      // dann wird nur neu gestellt. Erst wenn sich über das ganze Fenster
+      // NICHTS bewegt, ist der Sound wirklich hängengeblieben.
+      let letzteStelle = -1;
+      const wachhundStellen = () => {
+        if (wachhund) { clearTimeout(wachhund); wachhund = null; }
+        wachhund = setTimeout(() => {
+          const jetzt = audio.currentTime;
+          if (jetzt > letzteStelle) { letzteStelle = jetzt; wachhundStellen(); return; } // läuft ja
+          console.warn('[Audio] Sound bewegt sich nicht — Warteschlange freigegeben:', cmd.soundId);
+          try { audio.pause(); } catch { /* egal */ }
+          done();
+        }, WACHHUND_FENSTER_MS);
+      };
+      wachhundStellen();
+
+      // Nach done() nicht mehr starten: Sonst spielt ein Sound, den der
+      // Wachhund oder der Not-Aus gerade abgeräumt hat, doch noch los — und
+      // liefe dann komplett außerhalb der Buchführung (kein Zähler, kein
+      // Ducking, nicht stoppbar).
+      const start = () => { if (fertig) return; void audio.play().catch(done); };
       // Gewähltes Ausgabegerät anwenden: Kanal-Gerät (falls gesetzt) sonst global;
       // Vorhören immer global. Bei Fehler trotzdem abspielen (Fallback Standard).
       const targetSink = isPreview ? sinks.current.global : (sinks.current[category] ?? sinks.current.global);
       if (targetSink && audio.setSinkId) {
-        audio.setSinkId(targetSink).then(start, start);
+        // Fehler NICHT verschlucken: Vorher landete das Fehlerobjekt als erstes
+        // Argument in start() und war damit weg. Der Ton lief dann still auf dem
+        // falschen Gerät — beim Streamer der Klassiker nach dem Umstecken eines
+        // USB-Geräts, und nichts sagte, woran es lag.
+        audio.setSinkId(targetSink).catch((err: unknown) => {
+          const name = (err as { name?: string } | undefined)?.name ?? String(err);
+          console.warn('[Audio] Ausgabegerät nicht setzbar, spiele auf dem Standardgerät:', name, targetSink);
+        }).finally(start);
       } else {
         start();
       }

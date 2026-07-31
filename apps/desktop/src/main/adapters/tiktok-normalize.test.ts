@@ -57,6 +57,59 @@ test('gift: finalisierter streak (giftType 1, repeatEnd 1) liefert event mit tot
   assert.equal(e?.gift?.totalCoins, 12);
 });
 
+// ── Direkt-Weg: v3-Schema des Connectors ────────────────────────────────────
+// Dort heißen dieselben Felder anders (aus `giftDetails` wurde `gift`, aus
+// `profilePicture` wurde `avatarThumb`, giftId ist ein String). Ohne diese
+// Tests war die Suite blind: Sie prüfte nur den Cloud-Weg und blieb grün,
+// während im Direkt-Modus Combos vervielfacht wurden und Coins auf 0 standen.
+const userV3 = { id: '77', displayId: 'anna', nickname: 'Anna', avatarThumb: { urlList: ['pic-v3.jpg'] } };
+
+test('gift v3: finalisierter streak zählt einmal, mit Coins und Namen', () => {
+  const e = normalizeGift(
+    {
+      user: userV3,
+      giftId: '5655',
+      repeatCount: 12,
+      repeatEnd: 1,
+      gift: { name: 'Rose', type: 1, diamondCount: 1 },
+    },
+    2_000,
+  );
+  assert.ok(e, 'finalisierter streak erzeugt event');
+  assert.equal(e?.gift?.slug, 'Rose', 'Name aus gift.name statt Platzhalter „gift"');
+  assert.equal(e?.gift?.giftId, 5655, 'String-giftId wird zur Zahl vereinheitlicht');
+  assert.equal(e?.gift?.count, 12);
+  assert.equal(e?.gift?.coinsPerUnit, 1, 'Coins aus gift.diamondCount');
+  assert.equal(e?.gift?.totalCoins, 12);
+  assert.equal(e?.user?.id, 'anna', 'displayId ist der sprechende Schlüssel');
+  assert.equal(e?.user?.userId, '77');
+  assert.equal(e?.user?.profilePic, 'pic-v3.jpg', 'Bild aus avatarThumb.urlList');
+});
+
+test('gift v3: Combo-Zwischenstufe wird unterdrückt (sonst zählt jede Stufe)', () => {
+  const zwischen = normalizeGift(
+    { user: userV3, giftId: '5655', repeatCount: 3, repeatEnd: 0, gift: { name: 'Rose', type: 1, diamondCount: 1 } },
+    2_000,
+  );
+  assert.equal(zwischen, null);
+  // Auch über das v3-Feld `combo`, falls `type` mal fehlt.
+  const perCombo = normalizeGift(
+    { user: userV3, repeatCount: 3, repeatEnd: 0, gift: { name: 'Rose', combo: true, diamondCount: 1 } },
+    2_000,
+  );
+  assert.equal(perCombo, null);
+});
+
+test('gift v3: nicht-streakbares Geschenk kommt sofort durch', () => {
+  const e = normalizeGift(
+    { user: userV3, giftId: '6090', repeatCount: 1, repeatEnd: 0, gift: { name: 'Fireworks', type: 2, diamondCount: 1088 } },
+    2_000,
+  );
+  assert.ok(e);
+  assert.equal(e?.gift?.slug, 'Fireworks');
+  assert.equal(e?.gift?.totalCoins, 1088);
+});
+
 test('gift: laufender streak (giftType 1, repeatEnd 0) wird unterdrückt', () => {
   const e = normalizeGift(
     {

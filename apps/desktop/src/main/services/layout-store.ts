@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { validateLayout, type OverlayLayout } from '@botexe/overlay-engine';
 import { log } from '../core/logger';
+import { schreibeAtomar } from '../core/atomar-schreiben';
 
 export class LayoutStore {
   private readonly dir: string;
@@ -70,9 +71,7 @@ export class LayoutStore {
     }
     const layout: OverlayLayout = { ...result.layout, updatedAt: new Date().toISOString() };
     const file = this.fileFor(layout.id);
-    const tmp = `${file}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(layout, null, 2), 'utf-8');
-    fs.renameSync(tmp, file);
+    schreibeAtomar(file, JSON.stringify(layout, null, 2));
     this.invalidate();
     return { ok: true, layout };
   }

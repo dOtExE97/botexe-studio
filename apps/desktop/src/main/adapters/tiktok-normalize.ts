@@ -1,14 +1,40 @@
-// tiktok-normalize.ts — pure Normalisierung der v2-Payloads von
-// tiktok-live-connector (WebcastChatMessage, WebcastGiftMessage, …) in unser
-// StudioEvent-Modell. Bewusst tolerant getypt: die Lib liefert Protobuf-
-// dekodierte Objekte, bei denen jedes Feld fehlen kann.
+// tiktok-normalize.ts — pure Normalisierung der TikTok-Payloads
+// (WebcastChatMessage, WebcastGiftMessage, …) in unser StudioEvent-Modell.
+// Bewusst tolerant getypt: die Lib liefert Protobuf-dekodierte Objekte, bei
+// denen jedes Feld fehlen kann.
+//
+// ZWEI PROTOKOLL-FASSUNGEN, und die App bekommt beide:
+//  · Der Cloud-Weg (eulerstream, Standard) liefert die ältere Schreibweise:
+//    `giftDetails` mit `giftName`/`giftType`/`giftImage`, User mit `uniqueId`
+//    und `profilePicture`.
+//  · Der Direkt-Weg (tiktok-live-connector ab 2.4.x) dekodiert mit dem
+//    v3-Schema, und dort wurden dieselben Felder umbenannt: aus `giftDetails`
+//    wurde `gift` (mit `name`/`type`/`image`), aus `profilePicture` wurde
+//    `avatarThumb`, und `giftId` ist plötzlich ein String statt einer Zahl.
+//    (Belegt in node_modules/tiktok-live-proto/dist/node/v3.d.ts — dort kommt
+//    „giftDetails" kein einziges Mal mehr vor; die README des Connectors zeigt
+//    noch die alte Form, sie hinkt dem Schema hinterher.)
+// Deshalb wird JEDES Feld unter beiden Namen gesucht. Kommt eine dritte
+// Fassung, ist hier die einzige Stelle, die es wissen muss.
 import type { StudioEvent, StudioUser } from '@botexe/trigger-engine';
+
+interface RawImage {
+  url?: string[];
+  urlList?: string[];
+}
 
 interface RawUser {
   userId?: string;
   uniqueId?: string;
+  /** v3: die eigentliche Kennung heißt hier schlicht `id`. */
+  id?: string;
+  /** v3: der @-Name heißt hier `displayId`. */
+  displayId?: string;
   nickname?: string;
   profilePicture?: { url?: string[] };
+  /** v3-Schreibweisen des Profilbilds. */
+  avatarThumb?: RawImage;
+  avatarMedium?: RawImage;
   /** Teamherz: TikTok nennt es im Protokoll „Fan-Club". Die Stufe steckt je
    *  nach Nachrichtenart an einer von drei Stellen — deshalb werden alle drei
    *  geprüft. (Belegt in tiktok-live-proto/v3: User.fansClub.data.level,
@@ -45,10 +71,22 @@ function abzeichenStufe(raw: RawUser, art: number): number {
   return ersteZahl(treffer?.privilegeLogExtra?.level);
 }
 
+/** Erstes Bild aus einer der beiden Protokoll-Schreibweisen (url / urlList). */
+function ersteBildUrl(...bilder: Array<RawImage | { url?: string[] } | undefined>): string | undefined {
+  for (const b of bilder) {
+    const treffer = b?.url?.[0] ?? (b as RawImage | undefined)?.urlList?.[0];
+    if (treffer) return treffer;
+  }
+  return undefined;
+}
+
 function toUser(raw: RawUser | undefined): StudioUser | undefined {
   if (!raw) return undefined;
-  const id = raw.uniqueId || raw.userId || '';
+  // Reihenfolge = Vorliebe: der @-Name ist der stabilere, sprechende Schlüssel.
+  // `displayId`/`id` sind die v3-Namen derselben Dinge (Direkt-Weg).
+  const id = raw.uniqueId || raw.displayId || raw.userId || raw.id || '';
   if (!id) return undefined;
+  const roheId = raw.userId || raw.id || '';
   const teamLevel = ersteZahl(
     raw.fansClub?.data?.level,
     raw.fansClubInfo?.fansLevel,
@@ -59,9 +97,9 @@ function toUser(raw: RawUser | undefined): StudioUser | undefined {
     // Zweiter Schlüssel fürs Rollen-Gedächtnis: rohe userId, falls sie von der
     // primären id (= uniqueId) abweicht. So findet das Gedächtnis denselben
     // User auch, wenn ein Event mal nur die userId trägt.
-    ...(raw.userId && raw.userId !== id ? { userId: raw.userId } : {}),
+    ...(roheId && roheId !== id ? { userId: roheId } : {}),
     nickname: raw.nickname || id,
-    profilePic: raw.profilePicture?.url?.[0],
+    profilePic: ersteBildUrl(raw.profilePicture, raw.avatarThumb, raw.avatarMedium),
     // Stufen nur setzen, wenn wirklich eine kam — sonst überschreibt ein
     // Ereignis ohne Abzeichen-Daten das, was das Rollen-Gedächtnis schon weiß.
     ...(teamLevel > 0 ? { teamLevel } : {}),
@@ -128,35 +166,58 @@ export function normalizeChat(
 export function normalizeGift(
   data: {
     user?: RawUser;
-    giftId?: number;
+    /** Ältere Fassung: Zahl. v3 (Direkt-Weg): String. */
+    giftId?: number | string;
     repeatCount?: number;
     repeatEnd?: number | boolean;
+    /** Schreibweise des Cloud-Wegs. */
     giftDetails?: {
       giftName?: string;
       describe?: string;
       giftType?: number;
       diamondCount?: number;
-      giftImage?: { url?: string[] };
-      icon?: { url?: string[] };
+      giftImage?: RawImage;
+      icon?: RawImage;
+    };
+    /** Schreibweise des Direkt-Wegs (v3-Schema, dieselben Daten). */
+    gift?: {
+      name?: string;
+      describe?: string;
+      type?: number;
+      combo?: boolean;
+      diamondCount?: number;
+      image?: RawImage;
+      icon?: RawImage;
     };
   },
   ts: number,
 ): StudioEvent | null {
-  const details = data.giftDetails;
-  const streakable = details?.giftType === 1;
+  // Beide Protokoll-Fassungen bedienen (siehe Kopf der Datei). Ohne diesen
+  // Fallback war im Direkt-Modus ALLES daneben: jede Combo-Zwischenstufe zählte
+  // als eigenes Geschenk, die Coins blieben 0, und jedes Geschenk hieß „gift" —
+  // womit auch keine einzige Trigger-Regel mehr griff.
+  const alt = data.giftDetails;
+  const neu = data.gift;
+  const giftName = alt?.giftName || neu?.name || alt?.describe || neu?.describe || '';
+  // `type === 1` heißt streakbar; v3 sagt dasselbe zusätzlich über `combo`.
+  const streakable = (alt?.giftType ?? neu?.type) === 1 || neu?.combo === true;
   const repeatEnd = Boolean(data.repeatEnd);
   if (streakable && !repeatEnd) return null;
 
   const count = data.repeatCount || 1;
-  const coinsPerUnit = details?.diamondCount ?? 0;
-  const icon = details?.giftImage?.url?.[0] ?? details?.icon?.url?.[0];
+  const coinsPerUnit = alt?.diamondCount ?? neu?.diamondCount ?? 0;
+  const icon = ersteBildUrl(alt?.giftImage, neu?.image, alt?.icon, neu?.icon);
+  // giftId als ZAHL vereinheitlichen: v3 liefert einen String, und der
+  // Gift-Katalog wie auch die Bedingung „genau dieses Geschenk" (gift_id_is)
+  // vergleichen strikt — ein String hätte dort nie getroffen.
+  const giftId = Number(data.giftId) || undefined;
   return {
     type: 'gift',
     ts,
     user: toUser(data.user),
     gift: {
-      slug: details?.giftName || details?.describe || 'gift',
-      giftId: data.giftId,
+      slug: giftName || 'gift',
+      giftId,
       count,
       coinsPerUnit,
       totalCoins: coinsPerUnit * count,

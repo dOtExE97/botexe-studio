@@ -357,6 +357,23 @@ export default class GiftFireworks {
   }
 
   frame(now) {
+    // Die Sperre `running` fällt sonst NUR am regulären Ende dieser Schleife.
+    // Stolpert das Zeichnen dazwischen (negativer Radius bei sehr flach
+    // gezogener Box, NaN-Geometrie bei ausgeblendeter Ebene), bliebe sie für
+    // den Rest der Sitzung stehen: Ein neues Geschenk ruft kick(), das sieht
+    // running=true und plant kein Bild mehr — das Widget ist tot, ohne dass
+    // irgendwo etwas im Log steht (ein Wurf im Animations-Callback läuft an
+    // allen try/catch der Runtime vorbei). Gleiches Muster wie in wheel.js.
+    try {
+      this.frameIntern(now);
+    } catch (err) {
+      this.running = false;
+      if (this.cancelFrame) { this.cancelFrame(); this.cancelFrame = null; }
+      this.host?.notify?.(`Feuerwerk: Bild abgebrochen — ${err && err.message ? err.message : err}`);
+    }
+  }
+
+  frameIntern(now) {
     if (this.cancelFrame) this.cancelFrame();
     // Delta-Time: bei niedriger FPS (TTLS!) bewegt sich alles gleich schnell,
     // nur mit weniger Zwischenbildern — statt in Zeitlupe zu ruckeln.

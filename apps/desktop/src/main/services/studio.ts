@@ -7,6 +7,7 @@ import path from 'node:path';
 import { TriggerEngine, renderSpeakTemplate, matchRedemption, matchChatCommand, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
+import { schreibeAtomar } from '../core/atomar-schreiben';
 import { SessionStats } from '../core/session-stats';
 import { EventRecorder, parseReplay, playReplay } from '../core/replay';
 import { SessionRoles } from '../core/session-roles';
@@ -236,7 +237,11 @@ export class Studio {
 
   constructor(paths: StudioPaths, hooks: StudioHooks) {
     this.hooks = hooks;
-    this.settings = new SettingsStore(paths.userDataDir);
+    // Dritter Parameter: Kommen Einstellungen nicht auf die Platte, sieht der
+    // Streamer das jetzt — vorher passierte das vollkommen stumm.
+    this.settings = new SettingsStore(paths.userDataDir, undefined, (text) => {
+      this.hooks.onToast?.({ type: 'error', message: text });
+    });
     this.layouts = new LayoutStore(paths.userDataDir);
     this.sounds = new SoundLibrary(paths.userDataDir);
     this.seedBundledSounds(paths.widgetDir);
@@ -1971,9 +1976,7 @@ export class Studio {
     try {
       // Atomar (tmp + rename) wie die anderen Stores — ein Crash mitten im Write
       // darf die laufende Session-Datei nicht korrupt zurücklassen.
-      const tmp = `${this.statsFile}.tmp`;
-      fs.writeFileSync(tmp, this.stats.toJSON());
-      fs.renameSync(tmp, this.statsFile);
+      schreibeAtomar(this.statsFile, this.stats.toJSON());
     } catch (err) {
       log.warn('Studio', 'Session-Stats speichern fehlgeschlagen', (err as Error).message);
     }

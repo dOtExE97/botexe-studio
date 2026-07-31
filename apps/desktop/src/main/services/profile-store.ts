@@ -5,6 +5,8 @@
 // das Anwenden/Auslesen der Config erledigt Studio.
 import fs from 'node:fs';
 import path from 'node:path';
+import { schreibeAtomar } from '../core/atomar-schreiben';
+import { log } from '../core/logger';
 
 export interface ProfileMeta {
   id: string;
@@ -61,9 +63,7 @@ export class ProfileStore {
   /** Atomar schreiben (tmp + rename): ein Crash mitten im Write kann das Profil
    *  nicht halb-kaputt zurücklassen — entweder alt oder neu, nie korrupt. */
   private writeAtomic(file: string, p: ProfileData): void {
-    const tmp = `${file}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(p), 'utf-8');
-    fs.renameSync(tmp, file);
+    schreibeAtomar(file, JSON.stringify(p));
   }
 
   /** Neues Profil aus einem Config-Bundle anlegen. */
@@ -99,6 +99,14 @@ export class ProfileStore {
     try { return (JSON.parse(fs.readFileSync(this.activeFile, 'utf8')) as { activeId: string }).activeId ?? null; } catch { return null; }
   }
   setActiveId(id: string | null): void {
-    try { fs.writeFileSync(this.activeFile, JSON.stringify({ activeId: id })); } catch { /* egal */ }
+    // Dieselbe Mechanik wie alle anderen Dateien dieses Stores: Diese eine
+    // Zeile war die abgedriftete Kopie — sie schrieb direkt ins Ziel (eine
+    // abgebrochene Schreibung hinterlässt also eine leere Datei = „kein Profil
+    // aktiv") und verschluckte ihren Fehler vollständig.
+    try {
+      schreibeAtomar(this.activeFile, JSON.stringify({ activeId: id }));
+    } catch (err) {
+      log.warn('Profile', 'Aktives Profil konnte nicht gemerkt werden', (err as Error).message);
+    }
   }
 }
