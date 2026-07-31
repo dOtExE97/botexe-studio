@@ -351,7 +351,13 @@ export class SettingsStore {
       merged.triggerRules = (Array.isArray(raw.triggerRules) ? raw.triggerRules : []).filter(
         (r: unknown): r is TriggerRule => {
           const ok = isValidRule(r);
-          if (!ok) log.warn('Settings', 'Ungültige Trigger-Regel beim Laden verworfen');
+          // Mit Namen statt anonym: Sonst weiß man zwar, DASS eine Regel weg
+          // ist, aber nicht welche — und sucht sie beim nächsten Stream.
+          if (!ok) {
+            const bez = (r as { name?: string })?.name ?? (r as { id?: string })?.id ?? 'ohne Namen';
+            log.warn('Settings', `Die Trigger-Regel „${bez}" wurde beim Laden verworfen (unvollständiger Eintrag in `
+              + 'settings.json) — sie fehlt jetzt in der Regelliste und reagiert auf nichts mehr.');
+          }
           return ok;
         },
       );
@@ -385,7 +391,13 @@ export class SettingsStore {
       // Migration: die alten Gemini-Modelle haben kein Gratis-Kontingent mehr
       // (gemini-2.0-flash → limit:0/429, gemini-2.5-flash → 404 für neue Nutzer).
       // Gespeicherte Altwerte auf leer setzen → Fallback nutzt gemini-flash-latest.
-      if (/^gemini-2\.(0|5)-flash/i.test(aiModel)) aiModel = '';
+      if (/^gemini-2\.(0|5)-flash/i.test(aiModel)) {
+        // Sonst wundert man sich, warum in den Einstellungen plötzlich ein
+        // anderes Modell steht als zuletzt ausgewählt.
+        log.info('Settings', `Das gespeicherte KI-Modell „${aiModel}" wird von Google nicht mehr kostenlos angeboten — `
+          + 'die App nimmt jetzt wieder das Standardmodell. Bei Bedarf in den Einstellungen neu wählen.');
+        aiModel = '';
+      }
       merged.ai = {
         provider: rawAi.provider === 'ollama' ? 'ollama' : 'gemini',
         model: aiModel,
@@ -403,21 +415,33 @@ export class SettingsStore {
         minVisits: typeof gr?.minVisits === 'number' && gr.minVisits >= 2 ? Math.floor(gr.minVisits) : 2,
         template: typeof gr?.template === 'string' && gr.template.trim() ? gr.template.slice(0, 200) : DEFAULTS.greetReturning.template,
       };
+      let panelVerworfen = 0;
       merged.panelButtons = (Array.isArray(raw.panelButtons) ? raw.panelButtons : []).filter(
         (b: unknown): b is PanelButton => {
-          if (typeof b !== 'object' || b === null) return false;
+          if (typeof b !== 'object' || b === null) { panelVerworfen++; return false; }
           const r = b as Record<string, unknown>;
-          return (
+          const gueltig = (
             typeof r.id === 'string' &&
             typeof r.label === 'string' &&
             typeof r.action === 'object' && r.action !== null &&
             (r.accelerator === undefined || typeof r.accelerator === 'string')
           );
+          if (!gueltig) panelVerworfen++;
+          return gueltig;
         },
       );
+      if (panelVerworfen > 0) {
+        log.warn('Settings', `${panelVerworfen} Knopf/Knöpfe des Auslöse-Panels wurden beim Laden verworfen (kaputter `
+          + 'Eintrag in settings.json) — sie fehlen jetzt im Panel, samt ihrer Tastenkürzel.');
+      }
       return merged;
     } catch (err) {
-      log.error('Settings', 'settings.json nicht lesbar — Defaults', (err as Error).message);
+      // Der teuerste stille Fall überhaupt: Die App läuft mit LEEREN
+      // Einstellungen weiter und überschreibt die kaputte Datei beim nächsten
+      // Speichern — dann sind Regeln, Overlays und Zugänge endgültig weg.
+      log.error('Settings', `settings.json ist nicht lesbar (${(err as Error).message}) — die App startet mit LEEREN `
+        + 'Einstellungen und überschreibt die Datei beim nächsten Speichern. Jetzt nichts umstellen: erst die Datei '
+        + 'sichern und über Einstellungen → Backup einspielen ein Auto-Backup aus dem Ordner „backups" zurückholen.');
       return { ...DEFAULTS };
     }
   }

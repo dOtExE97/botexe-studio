@@ -198,6 +198,8 @@ export const IPC = {
   TELEMETRY_TEST: 'telemetry:test',
   // Logs / Diagnose
   LOGS_OPEN: 'logs:open',
+  /** Diagnose-Modus an/aus + Restlaufzeit (siehe logger.ts). */
+  LOGS_DIAGNOSE: 'logs:diagnose',
   LOG_RENDERER: 'log:renderer',
   // Nutzer-Toasts (Fehler/Hinweise)
   TOAST_SHOW: 'toast:show',

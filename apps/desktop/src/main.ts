@@ -12,7 +12,7 @@ import { sanitizeSettingsPatch } from './main/services/settings-store';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
 import { TUNING_SPECS } from './main/services/tts-tuning';
-import { log, initFileLogging, getLogDir, formatLocalStamp } from './main/core/logger';
+import { log, initFileLogging, getLogDir, formatLocalStamp, setzeDiagnoseModus, diagnoseRestMs } from './main/core/logger';
 import { generateLayers, generateRules, listGeminiModels, type AiCatalogEntry, type AiTriggerContext } from './main/services/ai-overlay';
 import { toTtlsUrl, ttlsHostResolves, hostsEntryInstalled, installHostsEntry, uninstallHostsEntry, TTLS_HOST } from './main/services/ttls-link';
 // Statisch (nicht dynamisch) importiert: der Start muss VOR dem 'ready'-Ereignis
@@ -125,7 +125,13 @@ async function testEulerKey(key: string): Promise<{ ok: boolean; reason?: string
 function applyAutostart(enabled: boolean): void {
   try {
     app.setLoginItemSettings({ openAtLogin: enabled });
-  } catch { /* Autostart nicht verfügbar → ignorieren */ }
+  } catch (err) {
+    // Der Schalter in den Einstellungen zeigt dann etwas anderes an, als
+    // tatsächlich passiert — das merkt man sonst erst beim nächsten Neustart.
+    log.warn('Start', `Der Autostart konnte nicht ${enabled ? 'eingerichtet' : 'entfernt'} werden — das Betriebssystem `
+      + 'hat es abgelehnt. Der Schalter in den Einstellungen zeigt deshalb etwas anderes an, als wirklich eingestellt ist.',
+      (err as Error).message);
+  }
 }
 
 function setupAutoUpdate(): void {
@@ -754,6 +760,14 @@ function registerIpc(): void {
     void shell.openPath(getLogDir() || app.getPath('userData'));
     return { ok: true };
   });
+  // Diagnose-Modus: zeitlich begrenzt ALLES mitschreiben (auch sonst
+  // unterdrückte Wiederholungen). Ohne Argument nur den Reststand abfragen.
+  ipcMain.handle(IPC.LOGS_DIAGNOSE, (_e, dauerMinuten: unknown) => {
+    if (typeof dauerMinuten === 'number') {
+      setzeDiagnoseModus(Math.max(0, Math.min(120, dauerMinuten)) * 60_000);
+    }
+    return { restMs: diagnoseRestMs() };
+  });
   // Renderer-Fehler (Widget-/UI-Crashes) ins zentrale Datei-Log spiegeln.
   ipcMain.on(IPC.SOUND_ENDED, (_e, soundId: unknown) => {
     if (typeof soundId === 'string') isStudio().notifySoundEnded(soundId);
@@ -1179,9 +1193,18 @@ function registerPanelHotkeys(): void {
   for (const btn of studio.getPanelButtons()) {
     if (!btn.accelerator) continue;
     try {
-      globalShortcut.register(btn.accelerator, () => studio?.fireManual(btn.action));
+      // register() WIRFT nicht, wenn das Kürzel schon von einem anderen
+      // Programm belegt ist — es liefert nur false. Genau dieser Fall blieb
+      // bisher stumm: Der Knopf im Auslöse-Panel reagiert auf die Taste nie,
+      // und im Log stand nichts.
+      const ok = globalShortcut.register(btn.accelerator, () => studio?.fireManual(btn.action));
+      if (!ok) {
+        log.warn('Hotkeys', `Das Tastenkürzel „${btn.accelerator}" für „${btn.label}" konnte nicht belegt werden — `
+          + 'eine andere Anwendung (OBS, Discord, Steam) hat es schon. Im Auslöse-Panel ein anderes Kürzel wählen.');
+      }
     } catch (err) {
-      log.warn('Hotkeys', `Accelerator "${btn.accelerator}" ungültig`, (err as Error).message);
+      log.warn('Hotkeys', `Das Tastenkürzel „${btn.accelerator}" für „${btn.label}" ist ungültig und wurde nicht belegt.`,
+        (err as Error).message);
     }
   }
 }
@@ -1260,6 +1283,10 @@ app.whenReady().then(async () => {
   // Jetzt erst nachtragen (siehe Merker ganz oben): steht im Log, damit man aus
   // der Ferne SIEHT, ob Absturzberichte laufen — statt es raten zu müssen.
   log.info('Main', `Absturzberichte: ${telemetrieStatus}`);
+  // Die erste Zeile jeder Logdatei soll sagen, WORAUF man schaut. Ohne
+  // Version/Plattform/Daten-Ordner beginnt jede Ferndiagnose mit drei Rückfragen.
+  log.info('Start', `bOtExE Studio ${app.getVersion()} · ${process.platform} · Electron ${process.versions.electron} `
+    + `· Node ${process.versions.node} · Daten-Ordner: ${app.getPath('userData')}`);
   installAppMenu(); // deutsches Menü statt Electrons englischem Standard
   // Startbild SOFORT — alles darunter (Port binden, Einstellungen, Renderer)
   // dauert auf langsameren Rechnern mehrere Sekunden, in denen sonst sichtbar

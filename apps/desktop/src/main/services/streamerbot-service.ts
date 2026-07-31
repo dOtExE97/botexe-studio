@@ -49,7 +49,19 @@ export class StreamerbotService {
       this.ws = ws;
       ws.on('open', () => { this.setStatus('connected'); log.info('Streamerbot', 'Verbunden'); void this.refreshActions(); });
       ws.on('message', (raw) => this.onMessage(String(raw)));
-      ws.on('close', () => { this.setStatus(this.wantConnected ? 'connecting' : 'off'); if (this.wantConnected) this.scheduleRetry(); });
+      ws.on('close', () => {
+        const warVerbunden = this.status === 'connected';
+        this.setStatus(this.wantConnected ? 'connecting' : 'off');
+        if (this.wantConnected) {
+          // Bricht die Brücke mitten im Stream weg, laufen alle Streamer.bot-
+          // Aktionen ab da ins Leere — bisher ohne ein Wort im Log.
+          if (warVerbunden) {
+            log.warn('Streamerbot', 'Die Verbindung zu Streamer.bot ist weg — Aktionen laufen bis auf Weiteres ins Leere. '
+              + 'Läuft Streamer.bot noch? Der nächste Versuch startet in 8 Sekunden.');
+          }
+          this.scheduleRetry();
+        }
+      });
       ws.on('error', (err) => { this.setStatus('error'); log.warn('Streamerbot', 'WS-Fehler', (err as Error).message); });
     } catch (err) {
       this.setStatus('error'); log.warn('Streamerbot', 'Connect-Fehler', (err as Error).message);
@@ -108,6 +120,17 @@ export class StreamerbotService {
       return;
     }
     const byId = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(nameOrId);
+    // Streamer.bot bestätigt DoAction nicht — deshalb hier gegen die bekannte
+    // Aktionsliste prüfen. Eine dort umbenannte Aktion feuert sonst still ins
+    // Leere, und in der App sieht alles nach „verbunden, alles gut" aus.
+    if (this.actions.length > 0 && !this.actions.some((a) => (byId ? a.id === nameOrId : a.name === nameOrId))) {
+      log.warn('Streamerbot', `Die Aktion „${nameOrId}" steht nicht in der bekannten Aktionsliste — in Streamer.bot `
+        + 'umbenannt oder gelöscht? Die Liste wird jetzt neu geholt; passiert weiterhin nichts, in der Trigger-Regel neu auswählen.');
+      // Wichtig: Die Liste stammt vom Verbindungsaufbau und kann veraltet sein
+      // (der Streamer legt Aktionen im laufenden Betrieb an). Also nachladen,
+      // statt beim nächsten Mal dieselbe Falschmeldung zu wiederholen.
+      void this.refreshActions();
+    }
     void this.send('DoAction', { action: byId ? { id: nameOrId } : { name: nameOrId } });
   }
 

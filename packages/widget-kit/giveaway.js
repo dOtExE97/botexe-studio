@@ -130,7 +130,16 @@ export default class Giveaway {
     if (action.kind === 'giveaway_reset') { this.renderIdle(); return; }
     if (action.kind !== 'giveaway_draw') return;
     const winner = action.params?.winner?.nickname || action.params?.winner || 'Gewinner';
-    const names = Array.isArray(action.params?.names) && action.params.names.length ? action.params.names : [winner];
+    const namenListe = Array.isArray(action.params?.names) ? action.params.names : [];
+    if (namenListe.length === 0) {
+      // Ohne Teilnehmer zeigt das Widget nur einen Platzhalter — das sieht im
+      // Stream aus wie ein kaputtes Widget, ist aber schlicht eine leere Runde.
+      this.host?.notify?.(
+        'Die Verlosung wurde gestartet, aber es gab keine Teilnehmer — angezeigt wird nur ein Platzhalter. '
+        + 'Zuschauer müssen vorher mit dem Beitrittswort in den Chat schreiben, und die Verlosung muss eingeschaltet sein.',
+      );
+    }
+    const names = namenListe.length ? namenListe : [winner];
     if (this.soundId) this.host.playSound?.(this.soundId);
     if (this.style === 'spotlight') this.drawSpotlight(String(winner), names);
     else this.drawStrip(String(winner), names);

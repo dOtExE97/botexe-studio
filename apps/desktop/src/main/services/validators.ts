@@ -430,6 +430,13 @@ export function validateTriggerRule(input: unknown): TriggerRule | null {
 
   const cooldownMs = nonNegInt(input['cooldownMs']);
   if (cooldownMs !== null) rule.cooldownMs = cooldownMs;
+  // Sperre PRO ZUSCHAUER — fehlte hier komplett. Folge: Der Wert wurde bei
+  // JEDEM Speichern aus allen Regeln entfernt, weil die Oberfläche immer die
+  // komplette Liste zurückschickt und der Validator nur behält, was er kennt.
+  // Wer die Sperre eingestellt hatte, verlor sie beim nächsten Klick — ohne
+  // jede Meldung, und die Regel feuerte danach für denselben Zuschauer beliebig oft.
+  const userCooldownMs = nonNegInt(input['userCooldownMs']);
+  if (userCooldownMs !== null) rule.userCooldownMs = userCooldownMs;
 
   return rule;
 }

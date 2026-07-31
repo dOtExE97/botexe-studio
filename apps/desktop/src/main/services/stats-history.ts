@@ -45,7 +45,14 @@ export class StatsHistory {
     if (!fs.existsSync(this.file)) return;
     try {
       const data = JSON.parse(fs.readFileSync(this.file, 'utf-8')) as Partial<Serialized>;
-      if (data.schemaVersion !== SCHEMA_VERSION || !Array.isArray(data.entries)) return;
+      if (data.schemaVersion !== SCHEMA_VERSION || !Array.isArray(data.entries)) {
+        // Stiller Totalverlust: Die Analyse-Seite ist danach leer und es sieht
+        // aus, als hätte die App nie etwas aufgezeichnet.
+        log.warn('StatsHistory', `stats-history.json passt nicht zum Format dieser Version `
+          + `(gespeichert: ${String(data.schemaVersion)}, erwartet: ${SCHEMA_VERSION}) — die Historie startet leer. `
+          + 'Die alte Datei wird beim nächsten Speichern überschrieben: jetzt sichern, wenn die Zahlen wichtig sind.');
+        return;
+      }
       this.entries = data.entries.filter((e) => e && typeof e.at === 'number');
     } catch (err) {
       log.warn('StatsHistory', 'stats-history.json nicht lesbar — leer gestartet', (err as Error).message);
@@ -55,7 +62,13 @@ export class StatsHistory {
   /** Eine beendete Session ablegen (nur wenn überhaupt Aktivität war). */
   record(totals: StatsTotals, at: number): void {
     const active = totals.coins + totals.gifts + totals.likes + totals.chats + totals.follows + totals.shares;
-    if (active <= 0) return;
+    if (active <= 0) {
+      // Wichtig, weil der Aufrufer unmittelbar danach „Stream übernommen"
+      // meldet: Ohne diese Zeile widersprechen sich Log und Analyse-Seite, und
+      // man sucht den Fehler in der Anzeige statt hier.
+      log.info('StatsHistory', 'Session hatte keinerlei Aktivität — kein Eintrag in der Analyse (das ist Absicht, kein Fehler).');
+      return;
+    }
     this.entries.push({ ...totals, at });
     if (this.entries.length > MAX_ENTRIES) this.entries = this.entries.slice(-MAX_ENTRIES);
     this.scheduleSave();

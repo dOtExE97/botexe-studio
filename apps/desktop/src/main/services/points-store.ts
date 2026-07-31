@@ -100,7 +100,19 @@ export class PointsStore {
     try {
       const data = JSON.parse(fs.readFileSync(this.file, 'utf-8')) as Partial<Serialized>;
       // v1 und v2 lesbar (v1-einträge haben einfach keine flags/stats)
-      if ((data.schemaVersion !== 1 && data.schemaVersion !== POINTS_SCHEMA_VERSION) || !Array.isArray(data.viewers)) return;
+      if ((data.schemaVersion !== 1 && data.schemaVersion !== POINTS_SCHEMA_VERSION) || !Array.isArray(data.viewers)) {
+        // Das war der stillste Datenverlust der ganzen App: einfach `return`.
+        // Die App lief mit LEERER Zuschauer-Datenbank weiter — und der nächste
+        // Speichervorgang (spätestens 3 Sekunden später) überschrieb die echten
+        // Punkte mit dem Nichts. Jetzt: laut sagen und die Datei zur Seite
+        // legen, damit sie von Hand zu retten ist.
+        const beiseite = `${this.file}.unbekannt`;
+        try { fs.renameSync(this.file, beiseite); } catch { /* dann eben nicht */ }
+        log.error('Punkte', `points.json hat eine unbekannte Fassung (${String(data.schemaVersion)}) — `
+          + `Zuschauer-Punkte konnten NICHT geladen werden und starten leer. `
+          + `Die alte Datei liegt als ${path.basename(beiseite)} daneben und ist nicht verloren.`);
+        return;
+      }
       for (const v of data.viewers) {
         if (v && typeof v.id === 'string') this.viewers.set(v.id, { ...v });
       }
@@ -147,7 +159,15 @@ export class PointsStore {
     // Sonst hängen Stammgast-Begrüßung/VIP-Karten (visitCount/likes/coins)
     // heimlich am Punkte-Schalter und frieren ein.
     this.touchStats(event);
-    if (!cfg.enabled || pts <= 0) return 0;
+    if (!cfg.enabled) {
+      // Ohne diese Zeile scheitert später jede Einlösung an „zu wenig Punkte",
+      // und niemand kommt darauf, dass gar keine Punkte vergeben werden.
+      log.gedrosselt('punkte:system-aus', 10 * 60_000, 'info', 'Punkte',
+        'Das Punkte-System ist AUS — es werden keine Punkte vergeben. Einlösungen und kostenpflichtige Aktionen '
+        + 'scheitern deshalb an fehlender Deckung (Einstellungen → Punkte).');
+      return 0;
+    }
+    if (pts <= 0) return 0;
     this.award(event.user.id, event.user.nickname, pts, event.user.profilePic);
     return pts;
   }
@@ -201,6 +221,9 @@ export class PointsStore {
     e[flag] = value;
     this.viewers.set(userId, e);
     this.scheduleSave();
+    // „Warum wird der nicht mehr vorgelesen?" — ohne Spur im Log unauffindbar.
+    log.info('Zuschauer', `${e.nickname} ist jetzt ${value ? '' : 'nicht mehr '}`
+      + `${flag === 'vip' ? 'VIP' : 'stummgeschaltet (kein Vorlesen)'}.`);
   }
 
   setVoice(userId: string, voice: string | undefined): void {
@@ -235,6 +258,9 @@ export class PointsStore {
     e.points = Math.max(0, e.points + delta);
     this.viewers.set(userId, e);
     this.scheduleSave();
+    // Handvergabe im Log: Sonst ist später nicht mehr zu klären, warum jemand
+    // plötzlich mehr Punkte hatte — das ist genau die Frage, die im Chat kommt.
+    log.info('Punkte', `${e.nickname}: ${delta > 0 ? '+' : ''}${delta} von Hand vergeben — neuer Stand ${e.points}.`);
   }
 
   search(query: string, limit: number): PointsEntry[] {

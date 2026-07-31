@@ -1,7 +1,8 @@
 // TriggersPage — „Wenn X passiert → mach Y". Regeln werden als Karten
 // editiert; jede Änderung speichert sofort (Single-User-Tool).
-import { useEffect, useState } from 'react';
-import { Zap, Filter, Play, Plus, Trash2, Power, Clock, AlertTriangle, Copy } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Zap, Filter, Play, Plus, Trash2, Power, Clock, AlertTriangle, Copy, ChevronDown } from 'lucide-react';
+import { masterNameById, masterIdBySlug, masterSlugById } from '../../shared/gift-master';
 import ConfirmButton from '../components/ConfirmButton';
 import GiftPicker from '../components/GiftPicker';
 import { toast, toastAction } from '../components/ToastHost';
@@ -31,6 +32,9 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
     { value: 'gift_coins_gte', label: 'Gift-Wert mindestens … Coins', valueType: 'number' },
     { value: 'gift_count_gte', label: 'Combo mindestens … Stück', valueType: 'number' },
     { value: 'gift_slug_is', label: 'Gift heißt genau …', valueType: 'text' },
+    // Aus dem TikFinity-Import: sprachunabhängige Gift-Nummer. Steht in der
+    // Liste, damit importierte Regeln überhaupt sichtbar/änderbar sind.
+    { value: 'gift_id_is', label: 'Gift-Nummer ist genau … (aus Import)', valueType: 'number' },
   ],
   chat: [
     { value: 'chat_command', label: 'Nachricht ist Befehl (z.B. !hype) …', valueType: 'text' },
@@ -80,6 +84,14 @@ function ruleToSentence(rule: TriggerRule, layerName: (id: string) => string, so
       case 'gift_coins_gte': wenn = `Gift im Wert von mind. ${c.value} Coins`; break;
       case 'gift_count_gte': wenn = `Gift-Combo mit mind. ${c.value} Stück`; break;
       case 'gift_slug_is': wenn = `das Gift „${c.value}" reinkommt`; break;
+      // Aus TikFinity importiert: dort steht die Zahl, nicht der Name. Ohne
+      // Auflösung landete die Regel unten im „sonst"-Zweig und behauptete
+      // „IRGENDEIN Gift" — genau das Gegenteil dessen, was sie tut.
+      case 'gift_id_is': {
+        const name = masterNameById(Number(c.value));
+        wenn = name ? `das Gift „${name}" reinkommt` : `das Gift mit der Nummer ${c.value} reinkommt`;
+        break;
+      }
       case 'chat_keyword': wenn = `eine Nachricht „${c.value}" enthält`; break;
       case 'chat_command': wenn = `jemand „${c.value}" schreibt`; break;
       case 'chat_first_time': wenn = 'jemand zum ALLERERSTEN Mal schreibt'; break;
@@ -138,13 +150,27 @@ const RULE_TEMPLATES: { icon: string; name: string; desc: string; build: (ctx: {
       actions: [{ kind: 'speak', template: 'Wenn dir der Stream gefällt: Follow dalassen! 🙌' }], cooldownMs: 600000, enabled: true }) },
 ];
 
-function newRule(): TriggerRule {
+/**
+ * Eine neue Regel bekommt SOFORT eine echte Aktion.
+ *
+ * Vorher wurde sie mit `actions: []` angelegt — und eine Regel ohne Aktion
+ * verwirft der Validator beim Speichern. Wer eine Regel anfing, den Namen
+ * eintippte, das Geschenk wählte und dann abgelenkt wurde, fand beim nächsten
+ * Seitenwechsel NICHTS mehr vor. Kein Hinweis, keine Rückfrage, weg.
+ *
+ * Deshalb: entweder gleich der erste vorhandene Sound, oder — wenn es noch
+ * keinen gibt — eine Ansage mit Beispieltext. So ist jede Regel ab der ersten
+ * Sekunde vollständig und übersteht jeden Seitenwechsel.
+ */
+function newRule(ersterSound?: string): TriggerRule {
   return {
     id: `rule-${Date.now().toString(36)}`,
     name: 'Neue Regel',
     event: 'gift',
     conditions: [],
-    actions: [],
+    actions: ersterSound
+      ? [{ kind: 'play_sound', soundId: ersterSound }]
+      : [{ kind: 'speak', template: 'Danke {user}!' }],
     cooldownMs: 0,
     enabled: true,
   };
@@ -152,6 +178,18 @@ function newRule(): TriggerRule {
 
 export default function TriggersPage() {
   const [rules, setRules] = useState<TriggerRule[]>([]);
+  // Zugeklappt ist der Normalzustand: Bei 40 Regeln war die Seite vorher ein
+  // endloser Stapel voller Auswahlfelder. Aufgeklappt wird, was man gerade
+  // bearbeitet. Die Satzzeile bleibt immer sichtbar — man sieht also auch
+  // zugeklappt, was die Regel tut.
+  const [offeneRegeln, setOffeneRegeln] = useState<Set<string>>(new Set());
+  const [zugeklappteGruppen, setZugeklappteGruppen] = useState<Set<string>>(new Set());
+  const regelUmschalten = (id: string) =>
+    setOffeneRegeln((cur) => { const n = new Set(cur); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  /** Noch nicht geschriebener Stand + der laufende Sammel-Timer (siehe save). */
+  const offenerStand = useRef<TriggerRule[] | null>(null);
+  const speicherTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sounds, setSounds] = useState<SoundEntry[]>([]);
   const [layers, setLayers] = useState<{ id: string; name: string; widgetType: string }[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -181,7 +219,7 @@ export default function TriggersPage() {
         onClick: () => setRules((cur) => {
           const ids = new Set(created.map((r) => r.id));
           const next = cur.filter((r) => !ids.has(r.id));
-          void window.studio.setRules(next as unknown as unknown[]);
+          speichereSofort(next);
           return next;
         }),
       });
@@ -200,7 +238,14 @@ export default function TriggersPage() {
       setRules((await window.studio.getRules()) as TriggerRule[]);
       setSounds((await window.studio.listSounds()) as SoundEntry[]);
       const layouts = (await window.studio.listLayouts()) as OverlayLayout[];
-      setLayers((layouts[0]?.layers ?? []).map((l) => ({ id: l.id, name: `${l.name} (${l.widgetType})`, widgetType: l.widgetType })));
+      // ALLE Profile, nicht nur das erste: Wer sein Rad im zweiten Overlay
+      // liegen hat, konnte es hier nicht auswählen — und bei bestehenden Regeln
+      // erschien die falsche Warnung „zeigt auf ein gelöschtes Widget".
+      setLayers(layouts.flatMap((lay) => (lay.layers ?? []).map((l) => ({
+        id: l.id,
+        name: layouts.length > 1 ? `${l.name} (${l.widgetType}) · ${lay.name}` : `${l.name} (${l.widgetType})`,
+        widgetType: l.widgetType,
+      }))));
       setLoaded(true);
       // OBS-Szenen und Streamer.bot-Aktionen NICHT abwarten: Beides hängt an
       // fremden Programmen. Läuft z.B. Streamer.bot mit aktivierter
@@ -213,10 +258,58 @@ export default function TriggersPage() {
     })();
   }, []);
 
+  // Tipp-Bremse: Jede Änderung schrieb bisher SOFORT die komplette
+  // Einstellungsdatei neu — beim Tippen eines Ansagetextes also einmal pro
+  // Buchstabe, jedes Mal inklusive Verschlüsselung der Geheimnisse. Jetzt wird
+  // gesammelt. WICHTIG: Beim Verlassen der Seite und beim Schließen des
+  // Fensters muss der letzte Stand ZWINGEND noch rausgehen (siehe useEffect
+  // weiter unten) — sonst hätte man aus einem Leistungsproblem einen
+  // Datenverlust gemacht.
   const save = (next: TriggerRule[]) => {
     setRules(next);
+    offenerStand.current = next;
+    if (speicherTimer.current) clearTimeout(speicherTimer.current);
+    speicherTimer.current = setTimeout(() => {
+      speicherTimer.current = null;
+      schreibeJetzt();
+    }, 400);
+  };
+
+  /** Offenen Stand sofort schreiben (Seitenwechsel, Fenster zu, vor dem Test). */
+  const schreibeJetzt = (): Promise<unknown> => {
+    const stand = offenerStand.current;
+    if (!stand) return Promise.resolve();
+    offenerStand.current = null;
+    return window.studio.setRules(stand as unknown as unknown[]);
+  };
+
+  /** Eine Regelliste SOFORT schreiben und dabei die Tipp-Bremse entschärfen.
+   *
+   *  Ohne das Abräumen von Timer und offenem Stand würde ein noch laufender
+   *  Sammel-Timer gleich darauf den ALTEN Stand darüberschreiben — die gerade
+   *  gelöschte Regel wäre nach „Rückgängig" wieder weg. Genau die Sorte
+   *  Fehler, die man erst mitten im Stream merkt. */
+  const speichereSofort = (next: TriggerRule[]) => {
+    if (speicherTimer.current) { clearTimeout(speicherTimer.current); speicherTimer.current = null; }
+    offenerStand.current = null;
     void window.studio.setRules(next as unknown as unknown[]);
   };
+
+  // Das Sicherheitsnetz zur Tipp-Bremse: Verlässt man die Seite oder schließt
+  // das Fenster, während noch etwas offen ist, geht es JETZT raus. Ohne diesen
+  // Effekt hätte die Bremse aus einem Leistungsproblem einen Datenverlust
+  // gemacht — genau die Sorte Verschlimmbesserung, die hier schon vorkam.
+  useEffect(() => {
+    const raus = () => { if (speicherTimer.current) { clearTimeout(speicherTimer.current); speicherTimer.current = null; } schreibeJetzt(); };
+    window.addEventListener('beforeunload', raus);
+    window.addEventListener('pagehide', raus);
+    return () => {
+      window.removeEventListener('beforeunload', raus);
+      window.removeEventListener('pagehide', raus);
+      raus(); // Seitenwechsel innerhalb der App
+    };
+    // eslint-disable-next-line
+  }, []);
 
   // Regel duplizieren (häufige Variante schneller bauen).
   const duplicateRule = (rule: TriggerRule) => {
@@ -239,6 +332,17 @@ export default function TriggersPage() {
   const shownRules = q
     ? rules.filter((r) => passt(q, r.name, eventLabel(r.event), ruleToSentence(r, layerName, soundName)))
     : rules;
+
+  // Nach Auslöser gruppieren (Geschenke, Chat, Follow …), Reihenfolge wie in der
+  // Auswahlliste. Suchtreffer bleiben gruppiert — nur leere Gruppen fallen weg.
+  const gruppen: { event: string; label: string; regeln: TriggerRule[] }[] = EVENT_OPTIONS
+    .map((o) => ({ event: o.value as string, label: o.label, regeln: shownRules.filter((r) => r.event === o.value) }))
+    .filter((g) => g.regeln.length > 0);
+  // Auslöser, die es in EVENT_OPTIONS (noch) nicht gibt — z.B. aus einem Import.
+  // Ohne diesen Rest wären solche Regeln unsichtbar statt nur unsortiert.
+  const bekannt = new Set(EVENT_OPTIONS.map((o) => o.value as string));
+  const rest = shownRules.filter((r) => !bekannt.has(r.event));
+  if (rest.length > 0) gruppen.push({ event: '_rest', label: 'Sonstige', regeln: rest });
 
   const patchRule = (id: string, patch: Partial<TriggerRule>) =>
     save(rules.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -284,8 +388,12 @@ export default function TriggersPage() {
     }
   };
 
-  const testRule = (rule: TriggerRule) => {
+  const testRule = async (rule: TriggerRule) => {
     if (rule.actions.length === 0) { toast('warn', 'Diese Regel hat noch keine Aktion.'); return; }
+    // ZWINGEND vor dem Test: Die Tipp-Bremse hält gerade vielleicht noch die
+    // letzten Änderungen. Ohne dieses Schreiben liefe der Test gegen den ALTEN
+    // Stand im Hauptprozess — man testet dann etwas anderes, als man sieht.
+    await schreibeJetzt();
     const ev = eventForRule(rule);
     if (!ev) {
       // Timer-Regel: kein Event konstruierbar → Aktionen direkt auslösen.
@@ -402,7 +510,7 @@ export default function TriggersPage() {
           <button onClick={() => setShowTemplates((v) => !v)} className="bx-pill hover:text-studio-teal" title="Fertige Regel-Vorlagen (ein Klick)">
             <Zap size={13} /> Vorlagen
           </button>
-          <button onClick={() => save([...rules, newRule()])} className="bx-btn-accent">
+          <button onClick={() => save([...rules, newRule(sounds[0]?.id)])} className="bx-btn-accent">
             <Plus size={15} /> Neue Regel
           </button>
         </div>
@@ -462,7 +570,38 @@ export default function TriggersPage() {
         </div>
       )}
 
-      {shownRules.map((rule) => {
+      {gruppen.map((gruppe) => {
+        const zu = zugeklappteGruppen.has(gruppe.event);
+        const aktiveInGruppe = gruppe.regeln.filter((r) => r.enabled).length;
+        return (
+        <div key={gruppe.event} className="space-y-3">
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              onClick={() => setZugeklappteGruppen((cur) => {
+                const n = new Set(cur); if (n.has(gruppe.event)) n.delete(gruppe.event); else n.add(gruppe.event); return n;
+              })}
+              className="flex items-center gap-1.5 font-display text-[11px] uppercase tracking-[0.3em] text-studio-muted transition-colors hover:text-studio-text"
+            >
+              <ChevronDown size={13} className={`transition-transform ${zu ? '-rotate-90' : ''}`} />
+              {gruppe.label}
+              <span className="text-studio-muted/60">{aktiveInGruppe}/{gruppe.regeln.length}</span>
+            </button>
+            <div className="h-px flex-1 bg-studio-border" />
+            {/* Gruppen-Schalter: alle Regeln dieses Auslösers auf einmal aus/an.
+                Nützlich, wenn z.B. beim Talk-Stream alle Geschenk-Sounds stören. */}
+            <button
+              onClick={() => {
+                const alleAn = aktiveInGruppe === gruppe.regeln.length;
+                const ids = new Set(gruppe.regeln.map((r) => r.id));
+                save(rules.map((r) => (ids.has(r.id) ? { ...r, enabled: !alleAn } : r)));
+                toast('info', alleAn ? `${gruppe.label}: alle aus.` : `${gruppe.label}: alle an.`);
+              }}
+              className="clip-slant border border-studio-control-border bg-studio-control px-2 py-0.5 text-[10px] tracking-widest text-studio-muted transition-colors hover:text-studio-text"
+            >
+              {aktiveInGruppe === gruppe.regeln.length ? 'ALLE AUS' : 'ALLE AN'}
+            </button>
+          </div>
+          {!zu && gruppe.regeln.map((rule) => {
         const condOptions = CONDITION_OPTIONS[rule.event] ?? [];
         const cond = rule.conditions?.[0];
         const condDef = condOptions.find((c) => c.value === cond?.kind);
@@ -498,6 +637,9 @@ export default function TriggersPage() {
         const hasAdvanced = !!(spinAction?.targetId || mediaAction?.targetId || counterAction?.targetId
           || obsAction?.scene || chatAction?.template || sbAction?.action || spoCtrl?.control || spoReq?.query);
         const moreOpen = hasAdvanced || moreActionsOpen.has(rule.id);
+        // Aufgeklappt ist: manuell geöffnet ODER es gibt etwas zu reparieren
+        // (totes Ziel). Sonst versteckt das Zuklappen ausgerechnet die Warnung.
+        const offen = offeneRegeln.has(rule.id) || deadTargets.length > 0;
         return (
           <div
             key={rule.id}
@@ -512,13 +654,28 @@ export default function TriggersPage() {
               >
                 <Power size={11} /> {rule.enabled ? 'AKTIV' : 'AUS'}
               </button>
-              <input
-                value={rule.name}
-                onChange={(e) => patchRule(rule.id, { name: e.target.value })}
-                className="flex-1 bg-transparent font-display text-sm uppercase outline-none"
-              />
               <button
-                onClick={() => testRule(rule)}
+                onClick={() => regelUmschalten(rule.id)}
+                title={offen ? 'Zuklappen' : 'Aufklappen und bearbeiten'}
+                className="text-studio-muted transition-colors hover:text-studio-text"
+              >
+                <ChevronDown size={14} className={`transition-transform ${offen ? '' : '-rotate-90'}`} />
+              </button>
+              {offen ? (
+                <input
+                  value={rule.name}
+                  onChange={(e) => patchRule(rule.id, { name: e.target.value })}
+                  className="flex-1 bg-transparent font-display text-sm uppercase outline-none"
+                />
+              ) : (
+                // Zugeklappt ist der Name KEIN Eingabefeld, sondern die Klappfläche:
+                // ein Klick irgendwo auf die Zeile öffnet die Regel.
+                <button onClick={() => regelUmschalten(rule.id)} className="flex-1 truncate text-left font-display text-sm uppercase">
+                  {rule.name}
+                </button>
+              )}
+              <button
+                onClick={() => void testRule(rule)}
                 title="Aktionen dieser Regel jetzt testen (ohne echtes Event)"
                 className="flex items-center gap-1 text-[11px] text-studio-muted transition-colors hover:text-studio-teal"
               >
@@ -539,7 +696,7 @@ export default function TriggersPage() {
                     label: 'Rückgängig',
                     onClick: () => setRules((cur) => {
                       const next = [...cur, removed];
-                      void window.studio.setRules(next as unknown as unknown[]);
+                      speichereSofort(next);
                       return next;
                     }),
                   });
@@ -560,6 +717,7 @@ export default function TriggersPage() {
               )}
             </div>
 
+            {offen && (
             <div className="grid grid-cols-[1fr_1fr_1fr] gap-4 p-4">
               {/* WENN */}
               <div>
@@ -619,7 +777,29 @@ export default function TriggersPage() {
                         <option key={c.value} value={c.value}>{c.label}</option>
                       ))}
                     </select>
-                    {cond && cond.kind === 'gift_slug_is' ? (
+                    {cond && cond.kind === 'gift_id_is' ? (
+                      // Auch die Nummern-Bedingung bekommt den Geschenk-Auswähler:
+                      // Eine rohe Zahl kann niemand zuordnen, und ein neu
+                      // gewähltes „gift_id_is" stünde sonst auf einem
+                      // Platzhalter, der auf gar kein Geschenk passt.
+                      <div>
+                        <GiftPicker
+                          value={masterSlugById(Number(cond.value)) ?? ''}
+                          onChange={(slug) => {
+                            const id = masterIdBySlug(slug);
+                            if (id === undefined) {
+                              toast('info', `Für „${slug}" kennt die App keine Nummer — nimm dafür „Gift heißt genau …".`);
+                              return;
+                            }
+                            patchRule(rule.id, { conditions: [{ ...cond, value: id } as TriggerCondition] });
+                          }}
+                        />
+                        <div className="mt-1 text-[10px] text-studio-muted">
+                          Nummer {String(cond.value ?? '—')}
+                          {masterSlugById(Number(cond.value)) ? '' : ' — zu dieser Nummer kennt die App kein Geschenk (aus einem Import).'}
+                        </div>
+                      </div>
+                    ) : cond && cond.kind === 'gift_slug_is' ? (
                       // Visueller Gift-Picker mit Suche statt blankem Textfeld.
                       <GiftPicker
                         value={('value' in cond ? String(cond.value) : '')}
@@ -819,7 +999,11 @@ export default function TriggersPage() {
                 </div>
               </div>
             </div>
+            )}
           </div>
+        );
+          })}
+        </div>
         );
       })}
     </div>

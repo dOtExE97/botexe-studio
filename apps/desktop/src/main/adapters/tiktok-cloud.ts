@@ -75,9 +75,17 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
       return null; // sonstige Social-Nachrichten interessieren uns nicht
     }
     case 'WebcastControlMessage':
-      return data?.action === CONTROL_STREAM_ENDED || data?.action === CONTROL_STREAM_SUSPENDED
-        ? { kind: 'streamEnd' }
-        : null;
+      // Aktion 3 = regulär beendet, Aktion 4 = von TikTok UNTERBROCHEN
+      // (Moderation/Sperre). Beides wird zum selben 'streamEnd' — die
+      // Unterscheidung existierte bisher genau eine Zeile lang und wurde dann
+      // weggeworfen. Für den Streamer ist das aber DIE wichtigste Frage am
+      // Stream-Ende: „habe ich aufgehört oder hat TikTok mich gestoppt?"
+      if (data?.action === CONTROL_STREAM_SUSPENDED) {
+        log.warn('TikTok', 'TikTok hat deinen Live UNTERBROCHEN — das war kein normales Stream-Ende, '
+          + 'sondern eine Maßnahme von TikTok (Moderation/Sperre). Schau in der TikTok-App nach einer Benachrichtigung.');
+        return { kind: 'streamEnd' };
+      }
+      return data?.action === CONTROL_STREAM_ENDED ? { kind: 'streamEnd' } : null;
     // Euler-Custom-Frames (kein Webcast-Protobuf):
     case 'tiktok.connect':
     case 'roomInfo':
@@ -85,9 +93,27 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
     case 'tiktok.disconnect':
       return { kind: 'disconnected' };
     default:
-      return null; // workerInfo, decodeError, SyntheticPresence, unbekannt …
+      // Unbekannte Arten sind im Normalfall harmlos (workerInfo, decodeError,
+      // SyntheticPresence). Benennt TikTok aber eine BEKANNTE Art um,
+      // verschwindet eine ganze Ereignisgattung — und bisher stand nirgends,
+      // dass da überhaupt etwas ankam. Je Art nur einmal pro Verbindung
+      // (manche kommen im Sekundentakt), Merker wird beim Connect geleert.
+      if (!HARMLOSE_ARTEN.has(type)) {
+        log.einmal(`tiktok:art:${type}`, 'info', 'TikTok',
+          `Unbekannte TikTok-Nachrichtenart „${type}" — die App kennt diese Art nicht und überspringt sie. `
+          + 'Wenn dir Geschenke oder Follower fehlen, ist das die Spur.');
+      }
+      return null;
   }
 }
+
+/** Arten, die bekanntermaßen nichts bedeuten — die sollen das Log nicht füllen. */
+const HARMLOSE_ARTEN = new Set([
+  'workerInfo', 'decodeError', 'SyntheticPresence', 'WebcastRoomPinMessage',
+  'WebcastCaptionMessage', 'WebcastImDeleteMessage', 'WebcastRankUpdateMessage',
+  'WebcastRankTextMessage', 'WebcastLinkMicBattle', 'WebcastLinkMicArmies',
+  'WebcastHourlyRankMessage', 'WebcastInRoomBannerMessage', 'WebcastMsgDetectMessage',
+]);
 
 /** Minimal-Interface eines WebSocket — in Tests durch Fake ersetzt. */
 export interface CloudWsLike {
@@ -124,7 +150,14 @@ function closeRejectMessage(code: number, reason: string): string {
     case 4403: // NO_PERMISSION
       return `eulerstream Cloud-Sign abgelehnt (Code ${code}, API-Key/Plan): ${reason}`;
     default:
-      return `Cloud-WS geschlossen (Code ${code})${reason ? `: ${reason}` : ''}`;
+      // Klartext statt nackter Zahl: Mit einem Gratis-Key sind unbekannte
+      // Close-Codes fast immer die Plan-Grenzen (Tageskontingent, zu viele
+      // gleichzeitige Verbindungen). Ohne diesen Satz trägt der Streamer
+      // seinen Key immer wieder neu ein, obwohl der völlig in Ordnung ist.
+      return `Cloud-WS geschlossen (Code ${code})${reason ? `: ${reason.slice(0, 120)}` : ''}`
+        + ' — bei einem Gratis-Key sind das fast immer die Grenzen des Community-Plans:'
+        + ' Tageskontingent aufgebraucht oder schon zu viele Verbindungen offen.'
+        + ' Nachsehen kannst du das im Dashboard auf eulerstream.com; sonst hilft warten.';
   }
 }
 
@@ -198,7 +231,15 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
         }
         // Selbst ausgelöster Close (disconnect) → keine Geister-Events.
         if (this.closing) return;
-        if (STREAM_END_CLOSE_CODES.has(Number(code))) this.emit('streamEnd', {});
+        if (STREAM_END_CLOSE_CODES.has(Number(code))) { this.emit('streamEnd', {}); this.emit('disconnected'); return; }
+        // Grund festhalten, BEVOR er verloren geht: Nach außen geht nur ein
+        // nacktes „disconnected", und im Log stand danach nur „Verbindung
+        // getrennt". Die Frage „hat TikTok den Live beendet oder brach die
+        // Leitung weg?" war damit nicht mehr zu beantworten — der Streamer
+        // startet dann seinen Router neu, obwohl es daran nie lag.
+        log.warn('TikTok', `Die Cloud-Leitung wurde von außen geschlossen (Code ${code}${reason ? `, Grund: ${reason}` : ', ohne Angabe'}) `
+          + '— das war NICHT das reguläre Stream-Ende. Typisch: kurzer Internet-Aussetzer, oder eulerstream hat die Verbindung gekappt. '
+          + 'Die App verbindet gleich automatisch neu.');
         this.emit('disconnected');
       });
 
@@ -240,15 +281,31 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
 }
 
 /** Ein WS-Frame kann ein Bündel ({messages:[…]}) oder eine einzelne Nachricht sein. */
-function parseFrames(raw: unknown): Array<{ type: string; data: unknown }> {
+export function parseFrames(raw: unknown): Array<{ type: string; data: unknown }> {
   let parsed: unknown;
+  const laenge = typeof raw === 'string' ? raw.length : 0;
   try {
     parsed = JSON.parse(typeof raw === 'string' ? raw : String(raw));
   } catch {
+    // Schaltet eulerstream das Format um, kommen weiter Daten an — sie werden
+    // nur restlos verworfen: Verbindung steht, Overlay bleibt tot, Log schweigt.
+    // NUR Länge melden, niemals den Inhalt: Die Frames tragen Raum- und
+    // Session-Daten.
+    meldeVerworfen(laenge);
     return [];
   }
   const obj = parsed as { messages?: Array<{ type: string; data: unknown }>; type?: string; data?: unknown };
   if (Array.isArray(obj.messages)) return obj.messages.filter((m) => m && typeof m.type === 'string');
   if (typeof obj.type === 'string') return [{ type: obj.type, data: obj.data }];
+  meldeVerworfen(laenge);
   return [];
+}
+
+/** Im Fehlerfall betrifft das JEDEN Frame (mehrere pro Sekunde) — deshalb nur
+ *  einmal je Verbindung, mit der Länge als einzigem Detail. */
+function meldeVerworfen(laenge: number): void {
+  log.einmal('tiktok:frames-unlesbar', 'warn', 'TikTok',
+    'Von eulerstream kommen Daten, die die App nicht lesen kann — deshalb bleiben Chat, Geschenke und Likes komplett aus. '
+    + 'Erst Verbindung trennen und neu verbinden; hilft das nicht, in Einstellungen → TikTok-Verbindung auf „Direkt" umstellen.',
+    `${laenge} Zeichen im ersten verworfenen Frame`);
 }

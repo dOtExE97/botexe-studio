@@ -209,7 +209,19 @@ export class TTSService {
         // Kleine Atempause zwischen zwei Ansagen.
         setTimeout(resolve, 180);
       };
-      const timer = setTimeout(finish, p.durationMs + 4000);
+      // Fällt der Fallback statt der echten Rückmeldung, wurde die Ansage
+      // vermutlich gar nicht abgespielt (App-Fenster zu, Ton-Ausgabe hängt).
+      // Bisher lief die Warteschlange dann einfach still weiter — die Ansagen
+      // „verschwanden", ohne dass irgendwo etwas stand.
+      const timer = setTimeout(() => {
+        if (!settled) {
+          log.gedrosselt('tts:keine-rueckmeldung', 60_000, 'warn', 'TTS',
+            'Es kam keine Rückmeldung, dass die Ansage fertig gespielt wurde — nach der Sicherheits-Wartezeit wurde '
+            + 'weitergemacht. Meist heißt das: Der Ton wurde gar nicht abgespielt (App-Fenster geschlossen oder die '
+            + 'Ton-Ausgabe hängt).');
+        }
+        finish();
+      }, p.durationMs + 4000);
       this.pendingEnded.set(p.fileId, finish);
     });
   }

@@ -77,6 +77,18 @@ export interface TikTokAdapterOptions {
   getAuth?: () => TikTokAuth;
 }
 
+/** So lange darf es nach dem Verbinden still bleiben, bevor die App das meldet.
+ *  Großzügig: Ein kleiner ruhiger Stream soll keinen Fehlalarm auslösen — die
+ *  Zuschauerzahl allein trifft normalerweise viel früher ein. */
+const STILLE_WACHE_MS = 120_000;
+/** Erst nach 10 Minuten vergeblichen Wartens den Nutzernamen in Verdacht ziehen —
+ *  vorher ist „noch nicht live" schlicht der Normalfall. */
+const LIVE_WATCH_HINWEIS_MS = 10 * 60_000;
+const LIVE_WATCH_WIEDERHOLUNG_MS = 60 * 60_000;
+/** So viele verworfene Combo-Stufen ohne ein einziges gezähltes Geschenk gelten
+ *  als Verdacht — darunter ist es einfach eine normale laufende Combo. */
+const COMBO_VERDACHT_AB = 20;
+
 const DEFAULTS = {
   maxReconnect: 5,
   baseReconnectDelayMs: 3_000,
@@ -124,6 +136,10 @@ export class TikTokAdapter {
   private readonly checkLive: (username: string) => Promise<boolean>;
   private readonly getAuth: () => TikTokAuth;
   private liveWatchTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Wächter gegen die stille Leitung: Steht die Verbindung, kommt aber nichts
+   *  an, sagt das Log heute nur „Verbunden" — und der Streamer sucht den Fehler
+   *  bei seinen Widgets und Regeln, wo er nicht ist. */
+  private stilleWache: ReturnType<typeof setTimeout> | null = null;
 
   /** Generation-Token: jede connect()/disconnect()-Entscheidung erhöht es —
    * Handler und Timer älterer Generationen erkennen sich als veraltet. */
@@ -142,6 +158,14 @@ export class TikTokAdapter {
    *  common.msgId — schon gesehene werden verworfen (sonst liest der TTS eine
    *  Nachricht ein zweites Mal vor). Überlebt Reconnects (Instanz-Feld), TTL-Cleanup. */
   private readonly seenMsgIds = new Map<string, number>();
+  /** Wie viele Replay-Nachrichten seit dem letzten Reconnect verworfen wurden.
+   *  Pro Ereignis zu loggen wäre eine Flut — es geht als EINE Sammelzeile raus
+   *  (siehe meldeReplayBilanz). Sonst wirkt es, als schlucke TikTok Nachrichten. */
+  private verworfeneReplays = 0;
+  /** Combo-Zwischenstufen ohne Abschluss (siehe gift-Handler). */
+  private verworfeneComboStufen = 0;
+  private gezaehlteGeschenke = 0;
+  private replayTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(bus: EventBus, options: TikTokAdapterOptions = {}) {
     this.bus = bus;
@@ -296,6 +320,8 @@ export class TikTokAdapter {
     this.epoch++; // entwertet laufende Handler/Timer/Connect-Promises
     this.clearReconnectTimer();
     this.clearLiveWatch();
+    this.stilleWacheAbblasen();
+    this.replayBilanzAbblasen();
     this.cleanupConnection();
     this.emitStatus({ status: 'disconnected', isReconnect: false });
     log.info('TikTok', 'Getrennt (manuell)');
@@ -307,6 +333,8 @@ export class TikTokAdapter {
     // K2: alte Connection IMMER zuerst abräumen.
     this.clearReconnectTimer();
     this.clearLiveWatch();
+    this.stilleWacheAbblasen();
+    this.replayBilanzAbblasen();
     this.cleanupConnection();
 
     this.emitStatus({ status: isReconnect ? 'reconnecting' : 'connecting', isReconnect });
@@ -321,6 +349,11 @@ export class TikTokAdapter {
       if (epoch !== this.epoch) {
         // Während des Connects kam ein neuer connect()/disconnect() — diese
         // Connection ist schon wieder Geschichte.
+        // Eine Zeile dazu, weil hektisches Doppelklicken auf „Verbinden" sonst
+        // spurlos bleibt: Danach steht die App auf verbunden, ein Teil der
+        // Ereignisse fehlt — und es sieht nach einem TikTok-Aussetzer aus.
+        log.info('TikTok', 'Eine zweite Verbindung wurde aufgebaut, während die erste noch lief — '
+          + 'die ältere wird verworfen, damit nichts doppelt gezählt oder doppelt vorgelesen wird.');
         conn.removeAllListeners();
         // Promise-Fall mitfangen (siehe cleanupConnection) — sonst wird aus einem
         // gescheiterten Trennen eine unbeschriftete unhandledRejection.
@@ -335,6 +368,14 @@ export class TikTokAdapter {
       this.hasConnectedOnce = true;
       this.emitStatus({ status: 'connected', isReconnect, freshStream, roomId: state.roomId != null ? String(state.roomId) : undefined });
       log.info('TikTok', `Verbunden mit @${this.username}${state.roomId ? ` (Room ${state.roomId})` : ''}`);
+      // Frisch verbunden = die alten „einmal"-Meldungen dürfen wieder. Sonst
+      // bliebe ein Problem, das beim letzten Mal gemeldet wurde, für den Rest
+      // des Abends stumm — auch wenn es erneut auftritt.
+      log.merkerZuruecksetzen('tiktok:');
+      this.verworfeneComboStufen = 0;
+      this.gezaehlteGeschenke = 0;
+      this.starteStilleWache();
+      if (isReconnect) this.meldeReplayBilanz();
 
       // Gift-Katalog: komplette Gift-Liste (mit Bildern) abrufen — best-effort.
       this.loadAvailableGifts(conn, epoch);
@@ -410,7 +451,28 @@ export class TikTokAdapter {
       };
     };
     const publish = (e: StudioEvent | null) => {
-      if (e) this.bus.publish(e);
+      if (e) {
+        this.stilleWacheAbblasen(); // es kommt etwas an — alles gut
+        // Zwei stille Totalausfälle sichtbar machen. Beide entstehen, wenn
+        // TikTok seine Datenfelder umbenennt (ist genau so schon passiert):
+        // Ohne Absender bekommt niemand Punkte und keine Bestenliste füllt sich;
+        // ohne Geschenknamen trifft KEINE Geschenk-Regel mehr. Vorher stand zu
+        // beidem nichts im Log — der Streamer suchte bei seinen Regeln.
+        // Je Verbindung nur einmal, sonst wären es hunderte Zeilen pro Minute.
+        if (!e.user && e.type !== 'viewer_count' && e.type !== 'timer') {
+          log.einmal('tiktok:ohne-absender', 'warn', 'TikTok',
+            'Es kommen Ereignisse ohne erkennbaren Absender an (kein @-Name, keine ID) — dafür gibt es keine Punkte, '
+            + 'keinen Eintrag in der Bestenliste und keinen Namen in Ansagen. Meist hat TikTok die Datenfelder umbenannt: '
+            + 'in Einstellungen → TikTok-Verbindung den anderen Modus probieren.');
+        }
+        if (e.type === 'gift' && e.gift?.slug === 'gift') {
+          log.einmal('tiktok:gift-ohne-namen', 'warn', 'TikTok',
+            'Ein Geschenk kam ohne Namen an und läuft jetzt als „gift" — damit trifft es KEINE deiner Geschenk-Regeln: '
+            + 'keine Animation, kein Sound. Das passiert, wenn TikTok die Geschenk-Felder umbenennt. '
+            + 'In Einstellungen → TikTok-Verbindung den anderen Verbindungsmodus probieren.');
+        }
+        this.bus.publish(e);
+      }
     };
     // Reconnect-Replay verwerfen: dieselbe common.msgId nicht zweimal
     // verarbeiten (sonst doppelte TTS-Ansage / doppelter Gift-Alert). Like-
@@ -420,7 +482,7 @@ export class TikTokAdapter {
         ?? (d as { msgId?: unknown } | null)?.msgId;
       if (raw == null || raw === '' || raw === '0') return false;
       const key = String(raw);
-      if (this.seenMsgIds.has(key)) return true;
+      if (this.seenMsgIds.has(key)) { this.verworfeneReplays += 1; return true; }
       const now = this.now();
       this.seenMsgIds.set(key, now);
       if (this.seenMsgIds.size > 3000) { for (const [k, t] of this.seenMsgIds) if (now - t > 600_000) this.seenMsgIds.delete(k); }
@@ -429,7 +491,29 @@ export class TikTokAdapter {
 
     const on = conn.on.bind(conn) as (event: string, cb: (data: never) => void) => unknown;
     on('chat', guard((d: Parameters<typeof normalizeChat>[0]) => { if (!dedup(d)) publish(normalizeChat(d, this.now())); }));
-    on('gift', guard((d: Parameters<typeof normalizeGift>[0]) => { if (!dedup(d)) publish(normalizeGift(d, this.now())); }));
+    on('gift', guard((d: Parameters<typeof normalizeGift>[0]) => {
+      if (dedup(d)) return;
+      const e = normalizeGift(d, this.now());
+      // normalizeGift verwirft bewusst alle Combo-Zwischenstufen und zählt nur
+      // das Abschluss-Ereignis. Schickt TikTok den Abschluss aber nicht (kommt
+      // im Cloud-Weg vor), wird JEDES Geschenk verworfen — und es stand
+      // nirgends, dass hier absichtlich nichts passiert. Der Streamer testet
+      // dann zwanzigmal dieselbe Regel, während die App auf ein Combo-Ende
+      // wartet, das nie kommt. Erst ab einer Schwelle melden, sonst feuert es
+      // bei jeder ganz normalen Combo.
+      if (!e) {
+        this.verworfeneComboStufen += 1;
+        if (this.verworfeneComboStufen >= COMBO_VERDACHT_AB && this.gezaehlteGeschenke === 0) {
+          log.einmal('tiktok:combo-ohne-abschluss', 'warn', 'TikTok',
+            `Bisher kamen ${this.verworfeneComboStufen} Zwischenstände von Combo-Geschenken an, aber kein einziger Abschluss — `
+            + 'solange TikTok das Combo-Ende nicht schickt, wird bewusst nichts gezählt (sonst zählt jede Combo-Stufe doppelt). '
+            + 'Wenn dir Geschenk-Alerts fehlen: das ist der Grund. In Einstellungen → TikTok-Verbindung den anderen Modus probieren.');
+        }
+        return;
+      }
+      this.gezaehlteGeschenke += 1;
+      publish(e);
+    }));
     on('like', guard((d: Parameters<typeof normalizeLike>[0]) => publish(normalizeLike(d, this.now()))));
     // Auch Social-Events dedupen (WebcastSocialMessage hat eine stabile msgId) —
     // sonst vergibt ein Reconnect-Replay doppelte Follow-Punkte + doppelte Ansage.
@@ -452,6 +536,15 @@ export class TikTokAdapter {
       this.streamEnded = true;
       // TikFinity-Verhalten: auf das nächste Live warten und automatisch zurück.
       if (this.autoConnect) this.startLiveWatch(epoch);
+      // Ohne Auto-Connect passiert ab hier bewusst GAR NICHTS mehr. Das sah
+      // bisher nach einem hängenden Zustand aus — die Oberfläche stand weiter
+      // auf grün, und der Streamer startete die App neu, obwohl ein Klick auf
+      // „Verbinden" gereicht hätte.
+      else {
+        log.info('TikTok', 'Stream beendet — „Automatisch verbinden, wenn ich live gehe" ist ausgeschaltet, '
+          + 'deshalb wartet die App NICHT auf dein nächstes Live. Wenn du gleich wieder sendest, '
+          + 'drücke oben auf „Verbinden" oder schalte die Einstellung ein.');
+      }
     }));
 
     on('disconnected', guard(() => {
@@ -476,7 +569,12 @@ export class TikTokAdapter {
     if (epoch !== this.epoch) return;
     if (this.reconnectTimer) return; // bereits geplant
     if (this.reconnectAttempts >= this.maxReconnect) {
-      log.error('TikTok', `Max. Reconnect-Versuche (${this.maxReconnect}) erreicht — gebe auf`);
+      // Sagt jetzt auch, was DANACH gilt: Es wird kein Live-Watch gestartet,
+      // die App kommt also auch mit „Automatisch verbinden" nicht von allein
+      // zurück. Ohne diesen Halbsatz wartet man vergeblich.
+      log.error('TikTok', `Nach ${this.maxReconnect} Versuchen keine Verbindung mehr zustande gekommen — `
+        + 'die App versucht es ab jetzt NICHT mehr von allein, auch nicht über „Automatisch verbinden". '
+        + 'Bitte oben einmal auf „Verbinden" drücken.');
       this.emitStatus({ status: 'error', isReconnect: true, detail: 'max-reconnect erreicht' });
       return;
     }
@@ -500,6 +598,12 @@ export class TikTokAdapter {
     if (this.liveWatchTimer) return; // läuft schon
     log.info('TikTok', `Auto-Connect: warte, bis @${this.username} wieder live geht…`);
     this.emitStatus({ status: 'reconnecting', isReconnect: true, detail: 'warte auf Live' });
+    // Ab hier lief das Warten bisher völlig lautlos: alle 30 s ein Poll, im Log
+    // genau EINE Zeile vom Anfang. Ist der Nutzername falsch geschrieben,
+    // wartet die App stundenlang — und der Streamer startet sie immer wieder
+    // neu, weil sie hängengeblieben aussieht.
+    const wartetSeit = this.now();
+    let hinweisGegebenAt = 0;
 
     const tick = async (): Promise<void> => {
       this.liveWatchTimer = null;
@@ -509,6 +613,15 @@ export class TikTokAdapter {
         live = await this.checkLive(this.username);
       } catch (err) {
         log.warn('TikTok', 'Live-Check fehlgeschlagen', (err as Error).message);
+      }
+      // Nach 10 Minuten einmal den Verdacht aussprechen, danach höchstens
+      // stündlich — bei totem Netz wären es sonst 480 Zeilen in 4 Stunden.
+      const wartetMs = this.now() - wartetSeit;
+      if (!live && wartetMs >= LIVE_WATCH_HINWEIS_MS && this.now() - hinweisGegebenAt >= LIVE_WATCH_WIEDERHOLUNG_MS) {
+        hinweisGegebenAt = this.now();
+        log.warn('TikTok', `Warte jetzt seit ${Math.round(wartetMs / 60_000)} Minuten darauf, dass @${this.username} live geht — `
+          + 'TikTok meldet weiterhin „nicht live". Wenn du tatsächlich gerade sendest, stimmt vermutlich der Nutzername nicht: '
+          + 'oben im Feld genau den @-Namen aus deinem TikTok-Profil eintragen.');
       }
       if (epoch !== this.epoch) return; // zwischenzeitlich manuell ge-connectet/getrennt
       if (live) {
@@ -521,6 +634,46 @@ export class TikTokAdapter {
       }
     };
     this.liveWatchTimer = setTimeout(() => void tick(), this.livePollMs);
+  }
+
+  /** Nach dem Verbinden zwei Minuten lauschen: Kommt bis dahin KEIN einziges
+   *  Ereignis, ist das eine Meldung wert. Zwei Minuten sind bewusst großzügig —
+   *  ein ruhiger kleiner Stream ohne Chat soll keinen Fehlalarm auslösen, aber
+   *  die Zuschauerzahl allein kommt in aller Regel früher. */
+  /** Nach einem Reconnect spielt die Cloud die letzten Nachrichten erneut ein.
+   *  Dass die verworfen werden, ist richtig — aber unsichtbar: Der Streamer
+   *  sieht auf dem Handy Chats, die in der App fehlen, und vermutet einen
+   *  TikTok-Aussetzer. Eine Sammelzeile ~5 s nach dem Verbinden beantwortet
+   *  das; ohne Replay bleibt das Log still. */
+  private meldeReplayBilanz(): void {
+    if (this.replayTimer) clearTimeout(this.replayTimer);
+    this.verworfeneReplays = 0;
+    this.replayTimer = setTimeout(() => {
+      this.replayTimer = null;
+      if (this.verworfeneReplays <= 0) return;
+      log.info('TikTok', `Nach dem Reconnect hat TikTok ${this.verworfeneReplays} bereits bekannte Nachrichten erneut geschickt — `
+        + 'die wurden verworfen, damit nichts doppelt vorgelesen oder doppelt gezählt wird.');
+      this.verworfeneReplays = 0;
+    }, 5_000);
+    this.replayTimer.unref?.();
+  }
+
+  private replayBilanzAbblasen(): void {
+    if (this.replayTimer) { clearTimeout(this.replayTimer); this.replayTimer = null; }
+  }
+
+  private starteStilleWache(): void {
+    this.stilleWacheAbblasen();
+    this.stilleWache = setTimeout(() => {
+      this.stilleWache = null;
+      log.warn('TikTok', 'Seit 2 Minuten verbunden, aber es kam kein einziges Ereignis an — kein Chat, kein Like, '
+        + 'keine Zuschauerzahl. Die Leitung steht, liefert aber nichts. Such NICHT bei den Widgets: erst hier '
+        + 'trennen und neu verbinden; bleibt es dabei, in Einstellungen → TikTok-Verbindung den anderen Modus probieren.');
+    }, STILLE_WACHE_MS);
+  }
+
+  private stilleWacheAbblasen(): void {
+    if (this.stilleWache) { clearTimeout(this.stilleWache); this.stilleWache = null; }
   }
 
   private clearLiveWatch(): void {

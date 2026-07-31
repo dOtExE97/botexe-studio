@@ -3,6 +3,81 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.46.0] — 2026-07-31
+
+### Neu: Die App sagt jetzt, warum nichts passiert 🔎
+Der häufigste Satz im Stream ist „es passiert nichts" — und bisher schwieg das
+Log genau dann am lautesten. Eine Prüfung der ganzen App hat **88 solcher
+Stellen** gefunden, an denen etwas bewusst übersprungen, gefiltert, gedrosselt
+oder verworfen wurde, ohne dass irgendwo ein Wort dazu stand. Alle 88 sind jetzt
+geschlossen, jede in Alltagssprache und mit dem nächsten Handgriff dabei:
+
+- **Verbindung:** Leitung steht, liefert aber nichts · unlesbares Datenformat ·
+  unbekannte Nachrichtenart · Combo ohne Abschluss · Close-Codes im Klartext
+  (Gratis-Key-Grenzen statt nackter Zahl) · „TikTok hat deinen Live
+  UNTERBROCHEN" statt nur „Stream beendet" · Warten auf ein Live, das nie kommt
+  (Verdacht: falscher Nutzername) · Live-Check unterscheidet endlich „nicht
+  live" von „nicht erreichbar".
+- **Trigger:** Regel hätte gepasst, ist aber AUSGESCHALTET · Pause läuft noch ·
+  Einlösung/Befehl abgelehnt (Punkte, Pause, Rechte) · Timer-Regel ohne
+  Intervall (flutet sonst Overlay und Log) · verworfene Chat-Nachricht.
+- **Overlay:** Herkunft jeder Browser-Quelle (Vorschau in der App zählt **nicht**
+  als Overlay im Stream) · falsche Adresse aufgerufen · Profil gibt es nicht
+  mehr · Quelle eingefroren · Overlay kommt nicht hinterher · Fernsteuerung
+  drückt ins Leere · Liveticker ohne Daten.
+- **Ton/Ansagen:** stummer Kanal · fehlende Datei · Gerät abgezogen · zu viele
+  Sounds gleichzeitig · Gift-Sound-Bremse · Rad ohne Sound · Ansage unter der
+  Coin-Schwelle · Sprachausgabe aus, obwohl eine Regel sprechen wollte.
+- **Punkte/Daten:** Punkte-System aus · Handvergabe und VIP/Stumm im Log ·
+  kaputte Speicherdateien beim Laden **mit Namen** statt anonym · Spiel beendet
+  **mit Grund** · Bilder- und Katalog-Probleme.
+- **Start/Einstellungen:** eine Startzeile mit Version, System und Daten-Ordner ·
+  belegtes Tastenkürzel · OBS/Streamer.bot/Spotify sagen jetzt, warum eine
+  Aktion nicht ankam · Spotify-Anmeldung nennt die exakte Redirect-URI.
+
+Alles Häufige ist gedrosselt (einmal je Verbindung bzw. höchstens alle N
+Sekunden) — sonst hätte die Kur die Krankheit ersetzt. Geheimnisse bleiben
+draußen: Token, Schlüssel und rohe Datenobjekte landen nie im Log.
+
+### Neu: Diagnose-Modus (30 Minuten) 🐞
+Einstellungen → „Diagnose-Modus": schreibt zeitlich begrenzt **alles** mit, auch
+sonst unterdrückte Wiederholungen. Für Probleme, die man gerade nachstellen
+kann. Läuft von allein aus und markiert Anfang und Ende im Log, damit beim Lesen
+klar ist, welcher Abschnitt in welchem Modus entstanden ist.
+
+### Neu: Logdateien können nicht mehr entgleisen 📄
+Bisher war nur die ANZAHL der Logdateien begrenzt, nicht ihre Größe — eine
+einzige durchdrehende Regel konnte in einem langen Stream eine hunderte MB große
+Datei schreiben, die weder zu lesen noch zu verschicken war. Jetzt ist bei 20 MB
+Schluss, mit einer letzten Zeile, die sagt warum.
+
+### Neu: Geschenk-Vorschläge in der Galerie 🎁
+Über der Galerie steht jetzt eine Leiste: „Das schicken deine Zuschauer am
+häufigsten — und es passiert nichts damit." Die Prüfung dahinter schaut an allen
+Stellen nach, an denen ein Geschenk verdrahtet sein kann (Trigger-Regel,
+Geschenk-Menü, Glücksrad, Slot, Ziehung, Karussell) und liest die Widget-Felder
+aus der Typdefinition — ein künftiges Widget mit Geschenk-Feld ist damit
+automatisch mit erfasst. Ausgeschaltete Regeln und Regeln ohne Aktion zählen
+bewusst nicht. Ein Klick auf „Aktion drauf" führt direkt zum Geschenk, das ✕
+blendet einen Vorschlag dauerhaft aus.
+
+### Besser: Die Trigger-Seite ist wieder überschaubar 🎛️
+- Regeln sind **zugeklappt** und nach Auslöser **gruppiert**; jede Gruppe hat
+  einen Schalter „alle an/aus" (praktisch, wenn beim Talk-Stream alle
+  Geschenk-Sounds stören sollen). Die Satzzeile „WENN … DANN …" bleibt immer
+  sichtbar, Regeln mit einem toten Ziel klappen von selbst auf.
+- Aus einem Import übernommene Regeln zeigten „IRGENDEIN Gift", weil TikFinity
+  das Geschenk als **Nummer** speichert. Die Nummer wird jetzt in den Namen
+  aufgelöst, ist in der Bedingungsliste sichtbar und über denselben
+  Geschenk-Auswähler änderbar wie der Name.
+- Eine neue Regel bekommt sofort eine Aktion (statt „tut nichts").
+- Beim Tippen wird nicht mehr bei jedem Buchstaben die komplette
+  Einstellungsdatei neu geschrieben. Beim Verlassen der Seite, beim Schließen
+  des Fensters und **vor jedem Regel-Test** geht der Stand zwingend raus — sonst
+  hätte man aus einem Tempo-Problem einen Datenverlust gemacht.
+- Widget-Ebenen in den Aktionslisten kommen jetzt aus **allen** Overlay-Profilen,
+  nicht nur aus dem aktiven.
+
 ## [0.45.1] — 2026-07-31
 
 Ergebnis einer Prüfung, bei der zuerst die offiziellen Anleitungen der

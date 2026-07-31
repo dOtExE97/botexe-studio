@@ -81,7 +81,7 @@ export class GameService {
       if (more.length) { this.autoQueue.push(...more); this.logQuiz('neue Runde Fragen gezogen'); }
     }
     const q = this.autoQueue.shift();
-    if (!q) { this.stop(); return; }
+    if (!q) { this.stop('alle Fragen der Runde durch'); return; }
     const g = new QuizGame();
     g.start({ question: q.q, options: q.options, correctIndex: q.correct, winnerMode: this.autoOpts.winnerMode });
     this.active = { kind: 'quiz', game: g as unknown as GameInstance };
@@ -116,7 +116,13 @@ export class GameService {
       else if (kind === 'tic-tac-toe') game = new TicTacToeGame() as unknown as GameInstance;
       else if (kind === 'connect-four') game = new ConnectFourGame() as unknown as GameInstance;
       else return { ok: false, error: 'Unbekanntes Spiel' };
-    } catch (err) { return { ok: false, error: (err as Error).message }; }
+    } catch (err) {
+      // Bisher landete der Grund nur im Rückgabewert — im Log stand nichts,
+      // und in der Oberfläche sah es aus, als sei der Knopf ohne Wirkung.
+      log.warn('Spiel', `${LABEL[kind] ?? kind} konnte nicht starten: ${(err as Error).message}`
+        + (kind === 'quiz' ? ' — meist wurden zu diesem Thema keine Fragen gefunden.' : ''));
+      return { ok: false, error: (err as Error).message };
+    }
     this.resetPending(); // alte Timer/Auto-Quiz-Queue weg, bevor das neue Spiel aktiv wird
     this.active = { kind, game };
     this.winReported = false;
@@ -151,7 +157,7 @@ export class GameService {
       }
       // sonst: nichts tun, kein Re-Arm → das leere Brett wartet ruhig weiter.
     } else {
-      this.stop();
+      this.stop('seit einer Weile keine Eingabe');
     }
   }
 
@@ -174,11 +180,15 @@ export class GameService {
     }
   }
 
-  stop(): void {
+  /** Spiel beenden. `grund` steht im Log — sonst verschwindet ein Spiel
+   *  mitten im Stream und niemand weiß, ob es abgestürzt ist, der
+   *  Inaktivitäts-Timer zugeschlagen hat oder die Fragen alle waren. */
+  stop(grund = 'Stop gedrückt'): void {
     const kind = this.active?.kind; // vor dem Nullen merken, damit das Clear das
     this.resetPending();            // richtige Widget erreicht (Widgets filtern nach gameKind)
     this.active = null;
     this.broadcast({ kind: 'game-state', gameKind: kind ?? '', state: null });
+    if (kind) log.info('Spiel', `${LABEL[kind]} beendet (${grund}).`);
   }
 
   /** Auto-Quiz-Ereignisse fürs Log (Frage/Reveal). */
@@ -228,7 +238,7 @@ export class GameService {
     this.clearTimer();
     this.timer = setTimeout(() => {
       if (kind === 'tic-tac-toe' || kind === 'connect-four') this.start(kind); // neue Runde, offen für alle
-      else { this.stop(); log.info('Spiel', `${LABEL[kind]}: beendet`); }
+      else this.stop('Runde vorbei');
     }, this.resultMs);
   }
 

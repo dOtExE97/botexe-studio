@@ -139,7 +139,13 @@ export class SpotifyService {
           code_verifier: verifier,
         }).toString(),
       });
-      if (!res.ok) return { ok: false, error: `Token-Tausch fehlgeschlagen (HTTP ${res.status})` };
+      if (!res.ok) {
+        // Fast immer eine nicht exakt eingetragene Redirect-URI im Spotify-
+        // Dashboard. Ohne diesen Hinweis probiert man alles Mögliche durch.
+        log.warn('Spotify', `Die Anmeldung ist fehlgeschlagen (HTTP ${res.status}) — steht im Spotify-Dashboard unter `
+          + `„Redirect URIs" wirklich genau ${this.deps.redirectUri()} (auf Zeichen genau, ohne Schrägstrich am Ende)?`);
+        return { ok: false, error: `Token-Tausch fehlgeschlagen (HTTP ${res.status})` };
+      }
       const j = (await res.json()) as { access_token: string; refresh_token: string; expires_in: number };
       this.deps.saveTokens({
         accessToken: j.access_token,
@@ -225,7 +231,14 @@ export class SpotifyService {
 
   private async api(path: string, method = 'GET', body?: unknown, schonWiederholt = false): Promise<Response | null> {
     const token = await this.accessToken();
-    if (!token) return null;
+    if (!token) {
+      // Steuerung und Song-Requests tun dann einfach nichts. Gedrosselt, weil
+      // Now-Playing alle paar Sekunden hier vorbeikommt.
+      log.gedrosselt('spotify:keine-anmeldung', 5 * 60_000, 'warn', 'Spotify',
+        `„${method} ${path}" wurde nicht ausgeführt — es liegt gerade keine gültige Spotify-Anmeldung vor. `
+        + 'Unter Einstellungen → Spotify neu anmelden.');
+      return null;
+    }
     try {
       const res = await this.fetchFn(`${API}${path}`, {
         method,
@@ -247,7 +260,14 @@ export class SpotifyService {
       // einem Dauerfehler zumüllen und die interessanten Meldungen verdrängen.
       const fehlerbild = res.ok ? '' : `${method} ${path} ${res.status}`;
       if (fehlerbild && fehlerbild !== this.letztesApiFehlerbild) {
-        log.warn('Spotify', `API ${method} ${path} → HTTP ${res.status}`);
+        // Die beiden häufigsten Codes in Klartext — mit der nackten Zahl kann
+        // ein Streamer nichts anfangen, und beide haben eine klare Ursache.
+        log.warn('Spotify', res.status === 404
+          ? 'Die Steuerung geht ins Leere — auf keinem Gerät läuft gerade Spotify. Starte in der Spotify-App einen Song, '
+            + 'danach greift die Steuerung.'
+          : res.status === 403
+            ? 'Spotify lehnt die Steuerung ab — dafür braucht das Konto Spotify Premium.'
+            : `API ${method} ${path} → HTTP ${res.status}`);
       }
       this.letztesApiFehlerbild = fehlerbild;
       return res;

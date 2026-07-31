@@ -181,6 +181,9 @@ const api = {
     ipcRenderer.invoke(IPC.TELEMETRY_GET_STATUS),
   sendTelemetryTest: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke(IPC.TELEMETRY_TEST),
   openLogs: () => ipcRenderer.invoke(IPC.LOGS_OPEN),
+  /** Diagnose-Modus setzen (Minuten) bzw. ohne Argument nur den Stand abfragen. */
+  setDiagnose: (dauerMinuten?: number): Promise<{ restMs: number }> =>
+    ipcRenderer.invoke(IPC.LOGS_DIAGNOSE, dauerMinuten) as Promise<{ restMs: number }>,
   resetSession: () => ipcRenderer.invoke(IPC.SESSION_RESET),
   getTtlsLink: (layoutId?: string) => ipcRenderer.invoke(IPC.TTLS_LINK_GET, layoutId),
   setupTtls: () => ipcRenderer.invoke(IPC.TTLS_SETUP),

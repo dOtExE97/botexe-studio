@@ -19,7 +19,7 @@ import crypto from 'node:crypto';
 import type { OverlayLayout, MomentPayload } from '@botexe/overlay-engine';
 import type { StudioEvent, TriggerAction } from '@botexe/trigger-engine';
 import type { EventBus } from '../core/event-bus';
-import { log } from '../core/logger';
+import { log, darfMelden } from '../core/logger';
 import { TTLS_HOST } from '../services/ttls-link';
 import { isAllowedMyInstantsMp3, MAX_DOWNLOAD_BYTES } from '../services/myinstants';
 
@@ -121,6 +121,24 @@ interface TrackedClient {
   isAlive: boolean;
   /** Welches Profil dieser Client anzeigt — Layout-Broadcasts sind profil-gefiltert. */
   profileId: string;
+  /** „Vorschau in der App" | „TikTok Live Studio" | „OBS/Browser-Quelle" —
+   *  siehe herkunftAus(). Steht in jeder Zeile, die diesen Client betrifft. */
+  herkunft: string;
+  /** Verworfene Live-Ereignisse seit der letzten Meldung (siehe sendTo). */
+  verworfen?: number;
+}
+
+/** Woher kommt diese Browser-Quelle? Die Unterscheidung ist im Alltag zentral:
+ *  Solange die Overlay-SEITE in der App offen ist, zählt sie als Client — die
+ *  Warnung „kein Overlay verbunden" bleibt dann aus, obwohl im Stream gar
+ *  nichts hängt. Origin verrät den Unterschied: Die Vorschau läuft im
+ *  App-Fenster, TikTok Live Studio über localtest.me, OBS schickt gar keinen. */
+function herkunftAus(origin: string, userAgent: string, preview: boolean): string {
+  if (preview) return 'Vorschau in der App';
+  if (/localtest\.me/i.test(origin)) return 'TikTok Live Studio';
+  if (/^file:\/\//i.test(origin) || /Electron/i.test(userAgent)) return 'Vorschau in der App';
+  if (!origin) return 'OBS/Browser-Quelle';
+  return origin;
 }
 
 export class OverlayServer {
@@ -181,6 +199,15 @@ export class OverlayServer {
   private setupRoutes(): void {
     const auth = (req: Request, res: Response, next: NextFunction): void => {
       if ((req.query.token as string) !== this.token) {
+        // Das war komplett stumm — und es ist die Erklärung für den
+        // hartnäckigsten Fall überhaupt: In OBS steckt noch ein ALTER
+        // Overlay-Link (der Schlüssel wechselt bei Neuinstallation). Die
+        // Browser-Quelle bleibt dann für immer durchsichtig, die App zeigt
+        // „keine Quelle verbunden", und niemand kann sagen warum.
+        log.gedrosselt('overlay:falscher-schluessel', 60_000, 'warn', 'Overlay',
+          `Eine Anfrage wurde mit falschem Schlüssel abgewiesen (${req.path}). `
+          + 'Sehr wahrscheinlich steckt in OBS oder TikTok Live Studio noch ein ALTER Overlay-Link — '
+          + 'oben „OBS-LINK" neu kopieren und die Browser-Quelle damit überschreiben.');
         res.status(403).json({ error: 'Invalid token' });
         return;
       }
@@ -194,6 +221,12 @@ export class OverlayServer {
     this.expressApp.get('/overlay', auth, (req, res) => {
       const htmlPath = path.join(this.options.runtimeDir, 'overlay.html');
       if (!fs.existsSync(htmlPath)) {
+        // Ohne diese Zeile bekommt jede Browser-Quelle nur eine nackte
+        // Fehlerseite, und in der App steht nichts — es sieht nach einem
+        // kaputten Widget aus, dabei fehlt die halbe Installation.
+        log.einmal('overlay:html-fehlt', 'error', 'Overlay',
+          `Die Overlay-Seite fehlt auf der Festplatte (${htmlPath}) — jede Browser-Quelle bekommt nur eine Fehlerseite. `
+          + 'Die App-Installation ist unvollständig; bitte die App neu installieren.');
         res.status(500).send('overlay.html nicht gefunden');
         return;
       }
@@ -214,6 +247,16 @@ export class OverlayServer {
       // Host-Header-Spoofing.
       const reqHost = String(req.headers.host ?? '');
       const hostOk = /^(127\.0\.0\.1|localhost|localtest\.me)(:\d+)?$/.test(reqHost);
+      if (!hostOk && reqHost) {
+        // Typisch: Der Streamer hat den Link auf einem zweiten PC oder über die
+        // Netzwerk-IP geöffnet. Die Seite LÄDT dann — sie holt Widgets und
+        // Live-Daten aber von 127.0.0.1 und bleibt deshalb leer. Ohne diese
+        // Zeile sucht man den Fehler garantiert bei den Widgets.
+        log.gedrosselt(`overlay:fremder-host:${reqHost}`, 60_000, 'warn', 'Overlay',
+          `Das Overlay wurde über die Adresse „${reqHost}" geöffnet — die ist nicht vorgesehen. `
+          + 'Die Seite lädt, holt Widgets und Live-Daten aber von 127.0.0.1 und bleibt dadurch leer. '
+          + 'Das Overlay muss auf DEMSELBEN Rechner laufen wie die App; für einen zweiten PC den TikTok-Live-Studio-Link benutzen.');
+      }
       const origin = hostOk ? reqHost : `${this.host}:${this.port}`;
       const wsBase = `ws://${origin}/ws?token=${this.token}`;
       // Runtime-Config injizieren: WS-URL inkl. Token + Profil, damit die
@@ -313,7 +356,16 @@ export class OverlayServer {
       this.options
         .getSportMatches(provider, competition)
         .then((matches) => res.json({ matches: matches ?? [] }))
-        .catch(() => res.json({ matches: [] }));
+        .catch((err: Error) => {
+          // Vorher: leeres Array, kein Wort. Der Ticker bleibt leer und sieht
+          // aus wie ein kaputtes Widget — dabei ist meist der Schlüssel
+          // abgelaufen oder das Tageslimit erreicht.
+          log.gedrosselt(`sport:matches:${competition}`, 5 * 60_000, 'warn', 'Sport',
+            `Der Liveticker konnte die Spiele für „${competition}" nicht laden — der Ticker bleibt leer. `
+            + `Grund: ${err?.message?.slice(0, 120) ?? 'unbekannt'}. `
+            + 'Meist ist der API-Schlüssel abgelaufen oder das Tageslimit erreicht (Einstellungen → Sport).');
+          res.json({ matches: [] });
+        });
     });
 
     // Tabelle/Standings desselben Wettbewerbs (für die Tabellen-Ansicht des Tickers).
@@ -327,7 +379,12 @@ export class OverlayServer {
       this.options
         .getSportStandings(provider, competition)
         .then((standings) => res.json({ standings: standings ?? [] }))
-        .catch(() => res.json({ standings: [] }));
+        .catch((err: Error) => {
+          log.gedrosselt(`sport:tabelle:${competition}`, 5 * 60_000, 'warn', 'Sport',
+            `Die Tabelle für „${competition}" ließ sich nicht laden — die Tabellen-Ansicht bleibt leer. `
+            + `Grund: ${err?.message?.slice(0, 120) ?? 'unbekannt'}.`);
+          res.json({ standings: [] });
+        });
     });
 
     // Fernsteuerung (Stream-Deck-Plugin & Web-Requests): Panel-Knöpfe auflisten
@@ -338,6 +395,14 @@ export class OverlayServer {
     this.expressApp.post('/api/panel/fire', auth, (req, res) => {
       const id = String((req.body as { id?: unknown })?.id ?? '');
       const ok = id ? (this.options.firePanelButton?.(id) ?? false) : false;
+      // Ein Stream-Deck-Knopf, den es nicht mehr gibt, drückt sich lautlos ins
+      // Leere: Der Streamer drückt im Stream, nichts passiert, und in der App
+      // steht kein Wort dazu. Nur die ID loggen, nichts aus dem Body.
+      if (!ok) {
+        log.gedrosselt(`overlay:panel-unbekannt:${id}`, 60_000, 'warn', 'Overlay',
+          `Fernsteuerung: Knopf „${id || '(ohne ID)'}" wurde ausgelöst, gibt es in der App aber nicht (mehr) — es passiert nichts. `
+          + 'Knopf-Liste im Stream-Deck-Plugin neu einlesen.');
+      }
       res.status(ok ? 200 : 404).json({ ok });
     });
 
@@ -349,6 +414,12 @@ export class OverlayServer {
     this.expressApp.post('/api/action', auth, (req, res) => {
       if (!this.options.runApiAction) { res.status(501).json({ ok: false, error: 'Nicht verfügbar' }); return; }
       const result = this.options.runApiAction(req.body);
+      // NUR result.error loggen — niemals req.body: dort kann alles Mögliche
+      // stehen, inklusive Dinge, die nicht in eine teilbare Logdatei gehören.
+      if (!result.ok) {
+        log.gedrosselt('overlay:api-abgelehnt', 30_000, 'warn', 'Overlay',
+          `Fernsteuerung: Aktion abgelehnt — ${result.error ?? 'ohne Angabe eines Grundes'}`);
+      }
       res.status(result.ok ? 200 : 400).json(result);
     });
 
@@ -602,6 +673,9 @@ export class OverlayServer {
     this.wss.on('connection', (ws, req) => {
       const url = new URL(req.url ?? '', `http://${this.host}`);
       if (url.searchParams.get('token') !== this.token) {
+        log.gedrosselt('overlay:ws-falscher-schluessel', 60_000, 'warn', 'Overlay',
+          'Eine Browser-Quelle wollte sich mit falschem Schlüssel verbinden und wurde abgewiesen — '
+          + 'das Overlay bleibt dort durchsichtig. Meist ein alter Link in OBS/TikTok Live Studio: neu kopieren.');
         ws.close(4003, 'Invalid token');
         return;
       }
@@ -612,6 +686,9 @@ export class OverlayServer {
       // versuchen zu verbinden; mit Origin-Whitelist scheitert das sofort.
       const origin = String(req.headers.origin ?? '');
       if (origin && !isAllowedWsOrigin(origin)) {
+        log.gedrosselt(`overlay:fremde-herkunft:${origin}`, 60_000, 'warn', 'Overlay',
+          `Eine Verbindung von „${origin}" wurde abgelehnt (nur lokale Overlay-Adressen sind erlaubt). `
+          + 'Wenn das deine eigene Browser-Quelle war: den Link über „OBS-LINK" kopieren, nicht von Hand tippen.');
         ws.close(4003, 'Origin nicht erlaubt');
         return;
       }
@@ -623,10 +700,13 @@ export class OverlayServer {
       // diesen Client sonst nie mehr treffen → Overlay zeigt still das alte Layout,
       // bis die Browser-Quelle neu verbindet.
       const profileId = url.searchParams.get('profile') || '';
-      const client: TrackedClient = { ws, isAlive: true, profileId };
+      const herkunft = herkunftAus(origin, String(req.headers['user-agent'] ?? ''), url.searchParams.get('preview') === '1');
+      const client: TrackedClient = { ws, isAlive: true, profileId, herkunft };
       this.clients.add(client);
       this.ohneClientsGemeldet = false; // wieder wer da → Warnung darf erneut kommen
-      log.info('Overlay', `Client verbunden, Profil "${profileId || '(default)'}" (${this.clients.size} aktiv)`);
+      const echte = [...this.clients].filter((c) => c.herkunft !== 'Vorschau in der App').length;
+      log.info('Overlay', `Browser-Quelle verbunden — Profil „${profileId || 'Standard'}", Herkunft: ${herkunft} `
+        + `(${this.clients.size} aktiv, davon ${echte} echte). Vorschau-Fenster in der App zählen NICHT als Overlay im Stream.`);
       this.notifyClientCount();
 
       ws.on('pong', () => {
@@ -694,7 +774,8 @@ export class OverlayServer {
       });
       ws.on('close', () => {
         this.clients.delete(client);
-        log.info('Overlay', `Client getrennt (${this.clients.size} aktiv)`);
+        log.info('Overlay', `Browser-Quelle getrennt — Profil „${client.profileId || 'Standard'}", `
+          + `Herkunft: ${client.herkunft} (${this.clients.size} noch aktiv).`);
         this.notifyClientCount();
       });
       ws.on('error', (err) => {
@@ -710,6 +791,17 @@ export class OverlayServer {
       // Overlay-Canvas nicht leer startet (Late-Joiner).
       const layout = this.options.getLayout(profileId || undefined);
       if (layout) this.sendTo(client, { kind: 'layout', layout }, true);
+      else {
+        // Die Quelle bekommt KEIN Layout und bleibt für immer leer. Bisher
+        // passierte das schweigend — in der Diagnose stand sogar „1 Quelle
+        // verbunden", also alles in Ordnung. Der häufigste Auslöser: ein
+        // gelöschtes oder umbenanntes Profil, dessen Link noch in OBS steckt.
+        log.warn('Overlay', profileId
+          ? `Eine Browser-Quelle hängt an Profil „${profileId}", das es nicht mehr gibt — sie bleibt leer. `
+            + 'Im Overlay-Editor den Link des gewünschten Profils neu kopieren und in OBS einsetzen.'
+          : 'Eine Browser-Quelle hat verbunden, aber es ist gar kein Standard-Overlay gesetzt — sie bleibt leer. '
+            + 'Im Overlay-Editor ein Profil mit dem Stern als Standard markieren.');
+      }
       const stats = this.options.getStats?.();
       if (stats) this.sendTo(client, { kind: 'stats', stats }, true);
       const spotify = this.options.getSpotifyState?.();
@@ -794,7 +886,11 @@ export class OverlayServer {
     const before = this.clients.size;
     for (const client of this.clients) {
       if (!client.isAlive) {
-        log.warn('Overlay', 'Toter Client — terminate');
+        // „Eingefroren im Stream" ist der Zustand, den man von außen NICHT
+        // sieht: Das Bild steht, aber es kommt nichts Neues mehr an.
+        log.warn('Overlay', `Browser-Quelle „${client.herkunft}" (Profil „${client.profileId || 'Standard'}") `
+          + 'antwortet seit 30 Sekunden nicht mehr und wurde getrennt — im Stream ist dieses Overlay eingefroren. '
+          + 'Sie verbindet sich meist von selbst neu; sonst die Quelle in OBS einmal aktualisieren.');
         client.ws.terminate();
         this.clients.delete(client);
         continue;
@@ -901,8 +997,18 @@ export class OverlayServer {
     // nicht unbegrenzt füllen. Layout/Initial-Messages gelten als kritisch.
     if (!critical && message.kind === 'event' && client.ws.bufferedAmount > BACKPRESSURE_BYTES) {
       this.droppedMessages++;
-      if (this.droppedMessages % 100 === 1) {
-        log.warn('Overlay', `Backpressure: ${this.droppedMessages} event-messages gedroppt`);
+      client.verworfen = (client.verworfen ?? 0) + 1;
+      // Vorher: `droppedMessages % 100 === 1`. Der Zähler wurde nie
+      // zurückgesetzt — nach einem Geschenke-Sturm blieben spätere Verluste bis
+      // zur nächsten Hunderter-Marke unsichtbar. Jetzt: pro Client höchstens
+      // eine Zeile pro Minute, mit der Anzahl SEIT der letzten Meldung, und der
+      // Text sagt auch, was das für den Streamer bedeutet.
+      if (darfMelden(`overlay:backpressure:${client.profileId}:${client.herkunft}`, 60_000)) {
+        log.warn('Overlay', `Overlay „${client.profileId || 'Standard'}" (${client.herkunft}) kommt nicht hinterher — `
+          + `seit dem letzten Hinweis wurden ${client.verworfen} Live-Ereignisse verworfen. `
+          + 'Zähler und Listen in diesem Overlay können deshalb zu niedrig sein. Meist ist der Browser überlastet: '
+          + 'weniger Widgets, kleinere Auflösung, oder in TikTok Live Studio den Schnell-Modus nutzen.');
+        client.verworfen = 0;
       }
       return;
     }

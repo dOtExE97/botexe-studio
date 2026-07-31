@@ -4,7 +4,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { TriggerEngine, renderSpeakTemplate, matchRedemption, matchChatCommand, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
+import { TriggerEngine, giftKey, renderSpeakTemplate, matchRedemption, matchChatCommand, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { schreibeAtomar } from '../core/atomar-schreiben';
@@ -370,8 +370,15 @@ export class Studio {
             && istFortsetzung(Date.now() - gespeichertAm, info.roomId, this.settings.peek().lastLiveRoomId)) {
             // App wurde mitten in der Session neugestartet (Update) → fortsetzen,
             // NICHT resetten (sonst wären die wiederhergestellten Stats sofort weg).
+            const t = this.stats.snapshot().totals;
+            log.info('Studio', `Stream wird FORTGESETZT (App-Neustart vor ${Math.round((Date.now() - gespeichertAm) / 60_000)} min) — `
+              + `die Zähler laufen weiter bei ${t.coins} Coins · ${t.gifts} Geschenken · ${t.likes} Likes. `
+              + 'Wolltest du bei null anfangen, hilft „Session zurücksetzen" auf der Live-Seite.');
           } else {
             // resetSession() schreibt die alte Session selbst in die Historie.
+            const t = this.stats.snapshot().totals;
+            log.info('Studio', `NEUER Stream — Zähler starten bei null.${t.coins + t.gifts + t.likes > 0
+              ? ` Der vorherige Stand (${t.coins} Coins · ${t.gifts} Geschenke) wandert in die Analyse-Historie.` : ''}`);
             this.resetSession();
           }
         }
@@ -388,6 +395,15 @@ export class Studio {
         if (info.status === 'connected') {
           const mode = this.settings.get().tiktokConnectMode ?? 'cloud';
           log.info('TikTok', `Verbindungsmodus: ${mode === 'cloud' ? 'Cloud (Euler)' : 'Direkt'}`);
+          // Der Cloud-Weg liefert keine Raum-Nummer. Die „neuer Stream"-Erkennung
+          // hängt daran — deshalb verhalten sich Zähler und Bestenliste in den
+          // beiden Modi unterschiedlich. Das sah bisher nach einem Zufallsfehler
+          // beim Zurücksetzen aus.
+          if (mode === 'cloud') {
+            log.info('TikTok', 'Der Cloud-Weg liefert keine Raum-Nummer: Ob ein neuer Stream begonnen hat, erkennt die App '
+              + 'deshalb am Stream-Ende und an der Pause seit dem letzten Ereignis — nicht am Raumwechsel. '
+              + 'Nach einem App-Neustart mitten im Live können Zähler daher stehen bleiben.');
+          }
         }
         this.lastPlatformStatus = { status: info.status, detail: info.detail, at: Date.now() };
         this.lastPlatformStatusInfo = info;
@@ -481,9 +497,49 @@ export class Studio {
       // sagt die automatische Gift-Ansage weiter unten dasselbe ein zweites Mal
       // an (bei einem Nutzer real: Trigger „…" → TTS-Ansage UND Gift-Ansage).
       let regelLiestVor = false;
+      let regelnGefeuert = 0;
       for (const match of this.engine.evaluate(e)) {
+        regelnGefeuert++;
         if (match.action.kind === 'speak') regelLiestVor = true;
         this.dispatchAction(match.ruleId, match.action, e);
+      }
+      // „Es ist nichts passiert" hat zwei völlig verschiedene Ursachen, die von
+      // außen gleich aussehen: Entweder passt keine Regel — dann muss er eine
+      // bauen. Oder eine Regel PASSTE, wurde aber von ihrer Abklingzeit
+      // geschluckt — dann muss er nur warten oder die Zeit senken. Ohne diese
+      // Unterscheidung sucht er stundenlang an der falschen Stelle.
+      for (const gebremst of this.engine.gebremsteRegeln()) {
+        log.gedrosselt(
+          `trigger:gebremst:${gebremst.ruleId}`,
+          30_000,
+          'info',
+          'Trigger',
+          `Regel „${gebremst.name}" hätte gepasst, ist aber noch gesperrt `
+          + `(${gebremst.grund === 'proZuschauer' ? 'Sperre pro Zuschauer' : 'Abklingzeit'}, noch ${Math.ceil(gebremst.restMs / 1000)} s). `
+          + 'Das ist kein Fehler — die Zeit steht unten an der Regel und lässt sich dort ändern.',
+        );
+      }
+      // Eine ausgeschaltete Regel, die gerade gepasst hätte: Der Streamer hat
+      // sie beim Aufräumen deaktiviert und es vergessen. Je Regel einmal pro
+      // Session — mehr braucht niemand.
+      for (const aus of this.engine.ausgeschalteteTreffer()) {
+        log.einmal(`trigger:aus:${aus.ruleId}`, 'warn', 'Trigger',
+          `Regel „${aus.name}" hätte gerade gepasst, ist aber AUSGESCHALTET — deshalb passiert nichts. `
+          + 'Im Reiter „Trigger" den Schalter der Regel auf AKTIV stellen.');
+      }
+      // „Ich hab ein Geschenk bekommen und es ist nichts passiert" ist DIE
+      // häufigste Frage im Stream. Ohne diese Zeile steht im Log gar nichts —
+      // und der Streamer sucht bei den Widgets statt bei der Schreibweise des
+      // Geschenknamens. Je Geschenkart nur einmal (sonst eine Zeile pro Rose).
+      if (e.type === 'gift' && regelnGefeuert === 0 && !e.synthetic && e.gift) {
+        log.einmal(
+          `trigger:kein-treffer:${giftKey(e.gift.slug)}`,
+          'info',
+          'Trigger',
+          `Geschenk „${e.gift.slug}" kam an — dazu passt keine einzige Regel. `
+          + 'Wenn hier etwas passieren soll: Reiter „Geschenke" → das Geschenk anklicken → Sound oder Alert zuweisen. '
+          + '(Schreibweise muss nicht stimmen — die Zuordnung läuft über das Geschenk selbst.)',
+        );
       }
 
       // 3b. Chat: Befehle (Bot) + Punkte-Einlösungen + Vorlesen (TikFinity-Style)
@@ -533,13 +589,36 @@ export class Studio {
           count: e.gift.count,
           sender: e.user ? { id: e.user.id, nickname: e.user.nickname } : undefined,
         });
-        for (const soundId of collectGiftSounds(this.layouts.list(), e.gift.totalCoins)) {
+        const giftSounds = collectGiftSounds(this.layouts.list(), e.gift.totalCoins);
+        for (const soundId of giftSounds) {
           // Gift-Sound-Bremse: bei „Rosen-Regen" nicht 50× denselben Sound feuern.
           const gapMs = (this.settings.peek().giftSoundGapSec ?? 0) * 1000;
           const last = this.giftSoundLastAt.get(soundId) ?? 0;
-          if (gapMs > 0 && e.ts - last < gapMs) continue;
+          if (gapMs > 0 && e.ts - last < gapMs) {
+            // Ohne diese Zeile klingt es nach einem verschluckten Sound —
+            // dabei ist es eine Einstellung, die genau so gewollt sein kann.
+            log.gedrosselt(`ton:gift-bremse:${soundId}`, 60_000, 'info', 'Ton',
+              `Alert-Sound übersprungen — die Gift-Sound-Bremse steht auf ${gapMs / 1000} Sekunden und der letzte Ton war `
+              + `vor ${Math.round((e.ts - last) / 1000)} Sekunden. In den Einstellungen ändern, wenn du jeden Treffer hören willst.`);
+            continue;
+          }
           this.giftSoundLastAt.set(soundId, e.ts);
           this.playSound(soundId, undefined, 'alert');
+        }
+        // Gar kein Sound, obwohl es ein Gift-Alert-Widget gibt: Fast immer die
+        // Mindest-Coins des Widgets, eine ausgeblendete Ebene oder ein Widget
+        // ohne ausgewählten Sound. Bisher passierte hier einfach nichts.
+        if (giftSounds.length === 0 && !e.synthetic) {
+          const alertEbenen = this.layouts.list().flatMap((l) => l.layers).filter((l) => l.widgetType === 'gift-alert');
+          if (alertEbenen.length > 0) {
+            const grund = alertEbenen.every((l) => !l.visible)
+              ? 'die Gift-Alert-Ebene ist gerade ausgeblendet'
+              : alertEbenen.every((l) => !(l.props as { soundId?: string })?.soundId)
+                ? 'im Gift-Alert ist kein Sound ausgewählt'
+                : `dein Gift-Alert ist erst ab einem höheren Coin-Wert eingestellt (dieses Geschenk hatte ${e.gift.totalCoins})`;
+            log.einmal(`ton:kein-alert:${giftKey(e.gift.slug)}`, 'info', 'Ton',
+              `Geschenk „${e.gift.slug}" (${e.gift.totalCoins} Coins) kam an, aber es gab keinen Alert-Sound — ${grund}.`);
+          }
         }
         // Rad-Bindung „Bei welchem Geschenk drehen?": passendes Rad-Widget
         // (spinGift-Prop) automatisch drehen — serverseitig, keine Regel nötig.
@@ -615,6 +694,46 @@ export class Studio {
    * das: Steht der Slider nicht in der Liste, ist die Einstellung das Problem;
    * steht er drin, liegt es an Zustellung oder Layout (s. meldeZielLayout).
    */
+  /**
+   * Einmal beim Start: Was ist eigentlich scharf?
+   *
+   * Beim Nachschauen in einem Log war bisher völlig unklar, mit welcher
+   * Ausgangslage die App überhaupt losgelaufen ist — welches Profil, wie viele
+   * Regeln, wie viele davon ausgeschaltet, welche Fremdprogramme angebunden.
+   * Genau diese Zeile beantwortet die halbe Frage „warum passiert nichts?"
+   * schon, bevor man mit dem Suchen anfängt. Besonders die AUSGESCHALTETEN
+   * Regeln: Eine deaktivierte Regel wird sonst nirgends je erwähnt.
+   */
+  private meldeAusgangslage(): void {
+    const s = this.settings.get();
+    const regeln = s.triggerRules ?? [];
+    const aus = regeln.filter((r) => !r.enabled).length;
+    const layouts = this.layouts.list();
+    const aktiv = this.getActiveLayout();
+    const teile = [
+      `${regeln.length} Trigger-Regel(n)${aus > 0 ? `, davon ${aus} AUSGESCHALTET` : ''}`,
+      `${(s.redemptions ?? []).length} Einlösung(en)`,
+      `${(s.chatCommands ?? []).length} Chat-Befehl(e)`,
+      `${layouts.length} Overlay-Profil(e)`,
+      aktiv ? `Standard-Overlay „${aktiv.name}" mit ${aktiv.layers.length} Widget(s)` : 'KEIN Standard-Overlay gesetzt',
+      s.tiktokSignApiKey ? `Verbindungsmodus ${s.tiktokConnectMode ?? 'cloud'}` : 'KEIN eulerstream-Key — Verbinden ist nicht möglich',
+      s.tts.enabled ? 'Sprachausgabe an' : 'Sprachausgabe AUS',
+      s.obs.enabled ? `OBS-Steuerung an (${s.obs.url})` : null,
+      s.streamerbot.enabled ? `Streamer.bot an (${s.streamerbot.url})` : null,
+      // Diese drei fehlten und sind genau die, nach denen man sucht, wenn
+      // „irgendwas geht nicht": Spotify-Anmeldung, Chat-Senden und der Grund,
+      // warum Verbinden scheitert.
+      this.spotify.isConnected() ? 'Spotify angemeldet' : null,
+      s.tiktokSessionId ? 'Chat-Senden möglich' : 'Chat-Senden NICHT möglich (nicht bei TikTok angemeldet)',
+    ].filter(Boolean);
+    log.info('Studio', `Startklar: ${teile.join(' · ')}.`);
+    if (aus > 0) {
+      log.info('Trigger', `${aus} Regel(n) sind ausgeschaltet und reagieren auf gar nichts: `
+        + `${regeln.filter((r) => !r.enabled).map((r) => `„${r.name}"`).slice(0, 8).join(', ')}`
+        + `${aus > 8 ? ` und ${aus - 8} weitere` : ''}. Wenn du eine davon vermisst: Reiter „Trigger" → Schalter auf AKTIV.`);
+    }
+  }
+
   private meldeLuckyDrawStatus(): void {
     const treffer: string[] = [];
     let ausgeblendet = 0;
@@ -693,25 +812,29 @@ export class Studio {
       log.warn('Trigger', `„${this.ruleLabel(ruleId)}": ungültige Aktion übersprungen (kein kind)`);
       return;
     }
-    this.logTrigger(ruleId, action, event);
     // Clamp: schützt vor setTimeout-Overflow (>2^31 ms feuert sofort statt nie).
     const delay = Math.min(Math.max(0, action.delayMs ?? 0), 600_000);
     if (delay > 0) {
+      // Verzögerte Aktion: JETZT die Planung melden, nicht die Ausführung —
+      // sonst behauptet das Protokoll „Sound abgespielt", während der Sound
+      // erst in fünf Sekunden kommt (oder nach einem Session-Reset gar nicht).
+      this.logTrigger(ruleId, action, event, `in ${(delay / 1000).toFixed(1)} s`);
       const timer = setTimeout(() => {
         this.actionTimers.delete(timer);
         this.runAction(ruleId, action, event);
       }, delay);
       this.actionTimers.add(timer);
     } else {
+      this.logTrigger(ruleId, action, event);
       this.runAction(ruleId, action, event);
     }
   }
 
   /** Eine gefeuerte Aktion ins Live-Protokoll schreiben (Live-Seite). */
-  private logTrigger(ruleId: string, action: import('@botexe/trigger-engine').TriggerAction, event: StudioEvent): void {
+  private logTrigger(ruleId: string, action: import('@botexe/trigger-engine').TriggerAction, event: StudioEvent, zusatz?: string): void {
     // Auch ins Datei-Log — so ist bei einer späteren Diagnose sichtbar, ob und
     // welche Trigger live gefeuert haben (nicht nur in der UI-Karte).
-    log.info('Trigger', `„${this.ruleLabel(ruleId)}" → ${ACTION_LABELS[action.kind] ?? action.kind} (${this.eventReason(event)})`);
+    log.info('Trigger', `„${this.ruleLabel(ruleId)}" → ${ACTION_LABELS[action.kind] ?? action.kind}${zusatz ? ` (${zusatz})` : ''} (${this.eventReason(event)})`);
     if (!this.hooks.onTriggerLog) return;
     this.hooks.onTriggerLog({
       id: `tl-${Date.now().toString(36)}-${this.triggerLogSeq++}`,
@@ -759,10 +882,25 @@ export class Studio {
     // Globaler Cooldown
     if (red.cooldownMs) {
       const last = this.redemptionCooldowns.get(red.id);
-      if (last !== undefined && event.ts - last < red.cooldownMs) return;
+      if (last !== undefined && event.ts - last < red.cooldownMs) {
+        // Bisher stumm: Der Zuschauer schreibt den Befehl, nichts passiert,
+        // und niemand erfährt, dass nur die Pause noch läuft.
+        log.gedrosselt(`einloesung:pause:${red.id}`, 30_000, 'info', 'Punkte',
+          `„${red.command}" von ${event.user.nickname} nicht ausgeführt — die Pause läuft noch `
+          + `(${Math.ceil((red.cooldownMs - (event.ts - last)) / 1000)} s). Die Pausenzeit steht bei der Einlösung.`);
+        return;
+      }
     }
-    // Punkte abziehen — nicht genug → leise abbrechen (kein Spam)
-    if (red.cost > 0 && !this.points.spend(event.user.id, red.cost)) return;
+    // Punkte abziehen — reicht es nicht, bricht die Einlösung ab. Das war
+    // bisher komplett stumm: Der Zuschauer schreibt den Befehl, es passiert
+    // nichts, und weder er noch der Streamer erfahren warum. Je Einlösung
+    // höchstens alle 30 s eine Zeile (ein Zuschauer kann den Befehl spammen).
+    if (red.cost > 0 && !this.points.spend(event.user.id, red.cost)) {
+      log.gedrosselt(`einloesung:zu-arm:${red.id}`, 30_000, 'info', 'Punkte',
+        `„${red.command}" von ${event.user.nickname} nicht ausgeführt — die Einlösung kostet ${red.cost} `
+        + `${this.settings.peek().points.currencyName}, so viel hat er/sie nicht.`);
+      return;
+    }
     if (red.cooldownMs) this.redemptionCooldowns.set(red.id, event.ts);
     if (red.cost > 0) this.scheduleStatsBroadcast();
     for (const action of red.actions) {
@@ -805,7 +943,12 @@ export class Studio {
       // Punkte-Economy: kostet der Spin etwas, vom Zuschauer abziehen.
       const cost = action.cost ?? 0;
       if (cost > 0 && event.user) {
-        if (!this.points.spend(event.user.id, cost)) return; // nicht genug Punkte → kein Spin
+        if (!this.points.spend(event.user.id, cost)) {
+          log.gedrosselt(`spin:zu-arm:${ruleId}`, 30_000, 'info', 'Punkte',
+            `Rad-Dreh von ${event.user.nickname} nicht ausgeführt — kostet ${cost} `
+            + `${this.settings.peek().points.currencyName}, so viel hat er/sie nicht.`);
+          return; // nicht genug Punkte → kein Spin
+        }
       }
       // roll zentral würfeln: alle Overlay-Quellen (OBS + TTLS) zeigen denselben
       // Gewinner — sonst würfelt jede Quelle lokal ein eigenes Ergebnis.
@@ -815,6 +958,14 @@ export class Studio {
       this.scheduleStatsBroadcast();
       // Rad-Sounds (am Widget konfiguriert): Drehen sofort, Gewinn nach spinMs.
       const ws = findWheelSounds(this.layouts.list(), action.targetId);
+      if (!ws) {
+        log.gedrosselt(`ton:rad-fehlt:${action.targetId}`, 60_000, 'info', 'Ton',
+          'Das Glücksrad dreht, aber zu diesem Rad wurde kein Widget gefunden (gelöscht, umbenannt oder in einem anderen Profil) — '
+          + 'deshalb kein Dreh- und kein Gewinn-Sound. In der Regel das Ziel-Rad neu auswählen.');
+      } else if (!ws.spin && !ws.result) {
+        log.gedrosselt(`ton:rad-stumm:${action.targetId}`, 60_000, 'info', 'Ton',
+          'Das Glücksrad dreht, aber am Widget ist weder ein Dreh- noch ein Gewinn-Sound eingestellt — deshalb bleibt es still.');
+      }
       if (ws) {
         if (ws.spin) this.playSound(ws.spin, undefined, 'game');
         if (ws.result) {
@@ -879,6 +1030,7 @@ export class Studio {
     }
 
     this.meldeLuckyDrawStatus();
+    this.meldeAusgangslage();
 
     // Spotify: Polling nur, wenn es auch jemand sieht (Client + Widget).
     this.refreshSpotifyPolling();
@@ -895,6 +1047,16 @@ export class Studio {
    *  Bei jeder Regeländerung neu bewerten. */
   private refreshTimerTicker(): void {
     const want = this.engine.hasTimerRules();
+    // Eine Timer-Regel ohne Intervall feuert JEDE SEKUNDE — 3600 Zeilen pro
+    // Stunde aus einer einzigen Regel, die alles begräbt, was man sucht. Beim
+    // Laden einmal warnen (nicht pro Tick), damit es überhaupt auffällt.
+    for (const r of this.engine.alleRegeln()) {
+      if (r.event === 'timer' && !((r.cooldownMs ?? 0) > 0) && r.enabled !== false) {
+        log.einmal(`trigger:timer-ohne-intervall:${r.id}`, 'warn', 'Trigger',
+          `Timer-Regel „${r.name}" hat kein Intervall — sie feuert JEDE SEKUNDE und flutet damit Overlay und Log. `
+          + 'Trag bei der Regel unter „alle … Sekunden" eine Zeit ein.');
+      }
+    }
     if (want && !this.timerTicker) {
       this.timerTicker = setInterval(() => {
         const ts = Date.now();
@@ -926,8 +1088,10 @@ export class Studio {
     if (this.statsSaveTimer) { clearTimeout(this.statsSaveTimer); this.statsSaveTimer = null; }
     if (this.letztesEchtesEventAt > 0) {
       this.saveSessionStats();
+      log.info('Studio', 'Session gesichert — beim nächsten Start wird sie fortgesetzt, wenn der Stream noch läuft.');
     } else {
       try { fs.rmSync(this.statsFile, { force: true }); } catch { /* egal */ }
+      log.info('Studio', 'Session verworfen — sie enthielt nur Test-Ereignisse. So laufen die Testzahlen nicht in den nächsten Stream.');
     }
     this.points.save();
     this.giftCatalog.save();
@@ -995,10 +1159,21 @@ export class Studio {
    *  letzten Sitzung wiederhergestellte Session gehört in die Analyse an den
    *  Abend, an dem sie lief. */
   private flushSessionToHistory(): void {
-    if (this.letztesEchtesEventAt === 0) return;
-    this.statsHistory.record(this.stats.snapshot().totals, Math.min(this.letztesEchtesEventAt, Date.now()));
+    if (this.letztesEchtesEventAt === 0) {
+      // Gegenstück zur Erfolgszeile unten: Sonst ist „nichts geschrieben" von
+      // „Anzeige klemmt" nicht zu unterscheiden.
+      log.info('Historie', 'Nichts in die Historie eingetragen — in dieser Session gab es kein einziges echtes '
+        + 'Ereignis (höchstens Test-Auslöser).');
+      return;
+    }
+    const t = this.stats.snapshot().totals;
+    this.statsHistory.record(t, Math.min(this.letztesEchtesEventAt, Date.now()));
     this.statsHistory.save();
     this.letztesEchtesEventAt = 0;
+    // Sichtbar machen, dass der Stream in der Analyse gelandet ist. Fehlt diese
+    // Zeile und die Zahlen tauchen später nicht auf, ist nicht zu unterscheiden,
+    // ob nie etwas geschrieben wurde oder ob die Anzeige klemmt.
+    log.info('Studio', `Stream in die Analyse übernommen: ${t.coins} Coins · ${t.gifts} Geschenke · ${t.likes} Likes · ${t.chats} Kommentare.`);
   }
 
   /** Stream-Historie als CSV (für Tabellen/Auswertung). */
@@ -1082,20 +1257,46 @@ export class Studio {
 
   /** Billiger Live-Check (HTML-Scrape via tiktok-live-connector, KEIN Sign-Key/
    *  Kontingent) — fürs dauerhafte „warte auf Live"-Pollen. */
+  /** Wahr, solange TikTok erreichbar war — für die Entwarnung nach einer
+   *  Störung. Bewusst optimistisch initialisiert: Beim allerersten Check soll
+   *  keine Entwarnung für etwas kommen, das nie gestört war. */
+  private tiktokErreichbar = true;
+
   private async checkLiveCheap(username: string): Promise<boolean> {
+    // „nicht live" und „TikTok nicht erreichbar" waren hier bisher dasselbe:
+    // beides ergab false, und der Live-Watch pollte fröhlich weiter, als sei
+    // alles in Ordnung. Genau dann wartet die App stundenlang auf ein Live,
+    // das längst läuft — und im Log steht nichts, was darauf hinweist.
+    const meldeErreichbar = (erreichbar: boolean, grund?: string) => {
+      if (erreichbar === this.tiktokErreichbar) return; // nur beim Zustandswechsel
+      this.tiktokErreichbar = erreichbar;
+      if (erreichbar) {
+        log.info('TikTok', 'TikTok ist wieder erreichbar — der Live-Check läuft wieder normal.');
+      } else {
+        log.warn('TikTok', 'Der Live-Check konnte TikTok nicht erreichen'
+          + (grund ? ` (${grund})` : '')
+          + ' — das heißt NICHT, dass du offline bist, die App kann es gerade nur nicht feststellen. '
+          + 'Prüf kurz deine Internetverbindung; sie versucht es in 30 Sekunden erneut.');
+      }
+    };
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { TikTokLiveConnection } = require('tiktok-live-connector');
       const conn = new TikTokLiveConnection(username.replace(/^@/, ''), { disableEulerFallbacks: true });
       // Timeout: die Lib hat selbst keinen — eine hängende TikTok-Antwort darf den
-      // Live-Watch nicht einschläfern (sonst pollt er nie wieder).
+      // Live-Watch nicht einschläfern (sonst pollt er nie wieder). Der Timeout
+      // liefert jetzt einen eigenen Wert statt false, sonst wäre er von einem
+      // ehrlichen „nicht live" wieder nicht zu unterscheiden.
       const live = await Promise.race([
         conn.fetchIsLive() as Promise<boolean>,
-        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 9000)),
+        new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 9000)),
       ]);
       try { conn.disconnect?.(); } catch { /* egal */ }
+      if (live === 'timeout') { meldeErreichbar(false, 'Zeitüberschreitung'); return false; }
+      meldeErreichbar(true);
       return !!live;
-    } catch {
+    } catch (err) {
+      meldeErreichbar(false, (err as Error)?.message?.slice(0, 120));
       return false;
     }
   }
@@ -1432,6 +1633,13 @@ export class Studio {
         const tts = this.settings.get().tts;
         const clean = TTSService.sanitize(a.text, tts.maxTextLen);
         if (clean && !this.moderationBlocked(clean)) this.tts.speak(clean, a.voice || tts.voice);
+        // Die Schnittstelle meldet hier bewusst „ok" (der Aufruf war gültig) —
+        // gesprochen wurde aber nichts. Ohne diese Zeile sucht man den Fehler
+        // beim Aufrufer, obwohl der alles richtig gemacht hat.
+        else {
+          log.warn('TTS', 'Eine Ansage über die Schnittstelle wurde NICHT gesprochen — der Text war nach dem Entfernen von '
+            + 'Links leer oder enthielt ein gesperrtes Wort. Die Schnittstelle hat trotzdem „ok" zurückgegeben.');
+        }
         return { ok: true };
       }
       case 'start_game': return this.startGame(a.game, a.config);
@@ -1701,12 +1909,30 @@ export class Studio {
   /** Beitritt via Join-Wort: dedupliziert pro Zuschauer, optional Punkte-Eintritt. */
   private maybeJoinGiveaway(event: StudioEvent): void {
     const gw = this.settings.peek().giveaway;
-    if (!gw.enabled || event.type !== 'chat' || !event.user || !event.text) return;
+    if (event.type !== 'chat' || !event.user || !event.text) return;
     const norm = (s: string) => s.trim().toLowerCase().replace(/^!+/, '');
+    // Ohne diese Zeile würde ein leeres Beitrittswort auf jede Nachricht
+    // passen, die nur aus „!" besteht — und die Verlosungs-Warnung unten
+    // grundlos feuern.
+    if (!norm(gw.joinWord)) return;
     if (norm(event.text) !== norm(gw.joinWord)) return;
+    // Das Beitrittswort kam an, die Verlosung ist aber aus: Die Zuschauer
+    // schreiben fleißig mit und niemand wird aufgenommen — genau der Fall, den
+    // man erst nach der Ziehung merkt. Einmal pro Session reicht.
+    if (!gw.enabled) {
+      log.einmal('verlosung:aus', 'warn', 'Verlosung',
+        `Das Beitrittswort „${gw.joinWord}" kam im Chat, die Verlosung ist aber AUSGESCHALTET — es wird niemand aufgenommen. `
+        + 'Im Reiter „Verlosung" einschalten.');
+      return;
+    }
     if (this.giveawayParticipants.has(event.user.id)) return; // schon dabei
     if (gw.entryCost > 0) {
-      if (!this.points.spend(event.user.id, gw.entryCost)) return; // nicht genug Punkte
+      if (!this.points.spend(event.user.id, gw.entryCost)) {
+        log.gedrosselt('verlosung:zu-arm', 60_000, 'info', 'Verlosung',
+          `${event.user.nickname} konnte nicht beitreten — der Eintritt kostet ${gw.entryCost} `
+          + `${this.settings.peek().points.currencyName}, so viel hat er/sie nicht.`);
+        return;
+      }
     }
     this.giveawayParticipants.set(event.user.id, { nickname: event.user.nickname, avatar: event.user.profilePic });
     // Auch bei Gratis-Eintritt (entryCost=0) muss der Teilnehmer-Zähler im
@@ -1733,7 +1959,12 @@ export class Studio {
   /** Gewinner ziehen: zufällig aus den Teilnehmern, Widget animiert die Ziehung. */
   drawGiveaway(): { ok: boolean; winner?: string } {
     const list = [...this.giveawayParticipants.values()];
-    if (list.length === 0) return { ok: false };
+    if (list.length === 0) {
+      // Vom Overlay aus sieht eine leere Ziehung aus wie ein kaputtes Widget.
+      log.warn('Verlosung', 'Ziehung ausgelöst, aber es ist niemand dabei — es wurde nichts gezogen. '
+        + 'Zuschauer müssen erst das Beitrittswort in den Chat schreiben.');
+      return { ok: false };
+    }
     const winner = list[Math.floor(Math.random() * list.length)];
     if (!winner) return { ok: false };
     this.lastGiveawayWinner = winner.nickname;
@@ -1758,11 +1989,23 @@ export class Studio {
     if (!cmds.length || !event.text) return;
     const cmd = matchChatCommand(cmds, event.text);
     if (!cmd) return;
-    if (!commandGroupOk(cmd.who ?? 'all', event, event.user ? this.points.isVip(event.user.id) : false)) return;
+    if (!commandGroupOk(cmd.who ?? 'all', event, event.user ? this.points.isVip(event.user.id) : false)) {
+      // „Der Befehl geht bei mir nicht" — meist ist er auf eine Gruppe
+      // beschränkt und TikTok meldet die Rolle nicht mit. Je Befehl und
+      // Zuschauer einmal pro Session, sonst wird es beim Spammen laut.
+      log.einmal(`befehl:rechte:${cmd.id}:${event.user?.id ?? '?'}`, 'info', 'Befehl',
+        `${cmd.command} von ${event.user?.nickname ?? 'jemandem'} ignoriert — der Befehl ist auf „${cmd.who ?? 'all'}" `
+        + 'beschränkt, und diese Rolle ist für diesen Zuschauer nicht bekannt.');
+      return;
+    }
     const now = event.ts;
     if (cmd.cooldownMs) {
       const last = this.commandCooldowns.get(cmd.id) ?? 0;
-      if (now - last < cmd.cooldownMs) return; // noch im Cooldown
+      if (now - last < cmd.cooldownMs) {
+        log.gedrosselt(`befehl:pause:${cmd.id}`, 60_000, 'info', 'Befehl',
+          `${cmd.command} ignoriert — die Pause läuft noch (${Math.ceil((cmd.cooldownMs - (now - last)) / 1000)} s).`);
+        return;
+      }
       this.commandCooldowns.set(cmd.id, now); // nur tracken, wenn es einen Cooldown gibt
     }
 
@@ -1858,6 +2101,10 @@ export class Studio {
   async sendChat(text: string): Promise<{ ok: boolean; error?: string }> {
     const now = Date.now();
     if (now - this.lastChatSendAt < CHAT_SEND_MIN_INTERVAL_MS) {
+      // Eine Regel, die in den Chat schreibt, verliert hier still ihre
+      // Nachricht — der Streamer sieht nur, dass „der Bot nichts sagt".
+      log.warn('Chat-Senden', `Nachricht verworfen — TikTok erlaubt nur eine alle ${CHAT_SEND_MIN_INTERVAL_MS / 1000}s, `
+        + `die letzte ging vor ${Math.round((now - this.lastChatSendAt) / 1000)}s raus. Verworfen: „${text.slice(0, 40)}"`);
       return { ok: false, error: `Bitte langsamer — max. 1 Nachricht alle ${CHAT_SEND_MIN_INTERVAL_MS / 1000}s (TikTok drosselt).` };
     }
     const res = await this.adapter.sendChat(text);
@@ -2021,7 +2268,7 @@ export class Studio {
     this.momentShownSession.clear();
     // Laufende Chat-Spiele + Boss-Modus beenden — sonst reagiert ein altes Spiel
     // (oder der Boss) im NEUEN Stream weiter auf Chat/Gifts und bleibt im Overlay.
-    this.games.stop();
+    this.games.stop('neuer Stream');
     if (this.bossActive) this.stopBoss();
     this.sessionRoles.clear();
     this.loggedRoleUsers.clear();
@@ -2058,9 +2305,27 @@ export class Studio {
 
   private speakForEvent(template: string, event: StudioEvent, voiceOverride?: string): void {
     const tts = this.settings.get().tts;
-    if (!tts.enabled) return;
+    if (!tts.enabled) {
+      // Eine Regel MIT Ansage, aber die Sprachausgabe ist im Haupt-Schalter
+      // aus: Von außen sieht das aus, als würde die Regel gar nicht feuern.
+      log.gedrosselt('tts:haupt-aus', 5 * 60_000, 'info', 'TTS',
+        'Eine Regel wollte etwas ansagen, aber die Sprachausgabe ist im Haupt-Schalter ausgeschaltet — '
+        + 'deshalb bleibt es still (Einstellungen → Sprachausgabe).');
+      return;
+    }
     const text = TTSService.sanitize(renderSpeakTemplate(template, event), tts.maxTextLen);
-    if (!text || this.moderationBlocked(text)) return;
+    if (!text) {
+      log.gedrosselt('tts:leer', 60_000, 'info', 'TTS',
+        'Eine Ansage wurde nicht vorgelesen, weil nach dem Einsetzen der Platzhalter kein Text übrig blieb — '
+        + 'meist ein leeres Vorlese-Muster in der Regel.');
+      return;
+    }
+    if (this.moderationBlocked(text)) {
+      // Bewusst OHNE den Text: Der Sinn der Sperre ist ja, dass das Wort nicht
+      // auftaucht — auch nicht in der Logdatei, die man weitergibt.
+      log.info('TTS', 'Eine Ansage wurde nicht vorgelesen: Sie enthielt ein gesperrtes Wort (Einstellungen → Moderation).');
+      return;
+    }
     const ownVoice = event.user ? this.points.voiceFor(event.user.id) : undefined;
     const voice =
       voiceOverride ||
@@ -2080,7 +2345,14 @@ export class Studio {
 
   private maybeReadChat(event: StudioEvent): void {
     const tts = this.settings.get().tts;
-    if (!tts.enabled || !tts.readChat) return;
+    if (!tts.enabled || !tts.readChat) {
+      // Die beiden Schalter sehen von außen gleich aus („es liest nichts vor"),
+      // meinen aber Verschiedenes. Selten genug melden, dass es nicht nervt.
+      log.gedrosselt('tts:chat-aus', 10 * 60_000, 'info', 'TTS', tts.enabled
+        ? 'Der Chat wird nicht vorgelesen — der Schalter „Chat vorlesen" ist aus (die Sprachausgabe selbst ist an).'
+        : 'Der Chat wird nicht vorgelesen — die Sprachausgabe ist komplett ausgeschaltet, deshalb gibt es auch keine Ansagen.');
+      return;
+    }
     const raw = event.text ?? '';
     if (!raw.trim()) return;
     if (tts.skipCommands && raw.trimStart().startsWith('!')) return;
@@ -2163,7 +2435,13 @@ export class Studio {
   private maybeAnnounceGift(event: StudioEvent, regelLiestSchonVor = false): void {
     const cfg = this.settings.peek().tts.announceGift;
     if (!cfg?.enabled || !event.gift) return;
-    if (!shouldAnnounceGift(event.gift.totalCoins, cfg)) return;
+    if (!shouldAnnounceGift(event.gift.totalCoins, cfg)) {
+      // „Warum wird mein Geschenk nicht angesagt?" — je Geschenkart einmal.
+      log.einmal(`tts:unter-schwelle:${giftKey(event.gift.slug)}`, 'info', 'TTS',
+        `Geschenk „${event.gift.slug}" (${event.gift.totalCoins} Coins) wurde nicht angesagt — `
+        + `deine Gift-Ansage startet erst ab ${cfg.minCoins} Coins (Einstellungen → Sprachausgabe).`);
+      return;
+    }
     // Eine Trigger-Regel liest dieses Geschenk bereits vor → nicht doppelt ansagen.
     if (regelLiestSchonVor) {
       log.info('TTS', 'Gift-Ansage übersprungen — eine Trigger-Regel liest dieses Geschenk bereits vor');
@@ -2199,7 +2477,11 @@ export class Studio {
   speakTest(text: string, voice?: string): void {
     const tts = this.settings.get().tts;
     const clean = TTSService.sanitize(text, tts.maxTextLen);
-    if (clean) this.tts.speak(clean, voice || tts.voice);
+    if (clean) { this.tts.speak(clean, voice || tts.voice); return; }
+    // Sonst passiert beim Test-Knopf sichtbar gar nichts — und man vermutet
+    // die Stimme oder das Ausgabegerät, dabei war der Text nach dem Filtern leer.
+    log.warn('TTS', 'Die Testansage wurde nicht gesprochen — nach dem Entfernen von Links und Spam-Zeichen war kein Text '
+      + 'mehr übrig. Zum Testen einen normalen Satz eingeben.');
   }
 
   // ── Sound ─────────────────────────────────────────────────────────────
@@ -2209,6 +2491,15 @@ export class Studio {
     // macht der Mixer im Renderer (Master × Kanal) — deshalb hier KEIN
     // soundVolume mehr (das war der zweite Master, siehe Migration v6→v7).
     const vol = volume ?? 1;
+    // Fehlt die Datei, meldete bisher nur der Renderer „ließ sich nicht
+    // abspielen" — ohne zu sagen, dass sie schlicht nicht mehr da ist. Hier
+    // weiß man es sicher, bevor überhaupt jemand versucht abzuspielen.
+    if (soundId && soundId !== 'preview' && !this.sounds.exists(soundId)) {
+      log.einmal(`sound:fehlt:${soundId}`, 'warn', 'Sounds',
+        `Der Sound „${soundId}" wird nicht abgespielt — die Datei liegt nicht mehr im Sound-Ordner `
+        + '(gelöscht oder umbenannt). Die Regel bzw. das Widget neu zuordnen oder die Datei erneut importieren.');
+      return;
+    }
     const url = `http://127.0.0.1:${this.server.getPort()}/sounds/${encodeURIComponent(soundId)}?token=${this.server.getToken()}`;
     this.hooks.onSoundPlay({ soundId, url, volume: vol, category });
   }

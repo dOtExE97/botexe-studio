@@ -190,7 +190,17 @@ export class ObsService {
 
   /** Programm-Szene wechseln. */
   async setScene(sceneName: string): Promise<void> {
-    if (this.status !== 'connected' || !sceneName) return;
+    if (!sceneName) return;
+    if (this.status !== 'connected') {
+      // Der Szenenwechsel verpuffte bisher lautlos: Die Regel feuert, im Log
+      // steht „Regel → OBS-Szene", und in OBS passiert nichts.
+      log.gedrosselt(`obs:keine-verbindung:${sceneName}`, 60_000, 'warn', 'OBS',
+        `Die Szene „${sceneName}" wurde NICHT geschaltet — es besteht gerade keine Verbindung zu OBS (Status: ${this.status}). `
+        + (this.status === 'off'
+          ? 'Die OBS-Steuerung ist in den Einstellungen ausgeschaltet.'
+          : 'Die App versucht weiter zu verbinden.'));
+      return;
+    }
     try {
       await this.obs.call('SetCurrentProgramScene', { sceneName });
     } catch (err) {
@@ -200,7 +210,13 @@ export class ObsService {
 
   /** Quelle in einer Szene ein-/ausblenden. */
   async setSourceVisible(sceneName: string, sourceName: string, visible: boolean): Promise<void> {
-    if (this.status !== 'connected' || !sceneName || !sourceName) return;
+    if (!sceneName || !sourceName) return;
+    if (this.status !== 'connected') {
+      log.gedrosselt(`obs:quelle-ohne-verbindung:${sceneName}/${sourceName}`, 60_000, 'warn', 'OBS',
+        `Die Quelle „${sourceName}" in Szene „${sceneName}" wurde NICHT geschaltet — es besteht gerade keine Verbindung `
+        + `zu OBS (Status: ${this.status}).`);
+      return;
+    }
     try {
       const { sceneItemId } = await this.obs.call('GetSceneItemId', { sceneName, sourceName });
       await this.obs.call('SetSceneItemEnabled', { sceneName, sceneItemId, sceneItemEnabled: visible });

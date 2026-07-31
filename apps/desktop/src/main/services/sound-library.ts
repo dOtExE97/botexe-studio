@@ -64,6 +64,14 @@ export class SoundLibrary {
     }
   }
 
+  /** Liegt die Datei (noch) im Sound-Ordner? Gebraucht, bevor ein Sound
+   *  abgespielt wird — sonst hört man nur nichts und weiß nicht, warum. */
+  exists(id: string): boolean {
+    const safe = path.basename(id);
+    if (!ALLOWED_EXT.has(path.extname(safe).toLowerCase())) return false;
+    return fs.existsSync(path.join(this.dir, safe));
+  }
+
   delete(id: string): boolean {
     const safe = path.basename(id);
     if (!ALLOWED_EXT.has(path.extname(safe).toLowerCase())) return false;

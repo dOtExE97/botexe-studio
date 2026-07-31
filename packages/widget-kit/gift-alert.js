@@ -177,6 +177,7 @@ export default class GiftAlert {
     root.appendChild(this.el);
     // Editor-Vorschau: einen stehenden Beispiel-Alert zeigen (ohne Ausblenden),
     // sonst ist die Box im Editor komplett leer.
+    this.ctx = ctx || {};
     this.preview = !!ctx?.preview;
     if (this.preview) this.enqueue({ name: 'Mia', gift: '3× Rose', coins: 420, icon: '', pic: '' });
   }
@@ -184,7 +185,21 @@ export default class GiftAlert {
   onEvent(event) {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'gift' || !event.gift) return;
-    if (event.gift.totalCoins < this.minCoins) return;
+    if (event.gift.totalCoins < this.minCoins) {
+      // „Das Geschenk kam, aber kein Alert" ist im Stream die häufigste
+      // Verwirrung — dabei greift nur die eingestellte Mindestgröße. Genau
+      // EINMAL je Widget melden: Bei hunderten Rosen pro Stream würde eine
+      // Zeile pro Geschenk das Log (und die Client-Log-Bremse) sprengen.
+      if (!this.mindestgroesseGemeldet) {
+        this.mindestgroesseGemeldet = true;
+        this.ctx?.notify?.(
+          `Geschenk „${giftName(event.gift)}" (${event.gift.totalCoins} Coins) kam an, liegt aber unter der eingestellten `
+          + `Mindestgröße von ${this.minCoins} Coins — deshalb kein Alert. Schwelle im Widget unter „Mindest-Coins" senken. `
+          + '(Weitere ausgefilterte Geschenke werden nicht mehr gemeldet.)',
+        );
+      }
+      return;
+    }
     this.leavePreview();
     this.enqueue({
       name: event.user?.nickname || 'Jemand',

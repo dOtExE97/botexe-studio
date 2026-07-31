@@ -484,6 +484,16 @@ async function renderLayoutIntern(layout, epoch) {
         console.warn(`[overlay] Widget "${layer.widgetType}" crash beim mount:`, err);
         reportClientError(layer.widgetType, `Crash beim Mount: ${err && err.message ? err.message : err}`);
       }
+    } else {
+      // Der Baustein ließ sich nicht laden (loadWidgetClass hat null geliefert).
+      // Die Ebene bleibt einfach leer — im Stream sieht das aus, als hätte man
+      // das Widget falsch eingestellt, dabei fehlt die Datei.
+      meldeEinmal(
+        'layout',
+        `Der Widget-Baustein „${layer.widgetType}" lässt sich nicht laden — die Ebene „${layer.name || layer.widgetType}" `
+          + 'bleibt im Overlay leer. Overlay-Quelle einmal neu laden; hilft das nicht, ist die App-Installation unvollständig.',
+        `fehlt:${layer.widgetType}`,
+      );
     }
   }
 
@@ -867,14 +877,38 @@ let sessionSeed = '';
 
 // Widget-/Runtime-Fehler an die App melden (zentrales Datei-Log), nicht nur
 // in die TTLS-Browser-Console (die sieht niemand).
+// Meldungen, die entstanden sind, WÄHREND die Leitung zur App weg war.
+// Vorher fielen genau die unter den Tisch — also ausgerechnet die aus der
+// Phase, in der etwas kaputt war. Klein halten (der Server drosselt ohnehin).
+const wartendeMeldungen = [];
+const MAX_WARTENDE_MELDUNGEN = 20;
+
 function reportClientError(scope, message, level = 'warn') {
+  const text = String(message).slice(0, 500);
   try {
     if (activeWs && activeWs.readyState === 1) {
-      activeWs.send(JSON.stringify({ kind: 'clientlog', level, scope, message: String(message).slice(0, 500) }));
+      activeWs.send(JSON.stringify({ kind: 'clientlog', level, scope, message: text }));
+      return true;
     }
+    if (wartendeMeldungen.length < MAX_WARTENDE_MELDUNGEN) {
+      wartendeMeldungen.push({ level, scope, message: text });
+    }
+    return false;
   } catch {
     /* Melde-Fehler nie eskalieren */
+    return false;
   }
+}
+
+/** Nach dem Verbinden nachreichen, was in der Zwischenzeit anfiel. */
+function sendeWartendeMeldungen() {
+  if (wartendeMeldungen.length === 0) return;
+  const anzahl = wartendeMeldungen.length;
+  const kopie = wartendeMeldungen.splice(0, wartendeMeldungen.length);
+  reportClientError('verbindung',
+    `${anzahl} Meldung(en) entstanden, während dieses Overlay von der App getrennt war — sie werden jetzt nachgereicht.`,
+    'info');
+  for (const m of kopie) reportClientError(m.scope, m.message, m.level);
 }
 
 function connect() {
@@ -884,6 +918,7 @@ function connect() {
     reconnectDelay = 1000;
     activeWs = ws;
     console.log('[overlay] verbunden');
+    sendeWartendeMeldungen();
   };
 
   ws.onmessage = (raw) => {
@@ -908,7 +943,15 @@ function connect() {
       // neu starten; sie wird beim App-Neustart ohnehin frisch geladen.
       if (seenVersion !== null && seenVersion !== msg.version && !PREVIEW) {
         console.warn(`[overlay] neue Version ${msg.version} (war ${seenVersion}) — lade neu`);
-        location.reload();
+        // Mitten im Stream flackert das Overlay plötzlich und laufende Effekte
+        // brechen ab. Ohne diese Zeile sieht das nach einem Aussetzer aus.
+        reportClientError('overlay',
+          `App wurde aktualisiert (Version ${seenVersion} → ${msg.version}) — dieses Overlay lädt sich jetzt einmal neu `
+          + 'und holt den frischen Code. Laufende Effekte brechen dabei ab, Zähler und Spielstände kommen automatisch zurück.',
+          'info');
+        // Kurz warten, damit die Meldung noch rausgeht, bevor die Seite stirbt.
+        setTimeout(() => location.reload(), 250);
+        return;
         return;
       }
       seenVersion = msg.version;
@@ -917,7 +960,17 @@ function connect() {
     if (msg.kind === 'layout') void renderLayout(msg.layout);
     // In der Vorschau treiben Demo-Daten die Widgets — echte Events/Stats/
     // Aktionen vom Server (i.d.R. leer, kein Live-Stream) ignorieren wir.
-    else if (PREVIEW) return;
+    else if (PREVIEW) {
+      // In der Vorschau treiben Demo-Daten die Widgets. Wer hier prüfen will,
+      // ob sein Trigger funktioniert, wartet vergeblich — einmal sagen, warum.
+      if (msg.kind === 'action' || msg.kind === 'moment') {
+        meldeEinmal('vorschau',
+          'Die Vorschau in der App zeigt absichtlich nur Beispiel-Daten — echte Auslöser und Geschenke werden hier nicht '
+          + 'angezeigt. Zum Prüfen ins echte Overlay in OBS oder TikTok Live Studio schauen.',
+          'vorschau-verwirft');
+      }
+      return;
+    }
     else if (msg.kind === 'event') {
       if (rendering) pendingEvents.push(msg.event);
       else dispatchEvent(msg.event);
@@ -971,15 +1024,20 @@ window.addEventListener('resize', scaleStage);
 // Gedrosselt, damit ein Fehler in einer 60-Bilder-Schleife nicht das Log flutet
 // — der Server begrenzt zwar auch, aber erst nachdem gesendet wurde.
 const gemeldeteFehler = new Set();
-function meldeEinmal(quelle, text, schluesselText) {
+function meldeEinmal(quelle, text, schluesselText, level = 'warn') {
   // Schlüssel OHNE Fundstelle: Derselbe Fehler aus einer Animationsschleife
   // feuert sonst mit jeder Zeilennummer neu und flutet das Log trotzdem.
   const schluessel = `${quelle}:${schluesselText ?? text}`.slice(0, 160);
   if (gemeldeteFehler.has(schluessel)) return;
+  // Merker ERST setzen, wenn die Meldung wirklich raus ist (oder wenigstens in
+  // der Warteschlange liegt). Sonst gilt ein Fehler als „schon gemeldet",
+  // obwohl ihn nie jemand gesehen hat — und er bleibt für den Rest des Streams
+  // unsichtbar.
+  const raus = reportClientError(quelle, text, level);
+  if (!raus && wartendeMeldungen.length >= MAX_WARTENDE_MELDUNGEN) return;
   gemeldeteFehler.add(schluessel);
   // Nach 200 verschiedenen Fehlern aufhören zu sammeln (Speicher).
   if (gemeldeteFehler.size > 200) gemeldeteFehler.clear();
-  reportClientError(quelle, text);
 }
 
 window.addEventListener('error', (e) => {

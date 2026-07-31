@@ -208,6 +208,15 @@ export interface TriggerRule {
   enabled: boolean;
 }
 
+/** Eine Regel, die gepasst hat, aber von einer Abklingzeit gebremst wurde. */
+export interface GebremsteRegel {
+  ruleId: string;
+  name: string;
+  grund: 'abklingzeit' | 'proZuschauer' | 'ausgeschaltet';
+  /** Wie lange die Sperre noch gilt (ms). */
+  restMs: number;
+}
+
 export interface TriggerMatch {
   ruleId: string;
   action: TriggerAction;
@@ -217,6 +226,11 @@ export class TriggerEngine {
   private rules: TriggerRule[] = [];
   /** ruleId → event.ts der letzten Auslösung. Überlebt setRules() bewusst. */
   private lastFired = new Map<string, number>();
+  /** Ergebnis des letzten evaluate(): Regeln, die gepasst hätten, aber wegen
+   *  einer Abklingzeit übersprungen wurden — siehe gebremsteRegeln(). */
+  private zuletztGebremst: GebremsteRegel[] = [];
+  /** Regeln, die beim letzten evaluate() gepasst hätten, aber AUS sind. */
+  private zuletztAusgeschaltet: GebremsteRegel[] = [];
   /** ruleId → (userId → event.ts) für den Cooldown pro Zuschauer. */
   private lastFiredPerUser = new Map<string, Map<string, number>>();
 
@@ -226,6 +240,13 @@ export class TriggerEngine {
 
   /** Gibt es mind. eine aktive Timer-Regel? — damit der 1s-Ticker nur läuft,
    *  wenn er auch etwas auswerten kann (sonst reine Leerlauf-Last). */
+  /** Die aktuell geladenen Regeln (nur lesen — Kopie, damit niemand von außen
+   *  am internen Stand dreht). Gebraucht für Start-Meldungen wie „Timer-Regel
+   *  ohne Intervall", die sonst jede Sekunde erneut geprüft würden. */
+  alleRegeln(): TriggerRule[] {
+    return [...this.rules];
+  }
+
   hasTimerRules(): boolean {
     return this.rules.some((r) => r.enabled && r.event === 'timer');
   }
@@ -236,25 +257,40 @@ export class TriggerEngine {
   }
 
   evaluate(event: StudioEvent): TriggerMatch[] {
+    this.zuletztGebremst = [];
     const matches: TriggerMatch[] = [];
+    this.zuletztAusgeschaltet = [];
     for (const rule of this.rules) {
-      if (!rule.enabled) continue;
       if (rule.event !== event.type) continue;
       if (rule.event === 'timer') continue; // Timer laufen über evaluateTimer
       if (!(rule.conditions ?? []).every((c) => conditionHolds(c, event))) continue;
+      // Erst NACH der Bedingungsprüfung auf „ausgeschaltet" testen: So weiß der
+      // Aufrufer nicht nur, dass eine Regel aus ist, sondern dass sie GERADE
+      // gepasst hätte. Eine ausgeschaltete Regel wurde sonst nirgends je
+      // erwähnt — der Streamer baut sie ein zweites Mal.
+      if (!rule.enabled) {
+        this.zuletztAusgeschaltet.push({ ruleId: rule.id, name: rule.name, grund: 'ausgeschaltet', restMs: 0 });
+        continue;
+      }
       // Cooldown pro Zuschauer VOR dem globalen prüfen (sonst würde ein
       // gedrosselter Nutzer den globalen Timer trotzdem zurücksetzen).
       const userId = event.user?.id;
       if (rule.userCooldownMs !== undefined && userId) {
         let perUser = this.lastFiredPerUser.get(rule.id);
         const lastU = perUser?.get(userId);
-        if (lastU !== undefined && event.ts - lastU < rule.userCooldownMs) continue;
+        if (lastU !== undefined && event.ts - lastU < rule.userCooldownMs) {
+          this.zuletztGebremst.push({ ruleId: rule.id, name: rule.name, grund: 'proZuschauer', restMs: rule.userCooldownMs - (event.ts - lastU) });
+          continue;
+        }
         if (!perUser) { perUser = new Map(); this.lastFiredPerUser.set(rule.id, perUser); }
         perUser.set(userId, event.ts);
       }
       if (rule.cooldownMs !== undefined) {
         const last = this.lastFired.get(rule.id);
-        if (last !== undefined && event.ts - last < rule.cooldownMs) continue;
+        if (last !== undefined && event.ts - last < rule.cooldownMs) {
+          this.zuletztGebremst.push({ ruleId: rule.id, name: rule.name, grund: 'abklingzeit', restMs: rule.cooldownMs - (event.ts - last) });
+          continue;
+        }
         this.lastFired.set(rule.id, event.ts);
       }
       for (const action of rule.actions) {
@@ -262,6 +298,25 @@ export class TriggerEngine {
       }
     }
     return matches;
+  }
+
+  /**
+   * Welche Regeln haben beim LETZTEN evaluate() vollständig gepasst, wurden
+   * aber von einer Abklingzeit geschluckt?
+   *
+   * Ohne diesen Rückkanal ist der Fall von außen nicht von „keine Regel passt"
+   * zu unterscheiden — für den Streamer sieht beides gleich aus (es passiert
+   * nichts), die Ursache ist aber eine völlig andere: einmal muss er die Regel
+   * bauen, einmal nur warten oder die Abklingzeit senken.
+   */
+  gebremsteRegeln(): GebremsteRegel[] {
+    return this.zuletztGebremst;
+  }
+
+  /** Regeln, die beim letzten evaluate() gepasst hätten — nur eben
+   *  ausgeschaltet sind. Gleicher Rückkanal-Gedanke wie gebremsteRegeln(). */
+  ausgeschalteteTreffer(): GebremsteRegel[] {
+    return this.zuletztAusgeschaltet;
   }
 
   /**

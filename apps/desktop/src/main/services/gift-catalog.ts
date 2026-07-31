@@ -127,7 +127,13 @@ export class GiftCatalog {
             if (key && !this.eigeneBilder.has(key)) this.eigeneBilder.set(key, name);
           }
         }
-      } catch { /* Ordner fehlt/unlesbar → keine eigenen Bilder */ }
+      } catch (err) {
+        // Selbst hinterlegte Bilder werden dann schlicht nicht gefunden — und
+        // man sucht beim Widget statt beim Ordner.
+        log.einmal('gift-bilder-ordner', 'warn', 'GiftCatalog',
+          `Der Gift-Bilder-Ordner ist nicht lesbar (${this.imagesDir}) — selbst hinterlegte Bilder werden nicht gefunden.`,
+          (err as Error).message);
+      }
     }
     return this.eigeneBilder.get(normalisiereBildname(slug)) ?? '';
   }
@@ -169,7 +175,15 @@ export class GiftCatalog {
   private async downloadIcon(url: string, dest: string, name: string, entry: GiftEntry): Promise<void> {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
-      if (!res.ok) return;
+      if (!res.ok) {
+        // Grauer Platzhalter im Overlay sieht nach einem Widget-Fehler aus,
+        // ist aber meist eine abgelaufene TikTok-Bildadresse. Gedrosselt, weil
+        // beim ersten Connect hunderte Bilder auf einmal laufen.
+        log.gedrosselt(`gift-bild:${res.status}`, 5 * 60_000, 'warn', 'GiftCatalog',
+          `Ein Gift-Bild („${entry.slug}") wurde nicht geladen — TikTok antwortete mit ${res.status}. `
+          + 'Ein eigenes Bild in den Gift-Bilder-Ordner legen (Einstellungen → „Gift-Bilder öffnen") greift sofort.');
+        return;
+      }
       const buf = Buffer.from(await res.arrayBuffer());
       if (buf.length === 0 || buf.length > 2 * 1024 * 1024) return; // Sanity-Cap
       fs.writeFileSync(dest, buf);
@@ -186,7 +200,12 @@ export class GiftCatalog {
     if (!fs.existsSync(this.file)) return;
     try {
       const data = JSON.parse(fs.readFileSync(this.file, 'utf-8')) as Partial<Serialized>;
-      if (data.schemaVersion !== SCHEMA_VERSION || !Array.isArray(data.gifts)) return;
+      if (data.schemaVersion !== SCHEMA_VERSION || !Array.isArray(data.gifts)) {
+        log.warn('GiftCatalog', `gift-catalog.json passt nicht zum Format dieser Version `
+          + `(gespeichert: ${String(data.schemaVersion)}, erwartet: ${SCHEMA_VERSION}) — der Katalog startet leer. `
+          + 'Die Bilder bauen sich neu auf, sobald wieder Geschenke kommen.');
+        return;
+      }
       for (const g of data.gifts) {
         if (g && typeof g.slug === 'string') this.gifts.set(g.slug.toLowerCase(), { ...g });
       }

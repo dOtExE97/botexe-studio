@@ -1,7 +1,7 @@
 // SettingsPage — App-Einstellungen: Loyalty-Punkte-Regeln, App-Infos,
 // Datenordner, Punkte-Reset.
 import { useEffect, useState } from 'react';
-import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket, Sparkles, KeyRound, ExternalLink, Music, Play, Pause, SkipForward, SkipBack, ClipboardPaste } from 'lucide-react';
+import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gift, Speaker, FileText, Clapperboard, Check, AlertTriangle, ShieldCheck, Download, RefreshCw, Upload, Gamepad2, Rocket, Sparkles, KeyRound, ExternalLink, Music, Play, Pause, SkipForward, SkipBack, ClipboardPaste, Bug } from 'lucide-react';
 import ConfirmButton from '../components/ConfirmButton';
 import GreetReturningCard from '../components/GreetReturningCard';
 import ThirdPartyLicenses from '../components/ThirdPartyLicenses';
@@ -37,6 +37,14 @@ const RULE_ICON: Record<string, typeof Coins> = {
 };
 
 export default function SettingsPage() {
+  // Diagnose-Modus (siehe logger.ts): Restlaufzeit anzeigen und selbst
+  // herunterzählen — sonst steht „läuft" noch da, wenn er längst aus ist.
+  const [diagnoseRest, setDiagnoseRest] = useState(0);
+  useEffect(() => {
+    void window.studio.setDiagnose().then((r) => setDiagnoseRest(r.restMs));
+    const t = setInterval(() => setDiagnoseRest((v) => (v > 0 ? Math.max(0, v - 10_000) : 0)), 10_000);
+    return () => clearInterval(t);
+  }, []);
   const [points, setPoints] = useState<PointsConfig | null>(null);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [outputs, setOutputs] = useState<{ deviceId: string; label: string }[]>([]);
@@ -1132,6 +1140,24 @@ export default function SettingsPage() {
           </button>
           <button onClick={() => void window.studio.openLogs()} className="bx-pill hover:text-studio-teal">
             <FileText size={13} /> Logs öffnen
+          </button>
+          {/* Diagnose-Modus: Für ein Problem, das man gerade reproduzieren kann.
+              Läuft von allein aus, damit er nicht einen ganzen Stream lang
+              mitschreibt und die Datei unlesbar macht. */}
+          <button
+            onClick={() => {
+              const an = diagnoseRest > 0;
+              void window.studio.setDiagnose(an ? 0 : 30).then((r) => {
+                setDiagnoseRest(r.restMs);
+                toast('info', an
+                  ? 'Diagnose-Modus aus — das Log ist wieder normal.'
+                  : 'Diagnose-Modus an (30 Minuten): Ab jetzt wird alles mitgeschrieben. Problem jetzt nachstellen, dann „Logs öffnen".');
+              });
+            }}
+            title="Schreibt 30 Minuten lang ALLES mit — auch Wiederholungen, die sonst unterdrückt werden. Für Probleme, die du gerade nachstellen kannst."
+            className={`bx-pill ${diagnoseRest > 0 ? 'text-studio-gold' : 'hover:text-studio-teal'}`}
+          >
+            <Bug size={13} /> {diagnoseRest > 0 ? `Diagnose läuft (${Math.ceil(diagnoseRest / 60_000)} Min)` : 'Diagnose-Modus'}
           </button>
           <button
             onClick={() => void window.studio.exportConfig().then((r: { ok: boolean }) => r.ok && toast('success', 'Backup gespeichert.'))}

@@ -11,6 +11,10 @@ import { mergeMitMaster, type KatalogEintrag } from '../../shared/gift-master';
 
 export interface GiftEntry {
   slug: string;
+  /** Sprachunabhängige TikTok-Nummer — kommt aus der eingebauten Master-Liste
+   *  bzw. vom Server. Gebraucht für aus TikFinity importierte Regeln, die das
+   *  Geschenk als Zahl speichern (gift_id_is). */
+  giftId?: number;
   icon?: string;
   coins: number;
   count: number;

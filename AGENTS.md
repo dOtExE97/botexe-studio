@@ -102,6 +102,36 @@ Merkpunkte:
 - Der `SETTINGS_GET`-IPC-Handler ist eine **Deny**list: neue Felder gehen automatisch an
   den Renderer. Ein neues Geheimnis dort explizit löschen.
 
+## Logging — was hineingehört und was nie
+
+Die Endnutzer sind Streamer. Das Log ist für sie die einzige Antwort auf „warum
+passiert nichts?" — also schreibt es in Alltagssprache, nennt die Ursache und den
+nächsten Handgriff. `[ERROR] evaluate() returned []` hilft niemandem.
+
+**Die Regel dahinter:** Überall, wo der Code bewusst etwas überspringt, filtert,
+drosselt oder verwirft, gehört eine Zeile hin. Genau diese Stellen sind von außen
+nicht von einem Defekt zu unterscheiden. (Eine Prüfung fand davon 88 Stück — siehe
+`KI Home Wissen/plans/logging-luecken-2026-07-31.md`.)
+
+**Drosseln ist Pflicht, nicht Kür.** Die nützlichsten Zeilen sitzen an den
+heißesten Stellen (jedes Geschenk, jeder Frame). Ungedrosselt ersetzt die Kur die
+Krankheit. Dafür gibt es **einen** Ort — `apps/desktop/src/main/core/logger.ts`:
+- `log.einmal(schluessel, level, scope, text)` — genau einmal je Schlüssel
+- `log.gedrosselt(schluessel, ms, level, scope, text)` — höchstens alle N ms
+- `log.merkerZuruecksetzen(praefix)` — beim TikTok-Connect und in `resetSession()`,
+  sonst bleibt ein behobenes Problem für den Rest des Abends stumm
+Das Muster **nicht** von Hand nachbauen (es lag vor der Zusammenführung fünfmal
+einzeln im Repo — genau daraus entstehen Abweichungen, die niemand mehr findet).
+
+`log.debug` landet **nicht** in der Datei — außer im Diagnose-Modus
+(Einstellungen → „Diagnose-Modus", 30 Min, läuft von allein aus; schaltet
+zusätzlich alle Drosselungen durch). Je Logdatei gilt ein Deckel von 20 MB.
+
+**Niemals ins Log:** Token, API-Keys, `sessionid`, `req.url`/`req.query` (der
+Overlay-Token steht in der Query — `req.path` ist sicher), rohe Frames oder ganze
+Fehler-/User-Objekte. Bei Fremdfehlern nur `.message`. Unkritisch sind
+Geschenknamen, Nicknames, Dateinamen, Close-Codes, Profil-IDs und Origins.
+
 ## Screenshots (headless Chrome) — die drei Fallen
 
 1. **KEIN `--disable-gpu`.** Das schaltet den Compositor ab, es entstehen nie Frames, `Page.captureScreenshot` hängt endlos. Stattdessen `--enable-unsafe-swiftshader` (Software-GL).

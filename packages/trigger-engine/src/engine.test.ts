@@ -398,3 +398,37 @@ test('spin_wheel-action wird mit targetId + cost geliefert', () => {
   assert.equal(m.length, 1);
   assert.deepEqual(m[0]?.action, { kind: 'spin_wheel', targetId: 'wheel-1', cost: 100 });
 });
+
+test('ausgeschalteteTreffer: nur Regeln, die WIRKLICH gepasst hätten', () => {
+  const e = new TriggerEngine();
+  e.setRules([
+    { id: 'aus-passt', name: 'Aus & passend', event: 'gift', enabled: false, conditions: [], actions: [{ kind: 'speak', template: 'x' }] },
+    { id: 'aus-passt-nicht', name: 'Aus & unpassend', event: 'chat', enabled: false, conditions: [], actions: [{ kind: 'speak', template: 'x' }] },
+    { id: 'an', name: 'An', event: 'gift', enabled: true, conditions: [], actions: [{ kind: 'speak', template: 'x' }] },
+  ] as TriggerRule[]);
+  const treffer = e.evaluate(giftEvent());
+  assert.equal(treffer.length, 1, 'die aktive Regel feuert weiterhin');
+  const aus = e.ausgeschalteteTreffer();
+  assert.equal(aus.length, 1);
+  assert.equal(aus[0]?.ruleId, 'aus-passt');
+});
+
+test('ausgeschalteteTreffer: Bedingung muss zutreffen, sonst keine Meldung', () => {
+  const e = new TriggerEngine();
+  e.setRules([
+    { id: 'r', name: 'Nur Rose', event: 'gift', enabled: false, conditions: [{ kind: 'gift_slug_is', value: 'Rose' }], actions: [] },
+  ] as TriggerRule[]);
+  e.evaluate(giftEvent({ gift: { slug: 'Galaxy', coinsPerUnit: 1000, totalCoins: 1000, count: 1 } }));
+  assert.equal(e.ausgeschalteteTreffer().length, 0);
+  e.evaluate(giftEvent({ gift: { slug: 'Rose', coinsPerUnit: 1, totalCoins: 1, count: 1 } }));
+  assert.equal(e.ausgeschalteteTreffer().length, 1);
+});
+
+test('ausgeschalteteTreffer wird bei jedem evaluate() geleert', () => {
+  const e = new TriggerEngine();
+  e.setRules([{ id: 'r', name: 'Aus', event: 'gift', enabled: false, conditions: [], actions: [] }] as TriggerRule[]);
+  e.evaluate(giftEvent());
+  assert.equal(e.ausgeschalteteTreffer().length, 1);
+  e.evaluate({ type: 'chat', ts: 2, text: 'hi' } as StudioEvent);
+  assert.equal(e.ausgeschalteteTreffer().length, 0, 'sonst meldet ein Chat den alten Geschenk-Treffer erneut');
+});

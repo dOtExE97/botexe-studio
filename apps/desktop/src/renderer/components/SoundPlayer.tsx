@@ -14,6 +14,13 @@ import {
 } from '../../shared/mixer';
 
 const MAX_PARALLEL = 4;
+/** Für welche Kanäle wurde „ist stumm" schon gemeldet — sonst käme die Zeile
+ *  bei jedem einzelnen Geschenk erneut. Wird zurückgesetzt, sobald der Kanal
+ *  wieder hörbar ist. */
+const stummGemeldet = new Set<string>();
+/** Schon gemeldete verschwundene Ausgabegeräte — sonst eine Zeile pro
+ *  Geräte-Auflösung (die läuft bei jeder Mixer-Änderung neu). */
+const fehlendeGeraeteGlobal = new Set<string>();
 const DUCK = 0.3; // andere Sounds auf 30%, während TTS spricht (Ducking)
 /** Wachhund: So lange darf sich die Abspielposition eines Sounds NICHT bewegen,
  *  bevor er als hängengeblieben gilt. Großzügig — lieber einmal zu spät
@@ -50,6 +57,8 @@ export function laufenSounds(): boolean {
 
 export default function SoundPlayer() {
   const playing = useRef(0);
+  /** Letzte Überlauf-Meldung (siehe MAX_PARALLEL) — gegen eine Zeile pro Rose. */
+  const zuletztUeberlauf = useRef(0);
   const sinkId = useRef('');
   const sinkLabel = useRef('');
   // Aufgelöste deviceIds (mit Label-Fallback): 'global' + eine pro Kategorie.
@@ -71,9 +80,21 @@ export default function SoundPlayer() {
       } catch { /* keine Geräte auflösbar → IDs unverändert nutzen */ }
       const one = (id: string, label: string): string => {
         if (!id) return '';
-        if (outs.some((d) => d.deviceId === id)) return id;
+        // Gerät wieder da → Merker löschen, sonst bliebe ein SPÄTERER Ausfall
+        // desselben Geräts für immer stumm.
+        if (outs.some((d) => d.deviceId === id)) { fehlendeGeraeteGlobal.delete(id); return id; }
         const byLabel = outs.find((d) => label && d.label === label);
-        return byLabel ? byLabel.deviceId : id;
+        if (byLabel) return byLabel.deviceId;
+        // Weder über die ID noch über den Namen auffindbar: Das Gerät ist weg
+        // (USB abgezogen, Interface aus). Der Ton läuft dann auf dem
+        // Standardgerät — hörbar an der falschen Stelle, ohne jede Meldung.
+        if (!fehlendeGeraeteGlobal.has(id)) {
+          fehlendeGeraeteGlobal.add(id);
+          void window.studio.logRenderer('warn', 'Ton',
+            `Das eingestellte Ausgabegerät${label ? ` „${label}"` : ''} ist nicht mehr da — der Ton läuft auf dem `
+            + 'Standardgerät des Systems. Gerät wieder anschließen oder im Mischpult neu auswählen.');
+        }
+        return id;
       };
       const globalId = one(sinkId.current, sinkLabel.current);
       const next: Record<string, string> = { global: globalId };
@@ -112,10 +133,32 @@ export default function SoundPlayer() {
 
       // Kanal stumm (gain 0) → gar nicht erst abspielen, aber TTS-Sequencing
       // freigeben, damit die Vorlese-Warteschlange nicht hängen bleibt.
-      if (gain <= 0 && !isPreview) { window.studio.reportSoundEnded(cmd.soundId); return; }
+      if (gain <= 0 && !isPreview) {
+        // Stumm geschalteter Kanal ist die häufigste Ursache für „ich höre
+        // nichts" — und war bisher vollkommen unsichtbar. Je Kanal einmal, sonst
+        // eine Zeile pro Geschenk.
+        if (!stummGemeldet.has(category)) {
+          stummGemeldet.add(category);
+          void window.studio.logRenderer('warn', 'Ton',
+            `Kanal „${category}" ist im Mischpult stumm oder steht auf 0 — deshalb bleiben diese Sounds still. `
+            + 'Nachsehen unter „Mischpult".');
+        }
+        window.studio.reportSoundEnded(cmd.soundId);
+        return;
+      }
+      stummGemeldet.delete(category); // wieder hörbar → beim nächsten Mal wieder melden
       // Sound-Bombing deckeln — aber TTS-Ansagen haben VORRANG und werden nie
       // verworfen (eine verschluckte Follow-/Gift-Ansage fällt sofort auf).
       if (playing.current >= MAX_PARALLEL && !isTts) {
+        // Bei Geschenk-Regen ist das normal — passiert es dauernd, steht die
+        // Gift-Sound-Bremse zu niedrig. Gedrosselt, sonst eine Zeile pro Rose.
+        const jetzt = Date.now();
+        if (jetzt - zuletztUeberlauf.current > 30_000) {
+          zuletztUeberlauf.current = jetzt;
+          void window.studio.logRenderer('warn', 'Ton',
+            `Zu viele Sounds gleichzeitig (mehr als ${MAX_PARALLEL}) — „${cmd.soundId}" wurde ausgelassen. `
+            + 'Bei Geschenk-Regen ist das normal; wenn es dauernd passiert, die Gift-Sound-Bremse in den Einstellungen hochsetzen.');
+        }
         window.studio.reportSoundEnded(cmd.soundId); // übersprungen → TTS nicht blockieren
         return;
       }
@@ -163,7 +206,14 @@ export default function SoundPlayer() {
       // Anzeige aktualisieren (Stopp-Knopf ein-/ausblenden).
       window.dispatchEvent(new CustomEvent('bx-sounds-changed'));
       audio.addEventListener('ended', done, { once: true });
-      audio.addEventListener('error', () => { done(); toast('error', 'Sound konnte nicht abgespielt werden.'); }, { once: true });
+      audio.addEventListener('error', () => {
+        done();
+        // Mit Dateiname: „Sound konnte nicht abgespielt werden" allein war nicht
+        // zu gebrauchen — bei zwanzig Sounds weiß niemand, welcher gemeint ist.
+        const datei = decodeURIComponent(String(cmd.url).split('/').pop() ?? cmd.soundId);
+        void window.studio.logRenderer('warn', 'Ton', `Sound „${datei}" ließ sich nicht abspielen — Datei fehlt, ist beschädigt oder das Format wird nicht unterstützt.`);
+        toast('error', `Sound „${datei}" konnte nicht abgespielt werden.`);
+      }, { once: true });
 
       // Wachhund gegen den dritten Fall: Ein Sound, der beim Laden HÄNGT, feuert
       // laut Spezifikation weder 'ended' noch 'error' — er wartet einfach.
@@ -185,6 +235,7 @@ export default function SoundPlayer() {
           const jetzt = audio.currentTime;
           if (jetzt > letzteStelle) { letzteStelle = jetzt; wachhundStellen(); return; } // läuft ja
           console.warn('[Audio] Sound bewegt sich nicht — Warteschlange freigegeben:', cmd.soundId);
+          void window.studio.logRenderer('warn', 'Ton', `Der Sound „${cmd.soundId}" blieb hängen (keine Wiedergabe) — die Warteschlange wurde freigegeben, damit Ansagen weiterlaufen.`);
           try { audio.pause(); } catch { /* egal */ }
           done();
         }, WACHHUND_FENSTER_MS);
@@ -207,6 +258,8 @@ export default function SoundPlayer() {
         audio.setSinkId(targetSink).catch((err: unknown) => {
           const name = (err as { name?: string } | undefined)?.name ?? String(err);
           console.warn('[Audio] Ausgabegerät nicht setzbar, spiele auf dem Standardgerät:', name, targetSink);
+          // Auch in die Logdatei: Renderer-console landet dort NICHT.
+          void window.studio.logRenderer('warn', 'Ton', `Ausgabegerät ließ sich nicht setzen (${name}) — der Ton läuft auf dem Standardgerät. Häufig nach dem Umstecken eines USB-Geräts: unter „Mischpult" neu auswählen.`);
         }).finally(start);
       } else {
         start();

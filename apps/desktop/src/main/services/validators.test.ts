@@ -425,3 +425,19 @@ test('validatePanelButtons: filtert Müll aus gemischtem Array, kein Array → [
   assert.equal(out[0]?.id, 'b1');
   assert.deepEqual(validatePanelButtons('nope'), []);
 });
+
+test('Regel-Validierung behält die Sperre pro Zuschauer', () => {
+  // Sie fehlte im Validator — und weil die Oberfläche bei jeder Änderung die
+  // KOMPLETTE Regelliste zurückschickt, löschte jeder Klick den Wert aus allen
+  // Regeln. Die Regel feuerte danach für denselben Zuschauer beliebig oft,
+  // ohne dass irgendwo etwas darauf hindeutete.
+  const r = validateTriggerRule({
+    id: 'r1', name: 'Danke', event: 'gift', enabled: true,
+    actions: [{ kind: 'play_sound', soundId: 'boom.wav' }],
+    cooldownMs: 5000,
+    userCooldownMs: 60000,
+  });
+  assert.ok(r);
+  assert.equal(r?.cooldownMs, 5000);
+  assert.equal(r?.userCooldownMs, 60000, 'die Sperre pro Zuschauer darf nicht verloren gehen');
+});

@@ -11,9 +11,11 @@ import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
 import { giftDisplayName, giftNameDe } from '../../shared/gift-names-de';
 import { toast } from '../components/ToastHost';
 import { passt } from '../../shared/suche';
+import { hatEigeneReaktion, slugsAusFeldwert, type WidgetGiftFeld } from '../../shared/gift-reaktionen';
+import { WIDGET_TYPES } from './widget-types';
 
 interface SoundEntry { id: string; filename: string }
-interface LayerRef { id: string; name: string; widgetType: string }
+interface LayerRef { id: string; name: string; widgetType: string; props?: Record<string, unknown> }
 
 type View = 'favorites' | 'lastRoom' | 'all' | 'received';
 type Sort = 'coins' | 'name' | 'recent';
@@ -86,7 +88,9 @@ export default function GalleryPage() {
       setRules((await window.studio.getRules()) as TriggerRule[]);
       setSounds((await window.studio.listSounds()) as SoundEntry[]);
       const layouts = (await window.studio.listLayouts()) as { layers: LayerRef[] }[];
-      setLayers(layouts.flatMap((l) => l.layers).map((l) => ({ id: l.id, name: l.name, widgetType: l.widgetType })));
+      // props kommen MIT: Die Vorschlags-Leiste muss wissen, welche Geschenke
+      // schon in einem Widget stecken (Glücksrad, Geschenk-Menü, Ziehung …).
+      setLayers(layouts.flatMap((l) => l.layers).map((l) => ({ id: l.id, name: l.name, widgetType: l.widgetType, props: l.props ?? {} })));
     })();
   }, []);
 
@@ -116,6 +120,51 @@ export default function GalleryPage() {
     return sorted;
   }, [gifts, view, q, sort, lang]);
 
+  // ---- Vorschlags-Leiste -------------------------------------------------
+  // „Diese Geschenke kommen bei dir am häufigsten — und es passiert nichts."
+  //
+  // Die Geschenk-Felder werden aus der WIDGET-TYPDEFINITION gelesen, nicht aus
+  // einer eigenen Liste: Feldtyp 'gift', 'gift-list' oder 'gift-command-list'.
+  // Baut später jemand ein neues Widget mit Geschenk-Feld, ist es hier ohne
+  // Änderung erfasst — sonst würde die Leiste Geschenke vorschlagen, die längst
+  // verdrahtet sind.
+  const widgetFelder = useMemo<WidgetGiftFeld[]>(() => {
+    const out: WidgetGiftFeld[] = [];
+    for (const ebene of layers) {
+      const def = WIDGET_TYPES.find((w) => w.type === ebene.widgetType);
+      if (!def) continue;
+      const slugs: string[] = [];
+      for (const f of def.fields) {
+        if (f.type !== 'gift' && f.type !== 'gift-list' && f.type !== 'gift-command-list') continue;
+        slugs.push(...slugsAusFeldwert(ebene.props?.[f.key]));
+      }
+      if (slugs.length > 0) out.push({ ebene: ebene.name, slugs });
+    }
+    return out;
+  }, [layers]);
+
+  // Weggeklickte Vorschläge bleiben weg — sonst nervt die Leiste nach jedem
+  // Stream mit demselben Geschenk, das man bewusst nicht bespielen will.
+  const [abgelehnt, setAbgelehnt] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('bx-gift-vorschlag-aus') || '[]') as string[]; } catch { return []; }
+  });
+  const ablehnen = (slug: string) => setAbgelehnt((cur) => {
+    const n = [...new Set([...cur, slug])];
+    localStorage.setItem('bx-gift-vorschlag-aus', JSON.stringify(n));
+    return n;
+  });
+  const [vorschlaegeZu, setVorschlaegeZu] = useState(false);
+
+  const vorschlaege = useMemo(() => {
+    const q = { regeln: rules as unknown as Parameters<typeof hatEigeneReaktion>[1]['regeln'], widgetFelder };
+    return gifts
+      .filter((g) => (g.count ?? 0) >= 3) // unter 3× ist es Zufall, kein Muster
+      .filter((g) => !abgelehnt.includes(g.slug))
+      .filter((g) => !hatEigeneReaktion({ slug: g.slug, giftId: g.giftId }, q))
+      .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+      .slice(0, 5);
+  }, [gifts, rules, widgetFelder, abgelehnt]);
+
   const selectedGift = gifts.find((g) => g.slug === selected) || null;
 
   if (!loaded) return <div className="p-6 text-studio-muted">Lade Geschenke-Katalog…</div>;
@@ -136,6 +185,62 @@ export default function GalleryPage() {
           {gifts.length} Gifts im Katalog · {gifts.filter((g) => g.count > 0).length} schon erhalten
         </div>
       </div>
+
+      {/* Vorschläge: beliebte Geschenke, bei denen bisher nichts passiert.
+          Steht ÜBER den Tabs, weil es der eine Handgriff ist, der den Stream
+          spürbar lebendiger macht — und weil man es sonst nie sieht. */}
+      {vorschlaege.length > 0 && (
+        <div className="rounded-lg border border-studio-gold/40 bg-studio-gold/5 p-3">
+          <div className="flex items-center gap-2">
+            <Sparkles size={14} className="text-studio-gold" />
+            <b className="font-display text-[11px] uppercase tracking-[0.25em] text-studio-gold">Vorschläge</b>
+            <span className="text-[11px] text-studio-muted">
+              Das schicken deine Zuschauer am häufigsten — und es passiert nichts damit.
+            </span>
+            <button
+              onClick={() => setVorschlaegeZu((v) => !v)}
+              className="ml-auto text-[11px] text-studio-muted transition-colors hover:text-studio-text"
+            >
+              {vorschlaegeZu ? 'zeigen' : 'ausblenden'}
+            </button>
+          </div>
+          {!vorschlaegeZu && (
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {vorschlaege.map((g) => (
+                <div
+                  key={g.slug}
+                  className="flex items-center gap-2 rounded-lg border border-studio-border bg-studio-raised py-1 pl-1.5 pr-1"
+                >
+                  {g.icon ? (
+                    <img src={g.icon} alt="" className="h-7 w-7 rounded" />
+                  ) : (
+                    <div className="flex h-7 w-7 items-center justify-center rounded bg-studio-bg text-[10px] text-studio-muted">?</div>
+                  )}
+                  <div className="leading-tight">
+                    <div className="text-xs">{giftDisplayName(g.slug, lang, g.customName)}</div>
+                    <div className="text-[10px] text-studio-muted">{g.count}× erhalten · {g.coins} Coins</div>
+                  </div>
+                  <button
+                    // Suche mit zurücksetzen: sonst öffnet zwar die Detail-
+                    // Ansicht, das Geschenk fehlt aber im Raster dahinter.
+                    onClick={() => { setSelected(g.slug); setView('all'); setQ(''); }}
+                    className="clip-slant bg-studio-gold/20 px-2 py-1 text-[10px] font-bold tracking-widest text-studio-gold transition-colors hover:bg-studio-gold/30"
+                  >
+                    AKTION DRAUF
+                  </button>
+                  <button
+                    onClick={() => ablehnen(g.slug)}
+                    title="Diesen Vorschlag nicht mehr zeigen"
+                    className="p-1 text-studio-muted transition-colors hover:text-studio-accent"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Ansichts-Tabs + Suche + Sortierung */}
       <div className="flex flex-wrap items-center gap-2">

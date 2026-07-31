@@ -47,6 +47,36 @@ for (const m of MASTER) {
   if (m.id && !ICON_BY_ID.has(m.id)) ICON_BY_ID.set(m.id, m.icon);
 }
 
+// Namen je Gift-ID. Gebraucht für aus TikFinity importierte Regeln: die
+// speichern sprachunabhängig die Zahl (gift_id_is: 16369). Ohne Auflösung stand
+// in der Trigger-Liste nur „IRGENDEIN Gift" — die Regel sah aus, als würde sie
+// bei jedem Geschenk feuern, obwohl sie genau eins meint.
+const NAME_BY_ID = new Map<number, { name: string; de?: string }>();
+for (const m of MASTER) {
+  if (m.id && !NAME_BY_ID.has(m.id)) NAME_BY_ID.set(m.id, { name: m.name, ...(m.de ? { de: m.de } : {}) });
+}
+
+/** Gift-ID zu einem Namen/Slug — Gegenrichtung zu masterNameById. */
+export function masterIdBySlug(slug: string): number | undefined {
+  const k = masterKey(slug);
+  if (!k) return undefined;
+  for (const m of MASTER) if (m.id && masterKey(m.name) === k) return m.id;
+  return undefined;
+}
+
+/** Slug (englischer Originalname) zu einer Gift-ID — für den Geschenk-Auswähler,
+ *  der über Slugs arbeitet. */
+export function masterSlugById(giftId: number): string | undefined {
+  for (const m of MASTER) if (m.id === giftId) return m.name;
+  return undefined;
+}
+
+/** Anzeigename zu einer Gift-ID („Rose"), sonst undefined. */
+export function masterNameById(giftId: number): string | undefined {
+  const t = NAME_BY_ID.get(giftId);
+  return t ? t.de ?? t.name : undefined;
+}
+
 /** Bild-Adresse aus der eingebauten Liste — über den Namen, sonst über die ID. */
 export function masterIcon(slug: string, giftId?: number): string {
   return ICON_BY_KEY.get(masterKey(slug)) ?? (giftId ? ICON_BY_ID.get(giftId) ?? '' : '');
