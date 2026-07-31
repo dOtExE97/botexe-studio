@@ -34,7 +34,7 @@
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react": "^6.0.4",
     "electron": "^43.2.0",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.32.0",
