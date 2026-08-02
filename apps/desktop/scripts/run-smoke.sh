@@ -9,9 +9,38 @@ set -uo pipefail
 
 DESKTOP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$DESKTOP_DIR"
-OUT_DIR="out/bOtExE Studio-linux-x64"
-BIN="$OUT_DIR/botexe-studio"
+# Plattform erkennen. Der Ordnername kommt von electron-forge und enthaelt
+# Betriebssystem und Architektur — auf einem Mac heisst er anders als hier, und
+# ein fest verdrahteter Linux-Pfad haette dort nur „Binary nicht gefunden"
+# gemeldet, ohne zu sagen warum.
+case "$(uname -s)" in
+  Darwin) PLATTFORM="darwin" ;;
+  Linux)  PLATTFORM="linux" ;;
+  *)      PLATTFORM="unbekannt" ;;
+esac
+case "$(uname -m)" in
+  arm64|aarch64) ARCH="arm64" ;;
+  *)             ARCH="x64" ;;
+esac
+
+if [[ "$PLATTFORM" == "darwin" ]]; then
+  OUT_DIR="out/bOtExE Studio-darwin-$ARCH/bOtExE Studio.app/Contents/MacOS"
+  BIN="$OUT_DIR/bOtExE Studio"
+else
+  OUT_DIR="out/bOtExE Studio-$PLATTFORM-$ARCH"
+  BIN="$OUT_DIR/botexe-studio"
+fi
 PORT=9222
+
+# xvfb gibt es nur unter Linux. Auf dem Mac laeuft die App mit echtem
+# Fenster-Server, das ist fuer den Durchklick voellig ausreichend.
+if [[ "$PLATTFORM" == "linux" ]]; then
+  command -v xvfb-run >/dev/null 2>&1 || {
+    echo "❌ xvfb-run fehlt. Unter Debian/Ubuntu: sudo apt install xvfb"; exit 1; }
+  STARTER=(xvfb-run -a)
+else
+  STARTER=()
+fi
 
 if [[ "${SKIP_BUILD:-0}" != "1" || ! -x "$BIN" ]]; then
   echo "📦 Packe App (electron-forge package)…"
@@ -23,17 +52,18 @@ APP_PID=""
 cleanup() {
   [[ -n "$APP_PID" ]] && kill "$APP_PID" 2>/dev/null
   pkill -f "botexe-studio --no-sandbox" 2>/dev/null
+  pkill -f "bOtExE Studio --no-sandbox" 2>/dev/null
   pkill -f "Xvfb" 2>/dev/null
   true
 }
 trap cleanup EXIT
 
-echo "🚀 Starte App headless (xvfb, Debug-Port $PORT)…"
+echo "🚀 Starte App ($PLATTFORM-$ARCH${STARTER:+, xvfb}, Debug-Port $PORT)…"
 # WICHTIG: KEIN --disable-gpu! Das schaltet den Compositor ab → es entstehen nie
 # Frames, und Page.captureScreenshot hängt endlos (Screenshots waren dadurch
 # monatelang unmöglich). Mit SwiftShader (Software-GL) rendert Chromium normal
 # weiter und Screenshots kommen in <1s.
-xvfb-run -a "$BIN" --no-sandbox --enable-unsafe-swiftshader \
+"${STARTER[@]}" "$BIN" --no-sandbox --enable-unsafe-swiftshader \
   --remote-debugging-port="$PORT" > /tmp/botexe-smoke-app.log 2>&1 &
 APP_PID=$!
 

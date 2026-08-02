@@ -111,7 +111,7 @@ nächsten Handgriff. `[ERROR] evaluate() returned []` hilft niemandem.
 **Die Regel dahinter:** Überall, wo der Code bewusst etwas überspringt, filtert,
 drosselt oder verwirft, gehört eine Zeile hin. Genau diese Stellen sind von außen
 nicht von einem Defekt zu unterscheiden. (Eine Prüfung fand davon 88 Stück — siehe
-`KI Home Wissen/plans/logging-luecken-2026-07-31.md`.)
+dem Logging-Audit vom 31.07.2026 — die Belege stehen im CHANGELOG unter v0.46.0.)
 
 **Drosseln ist Pflicht, nicht Kür.** Die nützlichsten Zeilen sitzen an den
 heißesten Stellen (jedes Geschenk, jeder Frame). Ungedrosselt ersetzt die Kur die
@@ -141,6 +141,25 @@ Geschenknamen, Nicknames, Dateinamen, Close-Codes, Profil-IDs und Origins.
 Bei leerem oder seltsamem Screenshot ZUERST das DOM zur Laufzeit auslesen
 (Elementanzahl; `getComputedStyle`: Deckkraft, `animationName`, `fontSize`). Meistens
 ist es eine dieser drei Fallen, kein Widget-Bug.
+
+## An welchem Rechner kann ich arbeiten?
+
+An jedem — das Repo ist selbsttragend. `AGENTS.md` (diese Datei), `CLAUDE.md`,
+`CONTRIBUTING.md` und `.claude/skills/` liegen versioniert dabei, es gibt keine
+Verweise auf Ordner, die nur auf einem Rechner existieren.
+
+- **Node 24** ist Pflicht (`engines` in der Wurzel-`package.json`, `.nvmrc`
+  liegt dabei) — die App läuft auf genau dieser Fassung, weil Electron 43 sie
+  mitbringt. Mit `nvm use` ist man richtig.
+- **Prüfen** (`lint`, `typecheck`, `test`, `widget-check`) läuft überall gleich,
+  es ist reines Node.
+- **Der Selbsttest** (`scripts/run-smoke.sh`) erkennt Linux und macOS selbst.
+  Unter Linux braucht er `xvfb` (`sudo apt install xvfb`), unter macOS nicht.
+- **Packen** (`npm run package`) baut immer für den Rechner, auf dem es läuft.
+  Ein **Installationsprogramm** entsteht nur für Windows (Squirrel) — und das
+  baut ohnehin die CI beim Tag-Push, also von jedem Rechner aus.
+- **Was NICHT im Repo liegt und auch nicht hingehört:** Zugangsdaten und
+  Einstellungen (die liegen im Benutzerordner der App), Gift-Bilder, Logdateien.
 
 ## Verifizieren — immer per Exit-Code, nie am getailten Text
 
