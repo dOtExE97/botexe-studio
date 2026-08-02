@@ -189,6 +189,15 @@ export default class ActivityFeed {
    *  neu, damit der Effekt bei schnellen Folgen erneut anspringt. */
   hit(el) {
     if (!el) return;
+    // Ohne Premium-Ebene gibt es fuer .bx-hit KEINE einzige CSS-Regel (alle 81
+    // haengen an .bx-premium) — der Effekt waere also unsichtbar. Das
+    // `void el.offsetWidth` unten erzwingt aber trotzdem ein vollstaendiges
+    // Layout des Dokuments, bei JEDEM Ereignis und in JEDEM Widget. Bei 17
+    // Widgets im Layout sind das 17 erzwungene Layouts pro Geschenk, fuer
+    // nichts. Deshalb hier raus, bevor es teuer wird.
+    // Bewusst bei jedem Aufruf pruefen statt einmal zu merken: Die Klasse
+    // haengt an der Ebene und kann sich im Editor jederzeit aendern.
+    if (!el.closest('.bx-premium')) return;
     el.classList.remove('bx-hit');
     void el.offsetWidth;
     el.classList.add('bx-hit');

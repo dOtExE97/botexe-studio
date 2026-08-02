@@ -37,11 +37,18 @@ export function buildCloudUrl(opts: { uniqueId: string; apiKey: string; baseUrl?
 }
 
 export type CloudEmitEvent = 'chat' | 'gift' | 'like' | 'follow' | 'share' | 'member' | 'roomUser'
-  | 'subNotify' | 'envelope';
+  | 'subNotify' | 'envelope' | 'superFan' | 'superFanJoin' | 'emote' | 'rankUpdate';
+
+/** Name und Bild des STREAMERS selbst — steckt im roomInfo-Rahmen, den wir
+ *  bisher komplett weggeworfen haben. */
+export interface HostInfo {
+  nickname?: string;
+  avatar?: string;
+}
 
 export type CloudEmit =
   | { kind: 'event'; event: CloudEmitEvent; data: unknown }
-  | { kind: 'connected' }
+  | { kind: 'connected'; host?: HostInfo }
   | { kind: 'streamEnd' }
   | { kind: 'disconnected' };
 
@@ -52,11 +59,52 @@ const TYPE_TO_EVENT: Record<string, CloudEmitEvent> = {
   WebcastLikeMessage: 'like',
   WebcastMemberMessage: 'member',
   WebcastRoomUserSeqMessage: 'roomUser',
-  // Neu: Teamherz-Abos und Coin-Kisten. Beide kamen bisher im default-Zweig an
-  // und wurden verworfen — im Cloud-Modus (dem Standard!) gab es sie also
-  // schlicht nicht, obwohl der Direkt-Weg sie liefert.
+  // Teamherz-Abos und Coin-Kisten. Beide kamen bisher im default-Zweig an und
+  // wurden verworfen — im Cloud-Modus (dem Standard!) gab es sie also schlicht
+  // nicht, obwohl der Direkt-Weg sie liefert.
   WebcastSubNotifyMessage: 'subNotify',
   WebcastEnvelopeMessage: 'envelope',
+
+  // WICHTIG — eulerstream schickt ZWEI Schreibweisen durcheinander:
+  // neben den Protokoll-Namen („WebcastGiftMessage") auch die KURZEN
+  // Ereignisnamen der Bibliothek. Belegt in einem echten Stream: Dort stand
+  // „Unbekannte TikTok-Nachrichtenart „superFan"" im Log — ein Kurzname, kein
+  // Webcast-Name. Wer nur die lange Form abbildet, verliert genau die
+  // Ereignisse, die es nur in der kurzen gibt. Deshalb beide Formen.
+  subNotify: 'subNotify',
+  envelope: 'envelope',
+  superFanBox: 'envelope', // Superfan-Truhe — normalizeEnvelope erkennt sie an businessType 19
+  // Superfans und Emotes: In einem echten Stream kam „superFan" zweimal an und
+  // landete im Papierkorb — jedes Mal Sekunden bevor die App denselben
+  // Zuschauer als Teamherz erkannte. Genau die Ereignisse, die man NICHT
+  // wegwerfen will.
+  superFan: 'superFan',
+  superFanJoin: 'superFanJoin',
+  emote: 'emote',
+  WebcastEmoteChatMessage: 'emote',
+  // Ranglisten (Stunden, Tag, Woche, Spiele, Newcomer …). Die App liest sie
+  // seit jeher aus (tiktok-rank.ts) und zeigt „Platz 7" an — im Cloud-Modus,
+  // also im Standard, kamen sie aber nie an: Der Router kannte die Art nicht.
+  // Die Anzeige war damit für die meisten Nutzer dauerhaft tot.
+  WebcastRankUpdateMessage: 'rankUpdate',
+  rankUpdate: 'rankUpdate',
+
+  // BEIDE Schreibweisen konsequent, auch für die Grundarten. eulerstream mischt
+  // Protokoll-Namen („WebcastChatMessage") und Kurznamen der Bibliothek
+  // („superFan") — belegt in einem echten Stream. Für Chat, Geschenke, Likes,
+  // Beitritte und Zuschauerzahl kam bisher nur die lange Form an; würde
+  // eulerstream dort auf die kurze wechseln, wäre die App schlagartig taub,
+  // ohne dass ein Test es merkt. Die zweite Zeile kostet nichts.
+  chat: 'chat',
+  gift: 'gift',
+  like: 'like',
+  member: 'member',
+  roomUser: 'roomUser',
+  follow: 'follow',
+  share: 'share',
+  // Und die Gegenrichtung für die Superfan-Arten: Die entstehen in der
+  // Bibliothek aus WebcastBarrageMessage. Schickt eulerstream stattdessen den
+  // Protokoll-Namen mit passendem Anzeigetext, greift der Sonderfall unten.
 };
 
 // Stream-Ende laut ControlAction (3 = ENDED, 4 = SUSPENDED).
@@ -94,8 +142,13 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
       return data?.action === CONTROL_STREAM_ENDED ? { kind: 'streamEnd' } : null;
     // Euler-Custom-Frames (kein Webcast-Protobuf):
     case 'tiktok.connect':
-    case 'roomInfo':
       return { kind: 'connected' };
+    case 'roomInfo':
+      // Hier stecken Name und Profilbild des Streamers — bisher landete der
+      // ganze Rahmen im Papierkorb. DEFENSIV auslesen: TikTok liefert das
+      // Objekt untypisiert, und die Verschachtelung hat sich schon geändert.
+      // Findet sich nichts, ist das kein Fehler — dann bleibt es eben leer.
+      return { kind: 'connected', host: leseHost(data) };
     case 'tiktok.disconnect':
       return { kind: 'disconnected' };
     default:
@@ -126,6 +179,28 @@ const HARMLOSE_ARTEN = new Set([
   'WebcastLinkMicBattle', 'WebcastLinkMicArmies',
   'WebcastInRoomBannerMessage', 'WebcastMsgDetectMessage',
 ]);
+
+/** Streamer-Daten aus dem roomInfo-Rahmen fischen.
+ *
+ *  Bewusst über mehrere bekannte Pfade: `data.owner`, `owner` und `data.data.owner`
+ *  sind alle in freier Wildbahn gesehen worden. Lieber drei Versuche als eine
+ *  fest verdrahtete Annahme, die beim nächsten TikTok-Umbau still bricht. */
+export function leseHost(roh: unknown): HostInfo | undefined {
+  const d = roh as Record<string, unknown> | undefined;
+  const kandidaten = [
+    (d?.['owner'] as Record<string, unknown> | undefined),
+    ((d?.['data'] as Record<string, unknown> | undefined)?.['owner'] as Record<string, unknown> | undefined),
+    (((d?.['data'] as Record<string, unknown> | undefined)?.['data'] as Record<string, unknown> | undefined)?.['owner'] as Record<string, unknown> | undefined),
+  ].filter(Boolean) as Record<string, unknown>[];
+  for (const o of kandidaten) {
+    const nickname = typeof o['nickname'] === 'string' ? o['nickname'] : undefined;
+    const bild = o['avatar_thumb'] ?? o['avatarThumb'] ?? o['avatar_medium'] ?? o['avatarMedium'];
+    const liste = (bild as { url_list?: unknown[]; urlList?: unknown[] } | undefined);
+    const url = [...(liste?.url_list ?? []), ...(liste?.urlList ?? [])].find((u) => typeof u === 'string' && u.startsWith('http'));
+    if (nickname || url) return { ...(nickname ? { nickname } : {}), ...(url ? { avatar: String(url) } : {}) };
+  }
+  return undefined;
+}
 
 /** Minimal-Interface eines WebSocket — in Tests durch Fake ersetzt. */
 export interface CloudWsLike {
@@ -227,7 +302,7 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
           const r = mapCloudMessage(m.type, m.data);
           if (!r) continue;
           if (r.kind === 'event') { settleOk(); this.emit(r.event, r.data); }
-          else if (r.kind === 'connected') settleOk();
+          else if (r.kind === 'connected') { if (r.host) this.emit('hostInfo', r.host); settleOk(); }
           else if (r.kind === 'streamEnd') this.emit('streamEnd', {});
           else if (r.kind === 'disconnected') this.emit('disconnected');
         }

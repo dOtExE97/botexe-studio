@@ -233,6 +233,18 @@ export default class GiftAlert {
   next() {
     const alert = this.queue.shift();
     if (!alert) {
+      // Karte auch INHALTLICH leeren, nicht nur ausblenden.
+      //
+      // Das Gift-Bild und der Platzhalter tragen eine Dauer-Animation
+      // (`bx-float … infinite`). Blieben sie im Dokument stehen, liefe die
+      // weiter — unsichtbar hinter opacity:0, aber der Browser rechnet sie
+      // jedes Bild mit. Bei einem Overlay, das stundenlang offen ist, tickt
+      // das durchgehend fuer nichts.
+      //
+      // Sichtbar ist das nicht: Hierher fuehrt nur der Weg ueber den Timer,
+      // der 340 ms NACH dem Start der 320-ms-Ausblendung feuert. Zu diesem
+      // Zeitpunkt steht die Karte laengst auf opacity 0.
+      this.el.innerHTML = '';
       this.busy = false;
       return;
     }
@@ -290,6 +302,15 @@ export default class GiftAlert {
    *  neu, damit der Effekt bei Alert-Ketten erneut anspringt. */
   hit(el) {
     if (!el) return;
+    // Ohne Premium-Ebene gibt es fuer .bx-hit KEINE einzige CSS-Regel (alle 81
+    // haengen an .bx-premium) — der Effekt waere also unsichtbar. Das
+    // `void el.offsetWidth` unten erzwingt aber trotzdem ein vollstaendiges
+    // Layout des Dokuments, bei JEDEM Ereignis und in JEDEM Widget. Bei 17
+    // Widgets im Layout sind das 17 erzwungene Layouts pro Geschenk, fuer
+    // nichts. Deshalb hier raus, bevor es teuer wird.
+    // Bewusst bei jedem Aufruf pruefen statt einmal zu merken: Die Klasse
+    // haengt an der Ebene und kann sich im Editor jederzeit aendern.
+    if (!el.closest('.bx-premium')) return;
     el.classList.remove('bx-hit');
     void el.offsetWidth;
     el.classList.add('bx-hit');

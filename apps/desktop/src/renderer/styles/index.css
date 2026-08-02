@@ -207,3 +207,23 @@ input[type='radio'] {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ── Auswertung: sanftes Erscheinen ─────────────────────────────────────────
+   Bewusst KURZ (unter einer halben Sekunde) und nur beim Erscheinen. Eine
+   Auswertung, die dauernd wackelt, liest sich schlechter — es geht darum, dass
+   man die Reihenfolge erfasst, nicht um Effekt.
+   Animiert wird ausschließlich `transform`/`opacity`: Das erledigt die
+   Grafikkarte allein, ohne dass der Browser neu zeichnen muss. */
+@keyframes bx-auf {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes bx-balken {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+/* Wer im Betriebssystem „Bewegung reduzieren" gewählt hat, bekommt sie sofort
+   fertig zu sehen — statt gar nichts oder eines Zuckens. */
+@media (prefers-reduced-motion: reduce) {
+  [style*="bx-auf"], [style*="bx-balken"] { animation: none !important; }
+}

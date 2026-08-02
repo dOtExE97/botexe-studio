@@ -35,7 +35,7 @@ function describeEvent(e: StudioEvent): string {
     case 'follow':
       return `${who} folgt jetzt`;
     case 'sub':
-      return `${who} hat ein Teamherz vergeben`;
+      return `${who} ist jetzt Superfan`;
     case 'like':
       return `${who} liked (+${e.likeCount}) — gesamt ${e.totalLikes}`;
     case 'share':
@@ -228,6 +228,28 @@ export default function LivePage({ studio }: { studio: ReturnType<typeof useStud
 
       {/* Ranglisten-Platz + System-Ampel — beides auf einen Blick, ohne suchen. */}
       <div className="flex flex-wrap items-stretch gap-3">
+        {/* ALLE Ranglisten nebeneinander. TikTok führt mehrere gleichzeitig, und
+            erst das Nebeneinander sagt etwas: „Platz 3 in der Stunde, aber 47
+            am Tag" heißt, es läuft gerade außergewöhnlich gut. */}
+        {studio.rangListe.filter((r) => r.artNr !== studio.rang?.artNr).slice(0, 3).map((r) => (
+          <div key={r.artNr} className="bx-card flex items-center gap-2.5 px-3 py-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.28em] text-studio-muted">{r.art}</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-xl leading-none text-studio-text" style={{ fontFamily: 'var(--font-chunky)' }}>
+                  #{r.platz}
+                </span>
+                {r.restSek > 0 && (
+                  <span className="font-mono text-[10px] text-studio-muted">
+                    noch {r.restSek >= 3600
+                      ? `${Math.floor(r.restSek / 3600)} h`
+                      : `${Math.max(1, Math.round(r.restSek / 60))} min`}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
         {studio.rang && (
           <div className="bx-card flex items-center gap-3 px-4 py-3">
             <Trophy size={20} className="flex-none text-studio-gold" />

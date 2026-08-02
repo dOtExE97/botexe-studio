@@ -200,6 +200,8 @@ export const IPC = {
   LOGS_OPEN: 'logs:open',
   /** Diagnose-Modus an/aus + Restlaufzeit (siehe logger.ts). */
   LOGS_DIAGNOSE: 'logs:diagnose',
+  /** Alle Ranglisten-Stände auf einmal (Live-Cockpit). */
+  RANK_LISTE: 'rank:liste',
   LOG_RENDERER: 'log:renderer',
   // Nutzer-Toasts (Fehler/Hinweise)
   TOAST_SHOW: 'toast:show',

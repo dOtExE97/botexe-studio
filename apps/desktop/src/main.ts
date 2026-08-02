@@ -454,6 +454,7 @@ function setupStudio(): Studio {
     onObsStatus: (status) => sendToRenderer(IPC.OBS_STATUS, status),
     onStreamerbotStatus: (status) => sendToRenderer(IPC.SB_STATUS, status),
     onRankChange: (stand) => sendToRenderer(IPC.RANK_STATUS, stand),
+    onRankListe: (staende) => sendToRenderer(IPC.RANK_LISTE, staende),
   });
 }
 
@@ -519,6 +520,7 @@ function registerIpc(): void {
   // Geschenk-Bilder-Paket einmalig laden. Läuft nur einmal gleichzeitig — zwei
   // parallele Downloads würden dieselben Dateien schreiben.
   ipcMain.handle(IPC.RANK_GET, () => isStudio().getRang());
+  ipcMain.handle(IPC.RANK_LISTE, () => isStudio().rangAlle());
   ipcMain.handle(IPC.STATS_HISTORY_ENTRIES, () => isStudio().getStreamHistorie());
   ipcMain.handle(IPC.MEDIA_USAGE, (_e, id: unknown) =>
     typeof id === 'string' ? isStudio().medienVerwendung(id) : { widgets: [], zuschauer: [], regeln: [] });

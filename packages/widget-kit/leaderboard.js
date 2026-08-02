@@ -219,6 +219,16 @@ html .bx-frameless .bx-lb:not(.bx-st-pills):not(.bx-st-treppe) .bx-lb-val { -web
 /* Pills/Treppe tragen dunkle Schrift auf heller Fläche — dort wäre ein Glow Matsch. */
 .bx-premium .bx-st-pills .bx-lb-val, .bx-premium .bx-st-treppe .bx-lb-val { text-shadow: none; }
 `;
+/** Text nur setzen, wenn er sich geaendert hat.
+ *
+ *  `textContent = x` ersetzt laut Spezifikation IMMER die Kindknoten — auch
+ *  wenn derselbe Text schon dasteht. Bei vier Zustellungen pro Sekunde ist der
+ *  Vergleich also billiger als das blinde Schreiben, und das Bild bleibt
+ *  identisch. */
+function setzeText(el, wert) {
+  if (el && el.textContent !== wert) el.textContent = wert;
+}
+
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
 const STYLES = new Set(['glas', 'neon', 'bars', 'arcade', 'podium', 'pills', 'royal', 'treppe', 'nummern']);
@@ -281,6 +291,15 @@ export default class Leaderboard {
    *  Reflow erzwingen, Klasse neu. */
   hit(el) {
     if (!el) return;
+    // Ohne Premium-Ebene gibt es fuer .bx-hit KEINE einzige CSS-Regel (alle 81
+    // haengen an .bx-premium) — der Effekt waere also unsichtbar. Das
+    // `void el.offsetWidth` unten erzwingt aber trotzdem ein vollstaendiges
+    // Layout des Dokuments, bei JEDEM Ereignis und in JEDEM Widget. Bei 17
+    // Widgets im Layout sind das 17 erzwungene Layouts pro Geschenk, fuer
+    // nichts. Deshalb hier raus, bevor es teuer wird.
+    // Bewusst bei jedem Aufruf pruefen statt einmal zu merken: Die Klasse
+    // haengt an der Ebene und kann sich im Editor jederzeit aendern.
+    if (!el.closest('.bx-premium')) return;
     el.classList.remove('bx-hit');
     void el.offsetWidth;
     el.classList.add('bx-hit');
@@ -319,21 +338,39 @@ export default class Leaderboard {
       const prevRank = this.ranks.get(g.id);
       if (fresh || (prevRank != null && i + 1 < prevRank)) this.hit(row);
       this.ranks.set(g.id, i + 1);
-      row.dataset.rank = String(i + 1);
-      if (!flexStyle) { row.style.height = `${rowH}px`; row.style.transform = `translateY(${i * rowH}px)`; }
+      // NUR schreiben, wenn sich wirklich etwas geaendert hat.
+      //
+      // Die Stats kommen viermal pro Sekunde. Vorher wurde bei JEDER
+      // Zustellung jede Zeile neu beschrieben — auch wenn seit dem letzten Mal
+      // niemand ein Geschenk geschickt hat. Ein `textContent`-Setter wirft laut
+      // Spezifikation IMMER den Textknoten weg und legt einen neuen an, und
+      // jedes `style`-Schreiben macht die Zeile fuer den Browser wieder
+      // schmutzig. Bei 5 Zeilen sind das 20 nutzlose Schreibvorgaenge pro
+      // Sekunde, und zwar dauerhaft — auch im ruhigsten Moment des Streams.
+      //
+      // Der Vergleich kostet fast nichts (Zeichenkette gegen Zeichenkette) und
+      // aendert am Ergebnis GAR NICHTS: Steht derselbe Wert schon da, sieht man
+      // keinen Unterschied — nur der Browser hat weniger zu tun.
+      const rang = String(i + 1);
+      if (row.dataset.rank !== rang) row.dataset.rank = rang;
+      if (!flexStyle) {
+        const h = `${rowH}px`; const t = `translateY(${i * rowH}px)`;
+        if (row.style.height !== h) row.style.height = h;
+        if (row.style.transform !== t) row.style.transform = t;
+      }
       if (this.style === 'bars') row.style.setProperty('--bar', `${Math.max(8, (val / maxVal) * 100)}%`);
       // Treppe: jede Stufe weiter eingerückt + schmaler → absteigende Treppe.
       if (this.style === 'treppe') {
         const ind = Math.min(54, i * 9); // % Einrückung pro Platz (gedeckelt)
         row.style.left = `${ind}%`; row.style.right = 'auto'; row.style.width = `${100 - ind}%`;
       }
-      row.querySelector('.bx-lb-rank').textContent = String(i + 1);
-      row.querySelector('.bx-lb-name').textContent = g.nickname;
+      setzeText(row.querySelector('.bx-lb-rank'), rang);
+      setzeText(row.querySelector('.bx-lb-name'), g.nickname);
       const valEl = row.querySelector('.bx-lb-val');
       if (this.style === 'arcade') {
         valEl.innerHTML = `<span class="arr">▲</span> ${fmt(val)}${this.source === 'likes' ? ' ❤' : ''}`;
       } else {
-        valEl.textContent = this.source === 'likes' ? `${fmt(val)} ❤` : fmt(val);
+        setzeText(valEl, this.source === 'likes' ? `${fmt(val)} ❤` : fmt(val));
       }
       avSet(row.querySelector('.bx-lb-pic'), g.nickname, g.profilePic);
     });

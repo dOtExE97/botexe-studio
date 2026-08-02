@@ -176,7 +176,7 @@ interface TtsSettings {
 const READ_GROUP_LABELS: { id: ReadGroup; label: string }[] = [
   { id: 'all', label: 'Alle Zuschauer' },
   { id: 'followers', label: 'Follower' },
-  { id: 'subs', label: 'Teamherz (Team-Mitglieder)' },
+  { id: 'subs', label: 'Superfans' },
   { id: 'mods', label: 'Moderatoren' },
   { id: 'vips', label: 'Meine VIPs (Zuschauer-Tab)' },
 ];

@@ -87,6 +87,10 @@ const two = (n) => String(n).padStart(2, '0');
 // lokal dupliziert: die Widgets haben kein gemeinsames JS-Modul.
 function bxHit(el, timers) {
   if (!el) return;
+  // Ohne die Premium-Ebene gibt es fuer .bx-hit keine einzige CSS-Regel —
+  // der erzwungene Reflow unten waere also Arbeit fuer einen unsichtbaren
+  // Effekt, bei JEDEM Ereignis und in JEDEM Widget.
+  if (!el.closest('.bx-premium')) return;
   el.classList.remove('bx-hit');
   void el.offsetWidth; // Reflow → bei schnellen Folgen springt der Effekt neu an
   el.classList.add('bx-hit');

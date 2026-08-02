@@ -164,6 +164,9 @@ const api = {
   getStreamHistorie: () => ipcRenderer.invoke(IPC.STATS_HISTORY_ENTRIES),
   /** TikTok-Ranglisten-Stand (Push + Pull, siehe constants.ts). */
   onRankStatus: listen<{ art: string; artNr: number; platz: number; restSek: number; at: number }>(IPC.RANK_STATUS),
+  /** Alle Ranglisten auf einmal — TikTok führt mehrere gleichzeitig. */
+  onRankListe: listen<{ art: string; artNr: number; platz: number; restSek: number; at: number }[]>(IPC.RANK_LISTE),
+  getRankListe: () => ipcRenderer.invoke(IPC.RANK_LISTE),
   getRank: (): Promise<{ art: string; artNr: number; platz: number; restSek: number; at: number } | null> =>
     ipcRenderer.invoke(IPC.RANK_GET),
   /** Intro eines Zuschauers zum Ansehen abspielen (Zuschauerliste). */

@@ -71,7 +71,11 @@ export interface StudioSettings {
    *  'sub'       = bei einem Teamherz (bisheriges Verhalten)
    *  'beides'    = bei beidem
    *  'aus'       = nie */
-  introTrigger?: 'join' | 'sub' | 'beides' | 'aus';
+  introTrigger?: 'join' | 'sub' | 'teamherz' | 'beides' | 'aus';
+  /** Anzeigename und Profilbild des Streamers selbst — kommt aus TikToks
+   *  roomInfo. Rein kosmetisch (Begrüßung in der Auswertung). */
+  hostNickname?: string;
+  hostAvatar?: string;
   soundVolume: number;
   /** Audio-Ausgabegerät für lokale Sounds/TTS (deviceId), '' = Standard. */
   audioOutputId: string;
@@ -197,7 +201,10 @@ const DEFAULTS: StudioSettings = {
   lastUsername: '',
   telemetry: 'unset',
   giftNameLang: 'original',
-  introTrigger: 'sub',   // bisheriges Verhalten bleibt Standard
+  // Standard ist das TEAMHERZ-GESCHENK — das ist, was Streamer meinen. Bis
+  // v0.47 stand hier 'sub' (das bezahlte Abo), war aber als „Beim Teamherz"
+  // beschriftet. Ergebnis: Intros liefen praktisch nie.
+  introTrigger: 'teamherz',
   soundVolume: 0.7,
   audioOutputId: '',
   audioOutputLabel: '',
@@ -383,6 +390,17 @@ export class SettingsStore {
       if (typeof raw.schemaVersion !== 'number' || raw.schemaVersion < 7) {
         const altMaster = typeof raw.soundVolume === 'number' ? raw.soundVolume : 1;
         merged.mixer = normalizeMixer({ ...merged.mixer, master: merged.mixer.master * altMaster });
+      }
+      // Migration v0.47→v0.48: „sub" hieß in der Oberfläche IMMER „Beim
+      // Teamherz" — niemand hat je bewusst das bezahlte Abo gewählt, alle
+      // haben das gelesen, was dastand. Deshalb auf den Auslöser umstellen,
+      // den die Beschriftung versprochen hat. Wer wirklich das Abo will, kann
+      // es jetzt gezielt wählen (die Option heißt endlich „Beim Abo").
+      if (raw.introTrigger === 'sub') {
+        merged.introTrigger = 'teamherz';
+        log.info('Settings', 'Intro-Auslöser von „Abo" auf „Teamherz-Geschenk" umgestellt — die Einstellung hieß '
+          + 'bisher „Beim Teamherz", meinte aber das bezahlte Abo. Jetzt läuft das Intro beim Teamherz-Geschenk, '
+          + 'so wie es dastand. Umstellen kannst du das in den Einstellungen.');
       }
       merged.soundVolume = 1; // Legacy — der Master liegt jetzt allein im Mixer.
       // KI-Assistent (additiv): defensiv mergen.
@@ -611,7 +629,8 @@ export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): 
   if (typeof p.autoBackup === 'boolean') allowed.autoBackup = p.autoBackup;
   if (p.telemetry === 'on' || p.telemetry === 'off') allowed.telemetry = p.telemetry;
   if (p.giftNameLang === 'original' || p.giftNameLang === 'de') allowed.giftNameLang = p.giftNameLang;
-  if (p.introTrigger === 'join' || p.introTrigger === 'sub' || p.introTrigger === 'beides' || p.introTrigger === 'aus') {
+  if (p.introTrigger === 'join' || p.introTrigger === 'sub' || p.introTrigger === 'teamherz'
+    || p.introTrigger === 'beides' || p.introTrigger === 'aus') {
     allowed.introTrigger = p.introTrigger;
   }
   if (typeof p.mixer === 'object' && p.mixer !== null) allowed.mixer = normalizeMixer(p.mixer);

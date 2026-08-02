@@ -5,6 +5,7 @@
 //          jederzeit brechen, deshalb klar gelabelt und nie Default)
 // Stimmen-IDs sind namespaced: 'edge:de-DE-KatjaNeural', 'piper:de-thorsten', 'gtts:de'.
 import { EdgeTTS } from 'node-edge-tts';
+import { EdgeDauerleitung } from './edge-dauerleitung';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -61,7 +62,45 @@ const EDGE_VOICES: Array<[string, string, 'de' | 'en']> = [
   ['en-GB-RyanNeural', 'Ryan (EN-GB, Mann)', 'en'],
 ];
 
+/** Die eine offene Leitung zu Microsoft (siehe edge-dauerleitung.ts).
+ *  Wird beim ersten Bedarf aufgebaut und danach wiederverwendet. */
+let dauerleitung: EdgeDauerleitung | null = null;
+
+/** Leitung schließen — beim Beenden der App und beim Zurücksetzen. */
+export function edgeLeitungSchliessen(): void {
+  dauerleitung?.schliesse();
+  dauerleitung = null;
+}
+
 async function edgeSynthesize(
+  text: string,
+  voiceId: string,
+  target: string,
+  tuning?: Record<string, number | string>,
+): Promise<void> {
+  // ZUERST über die offene Leitung. Das spart bei jeder Ansage außer der
+  // ersten den kompletten Verbindungsaufbau — bei schwachem WLAN der
+  // Unterschied zwischen „geht" und „Zeitüberschreitung".
+  dauerleitung ??= new EdgeDauerleitung();
+  try {
+    await dauerleitung.synthetisiere(text, voiceId, target, tuning);
+    return;
+  } catch (err) {
+    // Fällt die Dauerleitung aus, NICHT gleich aufgeben: Der bewährte Weg über
+    // die Bibliothek bleibt als Rückfallebene. So kann der neue Weg nichts
+    // kaputtmachen, was vorher funktioniert hat — er kann nur besser sein.
+    log.gedrosselt('tts:leitung-rueckfall', 5 * 60_000, 'info', 'TTS',
+      `Die offene Sprach-Leitung hat nicht geantwortet (${(err as Error)?.message ?? 'unbekannt'}) — `
+      + 'für diese Ansage wird der klassische Weg mit eigenem Verbindungsaufbau genutzt.');
+    dauerleitung.schliesse();
+    dauerleitung = null;
+  }
+  return edgeSynthesizeKlassisch(text, voiceId, target, tuning);
+}
+
+/** Der bisherige Weg: pro Ansage ein eigener Verbindungsaufbau. Bleibt als
+ *  Rückfallebene, falls die offene Leitung streikt. */
+async function edgeSynthesizeKlassisch(
   text: string,
   voiceId: string,
   target: string,

@@ -10,7 +10,7 @@ import { toast } from '../components/ToastHost';
 const WHO: { value: NonNullable<ChatCommand['who']>; label: string }[] = [
   { value: 'all', label: 'Alle' },
   { value: 'followers', label: 'Follower+' },
-  { value: 'subs', label: 'Teamherz/Sub+' },
+  { value: 'subs', label: 'Superfans+' },
   { value: 'mods', label: 'Nur Mods' },
 ];
 

@@ -1050,7 +1050,8 @@ export default function SettingsPage() {
             className="bx-select mt-1 w-full text-xs"
           >
             <option value="join">wenn der Zuschauer den Stream betritt</option>
-            <option value="sub">bei einem Teamherz</option>
+            <option value="teamherz">beim Teamherz-Geschenk (1 Coin)</option>
+            <option value="sub">wenn jemand Superfan wird (bezahltes Abo)</option>
             <option value="beides">bei beidem</option>
             <option value="aus">gar nicht</option>
           </select>

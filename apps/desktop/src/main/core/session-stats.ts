@@ -58,13 +58,26 @@ export interface StatsTotals {
   peakViewers: number;
   /** Wie viele VERSCHIEDENE Zuschauer in der Session da/aktiv waren (inkl. Beitritte). */
   uniqueViewers: number;
-  /** Neue Teamherz-Abos in dieser Session. Kam bisher nie an — der Ereignis-Typ
-   *  existierte, wurde aber von nichts ausgelöst (siehe normalizeSub). */
+  /** Superfan-VERLÄNGERUNGEN (Treue) in dieser Session. Bewusst getrennt von
+   *  den neuen Superfans — eine Verlängerung ist kein Zuwachs. */
   subs?: number;
   /** Anzahl geworfener Coin-Kisten/Truhen. */
   envelopes?: number;
   /** Höchststand unsichtbarer Zuschauer (TikTok „anonymous"). */
   peakAnonymous?: number;
+  /** Beste Platzierung dieser Session in einer TikTok-Rangliste. Niedriger ist
+   *  besser — „Platz 7" heißt, nur sechs waren im Zeitraum stärker. */
+  bestePlatzierung?: number;
+  /** Zu welcher Rangliste sie gehört (z.B. „Tages-Rangliste"). */
+  besteRangArt?: string;
+  /** NEUE Superfans in dieser Session — VERSCHIEDENE Personen.
+   *
+   *  Zwei Quellen melden dasselbe: die Abo-Nachricht (WebcastSubNotifyMessage)
+   *  und die Banner-Meldung (superFanJoin). Ohne Abgleich stünde derselbe
+   *  Mensch zweimal in der Zahl. Deshalb wird je Person nur EINMAL gezählt. */
+  superfans?: number;
+  /** Emotes/Sticker von Zuschauern — Beteiligung jenseits von Kommentaren. */
+  emotes?: number;
   /** Coins, die in Truhen steckten.
    *
    *  BEWUSST NICHT in `coins` eingerechnet: Ob TikTok für eine Truhe ZUSÄTZLICH
@@ -113,7 +126,7 @@ interface SerializedStats {
 }
 
 function emptyTotals(): StatsTotals {
-  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, uniqueViewers: 0, subs: 0, envelopes: 0, envelopeCoins: 0 };
+  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, uniqueViewers: 0, subs: 0, envelopes: 0, envelopeCoins: 0, superfans: 0, emotes: 0 };
 }
 
 /** Klon ohne undefined-Felder — damit In-Memory- und JSON-Roundtrip-Snapshot gleich sind. */
@@ -136,6 +149,8 @@ export class SessionStats {
   private likers = new Map<string, LikerEntry>();
   /** TikToks eigene Raum-Bestenliste, zuletzt gemeldeter Stand (siehe apply). */
   private raumBeste: RaumPlatz[] = [];
+  /** Wer in dieser Session schon als NEUER Superfan gezählt wurde (siehe apply). */
+  private readonly neueSuperfans = new Set<string>();
   private topGift?: GiftHighlight;
   private topStreak?: GiftHighlight;
   /** Alle je gesehenen Zuschauer-IDs der Session → uniqueViewers (= „wie viele
@@ -146,6 +161,21 @@ export class SessionStats {
    *  Cache gilt, bis ein Event den Zustand tatsächlich ändert (apply→true). */
   private dirty = true;
   private cached?: StatsSnapshot;
+
+  /** Eine Ranglisten-Platzierung verbuchen.
+   *
+   *  Kein Bus-Ereignis, sondern Zustand (siehe tiktok-rank.ts) — deshalb eine
+   *  eigene Methode statt eines Falls in apply(). Gehalten wird nur die BESTE
+   *  der Session: „Platz 7" heißt, nur sechs waren in dem Zeitraum besser.
+   *  Niedriger ist besser, also das Minimum. */
+  merkePlatzierung(platz: number, art: string): boolean {
+    if (!Number.isFinite(platz) || platz <= 0) return false;
+    if (this.totals.bestePlatzierung !== undefined && this.totals.bestePlatzierung <= platz) return false;
+    this.totals.bestePlatzierung = platz;
+    this.totals.besteRangArt = art;
+    this.dirty = true;
+    return true;
+  }
 
   /** Verarbeitet ein Event; liefert true, wenn sich der Zustand geändert hat. */
   apply(event: StudioEvent): boolean {
@@ -206,7 +236,23 @@ export class SessionStats {
         this.totals.follows += 1;
         return true;
       case 'sub':
-        this.totals.subs = (this.totals.subs ?? 0) + 1;
+      case 'superfan': {
+        // Verlängerung? Dann ist es Treue, kein Zuwachs — eigene Zahl.
+        if (event.superfanNeu === false) {
+          this.totals.subs = (this.totals.subs ?? 0) + 1;
+          return true;
+        }
+        // Neuer Superfan: je PERSON nur einmal. Die Abo-Nachricht und die
+        // Banner-Meldung berichten dasselbe Ereignis — ohne diesen Abgleich
+        // stünde derselbe Mensch doppelt in der Auswertung.
+        const wer = event.user?.id;
+        if (wer && this.neueSuperfans.has(wer)) return false;
+        if (wer) this.neueSuperfans.add(wer);
+        this.totals.superfans = (this.totals.superfans ?? 0) + 1;
+        return true;
+      }
+      case 'emote':
+        this.totals.emotes = (this.totals.emotes ?? 0) + 1;
         return true;
       case 'envelope':
         this.totals.envelopes = (this.totals.envelopes ?? 0) + 1;
@@ -285,6 +331,7 @@ export class SessionStats {
     this.gifters.clear();
     this.likers.clear();
     this.seenUsers.clear();
+    this.neueSuperfans.clear();
     this.topGift = undefined;
     this.topStreak = undefined;
     this.dirty = true;

@@ -40,6 +40,9 @@ export function useStudio() {
   const [verlauf, setVerlauf] = useState<VerlaufPunkt[]>([]);
   // Ranglisten-Platz (Push + Pull, siehe constants.ts).
   const [rang, setRang] = useState<RangStand | null>(null);
+  // Alle Ranglisten gleichzeitig — TikTok führt Stunde, Tag, Woche, Spiele …
+  // nebeneinander, und genau das Nebeneinander ist die Aussage.
+  const [rangListe, setRangListe] = useState<RangStand[]>([]);
   const keyRef = useRef(0);
 
   useEffect(() => {
@@ -92,6 +95,8 @@ export function useStudio() {
     });
     let rangGepusht = false;
     const unsubRank = window.studio.onRankStatus?.((r) => { rangGepusht = true; setRang(r); });
+    const unsubListe = window.studio.onRankListe?.((l) => setRangListe(l ?? []));
+    void window.studio.getRankListe?.().then((l) => { if (Array.isArray(l) && l.length) setRangListe(l as RangStand[]); }).catch(() => { /* optional */ });
     void window.studio.getRank?.().then((r) => { if (!rangGepusht && r) setRang(r); }).catch(() => { /* optional */ });
     void window.studio.getOverlayInfo().then((info: { url: string }) => setOverlayUrl(info.url));
     return () => {
@@ -99,8 +104,9 @@ export function useStudio() {
       unsubBus();
       unsubStats();
       unsubRank?.();
+      unsubListe?.();
     };
   }, []);
 
-  return { status, feed, stats, overlayUrl, verlauf, rang };
+  return { status, feed, stats, overlayUrl, verlauf, rang, rangListe };
 }

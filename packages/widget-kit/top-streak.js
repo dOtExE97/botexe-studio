@@ -267,6 +267,7 @@ export default class TopStreak {
     // Premium-Auslöser: eine neue Höchst-Combo ist DER bemerkenswerte Moment.
     // Klasse weg, Reflow, Klasse neu — sonst bliebe der Effekt bei zwei
     // Rekorden kurz hintereinander beim ersten stehen.
+    if (!this.el.closest('.bx-premium')) return; // ohne Premium gibt es dafuer keine CSS-Regel
     this.el.classList.remove('bx-hit'); void this.el.offsetWidth; this.el.classList.add('bx-hit');
     const t = setTimeout(() => { this.timers.delete(t); this.el.classList.remove('bx-hit'); }, 900);
     this.timers.add(t);

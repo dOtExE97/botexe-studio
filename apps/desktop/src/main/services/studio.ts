@@ -34,7 +34,7 @@ import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { planWheelSpins } from './wheel-gift';
 import { planSlotSpins } from './slot-gift';
-import { sollIntroLaufen, INTRO_AUSLOESER_TEXT } from './intro';
+import { sollIntroLaufen, INTRO_AUSLOESER_TEXT, TEAMHERZ_GIFT_ID } from './intro';
 import { besterRang, type RangStand } from '../adapters/tiktok-rank';
 import { matchingLuckyLayers, matchLuckyCommand, planLuckyDraws, luckyDrawDauerMs, type LuckyLayer } from './lucky-draw';
 import { kannFortsetzung, istFortsetzung } from './session-continuity';
@@ -57,6 +57,7 @@ import type { SportProvider } from './sport-normalize';
 import { ObsService, type ObsStatus } from './obs-service';
 import { StreamerbotService, type StreamerbotStatus } from './streamerbot-service';
 import { TTSService } from './tts-service';
+import { edgeLeitungSchliessen } from './tts-providers';
 import { resolveTuning } from './tts-tuning';
 import { log } from '../core/logger';
 
@@ -97,6 +98,8 @@ export interface StudioHooks {
   onStreamerbotStatus?: (status: StreamerbotStatus) => void;
   /** TikTok-Ranglisten-Stand („dein Platz") → Live-/Analyse-Seite. */
   onRankChange?: (stand: RangStand) => void;
+  /** Alle Ranglisten auf einmal — fürs Live-Cockpit. */
+  onRankListe?: (staende: RangStand[]) => void;
   /** Spotify Now-Playing → an den Renderer (Steuerleiste/Status). */
   onSpotifyState?: (np: NowPlaying | null) => void;
 }
@@ -350,6 +353,16 @@ export class Studio {
       // so kennt z.B. das Bingo ALLE Gift-Bilder, bevor das erste Gift kommt.
       onAvailableGifts: (gifts) => this.importAvailableGifts(gifts),
       onRank: (staende) => this.merkeRang(staende),
+      // Geschenke-Galerie: dieselbe Aufbereitung wie die Gift-Liste — die
+      // Einträge tragen Bild und Coin-Wert und füllen damit den Katalog.
+      onGiftGallery: (galerie) => this.importGiftGallery(galerie),
+      onHostInfo: (info) => {
+        // Name und Bild des Streamers dauerhaft merken — die Auswertung
+        // begrüßt ihn damit, auch wenn gerade kein Stream läuft.
+        const s2 = this.settings.peek();
+        if (info.nickname && info.nickname !== s2.hostNickname) this.settings.update({ hostNickname: info.nickname });
+        if (info.avatar && info.avatar !== s2.hostAvatar) this.settings.update({ hostAvatar: info.avatar });
+      },
       onStatus: (info) => {
         // Bei einem NEUEN Stream (erster Connect ODER erneutes Live nach Ende)
         // die Session frisch starten: alte Session sichern, dann Stats/Cooldowns
@@ -570,12 +583,14 @@ export class Studio {
       const introWann = this.settings.peek().introTrigger ?? 'sub';
       if (e.user && sollIntroLaufen({
         typ: e.type,
+        giftId: e.gift?.giftId,
         synthetic: e.synthetic,
         schonGezeigt: this.introGezeigt.has(e.user.id),
         wann: introWann,
       })) {
         this.maybePlayWelcomeMedia(e.user);
-      } else if (e.user && !e.synthetic && (e.type === 'join' || e.type === 'sub')
+      } else if (e.user && !e.synthetic
+        && (e.type === 'join' || e.type === 'sub' || e.gift?.giftId === TEAMHERZ_GIFT_ID)
         && !this.introGezeigt.has(e.user.id) && this.points.welcomeMediaFor(e.user.id)) {
         // DER Fall, der ein 10-Stunden-Log lang spurlos blieb: Dieser Zuschauer
         // HAT ein Intro hinterlegt, aber der eingestellte Auslöser passt nicht
@@ -583,7 +598,7 @@ export class Studio {
         // Streamer sah es aus, als sei die Funktion kaputt.
         log.einmal(`intro:auslöser-passt-nicht:${introWann}`, 'warn', 'Intro',
           `${e.user.nickname} hat ein persönliches Intro hinterlegt und ist gerade `
-          + `${e.type === 'join' ? 'reingekommen' : 'Teamherz geworden'} — dein Auslöser steht aber auf `
+          + `${e.type === 'join' ? 'reingekommen' : e.type === 'sub' ? 'Abonnent geworden' : 'hat ein Teamherz geschickt'} — dein Auslöser steht aber auf `
           + `„${INTRO_AUSLOESER_TEXT[introWann]}". Deshalb lief nichts. Umstellen unter Einstellungen → Intro.`);
       }
 
@@ -753,6 +768,16 @@ export class Studio {
       s.tiktokSessionId ? 'Chat-Senden möglich' : 'Chat-Senden NICHT möglich (nicht bei TikTok angemeldet)',
     ].filter(Boolean);
     log.info('Studio', `Startklar: ${teile.join(' · ')}.`);
+    // Der Auslöser „Beim Teamherz" ist der Standard — aber ein neues Teamherz
+    // ist auf TikTok SELTEN. Wer Intros hinterlegt hat und darauf wartet,
+    // erlebt monatelang gar nichts und hält die Funktion für kaputt. Genau so
+    // ist es einem Nutzer ergangen: 5 hinterlegte Intros, Auslöser auf
+    // Teamherz, in einem ganzen Stream kein einziges Intro.
+    if ((s.introTrigger ?? 'teamherz') === 'sub' && this.points.mitIntroAnzahl() > 0) {
+      log.info('Intro', `Du hast ${this.points.mitIntroAnzahl()} persönliche Intros hinterlegt, sie laufen aber nur `
+        + 'beim bezahlten ABO — und das ist selten. Meinst du das Teamherz-Geschenk (1 Coin), stell den Auslöser '
+        + 'in den Einstellungen auf „Beim Teamherz-Geschenk" um.');
+    }
     if (aus > 0) {
       log.info('Trigger', `${aus} Regel(n) sind ausgeschaltet und reagieren auf gar nichts: `
         + `${regeln.filter((r) => !r.enabled).map((r) => `„${r.name}"`).slice(0, 8).join(', ')}`
@@ -1125,6 +1150,8 @@ export class Studio {
     this.obs.dispose();
     this.streamerbot.dispose();
     this.spotify.dispose();
+    // Die offene Sprach-Leitung mit schließen — sonst hält sie den Prozess auf.
+    edgeLeitungSchliessen();
     await this.adapter.disconnect();
     await this.server.stop();
   }
@@ -1444,17 +1471,59 @@ export class Studio {
    *  — die Oberfläche holt ihn beim Öffnen ab UND bekommt Änderungen gepusht.
    *  (Nur Push wäre der Fehler, den wir bei OBS/Live-Status schon hatten.) */
   private rangStand: RangStand | null = null;
+  /** Ranglisten-Art → jüngster Stand. Siehe merkeRang. */
+  private readonly rangListe = new Map<number, RangStand>();
+
+  /** Geschenke-Galerie in den Katalog übernehmen.
+   *
+   *  BEWUSST DEFENSIV: Die Antwort ist untypisiert und kann je nach Plan ganz
+   *  anders aussehen. Statt eine Struktur zu raten, wird nach Einträgen mit
+   *  Name/ID gesucht — findet sich nichts Brauchbares, passiert eben nichts.
+   *  Der Katalog bleibt in jedem Fall unbeschädigt. */
+  private importGiftGallery(galerie: unknown): void {
+    const eintraege: unknown[] = Array.isArray(galerie)
+      ? galerie
+      : [
+        (galerie as { gifts?: unknown[] } | undefined)?.gifts,
+        (galerie as { data?: { gifts?: unknown[] } } | undefined)?.data?.gifts,
+        (galerie as { giftList?: unknown[] } | undefined)?.giftList,
+      ].find(Array.isArray) ?? [];
+    if (eintraege.length === 0) {
+      log.info('TikTok', 'Die Geschenke-Galerie kam an, enthielt aber keine erkennbaren Einträge — nichts übernommen.');
+      return;
+    }
+    this.importAvailableGifts(eintraege);
+    log.info('TikTok', `${eintraege.length} Geschenke aus der Galerie in den Katalog übernommen.`);
+  }
 
   private merkeRang(staende: RangStand[]): void {
+    // ALLE Stände behalten, nicht nur den besten.
+    //
+    // TikTok schickt mehrere Ranglisten gleichzeitig (Stunde, Tag, Woche,
+    // Spiele, Newcomer …) — bisher pickte die App die beste heraus und warf den
+    // Rest weg. Für den Streamer ist aber genau das Nebeneinander interessant:
+    // „Platz 3 in der Stunde, aber nur 47 am Tag" sagt mehr als jede Zahl für
+    // sich. Je Ranglisten-ART den JÜNGSTEN Stand halten.
+    for (const st of staende) {
+      if (st && Number.isFinite(st.platz) && st.platz > 0) this.rangListe.set(st.artNr, st);
+    }
     const beste = besterRang(staende);
     if (!beste) return;
     const vorher = this.rangStand;
     this.rangStand = beste;
+    // Für die Auswertung mitschreiben: die beste Platzierung des Abends.
+    if (this.stats.merkePlatzierung(beste.platz, beste.art)) this.scheduleStatsSave();
     // Nur bei echter Änderung ins Log — TikTok schickt den Stand im Minutentakt.
     if (!vorher || vorher.platz !== beste.platz || vorher.artNr !== beste.artNr) {
       log.info('Rangliste', `${beste.art}: Platz ${beste.platz}${beste.restSek ? ` (noch ${Math.round(beste.restSek / 60)} min)` : ''}`);
     }
     this.hooks.onRankChange?.(beste);
+    this.hooks.onRankListe?.(this.rangAlle());
+  }
+
+  /** Alle bekannten Ranglisten-Stände, beste Platzierung zuerst. */
+  rangAlle(): RangStand[] {
+    return [...this.rangListe.values()].sort((a, b) => a.platz - b.platz);
   }
 
   /** Aktueller Ranglisten-Stand zum Abholen (Pull beim Seiten-Aufruf). */
@@ -1609,6 +1678,8 @@ export class Studio {
       keySet: !!s.tiktokSignApiKey,
       connectMode: s.tiktokConnectMode ?? 'cloud',
       username: s.lastUsername ?? '',
+      hostNickname: s.hostNickname ?? '',
+      hostAvatar: s.hostAvatar ?? '',
       layoutCount: this.layouts.list().length,
       activeLayoutId: s.activeLayoutId ?? '',
       // Die Größe, die in OBS/TTLS von Hand an der Browser-Quelle stehen muss.
@@ -2302,6 +2373,10 @@ export class Studio {
     this.games.stop('neuer Stream');
     if (this.bossActive) this.stopBoss();
     this.sessionRoles.clear();
+    // Ranglisten gehören zum Stream — im neuen Stream stünde sonst der alte
+    // Platz, bis TikTok zufällig einen neuen schickt.
+    this.rangListe.clear();
+    this.rangStand = null;
     this.loggedRoleUsers.clear();
     this.loggedFollowerOnce = false;
     this.bus.clearLastValues();
@@ -2407,7 +2482,7 @@ export class Studio {
     }
 
     // Prefix-bereinigten Text fürs Template nutzen (Original-Event unangetastet).
-    const roles = [event.user?.isMod && 'mod', event.user?.isSub && 'teamherz', event.user?.isFollower && 'follower', isVip && 'vip'].filter(Boolean).join(',');
+    const roles = [event.user?.isMod && 'mod', event.user?.isSub && 'superfan', event.user?.isFollower && 'follower', isVip && 'vip'].filter(Boolean).join(',');
     this.logTtsDecision(`vorgelesen: ${nick}${roles ? ` [${roles}]` : ''}`);
     const speakEvent = decision.text === raw ? event : { ...event, text: decision.text };
     this.speakForEvent(tts.chatTemplate, speakEvent);
@@ -2426,7 +2501,7 @@ export class Studio {
       // wirklich liefert. „Stufe unbekannt" heißt nicht, dass jemand keine hat
       // — nicht jede Nachrichtenart trägt die Abzeichen-Daten mit.
       const stufe = user.teamLevel ? `Stufe ${user.teamLevel}` : 'Stufe nicht mitgeliefert';
-      log.info('TikTok', `Teamherz erkannt: ${user.nickname} (${stufe})`);
+      log.info('TikTok', `Superfan erkannt: ${user.nickname} (${stufe})`);
     }
     if (user.gifterLevel && !this.loggedRoleUsers.has(`grade:${user.id}`)) {
       this.loggedRoleUsers.add(`grade:${user.id}`);

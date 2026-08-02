@@ -22,6 +22,11 @@ export interface StreamEintrag {
   subs?: number;
   envelopes?: number;
   envelopeCoins?: number;
+  superfans?: number;
+  emotes?: number;
+  peakAnonymous?: number;
+  bestePlatzierung?: number;
+  besteRangArt?: string;
 }
 
 /** Ein Wert plus Einordnung — mehr als die nackte Zahl. */
@@ -214,4 +219,17 @@ export function urteil(coins: number, vergleich: number[]): Urteil {
   // „ganz normaler Abend" liest sich das wie ein Widerspruch und macht die
   // ganze Einordnung unglaubwürdig. Der Platz sagt hier schlicht nichts aus.
   return { art: 'normal', satz: `Ein ganz normaler Abend — ziemlich genau dein Schnitt (${k.schnitt} Coins).`, platz, vonWievielen: gesamt };
+}
+
+
+/** Die beste Platzierung im Zeitraum — das Aushängeschild schlechthin.
+ *  Niedriger ist besser, deshalb Minimum statt Maximum. */
+export function bestePlatzierung(eintraege: StreamEintrag[]): { platz: number; art: string; at: number } | null {
+  let beste: { platz: number; art: string; at: number } | null = null;
+  for (const e of eintraege) {
+    const p = e.bestePlatzierung;
+    if (!p || p <= 0) continue;
+    if (!beste || p < beste.platz) beste = { platz: p, art: e.besteRangArt ?? 'Rangliste', at: e.at };
+  }
+  return beste;
 }

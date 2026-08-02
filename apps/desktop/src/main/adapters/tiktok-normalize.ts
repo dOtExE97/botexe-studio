@@ -267,15 +267,32 @@ function zahl(wert: unknown): number {
  * und blieb im echten Stream für immer stumm.
  */
 export function normalizeSub(
-  data: { user?: RawUser; subMonth?: number | string; subMonths?: number | string } & RawRoleData,
+  data: {
+    user?: RawUser;
+    subMonth?: number | string; subMonths?: number | string;
+    /** 0 = FIRST (neu), 1 = RESUB (Verlängerung), 2/3 = Kulanzfrist. */
+    oldSubscribeStatus?: number | string;
+  } & RawRoleData,
   ts: number,
 ): StudioEvent {
   const user = toUser(data.user);
-  // Wer gerade abonniert hat, IST per Definition Teamherz — auch wenn das
+  // Wer gerade abonniert hat, IST per Definition Superfan — auch wenn das
   // Abzeichen in dieser Nachricht (noch) fehlt.
   if (user) user.isSub = true;
   const monate = zahl(data.subMonth ?? data.subMonths);
-  return { type: 'sub', ts, user, ...(monate > 0 ? { subMonths: monate } : {}) };
+  // TikTok unterscheidet selbst zwischen Erst-Abo und Verlängerung
+  // (OldSubscribeStatus: FIRST=0, RESUB=1). Ohne diese Unterscheidung klingt
+  // jede Verlängerung wie ein neuer Superfan — schön für die Statistik,
+  // gelogen für den Streamer.
+  const roh = data.oldSubscribeStatus;
+  const neu = roh === undefined || roh === null ? undefined : Number(roh) === 0;
+  return {
+    type: 'sub',
+    ts,
+    user,
+    ...(monate > 0 ? { subMonths: monate } : {}),
+    ...(neu !== undefined ? { superfanNeu: neu } : {}),
+  };
 }
 
 /**
@@ -319,6 +336,49 @@ export function normalizeEnvelope(
       superFan,
     },
   };
+}
+
+/**
+ * Superfan-Meldung (TikTok „superFan" / „superFanJoin").
+ *
+ * Diese Ereignisse kommen als BANNER-Nachricht (WebcastBarrageMessage), deren
+ * Anzeigetext den Schlüssel „ttlive_superfan" enthält. Der Zuschauer steckt
+ * nicht auf oberster Ebene, sondern in den Textbausteinen des Banners
+ * (content.pieces[].userValue.user) — genau deshalb wäre er beim schlichten
+ * Auslesen von `data.user` verloren gegangen.
+ *
+ * `beigetreten` unterscheidet den Neu-Beitritt von sonstigen Superfan-Meldungen
+ * (Verlängerung, Stufenaufstieg). Die Bibliothek trennt das selbst in zwei
+ * Ereignisse; wir behalten die Unterscheidung, statt alles in einen Topf zu
+ * werfen — ein „X ist neuer Superfan!"-Alert bei jeder Stufenmeldung wäre
+ * schnell nervig.
+ */
+export function normalizeSuperfan(
+  data: {
+    user?: RawUser;
+    content?: { pieces?: Array<{ userValue?: { user?: RawUser } }> };
+    commonBarrageContent?: { pieces?: Array<{ userValue?: { user?: RawUser } }> };
+  },
+  beigetreten: boolean,
+  ts: number,
+): StudioEvent {
+  const ausBausteinen = [...(data.content?.pieces ?? []), ...(data.commonBarrageContent?.pieces ?? [])]
+    .map((p) => p?.userValue?.user)
+    .find((u) => u);
+  return { type: 'superfan', ts, user: toUser(data.user ?? ausBausteinen), superfanNeu: beigetreten };
+}
+
+/**
+ * Emote/Sticker eines Zuschauers — reines Beteiligungs-Signal.
+ *
+ * Kostet nichts und beantwortet in der Auswertung die Frage „wie lebendig war
+ * der Chat wirklich?" besser als die reine Zahl der Kommentare.
+ */
+export function normalizeEmote(
+  data: { user?: RawUser; emoteList?: unknown[] } & RawRoleData,
+  ts: number,
+): StudioEvent {
+  return { type: 'emote', ts, user: toUser(data.user) };
 }
 
 /** businessType der Superfan-Truhe (belegt im Protokoll-Schema, EnvelopeBusinessType). */

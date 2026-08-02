@@ -53,6 +53,9 @@ const CONDITION_KINDS: ReadonlySet<string> = new Set([
   'gift_id_is',
   'envelope_coins_gte',
   'envelope_superfan',
+  'superfan_neu',
+  'superfan_verlaengerung',
+  'superfan_monate_gte',
   'chat_keyword',
   'chat_command',
   'chat_first_time',
@@ -376,6 +379,11 @@ function validateCondition(
       if (value === null) return null;
       return { kind, value };
     }
+    case 'superfan_monate_gte': {
+      const value = nonNegInt(input['value']);
+      if (value === null) return null;
+      return { kind, value };
+    }
     case 'envelope_coins_gte': {
       const value = nonNegInt(input['value']);
       if (value === null) return null;
@@ -384,6 +392,8 @@ function validateCondition(
     case 'chat_first_time':
     case 'follow_first_time':
     case 'envelope_superfan':
+    case 'superfan_neu':
+    case 'superfan_verlaengerung':
       return { kind };
     default:
       return null;

@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  normalizeSuperfan,
+  normalizeEmote,
   normalizeSub,
   normalizeEnvelope,
   normalizeChat,
@@ -383,4 +385,67 @@ test('Zuschauer-Tick ohne Zusatzdaten bleibt schlank (keine leeren Felder)', () 
   const e = normalizeViewerCount({ totalUser: '7' }, 1);
   assert.equal(e.raumBeste, undefined);
   assert.equal(e.anonymousViewers, undefined);
+});
+
+// ── Superfans ──────────────────────────────────────────────────────────────
+// Aus Chris' Log vom 02.08.2026: „superFan" kam zweimal an und landete im
+// Papierkorb — jedes Mal Sekunden bevor die App denselben Zuschauer als
+// Teamherz erkannte. Der Zuschauer steckt NICHT auf oberster Ebene, sondern in
+// den Textbausteinen des Banners.
+
+test('Superfan: Zuschauer wird aus den Textbausteinen des Banners geholt', () => {
+  const e = normalizeSuperfan({
+    content: { pieces: [{}, { userValue: { user: { uniqueId: 'fan1', nickname: 'Fan Eins' } } }] },
+  }, true, 7);
+  assert.equal(e.type, 'superfan');
+  assert.equal(e.user?.id, 'fan1');
+  assert.equal(e.user?.nickname, 'Fan Eins');
+  assert.equal(e.superfanNeu, true);
+});
+
+test('Superfan: Beitritt und sonstige Meldung bleiben unterscheidbar', () => {
+  const daten = { user: { uniqueId: 'a', nickname: 'A' } };
+  assert.equal(normalizeSuperfan(daten, true, 1).superfanNeu, true);
+  assert.equal(normalizeSuperfan(daten, false, 1).superfanNeu, false);
+});
+
+test('Superfan: Nutzer auf oberster Ebene hat Vorrang vor den Bausteinen', () => {
+  const e = normalizeSuperfan({
+    user: { uniqueId: 'direkt', nickname: 'Direkt' },
+    content: { pieces: [{ userValue: { user: { uniqueId: 'baustein', nickname: 'Baustein' } } }] },
+  }, true, 1);
+  assert.equal(e.user?.id, 'direkt');
+});
+
+test('Superfan ohne jeden Nutzer ergibt trotzdem ein Ereignis', () => {
+  const e = normalizeSuperfan({}, false, 1);
+  assert.equal(e.type, 'superfan');
+  assert.equal(e.user, undefined);
+});
+
+test('Emote: erzeugt ein Beteiligungs-Ereignis mit Zuschauer', () => {
+  const e = normalizeEmote({ user: { uniqueId: 'x', nickname: 'X' } }, 3);
+  assert.equal(e.type, 'emote');
+  assert.equal(e.user?.id, 'x');
+});
+
+// ── Superfan (= TikToks Abo, seit 15.09.2025 „Super Fan") ──────────────────
+// TikTok unterscheidet selbst zwischen Erst-Abo und Verlängerung
+// (OldSubscribeStatus: FIRST=0, RESUB=1) und liefert die Treue-Monate mit.
+
+test('Superfan: NEU und Verlängerung bleiben unterscheidbar', () => {
+  const u = { user: { uniqueId: 'a', nickname: 'A' } };
+  assert.equal(normalizeSub({ ...u, oldSubscribeStatus: 0 }, 1).superfanNeu, true, 'FIRST = neu');
+  assert.equal(normalizeSub({ ...u, oldSubscribeStatus: 1 }, 1).superfanNeu, false, 'RESUB = Verlängerung');
+  assert.equal(normalizeSub({ ...u, oldSubscribeStatus: '1' }, 1).superfanNeu, false, 'auch als Text');
+});
+
+test('Superfan: ohne Angabe wird NICHTS behauptet', () => {
+  // Lieber keine Aussage als eine falsche — sonst zählt jede Verlängerung als
+  // neuer Superfan und die Auswertung ist geschönt.
+  assert.equal(normalizeSub({ user: { uniqueId: 'a', nickname: 'A' } }, 1).superfanNeu, undefined);
+});
+
+test('Superfan: Treue-Monate kommen als Text und werden Zahl', () => {
+  assert.equal(normalizeSub({ user: { uniqueId: 'a', nickname: 'A' }, subMonth: '14' }, 1).subMonths, 14);
 });

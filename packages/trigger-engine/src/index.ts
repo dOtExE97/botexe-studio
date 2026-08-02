@@ -28,6 +28,12 @@ export type StudioEventType =
   /** Zuschauer betritt den Stream (TikTok „member"/join). */
   | 'join'
   | 'viewer_count'
+  /** Superfan-Ereignis: jemand ist dem Superfan-Club beigetreten oder es gab
+   *  eine andere Superfan-Meldung. Kommt als Banner-Nachricht rein, in der ein
+   *  vollständiges Zuschauer-Objekt steckt. */
+  | 'superfan'
+  /** Zuschauer schickt ein Emote/Sticker — reines Beteiligungs-Signal. */
+  | 'emote'
   /** Coin-Kiste / Schatztruhe (TikTok „envelope"), inkl. Superfan-Truhe.
    *  Eigene Gattung, KEIN Geschenk: Absender, Coin-Wert und Anzahl der
    *  Gewinner stehen in einer eigenen Nachricht, und es hängt kein
@@ -128,6 +134,9 @@ export interface StudioEvent {
   /** Nur bei 'envelope': Coin-Wert der Truhe, Anzahl der Gewinner und ob es
    *  die Superfan-Truhe war. */
   envelope?: StudioEnvelope;
+  /** Nur bei 'superfan': true = jemand ist NEU beigetreten (TikTok unterscheidet
+   *  das selbst), false = sonstige Superfan-Meldung (Verlängerung, Stufe …). */
+  superfanNeu?: boolean;
   /** true = Test-/Replay-Event (Vorschau) — löst Overlay/TTS aus, wird aber NICHT
    *  persistent verbucht (keine echten Punkte/Coins/Likes, kein Gift-Katalog). */
   synthetic?: boolean;
@@ -148,6 +157,12 @@ export type TriggerCondition =
   /** Coin-Kiste ab einem Mindestwert bzw. nur die Superfan-Truhe. */
   | { kind: 'envelope_coins_gte'; value: number }
   | { kind: 'envelope_superfan' }
+  /** Nur der echte Neu-Beitritt, keine Verlängerung/Stufenmeldung. */
+  | { kind: 'superfan_neu' }
+  /** Nur Verlängerungen (Treue!) — das Gegenstück zu superfan_neu. */
+  | { kind: 'superfan_verlaengerung' }
+  /** Ab wie vielen Monaten Superfan-Treue. */
+  | { kind: 'superfan_monate_gte'; value: number }
   | { kind: 'chat_keyword'; value: string }
   /** Nachricht beginnt mit dem Befehl (z.B. '!hype'), optional mit Argumenten. */
   | { kind: 'chat_command'; value: string }
@@ -454,6 +469,12 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return (event.envelope?.coins ?? 0) >= condition.value;
     case 'envelope_superfan':
       return event.envelope?.superFan === true;
+    case 'superfan_neu':
+      return event.superfanNeu === true;
+    case 'superfan_verlaengerung':
+      return event.superfanNeu === false;
+    case 'superfan_monate_gte':
+      return (event.subMonths ?? 0) >= condition.value;
     case 'chat_keyword':
       return (event.text ?? '').toLowerCase().includes(condition.value.toLowerCase()) && condition.value !== '';
     case 'chat_command':

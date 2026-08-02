@@ -3,6 +3,93 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.48.0] — 2026-08-02
+
+Entstanden aus zwei weiteren Logs von Chris — und aus einer Frage, die alles
+aufgerollt hat: „Was ist eigentlich ein Teamherz?"
+
+### Behoben: „Teamherz" war die ganze Zeit falsch beschriftet 💜
+Auf TikTok ist **Teamherz ein Geschenk** (1 Coin, täglich einmal gratis) — die
+App nannte so aber das **bezahlte Abo**. Wer „Intro beim Teamherz" einstellte,
+wartete deshalb auf etwas, das fast nie kommt, während die Teamherzen im
+Sekundentakt eintrudelten. In einem echten Stream: **10 Teamherzen, null
+Intros.**
+
+- Neuer Auslöser **„Beim Teamherz-Geschenk"** — erkennt das Geschenk über seine
+  Nummer, also sprachunabhängig.
+- Das Abo heißt jetzt überall **„Superfan"** — so nennt TikTok es seit dem
+  15.09.2025 selbst (die alte „LIVE-Subscription" wurde ersetzt).
+- **Bestehende Einstellungen werden umgestellt:** Wer „sub" gespeichert hat, las
+  in der App „Beim Teamherz" — niemand hat je bewusst das Abo gewählt. Beim
+  nächsten Start steht der Auslöser da, wo er hingehört.
+
+### Behoben: Die Ranglisten waren im Standard-Modus tot 🏆
+Die App liest TikToks Ranglisten seit jeher aus — Stunde, Tag, Woche, Spiele,
+Newcomer, elf Arten. Im **Cloud-Modus**, also bei praktisch allen Nutzern, kamen
+sie aber **nie an**: Der Router kannte die Nachrichtenart nicht. Die Anzeige
+„Platz 7" war blind, seit es sie gibt.
+
+Jetzt behält die App **alle** Ranglisten gleichzeitig und zeigt sie im
+Live-Cockpit nebeneinander. Das Nebeneinander ist die Aussage: „Platz 3 in der
+Stunde, aber 47 am Tag" heißt, dass es *gerade jetzt* außergewöhnlich läuft.
+
+### Neu: Superfans mit allem Drum und Dran ⭐
+Neue Superfans, **Verlängerungen** und **wie lange schon** — TikTok liefert das
+mit, die App hat es nie gelesen. Als Trigger-Bedingungen: *nur neue Superfans*,
+*nur Verlängerungen (Treue)*, *ab X Monaten*. Damit lässt sich „Isa ist seit 14
+Monaten dabei!" als Alert bauen.
+
+Neue Superfans werden **je Person einmal** gezählt: Zwei Quellen melden dasselbe
+Ereignis, ohne Abgleich stünde derselbe Mensch doppelt in der Auswertung.
+
+### Neu: Die Auswertung begrüßt dich 👋
+Oben steht jetzt „Guten Abend, <dein Name>" mit deinem Profilbild — beides aus
+TikToks Raum-Daten, die die App bisher komplett weggeworfen hat. Ohne Bild gibt
+es einen Kreis mit dem Anfangsbuchstaben statt eines kaputten Symbols.
+
+Dazu: Zahlen zählen beim Erscheinen hoch, Balken wachsen versetzt auf. Wer im
+System „Bewegung reduzieren" gewählt hat, bekommt alles sofort fertig.
+
+### Neu in der Auswertung
+**Beste Platzierung** (mit Rangliste und Datum) · **Neue Superfans** ·
+**Verlängerungen** · **Truhen** samt Coins darin · **Emotes** ·
+**Unsichtbar** — wie viele zuschauen, ohne in der Zuschauerzahl aufzutauchen.
+
+### Besser: Das Overlay läuft flüssiger — bei gleicher Optik 🎬
+Kein einziger Effekt wurde abgeschaltet. Stattdessen drei stille Kostentreiber:
+
+- **37 Widgets erzwangen bei jedem Ereignis ein vollständiges Layout** — für
+  einen Premium-Effekt, der ohne die Premium-Ebene gar keine CSS-Regel hat (alle
+  81 hängen daran) und standardmäßig aus ist. Bei 17 Widgets waren das 17
+  erzwungene Layouts **pro Geschenk**, für nichts.
+- Der **Geschenk-Alarm animierte weiter**, obwohl die Karte längst unsichtbar
+  war — stundenlang, unbemerkt.
+- Die **Bestenlisten** schrieben viermal pro Sekunde jede Zeile neu, auch wenn
+  sich nichts geändert hatte.
+
+Alles pixelgleich: Was vorher unsichtbar war, ist es weiterhin.
+
+### Besser: Sprachausgabe hält eine Leitung offen 🔊
+Statt für jede Ansage eine neue Verbindung zu Microsoft aufzubauen, bleibt
+**eine** offen — nur die erste Ansage kostet den Aufbau. Mit hartem Zeitlimit
+schon für die Aufbauphase (die Bibliothek hat keins und hängt gegen einen toten
+Port zwei Minuten), automatischem Neuaufbau nach einem Abriss, und dem
+bisherigen Weg als Rückfallebene. Dazu greift die 3-Minuten-Bremse jetzt
+wirklich — vorher lief sie ins Leere, sobald zusätzlich die lokale Stimme
+streikte.
+
+### Neu: Geschenke-Galerie wird abgerufen 🎁
+Der Connector kann das seit 2.4 — wir haben es nie aufgerufen. Ob der Gratis-Key
+das darf, zeigt der nächste Stream: Klappt es, füllt sie den Katalog; braucht es
+einen Bezahlplan, steht das als Klartext im Log statt eines stummen Fehlschlags.
+
+### Neu: Ein Wächter gegen die Fehlerklasse dahinter
+Dreimal ist dasselbe passiert: Ein Ereignis wurde eingebaut, im Cloud-Modus aber
+nie zugestellt — und es fiel erst Wochen später auf, weil im Standard-Modus
+einfach *nichts geschah*. Ursache: zwei von Hand gepflegte Listen für dieselbe
+Sache. Ein neuer Test liest beide aus dem Quelltext und vergleicht sie; künftige
+Lücken fallen beim Commit auf, nicht im Stream.
+
 ## [0.47.0] — 2026-08-02
 
 Diese Fassung entstand aus zwei echten Stream-Logs. Fast alles darin ist ein

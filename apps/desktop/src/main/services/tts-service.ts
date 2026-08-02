@@ -333,7 +333,14 @@ export class TTSService {
     // Bis zu 2 Versuche bei TRANSIENTEN Fehlern (z.B. Edge-TTS 503/Timeout) — schnell
     // scheitern statt lange Stille, danach greift der lokale Fallback unten. Permanente
     // Fehler (falscher Key etc.) brechen sofort ab.
-    for (let attempt = 1; !playback && attempt <= 2; attempt++) {
+    // WICHTIG: Die Sperre gilt AUCH hier. Vorher lief diese Schleife auch dann
+    // gegen die Online-Stimme, wenn sie gerade als „streikt" gesperrt war — man
+    // musste nur Pech mit der lokalen Stimme haben, dann war `playback` noch
+    // null und Edge wurde trotz Sperre wieder voll angelaufen. Genau der Fall
+    // bei einem Nutzer mit schwachem WLAN UND lahmer lokaler Stimme: Die
+    // 3-Minuten-Bremse hat nie gegriffen, jede Ansage kostete erneut 12 s.
+    const onlineGesperrt = this.onlineGesperrtBis > Date.now();
+    for (let attempt = 1; !playback && !onlineGesperrt && attempt <= 2; attempt++) {
       try { playback = await this.synthesize(item.text, item.voice); break; }
       catch (err) {
         lastMsg = (err as Error)?.message || String(err) || 'unbekannter Fehler';
@@ -440,8 +447,12 @@ export class TTSService {
     const naechste = this.queue[0];
     if (!naechste) return;
     if (this.vorabLaeuft) return; // immer nur EINE Ansage im Voraus
-    const stimme = this.onlineGesperrtBis > Date.now()
-      ? null // Online ist gerade gesperrt — dann wäre es die lokale Stimme
+    // Auch bei den ERSTEN Fehlern schon aufhören, nicht erst bei der Sperre:
+    // Solange die Leitung hakt, ist ein zusätzlicher Vorab-Versuch parallel zur
+    // laufenden Ansage genau das, was die Lage verschlimmert (zwei gleichzeitige
+    // Verbindungsaufbauten über dieselbe schwache Leitung).
+    const stimme = this.onlineGesperrtBis > Date.now() || this.onlineFehler > 0
+      ? null
       : naechste.voice;
     if (!stimme || normalizeVoiceId(stimme).startsWith('piper:')) return;
     this.vorabLaeuft = true;

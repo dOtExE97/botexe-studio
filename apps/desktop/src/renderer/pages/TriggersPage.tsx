@@ -13,13 +13,14 @@ import type { OverlayLayout } from '@botexe/overlay-engine';
 const EVENT_OPTIONS: { value: StudioEventType; label: string }[] = [
   { value: 'gift', label: 'Gift kommt rein' },
   { value: 'follow', label: 'Neuer Follower' },
-  { value: 'sub', label: 'Neuer Sub (Teamherz)' },
+  { value: 'sub', label: 'Superfan (Abo) — neu oder Verlängerung' },
   { value: 'join', label: 'Zuschauer betritt Stream' },
   { value: 'share', label: 'Stream geteilt' },
   { value: 'chat', label: 'Chat-Nachricht' },
   { value: 'like', label: 'Likes' },
   { value: 'viewer_count', label: 'Zuschauerzahl' },
   { value: 'envelope', label: 'Coin-Kiste / Truhe' },
+  { value: 'superfan', label: 'Superfan' },
   { value: 'timer', label: 'Timer (wiederkehrend)' },
 ];
 
@@ -52,6 +53,14 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
   envelope: [
     { value: 'envelope_coins_gte', label: 'Truhe mit mindestens … Coins', valueType: 'number' },
     { value: 'envelope_superfan', label: 'Nur die Superfan-Truhe' },
+  ],
+  superfan: [
+    { value: 'superfan_neu', label: 'Nur wenn jemand NEU beitritt' },
+  ],
+  sub: [
+    { value: 'superfan_neu', label: 'Nur NEUE Superfans' },
+    { value: 'superfan_verlaengerung', label: 'Nur Verlängerungen (Treue)' },
+    { value: 'superfan_monate_gte', label: 'Ab … Monaten Superfan', valueType: 'number' },
   ],
 };
 
@@ -105,6 +114,9 @@ function ruleToSentence(rule: TriggerRule, layerName: (id: string) => string, so
       case 'viewer_count_gte': wenn = `mind. ${c.value} Zuschauer da sind`; break;
       case 'envelope_coins_gte': wenn = `eine Truhe mit mind. ${c.value} Coins reinkommt`; break;
       case 'envelope_superfan': wenn = 'jemand eine SUPERFAN-Truhe reinwirft'; break;
+      case 'superfan_neu': wenn = 'jemand NEU Superfan wird'; break;
+      case 'superfan_verlaengerung': wenn = 'jemand seinen Superfan VERLÄNGERT'; break;
+      case 'superfan_monate_gte': wenn = `jemand seit mind. ${c.value} Monaten Superfan ist`; break;
     }
   } else if (rule.event === 'gift') wenn = 'IRGENDEIN Gift reinkommt';
   const parts: string[] = [];

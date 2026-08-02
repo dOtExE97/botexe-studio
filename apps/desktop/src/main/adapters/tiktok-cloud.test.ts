@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { buildCloudUrl, mapCloudMessage, EulerCloudConnection, type CloudWsLike } from './tiktok-cloud';
+import { buildCloudUrl, mapCloudMessage, leseHost, EulerCloudConnection, type CloudWsLike } from './tiktok-cloud';
 import { isOfflineError, isSignServerError } from './tiktok-adapter';
 
 // --- buildCloudUrl ---------------------------------------------------------
@@ -45,7 +45,9 @@ test('mapCloudMessage: Control-Stream-Ende → streamEnd, Pause → ignoriert', 
 
 test('mapCloudMessage: Euler-Custom-Frames steuern den Verbindungsstatus', () => {
   assert.deepEqual(mapCloudMessage('tiktok.connect', { agentId: 'x' }), { kind: 'connected' });
-  assert.deepEqual(mapCloudMessage('roomInfo', {}), { kind: 'connected' });
+  // roomInfo trägt seit v0.48 zusätzlich Name/Bild des Streamers — ohne solche
+  // Daten bleibt es beim reinen Verbindungssignal.
+  assert.deepEqual(mapCloudMessage('roomInfo', {}), { kind: 'connected', host: undefined });
   assert.deepEqual(mapCloudMessage('tiktok.disconnect', { reason: 4005 }), { kind: 'disconnected' });
   // workerInfo ist nur eine Begrüßung des Cloud-Workers — kein Live-Signal.
   assert.equal(mapCloudMessage('workerInfo', { isLoggedIn: false }), null);
@@ -158,4 +160,48 @@ test('fetchIsLive: Streamer offline (Close 4404) → false', async () => {
   const p = conn.fetchIsLive();
   getWs().emit('close', 4404, Buffer.from('not live'));
   assert.equal(await p, false);
+});
+
+// Aus Chris' Log vom 02.08.2026: eulerstream schickte „superFan" — einen
+// KURZEN Ereignisnamen statt eines Webcast-Protokollnamens. Wer nur die lange
+// Form abbildet, verliert Abos und Truhen im Cloud-Modus (dem Standard).
+test('Cloud-Router versteht BEIDE Schreibweisen (lang und kurz)', () => {
+  for (const [typ, erwartet] of [
+    ['WebcastSubNotifyMessage', 'subNotify'],
+    ['subNotify', 'subNotify'],
+    ['WebcastEnvelopeMessage', 'envelope'],
+    ['envelope', 'envelope'],
+    ['superFanBox', 'envelope'],
+  ] as const) {
+    const r = mapCloudMessage(typ, {});
+    assert.ok(r && r.kind === 'event', `${typ} muss ein Ereignis ergeben`);
+    assert.equal(r.kind === 'event' ? r.event : '', erwartet, `${typ} → ${erwartet}`);
+  }
+});
+
+// Name und Bild des Streamers stecken im roomInfo-Rahmen, den die App bis
+// v0.47 komplett weggeworfen hat. TikTok liefert ihn untypisiert und hat die
+// Verschachtelung schon geändert — deshalb mehrere bekannte Pfade.
+test('leseHost findet den Streamer über alle bekannten Pfade', () => {
+  const bild = { url_list: ['https://p16.tiktokcdn.com/x.webp'] };
+  assert.deepEqual(leseHost({ owner: { nickname: 'Chris', avatar_thumb: bild } }),
+    { nickname: 'Chris', avatar: 'https://p16.tiktokcdn.com/x.webp' });
+  assert.deepEqual(leseHost({ data: { owner: { nickname: 'Chris' } } }), { nickname: 'Chris' });
+  assert.deepEqual(leseHost({ data: { data: { owner: { nickname: 'Chris' } } } }), { nickname: 'Chris' });
+  // camelCase-Schreibweise ebenso.
+  assert.equal(leseHost({ owner: { avatarThumb: { urlList: ['https://a.b/c.jpg'] } } })?.avatar, 'https://a.b/c.jpg');
+});
+
+test('leseHost erfindet nichts, wenn nichts da ist', () => {
+  assert.equal(leseHost({}), undefined);
+  assert.equal(leseHost(undefined), undefined);
+  assert.equal(leseHost({ owner: {} }), undefined, 'leerer Besitzer ergibt nichts');
+  // Kein http? Dann kein Bild — sonst landet Unsinn im <img>.
+  assert.equal(leseHost({ owner: { nickname: 'A', avatar_thumb: { url_list: ['nope'] } } })?.avatar, undefined);
+});
+
+test('roomInfo meldet weiterhin „verbunden" — mit Streamer-Daten obendrauf', () => {
+  const r = mapCloudMessage('roomInfo', { owner: { nickname: 'Chris' } });
+  assert.equal(r?.kind, 'connected');
+  assert.equal(r && r.kind === 'connected' ? r.host?.nickname : '', 'Chris');
 });

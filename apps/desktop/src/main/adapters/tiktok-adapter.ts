@@ -21,6 +21,8 @@ import {
   normalizeViewerCount,
   normalizeSub,
   normalizeEnvelope,
+  normalizeSuperfan,
+  normalizeEmote,
 } from './tiktok-normalize';
 
 export type AdapterStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'error';
@@ -65,6 +67,10 @@ export interface TikTokAdapterOptions {
   onAvailableGifts?: (gifts: unknown) => void;
   /** TikToks Live-Ranglisten („dein Platz") — Zustand, kein Bus-Ereignis. */
   onRank?: (staende: RangStand[]) => void;
+  /** Geschenke-Galerie des Streamers (TikToks Sammel-Album), falls abrufbar. */
+  onGiftGallery?: (galerie: unknown) => void;
+  /** Name/Bild des Streamers, sobald TikTok sie schickt. */
+  onHostInfo?: (info: { nickname?: string; avatar?: string }) => void;
   maxReconnect?: number;
   baseReconnectDelayMs?: number;
   jitterMs?: number;
@@ -129,6 +135,8 @@ export class TikTokAdapter {
   private readonly onStatus: (info: AdapterStatusInfo) => void;
   private readonly onAvailableGifts?: (gifts: unknown) => void;
   private readonly onRank?: (staende: RangStand[]) => void;
+  private readonly onHostInfo?: (info: { nickname?: string; avatar?: string }) => void;
+  private readonly onGiftGallery?: (galerie: unknown) => void;
   private readonly maxReconnect: number;
   private readonly baseReconnectDelayMs: number;
   private readonly jitterMs: number;
@@ -175,6 +183,8 @@ export class TikTokAdapter {
     this.onStatus = options.onStatus ?? (() => undefined);
     this.onAvailableGifts = options.onAvailableGifts;
     this.onRank = options.onRank;
+    this.onHostInfo = options.onHostInfo;
+    this.onGiftGallery = options.onGiftGallery;
     this.maxReconnect = options.maxReconnect ?? DEFAULTS.maxReconnect;
     this.baseReconnectDelayMs = options.baseReconnectDelayMs ?? DEFAULTS.baseReconnectDelayMs;
     this.jitterMs = options.jitterMs ?? DEFAULTS.jitterMs;
@@ -247,6 +257,56 @@ export class TikTokAdapter {
       });
   }
   private giftListPlanNoted = false;
+
+  /**
+   * Geschenke-GALERIE des Streamers holen (TikToks Sammel-Album).
+   *
+   * Die Bibliothek kann das seit 2.4 über `fetchRoomGiftGalleryFromEulerRoute`
+   * — wir haben es nur nie aufgerufen. Ob der GRATIS-Key das darf, ist offen:
+   * Die verwandte Gift-Listen-Route braucht einen Bezahlplan. Deshalb hier
+   * derselbe ehrliche Umgang wie dort — klappt es, ist die Galerie da; kommt
+   * „Bezahlplan nötig", steht das genauso im Log statt eines stummen
+   * Fehlschlags. Nach dem nächsten echten Live wissen wir es sicher.
+   */
+  private loadGiftGallery(epoch: number): void {
+    if (!this.onGiftGallery) return;
+    const cb = this.onGiftGallery;
+    void (async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const lib = require('tiktok-live-connector') as {
+        fetchRoomGiftGalleryFromEulerRoute?: (args: Record<string, unknown>) => Promise<unknown>;
+      };
+      const route = lib.fetchRoomGiftGalleryFromEulerRoute;
+      if (typeof route !== 'function') throw new Error('Route nicht vorhanden');
+      return route({ uniqueId: this.username });
+    })()
+      .then((galerie) => {
+        if (epoch !== this.epoch || !galerie) return;
+        this.giftGalleryStatus = 'ok';
+        log.info('TikTok', 'Geschenke-Galerie des Streamers abgerufen.');
+        cb(galerie);
+      })
+      .catch((err: Error) => {
+        const msg = err?.message ?? '';
+        if (/business plan|requires a .*plan|premium/i.test(msg)) {
+          this.giftGalleryStatus = 'plan-noetig';
+          log.einmal('tiktok:galerie-plan', 'info', 'TikTok',
+            'Die Geschenke-Galerie ist nur mit einem eulerstream-Bezahlplan abrufbar — '
+            + 'die App kommt ohne sie aus, es fehlt nur die Sammel-Ansicht.');
+        } else {
+          this.giftGalleryStatus = 'fehler';
+          log.einmal('tiktok:galerie-fehler', 'info', 'TikTok',
+            `Die Geschenke-Galerie ließ sich nicht abrufen: ${msg.slice(0, 120)}`);
+        }
+      });
+  }
+
+  private giftGalleryStatus: 'unbekannt' | 'ok' | 'plan-noetig' | 'fehler' = 'unbekannt';
+
+  /** Ergebnis des letzten Galerie-Abrufs — damit die Oberfläche nicht rät. */
+  getGiftGalleryStatus(): 'unbekannt' | 'ok' | 'plan-noetig' | 'fehler' {
+    return this.giftGalleryStatus;
+  }
 
   /** Ergebnis des letzten Gift-Listen-Abrufs. Nur hier bekannt, aber die
    *  Oberfläche MUSS es wissen: schlägt der Abruf fehl (Gratis-Key), bleiben im
@@ -381,6 +441,7 @@ export class TikTokAdapter {
 
       // Gift-Katalog: komplette Gift-Liste (mit Bildern) abrufen — best-effort.
       this.loadAvailableGifts(conn, epoch);
+      this.loadGiftGallery(epoch);
 
       const viewers = typeof state.viewerCount === 'number' ? state.viewerCount : 0;
       if (viewers > 0) {
@@ -528,6 +589,12 @@ export class TikTokAdapter {
     on('subNotify', guard((d: Parameters<typeof normalizeSub>[0]) => { if (!dedup(d)) publish(normalizeSub(d, this.now())); }));
     // Coin-Kiste / Schatztruhe (auch die Superfan-Truhe).
     on('envelope', guard((d: Parameters<typeof normalizeEnvelope>[0]) => { if (!dedup(d)) publish(normalizeEnvelope(d, this.now())); }));
+    // Superfan: TikTok trennt „neu beigetreten" von sonstigen Superfan-Meldungen.
+    on('superFanJoin', guard((d: Parameters<typeof normalizeSuperfan>[0]) => { if (!dedup(d)) publish(normalizeSuperfan(d, true, this.now())); }));
+    on('superFan', guard((d: Parameters<typeof normalizeSuperfan>[0]) => { if (!dedup(d)) publish(normalizeSuperfan(d, false, this.now())); }));
+    on('emote', guard((d: Parameters<typeof normalizeEmote>[0]) => { if (!dedup(d)) publish(normalizeEmote(d, this.now())); }));
+    // Name und Bild des Streamers selbst (aus dem roomInfo-Rahmen).
+    on('hostInfo', guard((d: { nickname?: string; avatar?: string }) => this.onHostInfo?.(d)));
     // Ranglisten-Stand: nicht auf den Bus, sondern direkt an den Aufrufer —
     // es ist ein Zustand („Platz 12"), kein Vorfall, den Trigger auswerten müssten.
     if (this.onRank) {

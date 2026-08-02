@@ -33,7 +33,7 @@ interface Serialized {
 }
 
 function emptySummary(): StatsSummary {
-  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, uniqueViewers: 0, subs: 0, envelopes: 0, envelopeCoins: 0, sessions: 0 };
+  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, uniqueViewers: 0, subs: 0, envelopes: 0, envelopeCoins: 0, superfans: 0, emotes: 0, peakAnonymous: 0, sessions: 0 };
 }
 
 export class StatsHistory {
@@ -68,7 +68,7 @@ export class StatsHistory {
   /** Eine beendete Session ablegen (nur wenn überhaupt Aktivität war). */
   record(totals: StatsTotals, at: number, startedAt?: number): void {
     const active = totals.coins + totals.gifts + totals.likes + totals.chats + totals.follows + totals.shares
-      + (totals.subs ?? 0) + (totals.envelopes ?? 0);
+      + (totals.subs ?? 0) + (totals.envelopes ?? 0) + (totals.superfans ?? 0);
     if (active <= 0) {
       // Wichtig, weil der Aufrufer unmittelbar danach „Stream übernommen"
       // meldet: Ohne diese Zeile widersprechen sich Log und Analyse-Seite, und
@@ -107,6 +107,9 @@ export class StatsHistory {
       out.subs = (out.subs ?? 0) + (e.subs ?? 0);
       out.envelopes = (out.envelopes ?? 0) + (e.envelopes ?? 0);
       out.envelopeCoins = (out.envelopeCoins ?? 0) + (e.envelopeCoins ?? 0);
+      out.superfans = (out.superfans ?? 0) + (e.superfans ?? 0);
+      out.emotes = (out.emotes ?? 0) + (e.emotes ?? 0);
+      out.peakAnonymous = Math.max(out.peakAnonymous ?? 0, e.peakAnonymous ?? 0);
       out.sessions += 1;
     }
     return out;
