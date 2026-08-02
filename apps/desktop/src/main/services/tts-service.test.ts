@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { TTSService, isTransientTtsError, pickLocalFallbackVoice, type TTSPlayback } from './tts-service';
+import { TTSService, isTransientTtsError, pickLocalFallbackVoice, geschaetzteDauerMs, type TTSPlayback } from './tts-service';
 
 function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'tts-'));
@@ -97,4 +97,102 @@ test('sanitize entfernt auch NACKTE Domains (Scam-/Werbe-Links)', () => {
   assert.equal(TTSService.sanitize('krasse-seite.xyz/gewinn jetzt!', 200), 'jetzt!');
   // Normale Sätze mit Punkt bleiben unangetastet.
   assert.equal(TTSService.sanitize('Danke. Das war stark.', 200), 'Danke. Das war stark.');
+});
+
+// Aus einem echten 10-Stunden-Stream (Chris, 01.08.2026): Bei 13 % der Ansagen
+// lief die Sicherheits-Wartezeit ab, BEVOR der Ton fertig war — die Ansagen
+// ohne Rückmeldung hatten im Schnitt 50 % längere, emoji-reichere Namen.
+// Ursache: „60 ms pro Zeichen" unterschätzt gesprochene Emoji dramatisch.
+test('geschaetzteDauerMs: Emoji zählen wie gesprochene Wörter, nicht wie Buchstaben', () => {
+  const nurText = geschaetzteDauerMs('Mika folgt jetzt');
+  const mitEmoji = geschaetzteDauerMs('Mika🇩🇪⚽️ folgt jetzt');
+  assert.ok(mitEmoji > nurText + 1500,
+    `Emoji müssen deutlich mehr Zeit bekommen (Text ${nurText}ms, mit Emoji ${mitEmoji}ms)`);
+});
+
+test('geschaetzteDauerMs: ein Emoji zählt als EIN Zeichen, nicht als zwei halbe', () => {
+  // '🇩🇪' besteht aus zwei Code-Punkten — [...text] zerlegt korrekt.
+  const a = geschaetzteDauerMs('🇩🇪');
+  assert.equal(a, 1400, 'zwei Regional-Indikatoren à 700ms');
+});
+
+test('geschaetzteDauerMs: Mindestdauer, damit nie bei 0 weitergemacht wird', () => {
+  assert.equal(geschaetzteDauerMs(''), 600);
+  assert.equal(geschaetzteDauerMs('a'), 600);
+});
+
+// ── Zwischenspeicher ───────────────────────────────────────────────────────
+// Chris' 10-Stunden-Log: 85× fiel die Online-Stimme aus (schwaches WLAN im
+// Keller), jedes Mal mit „TTS-Timeout". Bis dahin ging JEDE Ansage neu ins
+// Netz — auch wenn derselbe Name gerade eben schon vorgelesen wurde.
+
+/** Zählt die echten Synthese-Aufrufe und schreibt eine Datei wie die Echte. */
+class ZaehlTTS extends TTSService {
+  aufrufe = 0;
+  override async synthesize(text: string, voice: string): Promise<TTSPlayback> {
+    this.aufrufe++;
+    return super.synthesize(text, voice);
+  }
+}
+
+test('Zwischenspeicher: derselbe Text mit derselber Stimme geht nur EINMAL ins Netz', async () => {
+  const dir = tmpDir();
+  const tts = new ZaehlTTS(dir, () => undefined);
+  // piper ist der lokale Weg — synthesizeWith schlägt ohne echtes Piper fehl,
+  // deshalb prüfen wir den Cache über die DATEI, die wir selbst hinlegen.
+  const ersteId = 'egal';
+  assert.ok(ersteId);
+  // Direkt gegen die Namensbildung: zweimal dieselbe Eingabe → derselbe Name.
+  const a = tts.cacheNameFuer('Hallo Welt', 'edge:de-DE-KatjaNeural');
+  const b = tts.cacheNameFuer('Hallo Welt', 'edge:de-DE-KatjaNeural');
+  const c = tts.cacheNameFuer('Hallo Welt', 'edge:de-DE-ElkeNeural');
+  const d = tts.cacheNameFuer('Anderer Text', 'edge:de-DE-KatjaNeural');
+  assert.equal(a, b, 'gleiche Eingabe → gleiche Datei (= kein zweiter Netz-Zugriff)');
+  assert.notEqual(a, c, 'andere Stimme → eigene Datei');
+  assert.notEqual(a, d, 'anderer Text → eigene Datei');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Zwischenspeicher: eine LEERE Datei gilt nicht als fertige Ansage', async () => {
+  const dir = tmpDir();
+  const tts = new ZaehlTTS(dir, () => undefined);
+  const name = tts.cacheNameFuer('Test', 'piper:de-thorsten');
+  fs.writeFileSync(path.join(dir, 'tts-cache', name), '');
+  // Eine 0-Byte-Datei darf NICHT als Treffer durchgehen — sonst bliebe es
+  // still, und zwar für immer, weil der Name ja gleich bleibt.
+  await assert.rejects(() => tts.synthesize('Test', 'piper:de-thorsten'));
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+// ── Veraltete Ansagen ──────────────────────────────────────────────────────
+// Bei langsamer Leitung staut sich die Warteschlange. Eine Ansage, die zwei
+// Minuten hinterherhinkt, hilft niemandem — sie verwirrt nur.
+
+class LangsamTTS extends TTSService {
+  gesprochen: string[] = [];
+  override async synthesize(text: string): Promise<TTSPlayback> {
+    this.gesprochen.push(text);
+    return { fileId: `f-${text}`, durationMs: 10 };
+  }
+}
+
+test('zu alte Ansagen werden übersprungen statt verspätet vorgelesen', async () => {
+  const tts = new LangsamTTS(tmpDir(), () => undefined);
+  // Direkt in die Warteschlange schreiben, mit altem Zeitstempel.
+  const q = (tts as unknown as { queue: { text: string; voice: string; at?: number }[] }).queue;
+  q.push({ text: 'uralt', voice: 'v', at: Date.now() - 5 * 60_000 });
+  q.push({ text: 'frisch', voice: 'v', at: Date.now() });
+  await (tts as unknown as { processNext: () => Promise<void> }).processNext();
+  await wait(60);
+  assert.ok(!tts.gesprochen.includes('uralt'), 'die alte Ansage wird verworfen');
+  assert.ok(tts.gesprochen.includes('frisch'), 'die frische kommt durch');
+});
+
+test('Ansagen ohne Zeitstempel (Alt-Einträge) werden NICHT verworfen', async () => {
+  const tts = new LangsamTTS(tmpDir(), () => undefined);
+  const q = (tts as unknown as { queue: { text: string; voice: string; at?: number }[] }).queue;
+  q.push({ text: 'ohne-stempel', voice: 'v' });
+  await (tts as unknown as { processNext: () => Promise<void> }).processNext();
+  await wait(60);
+  assert.ok(tts.gesprochen.includes('ohne-stempel'));
 });

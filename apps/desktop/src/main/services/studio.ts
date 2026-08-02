@@ -34,7 +34,7 @@ import { shouldReadChat, containsBlockedWord } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { planWheelSpins } from './wheel-gift';
 import { planSlotSpins } from './slot-gift';
-import { sollIntroLaufen } from './intro';
+import { sollIntroLaufen, INTRO_AUSLOESER_TEXT } from './intro';
 import { besterRang, type RangStand } from '../adapters/tiktok-rank';
 import { matchingLuckyLayers, matchLuckyCommand, planLuckyDraws, luckyDrawDauerMs, type LuckyLayer } from './lucky-draw';
 import { kannFortsetzung, istFortsetzung } from './session-continuity';
@@ -181,6 +181,13 @@ export class Studio {
    *    NICHT: Reißt die Verbindung ab, steht dort „reconnecting"/„error" —
    *    und genau dann startet der Streamer die App neu. */
   private letztesEchtesEventAt = 0;
+  /** Zeitpunkt des ERSTEN echten Ereignisses dieser Session.
+   *
+   *  Ohne ihn kannte die Historie nur das Ende — und damit weder die Dauer
+   *  noch den Wochentag des Stream-BEGINNS. Ein Stream, der um 01:30 endet,
+   *  zählte deshalb als Samstag, obwohl er am Freitagabend anfing; die
+   *  „starke Wochentage"-Auswertung war entsprechend verschoben. */
+  private erstesEchtesEventAt = 0;
 
   private readonly engine = new TriggerEngine();
   private readonly adapter: TikTokAdapter;
@@ -487,7 +494,11 @@ export class Studio {
         // Test-Events dürfen die Zähler bewusst bewegen (sonst könnte man
         // Widgets nicht testen) — aber sie machen aus einer Testrunde keinen
         // Stream: nur echte Ereignisse berechtigen zum Historie-Eintrag.
-        if (!e.synthetic) this.letztesEchtesEventAt = Date.now();
+        if (!e.synthetic) {
+          const jetzt = Date.now();
+          if (this.erstesEchtesEventAt === 0) this.erstesEchtesEventAt = jetzt;
+          this.letztesEchtesEventAt = jetzt;
+        }
         this.scheduleStatsBroadcast();
         this.scheduleStatsSave();
       }
@@ -556,13 +567,24 @@ export class Studio {
 
       // 3b2. Persönliches Intro des Zuschauers — je nach Einstellung beim
       // Betreten, beim Teamherz oder bei beidem.
+      const introWann = this.settings.peek().introTrigger ?? 'sub';
       if (e.user && sollIntroLaufen({
         typ: e.type,
         synthetic: e.synthetic,
         schonGezeigt: this.introGezeigt.has(e.user.id),
-        wann: this.settings.peek().introTrigger ?? 'sub',
+        wann: introWann,
       })) {
         this.maybePlayWelcomeMedia(e.user);
+      } else if (e.user && !e.synthetic && (e.type === 'join' || e.type === 'sub')
+        && !this.introGezeigt.has(e.user.id) && this.points.welcomeMediaFor(e.user.id)) {
+        // DER Fall, der ein 10-Stunden-Log lang spurlos blieb: Dieser Zuschauer
+        // HAT ein Intro hinterlegt, aber der eingestellte Auslöser passt nicht
+        // zum Ereignis. Vorher wurde hier einfach nichts getan — für den
+        // Streamer sah es aus, als sei die Funktion kaputt.
+        log.einmal(`intro:auslöser-passt-nicht:${introWann}`, 'warn', 'Intro',
+          `${e.user.nickname} hat ein persönliches Intro hinterlegt und ist gerade `
+          + `${e.type === 'join' ? 'reingekommen' : 'Teamherz geworden'} — dein Auslöser steht aber auf `
+          + `„${INTRO_AUSLOESER_TEXT[introWann]}". Deshalb lief nichts. Umstellen unter Einstellungen → Intro.`);
       }
 
       // 3b3. Event-Ansagen per TTS (unabhängig vom Chat-Vorlesen).
@@ -718,6 +740,10 @@ export class Studio {
       aktiv ? `Standard-Overlay „${aktiv.name}" mit ${aktiv.layers.length} Widget(s)` : 'KEIN Standard-Overlay gesetzt',
       s.tiktokSignApiKey ? `Verbindungsmodus ${s.tiktokConnectMode ?? 'cloud'}` : 'KEIN eulerstream-Key — Verbinden ist nicht möglich',
       s.tts.enabled ? 'Sprachausgabe an' : 'Sprachausgabe AUS',
+      // Intros: Ohne diese Zeile war „warum kommt kein Intro?" nur durch Raten
+      // zu klären — die Antwort steht jetzt beim Start da, mit Auslöser UND
+      // der Zahl der Zuschauer, die überhaupt eines hinterlegt haben.
+      `Intro ${INTRO_AUSLOESER_TEXT[s.introTrigger ?? 'sub']} (${this.points.mitIntroAnzahl()} Zuschauer haben eins)`,
       s.obs.enabled ? `OBS-Steuerung an (${s.obs.url})` : null,
       s.streamerbot.enabled ? `Streamer.bot an (${s.streamerbot.url})` : null,
       // Diese drei fehlten und sind genau die, nach denen man sucht, wenn
@@ -1167,9 +1193,14 @@ export class Studio {
       return;
     }
     const t = this.stats.snapshot().totals;
-    this.statsHistory.record(t, Math.min(this.letztesEchtesEventAt, Date.now()));
+    const ende = Math.min(this.letztesEchtesEventAt, Date.now());
+    // Dauer nur mitgeben, wenn der Beginn bekannt ist (bei einer aus der
+    // letzten Sitzung wiederhergestellten Session ist er es nicht).
+    const start = this.erstesEchtesEventAt > 0 && this.erstesEchtesEventAt <= ende ? this.erstesEchtesEventAt : undefined;
+    this.statsHistory.record(t, ende, start);
     this.statsHistory.save();
     this.letztesEchtesEventAt = 0;
+    this.erstesEchtesEventAt = 0;
     // Sichtbar machen, dass der Stream in der Analyse gelandet ist. Fehlt diese
     // Zeile und die Zahlen tauchen später nicht auf, ist nicht zu unterscheiden,
     // ob nie etwas geschrieben wurde oder ob die Anzeige klemmt.

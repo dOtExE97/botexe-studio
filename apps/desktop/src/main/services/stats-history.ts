@@ -15,6 +15,12 @@ const RANGE_DAYS: Record<StatsRange, number> = { week: 7, month: 30, year: 365 }
 
 export interface StatsHistoryEntry extends StatsTotals {
   at: number; // Zeitpunkt des Session-Endes (ms)
+  /** Beginn der Session (ms) — erst ab v0.47 vorhanden, ältere Einträge haben ihn nicht. */
+  startedAt?: number;
+  /** Dauer in Minuten (aus start/ende). Ohne sie lässt sich ein 45-Minuten-
+   *  Stream nicht von einem 5-Stunden-Stream unterscheiden — beide sind sonst
+   *  einfach „ein Balken", und „Coins pro Stunde" ist nicht berechenbar. */
+  durationMin?: number;
 }
 
 export interface StatsSummary extends StatsTotals {
@@ -27,7 +33,7 @@ interface Serialized {
 }
 
 function emptySummary(): StatsSummary {
-  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, uniqueViewers: 0, sessions: 0 };
+  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, uniqueViewers: 0, subs: 0, envelopes: 0, envelopeCoins: 0, sessions: 0 };
 }
 
 export class StatsHistory {
@@ -60,8 +66,9 @@ export class StatsHistory {
   }
 
   /** Eine beendete Session ablegen (nur wenn überhaupt Aktivität war). */
-  record(totals: StatsTotals, at: number): void {
-    const active = totals.coins + totals.gifts + totals.likes + totals.chats + totals.follows + totals.shares;
+  record(totals: StatsTotals, at: number, startedAt?: number): void {
+    const active = totals.coins + totals.gifts + totals.likes + totals.chats + totals.follows + totals.shares
+      + (totals.subs ?? 0) + (totals.envelopes ?? 0);
     if (active <= 0) {
       // Wichtig, weil der Aufrufer unmittelbar danach „Stream übernommen"
       // meldet: Ohne diese Zeile widersprechen sich Log und Analyse-Seite, und
@@ -69,7 +76,15 @@ export class StatsHistory {
       log.info('StatsHistory', 'Session hatte keinerlei Aktivität — kein Eintrag in der Analyse (das ist Absicht, kein Fehler).');
       return;
     }
-    this.entries.push({ ...totals, at });
+    const dauerMin = startedAt !== undefined && at > startedAt
+      ? Math.max(1, Math.round((at - startedAt) / 60_000))
+      : undefined;
+    this.entries.push({
+      ...totals,
+      at,
+      ...(startedAt !== undefined ? { startedAt } : {}),
+      ...(dauerMin !== undefined ? { durationMin: dauerMin } : {}),
+    });
     if (this.entries.length > MAX_ENTRIES) this.entries = this.entries.slice(-MAX_ENTRIES);
     this.scheduleSave();
   }
@@ -88,6 +103,10 @@ export class StatsHistory {
       out.chats += e.chats;
       out.peakViewers = Math.max(out.peakViewers, e.peakViewers);
       out.uniqueViewers += e.uniqueViewers ?? 0; // grobe Reichweite über den Zeitraum
+      // Optional, weil ältere Einträge sie nicht haben — `?? 0` ist Pflicht.
+      out.subs = (out.subs ?? 0) + (e.subs ?? 0);
+      out.envelopes = (out.envelopes ?? 0) + (e.envelopes ?? 0);
+      out.envelopeCoins = (out.envelopeCoins ?? 0) + (e.envelopeCoins ?? 0);
       out.sessions += 1;
     }
     return out;

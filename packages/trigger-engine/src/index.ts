@@ -28,6 +28,11 @@ export type StudioEventType =
   /** Zuschauer betritt den Stream (TikTok „member"/join). */
   | 'join'
   | 'viewer_count'
+  /** Coin-Kiste / Schatztruhe (TikTok „envelope"), inkl. Superfan-Truhe.
+   *  Eigene Gattung, KEIN Geschenk: Absender, Coin-Wert und Anzahl der
+   *  Gewinner stehen in einer eigenen Nachricht, und es hängt kein
+   *  vollständiges Zuschauer-Objekt daran (siehe normalizeEnvelope). */
+  | 'envelope'
   /** Periodischer Tick — Timer-Regeln (z.B. alle 10 Min. Socials einblenden). */
   | 'timer';
 
@@ -74,6 +79,29 @@ export interface StudioGift {
 }
 
 /** Normalisiertes Live-Event — vom TikTok-Adapter erzeugt, von Engine/Overlays konsumiert. */
+/** Eine Coin-Kiste / Schatztruhe.
+ *
+ *  WICHTIG: Am Absender hängt KEIN vollständiges Zuschauer-Objekt — TikTok
+ *  liefert in dieser Nachricht nur Anzeigename, ID und Bild. Es gibt also
+ *  keinen @-Namen und keine Teamherz-Stufe. Wer die Truhe wie ein Geschenk
+ *  behandelt, wundert sich sonst, warum niemand Punkte bekommt. */
+export interface StudioEnvelope {
+  /** Coin-Wert der Truhe (TikTok: diamondCount). */
+  coins: number;
+  /** Für wie viele Zuschauer die Truhe gedacht ist. */
+  winners: number;
+  /** true = Superfan-Truhe (nur für Teamherz-Mitglieder). */
+  superFan: boolean;
+}
+
+/** Ein Platz aus TikToks eigener Raum-Bestenliste (WebcastRoomUserSeqMessage). */
+export interface RaumPlatz {
+  platz: number;
+  /** TikToks Punktzahl für diesen Zuschauer im laufenden Stream. */
+  punkte: number;
+  user: StudioUser;
+}
+
 export interface StudioEvent {
   type: StudioEventType;
   ts: number;
@@ -83,11 +111,23 @@ export interface StudioEvent {
   likeCount?: number;
   totalLikes?: number;
   viewerCount?: number;
+  /** Wie viele davon UNSICHTBAR zuschauen (TikTok „anonymous"). Erklärt die
+   *  Lücke zwischen „gefühlt viele" und der angezeigten Zahl. */
+  anonymousViewers?: number;
+  /** TikToks EIGENE Raum-Bestenliste, die in jedem Zuschauer-Tick mitkommt und
+   *  bisher komplett weggeworfen wurde: Platz, Punktzahl und Zuschauer. */
+  raumBeste?: RaumPlatz[];
   /** true = dieser Zuschauer ist zum allerersten Mal aktiv (Studio reichert an). */
   firstOfUser?: boolean;
   /** true = dieser Zuschauer folgt zum ersten Mal (seit die App ihn kennt) —
    *  kein Re-Follow. Studio reichert an; nur bei type === 'follow' relevant. */
   firstFollow?: boolean;
+  /** Nur bei 'sub': wie viele Monate der Zuschauer schon Teamherz ist
+   *  (TikTok liefert das als Text mit — 1 = brandneu). */
+  subMonths?: number;
+  /** Nur bei 'envelope': Coin-Wert der Truhe, Anzahl der Gewinner und ob es
+   *  die Superfan-Truhe war. */
+  envelope?: StudioEnvelope;
   /** true = Test-/Replay-Event (Vorschau) — löst Overlay/TTS aus, wird aber NICHT
    *  persistent verbucht (keine echten Punkte/Coins/Likes, kein Gift-Katalog). */
   synthetic?: boolean;
@@ -105,6 +145,9 @@ export type TriggerCondition =
   /** Bestimmtes Gift über die STABILE TikTok-Gift-ID (sprachunabhängig — anders
    *  als der lokalisierte Anzeigename). Fürs TikFinity-Import robust. */
   | { kind: 'gift_id_is'; value: number }
+  /** Coin-Kiste ab einem Mindestwert bzw. nur die Superfan-Truhe. */
+  | { kind: 'envelope_coins_gte'; value: number }
+  | { kind: 'envelope_superfan' }
   | { kind: 'chat_keyword'; value: string }
   /** Nachricht beginnt mit dem Befehl (z.B. '!hype'), optional mit Argumenten. */
   | { kind: 'chat_command'; value: string }
@@ -407,6 +450,10 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return event.gift !== undefined && giftKey(event.gift.slug) === giftKey(condition.value);
     case 'gift_id_is':
       return event.gift?.giftId === condition.value;
+    case 'envelope_coins_gte':
+      return (event.envelope?.coins ?? 0) >= condition.value;
+    case 'envelope_superfan':
+      return event.envelope?.superFan === true;
     case 'chat_keyword':
       return (event.text ?? '').toLowerCase().includes(condition.value.toLowerCase()) && condition.value !== '';
     case 'chat_command':

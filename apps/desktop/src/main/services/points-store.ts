@@ -53,6 +53,15 @@ export interface PointsEntry {
   lastSeen?: number;
   /** Eigene TTS-Stimme für diesen Zuschauer (überschreibt Default). */
   voice?: string;
+  /** Höchste je gesehene Teamherz-Stufe (TikToks Fan-Club-Level, 0 = kein
+   *  Teamherz). Wurde bisher bei JEDEM Ereignis gelesen und sofort wieder
+   *  weggeworfen — deshalb ließ sich „wie viele meiner Leute sind Teamherz?"
+   *  nicht beantworten. Höchstwert statt letztem Wert, weil nicht jedes
+   *  Ereignis die Abzeichen mitliefert (ein Ereignis ohne Abzeichen würde die
+   *  Stufe sonst auf 0 zurücksetzen). */
+  teamLevel?: number;
+  /** Ebenso für die Gifter-Stufe (TikToks payGrade). */
+  gifterLevel?: number;
   /** Gewonnene Spiel-Runden (z.B. Zahlen-Raten) — fürs Spiel-Leaderboard. */
   gameWins?: number;
   /** Eigenes Begrüßungs-Medium (Media-ID) — spielt z.B. beim Teamherz. */
@@ -183,6 +192,10 @@ export class PointsStore {
     if (isNewVisit(e.lastSeen, event.ts, RETURN_GAP_MS)) e.visitCount = (e.visitCount ?? 0) + 1;
     e.firstSeen = e.firstSeen ?? event.ts;
     e.lastSeen = event.ts;
+    // Nur nach OBEN nachziehen: Ein Ereignis ohne Abzeichen-Daten darf eine
+    // bekannte Stufe nicht löschen (dieselbe Regel wie in toUser()).
+    if ((user.teamLevel ?? 0) > (e.teamLevel ?? 0)) e.teamLevel = user.teamLevel;
+    if ((user.gifterLevel ?? 0) > (e.gifterLevel ?? 0)) e.gifterLevel = user.gifterLevel;
     if (event.type === 'gift' && event.gift) {
       // Stückzahl, nicht Ereignisse — DIESELBE Funktion wie in SessionStats,
       // damit die Zuschauerkarte nicht andere Zahlen zeigt als das Overlay.
@@ -322,6 +335,14 @@ export class PointsStore {
     e.welcomeMediaId = mediaId || undefined;
     this.viewers.set(userId, e);
     this.scheduleSave();
+  }
+
+  /** Wie viele Zuschauer haben ein persönliches Intro hinterlegt? Fürs
+   *  Start-Log: „0" beantwortet die Frage „warum kommt kein Intro?" sofort. */
+  mitIntroAnzahl(): number {
+    let n = 0;
+    for (const v of this.viewers.values()) if (v.welcomeMediaId) n++;
+    return n;
   }
 
   welcomeMediaFor(userId: string): string | undefined {

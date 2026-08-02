@@ -54,7 +54,7 @@ Dein TikTok-Live  →  bOtExE Studio (auf deinem PC)  →  ein Overlay-Link  →
 |:---:|:---:|:---:|
 | ![Glücksrad](docs/wheel.png) | ![Designs](docs/widget-styles.png) | ![Coin-Glas](docs/overlay-gift-jar.png) |
 
-**→ [Alle 44 Widgets in der Galerie ansehen](docs/widgets.md)**
+**→ [Alle 45 Widgets in der Galerie ansehen](docs/widgets.md)**
 
 </div>
 

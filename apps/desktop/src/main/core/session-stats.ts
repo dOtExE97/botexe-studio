@@ -1,7 +1,7 @@
 // session-stats.ts — aggregierter Live-Zustand der Stream-Session:
 // Totals (Coins, Gifts, Follows, Likes, …) + Top-Gifter-Leaderboard.
 // Pure Logik; Persistenz (Crash-Recovery) und Broadcast macht der Service.
-import type { StudioEvent } from '@botexe/trigger-engine';
+import type { StudioEvent, RaumPlatz } from '@botexe/trigger-engine';
 
 export const STATS_SCHEMA_VERSION = 1;
 const TOP_GIFTERS_LIMIT = 10;
@@ -58,6 +58,21 @@ export interface StatsTotals {
   peakViewers: number;
   /** Wie viele VERSCHIEDENE Zuschauer in der Session da/aktiv waren (inkl. Beitritte). */
   uniqueViewers: number;
+  /** Neue Teamherz-Abos in dieser Session. Kam bisher nie an — der Ereignis-Typ
+   *  existierte, wurde aber von nichts ausgelöst (siehe normalizeSub). */
+  subs?: number;
+  /** Anzahl geworfener Coin-Kisten/Truhen. */
+  envelopes?: number;
+  /** Höchststand unsichtbarer Zuschauer (TikTok „anonymous"). */
+  peakAnonymous?: number;
+  /** Coins, die in Truhen steckten.
+   *
+   *  BEWUSST NICHT in `coins` eingerechnet: Ob TikTok für eine Truhe ZUSÄTZLICH
+   *  eine Geschenk-Nachricht schickt, ist ohne echten Live-Test nicht zu klären.
+   *  Würden wir es einfach addieren und TikTok schickt beides, stünde in der
+   *  Auswertung dauerhaft das Doppelte — ein Fehler, der später kaum auffällt
+   *  und alle Vergleiche verdirbt. Deshalb getrennt ausweisen, bis es belegt ist. */
+  envelopeCoins?: number;
 }
 
 /** Highlight eines einzelnen Gift-Events (für Top-Gift / Top-Streak-Widgets). */
@@ -79,6 +94,10 @@ export interface StatsSnapshot {
   topGift?: GiftHighlight;
   /** Höchste Combo der Session (nach count). */
   topStreak?: GiftHighlight;
+  /** TikToks EIGENE Raum-Bestenliste (Platz, Punktzahl, Zuschauer) — kommt in
+   *  jedem Zuschauer-Tick mit und wurde bis v0.47 weggeworfen. Nützlich als
+   *  Gegenprobe zur selbst gezählten Bestenliste. */
+  raumBeste?: RaumPlatz[];
 }
 
 interface SerializedStats {
@@ -94,7 +113,7 @@ interface SerializedStats {
 }
 
 function emptyTotals(): StatsTotals {
-  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, uniqueViewers: 0 };
+  return { coins: 0, gifts: 0, follows: 0, likes: 0, shares: 0, chats: 0, viewers: 0, peakViewers: 0, uniqueViewers: 0, subs: 0, envelopes: 0, envelopeCoins: 0 };
 }
 
 /** Klon ohne undefined-Felder — damit In-Memory- und JSON-Roundtrip-Snapshot gleich sind. */
@@ -115,6 +134,8 @@ export class SessionStats {
   private totals = emptyTotals();
   private gifters = new Map<string, GifterEntry>();
   private likers = new Map<string, LikerEntry>();
+  /** TikToks eigene Raum-Bestenliste, zuletzt gemeldeter Stand (siehe apply). */
+  private raumBeste: RaumPlatz[] = [];
   private topGift?: GiftHighlight;
   private topStreak?: GiftHighlight;
   /** Alle je gesehenen Zuschauer-IDs der Session → uniqueViewers (= „wie viele
@@ -184,6 +205,13 @@ export class SessionStats {
       case 'follow':
         this.totals.follows += 1;
         return true;
+      case 'sub':
+        this.totals.subs = (this.totals.subs ?? 0) + 1;
+        return true;
+      case 'envelope':
+        this.totals.envelopes = (this.totals.envelopes ?? 0) + 1;
+        this.totals.envelopeCoins = (this.totals.envelopeCoins ?? 0) + (event.envelope?.coins ?? 0);
+        return true;
       case 'share':
         this.totals.shares += 1;
         return true;
@@ -214,6 +242,15 @@ export class SessionStats {
         const changed = count !== this.totals.viewers;
         this.totals.viewers = count;
         if (count > this.totals.peakViewers) this.totals.peakViewers = count;
+        // Unsichtbare Zuschauer: nur den Höchststand merken — die Zahl
+        // schwankt im Minutentakt, und interessant ist „wie viele waren
+        // maximal da, die man nirgends sieht".
+        if ((event.anonymousViewers ?? 0) > (this.totals.peakAnonymous ?? 0)) {
+          this.totals.peakAnonymous = event.anonymousViewers;
+        }
+        // TikToks eigene Raum-Bestenliste: immer den ZULETZT gemeldeten Stand
+        // halten (sie ist bereits kumulativ über den ganzen Stream).
+        if (event.raumBeste && event.raumBeste.length > 0) this.raumBeste = event.raumBeste;
         return changed;
       }
       default:
@@ -235,6 +272,7 @@ export class SessionStats {
       totals: { ...this.totals },
       topGifters,
       topLikers,
+      ...(this.raumBeste.length > 0 ? { raumBeste: this.raumBeste.map((p) => ({ ...p })) } : {}),
       ...(this.topGift ? { topGift: cleanHighlight(this.topGift) } : {}),
       ...(this.topStreak ? { topStreak: cleanHighlight(this.topStreak) } : {}),
     };

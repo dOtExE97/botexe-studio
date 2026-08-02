@@ -432,3 +432,30 @@ test('ausgeschalteteTreffer wird bei jedem evaluate() geleert', () => {
   e.evaluate({ type: 'chat', ts: 2, text: 'hi' } as StudioEvent);
   assert.equal(e.ausgeschalteteTreffer().length, 0, 'sonst meldet ein Chat den alten Geschenk-Treffer erneut');
 });
+
+test('Truhen-Bedingungen: Coin-Schwelle und Superfan', () => {
+  const e = new TriggerEngine();
+  e.setRules([
+    { id: 'gross', name: 'Große Truhe', event: 'envelope', enabled: true,
+      conditions: [{ kind: 'envelope_coins_gte', value: 500 }], actions: [{ kind: 'speak', template: 'x' }] },
+    { id: 'sf', name: 'Superfan', event: 'envelope', enabled: true,
+      conditions: [{ kind: 'envelope_superfan' }], actions: [{ kind: 'speak', template: 'y' }] },
+  ] as TriggerRule[]);
+
+  const klein = e.evaluate({ type: 'envelope', ts: 1, envelope: { coins: 100, winners: 5, superFan: false } } as StudioEvent);
+  assert.equal(klein.length, 0, 'kleine Truhe löst keine der beiden Regeln aus');
+
+  const gross = e.evaluate({ type: 'envelope', ts: 2, envelope: { coins: 500, winners: 20, superFan: false } } as StudioEvent);
+  assert.equal(gross.length, 1);
+  assert.equal(gross[0]?.ruleId, 'gross');
+
+  const superfan = e.evaluate({ type: 'envelope', ts: 3, envelope: { coins: 50, winners: 3, superFan: true } } as StudioEvent);
+  assert.equal(superfan.length, 1);
+  assert.equal(superfan[0]?.ruleId, 'sf');
+});
+
+test('Truhen-Regel feuert NICHT bei einem normalen Geschenk', () => {
+  const e = new TriggerEngine();
+  e.setRules([{ id: 'r', name: 'Truhe', event: 'envelope', enabled: true, conditions: [], actions: [{ kind: 'speak', template: 'x' }] }] as TriggerRule[]);
+  assert.equal(e.evaluate(giftEvent()).length, 0);
+});

@@ -31,7 +31,15 @@ export interface VoiceGroup {
  *  Geteilt zwischen tts-providers.ts (Edge-Client-Timeout) und tts-service.ts
  *  (Promise.race), damit die Bibliothek nicht mit ihrem eigenen längeren
  *  Default hängt, während wir längst aufgegeben haben. */
-export const SYNTH_TIMEOUT_MS = 7_000;
+// 12s statt 7s: Bei schwachem WLAN (Keller, Hotspot, Handy-Tethering) besteht
+// EIN Versuch aus TLS-Handschlag, WebSocket-Aufbau zu Microsoft, Synthese und
+// Download. 7 Sekunden reichten dafür nachweislich oft nicht — in einem echten
+// 10-Stunden-Stream fiel die Online-Stimme 85-mal auf die lokale zurück, jedes
+// Mal mit „TTS-Timeout". Lieber einmal etwas länger warten als dauerhaft mit
+// der Roboterstimme senden. Ein Fehlschlag kostet dafür 12s statt 7s — das
+// fängt der Zwischenspeicher auf, der Wiederholungen gar nicht erst ins Netz
+// lässt (siehe tts-service.ts#synthesize).
+export const SYNTH_TIMEOUT_MS = 12_000;
 
 const EDGE_VOICES: Array<[string, string, 'de' | 'en']> = [
   ['de-DE-KatjaNeural', 'Katja (DE, Frau)', 'de'],

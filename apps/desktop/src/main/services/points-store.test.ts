@@ -233,3 +233,31 @@ test('awardWatchTime belohnt nur kürzlich aktive Zuschauer', () => {
   assert.equal(s.get('weg')?.points, 1, 'inaktiver bekommt nichts dazu');
   assert.equal(s.awardWatchTime({ ...cfg, perMinute: 0 }, now), 0, 'aus = keine Vergabe');
 });
+
+test('Teamherz-Stufe wird dauerhaft gemerkt und nur nach OBEN nachgezogen', () => {
+  const s = new PointsStore(tmpDir());
+  const ev = (teamLevel?: number, gifterLevel?: number, ts = 1): StudioEvent => ({
+    type: 'chat', ts, text: 'hi',
+    user: { id: 'u1', nickname: 'Fan', ...(teamLevel ? { teamLevel } : {}), ...(gifterLevel ? { gifterLevel } : {}) },
+  });
+
+  s.recordEvent(ev(3, 12), DEFAULT_POINTS_CONFIG);
+  assert.equal(s.get('u1')?.teamLevel, 3);
+  assert.equal(s.get('u1')?.gifterLevel, 12);
+
+  // Ereignis OHNE Abzeichen darf die bekannte Stufe nicht löschen — genau das
+  // war der Grund, warum die Stufe bisher nirgends verlässlich stand.
+  s.recordEvent(ev(undefined, undefined, 2), DEFAULT_POINTS_CONFIG);
+  assert.equal(s.get('u1')?.teamLevel, 3, 'Stufe bleibt erhalten');
+  assert.equal(s.get('u1')?.gifterLevel, 12);
+
+  // Aufstieg wird übernommen.
+  s.recordEvent(ev(5, 14, 3), DEFAULT_POINTS_CONFIG);
+  assert.equal(s.get('u1')?.teamLevel, 5);
+  assert.equal(s.get('u1')?.gifterLevel, 14);
+
+  // Ein niedrigerer Wert (unvollständiges Ereignis) zieht NICHT runter.
+  s.recordEvent(ev(1, 2, 4), DEFAULT_POINTS_CONFIG);
+  assert.equal(s.get('u1')?.teamLevel, 5);
+  assert.equal(s.get('u1')?.gifterLevel, 14);
+});

@@ -19,6 +19,8 @@ import {
   normalizeLike,
   normalizeSocial,
   normalizeViewerCount,
+  normalizeSub,
+  normalizeEnvelope,
 } from './tiktok-normalize';
 
 export type AdapterStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'error';
@@ -521,6 +523,11 @@ export class TikTokAdapter {
     on('share', guard((d: Parameters<typeof normalizeSocial>[0]) => { if (!dedup(d)) publish(normalizeSocial(d, 'share', this.now())); }));
     on('member', guard((d: Parameters<typeof normalizeSocial>[0]) => { if (!dedup(d)) publish(normalizeSocial(d, 'join', this.now())); }));
     on('roomUser', guard((d: Parameters<typeof normalizeViewerCount>[0]) => publish(normalizeViewerCount(d, this.now()))));
+    // Teamherz-Abo: Die App kannte den Ereignis-Typ 'sub' längst (inkl. fertiger
+    // Trigger-Vorlage) — nur hat ihn nie etwas ausgelöst. Jetzt schon.
+    on('subNotify', guard((d: Parameters<typeof normalizeSub>[0]) => { if (!dedup(d)) publish(normalizeSub(d, this.now())); }));
+    // Coin-Kiste / Schatztruhe (auch die Superfan-Truhe).
+    on('envelope', guard((d: Parameters<typeof normalizeEnvelope>[0]) => { if (!dedup(d)) publish(normalizeEnvelope(d, this.now())); }));
     // Ranglisten-Stand: nicht auf den Bus, sondern direkt an den Aufrufer —
     // es ist ein Zustand („Platz 12"), kein Vorfall, den Trigger auswerten müssten.
     if (this.onRank) {

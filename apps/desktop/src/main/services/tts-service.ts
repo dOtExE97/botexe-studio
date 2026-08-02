@@ -36,13 +36,51 @@ const MAX_CACHE_FILES = 60;
 // SYNTH_TIMEOUT_MS kommt aus tts-providers.ts (geteilt mit dem Edge-Client-Timeout).
 /** Geduld für LOKALE Synthese (Piper): rechnet auf der CPU und darf länger brauchen
  *  als der kurze Online-Riegel. Passt zu Pipers eigenem 15s-Abbruch. */
-const LOCAL_SYNTH_TIMEOUT_MS = 15_000;
+// 25s statt 15s: Die lokale Stimme rechnet auf der CPU. Auf einem Laptop, der
+// nebenher streamt, encodiert und den Browser offen hat, reichen 15 Sekunden
+// nachweislich oft nicht — dann blieb die Ansage komplett stumm, obwohl die
+// Stimme korrekt eingerichtet war. Dass die Ansage dadurch spät kommt, fängt
+// das Verwerfen veralteter Ansagen ab (ANSAGE_MAX_ALTER_MS).
+const LOCAL_SYNTH_TIMEOUT_MS = 25_000;
+
+/**
+ * Wie lange dauert das Vorlesen ungefähr?
+ *
+ * Die alte Rechnung war „60 ms pro Zeichen". Das geht bei normalem Text auf,
+ * aber NICHT bei TikTok-Namen: Ein Emoji ist ein bis zwei Zeichen, wird aber
+ * als ganzes Wort gesprochen („Flagge Deutschland", „gekreuzte Schwerter").
+ * Ein Name wie „Mika🇩🇪⚽️" wurde dadurch dramatisch unterschätzt.
+ *
+ * Belegt in einem echten 10-Stunden-Stream: Bei 13 % der Ansagen lief die
+ * Sicherheits-Wartezeit ab, BEVOR der Ton fertig war — und die Ansagen ohne
+ * Rückmeldung hatten im Schnitt 50 % längere, emoji-reichere Namen als die
+ * anderen. Folge: Die Warteschlange lief zu früh weiter und die nächste
+ * Ansage redete in die laufende hinein.
+ */
+export function geschaetzteDauerMs(text: string): number {
+  // [...text] zerlegt nach Zeichen, nicht nach UTF-16-Einheiten — ein Emoji
+  // zählt so als EINS und nicht als zwei halbe.
+  let ms = 0;
+  for (const zeichen of text) {
+    ms += zeichen.codePointAt(0)! > 0x2100 ? 700 : 60; // Symbol/Emoji vs. Buchstabe
+  }
+  return Math.max(600, ms);
+}
 /** So viele Fehlschläge in Folge, bis der Online-Dienst als „streikt" gilt. */
+/** Älter als das? Dann lieber schweigen als hinterherhinken. */
+const ANSAGE_MAX_ALTER_MS = 90_000;
+
 const ONLINE_FEHLER_BIS_PAUSE = 3;
 /** So lange wird er dann übersprungen (danach automatisch wieder probiert). */
-const ONLINE_PAUSE_MS = 10 * 60_000;
+// 3 statt 10 Minuten: Bei schwankendem WLAN ist die Leitung oft nach einer
+// halben Minute wieder da. Zehn Minuten Roboterstimme nach einem kurzen
+// Aussetzer sind für den Zuschauer eine gefühlte Ewigkeit — und der Grund,
+// warum es sich anfühlt, als „ginge TTS mal und mal nicht".
+const ONLINE_PAUSE_MS = 3 * 60_000;
 
 interface QueueItem {
+  /** Wann die Ansage eingereiht wurde — veraltete werden verworfen (siehe unten). */
+  at?: number;
   text: string;
   voice: string;
 }
@@ -75,6 +113,10 @@ export class TTSService {
   private readonly cacheDir: string;
   private readonly onAudio: (playback: TTSPlayback) => void;
   private queue: QueueItem[] = [];
+  /** Wie viele Ansagen als „zu alt" übersprungen wurden (siehe processNext). */
+  private veraltet = 0;
+  /** Läuft gerade ein Vorab-Holen? Nur EINE Ansage im Voraus (siehe holeVorab). */
+  private vorabLaeuft = false;
   private processing = false;
   /** Zähler/Sperre für den Online-Dienst (siehe processNext). */
   private onlineFehler = 0;
@@ -179,7 +221,7 @@ export class TTSService {
       this.dropped++;
       if (this.dropped % 10 === 1) log.warn('TTS', `Queue voll — ${this.dropped} ansagen gedroppt`);
     }
-    this.queue.push({ text: clean, voice: voice || DEFAULT_VOICE });
+    this.queue.push({ text: clean, voice: voice || DEFAULT_VOICE, at: Date.now() });
     if (!this.processing) void this.processNext();
   }
 
@@ -213,15 +255,24 @@ export class TTSService {
       // vermutlich gar nicht abgespielt (App-Fenster zu, Ton-Ausgabe hängt).
       // Bisher lief die Warteschlange dann einfach still weiter — die Ansagen
       // „verschwanden", ohne dass irgendwo etwas stand.
+      // GROSSZÜGIG bemessen — und das ist Absicht: Der Renderer hat einen
+      // eigenen Wachhund, der einen wirklich hängenden Ton nach 20 Sekunden
+      // ohne Fortschritt meldet. Dieser Wecker hier muss also nur den Fall
+      // abfangen, dass GAR KEINE Antwort kommt (Fenster weg, IPC verloren).
+      //
+      // Vorher stand hier `durationMs + 4000` — knapp bemessen auf eine
+      // Schätzung, die bei Emoji-Namen deutlich danebenlag. Der Wecker feuerte
+      // dann mitten in der laufenden Ansage, die Warteschlange machte weiter,
+      // und zwei Stimmen redeten übereinander. Aus einem Sicherheitsnetz war
+      // ein Fehlerverursacher geworden.
       const timer = setTimeout(() => {
         if (!settled) {
           log.gedrosselt('tts:keine-rueckmeldung', 60_000, 'warn', 'TTS',
-            'Es kam keine Rückmeldung, dass die Ansage fertig gespielt wurde — nach der Sicherheits-Wartezeit wurde '
-            + 'weitergemacht. Meist heißt das: Der Ton wurde gar nicht abgespielt (App-Fenster geschlossen oder die '
-            + 'Ton-Ausgabe hängt).');
+            'Eine Ansage hat sich nicht zurückgemeldet — die Warteschlange läuft weiter, damit sie nicht stehen bleibt. '
+            + 'Wenn das öfter vorkommt: Ist das App-Fenster offen und ist im Mischpult der Kanal „Ansagen" hörbar?');
         }
         finish();
-      }, p.durationMs + 4000);
+      }, p.durationMs * 2 + 10_000);
       this.pendingEnded.set(p.fileId, finish);
     });
   }
@@ -236,7 +287,20 @@ export class TTSService {
    *  aber nichts wurde mehr vorgelesen. Ohne Fehler, ohne Meldung, mitten im
    *  Stream. Jetzt wird der Fehler gemeldet und die Queue läuft weiter. */
   private async processNext(): Promise<void> {
-    const item = this.queue.shift();
+    // Veraltete Ansagen wegwerfen, statt sie verspätet vorzulesen.
+    //
+    // Bei langsamer Leitung staut sich die Warteschlange: Erst kommt die
+    // Synthese nicht durch, dann liest die App minutenlang alte Follows vor,
+    // während im Chat längst etwas anderes passiert. Eine Ansage, die zwei
+    // Minuten hinterherhinkt, hilft niemandem — sie verwirrt nur.
+    let item = this.queue.shift();
+    while (item && item.at !== undefined && Date.now() - item.at > ANSAGE_MAX_ALTER_MS) {
+      this.veraltet++;
+      log.gedrosselt('tts:veraltet', 60_000, 'info', 'TTS',
+        `${this.veraltet} Ansage(n) waren beim Drankommen älter als ${Math.round(ANSAGE_MAX_ALTER_MS / 1000)} Sekunden `
+        + 'und wurden übersprungen — sie hätten nur noch verwirrt. Ursache ist fast immer eine langsame Verbindung.');
+      item = this.queue.shift();
+    }
     if (!item) {
       this.processing = false;
       return;
@@ -273,7 +337,13 @@ export class TTSService {
       try { playback = await this.synthesize(item.text, item.voice); break; }
       catch (err) {
         lastMsg = (err as Error)?.message || String(err) || 'unbekannter Fehler';
-        if (attempt < 2 && isTransientTtsError(lastMsg)) {
+        // Bei einer ZEITÜBERSCHREITUNG bringt ein sofortiger zweiter Versuch mit
+        // demselben knappen Budget fast nie etwas — er verdoppelt nur die
+        // Wartezeit, bevor die lokale Stimme einspringt. Genau das kostete bei
+        // schwachem WLAN ~14 s Stille pro Ansage. Wiederholt wird deshalb nur
+        // bei anderen vorübergehenden Fehlern (z.B. 503 vom Dienst).
+        const zeitueberschreitung = /timeout|zeit/i.test(lastMsg);
+        if (attempt < 2 && isTransientTtsError(lastMsg) && !zeitueberschreitung) {
           log.warn('TTS', `Synthese-Versuch ${attempt} fehlgeschlagen (${lastMsg}) — neuer Versuch…`);
           await new Promise((r) => setTimeout(r, 350 * attempt));
           continue;
@@ -298,6 +368,22 @@ export class TTSService {
         try { playback = await this.synthesize(item.text, local); }
         catch (err) { lastMsg = (err as Error)?.message || lastMsg; }
       }
+      // LETZTE RETTUNG: eine ZWEITE Online-Stimme bei einem anderen Anbieter.
+      //
+      // Der Fall ist nicht theoretisch: Bei einem Nutzer war das WLAN schwach
+      // UND der Laptop so ausgelastet, dass auch die lokale Stimme nicht
+      // rechtzeitig fertig wurde — 28 Ansagen blieben komplett stumm. Google
+      // läuft über eine ganz andere Infrastruktur als Microsoft; ist eine
+      // gerade nicht erreichbar, heißt das nichts über die andere. Klanglich
+      // ist es ein Rückschritt, aber gesprochen ist besser als still.
+      if (!playback && !normalizeVoiceId(item.voice).startsWith('gtts:')) {
+        const sprache = normalizeVoiceId(item.voice).includes('en-') ? 'gtts:en' : 'gtts:de';
+        try {
+          playback = await this.synthesize(item.text, sprache);
+          log.warn('TTS', 'Weder die gewählte Online-Stimme noch die lokale Stimme haben geantwortet — '
+            + 'diese Ansage lief über die einfache Google-Stimme. Sie klingt schlechter, ist aber besser als Stille.');
+        } catch (err) { lastMsg = (err as Error)?.message || lastMsg; }
+      }
     } else if (!pauseVoice) {
       // Online hat wieder geklappt → Zähler zurück, Pause aufheben.
       this.onlineFehler = 0;
@@ -305,11 +391,33 @@ export class TTSService {
     }
     if (playback) {
       this.onAudio(playback);
+      // WÄHREND gesprochen wird, die NÄCHSTE Ansage schon holen.
+      //
+      // Vorher lief alles streng nacheinander: sprechen, warten, dann erst die
+      // nächste Ansage aus dem Netz holen. Die Leitung lag also genau während
+      // der 2–6 Sekunden brach, in denen ohnehin nichts zu tun war — und bei
+      // schwachem WLAN entstand nach jeder Ansage eine spürbare Lücke.
+      //
+      // Es braucht keine Übergabe: Die Datei landet unter einem aus dem Text
+      // berechneten Namen im Zwischenspeicher. Ist die nächste Ansage dran,
+      // findet synthesize() sie dort und ist sofort fertig.
+      this.holeVorab();
       // Seriell bleiben: auf das ECHTE Audio-Ende warten (Renderer-Rückmeldung),
       // sonst greift nach durationMs+Puffer der Sicherheits-Fallback.
       await this.waitForPlayback(playback);
     } else {
-      log.error('TTS', `Synthese fehlgeschlagen (voice=${item.voice})`, lastMsg);
+      // Klartext statt Rätsel: Im Log stand vorher „Synthese fehlgeschlagen
+      // (voice=edge:de-DE-KlausNeural) — Piper-Timeout". Der Name sagt Edge,
+      // der Fehler sagt Piper — das liest sich wie ein Widerspruch, ist aber
+      // die ZWEITE Stufe: Erst streikte die Online-Stimme, dann auch noch die
+      // lokale Ersatzstimme. Genau das gehört dagestanden.
+      const lokalVersucht = /piper/i.test(lastMsg);
+      log.error('TTS', lokalVersucht
+        ? `Diese Ansage wurde GAR NICHT gesprochen: erst war die Online-Stimme (${item.voice}) nicht erreichbar, `
+          + `dann hat auch die lokale Ersatzstimme nicht geantwortet (${lastMsg}). `
+          + 'Prüf unter „Stimme", ob die lokale Stimme wirklich fertig eingerichtet ist.'
+        : `Diese Ansage wurde GAR NICHT gesprochen — die Stimme ${item.voice} hat nicht geantwortet (${lastMsg}). `
+          + 'Tipp: unter „Stimme" eine lokale Piper-Stimme einrichten, die läuft ohne Internet.');
       this.onError?.(
         `Sprachausgabe fehlgeschlagen: ${lastMsg}. Tipp: unter „Stimme" eine lokale ` +
           `Piper-Stimme vorbereiten — die läuft ohne Internet.`,
@@ -317,44 +425,132 @@ export class TTSService {
     }
   }
 
+  /** Die nächste Ansage im Hintergrund vorbereiten, während die aktuelle läuft.
+   *
+   *  BEWUSST NUR FÜR ONLINE-STIMMEN: Die warten auf das Netz und kosten kaum
+   *  Rechenzeit — das lässt sich gefahrlos parallel machen. Die lokale Stimme
+   *  (Piper) rechnet dagegen auf der CPU. Sie parallel zur laufenden Wiedergabe
+   *  zu starten, würde auf einem ohnehin ausgelasteten Laptop genau das
+   *  Stottern erzeugen, das wir vermeiden wollen.
+   *
+   *  Fehler werden hier verschluckt: Klappt das Vorabholen nicht, wird die
+   *  Ansage später ganz normal erzeugt — inklusive Fehlermeldung. Ein zweites
+   *  Mal gemeldet würde sie nur doppelt im Log stehen. */
+  private holeVorab(): void {
+    const naechste = this.queue[0];
+    if (!naechste) return;
+    if (this.vorabLaeuft) return; // immer nur EINE Ansage im Voraus
+    const stimme = this.onlineGesperrtBis > Date.now()
+      ? null // Online ist gerade gesperrt — dann wäre es die lokale Stimme
+      : naechste.voice;
+    if (!stimme || normalizeVoiceId(stimme).startsWith('piper:')) return;
+    this.vorabLaeuft = true;
+    void this.synthesize(naechste.text, stimme)
+      .catch(() => undefined)
+      .finally(() => { this.vorabLaeuft = false; });
+  }
+
+  /** Dateiname für Text+Stimme — gleiche Eingabe ergibt immer denselben Namen.
+   *  Öffentlich, damit die Namensbildung prüfbar ist, ohne zu synthetisieren. */
+  cacheNameFuer(text: string, voice: string, tuning?: Record<string, number | string>): string {
+    const normalized = normalizeVoiceId(voice);
+    const ns = normalized.split(':', 1)[0] as string;
+    const t = tuning ?? this.getTuning?.(ns);
+    const schluessel = crypto.createHash('sha1')
+      .update(`${normalized}|${text}|${JSON.stringify(t ?? {})}`)
+      .digest('hex')
+      .slice(0, 16);
+    return `tts-${schluessel}.${extForVoice(voice)}`;
+  }
+
   async synthesize(text: string, voice: string): Promise<TTSPlayback> {
     const normalized = normalizeVoiceId(voice);
     const ns = normalized.split(':', 1)[0] as string;
     const byokDef = BYOK_PROVIDERS.find((p) => p.id === ns);
-    const fileId = `tts-${crypto.randomBytes(6).toString('hex')}.${extForVoice(voice)}`;
+    const tuning = this.getTuning?.(ns);
+    // Wiedererkennbarer Name statt Zufall: Derselbe Text mit derselben Stimme
+    // ergibt dieselbe Datei — dann muss sie kein zweites Mal erzeugt werden.
+    //
+    // WARUM DAS WICHTIG IST: Bei schwachem WLAN (Keller, Hotspot) war JEDE
+    // Ansage ein neuer Netz-Zugriff mit Verbindungsaufbau zu Microsoft. In
+    // einem echten Stream tauchen dieselben Namen aber ständig wieder auf —
+    // derselbe Zuschauer kommt rein, folgt, schreibt. Aus dem Zwischenspeicher
+    // kommt die Ansage SOFORT und ohne Netz, also auch dann, wenn die Leitung
+    // gerade weg ist.
+    const fileId = this.cacheNameFuer(text, voice, tuning);
     const target = path.join(this.cacheDir, fileId);
 
-    const tuning = this.getTuning?.(ns);
+    if (fs.existsSync(target) && fs.statSync(target).size > 0) {
+      // Zeitstempel auffrischen, damit das Aufräumen (ältestes zuerst) genau
+      // die Ansagen behält, die tatsächlich wiederkehren.
+      try { fs.utimesSync(target, new Date(), new Date()); } catch { /* egal */ }
+      // Nur im Diagnose-Modus interessant — im Normalbetrieb wäre es Rauschen.
+      log.debug('TTS', 'Diese Ansage lag schon fertig vor — kein Netz nötig.');
+      return { fileId, durationMs: geschaetzteDauerMs(text) };
+    }
+
+    // ERST unter einem Zwischennamen erzeugen, dann umbenennen.
+    //
+    // Ohne das würde ein Abbruch mitten im Schreiben (Zeitüberschreitung, WLAN
+    // weg) eine HALBE Audiodatei unter dem festen Namen hinterlassen — und weil
+    // der Name jetzt aus dem Text berechnet wird, käme genau diese abgehackte
+    // Ansage von da an immer wieder. Das Umbenennen passiert erst, wenn die
+    // Datei vollständig ist, und ist auf einem Datenträger unteilbar.
+    // Zwischenname mit ZUFALLSANTEIL. Ohne ihn kollidieren zwei Erzeugungen
+    // derselben Ansage: Das Vorabholen schreibt bereits an der Datei, die
+    // laufende Ansage endet früher als gedacht, und die reguläre Synthese
+    // beginnt an DERSELBEN Zwischendatei — zwei Schreiber, eine Datei, am Ende
+    // eine kaputte Ansage unter einem festen Namen. Der Zielname bleibt fest
+    // (darum geht es beim Zwischenspeicher), nur der Weg dorthin ist eigen.
+    const teil = `${target}.${crypto.randomBytes(4).toString('hex')}.teil`;
     const work = byokDef
       ? byokSynthesize(
           ns as ByokProviderId,
           text,
           normalized.slice(ns.length + 1),
           this.getCredentials()[ns] ?? {},
-          target,
+          teil,
           tuning,
         )
-      : synthesizeWith(this.piper, text, voice, target, tuning);
+      : synthesizeWith(this.piper, text, voice, teil, tuning);
 
     // Lokale Stimmen (Piper) brauchen auf schwacher Hardware länger als der auf den
     // Online-Dienst getrimmte kurze Riegel — mit 7s würde ausgerechnet der Notnagel
     // scheitern und es bliebe doch still. Piper bricht intern nach 15s selbst ab.
     const budget = ns === 'piper' ? LOCAL_SYNTH_TIMEOUT_MS : SYNTH_TIMEOUT_MS;
-    await Promise.race([
-      work,
-      new Promise((_r, reject) => setTimeout(() => reject(new Error('TTS-Timeout')), budget)),
-    ]);
-    if (!fs.existsSync(target)) throw new Error('Keine Audio-Datei erzeugt');
+    try {
+      await Promise.race([
+        work,
+        new Promise((_r, reject) => setTimeout(() => reject(new Error('TTS-Timeout')), budget)),
+      ]);
+      if (!fs.existsSync(teil) || fs.statSync(teil).size === 0) throw new Error('Keine Audio-Datei erzeugt');
+      fs.renameSync(teil, target);
+    } catch (err) {
+      // Bruchstück wegräumen, sonst wächst der Ordner mit unbrauchbaren Resten.
+      try { fs.rmSync(teil, { force: true }); } catch { /* dann eben nicht */ }
+      throw err;
+    }
 
     this.cleanupCache();
-    // ~60ms pro Zeichen (Schätzung aus Alt-App) — gut genug fürs Sequencing.
-    return { fileId, durationMs: Math.max(600, text.length * 60) };
+    return { fileId, durationMs: geschaetzteDauerMs(text) };
   }
 
   private cleanupCache(): void {
     try {
+      // Bruchstücke wegräumen, die ein Absturz mitten in der Synthese
+      // hinterlassen hat (im Normalfall räumt synthesize() selbst auf).
+      for (const f of fs.readdirSync(this.cacheDir)) {
+        if (!f.endsWith('.teil')) continue;
+        const pfad = path.join(this.cacheDir, f);
+        try {
+          if (Date.now() - fs.statSync(pfad).mtimeMs > 5 * 60_000) fs.unlinkSync(pfad);
+        } catch { /* egal */ }
+      }
       const files = fs
         .readdirSync(this.cacheDir)
+        // Liegengebliebene Bruchstücke (.teil) zählen nicht als Ansage — sonst
+        // verdrängen sie beim Aufräumen echte, wiederverwendbare Dateien.
+        .filter((f) => !f.endsWith('.teil'))
         .map((f) => ({ f, mtime: fs.statSync(path.join(this.cacheDir, f)).mtimeMs }))
         .sort((a, b) => a.mtime - b.mtime);
       while (files.length > MAX_CACHE_FILES) {

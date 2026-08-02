@@ -32,6 +32,7 @@ const EVENT_TYPES: ReadonlySet<string> = new Set<StudioEventType>([
   'share',
   'join',
   'viewer_count',
+  'envelope',
   'timer',
 ]);
 
@@ -50,6 +51,8 @@ const CONDITION_KINDS: ReadonlySet<string> = new Set([
   'gift_count_gte',
   'gift_slug_is',
   'gift_id_is',
+  'envelope_coins_gte',
+  'envelope_superfan',
   'chat_keyword',
   'chat_command',
   'chat_first_time',
@@ -373,8 +376,14 @@ function validateCondition(
       if (value === null) return null;
       return { kind, value };
     }
+    case 'envelope_coins_gte': {
+      const value = nonNegInt(input['value']);
+      if (value === null) return null;
+      return { kind, value };
+    }
     case 'chat_first_time':
     case 'follow_first_time':
+    case 'envelope_superfan':
       return { kind };
     default:
       return null;

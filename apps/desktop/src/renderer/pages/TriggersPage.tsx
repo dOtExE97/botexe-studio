@@ -19,6 +19,7 @@ const EVENT_OPTIONS: { value: StudioEventType; label: string }[] = [
   { value: 'chat', label: 'Chat-Nachricht' },
   { value: 'like', label: 'Likes' },
   { value: 'viewer_count', label: 'Zuschauerzahl' },
+  { value: 'envelope', label: 'Coin-Kiste / Truhe' },
   { value: 'timer', label: 'Timer (wiederkehrend)' },
 ];
 
@@ -48,6 +49,10 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
     { value: 'like_count_gte', label: 'Like-Meilenstein erreicht (bei … Likes)', valueType: 'number' },
   ],
   viewer_count: [{ value: 'viewer_count_gte', label: 'Mindestens … Zuschauer', valueType: 'number' }],
+  envelope: [
+    { value: 'envelope_coins_gte', label: 'Truhe mit mindestens … Coins', valueType: 'number' },
+    { value: 'envelope_superfan', label: 'Nur die Superfan-Truhe' },
+  ],
 };
 
 interface SoundEntry { id: string; filename: string }
@@ -98,6 +103,8 @@ function ruleToSentence(rule: TriggerRule, layerName: (id: string) => string, so
       case 'follow_first_time': wenn = 'jemand zum ERSTEN Mal folgt'; break;
       case 'like_count_gte': wenn = `die Likes ${c.value} erreichen`; break;
       case 'viewer_count_gte': wenn = `mind. ${c.value} Zuschauer da sind`; break;
+      case 'envelope_coins_gte': wenn = `eine Truhe mit mind. ${c.value} Coins reinkommt`; break;
+      case 'envelope_superfan': wenn = 'jemand eine SUPERFAN-Truhe reinwirft'; break;
     }
   } else if (rule.event === 'gift') wenn = 'IRGENDEIN Gift reinkommt';
   const parts: string[] = [];

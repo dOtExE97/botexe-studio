@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  normalizeSub,
+  normalizeEnvelope,
   normalizeChat,
   normalizeGift,
   normalizeLike,
@@ -262,4 +264,123 @@ test('Teamherz-Stufe: ohne Angabe bleibt das Feld WEG (überschreibt nichts)', (
 test('Teamherz-Stufe: Geschenke-Stufe aus payGrade', () => {
   const e = normalizeChat({ user: { uniqueId: 'eve', nickname: 'Eve', payGrade: { level: 21 } }, comment: 'hi' }, 0);
   assert.equal(e?.user?.gifterLevel, 21);
+});
+
+// ── v3-Schema im Direkt-Weg (Regression zu v0.46.1) ────────────────────────
+// Für Geschenke wurde das in v0.45.1 repariert, für Chat/Likes/Zuschauer NICHT.
+// Folge im Direkt-Modus: Chat ohne Text, jeder Like-Schwall zählte als 1,
+// Zuschauerzahl als Text. Diese Tests halten beide Schreibweisen fest.
+
+test('Chat: v3 liefert `content` statt `comment` — Text darf nicht leer sein', () => {
+  const cloud = normalizeChat({ user: { uniqueId: 'a', nickname: 'A' }, comment: 'hallo' }, 1);
+  const direkt = normalizeChat({ user: { uniqueId: 'a', nickname: 'A' }, content: 'hallo' }, 1);
+  assert.equal(cloud.text, 'hallo');
+  assert.equal(direkt.text, 'hallo', 'v3-Feld `content` muss gelesen werden');
+});
+
+test('Like: v3 liefert `count` — ein Schwall zählt nicht als 1', () => {
+  assert.equal(normalizeLike({ likeCount: 12 }, 1).likeCount, 12);
+  assert.equal(normalizeLike({ count: 12 }, 1).likeCount, 12, 'v3-Feld `count`');
+  assert.equal(normalizeLike({}, 1).likeCount, 1, 'ohne Angabe mindestens 1');
+});
+
+test('Like: `total` kommt als TEXT und muss Zahl werden', () => {
+  const e = normalizeLike({ count: 3, total: '4711' }, 1);
+  assert.strictEqual(e.totalLikes, 4711);
+  assert.equal(typeof e.totalLikes, 'number');
+});
+
+test('Zuschauerzahl: Text aus dem v3-Schema wird zur Zahl', () => {
+  const e = normalizeViewerCount({ totalUser: '1234' }, 1);
+  assert.strictEqual(e.viewerCount, 1234);
+  assert.equal(typeof e.viewerCount, 'number');
+  assert.strictEqual(normalizeViewerCount({}, 1).viewerCount, 0);
+  assert.strictEqual(normalizeViewerCount({ total: 'kaputt' }, 1).viewerCount, 0, 'Unsinn ergibt 0, nicht NaN');
+});
+
+// ── Teamherz-Abo ───────────────────────────────────────────────────────────
+// Der Ereignis-Typ 'sub' und die Trigger-Vorlage „Neuer Sub" gab es seit
+// Monaten — ausgelöst hat ihn NIE etwas. Der Test-Knopf funktionierte, im
+// Stream blieb es still. Diese Tests halten die Verdrahtung fest.
+
+test('Abo: erzeugt ein sub-Ereignis mit Nutzer', () => {
+  const e = normalizeSub({ user: { uniqueId: 'fan', nickname: 'Fan' } }, 5);
+  assert.equal(e.type, 'sub');
+  assert.equal(e.user?.id, 'fan');
+  assert.equal(e.user?.isSub, true, 'wer gerade abonniert hat, IST Teamherz');
+});
+
+test('Abo: Monate kommen als Text und werden Zahl', () => {
+  assert.equal(normalizeSub({ user: { uniqueId: 'a', nickname: 'A' }, subMonth: '7' }, 1).subMonths, 7);
+  assert.equal(normalizeSub({ user: { uniqueId: 'a', nickname: 'A' } }, 1).subMonths, undefined);
+});
+
+// ── Coin-Kiste / Truhe ─────────────────────────────────────────────────────
+
+test('Truhe: Absender, Coins und Gewinnerzahl werden gelesen', () => {
+  const e = normalizeEnvelope({
+    envelopeInfo: { sendUserName: 'Mia', sendUserId: '4711', diamondCount: '500', peopleCount: '20' },
+  }, 9);
+  assert.ok(e);
+  assert.equal(e.type, 'envelope');
+  assert.equal(e.user?.nickname, 'Mia');
+  assert.equal(e.user?.id, '4711');
+  assert.equal(e.envelope?.coins, 500, 'Text-Zahlen werden umgewandelt');
+  assert.equal(e.envelope?.winners, 20);
+  assert.equal(e.envelope?.superFan, false);
+});
+
+test('Truhe: Superfan-Truhe über businessType 19 erkannt', () => {
+  const e = normalizeEnvelope({ envelopeInfo: { sendUserName: 'A', businessType: 19 } }, 1);
+  assert.equal(e?.envelope?.superFan, true);
+});
+
+test('Truhe: Superfan-Truhe auch über den Anzeigetext erkannt', () => {
+  const e = normalizeEnvelope(
+    { envelopeInfo: { sendUserName: 'A' }, common: { displayText: { key: 'ttlive_superfanbox_v2' } } },
+    1,
+  );
+  assert.equal(e?.envelope?.superFan, true);
+});
+
+test('Truhe: ohne envelopeInfo kommt null statt eines leeren Ereignisses', () => {
+  assert.equal(normalizeEnvelope({}, 1), null);
+});
+
+test('Truhe: ohne Absender bleibt der Nutzer leer statt zu raten', () => {
+  const e = normalizeEnvelope({ envelopeInfo: { diamondCount: 100 } }, 1);
+  assert.equal(e?.user, undefined);
+  assert.equal(e?.envelope?.coins, 100, 'die Truhe zählt trotzdem');
+});
+
+// ── TikToks eigene Raum-Bestenliste + anonyme Zuschauer ────────────────────
+// Beides kommt in JEDEM Zuschauer-Tick mit und wurde bis v0.47 weggeworfen.
+
+test('Zuschauer-Tick: Bestenliste und anonyme Zuschauer werden gelesen', () => {
+  const e = normalizeViewerCount({
+    totalUser: '250',
+    anonymous: '40',
+    ranks: [
+      { rank: '1', score: '9000', user: { uniqueId: 'top', nickname: 'Top' } },
+      { rank: '2', score: '500', user: { uniqueId: 'zwei', nickname: 'Zwei' } },
+    ],
+  }, 1);
+  assert.equal(e.viewerCount, 250);
+  assert.equal(e.anonymousViewers, 40);
+  assert.equal(e.raumBeste?.length, 2);
+  assert.equal(e.raumBeste?.[0]?.platz, 1);
+  assert.equal(e.raumBeste?.[0]?.punkte, 9000, 'Punktzahl kommt als Text');
+  assert.equal(e.raumBeste?.[0]?.user.nickname, 'Top');
+});
+
+test('Zuschauer-Tick: Plätze ohne erkennbaren Zuschauer fallen raus', () => {
+  const e = normalizeViewerCount({ totalUser: '5', ranks: [{ rank: 1, score: 10 }, { rank: 2, score: 5, user: { uniqueId: 'b', nickname: 'B' } }] }, 1);
+  assert.equal(e.raumBeste?.length, 1, 'ein Platz ohne Nutzer ist wertlos');
+  assert.equal(e.raumBeste?.[0]?.user.id, 'b');
+});
+
+test('Zuschauer-Tick ohne Zusatzdaten bleibt schlank (keine leeren Felder)', () => {
+  const e = normalizeViewerCount({ totalUser: '7' }, 1);
+  assert.equal(e.raumBeste, undefined);
+  assert.equal(e.anonymousViewers, undefined);
 });

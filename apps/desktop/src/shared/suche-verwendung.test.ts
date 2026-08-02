@@ -24,6 +24,11 @@ const ERLAUBT = new Set([
   join('shared', 'moderation.ts'),
   // Die Suche selbst.
   join('shared', 'suche.ts'),
+  // Erkennung der Superfan-Truhe: prüft einen PROTOKOLL-Schlüssel von TikTok
+  // („ttlive_superfanbox") — eine feste technische Zeichenkette, kein Text,
+  // den je ein Mensch eintippt. Tippfehler-Toleranz wäre hier falsch: Sie
+  // würde fremde Truhen-Arten fälschlich als Superfan-Truhe erkennen.
+  join('main', 'adapters', 'tiktok-normalize.ts'),
 ]);
 
 function dateien(dir: string, out: string[] = []): string[] {

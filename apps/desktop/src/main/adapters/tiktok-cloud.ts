@@ -36,7 +36,8 @@ export function buildCloudUrl(opts: { uniqueId: string; apiKey: string; baseUrl?
   return `${opts.baseUrl ?? CLOUD_BASE_URL}?${params.toString()}`;
 }
 
-export type CloudEmitEvent = 'chat' | 'gift' | 'like' | 'follow' | 'share' | 'member' | 'roomUser';
+export type CloudEmitEvent = 'chat' | 'gift' | 'like' | 'follow' | 'share' | 'member' | 'roomUser'
+  | 'subNotify' | 'envelope';
 
 export type CloudEmit =
   | { kind: 'event'; event: CloudEmitEvent; data: unknown }
@@ -51,6 +52,11 @@ const TYPE_TO_EVENT: Record<string, CloudEmitEvent> = {
   WebcastLikeMessage: 'like',
   WebcastMemberMessage: 'member',
   WebcastRoomUserSeqMessage: 'roomUser',
+  // Neu: Teamherz-Abos und Coin-Kisten. Beide kamen bisher im default-Zweig an
+  // und wurden verworfen — im Cloud-Modus (dem Standard!) gab es sie also
+  // schlicht nicht, obwohl der Direkt-Weg sie liefert.
+  WebcastSubNotifyMessage: 'subNotify',
+  WebcastEnvelopeMessage: 'envelope',
 };
 
 // Stream-Ende laut ControlAction (3 = ENDED, 4 = SUSPENDED).
@@ -107,12 +113,18 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
   }
 }
 
-/** Arten, die bekanntermaßen nichts bedeuten — die sollen das Log nicht füllen. */
+/** Arten, die bekanntermaßen nichts bedeuten — die sollen das Log nicht füllen.
+ *
+ *  ACHTUNG BEIM ERWEITERN: Hier gehört NUR hinein, was die App auch dann nicht
+ *  bräuchte, wenn sie es verstünde. Die Ranglisten-Nachrichten standen kurz
+ *  fälschlich hier — die App wertet sie im Direkt-Weg sehr wohl aus
+ *  (onRank → merkeRang → Ranglisten-Anzeige). Sie hier stumm zu stellen hätte
+ *  die einzige Spur beseitigt, dass diese Anzeige im Cloud-Modus tot ist. */
 const HARMLOSE_ARTEN = new Set([
   'workerInfo', 'decodeError', 'SyntheticPresence', 'WebcastRoomPinMessage',
-  'WebcastCaptionMessage', 'WebcastImDeleteMessage', 'WebcastRankUpdateMessage',
-  'WebcastRankTextMessage', 'WebcastLinkMicBattle', 'WebcastLinkMicArmies',
-  'WebcastHourlyRankMessage', 'WebcastInRoomBannerMessage', 'WebcastMsgDetectMessage',
+  'WebcastCaptionMessage', 'WebcastImDeleteMessage',
+  'WebcastLinkMicBattle', 'WebcastLinkMicArmies',
+  'WebcastInRoomBannerMessage', 'WebcastMsgDetectMessage',
 ]);
 
 /** Minimal-Interface eines WebSocket — in Tests durch Fake ersetzt. */

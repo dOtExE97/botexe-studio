@@ -134,7 +134,25 @@ const RARELY_USED = new Set(['sport-ticker']);
 
 // widgetType → Label, einmalig aufgebaut. Spart das lineare WIDGET_TYPES.find()
 // pro Layer pro Render in der Ebenen-Liste.
-const WIDGET_LABELS: Record<string, string> = Object.fromEntries(WIDGET_TYPES.map((w) => [w.type, w.label]));
+// ACHTUNG: Zwei Palette-Einträge teilen sich einen widgetType ('leaderboard' —
+// „Top Gifter" und „Like-Liste" sind dasselbe Widget mit anderer Voreinstellung).
+// Bei Object.fromEntries gewinnt der LETZTE, weshalb eine Top-Gifter-Ebene in der
+// Liste als „Like-Liste" auftauchte. Deshalb: erster Eintrag gewinnt, und wo die
+// Palette mehrere Namen für denselben Typ führt, entscheidet die Ebene selbst
+// über ihren Namen (siehe ebenenName unten).
+const WIDGET_LABELS: Record<string, string> = WIDGET_TYPES.reduce<Record<string, string>>((acc, w) => {
+  if (!(w.type in acc)) acc[w.type] = w.label;
+  return acc;
+}, {});
+
+/** Anzeigename einer Ebene in der Ebenen-Liste. Bei „leaderboard" hängt er an
+ *  der Quelle, sonst wäre der Name für die Hälfte der Ebenen schlicht falsch. */
+function ebenenName(widgetType: string, props?: Record<string, unknown>): string {
+  if (widgetType === 'leaderboard') {
+    return props?.source === 'likes' ? 'Like-Liste' : 'Top Gifter';
+  }
+  return WIDGET_LABELS[widgetType] ?? widgetType;
+}
 
 interface ZoneStyle {
   /** Akzentfarbe (rgb-Tripel) — Tönung & Rand werden daraus abgeleitet. */
@@ -1111,10 +1129,7 @@ export default function OverlayPage() {
             {layout.layers.map((layer) => {
               const isSel = layer.id === selectedId;
               const isHover = layer.id === hoveredId;
-              const label =
-                layer.widgetType === 'leaderboard' && layer.props?.source === 'likes'
-                  ? 'Like-Liste'
-                  : (WIDGET_LABELS[layer.widgetType] ?? layer.widgetType);
+              const label = ebenenName(layer.widgetType, layer.props);
               // Bei aktiver Vorschau ist der echte Widget-Inhalt (iframe) die
               // Hauptsache → Rahmen/Label nur bei Hover oder Auswahl zeigen, sonst
               // unsichtbar (echtes WYSIWYG). Ohne Vorschau: gefülltes Platzhalter-Feld.
@@ -1195,7 +1210,7 @@ export default function OverlayPage() {
             layers={layout.layers}
             selectedId={selectedId}
             hoveredId={hoveredId}
-            labelFor={(l) => WIDGET_LABELS[l.widgetType] ?? l.widgetType}
+            labelFor={(l) => ebenenName(l.widgetType, l.props)}
             onSelect={setSelectedId}
             onHover={setHoveredId}
             onPatch={(id, patch) => updateLayer(id, patch, true)}

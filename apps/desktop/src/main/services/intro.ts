@@ -33,3 +33,12 @@ export function sollIntroLaufen(f: IntroFrage): boolean {
     default: return false;   // unbekannte Einstellung → lieber nichts abspielen
   }
 }
+
+/** Klartext der Auslöser-Einstellung — für Log und Oberfläche dieselbe Quelle,
+ *  damit im Log nicht „sub" steht, während die App „Beim Teamherz" anzeigt. */
+export const INTRO_AUSLOESER_TEXT: Record<IntroTrigger, string> = {
+  join: 'Beim Betreten',
+  sub: 'Beim Teamherz',
+  beides: 'Bei beidem',
+  aus: 'Aus',
+};

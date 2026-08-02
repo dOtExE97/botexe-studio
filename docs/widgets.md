@@ -6,6 +6,9 @@ Im Stream liegt darunter dein Videobild, der Hintergrund der Widgets ist transpa
 Viele Widgets haben zusätzlich mehrere **Stile** und 24 **Themes** (Glas, Neon, Arcade,
 Synthwave …), die das Aussehen komplett verändern. Hier ist jeweils nur die Grundform zu sehen.
 
+> Stand: 44 der 45 Widgets sind hier abgebildet. Vom **Slot-Automat** fehlt noch ein
+> Bild — in der App ist er ganz normal vorhanden (Overlay → Widget hinzufügen).
+
 ## Alerts
 
 |   |   |   |

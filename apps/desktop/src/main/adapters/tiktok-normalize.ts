@@ -16,7 +16,7 @@
 //    noch die alte Form, sie hinkt dem Schema hinterher.)
 // Deshalb wird JEDES Feld unter beiden Namen gesucht. Kommt eine dritte
 // Fassung, ist hier die einzige Stelle, die es wissen muss.
-import type { StudioEvent, StudioUser } from '@botexe/trigger-engine';
+import type { StudioEvent, StudioUser, RaumPlatz } from '@botexe/trigger-engine';
 
 interface RawImage {
   url?: string[];
@@ -144,7 +144,12 @@ export function detectRoles(data: RawRoleData): { isMod: boolean; isSub: boolean
 }
 
 export function normalizeChat(
-  data: { user?: RawUser; comment?: string } & RawRoleData,
+  // `comment` = Cloud-Weg (eulerstream), `content` = v3-Schema im Direkt-Weg.
+  // Dieselbe Falle wie bei den Geschenken in v0.45.1: TikTok hat die Felder
+  // umbenannt, und wer nur den alten Namen liest, bekommt LEEREN Text — kein
+  // Vorlesen, kein Schlüsselwort, kein !befehl. Besonders bitter, weil die App
+  // bei Problemen selbst den Direkt-Modus vorschlägt.
+  data: { user?: RawUser; comment?: string; content?: string } & RawRoleData,
   ts: number,
 ): StudioEvent {
   const user = toUser(data.user);
@@ -155,7 +160,7 @@ export function normalizeChat(
     if (roles.isMod) user.isMod = true;
     if (roles.isFollower) user.isFollower = true;
   }
-  return { type: 'chat', ts, user, text: data.comment ?? '' };
+  return { type: 'chat', ts, user, text: data.comment ?? data.content ?? '' };
 }
 
 /**
@@ -227,18 +232,97 @@ export function normalizeGift(
 }
 
 export function normalizeLike(
-  // Fallback-Feldnamen, falls der Cloud-WS (Euler) leicht andere Casings liefert.
-  data: { user?: RawUser; likeCount?: number; totalLikeCount?: number; totalLikes?: number; total?: number },
+  // `likeCount`/`totalLikeCount` = Cloud-Weg, `count`/`total` = v3 im Direkt-Weg.
+  // Ohne `count` zählte ein Like-Schwall (TikTok bündelt bis zu 15 Stück) immer
+  // nur als EINS — der Like-Meilenstein wäre nie erreicht worden.
+  // `total` kommt im v3-Schema als TEXT ("1234"), deshalb überall Number().
+  data: {
+    user?: RawUser; likeCount?: number; count?: number;
+    totalLikeCount?: number; totalLikes?: number; total?: number | string;
+  },
   ts: number,
 ): StudioEvent {
   return {
     type: 'like',
     ts,
     user: toUser(data.user),
-    likeCount: data.likeCount ?? 1,
-    totalLikes: data.totalLikeCount ?? data.totalLikes ?? data.total ?? 0,
+    likeCount: zahl(data.likeCount ?? data.count) || 1,
+    totalLikes: zahl(data.totalLikeCount ?? data.totalLikes ?? data.total),
   };
 }
+
+/** Zahl aus etwas machen, das auch Text sein kann (v3 liefert Zähler als String). */
+function zahl(wert: unknown): number {
+  const n = Number(wert);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Teamherz-Abo (TikTok „subNotify" / WebcastSubNotifyMessage).
+ *
+ * WARUM DAS HIER NEU IST: Die App kannte den Ereignis-Typ 'sub' und bot in der
+ * Trigger-Seite sogar eine fertige Vorlage („Neuer Sub (Teamherz)") an — nur
+ * hat ihn NIE etwas ausgelöst. Der Typ kam im ganzen Code ausschließlich im
+ * Test-Knopf und in der Demo-Vorschau vor. Die Vorlage bestand also den Test
+ * und blieb im echten Stream für immer stumm.
+ */
+export function normalizeSub(
+  data: { user?: RawUser; subMonth?: number | string; subMonths?: number | string } & RawRoleData,
+  ts: number,
+): StudioEvent {
+  const user = toUser(data.user);
+  // Wer gerade abonniert hat, IST per Definition Teamherz — auch wenn das
+  // Abzeichen in dieser Nachricht (noch) fehlt.
+  if (user) user.isSub = true;
+  const monate = zahl(data.subMonth ?? data.subMonths);
+  return { type: 'sub', ts, user, ...(monate > 0 ? { subMonths: monate } : {}) };
+}
+
+/**
+ * Coin-Kiste / Schatztruhe (TikTok „envelope" / WebcastEnvelopeMessage).
+ *
+ * Der Absender steht NICHT als volles Zuschauer-Objekt drin, sondern als drei
+ * Einzelfelder (sendUserName/sendUserId/sendUserAvatar). Deshalb wird hier ein
+ * Minimal-Nutzer gebaut statt toUser() zu benutzen — sonst käme `undefined`
+ * heraus und die Ansage hätte keinen Namen.
+ *
+ * Die Superfan-Truhe erkennt man an businessType 19; der Direkt-Weg liefert
+ * zusätzlich einen Anzeigetext, der „ttlive_superfanbox" enthält.
+ */
+export function normalizeEnvelope(
+  data: {
+    envelopeInfo?: {
+      sendUserName?: string; sendUserId?: string | number; sendUserAvatar?: RawImage;
+      diamondCount?: number | string; peopleCount?: number | string; businessType?: number | string;
+    };
+    common?: { displayText?: { key?: string } };
+  },
+  ts: number,
+): StudioEvent | null {
+  const info = data.envelopeInfo;
+  if (!info) return null;
+  const id = String(info.sendUserId ?? '').trim();
+  const name = String(info.sendUserName ?? '').trim();
+  const bild = ersteBildUrl(info.sendUserAvatar);
+  const user: StudioUser | undefined = id || name
+    ? { id: id || name, nickname: name || id, ...(bild ? { profilePic: bild } : {}) }
+    : undefined;
+  const superFan = Number(info.businessType) === ENVELOPE_SUPER_FAN_BOX
+    || String(data.common?.displayText?.key ?? '').toLowerCase().includes('ttlive_superfanbox');
+  return {
+    type: 'envelope',
+    ts,
+    user,
+    envelope: {
+      coins: zahl(info.diamondCount),
+      winners: zahl(info.peopleCount),
+      superFan,
+    },
+  };
+}
+
+/** businessType der Superfan-Truhe (belegt im Protokoll-Schema, EnvelopeBusinessType). */
+export const ENVELOPE_SUPER_FAN_BOX = 19;
 
 /** v2 splittet WebcastSocialMessage selbst in follow/share/join — wir mappen 1:1. */
 export function normalizeSocial(
@@ -250,8 +334,31 @@ export function normalizeSocial(
 }
 
 export function normalizeViewerCount(
-  data: { viewerCount?: number; totalUser?: number; total?: number },
+  // v3 liefert `totalUser`/`total` als TEXT. Ohne Umwandlung stünde in
+  // viewerCount ein String — die Zuschauer-Bedingung („mind. X Zuschauer")
+  // verglich dann Text mit Zahl, und in der Auswertung landete Text.
+  //
+  // `ranks` und `anonymous` kommen in DERSELBEN Nachricht mit und wurden
+  // bisher restlos verworfen: TikToks eigene Bestenliste (Punktzahl + voller
+  // Zuschauer je Platz) und die Zahl der unsichtbaren Zuschauer.
+  data: {
+    viewerCount?: number | string; totalUser?: number | string; total?: number | string;
+    anonymous?: number | string;
+    ranks?: Array<{ rank?: number | string; score?: number | string; user?: RawUser }>;
+  },
   ts: number,
 ): StudioEvent {
-  return { type: 'viewer_count', ts, viewerCount: data.viewerCount ?? data.totalUser ?? data.total ?? 0 };
+  const beste: RaumPlatz[] = [];
+  for (const [i, eintrag] of (Array.isArray(data.ranks) ? data.ranks : []).entries()) {
+    const user = toUser(eintrag?.user);
+    if (!user) continue; // ohne erkennbaren Zuschauer ist der Platz wertlos
+    beste.push({ platz: zahl(eintrag?.rank) || i + 1, punkte: zahl(eintrag?.score), user });
+  }
+  return {
+    type: 'viewer_count',
+    ts,
+    viewerCount: zahl(data.viewerCount ?? data.totalUser ?? data.total),
+    ...(data.anonymous !== undefined ? { anonymousViewers: zahl(data.anonymous) } : {}),
+    ...(beste.length > 0 ? { raumBeste: beste } : {}),
+  };
 }

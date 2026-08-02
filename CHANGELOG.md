@@ -3,6 +3,89 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.47.0] — 2026-08-02
+
+Diese Fassung entstand aus zwei echten Stream-Logs. Fast alles darin ist ein
+Fehler, der bisher lautlos passiert ist.
+
+### Behoben: „Neuer Sub (Teamherz)" hat NIE funktioniert 💜
+In der Trigger-Seite gab es das Ereignis „Neuer Sub" — in der Auswahlliste und
+als fertige Ein-Klick-Vorlage mit Danke-Ansage. **Ausgelöst hat es nie etwas.**
+Der Test-Knopf funktionierte, im echten Stream blieb es für immer still. Damit
+ist auch erklärt, warum **persönliche Intro-Videos nicht kamen**: Deren Auslöser
+steht standardmäßig auf „Beim Teamherz" — wer die Einstellung nie umgestellt
+hat, konnte nie ein Intro bekommen. Beides läuft jetzt, im Cloud- wie im
+Direkt-Modus.
+
+### Behoben: Chat, Likes und Zuschauerzahl im Modus „Direkt" 💬
+Dieselbe Falle wie bei den Geschenken in v0.45.1, nur an drei weiteren Stellen:
+TikTok hat die Datenfelder umbenannt. Im Direkt-Modus kam **jeder Chat ohne
+Text** an — kein Vorlesen, kein Schlüsselwort-Trigger, kein `!befehl`. Ein
+Like-Schwall (TikTok bündelt bis zu 15) zählte als **einer**, der
+Like-Meilenstein wurde also nie erreicht. Und die Zuschauerzahl kam als Text
+statt als Zahl. Besonders ärgerlich, weil die App bei Problemen selbst in den
+Direkt-Modus schickt — der Ausweg war eine Sackgasse.
+
+### Neu: Coin-Kisten und Superfan-Truhen 🎁
+Wirft jemand eine Truhe in den Stream, weiß die App das jetzt — mit Absender,
+Coin-Wert und Anzahl der Gewinner. Im Trigger-Menü steht „Coin-Kiste / Truhe"
+mit zwei Bedingungen: *ab X Coins* und *nur die Superfan-Truhe*. Alerts,
+Ansagen und Sounds lassen sich damit wie bei jedem anderen Ereignis zusammen-
+klicken. Truhen-Coins werden vorerst **getrennt** ausgewiesen und nicht in die
+Coin-Summe gerechnet — ob TikTok zusätzlich eine Geschenk-Nachricht schickt,
+ist ungeklärt, und doppelt gezählte Coins würden jede Auswertung verderben.
+
+### Sprachausgabe: stabil auch bei schwachem WLAN 🔊
+Aus einem 10-Stunden-Log: Die Online-Stimme fiel **85-mal** aus, 28 Ansagen
+blieben komplett stumm, und bei 13 % redeten zwei Ansagen übereinander.
+Ursachen und Abhilfen:
+
+- **Wiederholte Ansagen gehen gar nicht mehr ins Netz.** Derselbe Name landet
+  unter demselben Namen im Zwischenspeicher — beim zweiten Mal sofort da, auch
+  wenn die Leitung gerade weg ist.
+- **Die nächste Ansage wird geholt, WÄHREND die aktuelle spricht.** Vorher lag
+  die Leitung genau in den Sekunden brach, in denen ohnehin nichts zu tun war.
+- **Mehr Zeit pro Versuch (7 → 12 s)** und **kein sinnloser zweiter Versuch nach
+  einer Zeitüberschreitung** — der verdoppelte nur die Stille.
+- **Die lokale Stimme bekommt 25 statt 15 Sekunden.** Sie rechnet auf der CPU;
+  auf einem Laptop, der nebenher streamt, reichten 15 Sekunden oft nicht.
+- **Eine zweite Online-Stimme als letzte Rettung**, wenn die gewählte Stimme UND
+  die lokale versagen. Klanglich ein Rückschritt, aber besser als Stille.
+- **Zu alte Ansagen werden übersprungen** statt zwei Minuten verspätet
+  vorgelesen.
+- **Nach einem Aussetzer nur noch 3 statt 10 Minuten Roboterstimme.**
+- Emoji in Namen zählen bei der Längenschätzung jetzt wie gesprochene Wörter.
+  Vorher lief die Warteschlange bei Namen wie „Mika🇩🇪⚽️" zu früh weiter, und
+  die nächste Ansage redete in die laufende hinein.
+
+### Neu: Die Auswertung beantwortet endlich „war das gut?" 📊
+- Ganz oben steht ein **Satz statt einer Zahl**: „Starker Abend — 38 % über
+  deinem Schnitt. Platz 3 von 27."
+- **Reichweite, Peak-Zuschauer und Geteilt** waren längst gespeichert und wurden
+  nie gezeigt. Gerade die Reichweite („wie viele *verschiedene* Menschen waren
+  da") ist auf TikTok die Zahl, nach der man eigentlich fragt.
+- Neu dazu: **beste Sendezeit**, **Coins pro Stunde**, **Top-Geschenke** und
+  **deine Leute**.
+- Die App schreibt jetzt **Beginn und Dauer** jedes Streams mit. Das behebt
+  nebenbei einen Fehler: Ein Stream, der um 01:30 endete, zählte bisher als
+  Samstag statt als Freitagabend.
+
+### Besser: Was sonst noch stumm durchrauschte
+- **TikToks eigene Bestenliste** und die Zahl der **unsichtbaren Zuschauer**
+  kommen in jedem Zuschauer-Tick mit und wurden komplett weggeworfen.
+- Die **Teamherz-Stufe** wird pro Zuschauer dauerhaft gemerkt (nur nach oben,
+  damit ein Ereignis ohne Abzeichen eine bekannte Stufe nicht löscht).
+- Die **Ranglisten-Anzeige** war im Cloud-Modus tot und wurde in v0.46.0
+  versehentlich auch noch stummgeschaltet — die Meldung ist zurück.
+- Beim Intro sagt die App jetzt, **warum** nichts lief: Der eingestellte
+  Auslöser steht im Start-Log, samt Zahl der Zuschauer mit hinterlegtem Intro.
+
+### Kleinigkeiten
+- „Top Gifter" und „Like-Liste" sind intern dasselbe Widget. In der Ebenen-Liste
+  hieß deshalb **jede** Bestenliste „Like-Liste" — auch eine Gifter-Liste.
+- README: 45 statt 44 Widgets; die Galerie sagt ehrlich, dass vom Slot-Automat
+  noch ein Bild fehlt.
+
 ## [0.46.0] — 2026-07-31
 
 ### Neu: Die App sagt jetzt, warum nichts passiert 🔎
