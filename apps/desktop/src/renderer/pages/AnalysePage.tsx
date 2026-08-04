@@ -515,6 +515,10 @@ function ZaehlZahl({ wert }: { wert: number }) {
   return <>{fmt(gezeigt)}</>;
 }
 
+/** Wie viele Balken beim Erscheinen aufwachsen. Bewusst klein: siehe die
+ *  Begründung an der Animation selbst. */
+const ANIMIERTE_BALKEN = 8;
+
 /** Ein Balken je Stream — zeigt Schwankung und Ausreißer auf einen Blick. */
 function StreamBalken({ streams }: { streams: StreamEintrag[] }) {
   const max = Math.max(...streams.map((s) => s.coins), 1);
@@ -534,7 +538,18 @@ function StreamBalken({ streams }: { streams: StreamEintrag[] }) {
           style={{
             height: `${Math.max(2, (s.coins / max) * 100)}%`,
             transformOrigin: 'bottom',
-            animation: `bx-balken 420ms cubic-bezier(.2,.8,.3,1) ${Math.min(i * 25, 600)}ms both`,
+            // Nur die letzten Balken animieren.
+            //
+            // Eine laufende transform-Animation macht aus dem Element eine
+            // eigene Ebene, für die der Browser Speicher braucht. Läuft er
+            // OHNE Grafikkarte — bei einem Nutzer nachweislich der Fall —,
+            // liegt dieser Speicher im knappen System-Bereich. 40 Balken auf
+            // einmal sind dort ein Ausschlag, den niemand sieht: Bei 40
+            // Balken nimmt kein Mensch wahr, ob der dritte von links
+            // aufgewachsen ist. Die letzten paar tragen den ganzen Effekt.
+            ...(i >= zeigen.length - ANIMIERTE_BALKEN
+              ? { animation: `bx-balken 420ms cubic-bezier(.2,.8,.3,1) ${(i - (zeigen.length - ANIMIERTE_BALKEN)) * 25}ms both` }
+              : {}),
           }}
           title={`${datum(s.at)}: ${fmt(s.coins)} Coins${s.peakViewers ? ` · bis ${fmt(s.peakViewers)} Zuschauer` : ''}`}
         />

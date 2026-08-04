@@ -371,7 +371,15 @@ export class TTSService {
       }
       const local = pickLocalFallbackVoice(this.piper, item.voice);
       if (local) {
-        log.warn('TTS', `Online-Stimme nicht erreichbar (${lastMsg}) → lokale Stimme ${local}`);
+        // Den Grund NICHT blind übernehmen: Läuft die Online-Sperre, wurde
+        // oben zuerst die LOKALE Stimme versucht — scheitert die, steht in
+        // `lastMsg` „Piper-Timeout". Die Meldung behauptete dann
+        // „Online-Stimme nicht erreichbar (Piper-Timeout)", also einen
+        // Widerspruch in sich. Im echten Log neunmal so aufgetaucht.
+        const wegenSperre = this.onlineGesperrtBis > Date.now();
+        log.warn('TTS', wegenSperre
+          ? `Online-Stimme ist gerade gesperrt (zu viele Fehlversuche) → lokale Stimme ${local}`
+          : `Online-Stimme nicht erreichbar (${lastMsg}) → lokale Stimme ${local}`);
         try { playback = await this.synthesize(item.text, local); }
         catch (err) { lastMsg = (err as Error)?.message || lastMsg; }
       }

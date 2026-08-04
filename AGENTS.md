@@ -102,6 +102,17 @@ Merkpunkte:
 - Der `SETTINGS_GET`-IPC-Handler ist eine **Deny**list: neue Felder gehen automatisch an
   den Renderer. Ein neues Geheimnis dort explizit löschen.
 
+## Was TikTok liefert — bevor du suchst
+
+`docs/tiktok-datenquellen.md` beantwortet „was könnte TikTok uns schicken, und
+was nutzen wir davon?" — erzeugt aus dem Protokoll-Schema, dem Cloud-Router und
+den Abos des Adapters. Neu erzeugen mit `npm run inventar` (nach jedem Update
+von `tiktok-live-connector`).
+
+Das ersetzt das Suchen von Hand: Die Antwort steht im Repo, nicht im Gedächtnis.
+Im **Diagnose-Modus** ergänzt das Log zusätzlich, welche Felder in einem
+konkreten Stream tatsächlich ankommen — Feldnamen, niemals Werte.
+
 ## Logging — was hineingehört und was nie
 
 Die Endnutzer sind Streamer. Das Log ist für sie die einzige Antwort auf „warum

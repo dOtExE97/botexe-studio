@@ -28,6 +28,8 @@
 import { WebSocket } from 'ws';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import dns from 'node:dns';
+import { log } from '../core/logger';
 
 /** Wie lange darf allein der VERBINDUNGSAUFBAU dauern? Kurz halten: Klappt er
  *  nicht schnell, klappt er auf dieser Leitung meist gar nicht — und jede
@@ -213,6 +215,7 @@ export class EdgeDauerleitung {
         // Der Riegel, der der Bibliothek fehlt: begrenzt schon den AUFSTIEG,
         // nicht erst die Zeit danach.
         handshakeTimeout: AUFBAU_TIMEOUT_MS,
+        lookup: aufloesenMitGedaechtnis,
       });
 
       // Zweiter Riegel für den Fall davor: Bleibt schon der TCP-Aufbau hängen,
@@ -282,6 +285,43 @@ export class EdgeDauerleitung {
 const AUSGABEFORMAT = 'audio-24khz-48kbitrate-mono-mp3';
 const CHROME_HAUPTVERSION = '130';
 const VERTRAUENSMARKE = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+
+/** Zuletzt erfolgreich aufgelöste Adresse des Sprachdienstes.
+ *
+ *  WARUM: Node merkt sich aufgelöste Namen NICHT — jeder Verbindungsaufbau
+ *  fragt neu beim Betriebssystem nach. Hängt das WLAN an einem Repeater, fällt
+ *  genau diese Namensauflösung immer wieder kurz aus; im Log eines Nutzers
+ *  stand dann „getaddrinfo ENOTFOUND speech.platform.bing.com". Der Server war
+ *  erreichbar — nur sein NAME war es gerade nicht.
+ *
+ *  Deshalb: Die einmal gefundene Adresse behalten und beim nächsten Aussetzer
+ *  weiterverwenden. Adressen großer Dienste ändern sich selten; und falls die
+ *  gemerkte doch nicht mehr stimmt, scheitert der Versuch wie vorher — mehr
+ *  kaputtmachen kann es also nicht. */
+let letzteAdresse: { adresse: string; familie: number } | null = null;
+
+/** Namensauflösung mit Gedächtnis. Wird an `ws` durchgereicht. */
+export function aufloesenMitGedaechtnis(
+  hostname: string,
+  optionen: unknown,
+  rueckruf: (fehler: Error | null, adresse?: string, familie?: number) => void,
+): void {
+  dns.lookup(hostname, (fehler, adresse, familie) => {
+    if (!fehler && adresse) {
+      letzteAdresse = { adresse, familie };
+      rueckruf(null, adresse, familie);
+      return;
+    }
+    if (letzteAdresse) {
+      log.gedrosselt('tts:dns-gedaechtnis', 5 * 60_000, 'info', 'TTS',
+        'Der Name des Sprachdienstes ließ sich gerade nicht auflösen (typisch bei WLAN über einen Repeater) — '
+        + 'die App nimmt die zuletzt bekannte Adresse. Das ist kein Fehler in deinem Setup.');
+      rueckruf(null, letzteAdresse.adresse, letzteAdresse.familie);
+      return;
+    }
+    rueckruf(fehler);
+  });
+}
 
 /** Adresse samt Zugangsmarke. Die Marke wird aus der Uhrzeit abgeleitet und
  *  läuft ab — deshalb pro Verbindungsaufbau neu berechnet. */

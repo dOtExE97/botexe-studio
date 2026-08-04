@@ -1289,6 +1289,27 @@ app.whenReady().then(async () => {
   // Version/Plattform/Daten-Ordner beginnt jede Ferndiagnose mit drei Rückfragen.
   log.info('Start', `bOtExE Studio ${app.getVersion()} · ${process.platform} · Electron ${process.versions.electron} `
     + `· Node ${process.versions.node} · Daten-Ordner: ${app.getPath('userData')}`);
+  // Läuft die Grafikbeschleunigung — oder rechnet Chromium in Software?
+  //
+  // ANLASS: Ein Absturzbericht zeigte alle drei Grafikkarten als „nicht aktiv".
+  // Daraus ließ sich aber NICHT sicher schließen, dass die Beschleunigung aus
+  // war — das Feld sagt etwas anderes aus. Statt weiter zu raten, fragen wir
+  // Chromium direkt. Ohne Beschleunigung braucht das Fenster deutlich mehr
+  // Speicher (jede Kachel liegt dann im knappen System-Bereich) und läuft
+  // zäher — genau die Kombination, die in dem Bericht zum Absturz führte.
+  //
+  // Das betrifft NUR dieses App-Fenster. Über das Overlay in OBS oder TikTok
+  // Live Studio entscheidet deren eigener Browser; darauf hat die App keinen
+  // Einfluss.
+  try {
+    const st = app.getGPUFeatureStatus();
+    const bes = st?.gpu_compositing ?? 'unbekannt';
+    const beschleunigt = bes.startsWith('enabled');
+    log.info('Start', `Grafikbeschleunigung im App-Fenster: ${beschleunigt ? 'AN' : 'AUS'} (${bes})`
+      + (beschleunigt ? '' : ' — das Fenster rechnet in Software: mehr Speicherbedarf, zähere Anzeige. '
+        + 'In den Windows-Grafikeinstellungen lässt sich das meist umstellen. '
+        + 'Auf das Overlay in OBS/TikTok Live Studio hat das KEINEN Einfluss — dort entscheidet deren Browser.'));
+  } catch { /* Diagnose darf nie den Start verhindern */ }
   installAppMenu(); // deutsches Menü statt Electrons englischem Standard
   // Startbild SOFORT — alles darunter (Port binden, Einstellungen, Renderer)
   // dauert auf langsameren Rechnern mehrere Sekunden, in denen sonst sichtbar
@@ -1417,16 +1438,39 @@ function einrichtenStandby(): void {
   let warVerbunden = false;
   let aufwachTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // Haben wir das Einschlafen überhaupt mitbekommen?
+  //
+  // Windows meldet „resume" auch beim modernen Energiesparen — der Rechner
+  // taucht dabei kurz in einen Sparzustand und wieder heraus, ohne je richtig
+  // zu schlafen. Im Log eines Nutzers stand deshalb neunmal „Rechner ist
+  // wieder wach", aber KEIN einziges Mal „geht schlafen": Zweimal davon lagen
+  // zwei Sekunden auseinander. Wer das liest, glaubt, sein Laptop schlafe
+  // ständig ein — dabei ist es nur die Stromsparautomatik.
+  let schlafGesehen = false;
+
   powerMonitor.on('suspend', () => {
     if (aufwachTimer) { clearTimeout(aufwachTimer); aufwachTimer = null; }
+    schlafGesehen = true;
     warVerbunden = studio?.getPlatformStatus().status === 'connected';
-    if (!warVerbunden) return;
+    if (!warVerbunden) {
+      log.info('Standby', 'Rechner geht schlafen (es lief keine TikTok-Verbindung).');
+      return;
+    }
     log.info('Standby', 'Rechner geht schlafen — TikTok-Verbindung wird sauber getrennt.');
     void studio?.disconnect();
   });
 
   powerMonitor.on('resume', () => {
-    log.info('Standby', 'Rechner ist wieder wach.');
+    if (schlafGesehen) {
+      log.info('Standby', 'Rechner ist wieder wach.');
+      schlafGesehen = false;
+    } else {
+      // Kein vorheriges Einschlafen gesehen → kurzer Sparzustand, kein Schlaf.
+      // Gedrosselt, weil das im Minutentakt kommen kann.
+      log.gedrosselt('standby:kurz', 10 * 60_000, 'info', 'Standby',
+        'Kurzer Energiespar-Zustand beendet (Windows „modernes Energiesparen"). '
+        + 'Der Rechner hat NICHT richtig geschlafen — die Verbindung lief durch.');
+    }
     if (aufwachTimer) clearTimeout(aufwachTimer);
     // Kurz warten: direkt nach dem Aufwachen ist das Netz meist noch nicht da.
     aufwachTimer = setTimeout(() => {
@@ -1438,7 +1482,10 @@ function einrichtenStandby(): void {
       });
       warVerbunden = false;
       if (e.tu === 'nichts') {
-        log.info('Standby', `Kein Wiederverbinden: ${e.grund}`);
+        // „war vorher nicht verbunden" ist der Normalfall und stand im Log
+        // eines Nutzers viermal, ohne dass je etwas passiert war. Nur melden,
+        // wenn es überhaupt etwas zu berichten gibt.
+        if (e.grund !== 'war vorher nicht verbunden') log.info('Standby', `Kein Wiederverbinden: ${e.grund}`);
         return;
       }
       log.info('Standby', `Verbinde nach dem Aufwachen wieder mit @${e.username}`);

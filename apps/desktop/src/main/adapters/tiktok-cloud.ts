@@ -12,7 +12,7 @@
 // Dadurch funktioniert der komplette bestehende TikTokAdapter unverändert —
 // nur die Factory wird getauscht.
 import { EventEmitter } from 'node:events';
-import { log } from '../core/logger';
+import { log, diagnoseAktiv } from '../core/logger';
 import type { LiveConnectionLike } from './tiktok-adapter';
 
 const CLOUD_BASE_URL = 'wss://ws.eulerstream.com';
@@ -119,7 +119,17 @@ const CONTROL_STREAM_SUSPENDED = 4;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapCloudMessage(type: string, data: any): CloudEmit | null {
   const direct = TYPE_TO_EVENT[type];
-  if (direct) return { kind: 'event', event: direct, data };
+  if (direct) {
+    // Auch bei BEKANNTEN Arten einmal zeigen, was alles mitkommt. Die App
+    // nutzt oft nur einen Bruchteil der Felder — welche das sind und was
+    // daneben liegt, war bisher unsichtbar. Nur im Diagnose-Modus und nur
+    // einmal je Art; wieder ausschließlich die NAMEN, nie die Werte.
+    if (diagnoseAktiv()) {
+      log.einmal(`tiktok:felder:${type}`, 'info', 'TikTok',
+        `„${type}" bringt diese Felder mit: ${felderVon(data)}.`);
+    }
+    return { kind: 'event', event: direct, data };
+  }
 
   switch (type) {
     case 'WebcastSocialMessage': {
@@ -160,10 +170,48 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
       if (!HARMLOSE_ARTEN.has(type)) {
         log.einmal(`tiktok:art:${type}`, 'info', 'TikTok',
           `Unbekannte TikTok-Nachrichtenart „${type}" — die App kennt diese Art nicht und überspringt sie. `
-          + 'Wenn dir Geschenke oder Follower fehlen, ist das die Spur.');
+          + 'Wenn dir Geschenke oder Follower fehlen, ist das die Spur.'
+          // Im Diagnose-Modus zusätzlich, WAS drinsteckt. Bisher stand nur der
+          // Name da — man wusste also, dass etwas ankommt, aber nicht, ob es
+          // sich lohnt. Mit den Feldnamen sieht man auf einen Blick, ob ein
+          // Nutzer, ein Coin-Wert oder nur Anzeige-Kram drin ist.
+          //
+          // NUR die NAMEN der Felder, NIEMALS die Werte: In diesen Nachrichten
+          // stecken Raum- und Sitzungsdaten, und die Logdatei wird
+          // weitergegeben. Der Name allein verrät nichts und reicht völlig,
+          // um zu entscheiden, ob sich das Auswerten lohnt.
+          + (diagnoseAktiv() ? ` Enthaltene Felder: ${felderVon(data)}.` : ''));
       }
       return null;
   }
+}
+
+/** Die FELDNAMEN einer Nachricht auflisten — ohne einen einzigen Wert.
+ *
+ *  Damit lässt sich im Diagnose-Modus entscheiden, ob eine bisher ignorierte
+ *  Nachrichtenart etwas Brauchbares trägt: Steht dort `user`, `giftId` oder
+ *  `diamondCount`, lohnt sich das Auswerten. Steht dort nur `displayConfig`
+ *  und `duration`, ist es Anzeige-Kram.
+ *
+ *  Verschachtelte Objekte werden EINE Ebene tief aufgelöst (`common.msgId`),
+ *  weil genau dort die interessanten Sachen liegen. Tiefer nicht — sonst wird
+ *  die Zeile unlesbar und die Gefahr wächst, doch noch etwas mitzunehmen,
+ *  das niemanden etwas angeht. */
+export function felderVon(daten: unknown, max = 24): string {
+  if (!daten || typeof daten !== 'object') return typeof daten;
+  const namen: string[] = [];
+  for (const [schluessel, wert] of Object.entries(daten as Record<string, unknown>)) {
+    if (namen.length >= max) { namen.push('…'); break; }
+    if (wert && typeof wert === 'object' && !Array.isArray(wert)) {
+      const kinder = Object.keys(wert as Record<string, unknown>).slice(0, 4);
+      namen.push(kinder.length ? `${schluessel}{${kinder.join(',')}}` : schluessel);
+    } else if (Array.isArray(wert)) {
+      namen.push(`${schluessel}[${wert.length}]`);
+    } else {
+      namen.push(schluessel);
+    }
+  }
+  return namen.join(', ') || '(leer)';
 }
 
 /** Arten, die bekanntermaßen nichts bedeuten — die sollen das Log nicht füllen.

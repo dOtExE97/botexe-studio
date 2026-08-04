@@ -278,7 +278,26 @@ export class TikTokAdapter {
       };
       const route = lib.fetchRoomGiftGalleryFromEulerRoute;
       if (typeof route !== 'function') throw new Error('Route nicht vorhanden');
-      return route({ uniqueId: this.username });
+      // Die Route braucht die HTTP-Clients einer Verbindung — beim ersten
+      // Versuch wurde sie ohne aufgerufen und scheiterte an
+      // „Cannot read properties of undefined (reading 'cookieJar')". Ein
+      // Aufruf, der IMMER fehlschlägt, ist schlimmer als keiner: Er setzt bei
+      // jedem Nutzer eine Fehlerzeile ins Log, die nach einem echten Problem
+      // aussieht. Deshalb dasselbe Muster wie beim Gift-Listen-Abruf: eine
+      // leichte Zusatzverbindung, die nur die Clients beisteuert.
+      const c = createDirectConnection(this.username, this.getAuth()) as unknown as {
+        fetchRoomId?: () => Promise<unknown>;
+        webClient?: unknown;
+        apiClient?: unknown;
+        disconnect?: () => void;
+      };
+      try {
+        await c.fetchRoomId?.();
+        if (!c.webClient || !c.apiClient) throw new Error('Verbindung liefert keine Clients');
+        return await route({ uniqueId: this.username, webClient: c.webClient, apiClient: c.apiClient, options: {} });
+      } finally {
+        try { void Promise.resolve(c.disconnect?.()).catch(() => undefined); } catch { /* egal */ }
+      }
     })()
       .then((galerie) => {
         if (epoch !== this.epoch || !galerie) return;
@@ -296,7 +315,9 @@ export class TikTokAdapter {
         } else {
           this.giftGalleryStatus = 'fehler';
           log.einmal('tiktok:galerie-fehler', 'info', 'TikTok',
-            `Die Geschenke-Galerie ließ sich nicht abrufen: ${msg.slice(0, 120)}`);
+            `Die Geschenke-Galerie ließ sich nicht abrufen: ${msg.slice(0, 120)}. `
+            + 'Das ist KEIN Fehler in deinem Setup — die App kommt ohne die Galerie aus, '
+            + 'es fehlt nur die Sammel-Ansicht.');
         }
       });
   }

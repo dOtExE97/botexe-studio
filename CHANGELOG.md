@@ -3,6 +3,64 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.48.1] — 2026-08-04
+
+Nachlese aus drei echten Logs und einem Absturzbericht. Vier der acht Punkte
+sind Fehler, die die App selbst gemeldet hat — nur leider falsch.
+
+### Behoben: Die Geschenke-Galerie war nie abrufbar 🎁
+Der Abruf aus v0.48.0 scheiterte bei jedem Verbinden mit
+`Cannot read properties of undefined (reading 'cookieJar')` — ein Fehler beim
+Aufruf, kein fehlender Bezahlplan. Ein Aufruf, der IMMER scheitert, ist
+schlimmer als keiner: Er setzt bei jedem Nutzer eine Zeile ins Log, die nach
+einem echten Problem aussieht. Jetzt über denselben Weg wie die Gift-Liste.
+
+### Behoben: Zwei Logzeilen behaupteten Unsinn 🙃
+- **„Online-Stimme nicht erreichbar (Piper-Timeout)"** — ein Widerspruch in
+  sich, neunmal im Log eines Nutzers. Läuft die Online-Sperre, wird zuerst die
+  LOKALE Stimme versucht; deren Fehler landete dann in einer Meldung über die
+  Online-Stimme.
+- **„Rechner ist wieder wach"** ohne je ein „geht schlafen" — neunmal, zweimal
+  davon zwei Sekunden auseinander. Windows meldet das Aufwachen auch beim
+  modernen Energiesparen, wenn der Rechner gar nicht geschlafen hat. Die App
+  unterscheidet das jetzt und sagt es auch so.
+
+### Neu: Namensauflösung mit Gedächtnis 🌐
+Im Log eines Nutzers stand `getaddrinfo ENOTFOUND speech.platform.bing.com` —
+der Sprachdienst war erreichbar, nur sein NAME gerade nicht. Ein Klassiker bei
+WLAN über einen Repeater. Node merkt sich aufgelöste Namen nicht, jeder
+Verbindungsaufbau fragt neu. Die App behält die einmal gefundene Adresse und
+nutzt sie beim nächsten Aussetzer weiter.
+
+### Neu: Warnung, bevor der Speicher ausgeht 🧠
+Ein Absturzbericht zeigte: Die App belegte 97 MB und scheiterte an einer
+Anforderung von 320 KB — weil dem SYSTEM der Speicher ausgegangen war
+(Windows-Fehler 1455). Aus Sicht des Streamers verschwand die App einfach.
+Jetzt steht vorher im Log, dass es eng wird — und dass es nicht an der App
+liegt.
+
+### Neu: Die App sagt, ob die Grafikbeschleunigung läuft 🎬
+Ohne sie rechnet das App-Fenster in Software: mehr Speicherbedarf, zähere
+Anzeige. Die Zeile sagt ausdrücklich mit, dass das Overlay in OBS oder TikTok
+Live Studio davon NICHT betroffen ist — dort entscheidet deren Browser.
+
+### Neu: Bestandsliste aller TikTok-Datenquellen 📋
+`docs/tiktok-datenquellen.md` beantwortet „was könnte TikTok uns schicken, und
+was nutzen wir davon?" — erzeugt aus dem Protokoll-Schema, dem Cloud-Router und
+den Abos des Adapters (`npm run inventar`). Ergebnis: **von 72 Nachrichtenarten
+nutzt die App 9**; zwölf ungenutzte tragen Felder, die nach etwas aussehen —
+angeführt von den PK-Kämpfen.
+
+Ergänzend zeigt der **Diagnose-Modus** jetzt, welche Felder in einem konkreten
+Stream tatsächlich ankommen. Nur die Feldnamen, niemals die Werte: In diesen
+Nachrichten stecken Raum- und Sitzungsdaten, und Logdateien gibt man weiter.
+
+### Besser: Weniger Speicherausschlag in der Auswertung
+Die Balken wuchsen bis zu 40 gleichzeitig auf. Jede laufende Animation braucht
+eine eigene Ebene im Speicher — ohne Grafikbeschleunigung im knappen
+System-Bereich. Jetzt animieren die letzten acht; bei 40 Balken sieht das
+niemand.
+
 ## [0.48.0] — 2026-08-02
 
 Entstanden aus zwei weiteren Logs von Chris — und aus einer Frage, die alles

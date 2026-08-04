@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { buildCloudUrl, mapCloudMessage, leseHost, EulerCloudConnection, type CloudWsLike } from './tiktok-cloud';
+import { buildCloudUrl, mapCloudMessage, leseHost, felderVon, EulerCloudConnection, type CloudWsLike } from './tiktok-cloud';
 import { isOfflineError, isSignServerError } from './tiktok-adapter';
 
 // --- buildCloudUrl ---------------------------------------------------------
@@ -204,4 +204,34 @@ test('roomInfo meldet weiterhin „verbunden" — mit Streamer-Daten obendrauf',
   const r = mapCloudMessage('roomInfo', { owner: { nickname: 'Chris' } });
   assert.equal(r?.kind, 'connected');
   assert.equal(r && r.kind === 'connected' ? r.host?.nickname : '', 'Chris');
+});
+
+// Feldnamen unbekannter Nachrichten — die Frage „lohnt sich das Auswerten?"
+// ließ sich bisher nicht beantworten: Im Log stand nur der NAME der Art.
+test('felderVon nennt die Feldnamen, aber NIEMALS die Werte', () => {
+  const geheim = { sessionId: 'ABC123-streng-geheim', token: 'xyz', user: { nickname: 'Mia', id: '42' } };
+  const s = felderVon(geheim);
+  assert.match(s, /sessionId/, 'der NAME darf drinstehen');
+  assert.doesNotMatch(s, /ABC123|streng-geheim|xyz|Mia/, 'kein einziger WERT darf drinstehen');
+});
+
+test('felderVon löst eine Ebene tief auf — dort liegen die interessanten Felder', () => {
+  const s = felderVon({ common: { msgId: '1', createTime: '2' }, diamondCount: 500 });
+  assert.match(s, /common\{msgId,createTime\}/);
+  assert.match(s, /diamondCount/);
+});
+
+test('felderVon macht Listen als Listen kenntlich (mit Länge, ohne Inhalt)', () => {
+  const s = felderVon({ ranks: [{ user: { nickname: 'A' } }, { user: { nickname: 'B' } }] });
+  assert.match(s, /ranks\[2\]/);
+  assert.doesNotMatch(s, /nickname|A|B/);
+});
+
+test('felderVon bleibt lesbar und kippt bei Unsinn nicht um', () => {
+  assert.equal(felderVon(null), 'object');
+  assert.equal(felderVon('text'), 'string');
+  assert.equal(felderVon({}), '(leer)');
+  const viele = Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`f${i}`, i]));
+  const s = felderVon(viele);
+  assert.ok(s.endsWith('…'), 'wird gedeckelt statt endlos lang');
 });

@@ -3,6 +3,7 @@
 // main.ts verschmiert war — main.ts bleibt dünn (Fenster + IPC).
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { TriggerEngine, giftKey, renderSpeakTemplate, matchRedemption, matchChatCommand, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
@@ -1082,12 +1083,16 @@ export class Studio {
 
     this.meldeLuckyDrawStatus();
     this.meldeAusgangslage();
+    // Gleich beim Start prüfen, nicht erst nach fünf Minuten: Wer die App auf
+    // einem randvollen Rechner startet, soll es sofort wissen.
+    this.pruefeSpeicher();
 
     // Spotify: Polling nur, wenn es auch jemand sieht (Client + Widget).
     this.refreshSpotifyPolling();
 
     // Stream-Eckdaten alle 5 Min ins Log (nur während verbunden) — Überblick ohne Spam.
     this.statsLogTimer = setInterval(() => {
+      this.pruefeSpeicher();
       if (!this.adapter.isConnected()) return;
       const t = this.stats.snapshot().totals;
       log.info('Stats', `${t.viewers} Zuschauer (Peak ${t.peakViewers}) · ${t.uniqueViewers} gesamt dabei · ${t.likes} Likes · ${t.gifts} Gifts · ${t.coins} Coins · ${t.chats} Chats`);
@@ -1232,6 +1237,35 @@ export class Studio {
     // Zeile und die Zahlen tauchen später nicht auf, ist nicht zu unterscheiden,
     // ob nie etwas geschrieben wurde oder ob die Anzeige klemmt.
     log.info('Studio', `Stream in die Analyse übernommen: ${t.coins} Coins · ${t.gifts} Geschenke · ${t.likes} Likes · ${t.chats} Kommentare.`);
+  }
+
+  /**
+   * Warnen, BEVOR dem Rechner der Speicher ausgeht.
+   *
+   * Anlass ist ein echter Absturz: Die App selbst belegte nur 97 MB und
+   * scheiterte dann an einer Anforderung von 320 KB — weil dem SYSTEM der
+   * Speicher ausgegangen war (Windows-Fehler 1455, „Auslagerungsdatei zu
+   * klein"). Aus Sicht des Streamers verschwand die App einfach, und nichts
+   * deutete darauf hin, dass es an seinem Rechner lag und nicht an uns.
+   *
+   * Diese Zeile ändert am Absturz nichts — aber sie steht dann im Log DAVOR,
+   * und das ist der Unterschied zwischen „die App ist kaputt" und „mach mal
+   * ein paar Programme zu".
+   */
+  private pruefeSpeicher(): void {
+    const frei = os.freemem();
+    const gesamt = os.totalmem();
+    if (gesamt <= 0) return;
+    const anteil = frei / gesamt;
+    // Unter 8 % freiem Arbeitsspeicher wird es auf Windows brenzlig — dort
+    // scheitern dann auch kleine Anforderungen. Höchstens alle 10 Minuten,
+    // sonst füllt eine knappe Kiste das Log.
+    if (anteil >= 0.08) return;
+    log.gedrosselt('system:speicher-knapp', 10 * 60_000, 'warn', 'System',
+      `Dem Rechner geht der Arbeitsspeicher aus: nur noch ${Math.round(frei / 1048576)} MB von `
+      + `${Math.round(gesamt / 1048576)} MB frei. bOtExE Studio selbst braucht davon nur wenig — `
+      + 'aber wenn nichts mehr da ist, kann JEDES Programm abstürzen, auch dieses. '
+      + 'Schließ ein paar Fenster (Browser-Tabs sind die üblichen Verdächtigen), bevor es eng wird.');
   }
 
   /** Stream-Historie als CSV (für Tabellen/Auswertung). */
