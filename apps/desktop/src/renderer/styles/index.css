@@ -227,3 +227,20 @@ input[type='radio'] {
 @media (prefers-reduced-motion: reduce) {
   [style*="bx-auf"], [style*="bx-balken"] { animation: none !important; }
 }
+
+/* Auswertungsseite — jede Bewegung EINMALIG beim Aufbau, nichts läuft dauerhaft.
+   Der Nutzer kann sie in den Einstellungen abschalten („Bewegung in der App");
+   prefers-reduced-motion unten schaltet sie unabhängig davon ebenfalls ab. */
+@keyframes bx-zeichnen { to { stroke-dashoffset: 0; } }
+@keyframes bx-ein      { to { opacity: 1; } }
+@keyframes bx-wachsenY { to { transform: scaleY(1); } }
+@keyframes bx-wachsenX { to { transform: scaleX(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Nicht nur langsamer, sondern aus — und zwar im ZIEL-Zustand, nicht im
+     Start-Zustand. Ein „animation: none" allein würde Elemente auf
+     opacity:0 oder scale(0) stehen lassen, also unsichtbar machen. */
+  [style*="bx-zeichnen"] { stroke-dashoffset: 0 !important; animation: none !important; }
+  [style*="bx-ein"]      { opacity: 1 !important;           animation: none !important; }
+  [style*="bx-wachsen"]  { transform: none !important;      animation: none !important; }
+}

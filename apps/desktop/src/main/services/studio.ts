@@ -177,6 +177,12 @@ export class Studio {
    *  „Live" können Stunden liegen — ein beim Start berechnetes Alter wäre dann
    *  längst falsch. Siehe session-continuity.ts. */
   private restoredStatsAt: number | null = null;
+  /** Wann TikTok den Stream gestartet hat (aus der Raum-Info, ms).
+   *  Bis v0.50.0 rechnete die App die Dauer ab dem ERSTEN Ereignis, das sie
+   *  gesehen hat — wer die App eine Stunde nach dem Livegang startet, bekam
+   *  eine um eine Stunde zu kurze Dauer in die Auswertung geschrieben. */
+  private tiktokStartAt = 0;
+  private verlaufTimer: ReturnType<typeof setInterval> | null = null;
   /** Zeitpunkt des letzten ECHTEN (nicht synthetischen) Ereignisses dieser
    *  Session; 0 = noch keins. Beantwortet zwei Fragen:
    *  · Ist das überhaupt ein Stream oder nur eine Testrunde? (Nur ein Stream
@@ -363,6 +369,24 @@ export class Studio {
         const s2 = this.settings.peek();
         if (info.nickname && info.nickname !== s2.hostNickname) this.settings.update({ hostNickname: info.nickname });
         if (info.avatar && info.avatar !== s2.hostAvatar) this.settings.update({ hostAvatar: info.avatar });
+        if (info.titel && info.titel !== s2.hostTitel) this.settings.update({ hostTitel: info.titel });
+        if (typeof info.follower === 'number' && info.follower !== s2.hostFollower) {
+          this.settings.update({ hostFollower: info.follower });
+        }
+        // Die echte Stream-Startzeit von TikTok — die App kannte bisher nur den
+        // Zeitpunkt, an dem SIE sich verbunden hat. Wer die App erst eine Stunde
+        // nach dem Livegang startet, hatte eine um eine Stunde falsche Dauer.
+        if (typeof info.startetAt === 'number' && info.startetAt > 0 && info.startetAt <= Date.now()) {
+          this.tiktokStartAt = info.startetAt;
+        }
+        // Einmal ins Log, damit die Frage „kommen die Streamer-Daten überhaupt
+        // an?" beantwortbar ist. Sie kam jahrelang NICHT an, ohne dass irgendwo
+        // etwas stand: Die App wartete auf einen `roomInfo`-Rahmen, den
+        // eulerstream gar nicht schickt.
+        log.einmal('tiktok:host', 'info', 'TikTok',
+          `Streamer-Daten erhalten: ${info.nickname ?? '(kein Name)'}`
+          + `${info.avatar ? ' · Profilbild da' : ' · KEIN Profilbild'}`
+          + `${info.titel ? ` · Titel „${info.titel}"` : ''}`);
       },
       onStatus: (info) => {
         // Bei einem NEUEN Stream (erster Connect ODER erneutes Live nach Ende)
@@ -1102,6 +1126,14 @@ export class Studio {
     this.refreshSpotifyPolling();
 
     // Stream-Eckdaten alle 5 Min ins Log (nur während verbunden) — Überblick ohne Spam.
+    // Verlaufs-Messpunkt jede Minute — nur während einer laufenden Verbindung.
+    // Eigener, langsamer Timer statt einer Messung bei jedem Ereignis: Bei
+    // einem Geschenk-Regen wären das hunderte Punkte pro Sekunde.
+    this.verlaufTimer = setInterval(() => {
+      if (!this.adapter.isConnected()) return;
+      this.stats.messeVerlauf(Date.now());
+    }, 60_000);
+
     this.statsLogTimer = setInterval(() => {
       this.pruefeSpeicher();
       if (!this.adapter.isConnected()) return;
@@ -1143,6 +1175,7 @@ export class Studio {
     if (this.statsTimer) clearTimeout(this.statsTimer);
     if (this.timerTicker) clearInterval(this.timerTicker);
     if (this.statsLogTimer) { clearInterval(this.statsLogTimer); this.statsLogTimer = null; }
+    if (this.verlaufTimer) { clearInterval(this.verlaufTimer); this.verlaufTimer = null; }
     for (const t of this.actionTimers) clearTimeout(t);
     this.actionTimers.clear();
     // Beim Beenden wird NICHT entschieden, ob der Stream vorbei ist — das kann
@@ -1239,11 +1272,17 @@ export class Studio {
     const ende = Math.min(this.letztesEchtesEventAt, Date.now());
     // Dauer nur mitgeben, wenn der Beginn bekannt ist (bei einer aus der
     // letzten Sitzung wiederhergestellten Session ist er es nicht).
-    const start = this.erstesEchtesEventAt > 0 && this.erstesEchtesEventAt <= ende ? this.erstesEchtesEventAt : undefined;
+    // TikToks eigene Startzeit hat Vorrang — sie ist der echte Livegang. Das
+    // erste gesehene Ereignis ist nur der Moment, in dem die App zugeschaltet
+    // hat, und liegt bei einem späten App-Start deutlich daneben.
+    const eigen = this.erstesEchtesEventAt > 0 && this.erstesEchtesEventAt <= ende ? this.erstesEchtesEventAt : undefined;
+    const vonTikTok = this.tiktokStartAt > 0 && this.tiktokStartAt <= ende ? this.tiktokStartAt : undefined;
+    const start = vonTikTok ?? eigen;
     this.statsHistory.record(t, ende, start);
     this.statsHistory.save();
     this.letztesEchtesEventAt = 0;
     this.erstesEchtesEventAt = 0;
+    this.tiktokStartAt = 0;
     // Sichtbar machen, dass der Stream in der Analyse gelandet ist. Fehlt diese
     // Zeile und die Zahlen tauchen später nicht auf, ist nicht zu unterscheiden,
     // ob nie etwas geschrieben wurde oder ob die Anzeige klemmt.
@@ -1753,6 +1792,8 @@ export class Studio {
       username: s.lastUsername ?? '',
       hostNickname: s.hostNickname ?? '',
       hostAvatar: s.hostAvatar ?? '',
+      hostTitel: s.hostTitel ?? '',
+      animationen: s.animationen !== false,
       layoutCount: this.layouts.list().length,
       activeLayoutId: s.activeLayoutId ?? '',
       // Die Größe, die in OBS/TTLS von Hand an der Browser-Quelle stehen muss.

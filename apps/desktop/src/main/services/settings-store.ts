@@ -72,10 +72,23 @@ export interface StudioSettings {
    *  'beides'    = bei beidem
    *  'aus'       = nie */
   introTrigger?: 'join' | 'sub' | 'teamherz' | 'beides' | 'aus';
-  /** Anzeigename und Profilbild des Streamers selbst — kommt aus TikToks
-   *  roomInfo. Rein kosmetisch (Begrüßung in der Auswertung). */
+  /** Anzeigename, Profilbild und Livetitel des Streamers selbst.
+   *
+   *  Kommt aus `WebcastLiveIntroMessage` — NICHT aus `roomInfo`, auf das die App
+   *  bis v0.50.0 gewartet hat und das eulerstream nie schickt. Deshalb blieben
+   *  diese Felder dauerhaft leer, ohne dass irgendwo ein Fehler stand. */
   hostNickname?: string;
   hostAvatar?: string;
+  /** Der Titel des letzten Live („Zocken bis die Sonne aufgeht"). */
+  hostTitel?: string;
+  /** Follower-Gesamtzahl des Kanals (aus der Raum-Info, nicht aus dem Live-Strom). */
+  hostFollower?: number;
+  /** Bewegung in der Oberfläche: Zahlen zählen hoch, Kurven zeichnen sich,
+   *  Balken wachsen. Auf einem schwachen Rechner kostet das spürbar Leistung —
+   *  und wer die App den ganzen Abend offen hat, will die Schau vielleicht
+   *  ohnehin nur einmal sehen. `prefers-reduced-motion` des Systems zählt
+   *  weiterhin und schaltet unabhängig davon ab. */
+  animationen?: boolean;
   soundVolume: number;
   /** Audio-Ausgabegerät für lokale Sounds/TTS (deviceId), '' = Standard. */
   audioOutputId: string;
@@ -205,6 +218,10 @@ const DEFAULTS: StudioSettings = {
   // v0.47 stand hier 'sub' (das bezahlte Abo), war aber als „Beim Teamherz"
   // beschriftet. Ergebnis: Intros liefen praktisch nie.
   introTrigger: 'teamherz',
+  // Bewegung standardmäßig AN — sie erklärt etwas (Verläufe, Wachstum) und
+  // die meisten Rechner tragen sie mühelos. Wer sie nicht will oder braucht,
+  // schaltet sie aus; das System-Signal prefers-reduced-motion greift ohnehin.
+  animationen: true,
   soundVolume: 0.7,
   audioOutputId: '',
   audioOutputLabel: '',
@@ -624,6 +641,7 @@ export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): 
   if (typeof p.autoLiveWatch === 'boolean') allowed.autoLiveWatch = p.autoLiveWatch;
   if (typeof p.autostart === 'boolean') allowed.autostart = p.autostart;
   if (typeof p.minimizeToTray === 'boolean') allowed.minimizeToTray = p.minimizeToTray;
+  if (typeof p.animationen === 'boolean') allowed.animationen = p.animationen;
   if (typeof p.trayHinweisGezeigt === 'boolean') allowed.trayHinweisGezeigt = p.trayHinweisGezeigt;
   if (typeof p.giftSoundGapSec === 'number') allowed.giftSoundGapSec = Math.min(600, Math.max(0, Math.round(p.giftSoundGapSec)));
   if (typeof p.autoBackup === 'boolean') allowed.autoBackup = p.autoBackup;

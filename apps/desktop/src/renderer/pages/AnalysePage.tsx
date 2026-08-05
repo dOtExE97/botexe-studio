@@ -1,22 +1,40 @@
-// AnalysePage — die ausführliche Auswertung deiner Streams.
+// AnalysePage — die Auswertung deiner Streams.
 //
-// Anspruch: Jede Zahl beantwortet eine Frage, die man sich als Streamer
-// wirklich stellt — nicht „hier sind Daten", sondern „lief es besser als
-// sonst, geht es aufwärts, wann lohnt sich streamen".
+// DIE EINE IDEE: Diese Seite beantwortet zuerst „war das gut?" und erst danach
+// „wie viel war es". Die Antwort ist ein SATZ in Schlagzeilengröße; die Zahlen
+// belegen ihn. Vorher stand die Antwort klein neben einer großen Zahl — also
+// ein Zehntel so groß wie ihr eigener Beleg — und darüber 14 gleich große
+// Kacheln, in denen alles gleich wichtig aussah und deshalb nichts wichtig war.
 //
-// Deshalb steht neben fast jedem Wert eine Einordnung. Eine nackte Zahl wie
-// „4.200 Coins" sagt niemandem etwas; „4.200 — 38 % über deinem Schnitt" schon.
+// AUFBAU (jeder Abschnitt beantwortet eine Frage):
+//   1. Anzeigetafel      war das gut, und woran sieht man das
+//   2. Verlauf           wann war was los                    (interaktiv)
+//   3. Rekorde           was war besser als je zuvor
+//   4. Deine Abende      wie steht dieser zu den anderen     (anklickbar)
+//   5. Wann es läuft     welche Zeiten tragen                (Heatmap)
+//   6. Woher die Coins   hing der Abend an einem Menschen    (interaktiv)
+//   7. Deine Leute       wer war da
+//   8. Alles andere      der Rest, gruppiert statt als Kachelgitter
 //
-// Das Layout passt sich der Breite an (Grid mit auto-fit): auf dem Stream-PC
-// mehrspaltig, auf einem schmalen Fenster untereinander. Ein Zugriff vom Handy
-// ist ein eigenes Thema — die Seite ist aber schon darauf vorbereitet.
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Minus, Trophy, CalendarDays, Coins, Clock, Users, Gift as GiftIcon } from 'lucide-react';
+// GESTALTUNGSREGELN:
+//  • Farben BEDEUTEN etwas: Gold = Wert, Teal = Wachstum, Orangerot = „dieser
+//    Abend". Nie „andere Farbe, weil bunt". Vorher war Orangerot gleichzeitig
+//    Alarmfarbe UND Balkenfarbe.
+//  • Der KLEINE Abend ist der Normalfall, nicht die Ausnahme: 10 Zuschauer,
+//    3 Geschenke, 1 Coin. Wo eine Prozentzahl dort albern wäre („−67 %"),
+//    steht ein absoluter Satz („2 weniger als sonst").
+//  • Kein backdrop-filter, keine Dauer-Animation. Ein Nutzer streamt auf einem
+//    Laptop ohne Grafikbeschleunigung, dem der Speicher ausgeht.
+import { useEffect, useMemo, useState } from 'react';
 import {
-  imZeitraum, kennzahl, trend, besteWochentage, besterStream,
-  urteil, coinsProStunde, besteSendezeiten, mitDauer, bestePlatzierung,
+  imZeitraum, trend, besteWochentage, urteil, coinsProStunde,
+  besteSendezeiten, bestePlatzierung,
   type StreamEintrag,
 } from '../../shared/analyse';
+import {
+  Tafel, Kurve, Heatmap, Herkunft, Podest, Gesicht, magBewegung,
+  type TafelZahl, type KurvenReihe, type GeberAnteil, type PodestPlatz,
+} from './analyse-teile';
 import type { useStudio } from '../hooks/useStudio';
 
 const ZEITRAEUME = [
@@ -27,33 +45,48 @@ const ZEITRAEUME = [
 ] as const;
 
 const fmt = (n: number) => n.toLocaleString('de-DE');
-
-/** Tageszeit-Gruß. Streamer sind meistens abends und nachts unterwegs —
- *  deshalb reicht die Nacht bis 5 Uhr, statt schon um 0 Uhr „Guten Morgen"
- *  zu sagen. */
-function begruessung(stunde = new Date().getHours()): string {
-  if (stunde < 5) return 'Noch wach';
-  if (stunde < 11) return 'Guten Morgen';
-  if (stunde < 18) return 'Hallo';
-  return 'Guten Abend';
-}
 const datum = (ts: number) => new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+
+/** Unter diesem Vergleichswert sind Prozente Unsinn: Bei „1 statt 3 Coins"
+ *  wären das −67 %, was eine Genauigkeit vortäuscht, die die Zahl nicht hat. */
+const PROZENT_AB = 10;
+
+/** Einordnung in Worten — absolut bei kleinen Zahlen, prozentual bei großen. */
+export function vergleichsSatz(wert: number, basis: number): { text: string; richtung: 'hoch' | 'gleich' | 'runter' } {
+  if (basis <= 0) return { text: wert > 0 ? 'das erste Mal überhaupt' : 'auch sonst keine', richtung: 'gleich' };
+  const diff = wert - basis;
+  if (basis < PROZENT_AB) {
+    if (diff === 0) return { text: 'wie sonst', richtung: 'gleich' };
+    return {
+      text: `${Math.abs(diff)} ${diff > 0 ? 'mehr' : 'weniger'} als sonst`,
+      richtung: diff > 0 ? 'hoch' : 'runter',
+    };
+  }
+  const p = Math.round((diff / basis) * 100);
+  if (Math.abs(p) < 25) return { text: 'wie immer', richtung: 'gleich' };
+  return { text: `${p > 0 ? '+' : ''}${p} % gegenüber sonst`, richtung: p > 0 ? 'hoch' : 'runter' };
+}
+
+/** Median statt Mittelwert: Ein einziger Wal-Abend würde den Schnitt so
+ *  hochziehen, dass danach jeder normale Abend „unterdurchschnittlich" wäre. */
+export function median(werte: number[]): number {
+  if (werte.length === 0) return 0;
+  const s = [...werte].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? (s[m] ?? 0) : Math.round(((s[m - 1] ?? 0) + (s[m] ?? 0)) / 2);
+}
 
 export default function AnalysePage({ studio }: { studio: ReturnType<typeof useStudio> }) {
   const [alle, setAlle] = useState<StreamEintrag[]>([]);
   const [geladen, setGeladen] = useState(false);
   const [tage, setTage] = useState<number>(30);
-
-  // Top-Geschenke und Top-Leute kommen NICHT aus der Stream-Historie (die
-  // kennt nur Summen), sondern aus dem Geschenk-Katalog und der
-  // Zuschauer-Datenbank. Beide sind Gesamtstände über alle Streams — das steht
-  // auch so an den Karten dran, damit niemand sie für Zeitraum-Zahlen hält.
+  const [gewaehlt, setGewaehlt] = useState<number | null>(null);
+  const [reihe, setReihe] = useState<'coins' | 'chats' | 'likes' | 'viewers'>('coins');
   const [topGeschenke, setTopGeschenke] = useState<{ slug: string; count: number; coins: number; icon?: string }[]>([]);
-  const [topLeute, setTopLeute] = useState<{ id: string; nickname: string; coins?: number; visitCount?: number; teamLevel?: number }[]>([]);
-  // Wer schaut hier eigentlich drauf? Name und Bild kommen aus TikToks
-  // roomInfo (siehe tiktok-cloud.ts#leseHost) und werden dauerhaft gemerkt —
-  // die Begrüßung steht also auch dann da, wenn gerade kein Stream läuft.
-  const [ich, setIch] = useState<{ name: string; bild: string }>({ name: '', bild: '' });
+  const [ich, setIch] = useState<{ name: string; bild: string; titel: string; follower: number }>(
+    { name: '', bild: '', titel: '', follower: 0 },
+  );
+  const [bewegung, setBewegung] = useState(true);
 
   useEffect(() => {
     void window.studio.getStreamHistorie()
@@ -61,499 +94,431 @@ export default function AnalysePage({ studio }: { studio: ReturnType<typeof useS
       .catch(() => setAlle([]))
       .finally(() => setGeladen(true));
     void window.studio.getGiftCatalog()
-      .then((k) => {
-        const liste = Object.values((k ?? {}) as Record<string, { slug?: string; count?: number; coins?: number; icon?: string }>)
+      .then((k) => setTopGeschenke(
+        Object.values((k ?? {}) as Record<string, { slug?: string; count?: number; coins?: number; icon?: string }>)
           .filter((g) => (g.count ?? 0) > 0)
           .map((g) => ({ slug: g.slug ?? '?', count: g.count ?? 0, coins: (g.coins ?? 0) * (g.count ?? 0), icon: g.icon }))
           .sort((a, b) => b.coins - a.coins || b.count - a.count)
-          .slice(0, 5);
-        setTopGeschenke(liste);
-      })
+          .slice(0, 5),
+      ))
       .catch(() => setTopGeschenke([]));
     void (window.studio.getDiagnostics() as Promise<Record<string, unknown>>)
-      .then((d) => setIch({
-        name: String(d.hostNickname || d.username || ''),
-        bild: String(d.hostAvatar || ''),
-      }))
-      .catch(() => undefined);
-    void window.studio.listViewers('')
-      .then((v) => {
-        const liste = (v as typeof topLeute ?? [])
-          .filter((p) => (p.coins ?? 0) > 0)
-          .sort((a, b) => (b.coins ?? 0) - (a.coins ?? 0))
-          .slice(0, 5);
-        setTopLeute(liste);
+      .then((d) => {
+        setIch({
+          name: String(d.hostNickname || d.username || ''),
+          bild: String(d.hostAvatar || ''),
+          titel: String(d.hostTitel || ''),
+          follower: Number(d.hostFollower || 0),
+        });
+        setBewegung(d.animationen !== false);
       })
-      .catch(() => setTopLeute([]));
+      .catch(() => undefined);
   }, []);
 
   const jetzt = Date.now();
   const streams = useMemo(() => imZeitraum(alle, tage, jetzt), [alle, tage, jetzt]);
   const laufend = studio.stats?.totals;
+  const laeuft = studio.status.status === 'connected';
 
-  // `shares`, `peakViewers` und `uniqueViewers` standen schon immer in der
-  // Historie — die Seite hat sie nur nie summiert und nie gezeigt. Gerade die
-  // Reichweite („wie viele VERSCHIEDENE Menschen waren da") ist auf TikTok die
-  // Zahl, nach der man eigentlich fragt.
-  const summe = useMemo(() => streams.reduce(
-    (a, e) => ({
-      coins: a.coins + e.coins, likes: a.likes + e.likes, gifts: a.gifts + e.gifts,
-      chats: a.chats + e.chats, follows: a.follows + e.follows,
-      shares: a.shares + e.shares,
-      reichweite: a.reichweite + (e.uniqueViewers ?? 0),
-      peak: Math.max(a.peak, e.peakViewers),
-      subs: a.subs + (e.subs ?? 0),
-      truhen: a.truhen + (e.envelopes ?? 0),
-      superfans: a.superfans + (e.superfans ?? 0),
-      emotes: a.emotes + (e.emotes ?? 0),
-      truhenCoins: a.truhenCoins + (e.envelopeCoins ?? 0),
-      anonym: Math.max(a.anonym, e.peakAnonymous ?? 0),
-    }),
-    { coins: 0, likes: 0, gifts: 0, chats: 0, follows: 0, shares: 0, reichweite: 0, peak: 0, subs: 0, truhen: 0, superfans: 0, emotes: 0, truhenCoins: 0, anonym: 0 },
-  ), [streams]);
+  // Welcher Abend wird bewertet? Standard ist der letzte; ein Klick auf die
+  // Reihe wechselt. Der Vergleich läuft IMMER gegen die anderen, nie gegen
+  // sich selbst — sonst bewertet ein Abend sich mit sich.
+  const idx = gewaehlt !== null && gewaehlt < streams.length ? gewaehlt : streams.length - 1;
+  const abend = streams[idx] ?? null;
+  const andere = useMemo(() => streams.filter((_, i) => i !== idx), [streams, idx]);
 
-  const coinsVerlauf = streams.map((s) => s.coins);
-  const coinTrend = trend(coinsVerlauf);
+  // Der Maßstab steht EINMAL fest, über die ganze Historie — nicht pro
+  // Zeitraum. Sonst könnte ein Wechsel des Zeitraums das Urteil kippen, und
+  // ein Umschalter, der laut Beschriftung nur den Zeitraum wechselt, würde
+  // den Satz oben entwerten, auf dem die ganze Seite steht.
+  const massstab = useMemo<'coins' | 'chats'>(() => {
+    const mitCoins = alle.filter((s) => s.coins > 0).length;
+    const basis = median(alle.map((s) => s.coins));
+    return alle.length > 0 && mitCoins >= alle.length / 2 && basis >= PROZENT_AB ? 'coins' : 'chats';
+  }, [alle]);
+
+  const massWert = (s: StreamEintrag) => (massstab === 'coins' ? s.coins : s.chats);
+  const urteilObj = abend ? urteil(abend.coins, andere.map((s) => s.coins)) : null;
+
+  // Die Zahlen der Anzeigetafel. Der Maßstab steht vorn: Bei einem Kanal ohne
+  // nennenswerte Coins ist das „Kommentare" — sonst stünde dort dauerhaft eine
+  // 1 in leuchtendem Gold, und die Seite hätte jeden Abend schlechte Laune.
+  const tafelZahlen: TafelZahl[] = useMemo(() => {
+    if (!abend) return [];
+    const bau = (wert: number, label: string, werte: number[], leise = false): TafelZahl => {
+      const v = vergleichsSatz(wert, median(werte));
+      return { wert, label, hinweis: v.text, richtung: v.richtung, leise };
+    };
+    const felder: Array<[number, string, number[], boolean]> = massstab === 'coins'
+      ? [
+        [abend.coins, 'Coins', andere.map((s) => s.coins), false],
+        [abend.chats, 'Kommentare', andere.map((s) => s.chats), false],
+        [abend.uniqueViewers ?? 0, 'Leute im Raum', andere.map((s) => s.uniqueViewers ?? 0), false],
+      ]
+      : [
+        [abend.chats, 'Kommentare', andere.map((s) => s.chats), false],
+        [abend.uniqueViewers ?? 0, 'Leute im Raum', andere.map((s) => s.uniqueViewers ?? 0), false],
+        // Gedämpft: Der Wert steht da, wird aber nicht gefeiert.
+        [abend.coins, 'Coins', andere.map((s) => s.coins), true],
+      ];
+    return felder.map(([w, l, v, leise]) => bau(w, l, v, leise));
+  }, [abend, andere, massstab]);
+
+  // Die Kurve: Läuft gerade ein Stream, zeigt sie DIESEN Abend im Verlauf
+  // (aus den Messpunkten der Session, siehe session-stats.ts#messeVerlauf).
+  // Sonst den Verlauf ÜBER die Abende — dieselbe Frage auf anderer Achse.
+  const sessionVerlauf = studio.stats?.verlauf ?? [];
+  const detailKurve = laeuft && sessionVerlauf.length > 1;
+  const kurve: KurvenReihe = useMemo(() => {
+    const felder = {
+      coins: { label: 'Coins', einheit: 'Coins' },
+      chats: { label: 'Kommentare', einheit: 'Kommentare' },
+      likes: { label: 'Likes', einheit: 'Likes' },
+      viewers: { label: 'Zuschauer', einheit: 'Zuschauer' },
+    } as const;
+    if (detailKurve) {
+      return { id: reihe, ...felder[reihe], punkte: sessionVerlauf.map((p) => p[reihe]), achse: ['Start', 'Mitte', 'jetzt'] };
+    }
+    const holen = (s: StreamEintrag) => (reihe === 'viewers' ? s.peakViewers : s[reihe]);
+    const erster = streams[0];
+    const letzter = streams[streams.length - 1];
+    return {
+      id: reihe,
+      ...felder[reihe],
+      punkte: streams.map(holen),
+      achse: [erster ? datum(erster.at) : '', '', letzter ? datum(letzter.at) : ''],
+    };
+  }, [reihe, detailKurve, sessionVerlauf, streams]);
+
+  // Rekorde: nur echte Bestwerte über ALLE Abende, nicht nur den Zeitraum.
+  const rekorde = useMemo(() => {
+    if (!abend || alle.length < 2) return [];
+    const raus: { marke: string; neu: boolean; text: string }[] = [];
+    const pruef = (wert: number, hol: (s: StreamEintrag) => number, einheit: string) => {
+      const alt = Math.max(0, ...alle.filter((s) => s.at !== abend.at).map(hol));
+      if (wert <= 0 || wert <= alt) return;
+      raus.push({
+        marke: alt === 0 ? 'Zum ersten Mal' : 'Rekord',
+        neu: alt === 0,
+        text: alt === 0
+          ? `${fmt(wert)} ${einheit} an einem Abend — das gab es noch nie.`
+          : `Meiste ${einheit} an einem Abend: ${fmt(wert)}. Der alte Bestwert lag bei ${fmt(alt)}.`,
+      });
+    };
+    pruef(abend.coins, (s) => s.coins, 'Coins');
+    pruef(abend.chats, (s) => s.chats, 'Kommentare');
+    pruef(abend.gifts, (s) => s.gifts, 'Geschenke');
+    return raus.slice(0, 3);
+  }, [abend, alle]);
+
+  // Heatmap: Wochentag × 2-Stunden-Block. Die Achse läuft von 12 bis 12 —
+  // NICHT 0 bis 24, sonst zerschneidet sie jeden Stream über Mitternacht, und
+  // TikTok-Streamer sind genau dann live.
+  const heat = useMemo(() => {
+    const z: number[][] = Array.from({ length: 7 }, () => Array.from({ length: 12 }, () => 0));
+    for (const s of streams) {
+      const d = new Date(s.startedAt ?? s.at);
+      const tag = (d.getDay() + 6) % 7; // Montag = 0
+      const block = Math.floor(((((d.getHours() - 12) % 24) + 24) % 24) / 2);
+      const zeile = z[tag];
+      if (zeile && zeile[block] !== undefined) zeile[block] += 1;
+    }
+    return z;
+  }, [streams]);
+
   const wochentage = besteWochentage(streams);
   const sendezeiten = besteSendezeiten(streams);
   const proStunde = coinsProStunde(streams);
-  const mitDauerAnzahl = mitDauer(streams).length;
-  const bester = besterStream(streams);
   const rangBest = bestePlatzierung(streams);
-  // „War der letzte gut?" — die Frage nach dem Live. Verglichen wird gegen
-  // ALLE anderen im Zeitraum, der bewertete Stream selbst zählt nicht mit
-  // (sonst bewertet er sich mit sich selbst).
-  const letzter = streams.length > 0 ? streams[streams.length - 1] : null;
-  const letzterUrteil = letzter ? urteil(letzter.coins, streams.slice(0, -1).map((s) => s.coins)) : null;
-  // Der laufende Stream im Vergleich zu den bisherigen — die Frage, die man
-  // sich während des Streams stellt.
-  const heuteCoins = kennzahl(laufend?.coins ?? 0, coinsVerlauf);
+  const coinTrend = trend(streams.map((s) => s.coins));
+
+  // Woher die Coins kamen — nur für den laufenden bzw. zuletzt beendeten
+  // Abend, denn nur dort kennen wir die einzelnen Geber. Das steht auch in der
+  // Überschrift, nicht in einer Fußnote.
+  const geber: GeberAnteil[] = useMemo(() => {
+    const top = studio.stats?.topGifters ?? [];
+    if (top.length === 0) return [];
+    const farben = ['var(--color-studio-gold)', 'var(--color-studio-teal)', 'var(--color-studio-accent)', '#7d86a8'];
+    const erste = top.slice(0, 4).map((g, i) => ({ name: g.nickname, wert: g.coins, farbe: farben[i] ?? '#3a4052' }));
+    const rest = top.slice(4).reduce((s, g) => s + g.coins, 0);
+    return rest > 0 ? [...erste, { name: 'Alle anderen', wert: rest, farbe: '#3a4052' }] : erste;
+  }, [studio.stats]);
+
+  const podest: PodestPlatz[] = useMemo(() => {
+    const top = studio.stats?.topGifters ?? [];
+    if (top.length < 3) return [];
+    const [a, b, c] = top;
+    // Reihenfolge 2–1–3, damit der Erste in der Mitte steht.
+    return [
+      { platz: 2, name: b?.nickname ?? '', wert: `${fmt(b?.coins ?? 0)} Coins`, bild: b?.profilePic },
+      { platz: 1, name: a?.nickname ?? '', wert: `${fmt(a?.coins ?? 0)} Coins`, bild: a?.profilePic },
+      { platz: 3, name: c?.nickname ?? '', wert: `${fmt(c?.coins ?? 0)} Coins`, bild: c?.profilePic },
+    ];
+  }, [studio.stats]);
+
+  // Zeilen mit 0 fallen weg — sonst käme die Kachel „Geteilt 0" durch die
+  // Hintertür zurück, gegen die diese Seite gebaut wurde.
+  const gruppen = useMemo(() => {
+    if (!abend) return [];
+    const z = (label: string, wert: string, gold = false) => ({ label, wert, gold });
+    return [
+      { titel: 'Einnahmen', zeilen: [
+        z('Coins', fmt(abend.coins), true),
+        z('Geschenke', fmt(abend.gifts)),
+        ...(abend.envelopes ? [z('Truhen', `${abend.envelopes} · ${fmt(abend.envelopeCoins ?? 0)} Coins`)] : []),
+        ...(abend.durationMin ? [z('Coins pro Stunde', fmt(Math.round(abend.coins / Math.max(1, abend.durationMin / 60))))] : []),
+      ] },
+      { titel: 'Publikum', zeilen: [
+        z('Leute im Raum', fmt(abend.uniqueViewers ?? 0)),
+        z('Meiste gleichzeitig', fmt(abend.peakViewers)),
+        ...(abend.peakAnonymous ? [z('Unsichtbar dabei', fmt(abend.peakAnonymous))] : []),
+        z('Neue Follower', fmt(abend.follows)),
+      ] },
+      { titel: 'Chat', zeilen: [
+        z('Kommentare', fmt(abend.chats)),
+        z('Likes', fmt(abend.likes)),
+        ...(abend.emotes ? [z('Emotes', fmt(abend.emotes))] : []),
+        ...(abend.shares ? [z('Geteilt', fmt(abend.shares))] : []),
+      ] },
+      { titel: 'Treue', zeilen: [
+        ...(abend.superfans ? [z('Neue Superfans', fmt(abend.superfans))] : []),
+        ...(abend.subs ? [z('Verlängerungen', fmt(abend.subs))] : []),
+        ...(abend.bestePlatzierung ? [z('Beste Platzierung', `Platz ${abend.bestePlatzierung}`)] : []),
+        ...(ich.follower ? [z('Follower gesamt', fmt(ich.follower))] : []),
+      ] },
+    ].filter((g) => g.zeilen.length > 0);
+  }, [abend, ich.follower]);
 
   if (!geladen) return <div className="p-6 text-studio-muted">Lade Auswertung…</div>;
 
+  const wann = abend
+    ? new Date(abend.at).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' }).toUpperCase()
+      + (abend.durationMin ? ` · ${Math.floor(abend.durationMin / 60)} H ${abend.durationMin % 60} MIN` : '')
+    : 'NOCH KEIN ABEND';
+
+  const bewegt = magBewegung(bewegung);
+  const auf = (i: number) => (bewegt
+    ? { opacity: 0, animation: `bx-auf .5s cubic-bezier(.16,1,.3,1) ${i * 55}ms forwards` }
+    : undefined);
+  const kicker = 'mb-3 block font-display text-[11px] uppercase tracking-[0.3em] text-studio-muted';
+
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex h-full flex-col overflow-y-auto p-6">
+      <header className="flex flex-wrap items-center justify-between gap-3" style={auf(0)}>
         <div className="flex items-center gap-3">
-          {/* Begrüßung: Wer hier draufschaut, soll sich wiedererkennen. Ohne
-              Profilbild ein Kreis mit dem Anfangsbuchstaben — nie ein
-              kaputtes Bild-Symbol. */}
-          {ich.name && (
-            ich.bild
-              ? <img src={ich.bild} alt="" className="h-11 w-11 shrink-0 rounded-full border border-studio-border object-cover" />
-              : (
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-studio-border bg-studio-raised font-display text-lg text-studio-accent">
-                  {ich.name.replace(/^@/, '').charAt(0).toUpperCase()}
-                </div>
-              )
-          )}
+          <div className="h-[30px] w-[30px] shrink-0">
+            <Gesicht name={ich.name || '?'} bild={ich.bild} />
+          </div>
           <div>
-            <h1 className="flex items-center gap-2 font-display text-xl uppercase">
-              <BarChart3 size={20} className="text-studio-accent" />
-              {ich.name ? `${begruessung()}, ${ich.name.replace(/^@/, '')}` : 'Auswertung'}
-            </h1>
-            <p className="mt-1 max-w-2xl text-xs text-studio-muted">
-              Deine vergangenen Streams im Vergleich. Der gerade laufende zählt hier erst mit, wenn er
-              beendet ist — sonst würde er jeden Durchschnitt verzerren.
-            </p>
+            <span className="block font-display text-[11px] uppercase tracking-[0.3em] text-studio-muted">{wann}</span>
+            {ich.titel && <span className="mt-0.5 block max-w-[52ch] truncate text-[13px] text-studio-muted">„{ich.titel}"</span>}
           </div>
         </div>
-        <div className="flex overflow-hidden rounded-lg border border-studio-border">
+        <div className="flex gap-4">
           {ZEITRAEUME.map((z) => (
             <button
               key={z.id}
-              onClick={() => setTage(z.id)}
-              className={`px-3 py-1.5 text-xs font-semibold tracking-wide transition-colors ${
-                tage === z.id ? 'bg-studio-accent/20 text-studio-accent' : 'text-studio-muted hover:bg-studio-raised'
+              type="button"
+              aria-pressed={tage === z.id}
+              onClick={() => { setTage(z.id); setGewaehlt(null); }}
+              className={`border-b-2 pb-1 pt-0.5 text-[11px] uppercase tracking-[0.14em] transition-colors ${
+                tage === z.id ? 'border-studio-accent text-studio-text' : 'border-transparent text-studio-muted hover:text-studio-text'
               }`}
             >
               {z.label}
             </button>
           ))}
         </div>
-      </div>
+      </header>
 
       {streams.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-studio-border p-10 text-center text-sm text-studio-muted">
+        <div className="mt-8 rounded-xl border border-dashed border-studio-border p-10 text-center text-sm text-studio-muted">
           Für diesen Zeitraum gibt es noch keine beendeten Streams.
           <span className="mt-1 block text-xs text-studio-muted/70">
-            Nach deinem nächsten Stream steht hier die erste Auswertung.
+            Nach deinem nächsten Stream steht hier die erste Auswertung — ab dem zweiten auch der Vergleich.
           </span>
         </div>
       ) : (
         <>
-          {/* Laufender Stream im Vergleich — nur wenn gerade einer läuft. */}
-          {studio.status.status === 'connected' && (laufend?.coins ?? 0) > 0 && (
-            <div className="bx-card flex flex-wrap items-center gap-4 p-4">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.28em] text-studio-muted">Gerade läuft</div>
-                <div className="text-2xl leading-none text-studio-text" style={{ fontFamily: 'var(--font-chunky)' }}>
-                  {fmt(laufend?.coins ?? 0)} <span className="text-sm text-studio-muted">Coins</span>
-                </div>
-              </div>
-              {heuteCoins.schnitt > 0 && (
-                <div className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${
-                  heuteCoins.abweichung >= 0 ? 'bg-studio-teal/15 text-studio-teal' : 'bg-studio-accent/15 text-studio-accent'
-                }`}>
-                  {heuteCoins.abweichung >= 0 ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
-                  {heuteCoins.abweichung >= 0 ? '+' : ''}{heuteCoins.abweichung} %
-                  <span className="font-normal text-studio-muted">
-                    gegenüber deinem Schnitt ({fmt(heuteCoins.schnitt)})
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Der letzte Stream als SATZ, bevor irgendeine Zahl kommt. Das ist die
-              Frage nach dem Live: „war das gut?" — und die beantwortet keine
-              Tabelle, sondern ein Satz mit Einordnung. */}
-          {letzter && letzterUrteil && (
-            <div className={`bx-card p-4 ${
-              letzterUrteil.art === 'stark' ? 'border-studio-teal/40'
-                : letzterUrteil.art === 'ruhig' ? 'border-studio-accent/40' : ''
-            }`}>
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="text-[10px] uppercase tracking-[0.28em] text-studio-muted">Dein letzter Stream</span>
-                <span className="text-xs text-studio-muted">
-                  {/* Bewusst „zuletzt aktiv": Ohne aufgezeichneten Beginn ist der
-                      Zeitstempel das ENDE — ein Stream, der um 01:30 aufhört,
-                      stünde sonst fälschlich auf dem Folgetag. */}
-                  {letzter.startedAt
-                    ? new Date(letzter.startedAt).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })
-                    : `zuletzt aktiv am ${new Date(letzter.at).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })}`}
-                  {letzter.durationMin ? ` · ${Math.floor(letzter.durationMin / 60)} h ${letzter.durationMin % 60} min` : ''}
-                </span>
-              </div>
-              <div className="mt-1.5 flex flex-wrap items-baseline gap-3">
-                <span className="text-3xl leading-none text-studio-gold" style={{ fontFamily: 'var(--font-chunky)' }}>
-                  {fmt(letzter.coins)}
-                </span>
-                <span className="text-sm text-studio-muted">Coins</span>
-                <span className={`text-sm ${
-                  letzterUrteil.art === 'stark' ? 'text-studio-teal'
-                    : letzterUrteil.art === 'ruhig' ? 'text-studio-accent' : 'text-studio-muted'
-                }`}>
-                  {letzterUrteil.satz}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Summen im Zeitraum */}
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
-            {[
-              { label: 'Streams', wert: streams.length },
-              { label: 'Coins', wert: summe.coins },
-              { label: 'Geschenke', wert: summe.gifts },
-              { label: 'Likes', wert: summe.likes },
-              { label: 'Neue Follower', wert: summe.follows },
-              { label: 'Kommentare', wert: summe.chats },
-              // Bisher gespeichert, aber nie gezeigt:
-              { label: 'Reichweite', wert: summe.reichweite, hinweis: 'verschiedene Zuschauer' },
-              { label: 'Peak', wert: summe.peak, ohneSchnitt: true, hinweis: 'meiste gleichzeitig' },
-              { label: 'Geteilt', wert: summe.shares },
-              // Neue Superfans und Verlängerungen sind BEWUSST zwei Zahlen: Die
-              // eine ist Zuwachs, die andere Treue. Zusammengezählt wäre beides
-              // wertlos.
-              ...(summe.superfans > 0 ? [{ label: 'Neue Superfans', wert: summe.superfans }] : []),
-              ...(summe.subs > 0 ? [{ label: 'Verlängerungen', wert: summe.subs, hinweis: 'Superfans geblieben' }] : []),
-              ...(summe.truhen > 0 ? [{ label: 'Truhen', wert: summe.truhen, hinweis: `${fmt(summe.truhenCoins)} Coins darin` }] : []),
-              ...(summe.emotes > 0 ? [{ label: 'Emotes', wert: summe.emotes, hinweis: 'Sticker im Chat' }] : []),
-              ...(summe.anonym > 0 ? [{ label: 'Unsichtbar', wert: summe.anonym, ohneSchnitt: true, hinweis: 'zugeschaut, ohne sichtbar zu sein' }] : []),
-            ].map((k, i) => (
-              <div
-                key={k.label}
-                className="bx-card p-4 transition-colors hover:border-studio-accent/40"
-                style={{ animation: `bx-auf 320ms ease-out ${i * 40}ms both` }}
-              >
-                <div className="text-[10px] uppercase tracking-[0.28em] text-studio-muted">{k.label}</div>
-                <div className="mt-1 text-2xl leading-none text-studio-text" style={{ fontFamily: 'var(--font-chunky)' }}>
-                  <ZaehlZahl wert={k.wert} />
-                </div>
-                {k.hinweis && (
-                  <div className="mt-1 text-[10px] leading-tight text-studio-muted/80">{k.hinweis}</div>
-                )}
-                {k.label !== 'Streams' && !k.ohneSchnitt && streams.length > 1 && (
-                  <div className="mt-1 font-mono text-[10px] text-studio-muted">
-                    ⌀ {fmt(Math.round(k.wert / streams.length))} pro Stream
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="mt-4" style={auf(1)}>
+            <Tafel
+              urteilText={laeuft ? 'Läuft gerade'
+                : urteilObj?.art === 'stark' ? 'Starker Abend'
+                  : urteilObj?.art === 'ruhig' ? 'Ruhiger Abend'
+                    : urteilObj?.art === 'zu-wenig-daten' ? `Dein ${streams.length}. Abend`
+                      : 'Ganz normaler Abend'}
+              urteilArt={urteilObj?.art === 'stark' ? 'stark' : urteilObj?.art === 'ruhig' ? 'ruhig' : 'normal'}
+              wann={laeuft ? `LÄUFT · ${fmt(laufend?.viewers ?? 0)} ZUSCHAUER` : wann}
+              zahlen={tafelZahlen}
+              bewegung={bewegung}
+            />
+            <p className="mt-3 max-w-[70ch] text-[11.5px] text-studio-muted">
+              {urteilObj?.satz}
+              {massstab === 'chats' && ' Gemessen wird bei dir an Kommentaren — da ist genug los, dass ein Vergleich was taugt. Die Coins stehen weiter unten mit drin.'}
+            </p>
           </div>
 
-          {/* Verlauf: ein Balken je Stream */}
-          <section className="bx-card p-4">
-            <h2 className="mb-3 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.28em] text-studio-gold">
-              <span>Coins je Stream</span>
-              <span className={`flex items-center gap-1 text-[10px] normal-case tracking-normal ${
-                coinTrend.richtung === 'hoch' ? 'text-studio-teal'
-                  : coinTrend.richtung === 'runter' ? 'text-studio-accent' : 'text-studio-muted'
-              }`}>
-                {coinTrend.richtung === 'hoch' ? <TrendingUp size={12} />
-                  : coinTrend.richtung === 'runter' ? <TrendingDown size={12} /> : <Minus size={12} />}
-                {coinTrend.richtung === 'gleich'
-                  ? 'stabil'
-                  : `${coinTrend.prozent > 0 ? '+' : ''}${coinTrend.prozent} % gegenüber der ersten Hälfte`}
-              </span>
-            </h2>
-            <StreamBalken streams={streams} />
+          <section className="mt-10" style={auf(2)}>
+            <span className={kicker}>{detailKurve ? 'Dieser Abend im Verlauf' : 'Deine Abende im Verlauf'}</span>
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {(['coins', 'chats', 'likes', 'viewers'] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  aria-pressed={reihe === r}
+                  onClick={() => setReihe(r)}
+                  className={`rounded-full border px-3 py-1 text-[11.5px] transition-colors ${
+                    reihe === r
+                      ? 'border-studio-teal bg-studio-teal font-semibold text-[#0c0d12]'
+                      : 'border-studio-border text-studio-muted hover:border-[#4b5570] hover:text-studio-text'
+                  }`}
+                >
+                  {r === 'coins' ? 'Coins' : r === 'chats' ? 'Kommentare' : r === 'likes' ? 'Likes' : 'Zuschauer'}
+                </button>
+              ))}
+            </div>
+            <Kurve reihe={kurve} bewegung={bewegung} />
+            <p className="mt-2 max-w-[70ch] text-[11.5px] text-studio-muted">
+              {detailKurve
+                ? 'Fahr über die Kurve für den Stand zu jedem Zeitpunkt des Abends.'
+                : 'Ein Punkt je Abend. Sobald ein Stream läuft, zeigt die Kurve stattdessen den Verlauf dieses Abends.'}
+            </p>
           </section>
 
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-            {/* Bester Stream */}
-            {bester && (
-              <section className="bx-card p-4">
-                <h2 className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.28em] text-studio-gold">
-                  <Trophy size={13} /> Stärkster Stream
-                </h2>
-                <div className="text-2xl leading-none text-studio-gold" style={{ fontFamily: 'var(--font-chunky)' }}>
-                  {fmt(bester.coins)} <span className="text-sm text-studio-muted">Coins</span>
-                </div>
-                <div className="mt-1 text-xs text-studio-muted">
-                  am {new Date(bester.at).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })}
-                  {bester.peakViewers > 0 && ` · bis zu ${fmt(bester.peakViewers)} Zuschauer`}
-                </div>
-              </section>
-            )}
-
-            {/* Wochentage */}
-            <section className="bx-card p-4">
-              <h2 className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.28em] text-studio-gold">
-                <CalendarDays size={13} /> Starke Wochentage
-              </h2>
-              {wochentage.length === 0 ? (
-                <p className="text-xs leading-relaxed text-studio-muted">
-                  Dafür braucht es mindestens zwei Streams am selben Wochentag — sonst wäre ein
-                  einzelner guter Abend schon „der beste Tag".
-                </p>
-              ) : (
-                <ul className="space-y-1.5">
-                  {wochentage.slice(0, 4).map((w) => (
-                    <li key={w.tag} className="flex items-center justify-between text-xs">
-                      <span className="text-studio-text/90">{w.tag}</span>
-                      <span className="flex items-baseline gap-1.5">
-                        <span className="font-mono text-studio-gold">{fmt(w.schnitt)}</span>
-                        <span className="text-[10px] text-studio-muted">⌀ aus {w.anzahl} Streams</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+          {rekorde.length > 0 && (
+            <section className="mt-10" style={auf(3)}>
+              <span className={kicker}>Rekorde an diesem Abend</span>
+              <div className="flex flex-col gap-2.5">
+                {rekorde.map((r, i) => (
+                  <div key={r.text} className="flex items-baseline gap-3 text-[14.5px]" style={auf(4 + i)}>
+                    <i
+                      className="shrink-0 rounded-sm px-2 py-[3px] font-display text-[9.5px] uppercase not-italic tracking-[0.16em]"
+                      style={{ color: '#0c0d12', background: r.neu ? 'var(--color-studio-teal)' : 'var(--color-studio-gold)' }}
+                    >
+                      {r.marke}
+                    </i>
+                    <span>{r.text}</span>
+                  </div>
+                ))}
+              </div>
             </section>
+          )}
 
-            {/* Beste Platzierung in TikToks Ranglisten — Stunden, Tag, Woche,
-                Spiele. Für Streamer das Aushängeschild, für eine Agentur die
-                Zahl, die im Zweifel zählt. */}
+          <section className="mt-10" style={auf(7)}>
+            <span className={kicker}>Deine Abende — zum Anklicken</span>
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(104px,1fr))' }}>
+              {streams.map((s, i) => {
+                const wert = massWert(s);
+                const bester = Math.max(...streams.map(massWert), 1);
+                const mitte = median(streams.map(massWert));
+                return (
+                  <button
+                    key={s.at}
+                    type="button"
+                    aria-pressed={i === idx}
+                    onClick={() => setGewaehlt(i)}
+                    className={`rounded-xl border p-3 text-left transition-colors ${
+                      i === idx ? 'border-studio-accent bg-[#221a1a]' : 'border-studio-border bg-studio-raised hover:border-[#4b5570]'
+                    }`}
+                    title={`${datum(s.at)} · ${fmt(s.coins)} Coins · ${fmt(s.chats)} Kommentare`}
+                  >
+                    <span className="block font-mono text-[9.5px] tracking-[0.06em] text-studio-muted">{datum(s.at)}</span>
+                    <b className="mt-0.5 block font-display text-[19px] font-normal tabular-nums">{fmt(wert)}</b>
+                    <i
+                      className="mt-2 block h-[3px] rounded-sm"
+                      style={{
+                        background: wert >= bester ? 'var(--color-studio-gold)'
+                          : wert > mitte ? 'var(--color-studio-teal)' : '#39405a',
+                        transformOrigin: 'left',
+                        ...(bewegt ? { transform: 'scaleX(0)', animation: `bx-wachsenX .6s cubic-bezier(.16,1,.3,1) ${240 + i * 40}ms forwards` } : {}),
+                      }}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+            {coinTrend.richtung !== 'gleich' && (
+              <p className="mt-3 text-[11.5px] text-studio-muted">
+                Über den Zeitraum {coinTrend.richtung === 'hoch' ? 'aufwärts' : 'abwärts'}:{' '}
+                {coinTrend.prozent > 0 ? '+' : ''}{coinTrend.prozent} % gegenüber der ersten Hälfte.
+              </p>
+            )}
+          </section>
+
+          <section className="mt-10" style={auf(8)}>
+            <span className={kicker}>Wann es bei dir läuft</span>
+            <div className="rounded-xl border border-studio-border p-5" style={{ background: 'var(--color-studio-panel)' }}>
+              <Heatmap
+                zellen={heat}
+                satz={[
+                  wochentage.length > 0 ? `Deine ${wochentage.slice(0, 2).map((w) => w.tag).join(' und ')} tragen am meisten.` : '',
+                  sendezeiten.length > 0 ? `Am besten läuft es, wenn du gegen ${sendezeiten[0]?.stunde} Uhr anfängst.` : '',
+                  proStunde !== null && proStunde > 0 ? `Im Schnitt ${fmt(proStunde)} Coins pro Stunde.` : '',
+                ].filter(Boolean).join(' ')}
+              />
+            </div>
+          </section>
+
+          {geber.length > 1 && (
+            <section className="mt-10" style={auf(9)}>
+              <span className={kicker}>Woher die Coins kamen {laeuft ? '(läuft gerade)' : '(letzter Abend)'}</span>
+              <div className="rounded-xl border border-studio-border p-5" style={{ background: 'var(--color-studio-panel)' }}>
+                <Herkunft geber={geber} einheit="Coins" />
+              </div>
+            </section>
+          )}
+
+          {podest.length === 3 && (
+            <section className="mt-10" style={auf(10)}>
+              <span className={kicker}>Deine Leute {laeuft ? '(läuft gerade)' : '(letzter Abend)'}</span>
+              <Podest plaetze={podest} bewegung={bewegung} />
+            </section>
+          )}
+
+          {topGeschenke.length > 0 && (
+            <section className="mt-10" style={auf(11)}>
+              <span className={kicker}>
+                Deine Top-Geschenke <span className="normal-case tracking-normal">(über alle Streams)</span>
+              </span>
+              <div className="flex flex-wrap gap-2.5">
+                {topGeschenke.map((g) => (
+                  <div key={g.slug} className="flex items-center gap-2.5 rounded-full border border-studio-border bg-studio-raised py-1.5 pl-1.5 pr-4">
+                    {g.icon
+                      ? <img src={g.icon} alt="" className="h-7 w-7 rounded-full object-contain" />
+                      : <span className="grid h-7 w-7 place-items-center rounded-full bg-[#242a3a] font-display text-[11px] text-studio-muted">?</span>}
+                    <span className="text-[12.5px]">{g.slug}</span>
+                    <span className="font-mono text-[11px] text-studio-muted">{fmt(g.count)}× · {fmt(g.coins)}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="mt-10" style={auf(12)}>
+            <span className={kicker}>Alles andere an diesem Abend</span>
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(215px,1fr))' }}>
+              {gruppen.map((g) => (
+                <div key={g.titel} className="rounded-xl border border-studio-border p-4" style={{ background: 'var(--color-studio-panel)' }}>
+                  <h3 className="mb-2 font-display text-[10px] font-normal uppercase tracking-[0.24em] text-studio-muted">{g.titel}</h3>
+                  {g.zeilen.map((z) => (
+                    <div key={z.label} className="flex items-baseline justify-between gap-2.5 border-t border-[rgba(38,42,54,.6)] py-1.5 first-of-type:border-t-0">
+                      <span className="text-[13px] text-studio-muted">{z.label}</span>
+                      <b className={`font-mono text-[14px] font-normal tabular-nums ${z.gold ? 'text-studio-gold' : ''}`}>{z.wert}</b>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
             {rangBest && (
-              <section className="bx-card p-4">
-                <h2 className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.28em] text-studio-gold">
-                  <Trophy size={13} /> Beste Platzierung
-                </h2>
-                <div className="text-2xl leading-none text-studio-gold" style={{ fontFamily: 'var(--font-chunky)' }}>
-                  Platz {rangBest.platz}
-                </div>
-                <div className="mt-1 text-xs text-studio-muted">
-                  {rangBest.art} · am {new Date(rangBest.at).toLocaleDateString('de-DE', { day: '2-digit', month: 'long' })}
-                </div>
-              </section>
+              <p className="mt-3 text-[11.5px] text-studio-muted">
+                Beste Platzierung im Zeitraum:{' '}
+                <b className="font-mono font-normal text-studio-text">Platz {rangBest.platz}</b>
+                {rangBest.art ? ` (${rangBest.art})` : ''}.
+              </p>
             )}
-
-            {/* Beste Sendezeit — dieselbe Idee wie die Wochentage, aber für die
-                Uhrzeit. Braucht den aufgezeichneten BEGINN, den es erst ab
-                v0.47 gibt; deshalb steht bei zu wenig Daten ein ehrlicher Satz
-                statt einer erfundenen Liste. */}
-            <section className="bx-card p-4">
-              <h2 className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.28em] text-studio-gold">
-                <Clock size={13} /> Beste Sendezeit
-              </h2>
-              {sendezeiten.length === 0 ? (
-                <p className="text-xs leading-relaxed text-studio-muted">
-                  Dafür muss die App den Stream-BEGINN kennen — das zeichnet sie erst seit dieser
-                  Fassung auf. Nach ein paar Streams steht hier, zu welcher Uhrzeit es sich bei dir lohnt.
-                </p>
-              ) : (
-                <ul className="space-y-1.5">
-                  {sendezeiten.slice(0, 4).map((z) => (
-                    <li key={z.stunde} className="flex items-center justify-between text-xs">
-                      <span className="text-studio-text/90">{z.label}</span>
-                      <span className="flex items-baseline gap-1.5">
-                        <span className="font-mono text-studio-gold">{fmt(z.schnitt)}</span>
-                        <span className="text-[10px] text-studio-muted">⌀ aus {z.anzahl} Streams</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            {/* Coins pro Stunde — die ehrlichste Kennzahl: belohnt nicht bloß
-                Sitzfleisch. */}
-            <section className="bx-card p-4">
-              <h2 className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.28em] text-studio-gold">
-                <Coins size={13} /> Coins pro Stunde
-              </h2>
-              {proStunde === null ? (
-                <p className="text-xs leading-relaxed text-studio-muted">
-                  Dafür braucht es die Dauer deiner Streams — die zeichnet die App erst seit dieser
-                  Fassung auf. Ab dem nächsten Stream siehst du hier, wie ergiebig deine Zeit war,
-                  unabhängig davon, wie lange du live warst.
-                </p>
-              ) : (
-                <>
-                  <div className="text-2xl leading-none text-studio-gold" style={{ fontFamily: 'var(--font-chunky)' }}>
-                    {fmt(proStunde)}
-                  </div>
-                  <div className="mt-1 text-xs text-studio-muted">
-                    aus {mitDauerAnzahl} Stream{mitDauerAnzahl === 1 ? '' : 's'} mit bekannter Dauer
-                    {mitDauerAnzahl < streams.length && ` (${streams.length - mitDauerAnzahl} ältere zählen nicht mit)`}
-                  </div>
-                </>
-              )}
-            </section>
-
-            {/* Top-Geschenke — Gesamtstand, nicht Zeitraum (kommt aus dem Katalog). */}
-            {topGeschenke.length > 0 && (
-              <section className="bx-card p-4">
-                <h2 className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.28em] text-studio-gold">
-                  <GiftIcon size={13} /> Deine Top-Geschenke
-                </h2>
-                <ul className="space-y-1.5">
-                  {topGeschenke.map((g) => (
-                    <li key={g.slug} className="flex items-center gap-2 text-xs">
-                      {g.icon ? <img src={g.icon} alt="" className="h-5 w-5 rounded" /> : <span className="h-5 w-5" />}
-                      <span className="flex-1 truncate text-studio-text/90">{g.slug}</span>
-                      <span className="font-mono text-studio-gold">{fmt(g.coins)}</span>
-                      <span className="text-[10px] text-studio-muted">{g.count}×</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-2 text-[10px] text-studio-muted/80">Gesamt über alle Streams, nicht nur der Zeitraum.</div>
-              </section>
-            )}
-
-            {/* Deine Leute — ebenfalls Gesamtstand aus der Zuschauer-Datenbank. */}
-            {topLeute.length > 0 && (
-              <section className="bx-card p-4">
-                <h2 className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.28em] text-studio-gold">
-                  <Users size={13} /> Deine Leute
-                </h2>
-                <ul className="space-y-1.5">
-                  {topLeute.map((p) => (
-                    <li key={p.id} className="flex items-center gap-2 text-xs">
-                      <span className="flex-1 truncate text-studio-text/90">
-                        {p.nickname}
-                        {(p.teamLevel ?? 0) > 0 && <span className="ml-1.5 text-[10px] text-studio-accent">💜 {p.teamLevel}</span>}
-                      </span>
-                      <span className="font-mono text-studio-gold">{fmt(p.coins ?? 0)}</span>
-                      {(p.visitCount ?? 0) > 1 && (
-                        <span className="text-[10px] text-studio-muted">{p.visitCount}× dabei</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-2 text-[10px] text-studio-muted/80">Gesamt über alle Streams, nicht nur der Zeitraum.</div>
-              </section>
-            )}
-
-            {/* Ranglisten-Platz, falls gerade bekannt */}
-            {studio.rang && (
-              <section className="bx-card p-4">
-                <h2 className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.28em] text-studio-gold">
-                  <Coins size={13} /> {studio.rang.art}
-                </h2>
-                <div className="text-2xl leading-none text-studio-gold" style={{ fontFamily: 'var(--font-chunky)' }}>
-                  Platz {studio.rang.platz}
-                </div>
-                <div className="mt-1 text-xs text-studio-muted">
-                  {studio.rang.restSek > 0
-                    ? `noch ${Math.max(1, Math.round(studio.rang.restSek / 60))} Minuten in dieser Runde`
-                    : 'Stand von TikTok'}
-                </div>
-              </section>
-            )}
-          </div>
+          </section>
         </>
       )}
-    </div>
-  );
-}
-
-/** Zahl, die beim Erscheinen hochzählt.
- *
- *  Bewusst kurz (600 ms) und mit einer Bremskurve: Es soll lebendig wirken,
- *  nicht wie eine Ladeanzeige. Wer die Seite nur überfliegt, sieht trotzdem
- *  sofort die Größenordnung.
- *
- *  Respektiert „Bewegung reduzieren" des Betriebssystems — dann steht die Zahl
- *  einfach sofort da. */
-function ZaehlZahl({ wert }: { wert: number }) {
-  const [gezeigt, setGezeigt] = useState(wert);
-  const vorher = useRef(wert);
-
-  useEffect(() => {
-    const start = vorher.current;
-    vorher.current = wert;
-    if (start === wert) return;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { setGezeigt(wert); return; }
-    const dauer = 600;
-    const t0 = performance.now();
-    let laeuft = true;
-    const schritt = (jetzt: number) => {
-      if (!laeuft) return;
-      const p = Math.min(1, (jetzt - t0) / dauer);
-      // Ease-out: schnell los, sanft ankommen.
-      const e = 1 - Math.pow(1 - p, 3);
-      setGezeigt(Math.round(start + (wert - start) * e));
-      if (p < 1) requestAnimationFrame(schritt);
-    };
-    requestAnimationFrame(schritt);
-    return () => { laeuft = false; };
-  }, [wert]);
-
-  return <>{fmt(gezeigt)}</>;
-}
-
-/** Wie viele Balken beim Erscheinen aufwachsen. Bewusst klein: siehe die
- *  Begründung an der Animation selbst. */
-const ANIMIERTE_BALKEN = 8;
-
-/** Ein Balken je Stream — zeigt Schwankung und Ausreißer auf einen Blick. */
-function StreamBalken({ streams }: { streams: StreamEintrag[] }) {
-  const max = Math.max(...streams.map((s) => s.coins), 1);
-  // Bei sehr vielen Streams nur die letzten zeigen — sonst werden die Balken
-  // zu Haaren und die Anzeige sagt nichts mehr.
-  const zeigen = streams.slice(-40);
-  return (
-    <div className="flex h-32 items-end gap-1">
-      {zeigen.map((s, i) => (
-        <div
-          key={s.at}
-          className="group relative flex-1 rounded-t bg-studio-accent/70 transition-colors hover:bg-studio-accent"
-          // Balken wachsen von unten auf, leicht versetzt — das macht den
-          // Verlauf lesbar (man sieht die Reihenfolge) statt nur dekorativ zu
-          // sein. `transform-origin` unten, damit sie nicht aus der Mitte
-          // aufploppen.
-          style={{
-            height: `${Math.max(2, (s.coins / max) * 100)}%`,
-            transformOrigin: 'bottom',
-            // Nur die letzten Balken animieren.
-            //
-            // Eine laufende transform-Animation macht aus dem Element eine
-            // eigene Ebene, für die der Browser Speicher braucht. Läuft er
-            // OHNE Grafikkarte — bei einem Nutzer nachweislich der Fall —,
-            // liegt dieser Speicher im knappen System-Bereich. 40 Balken auf
-            // einmal sind dort ein Ausschlag, den niemand sieht: Bei 40
-            // Balken nimmt kein Mensch wahr, ob der dritte von links
-            // aufgewachsen ist. Die letzten paar tragen den ganzen Effekt.
-            ...(i >= zeigen.length - ANIMIERTE_BALKEN
-              ? { animation: `bx-balken 420ms cubic-bezier(.2,.8,.3,1) ${(i - (zeigen.length - ANIMIERTE_BALKEN)) * 25}ms both` }
-              : {}),
-          }}
-          title={`${datum(s.at)}: ${fmt(s.coins)} Coins${s.peakViewers ? ` · bis ${fmt(s.peakViewers)} Zuschauer` : ''}`}
-        />
-      ))}
     </div>
   );
 }

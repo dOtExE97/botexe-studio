@@ -67,6 +67,7 @@ export default function SettingsPage() {
   const [autoLiveWatch, setAutoLiveWatch] = useState(true);
   const [autostart, setAutostart] = useState(false);
   const [minimizeToTray, setMinimizeToTray] = useState(true);
+  const [animationen, setAnimationen] = useState(true);
   const [giftSoundGap, setGiftSoundGap] = useState(0);
   // Anzeigesprache der Geschenknamen IM OVERLAY (nicht in der App — die hat
   // ihren eigenen DE/EN-Schalter in der Galerie).
@@ -118,7 +119,7 @@ export default function SettingsPage() {
   const [spotify, setSpotify] = useState<{ connected: boolean; clientIdSet: boolean; redirectUri: string; nowPlaying: { title: string; artist: string; albumArt: string; isPlaying: boolean } | null }>({ connected: false, clientIdSet: false, redirectUri: '', nowPlaying: null });
 
   useEffect(() => {
-    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; tiktokConnectMode?: 'cloud' | 'direct'; autoLiveWatch?: boolean; autostart?: boolean; minimizeToTray?: boolean; spotifyClientId?: string; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
+    void window.studio.getSettings().then((s: { points: PointsConfig; audioOutputId?: string; moderation?: { blockedWords?: string[] }; sportKeySet?: boolean; tiktokSignKeySet?: boolean; tiktokConnectMode?: 'cloud' | 'direct'; autoLiveWatch?: boolean; autostart?: boolean; minimizeToTray?: boolean; animationen?: boolean; spotifyClientId?: string; obsPasswordSet?: boolean; obs?: { enabled: boolean; url: string }; streamerbot?: { enabled: boolean; url: string }; tiktokLoggedIn?: boolean }) => {
       setPoints(s.points);
       setAudioOut(s.audioOutputId ?? '');
       setBlockedWords((s.moderation?.blockedWords ?? []).join(', '));
@@ -129,6 +130,7 @@ export default function SettingsPage() {
       setAutoLiveWatch(s.autoLiveWatch !== false);
       setAutostart(s.autostart === true);
       setMinimizeToTray(s.minimizeToTray !== false);
+      setAnimationen(s.animationen !== false);
       const sy = s as unknown as { giftSoundGapSec?: number; autoBackup?: boolean; telemetry?: 'unset' | 'on' | 'off'; giftNameLang?: 'original' | 'de' };
       setGiftSoundGap(sy.giftSoundGapSec ?? 0);
       setGiftNameLang(sy.giftNameLang === 'de' ? 'de' : 'original');
@@ -400,6 +402,17 @@ export default function SettingsPage() {
           />
           <span>
             <b className="text-studio-fg">Beim Schließen weiterlaufen lassen</b> — das X schließt dann nur das Fenster, die App legt sich unten rechts neben die Uhr. Deine Overlays in OBS laufen weiter. Ohne diesen Haken beendet das X die App sofort — und damit mitten im Stream auch alle Overlays. Beendet wird über einen Rechtsklick auf das Symbol → <i>Beenden</i>.
+          </span>
+        </label>
+
+        <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-studio-border/60 p-3 text-[11px] text-studio-muted">
+          <input
+            type="checkbox" checked={animationen}
+            onChange={(e) => { setAnimationen(e.target.checked); void window.studio.updateSettings({ animationen: e.target.checked }); }}
+            className="mt-0.5"
+          />
+          <span>
+            <b className="text-studio-fg">Bewegung in der App</b> — Zahlen zählen hoch, Verlaufskurven zeichnen sich, Balken wachsen. Das zeigt, was sich verändert hat, kostet auf einem älteren Rechner aber spürbar Leistung. Ohne Haken stehen alle Werte sofort da. Betrifft nur die App selbst: <b className="text-studio-fg">deine Overlays im Stream bleiben unberührt</b>. Wer in Windows „Animationen reduzieren" eingestellt hat, bekommt sie ohnehin nicht zu sehen.
           </span>
         </label>
       </section>

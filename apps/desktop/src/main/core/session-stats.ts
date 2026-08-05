@@ -105,6 +105,32 @@ export interface GiftHighlight {
   coins: number;
 }
 
+/** Ein Messpunkt im Verlauf eines Abends.
+ *
+ *  Bis v0.50.0 speicherte die App nur ENDSTÄNDE. Damit ließ sich sagen, dass
+ *  ein Abend 4.200 Coins hatte — aber nicht, ob sie gleichmäßig kamen oder in
+ *  einer einzigen Minute. Für den Streamer ist genau das die interessantere
+ *  Hälfte: „wann war was los".
+ *
+ *  BEWUSST SPARSAM: ein Punkt pro Minute, fünf Zahlen, und eine harte
+ *  Obergrenze. Ein 12-Stunden-Stream kostet damit rund 20 KB — auf einem
+ *  Rechner, dem der Speicher ausgeht, ist das der Unterschied zwischen einer
+ *  netten Grafik und einem Problem. */
+export interface VerlaufsPunkt {
+  /** Minuten seit dem ersten Messpunkt. */
+  m: number;
+  coins: number;
+  chats: number;
+  likes: number;
+  /** Zuschauer zu diesem Zeitpunkt. */
+  viewers: number;
+}
+
+/** Höchstens so viele Messpunkte — danach wird jeder zweite verworfen und der
+ *  Takt verdoppelt. So bleibt ein 20-Stunden-Stream genauso teuer wie ein
+ *  10-Stunden-Stream, nur gröber aufgelöst. */
+export const VERLAUF_MAX_PUNKTE = 720;
+
 export interface StatsSnapshot {
   totals: StatsTotals;
   topGifters: GifterEntry[];
@@ -117,6 +143,8 @@ export interface StatsSnapshot {
    *  jedem Zuschauer-Tick mit und wurde bis v0.47 weggeworfen. Nützlich als
    *  Gegenprobe zur selbst gezählten Bestenliste. */
   raumBeste?: RaumPlatz[];
+  /** Verlauf des Abends, ein Punkt je Takt (siehe VerlaufsPunkt). */
+  verlauf?: VerlaufsPunkt[];
 }
 
 interface SerializedStats {
@@ -155,6 +183,41 @@ export class SessionStats {
   private likers = new Map<string, LikerEntry>();
   /** TikToks eigene Raum-Bestenliste, zuletzt gemeldeter Stand (siehe apply). */
   private raumBeste: RaumPlatz[] = [];
+  /** Verlauf des Abends. Wird von außen getaktet (siehe messeVerlauf) — die
+   *  Stats-Klasse hat bewusst keinen eigenen Timer, damit sie in Tests
+   *  vorhersagbar bleibt. */
+  private verlauf: VerlaufsPunkt[] = [];
+  /** Aktueller Takt in Minuten. Verdoppelt sich, wenn die Obergrenze reißt. */
+  private verlaufTakt = 1;
+  private verlaufStartMs = 0;
+
+  /**
+   * Einen Messpunkt setzen. Ruft der Aufrufer öfter als der Takt es vorsieht,
+   * wird der Punkt verworfen — so darf die Uhr ruhig ungenau ticken.
+   *
+   * @param jetzt aktuelle Zeit (ms), injizierbar für Tests
+   */
+  messeVerlauf(jetzt: number): void {
+    if (this.verlaufStartMs === 0) this.verlaufStartMs = jetzt;
+    const m = Math.floor((jetzt - this.verlaufStartMs) / 60_000);
+    const letzter = this.verlauf[this.verlauf.length - 1];
+    if (letzter && m - letzter.m < this.verlaufTakt) return;
+    this.verlauf.push({
+      m,
+      coins: this.totals.coins,
+      chats: this.totals.chats,
+      likes: this.totals.likes,
+      viewers: this.totals.viewers,
+    });
+    // Obergrenze: jeden zweiten Punkt verwerfen und den Takt verdoppeln. Die
+    // Kurve wird dadurch gröber, aber der Speicherbedarf bleibt gedeckelt —
+    // und die Form bleibt erhalten, weil gleichmäßig ausgedünnt wird.
+    if (this.verlauf.length > VERLAUF_MAX_PUNKTE) {
+      this.verlauf = this.verlauf.filter((_, i) => i % 2 === 0);
+      this.verlaufTakt *= 2;
+    }
+    this.dirty = true;
+  }
   /** Wer in dieser Session schon als NEUER Superfan gezählt wurde (siehe apply). */
   private readonly neueSuperfans = new Set<string>();
   private topGift?: GiftHighlight;
@@ -330,6 +393,7 @@ export class SessionStats {
       topGifters,
       topLikers,
       ...(this.raumBeste.length > 0 ? { raumBeste: this.raumBeste.map((p) => ({ ...p })) } : {}),
+      ...(this.verlauf.length > 1 ? { verlauf: this.verlauf.map((p) => ({ ...p })) } : {}),
       ...(this.topGift ? { topGift: cleanHighlight(this.topGift) } : {}),
       ...(this.topStreak ? { topStreak: cleanHighlight(this.topStreak) } : {}),
     };
@@ -345,6 +409,12 @@ export class SessionStats {
     this.neueSuperfans.clear();
     this.topGift = undefined;
     this.topStreak = undefined;
+    // Auch die Raum-Bestenliste und der Verlauf gehören zur Session — bleiben
+    // sie stehen, zeigt der nächste Stream die Kurve des vorherigen.
+    this.raumBeste = [];
+    this.verlauf = [];
+    this.verlaufTakt = 1;
+    this.verlaufStartMs = 0;
     this.dirty = true;
   }
 

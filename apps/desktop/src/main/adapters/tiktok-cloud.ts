@@ -40,11 +40,31 @@ export function buildCloudUrl(opts: { uniqueId: string; apiKey: string; baseUrl?
 export type CloudEmitEvent = 'chat' | 'gift' | 'like' | 'follow' | 'share' | 'member' | 'roomUser'
   | 'subNotify' | 'envelope' | 'superFan' | 'superFanJoin' | 'emote' | 'rankUpdate';
 
-/** Name und Bild des STREAMERS selbst — steckt im roomInfo-Rahmen, den wir
- *  bisher komplett weggeworfen haben. */
+/** Name, Bild und Livetitel des STREAMERS selbst.
+ *
+ *  WOHER DAS KOMMT — und warum es lange nicht ankam:
+ *  Die App wartete auf eine Nachricht namens `roomInfo`. In einem echten
+ *  Cloud-Stream mit Diagnose-Modus kam die KEIN EINZIGES MAL — eulerstream
+ *  schickt sie schlicht nicht. Name und Profilbild blieben deshalb dauerhaft
+ *  leer, ohne dass irgendwo ein Fehler stand.
+ *
+ *  Tatsächlich liefert `WebcastLiveIntroMessage` genau das, und noch mehr:
+ *    host{userId,nickname,bioDescription,profilePicture}, description, language
+ *  `description` ist der LIVETITEL — den kannte die App bisher überhaupt nicht. */
 export interface HostInfo {
   nickname?: string;
   avatar?: string;
+  /** Der Titel, den der Streamer seinem Live gegeben hat. */
+  titel?: string;
+  /** Sprache des Streams laut TikTok (z.B. „de"). */
+  sprache?: string;
+  /** Wann TikTok den Stream gestartet hat (ms). Kommt NUR aus dem
+   *  HTTP-Abruf `fetchRoomInfoFromEulerRoute`, nicht aus dem Live-Strom —
+   *  und ist die Angabe, ohne die sich „wann läuft es bei dir" nicht
+   *  auswerten lässt. */
+  startetAt?: number;
+  /** Follower-Gesamtzahl des Kanals, ebenfalls nur per HTTP-Abruf. */
+  follower?: number;
 }
 
 export type CloudEmit =
@@ -176,6 +196,19 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
     // Euler-Custom-Frames (kein Webcast-Protobuf):
     case 'tiktok.connect':
       return { kind: 'connected' };
+    case 'WebcastLiveIntroMessage': {
+      // HIER kommen Name, Bild und Livetitel des Streamers an — nicht in
+      // `roomInfo`, auf das die App jahrelang gewartet hat (siehe HostInfo).
+      // Die Nachricht kommt einmal kurz nach dem Verbinden.
+      const host = leseHost(data);
+      const titel = typeof data?.description === 'string' ? data.description.trim() : '';
+      const sprache = typeof data?.language === 'string' ? data.language.trim() : '';
+      if (!host && !titel) return null;
+      return {
+        kind: 'connected',
+        host: { ...(host ?? {}), ...(titel ? { titel } : {}), ...(sprache ? { sprache } : {}) },
+      };
+    }
     case 'roomInfo':
       // Hier stecken Name und Profilbild des Streamers — bisher landete der
       // ganze Rahmen im Papierkorb. DEFENSIV auslesen: TikTok liefert das
@@ -281,13 +314,20 @@ const HARMLOSE_ARTEN = new Set([
 export function leseHost(roh: unknown): HostInfo | undefined {
   const d = roh as Record<string, unknown> | undefined;
   const kandidaten = [
+    // BELEGT: So kommt es wirklich an (WebcastLiveIntroMessage → `host`).
+    (d?.['host'] as Record<string, unknown> | undefined),
+    // Die drei folgenden Pfade waren geraten und haben nie getroffen. Sie
+    // bleiben stehen, falls eulerstream doch einmal einen roomInfo-Rahmen
+    // schickt — kosten aber nichts, wenn nicht.
     (d?.['owner'] as Record<string, unknown> | undefined),
     ((d?.['data'] as Record<string, unknown> | undefined)?.['owner'] as Record<string, unknown> | undefined),
     (((d?.['data'] as Record<string, unknown> | undefined)?.['data'] as Record<string, unknown> | undefined)?.['owner'] as Record<string, unknown> | undefined),
   ].filter(Boolean) as Record<string, unknown>[];
   for (const o of kandidaten) {
     const nickname = typeof o['nickname'] === 'string' ? o['nickname'] : undefined;
-    const bild = o['avatar_thumb'] ?? o['avatarThumb'] ?? o['avatar_medium'] ?? o['avatarMedium'];
+    // `profilePicture` zuerst — das ist die Schreibweise, die im echten
+    // Stream ankommt. Die anderen sind Altlasten aus dem Raten.
+    const bild = o['profilePicture'] ?? o['avatar_thumb'] ?? o['avatarThumb'] ?? o['avatar_medium'] ?? o['avatarMedium'];
     const liste = (bild as { url_list?: unknown[]; urlList?: unknown[] } | undefined);
     const url = [...(liste?.url_list ?? []), ...(liste?.urlList ?? [])].find((u) => typeof u === 'string' && u.startsWith('http'));
     if (nickname || url) return { ...(nickname ? { nickname } : {}), ...(url ? { avatar: String(url) } : {}) };

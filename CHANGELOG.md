@@ -3,6 +3,74 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.51.0] — 2026-08-05
+
+Die Auswertungsseite ist neu — und zwei Angaben, auf die sie wartet, kamen bis
+heute überhaupt nicht an.
+
+### Behoben: Name und Profilbild des Streamers fehlten immer 👤
+Die App wartete auf eine Nachricht namens `roomInfo`. In einem echten Stream mit
+eingeschaltetem Diagnose-Modus kam die **kein einziges Mal** — eulerstream
+schickt sie schlicht nicht. Name und Bild blieben deshalb dauerhaft leer, ohne
+dass irgendwo ein Fehler stand.
+
+Beides steckt in `WebcastLiveIntroMessage`, die die App bis jetzt weggeworfen
+hat. Dazu kamen zwei weitere Fehlannahmen im selben Stück Code: gesucht wurde
+nach `owner` statt `host` und nach `avatarThumb` statt `profilePicture`. Drei
+geratene Pfade, keiner davon je belegt. Alle drei repariert — und der **Livetitel**
+kommt jetzt mit dazu, den die App vorher gar nicht kannte.
+
+### Neu: Die echte Stream-Startzeit und deine Follower-Zahl 📡
+Ein HTTP-Abruf, den die App nie genutzt hat, liefert beides. Die Startzeit ist
+mehr als Kosmetik: Bisher rechnete die Dauer ab dem ersten Ereignis, **das die
+App gesehen hat** — wer sie eine Stunde nach dem Livegang startet, bekam eine um
+eine Stunde zu kurze Dauer in die Auswertung geschrieben.
+
+Der Abruf teilt sich die Hilfsverbindung mit der Geschenke-Galerie: eine statt
+zwei, halber Verbrauch am Tageskontingent.
+
+### Neu: Die Auswertungsseite 📊
+Sie beantwortet jetzt zuerst **„war das gut?"** — als Satz in Schlagzeilengröße,
+und die Zahlen belegen ihn. Vorher stand diese Antwort klein neben einer großen
+Zahl, also ein Zehntel so groß wie ihr eigener Beleg, und darüber lagen 14 gleich
+große Kacheln, in denen alles gleich wichtig aussah.
+
+Was neu ist:
+- **Der Verlauf deines Abends** als Kurve zum Drüberfahren — wann war was los.
+  Umschaltbar zwischen Coins, Kommentaren, Likes und Zuschauern.
+- **Rekorde**: was an diesem Abend besser war als je zuvor.
+- **Deine Abende zum Anklicken** — erstmals kommst du zu einem einzelnen Abend.
+- **Wann es bei dir läuft**: Wochentag gegen Uhrzeit, als Feld. Die Achse läuft
+  von 12 bis 12 Uhr, nicht von 0 bis 24 — sonst zerschneidet sie jeden Stream
+  über Mitternacht, und genau dann sind TikTok-Streamer live.
+- **Woher die Coins kamen**: ein Ring, der zeigt, ob der Abend an einem einzigen
+  Menschen hing.
+- **Deine Leute** auf einem Podest.
+- Die 14 Kacheln sind zu vier benannten Gruppen geworden: Einnahmen, Publikum,
+  Chat, Treue. Zeilen mit 0 fallen weg.
+
+**Für kleine Kanäle gebaut, nicht für große.** Bei einem Coin gegen drei steht
+dort „2 weniger als sonst" statt „−67 %" — eine Prozentzahl täuscht bei so
+kleinen Werten eine Genauigkeit vor, die sie nicht hat. Und gemessen wird an
+Kommentaren statt an Coins, wenn Geschenke bei dir selten sind; sonst stünde da
+jeden Abend eine 1 in leuchtendem Gold.
+
+### Neu: Schalter für die Bewegung ⚙️
+Einstellungen → **„Bewegung in der App"**. Zahlen zählen hoch, Kurven zeichnen
+sich, Balken wachsen — das zeigt, was sich verändert hat, kostet auf einem
+älteren Rechner aber Leistung. Ohne Haken steht alles sofort. Betrifft nur die
+App; **die Overlays im Stream bleiben unberührt**.
+
+### Neu: Der Verlauf eines Abends wird aufgezeichnet
+Ein Messpunkt pro Minute, fünf Zahlen, harte Obergrenze. Bisher kannte die App
+nur Endstände: 4.200 Coins an einem Abend — aber nicht, ob sie gleichmäßig kamen
+oder in einer einzigen Minute.
+
+### Behoben: Zwei Tests liefen nie mit
+`src/renderer/pages/*.test.ts` stand in keinem Testlauf. Dort lag bereits ein
+Wächter, der seit seiner Erstellung nie ausgeführt wurde. Jetzt läuft er mit
+(und ist grün).
+
 ## [0.50.0] — 2026-08-05
 
 Ein Diagnose-Log aus einem echten Stream hat drei Auswertungen aufgedeckt, die

@@ -14,6 +14,7 @@ import type { EventBus } from '../core/event-bus';
 import { log } from '../core/logger';
 import { kannFortsetzung } from '../services/session-continuity';
 import { Artenbuch } from './tiktok-artenbuch';
+import type { HostInfo } from './tiktok-cloud';
 import { leseRangUpdate, type RangStand } from './tiktok-rank';
 import {
   normalizeChat,
@@ -71,8 +72,10 @@ export interface TikTokAdapterOptions {
   onRank?: (staende: RangStand[]) => void;
   /** Geschenke-Galerie des Streamers (TikToks Sammel-Album), falls abrufbar. */
   onGiftGallery?: (galerie: unknown) => void;
-  /** Name/Bild des Streamers, sobald TikTok sie schickt. */
-  onHostInfo?: (info: { nickname?: string; avatar?: string }) => void;
+  /** Name, Bild und Livetitel des Streamers, sobald TikTok sie schickt.
+   *  Typ kommt aus tiktok-cloud.ts — EINE Quelle, damit ein neues Feld dort
+   *  nicht hier nachgepflegt werden muss (nur ein Typ-Import, kein Zirkel). */
+  onHostInfo?: (info: HostInfo) => void;
   maxReconnect?: number;
   baseReconnectDelayMs?: number;
   jitterMs?: number;
@@ -194,7 +197,7 @@ export class TikTokAdapter {
   private readonly onStatus: (info: AdapterStatusInfo) => void;
   private readonly onAvailableGifts?: (gifts: unknown) => void;
   private readonly onRank?: (staende: RangStand[]) => void;
-  private readonly onHostInfo?: (info: { nickname?: string; avatar?: string }) => void;
+  private readonly onHostInfo?: (info: HostInfo) => void;
   private readonly onGiftGallery?: (galerie: unknown) => void;
   private readonly maxReconnect: number;
   private readonly baseReconnectDelayMs: number;
@@ -347,6 +350,98 @@ export class TikTokAdapter {
    * „Bezahlplan nötig", steht das genauso im Log statt eines stummen
    * Fehlschlags. Nach dem nächsten echten Live wissen wir es sicher.
    */
+  /**
+   * Eine Euler-HTTP-Route aufrufen — mit den Clients einer kurzlebigen
+   * Hilfsverbindung.
+   *
+   * Diese Routen brauchen `webClient` und `apiClient` einer Verbindung. Beim
+   * ersten Anlauf wurde die Galerie ohne sie aufgerufen und scheiterte an
+   * „Cannot read properties of undefined (reading 'cookieJar')" — ein Aufruf,
+   * der IMMER fehlschlägt, ist schlimmer als keiner: Er setzt bei jedem Nutzer
+   * eine Fehlerzeile ins Log, die nach einem echten Problem aussieht.
+   *
+   * MEHRERE Routen teilen sich hier EINE Verbindung. Vorher baute jeder Abruf
+   * seine eigene auf; bei zwei Abrufen war das der doppelte Aufwand für
+   * dieselbe Sache — und jede Verbindung kostet ein Stück Tageskontingent.
+   */
+  private async ueberHilfsverbindung<T>(
+    routen: Array<(clients: { webClient: unknown; apiClient: unknown }) => Promise<T>>,
+  ): Promise<Array<PromiseSettledResult<T>>> {
+    const c = createDirectConnection(this.username, this.getAuth()) as unknown as {
+      fetchRoomId?: () => Promise<unknown>;
+      webClient?: unknown;
+      apiClient?: unknown;
+      disconnect?: () => void;
+    };
+    try {
+      await c.fetchRoomId?.();
+      if (!c.webClient || !c.apiClient) throw new Error('Verbindung liefert keine Clients');
+      const clients = { webClient: c.webClient, apiClient: c.apiClient };
+      // allSettled, nicht all: Scheitert die Galerie (Bezahlplan), soll die
+      // Raum-Info trotzdem ankommen. Ein gemeinsamer Aufruf darf nicht heißen,
+      // dass ein Fehler alles mitreißt.
+      return await Promise.allSettled(routen.map((r) => r(clients)));
+    } finally {
+      try { void Promise.resolve(c.disconnect?.()).catch(() => undefined); } catch { /* egal */ }
+    }
+  }
+
+  /**
+   * Raum-Info des Streamers holen: Name, Bild, Livetitel — und zwei Angaben,
+   * die es sonst NIRGENDS gibt: die echte Stream-STARTZEIT und die
+   * FOLLOWER-Zahl.
+   *
+   * Belegt in node_modules/tiktok-live-api-sdk/dist/index.d.ts:
+   *   room_info { title, start_time, current_viewers, total_viewers, is_live, … }
+   *   user      { nickname, avatar_url, signature, followers, following, … }
+   */
+  private loadRoomInfo(epoch: number): void {
+    if (!this.onHostInfo) return;
+    const cb = this.onHostInfo;
+    void (async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const lib = require('tiktok-live-connector') as {
+        fetchRoomInfoFromEulerRoute?: (args: Record<string, unknown>) => Promise<unknown>;
+      };
+      const route = lib.fetchRoomInfoFromEulerRoute;
+      if (typeof route !== 'function') throw new Error('Route nicht vorhanden');
+      const [erg] = await this.ueberHilfsverbindung([
+        (cl) => route({ uniqueId: this.username, ...cl, options: {} }),
+      ]);
+      if (!erg) throw new Error('Kein Ergebnis');
+      if (erg.status === 'rejected') throw erg.reason as Error;
+      return erg.value;
+    })()
+      .then((antwort) => {
+        if (epoch !== this.epoch) return;
+        const d = (antwort as { data?: {
+          room_info?: { title?: string; start_time?: number; total_viewers?: number };
+          user?: { nickname?: string; avatar_url?: string; followers?: number };
+        } })?.data;
+        if (!d) return;
+        const info = {
+          ...(d.user?.nickname ? { nickname: d.user.nickname } : {}),
+          ...(d.user?.avatar_url ? { avatar: d.user.avatar_url } : {}),
+          ...(d.room_info?.title ? { titel: d.room_info.title } : {}),
+          ...(typeof d.room_info?.start_time === 'number' && d.room_info.start_time > 0
+            ? { startetAt: d.room_info.start_time * 1000 } : {}),
+          ...(typeof d.user?.followers === 'number' ? { follower: d.user.followers } : {}),
+        };
+        if (Object.keys(info).length === 0) return;
+        log.einmal('tiktok:raum-info', 'info', 'TikTok',
+          `Raum-Info abgerufen: ${info.nickname ?? '(kein Name)'}`
+          + `${info.follower !== undefined ? ` · ${info.follower.toLocaleString('de-DE')} Follower` : ''}`
+          + `${info.startetAt ? ` · live seit ${new Date(info.startetAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : ''}`);
+        cb(info);
+      })
+      .catch((err: Error) => {
+        log.einmal('tiktok:raum-info-fehler', 'info', 'TikTok',
+          `Die Raum-Info ließ sich nicht abrufen: ${(err?.message ?? '').slice(0, 120)}. `
+          + 'Name und Bild kommen dann aus der Live-Ansage, die TikTok beim Verbinden schickt — '
+          + 'nur Startzeit und Follower-Zahl fehlen.');
+      });
+  }
+
   private loadGiftGallery(epoch: number): void {
     if (!this.onGiftGallery) return;
     const cb = this.onGiftGallery;
@@ -357,26 +452,12 @@ export class TikTokAdapter {
       };
       const route = lib.fetchRoomGiftGalleryFromEulerRoute;
       if (typeof route !== 'function') throw new Error('Route nicht vorhanden');
-      // Die Route braucht die HTTP-Clients einer Verbindung — beim ersten
-      // Versuch wurde sie ohne aufgerufen und scheiterte an
-      // „Cannot read properties of undefined (reading 'cookieJar')". Ein
-      // Aufruf, der IMMER fehlschlägt, ist schlimmer als keiner: Er setzt bei
-      // jedem Nutzer eine Fehlerzeile ins Log, die nach einem echten Problem
-      // aussieht. Deshalb dasselbe Muster wie beim Gift-Listen-Abruf: eine
-      // leichte Zusatzverbindung, die nur die Clients beisteuert.
-      const c = createDirectConnection(this.username, this.getAuth()) as unknown as {
-        fetchRoomId?: () => Promise<unknown>;
-        webClient?: unknown;
-        apiClient?: unknown;
-        disconnect?: () => void;
-      };
-      try {
-        await c.fetchRoomId?.();
-        if (!c.webClient || !c.apiClient) throw new Error('Verbindung liefert keine Clients');
-        return await route({ uniqueId: this.username, webClient: c.webClient, apiClient: c.apiClient, options: {} });
-      } finally {
-        try { void Promise.resolve(c.disconnect?.()).catch(() => undefined); } catch { /* egal */ }
-      }
+      const [erg] = await this.ueberHilfsverbindung([
+        (cl) => route({ uniqueId: this.username, ...cl, options: {} }),
+      ]);
+      if (!erg) throw new Error('Kein Ergebnis');
+      if (erg.status === 'rejected') throw erg.reason as Error;
+      return erg.value;
     })()
       .then((galerie) => {
         if (epoch !== this.epoch || !galerie) return;
@@ -561,6 +642,7 @@ export class TikTokAdapter {
       // Gift-Katalog: komplette Gift-Liste (mit Bildern) abrufen — best-effort.
       this.loadAvailableGifts(conn, epoch);
       this.loadGiftGallery(epoch);
+      this.loadRoomInfo(epoch);
 
       const viewers = typeof state.viewerCount === 'number' ? state.viewerCount : 0;
       if (viewers > 0) {
