@@ -13,6 +13,7 @@
 // nur die Factory wird getauscht.
 import { EventEmitter } from 'node:events';
 import { log, diagnoseAktiv } from '../core/logger';
+import { Artenbuch } from './tiktok-artenbuch';
 import type { LiveConnectionLike } from './tiktok-adapter';
 
 const CLOUD_BASE_URL = 'wss://ws.eulerstream.com';
@@ -102,9 +103,31 @@ const TYPE_TO_EVENT: Record<string, CloudEmitEvent> = {
   roomUser: 'roomUser',
   follow: 'follow',
   share: 'share',
-  // Und die Gegenrichtung für die Superfan-Arten: Die entstehen in der
-  // Bibliothek aus WebcastBarrageMessage. Schickt eulerstream stattdessen den
-  // Protokoll-Namen mit passendem Anzeigetext, greift der Sonderfall unten.
+  // Zu den Superfan-Arten gibt es KEINE Gegenrichtung — und das ist kein
+  // Versehen. Nachgeschlagen in der Zuordnungstabelle der Bibliothek
+  // (node_modules/tiktok-live-connector/dist/lib-CbB_CSnH.js, `WebcastEventMap`,
+  // 61 Einträge): Dort steht für superFan / superFanJoin / superFanBox NICHTS.
+  // Es gibt für sie also gar keinen Protokoll-Namen, den eulerstream schicken
+  // könnte — die Kurzform oben ist die einzige Form, in der sie ankommen.
+  //
+  // Genauer: Die Bibliothek DEKLARIERT superFan/superFanJoin sehr wohl, und
+  // laut ihrer eigenen Typdefinition tragen beide eine WebcastBarrageMessage als
+  // Nutzlast (`ClientEventMap`). Sie FEUERT sie aber nirgends — im gesamten
+  // Bibliothekscode kommt „superFan" ausschließlich in der Aufzählung vor, in
+  // keiner einzigen emit-Stelle. Dieselbe Tabelle bildet WebcastBarrageMessage
+  // stattdessen auf 'barrage' ab: eine Sammelart für BANNER aller Sorten.
+  //
+  // Praktisch heißt das: Diese Ereignisse erreichen uns nur über eulerstream,
+  // das offenbar selbst entscheidet, welches Banner ein Superfan-Banner ist.
+  // Ein früherer Kommentar verwies hier auf einen „Sonderfall unten", den es
+  // nie gab.
+  //
+  // WebcastBarrageMessage kam in echten Streams mehrfach an und wird bewusst
+  // NICHT gemappt: Ein Banner trägt zwar oft einen Nutzer, aber welcher Anlass
+  // dahintersteckt, steht in Feldern, die wir noch nie gesehen haben. Es als
+  // Superfan-Beitritt zu werten wäre geraten — und würde die Superfan-Zahl in
+  // der Auswertung verfälschen. Der Diagnose-Modus zeigt die Feldnamen; sobald
+  // ein Log sie hergibt, wird hier entschieden.
 };
 
 // Stream-Ende laut ControlAction (3 = ENDED, 4 = SUSPENDED).
@@ -167,7 +190,13 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
       // verschwindet eine ganze Ereignisgattung — und bisher stand nirgends,
       // dass da überhaupt etwas ankam. Je Art nur einmal pro Verbindung
       // (manche kommen im Sekundentakt), Merker wird beim Connect geleert.
-      if (!HARMLOSE_ARTEN.has(type)) {
+      // Im DIAGNOSE-Modus auch die harmlosen zeigen. Sonst hätte die Frage
+      // „sehe ich mit Diagnose wirklich ALLES, was reinkommt?" die unbefriedigende
+      // Antwort „fast" — und genau die stillen Ausnahmen sind die, bei denen sich
+      // später herausstellt, dass sie doch etwas bedeuten. So ist es passiert:
+      // Ranglisten und PK-Kämpfe standen beide fälschlich auf „harmlos" und waren
+      // dadurch unsichtbar, auch für den, der gezielt nachsah.
+      if (!HARMLOSE_ARTEN.has(type) || diagnoseAktiv()) {
         log.einmal(`tiktok:art:${type}`, 'info', 'TikTok',
           `Unbekannte TikTok-Nachrichtenart „${type}" — die App kennt diese Art nicht und überspringt sie. `
           + 'Wenn dir Geschenke oder Follower fehlen, ist das die Spur.'
@@ -220,11 +249,20 @@ export function felderVon(daten: unknown, max = 24): string {
  *  bräuchte, wenn sie es verstünde. Die Ranglisten-Nachrichten standen kurz
  *  fälschlich hier — die App wertet sie im Direkt-Weg sehr wohl aus
  *  (onRank → merkeRang → Ranglisten-Anzeige). Sie hier stumm zu stellen hätte
- *  die einzige Spur beseitigt, dass diese Anzeige im Cloud-Modus tot ist. */
+ *  die einzige Spur beseitigt, dass diese Anzeige im Cloud-Modus tot ist.
+ *
+ *  DASSELBE ist mit den PK-Kämpfen passiert (`WebcastLinkMicBattle`,
+ *  `WebcastLinkMicArmies`) — im selben Commit, in dem auch die Ranglisten
+ *  fälschlich hier landeten. Ein PK-Kampf ist für viele Streamer das größte
+ *  Ereignis des Abends; die beiden Arten waren also nicht harmlos, sondern nur
+ *  ungenutzt. Der Unterschied ist wesentlich: Ungenutztes gehört ins Log, damit
+ *  man sieht, dass es ankommt. Wer sie hier einträgt, macht die Frage
+ *  „kommt das überhaupt?" für immer unbeantwortbar.
+ *
+ *  Kurz: Diese Liste ist für RAUSCHEN, nicht für „noch nicht gebaut". */
 const HARMLOSE_ARTEN = new Set([
   'workerInfo', 'decodeError', 'SyntheticPresence', 'WebcastRoomPinMessage',
   'WebcastCaptionMessage', 'WebcastImDeleteMessage',
-  'WebcastLinkMicBattle', 'WebcastLinkMicArmies',
   'WebcastInRoomBannerMessage', 'WebcastMsgDetectMessage',
 ]);
 
@@ -312,6 +350,8 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
   private connectedOnce = false;
   /** true ab disconnect() → unterdrückt Geister-Events eines selbst ausgelösten Close. */
   private closing = false;
+  /** Führt Buch, welche Nachrichtenarten in DIESER Verbindung ankamen. */
+  private readonly artenbuch = new Artenbuch();
 
   constructor(username: string, opts: EulerCloudOptions) {
     super();
@@ -348,6 +388,10 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
       ws.on('message', (raw: unknown) => {
         for (const m of parseFrames(raw)) {
           const r = mapCloudMessage(m.type, m.data);
+          // Buch führen, BEVOR verworfen wird: Gerade das Verworfene ist die
+          // interessante Hälfte. Hier und nicht im Router — der bleibt eine
+          // reine Funktion ohne Gedächtnis.
+          this.artenbuch.verbuche(m.type, r?.kind === 'event');
           if (!r) continue;
           if (r.kind === 'event') { settleOk(); this.emit(r.event, r.data); }
           else if (r.kind === 'connected') { if (r.host) this.emit('hostInfo', r.host); settleOk(); }
@@ -388,6 +432,12 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
 
   disconnect(): void {
     this.closing = true;
+    // Zum Schluss EINE Zeile, die den ganzen Stream zusammenfasst — statt
+    // dass jemand hinterher die Logdatei nach „Unbekannte Nachrichtenart"
+    // durchsucht und von Hand auszählt. Bei den kurzlebigen Live-Check-
+    // Verbindungen ist das Buch leer, dort passiert nichts.
+    this.artenbuch.schreibeBericht();
+    this.artenbuch.leeren();
     if (this.ws) {
       // Erst Handler abräumen (kein Geister-'disconnected'/'streamEnd' nach close),
       // dann schließen.

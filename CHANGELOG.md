@@ -3,6 +3,87 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.49.0] — 2026-08-05
+
+Ein Streamer verlor 45 Minuten Stream, ohne dass die App etwas merkte. Dieses
+Update behebt das — und beantwortet die Frage, die dahinter steckte: „Woher weiß
+ich eigentlich, dass wir nichts übersehen?"
+
+### Behoben: Die Leitung war tot, die App sagte „verbunden" ☠️
+Im Log stand 45 Minuten lang sechsmal dieselbe Zeile — gleiche Zuschauerzahl,
+gleiche Like-Zahl, gleiche Chat-Zahl. Nach dem Neuverbinden von Hand waren es
+schlagartig **415 Likes mehr**. Die Verbindung war ein Telefonhörer, der noch am
+Ohr klebt: kein Fehler, kein Abbruch, nur nichts mehr drin.
+
+Es gab dafür einen Wächter — aber er wurde beim ersten ankommenden Ereignis
+abgeblasen und nie wieder aufgezogen. Er bewachte nur die ersten Sekunden nach
+dem Verbinden. Jetzt läuft er durchgehend: nach zwei Minuten Stille meldet er
+sich, nach fünf verbindet die App **von selbst neu**. Die Zähler laufen dabei
+weiter.
+
+### Behoben: Die Geschenke-Galerie las am falschen Fach 🎁
+Der Abruf klappte seit v0.48.1, aber die Antwort wurde in `gifts`, `data.gifts`
+und `giftList` gesucht — drei geratene Pfade, von denen **keiner existiert**.
+Richtig ist `data.normal_gifts`; das steht in der Typdefinition, die im Projekt
+liegt. Jetzt kommen damit auch Sponsoren und der Fortschritt zu den
+Geschenk-Zielen an.
+
+### Behoben: Ein Handverbinden zerschnitt den laufenden Stream ✂️
+Wer „Trennen" und „Verbinden" drückte, bekam „NEUER Stream — Zähler starten bei
+null" — obwohl derselbe Stream weiterlief. Aus einem Abend wurden drei Einträge
+in der Auswertung. Beim App-Neustart machte die App es längst richtig; jetzt
+auch hier.
+
+### Behoben: Zähler liefen nach dem Stream-Ende weiter
+Nach einem gescheiterten Verbindungsversuch blieb die alte Verbindung stehen —
+die App hielt sich für verbunden und protokollierte noch eine halbe Stunde lang
+eingefrorene Zuschauerzahlen. Und die Warnung „stimmt vermutlich der Nutzername
+nicht" kommt nur noch, wenn die App mit diesem Namen **noch nie** verbunden war.
+
+### Neu: Am Ende jedes Streams eine Bilanz 📋
+```
+Bilanz dieses Streams: 4812 Nachrichten in 17 Arten.
+AUSGEWERTET (9): WebcastChatMessage ×2103 · WebcastLikeMessage ×1544 · …
+VERWORFEN (8): WebcastBarrageMessage ×12 · WebcastGoalUpdateMessage ×3 · …
+```
+Bisher stand jede Nachrichtenart nur **einmal** im Log, ohne Häufigkeit — wer
+wissen wollte, was TikTok schickt, durchsuchte hinterher tausende Zeilen und
+zählte von Hand. Jetzt steht es in einer Zeile.
+
+Dazu zwei Löcher gestopft: Acht Arten galten als „harmlos" und blieben **auch im
+Diagnose-Modus** stumm — darunter waren schon zweimal Dinge, die sehr wohl
+zählten. Und im Direkt-Modus hörte die App nur auf neun Ereignisse; die anderen
+52 waren unsichtbar. Sie lauscht jetzt zusätzlich auf dem Mithör-Kanal der
+Bibliothek mit, wertet dort aber nichts aus — nur zählen.
+
+### Behoben: PK-Kämpfe waren stummgeschaltet ⚔️
+`WebcastLinkMicBattle` und `WebcastLinkMicArmies` standen auf der Liste
+„harmlos, nicht melden" — eingetragen in derselben Runde, in der auch die
+Ranglisten fälschlich dort landeten. Ein PK-Kampf ist für viele Streamer das
+größte Ereignis des Abends. Die Liste ist für Rauschen gedacht, nicht für
+„noch nicht gebaut".
+
+### Besser: Sprachausgabe bei schwacher Leitung 🔊
+Die beiden Notnägel — lokale Stimme und Google — fallen aus **verschiedenen**
+Gründen aus: die eine, wenn der Rechner ausgelastet ist, die andere, wenn das
+Netz weg ist. Im Log eines Streamers sprang die lokale Stimme zehnmal ein und
+war zehnmal zu langsam; Google lieferte danach zehn von zehn Mal. Jetzt kommt
+zuerst dran, wer zuletzt geliefert hat — und es geht zurück, sobald sich das
+Blatt wendet.
+
+Dazu bekommt die Verbindung zu Microsoft mehr Luft: Der Aufbau darf acht statt
+vier Sekunden dauern (über einen WLAN-Repeater war das schlicht zu knapp), und
+die einmal aufgebaute Leitung bleibt zehn statt vier Minuten offen. Der Aufbau
+ist auf einer schwachen Leitung der teuerste Teil.
+
+### Für Entwickler
+- `docs/tiktok-datenquellen.md` neu geschrieben: von Hand geprüft, jede Zeile
+  belegt. `scripts/tiktok-inventar.mjs` schreibt jetzt nach
+  `docs/tiktok-inventar-roh.md` — vorher hätte ein `npm run inventar` die
+  geprüfte Fassung überschrieben.
+- Neue Wächter-Tests: Totmann-Schalter, Galerie-Pfad, Artenbuch,
+  Ausnahmeliste des Cloud-Wächters.
+
 ## [0.48.1] — 2026-08-04
 
 Nachlese aus drei echten Logs und einem Absturzbericht. Vier der acht Punkte

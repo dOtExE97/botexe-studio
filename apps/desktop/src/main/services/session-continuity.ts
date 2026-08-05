@@ -5,11 +5,16 @@
 // wegwirft — genau das passiert bei jedem automatischen Update. Beim nächsten
 // Start stellt sich die Frage: FORTSETZEN oder ist der Stream vorbei?
 //
-// Nur EIN Zeitfenster beantwortet das, und zwar an genau EINER Stelle (beim
-// App-Start, siehe Studio.restoreSessionStats). Frühere Fassungen hatten zwei
-// Fenster an zwei Stellen — die liefen prompt auseinander und konnten einen
-// fertigen Stream sowohl doppelt in die Historie schreiben als auch ganz
-// verlieren.
+// Nur EIN Zeitfenster beantwortet das — diese Datei ist seine einzige Quelle.
+// Frühere Fassungen hatten zwei Fenster mit eigenen Zahlen an zwei Stellen; die
+// liefen prompt auseinander und konnten einen fertigen Stream sowohl doppelt in
+// die Historie schreiben als auch ganz verlieren.
+//
+// Gefragt wird an zwei Stellen, beide mit denselben Funktionen hier:
+//   • beim App-Start   — Studio.restoreSessionStats (istFortsetzung, mit Room-ID)
+//   • beim Verbinden   — TikTokAdapter.doConnect (kannFortsetzung), damit ein
+//     Handverbinden mitten im laufenden Stream die Zähler nicht auf null wirft
+// Zwei FRAGEN mit einer Antwort ist in Ordnung. Zwei Antworten wären der Fehler.
 //
 // Warum ausgerechnet 15 Minuten: Ein Update- oder Absturz-Neustart dauert
 // Sekunden. Wer dagegen abends um 19:05 die App schließt und um 21:00 einen

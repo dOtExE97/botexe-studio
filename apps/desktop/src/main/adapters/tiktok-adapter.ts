@@ -12,6 +12,8 @@
 import type { StudioEvent } from '@botexe/trigger-engine';
 import type { EventBus } from '../core/event-bus';
 import { log } from '../core/logger';
+import { kannFortsetzung } from '../services/session-continuity';
+import { Artenbuch } from './tiktok-artenbuch';
 import { leseRangUpdate, type RangStand } from './tiktok-rank';
 import {
   normalizeChat,
@@ -85,10 +87,28 @@ export interface TikTokAdapterOptions {
   getAuth?: () => TikTokAuth;
 }
 
-/** So lange darf es nach dem Verbinden still bleiben, bevor die App das meldet.
- *  Großzügig: Ein kleiner ruhiger Stream soll keinen Fehlalarm auslösen — die
- *  Zuschauerzahl allein trifft normalerweise viel früher ein. */
+/** So lange darf es still bleiben, bevor die App das meldet. Großzügig: Ein
+ *  kleiner ruhiger Stream soll keinen Fehlalarm auslösen — die Zuschauerzahl
+ *  allein trifft normalerweise alle paar Sekunden ein. */
 const STILLE_WACHE_MS = 120_000;
+/** Ab hier gilt die Leitung als tot und wird von selbst erneuert.
+ *
+ *  Der Fall ist belegt: Im Log eines Streamers stand 45 Minuten lang sechsmal
+ *  dieselbe Zeile — gleiche Zuschauerzahl, gleiche Like-Zahl, gleiche Chat-Zahl.
+ *  Nach dem Neuverbinden von Hand waren es schlagartig 415 Likes mehr. Die
+ *  Verbindung war ein Telefonhörer, der noch am Ohr klebt: kein Fehler, kein
+ *  Abbruch, nur nichts mehr drin. Für die App sah alles gesund aus.
+ *
+ *  Fünf Minuten sind bewusst spät. Ein Neuverbinden kostet ein Stück des
+ *  Gratis-Kontingents, und ein Fehlalarm wäre teurer als ein spätes Erkennen. */
+const TOTE_LEITUNG_MS = 5 * 60_000;
+/** Zwischen zwei Selbstheilungen. Bremst den Fall, dass jeder frische Anlauf
+ *  ebenfalls still bleibt — sonst liefe die App in eine Endlosschleife und
+ *  verbrauchte in einer Stunde das Tageskontingent. */
+const SELBSTHEILUNG_ABSTAND_MS = 10 * 60_000;
+/** Takt des Wächters. Grob genug, um nicht aufzufallen, fein genug, damit die
+ *  Fünf-Minuten-Grenze nicht zu sieben Minuten wird. */
+const WACH_TAKT_MS = 30_000;
 /** Erst nach 10 Minuten vergeblichen Wartens den Nutzernamen in Verdacht ziehen —
  *  vorher ist „noch nicht live" schlicht der Normalfall. */
 const LIVE_WATCH_HINWEIS_MS = 10 * 60_000;
@@ -96,6 +116,22 @@ const LIVE_WATCH_WIEDERHOLUNG_MS = 60 * 60_000;
 /** So viele verworfene Combo-Stufen ohne ein einziges gezähltes Geschenk gelten
  *  als Verdacht — darunter ist es einfach eine normale laufende Combo. */
 const COMBO_VERDACHT_AB = 20;
+
+/** Wie es um eine stehende Leitung bestellt ist, allein anhand der Stille.
+ *
+ *  Bewusst eine reine Funktion: Die Regel „ab wann ist eine Leitung tot" ist das
+ *  Wesentliche, der Timer drumherum nur Mechanik. So lässt sie sich prüfen, ohne
+ *  in einem Test fünf Minuten zu warten.
+ *
+ *  @param stillMs         wie lange kein Ereignis mehr kam
+ *  @param seitHeilungMs   wie lange die letzte Selbstheilung her ist
+ *                         (Infinity, wenn es noch keine gab)
+ */
+export function leitungsUrteil(stillMs: number, seitHeilungMs: number): 'ok' | 'warnen' | 'heilen' {
+  if (stillMs >= TOTE_LEITUNG_MS && seitHeilungMs >= SELBSTHEILUNG_ABSTAND_MS) return 'heilen';
+  if (stillMs >= STILLE_WACHE_MS) return 'warnen';
+  return 'ok';
+}
 
 const DEFAULTS = {
   maxReconnect: 5,
@@ -112,6 +148,29 @@ const DEFAULTS = {
  *  Verbindungsmodus zwischen diesem und dem Cloud-Weg wählen kann. */
 export function createDirectConnection(username: string, auth: TikTokAuth): LiveConnectionLike {
   return defaultFactory(username, auth);
+}
+
+/**
+ * Zu welchem Ereignisnamen gehört eine Protokoll-Nachrichtenart?
+ * (`WebcastChatMessage` → `chat`)
+ *
+ * Die Zuordnung wird BEI DER BIBLIOTHEK ERFRAGT, nicht nachgebaut. Eine eigene
+ * Kopie wäre eine zweite handgepflegte Liste für dieselbe Sache — genau das
+ * Muster, an dem diese App schon mehrfach still erblindet ist. Kennt die
+ * Bibliothek die Tabelle nicht (ältere Fassung), gibt es eben keine Zuordnung;
+ * dann steht die Art im Bericht unter „verworfen", was ehrlicher ist als eine
+ * geratene Antwort.
+ */
+let eventMapCache: Record<string, string> | null | undefined;
+export function ereignisNameFuer(typ: string): string | undefined {
+  if (eventMapCache === undefined) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const lib = require('tiktok-live-connector') as { WebcastEventMap?: Record<string, string> };
+      eventMapCache = lib.WebcastEventMap ?? null;
+    } catch { eventMapCache = null; }
+  }
+  return eventMapCache?.[typ];
 }
 
 function defaultFactory(username: string, auth: TikTokAuth): LiveConnectionLike {
@@ -148,8 +207,28 @@ export class TikTokAdapter {
   private liveWatchTimer: ReturnType<typeof setTimeout> | null = null;
   /** Wächter gegen die stille Leitung: Steht die Verbindung, kommt aber nichts
    *  an, sagt das Log heute nur „Verbunden" — und der Streamer sucht den Fehler
-   *  bei seinen Widgets und Regeln, wo er nicht ist. */
-  private stilleWache: ReturnType<typeof setTimeout> | null = null;
+   *  bei seinen Widgets und Regeln, wo er nicht ist.
+   *
+   *  Läuft als Ticker statt als Einmal-Timer. Die frühere Fassung wurde beim
+   *  ersten Ereignis abgeblasen und nie wieder aufgezogen — sie bewachte damit
+   *  nur die ersten Sekunden nach dem Verbinden. Genau die Stunde danach ist
+   *  aber die gefährliche: Da merkt niemand mehr, wenn die Leitung stirbt. */
+  private wachTicker: ReturnType<typeof setInterval> | null = null;
+  /** Wann zuletzt IRGENDEIN echtes Ereignis kam (0 = noch nie eines gesehen).
+   *  Überlebt Trennen/Verbinden bewusst — daran erkennt die App, ob ein
+   *  Handverbinden mitten in einen laufenden Stream fällt. */
+  private letztesEreignisAt = 0;
+  /** Ab wann der Wächter rechnet (Zeitpunkt des Verbindens). */
+  private wacheSeit = 0;
+  /** Führt Buch, was im DIREKT-Modus ankam (im Cloud-Weg macht das der Router).
+   *  Gehört zum Adapter, nicht zur Verbindung: Er überlebt einen Reconnect,
+   *  damit der Bericht den ganzen Stream beschreibt und nicht ein Bruchstück. */
+  private readonly artenbuch = new Artenbuch();
+  /** Füllt sich beim Verdrahten von selbst — siehe attachHandlers. */
+  private readonly abonnierteEreignisse = new Set<string>();
+  /** Verhindert, dass die Stille-Warnung im Takt des Wächters wiederholt wird. */
+  private stilleGemeldet = false;
+  private letzteSelbstheilungAt = 0;
 
   /** Generation-Token: jede connect()/disconnect()-Entscheidung erhöht es —
    * Handler und Timer älterer Generationen erkennen sich als veraltet. */
@@ -400,6 +479,10 @@ export class TikTokAdapter {
   }
 
   async disconnect(): Promise<void> {
+    // Zum Schluss die Bilanz: was kam in diesem Stream an, wie oft, und was
+    // davon werten wir aus. Eine Zeile statt „durchsuch mal die Logdatei".
+    this.artenbuch.schreibeBericht();
+    this.artenbuch.leeren();
     this.epoch++; // entwertet laufende Handler/Timer/Connect-Promises
     this.clearReconnectTimer();
     this.clearLiveWatch();
@@ -446,7 +529,22 @@ export class TikTokAdapter {
       this.reconnectAttempts = 0;
       // Neuer Stream = erster Connect ODER erneutes Live nach Stream-Ende
       // (pendingFresh vom Live-Watch). NICHT bei Reconnect nach kurzem Abriss.
-      const freshStream = !isReconnect || this.pendingFresh;
+      //
+      // …und NICHT beim Handverbinden mitten im laufenden Stream. Der Fall stand
+      // zweimal im Log desselben Abends: Der Streamer drückt „Trennen" und
+      // „Verbinden", die App meldet „NEUER Stream — Zähler starten bei null",
+      // obwohl derselbe Stream weiterlief (die Like-Zahl lief durch). Aus einem
+      // Abend wurden drei Einträge in der Auswertung. Beim App-Neustart macht die
+      // App es längst richtig — hier fehlte dieselbe Frage.
+      //
+      // Dieselbe Zeitgrenze wie dort, aus derselben Quelle (kannFortsetzung).
+      const eben = this.letztesEreignisAt > 0 && kannFortsetzung(this.now() - this.letztesEreignisAt);
+      const laeuftWeiter = eben && !this.streamEnded;
+      const freshStream = (!isReconnect || this.pendingFresh) && !laeuftWeiter;
+      if (laeuftWeiter && !isReconnect) {
+        log.info('TikTok', 'Neu verbunden, aber es ist derselbe Stream (eben kamen noch Ereignisse) — '
+          + 'die Zähler laufen weiter. Für einen echten Neuanfang: „Session zurücksetzen" auf der Live-Seite.');
+      }
       this.pendingFresh = false;
       this.hasConnectedOnce = true;
       this.emitStatus({ status: 'connected', isReconnect, freshStream, roomId: state.roomId != null ? String(state.roomId) : undefined });
@@ -457,7 +555,7 @@ export class TikTokAdapter {
       log.merkerZuruecksetzen('tiktok:');
       this.verworfeneComboStufen = 0;
       this.gezaehlteGeschenke = 0;
-      this.starteStilleWache();
+      this.starteStilleWache(epoch);
       if (isReconnect) this.meldeReplayBilanz();
 
       // Gift-Katalog: komplette Gift-Liste (mit Bildern) abrufen — best-effort.
@@ -470,6 +568,13 @@ export class TikTokAdapter {
       }
     } catch (err) {
       if (epoch !== this.epoch) return;
+      // Der Versuch ist gescheitert — also darf auch keine halbfertige
+      // Connection stehen bleiben. Sonst meldet isConnected() weiterhin „ja",
+      // und Dinge, die daran hängen, laufen ins Leere weiter: Im Log eines
+      // Streamers wurden nach dem Stream-Ende noch eine halbe Stunde lang
+      // Zuschauerzahlen protokolliert, die längst eingefroren waren.
+      this.stilleWacheAbblasen();
+      this.cleanupConnection();
       const msg = (err as Error).message || '';
       // „(Noch) nicht live" ist KEIN Fehler (Stream-Ende / wartet aufs Live) →
       // als INFO loggen, nicht als alarmierendes ERROR. Echte Fehler bleiben ERROR.
@@ -536,7 +641,7 @@ export class TikTokAdapter {
     };
     const publish = (e: StudioEvent | null) => {
       if (e) {
-        this.stilleWacheAbblasen(); // es kommt etwas an — alles gut
+        this.leitungLebt(); // es kommt etwas an — die Leitung ist gesund
         // Zwei stille Totalausfälle sichtbar machen. Beide entstehen, wenn
         // TikTok seine Datenfelder umbenennt (ist genau so schon passiert):
         // Ohne Absender bekommt niemand Punkte und keine Bestenliste füllt sich;
@@ -573,7 +678,15 @@ export class TikTokAdapter {
       return false;
     };
 
-    const on = conn.on.bind(conn) as (event: string, cb: (data: never) => void) => unknown;
+    // `on` schreibt mit, was abonniert wurde. Damit gibt es KEINE zweite,
+    // von Hand gepflegte Liste der ausgewerteten Ereignisse — die wäre genau
+    // die Fehlerklasse, die diese App schon fünfmal getroffen hat: zwei Listen
+    // für dieselbe Sache, die auseinanderlaufen, ohne dass es jemand merkt.
+    const roh = conn.on.bind(conn) as (event: string, cb: (data: never) => void) => unknown;
+    const on = (event: string, cb: (data: never) => void): unknown => {
+      this.abonnierteEreignisse.add(event);
+      return roh(event, cb);
+    };
     on('chat', guard((d: Parameters<typeof normalizeChat>[0]) => { if (!dedup(d)) publish(normalizeChat(d, this.now())); }));
     on('gift', guard((d: Parameters<typeof normalizeGift>[0]) => {
       if (dedup(d)) return;
@@ -626,8 +739,33 @@ export class TikTokAdapter {
       }));
     }
 
+    // MITHÖREN, was wir noch nicht kennen.
+    //
+    // Der Adapter abonniert gezielt neun Ereignisse — alles andere erreicht ihn
+    // im Direktmodus nie, auch nicht als Spur im Log. Die Bibliothek kennt aber
+    // 61 Arten. Was TikTok Neues einführt, wäre damit für immer unsichtbar: Man
+    // müsste ahnen, wonach man sucht, um es zu abonnieren, und um es zu ahnen,
+    // müsste man es gesehen haben.
+    //
+    // `decodedData` ist der Mithör-Kanal der Bibliothek: JEDE dekodierte
+    // Nachricht als {type, data}. Wir werten sie nicht aus — wir zählen nur
+    // mit, damit der Bericht am Stream-Ende auch im Direktmodus vollständig
+    // ist. Im Cloud-Weg macht das der Router selbst.
+    on('decodedData', guard((d: unknown) => {
+      const typ = (d as { type?: string } | undefined)?.type;
+      if (typeof typ !== 'string' || !typ) return;
+      // Ob wir die Art auswerten, sagt die Zuordnungstabelle der Bibliothek
+      // selbst (WebcastChatMessage -> 'chat'). Sie zu befragen statt sie
+      // nachzubauen heißt: Bei einem Update der Bibliothek stimmt der
+      // Bericht weiter, ohne dass jemand daran denken muss.
+      const ereignis = ereignisNameFuer(typ);
+      this.artenbuch.verbuche(typ, !!ereignis && this.abonnierteEreignisse.has(ereignis));
+    }));
+
     on('streamEnd', guard(() => {
       log.info('TikTok', 'Stream beendet');
+      this.artenbuch.schreibeBericht();
+      this.artenbuch.leeren();
       this.streamEnded = true;
       // TikFinity-Verhalten: auf das nächste Live warten und automatisch zurück.
       if (this.autoConnect) this.startLiveWatch(epoch);
@@ -714,9 +852,17 @@ export class TikTokAdapter {
       const wartetMs = this.now() - wartetSeit;
       if (!live && wartetMs >= LIVE_WATCH_HINWEIS_MS && this.now() - hinweisGegebenAt >= LIVE_WATCH_WIEDERHOLUNG_MS) {
         hinweisGegebenAt = this.now();
-        log.warn('TikTok', `Warte jetzt seit ${Math.round(wartetMs / 60_000)} Minuten darauf, dass @${this.username} live geht — `
-          + 'TikTok meldet weiterhin „nicht live". Wenn du tatsächlich gerade sendest, stimmt vermutlich der Nutzername nicht: '
-          + 'oben im Feld genau den @-Namen aus deinem TikTok-Profil eintragen.');
+        // Den Nutzernamen NUR verdächtigen, wenn diese App mit ihm noch nie
+        // verbunden war. Waren wir vorhin noch dran, ist der Name bewiesen
+        // richtig und der Hinweis schickt in die Irre — genau das ist einem
+        // Streamer passiert, zehn Minuten nach seinem regulären Stream-Ende.
+        const minuten = Math.round(wartetMs / 60_000);
+        log.info('TikTok', this.hasConnectedOnce
+          ? `Warte seit ${minuten} Minuten auf das nächste Live von @${this.username} — das ist der Normalfall `
+            + 'nach einem Stream-Ende. Sobald du wieder sendest, verbindet die App von allein.'
+          : `Warte jetzt seit ${minuten} Minuten darauf, dass @${this.username} live geht — TikTok meldet weiterhin `
+            + '„nicht live". Wenn du tatsächlich gerade sendest, stimmt vermutlich der Nutzername nicht: '
+            + 'oben im Feld genau den @-Namen aus deinem TikTok-Profil eintragen.');
       }
       if (epoch !== this.epoch) return; // zwischenzeitlich manuell ge-connectet/getrennt
       if (live) {
@@ -757,18 +903,57 @@ export class TikTokAdapter {
     if (this.replayTimer) { clearTimeout(this.replayTimer); this.replayTimer = null; }
   }
 
-  private starteStilleWache(): void {
+  private starteStilleWache(epoch: number): void {
     this.stilleWacheAbblasen();
-    this.stilleWache = setTimeout(() => {
-      this.stilleWache = null;
-      log.warn('TikTok', 'Seit 2 Minuten verbunden, aber es kam kein einziges Ereignis an — kein Chat, kein Like, '
-        + 'keine Zuschauerzahl. Die Leitung steht, liefert aber nichts. Such NICHT bei den Widgets: erst hier '
-        + 'trennen und neu verbinden; bleibt es dabei, in Einstellungen → TikTok-Verbindung den anderen Modus probieren.');
-    }, STILLE_WACHE_MS);
+    // BEWUSST getrennt von `letztesEreignisAt`: Der Wächter muss ab jetzt
+    // rechnen (sonst schlüge er nach dem Verbinden sofort an), die Frage
+    // „lief dieser Stream eben noch?" muss dagegen den ECHTEN letzten
+    // Ereigniszeitpunkt kennen. Ein gemeinsames Feld würde eine der beiden
+    // Antworten verfälschen.
+    this.wacheSeit = this.now();
+    this.stilleGemeldet = false;
+    this.wachTicker = setInterval(() => {
+      if (epoch !== this.epoch) return;
+      const still = this.now() - Math.max(this.wacheSeit, this.letztesEreignisAt);
+      const urteil = leitungsUrteil(
+        still,
+        this.letzteSelbstheilungAt === 0 ? Infinity : this.now() - this.letzteSelbstheilungAt,
+      );
+
+      if (urteil !== 'ok' && !this.stilleGemeldet) {
+        this.stilleGemeldet = true;
+        log.warn('TikTok', `Seit ${Math.round(still / 60_000)} Minuten kommt kein einziges Ereignis mehr an — kein Chat, `
+          + 'kein Like, keine Zuschauerzahl. Die Leitung steht, liefert aber nichts. Such NICHT bei den Widgets: '
+          + `Bleibt es dabei, verbindet die App in ${Math.round((TOTE_LEITUNG_MS - STILLE_WACHE_MS) / 60_000)} Minuten `
+          + 'von allein neu.');
+      }
+
+      if (urteil === 'heilen') {
+        this.letzteSelbstheilungAt = this.now();
+        log.warn('TikTok', `Nach ${Math.round(still / 60_000)} Minuten ohne ein einziges Ereignis gilt die Leitung als tot — `
+          + 'die App verbindet jetzt selbst neu. Die Zähler laufen dabei weiter, es geht nichts verloren. '
+          + 'Passiert das öfter, liegt es meist am WLAN (Repeater, schwacher Empfang).');
+        // Als Reconnect, NICHT als neuer Stream: sonst stünden Bestenliste und
+        // Zähler nach jeder Selbstheilung auf null — die Reparatur täte dann
+        // mehr weh als der Fehler.
+        void this.doConnect(this.epoch, true);
+      }
+    }, WACH_TAKT_MS);
+    // Der Wächter darf NICHTS am Leben halten. Ohne unref() hängt schon ein
+    // Test, der eine Verbindung nicht ausdrücklich schließt, bis Node von selbst
+    // aufgibt — und im echten Betrieb verzögert ein laufender Timer das Beenden
+    // der App. Ein Wächter ist Beiwerk, kein Grund weiterzulaufen.
+    this.wachTicker.unref?.();
+  }
+
+  /** Ein Ereignis ist angekommen — die Leitung lebt. */
+  private leitungLebt(): void {
+    this.letztesEreignisAt = this.now();
+    this.stilleGemeldet = false;
   }
 
   private stilleWacheAbblasen(): void {
-    if (this.stilleWache) { clearTimeout(this.stilleWache); this.stilleWache = null; }
+    if (this.wachTicker) { clearInterval(this.wachTicker); this.wachTicker = null; }
   }
 
   private clearLiveWatch(): void {

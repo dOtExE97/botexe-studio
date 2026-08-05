@@ -35,9 +35,24 @@ const HIER = join(SRC, 'main', 'adapters');
 const adapter = readFileSync(join(HIER, 'tiktok-adapter.ts'), 'utf-8');
 const cloud = readFileSync(join(HIER, 'tiktok-cloud.ts'), 'utf-8');
 
+/** Ereignisse, die der Adapter bewusst abonniert, OHNE dass der Cloud-Weg sie
+ *  liefern muss. Jeder Eintrag braucht eine Begründung — diese Liste ist die
+ *  einzige Möglichkeit, den Wächter stummzuschalten, und darf deshalb nicht
+ *  zur Abstellkammer werden. */
+const OHNE_CLOUD_GEGENSTUECK: Record<string, string> = {
+  // Mithör-Kanal der Bibliothek: liefert JEDE dekodierte Nachricht als
+  // {type, data}. Kein TikTok-Ereignis, sondern der Weg, im Direkt-Modus auch
+  // das mitzubekommen, was die App (noch) nicht auswertet — sonst wären dort
+  // 52 der 61 Nachrichtenarten unsichtbar. Im Cloud-Weg übernimmt das der
+  // Router selbst, der ohnehin jede Nachricht sieht.
+  decodedData: 'Mithör-Kanal fürs Artenbuch, kein auszuwertendes Ereignis',
+};
+
 /** Alle Ereignisse, die der Adapter abonniert (`on('xyz', …)`). */
 function abonnierte(): string[] {
-  return [...new Set([...adapter.matchAll(/\bon\('([a-zA-Z]+)'/g)].map((m) => m[1] as string))].sort();
+  return [...new Set([...adapter.matchAll(/\bon\('([a-zA-Z]+)'/g)].map((m) => m[1] as string))]
+    .filter((e) => !(e in OHNE_CLOUD_GEGENSTUECK))
+    .sort();
 }
 
 /** Alle Ereignisse, die der Cloud-Weg erzeugen KANN — egal über welchen Weg:
@@ -89,4 +104,20 @@ test('Der Wächter erkennt eine Lücke auch wirklich (Selbsttest)', () => {
   const kann = lieferbare();
   assert.ok(kann.has('gift'), 'gift muss als lieferbar erkannt werden');
   assert.ok(!kann.has('diesesEreignisGibtEsNicht'), 'Erfundenes darf nicht als lieferbar gelten');
+});
+
+test('die Ausnahmeliste bleibt ehrlich', () => {
+  // Eine Ausnahmeliste ist eine Einladung, den Wächter stillzulegen. Zwei
+  // Sicherungen dagegen:
+  //  1) Jeder Eintrag muss WIRKLICH abonniert sein. Sonst bleiben Leichen
+  //     zurück, die später eine echte Lücke zudecken.
+  //  2) Sie bleibt klein. Wächst sie, ist das ein Zeichen, dass jemand
+  //     Probleme wegsortiert statt sie zu lösen.
+  const roh = [...new Set([...adapter.matchAll(/\bon\('([a-zA-Z]+)'/g)].map((m) => m[1] as string))];
+  for (const name of Object.keys(OHNE_CLOUD_GEGENSTUECK)) {
+    assert.ok(roh.includes(name),
+      `„${name}" steht auf der Ausnahmeliste, wird aber gar nicht abonniert — Eintrag entfernen.`);
+  }
+  assert.ok(Object.keys(OHNE_CLOUD_GEGENSTUECK).length <= 3,
+    'Mehr als drei Ausnahmen: Hier wird der Wächter umgangen statt die Ursache behoben.');
 });

@@ -1515,19 +1515,47 @@ export class Studio {
    *  Name/ID gesucht — findet sich nichts Brauchbares, passiert eben nichts.
    *  Der Katalog bleibt in jedem Fall unbeschädigt. */
   private importGiftGallery(galerie: unknown): void {
-    const eintraege: unknown[] = Array.isArray(galerie)
-      ? galerie
-      : [
-        (galerie as { gifts?: unknown[] } | undefined)?.gifts,
-        (galerie as { data?: { gifts?: unknown[] } } | undefined)?.data?.gifts,
-        (galerie as { giftList?: unknown[] } | undefined)?.giftList,
-      ].find(Array.isArray) ?? [];
+    const eintraege = liesGalerieEintraege(galerie);
     if (eintraege.length === 0) {
-      log.info('TikTok', 'Die Geschenke-Galerie kam an, enthielt aber keine erkennbaren Einträge — nichts übernommen.');
+      // Feldnamen zeigen, NIEMALS Werte: In der Antwort stecken Raum- und
+      // Nutzerdaten, und Logdateien gibt man weiter. Ohne diese Zeile bliebe
+      // beim nächsten Umbau bei TikTok wieder nur Raten übrig.
+      const huelle = galerie && typeof galerie === 'object'
+        ? Object.keys(galerie as object).slice(0, 12).join(', ') || '(keine)'
+        : typeof galerie;
+      log.info('TikTok', 'Die Geschenke-Galerie kam an, enthielt aber keine erkennbaren Einträge — nichts übernommen. '
+        + `Enthaltene Felder: ${huelle}`);
       return;
     }
     this.importAvailableGifts(eintraege);
+    this.merkeGalerieFortschritt(eintraege);
     log.info('TikTok', `${eintraege.length} Geschenke aus der Galerie in den Katalog übernommen.`);
+  }
+
+  /** Aus der Galerie das herausziehen, was NUR sie weiß: Wie weit ein Geschenk
+   *  auf sein Ziel zugelaufen ist und wer es gesponsert hat.
+   *
+   *  Diese Zahlen stehen in keiner Live-Nachricht — sie sind der eigentliche
+   *  Grund, die Galerie überhaupt abzurufen. Belegt in `NormalGiftItem`
+   *  (node_modules/tiktok-live-api-sdk/dist/index.d.ts): `current_sent_count`,
+   *  `goal_count`, `sponsor_info.nickname`, `sponsored`. */
+  private merkeGalerieFortschritt(eintraege: unknown[]): void {
+    type Eintrag = {
+      name?: string;
+      gift_id?: string;
+      goal_count?: number;
+      current_sent_count?: number;
+      sponsored?: boolean;
+      sponsor_info?: { nickname?: string; sent_count?: number };
+    };
+    const mitZiel = (eintraege as Eintrag[]).filter((e) => Number(e?.goal_count) > 0);
+    if (mitZiel.length === 0) return;
+    const fertig = mitZiel.filter((e) => Number(e.current_sent_count) >= Number(e.goal_count)).length;
+    const sponsoren = new Set(
+      mitZiel.map((e) => e.sponsor_info?.nickname).filter((n): n is string => !!n),
+    );
+    log.info('TikTok', `Galerie: ${mitZiel.length} Geschenk-Ziele, ${fertig} davon erreicht`
+      + (sponsoren.size > 0 ? ` · ${sponsoren.size} Sponsor(en)` : ''));
   }
 
   private merkeRang(staende: RangStand[]): void {
@@ -2860,4 +2888,31 @@ export class Studio {
       widgetDir: path.join(appPath, '../../packages/widget-kit'),
     };
   }
+}
+
+
+/**
+ * Wo in der Galerie-Antwort die Geschenke stehen.
+ *
+ * Der richtige Pfad ist `data.normal_gifts` — NACHGESCHLAGEN, nicht geraten:
+ *   `WebcastGiftGalleryResponse { code, message?, data?: WebcastGiftGalleryData }`
+ *   `WebcastGiftGalleryData     { normal_gifts: NormalGiftItem[], … }`
+ * in node_modules/tiktok-live-api-sdk/dist/index.d.ts.
+ *
+ * Die frühere Fassung suchte in `gifts` / `data.gifts` / `giftList` — drei
+ * geratene Pfade, von denen KEINER existiert. Die Folge war eine Funktion, die
+ * jedes Mal brav meldete „kam an, enthielt aber keine erkennbaren Einträge":
+ * ein Fehler, der sich wie ein Zustand anfühlt. Die drei bleiben nur als
+ * Rückfalloption stehen, falls eulerstream die Hülle einmal umbaut.
+ *
+ * Eigene Funktion, damit ein Test den Feldnamen festnagelt.
+ */
+export function liesGalerieEintraege(galerie: unknown): unknown[] {
+  if (Array.isArray(galerie)) return galerie;
+  const g = galerie as {
+    data?: { normal_gifts?: unknown[]; gifts?: unknown[] };
+    gifts?: unknown[];
+    giftList?: unknown[];
+  } | undefined;
+  return [g?.data?.normal_gifts, g?.data?.gifts, g?.gifts, g?.giftList].find(Array.isArray) ?? [];
 }

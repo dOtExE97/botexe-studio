@@ -24,7 +24,11 @@ const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PROTO = path.join(WURZEL, 'node_modules/tiktok-live-proto/dist/node/v3.d.ts');
 const CLOUD = path.join(WURZEL, 'apps/desktop/src/main/adapters/tiktok-cloud.ts');
 const ADAPTER = path.join(WURZEL, 'apps/desktop/src/main/adapters/tiktok-adapter.ts');
-const ZIEL = path.join(WURZEL, 'docs/tiktok-datenquellen.md');
+// ACHTUNG, eigene Datei: `docs/tiktok-datenquellen.md` ist die von Hand
+// geprüfte Übersicht mit Belegen. Dieses Skript liefert nur die grobe
+// Maschinen-Sicht — es darf sie NICHT überschreiben. Genau das wäre um ein
+// Haar passiert: Ein `npm run inventar` hätte die geprüfte Fassung gelöscht.
+const ZIEL = path.join(WURZEL, 'docs/tiktok-inventar-roh.md');
 
 /** Felder je Nachrichtenart aus dem Schema lesen. */
 function leseSchema(text) {
@@ -83,10 +87,14 @@ const tabelle = (liste, mitFeldern) => [
     : `| \`${z.art}\` | \`${z.ereignis}\` |`)),
 ].join('\n');
 
-const inhalt = `# Was TikTok uns schicken kann — und was wir davon nutzen
+const inhalt = `# Rohe Maschinen-Sicht auf die TikTok-Datenquellen
 
 <!-- ERZEUGT von scripts/tiktok-inventar.mjs — nicht von Hand ändern.
-     Neu erzeugen mit: npm run inventar -->
+     Neu erzeugen mit: npm run inventar
+
+     Die GEPRÜFTE Übersicht mit Belegen und Bewertung steht daneben in
+     docs/tiktok-datenquellen.md. Diese Datei hier ist nur der Rohabzug: Sie
+     sieht, was im Schema steht — nicht, was davon wirklich ankommt. -->
 
 Diese Übersicht entsteht aus drei Quellen im Repo: dem Protokoll-Schema von
 \`tiktok-live-proto\`, dem Cloud-Router (\`tiktok-cloud.ts\`) und den Abos des

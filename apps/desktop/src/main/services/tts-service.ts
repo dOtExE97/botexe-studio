@@ -77,6 +77,10 @@ const ONLINE_FEHLER_BIS_PAUSE = 3;
 // Aussetzer sind für den Zuschauer eine gefühlte Ewigkeit — und der Grund,
 // warum es sich anfühlt, als „ginge TTS mal und mal nicht".
 const ONLINE_PAUSE_MS = 3 * 60_000;
+/** So viele Fehlschläge IN FOLGE schieben einen Notnagel nach hinten.
+ *  Drei, nicht einer: Ein einzelner Ausrutscher (kurze Lastspitze, ein
+ *  hängendes Paket) soll die Reihenfolge nicht umwerfen — erst ein Muster. */
+const NOTNAGEL_FEHLER_BIS_TAUSCH = 3;
 
 interface QueueItem {
   /** Wann die Ansage eingereiht wurde — veraltete werden verworfen (siehe unten). */
@@ -121,6 +125,12 @@ export class TTSService {
   /** Zähler/Sperre für den Online-Dienst (siehe processNext). */
   private onlineFehler = 0;
   private onlineGesperrtBis = 0;
+  /** Fehlschläge IN FOLGE der beiden Notnägel — entscheidet ihre Reihenfolge. */
+  private lokalFehler = 0;
+  private gttsFehler = 0;
+  /** Nur fürs Log: Ist der Tausch schon gemeldet? */
+  private tauschGemeldet = false;
+
   private dropped = 0;
   /** fileId → Auflöser, der feuert, wenn der Renderer das echte Audio-Ende meldet. */
   private pendingEnded = new Map<string, () => void>();
@@ -369,35 +379,62 @@ export class TTSService {
         this.onlineGesperrtBis = Date.now() + ONLINE_PAUSE_MS;
         log.warn('TTS', `Online-Stimme mehrfach nicht erreichbar — für ${Math.round(ONLINE_PAUSE_MS / 60000)} Min. direkt die lokale Stimme nutzen.`);
       }
-      const local = pickLocalFallbackVoice(this.piper, item.voice);
-      if (local) {
-        // Den Grund NICHT blind übernehmen: Läuft die Online-Sperre, wurde
-        // oben zuerst die LOKALE Stimme versucht — scheitert die, steht in
-        // `lastMsg` „Piper-Timeout". Die Meldung behauptete dann
-        // „Online-Stimme nicht erreichbar (Piper-Timeout)", also einen
-        // Widerspruch in sich. Im echten Log neunmal so aufgetaucht.
-        const wegenSperre = this.onlineGesperrtBis > Date.now();
-        log.warn('TTS', wegenSperre
-          ? `Online-Stimme ist gerade gesperrt (zu viele Fehlversuche) → lokale Stimme ${local}`
-          : `Online-Stimme nicht erreichbar (${lastMsg}) → lokale Stimme ${local}`);
-        try { playback = await this.synthesize(item.text, local); }
-        catch (err) { lastMsg = (err as Error)?.message || lastMsg; }
-      }
-      // LETZTE RETTUNG: eine ZWEITE Online-Stimme bei einem anderen Anbieter.
+      // ZWEI Notnägel, und die Reihenfolge ist nicht fest.
       //
-      // Der Fall ist nicht theoretisch: Bei einem Nutzer war das WLAN schwach
-      // UND der Laptop so ausgelastet, dass auch die lokale Stimme nicht
-      // rechtzeitig fertig wurde — 28 Ansagen blieben komplett stumm. Google
-      // läuft über eine ganz andere Infrastruktur als Microsoft; ist eine
-      // gerade nicht erreichbar, heißt das nichts über die andere. Klanglich
-      // ist es ein Rückschritt, aber gesprochen ist besser als still.
-      if (!playback && !normalizeVoiceId(item.voice).startsWith('gtts:')) {
+      // Sie fallen aus verschiedenen Gründen aus: Die lokale Stimme scheitert,
+      // wenn der RECHNER ausgelastet ist; Google scheitert, wenn das NETZ weg
+      // ist. Welcher der bessere ist, hängt also am Gerät — und ändert sich im
+      // Lauf eines Abends. Im Log eines Streamers sprang die lokale Stimme
+      // zehnmal ein und war zehnmal zu langsam; Google übernahm danach und
+      // lieferte zehn von zehn Mal. Eine feste Reihenfolge kostete ihn also
+      // jedes Mal erst eine Wartezeit, bevor überhaupt etwas zu hören war.
+      //
+      // Darum: Wer zuletzt geliefert hat, kommt zuerst dran. Dieselbe Mechanik
+      // wie die Online-Sperre oben, nur eine Ebene tiefer.
+      for (const weg of this.notnagelReihenfolge()) {
+        if (playback) break;
+
+        if (weg === 'lokal') {
+          const local = pickLocalFallbackVoice(this.piper, item.voice);
+          if (!local) continue;
+          // Den Grund NICHT blind übernehmen: Läuft die Online-Sperre, wurde
+          // oben zuerst die LOKALE Stimme versucht — scheitert die, steht in
+          // `lastMsg` „Piper-Timeout". Die Meldung behauptete dann
+          // „Online-Stimme nicht erreichbar (Piper-Timeout)", also einen
+          // Widerspruch in sich. Im echten Log neunmal so aufgetaucht.
+          const wegenSperre = this.onlineGesperrtBis > Date.now();
+          log.warn('TTS', wegenSperre
+            ? `Online-Stimme ist gerade gesperrt (zu viele Fehlversuche) → lokale Stimme ${local}`
+            : `Online-Stimme nicht erreichbar (${lastMsg}) → lokale Stimme ${local}`);
+          try {
+            playback = await this.synthesize(item.text, local);
+            this.lokalFehler = 0;
+          } catch (err) {
+            this.lokalFehler += 1;
+            lastMsg = (err as Error)?.message || lastMsg;
+          }
+          continue;
+        }
+
+        // Google: eine ZWEITE Online-Stimme bei einem ganz anderen Anbieter.
+        // Technisch der anspruchsloseste Weg von allen — ein einzelner Abruf
+        // statt eines Dauergesprächs in vielen Häppchen wie bei Microsoft.
+        // Genau deshalb kommt er bei schwachem WLAN oft noch durch.
+        if (normalizeVoiceId(item.voice).startsWith('gtts:')) continue;
         const sprache = normalizeVoiceId(item.voice).includes('en-') ? 'gtts:en' : 'gtts:de';
         try {
           playback = await this.synthesize(item.text, sprache);
-          log.warn('TTS', 'Weder die gewählte Online-Stimme noch die lokale Stimme haben geantwortet — '
-            + 'diese Ansage lief über die einfache Google-Stimme. Sie klingt schlechter, ist aber besser als Stille.');
-        } catch (err) { lastMsg = (err as Error)?.message || lastMsg; }
+          this.gttsFehler = 0;
+          log.warn('TTS', this.lokalFehler >= NOTNAGEL_FEHLER_BIS_TAUSCH
+            ? 'Die Online-Stimme war nicht erreichbar — diese Ansage lief direkt über die einfache '
+              + 'Google-Stimme, weil die lokale Stimme zuletzt mehrfach zu langsam war. Sie klingt '
+              + 'schlechter, kommt dafür aber an.'
+            : 'Weder die gewählte Online-Stimme noch die lokale Stimme haben geantwortet — '
+              + 'diese Ansage lief über die einfache Google-Stimme. Sie klingt schlechter, ist aber besser als Stille.');
+        } catch (err) {
+          this.gttsFehler += 1;
+          lastMsg = (err as Error)?.message || lastMsg;
+        }
       }
     } else if (!pauseVoice) {
       // Online hat wieder geklappt → Zähler zurück, Pause aufheben.
@@ -580,4 +617,26 @@ export class TTSService {
       // cache-aufräumen darf nie was kaputt machen
     }
   }
+
+  /** In welcher Reihenfolge die beiden Notnägel versucht werden.
+   *
+   *  Standard ist die lokale Stimme zuerst — sie braucht kein Netz und klingt
+   *  besser als Google. Erst wenn sie MEHRFACH IN FOLGE nicht liefert (lahmer
+   *  Rechner), rutscht Google davor. Streikt Google seinerseits, geht es
+   *  zurück: Bei einem Funkloch ist die lokale Stimme die einzige Rettung. */
+  private notnagelReihenfolge(): Array<'lokal' | 'gtts'> {
+    const googleZuerst = this.lokalFehler >= NOTNAGEL_FEHLER_BIS_TAUSCH
+      && this.gttsFehler < NOTNAGEL_FEHLER_BIS_TAUSCH;
+    if (googleZuerst !== this.tauschGemeldet) {
+      this.tauschGemeldet = googleZuerst;
+      log.info('TTS', googleZuerst
+        ? `Die lokale Stimme hat ${this.lokalFehler}× hintereinander nicht rechtzeitig geliefert — `
+          + 'ab jetzt wird zuerst die Google-Stimme versucht. Das spart pro Ansage die Wartezeit auf '
+          + 'einen Rechner, der gerade nicht hinterherkommt.'
+        : 'Die Google-Stimme kommt gerade auch nicht durch — ab jetzt wieder zuerst die lokale Stimme. '
+          + 'Die braucht kein Internet.');
+    }
+    return googleZuerst ? ['gtts', 'lokal'] : ['lokal', 'gtts'];
+  }
+
 }

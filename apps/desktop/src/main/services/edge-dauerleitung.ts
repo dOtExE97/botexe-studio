@@ -31,17 +31,30 @@ import crypto from 'node:crypto';
 import dns from 'node:dns';
 import { log } from '../core/logger';
 
-/** Wie lange darf allein der VERBINDUNGSAUFBAU dauern? Kurz halten: Klappt er
- *  nicht schnell, klappt er auf dieser Leitung meist gar nicht — und jede
- *  Sekunde hier ist Stille im Stream. */
-const AUFBAU_TIMEOUT_MS = 4_000;
+/** Wie lange darf allein der VERBINDUNGSAUFBAU dauern?
+ *
+ *  Waren vier Sekunden — zu knapp. Über ein WLAN mit Repeater dauert schon der
+ *  Handschlag (Namensauflösung, Verschlüsselung, Umstieg auf die Dauerleitung)
+ *  gern länger, und dann galt ein Aufbau als gescheitert, der eine Sekunde
+ *  später fertig gewesen wäre. Im Log eines Streamers stand zehnmal „Leitung
+ *  gestört" — jedes Mal wurde danach der teurere klassische Weg genommen.
+ *
+ *  Acht Sekunden kosten im schlechten Fall vier Sekunden mehr Stille, sparen im
+ *  guten Fall den kompletten zweiten Anlauf. */
+const AUFBAU_TIMEOUT_MS = 8_000;
 /** Zeitlimit für EINE Ansage auf einer bereits stehenden Leitung. */
 const ANSAGE_TIMEOUT_MS = 10_000;
 /** Nach so langer Untätigkeit die Leitung schließen. Microsofts Zugangsmarke
- *  läuft nach einigen Minuten ab; eine ewig offene Leitung stirbt dann
- *  irgendwann lautlos und die nächste Ansage fällt in den Timeout. Lieber
- *  vorher aufräumen und beim nächsten Mal frisch aufbauen. */
-const LEERLAUF_MS = 4 * 60_000;
+ *  läuft nach einiger Zeit ab; eine ewig offene Leitung stirbt dann irgendwann
+ *  lautlos und die nächste Ansage fällt in den Timeout. Lieber vorher aufräumen
+ *  und beim nächsten Mal frisch aufbauen.
+ *
+ *  Von vier auf zehn Minuten: Der Aufbau ist auf einer schwachen Leitung der
+ *  mit Abstand teuerste Teil. Jede Minute, die die Leitung länger steht, ist
+ *  ein Aufbau, der gar nicht erst stattfinden muss. Bei einem ruhigen Stream
+ *  mit einer Ansage alle paar Minuten war das vorherige Fenster so kurz, dass
+ *  praktisch JEDE Ansage neu aufbauen musste. */
+const LEERLAUF_MS = 10 * 60_000;
 
 export interface EdgeLeitungOptionen {
   /** Nur für Tests: eigene WebSocket-Fabrik. */
