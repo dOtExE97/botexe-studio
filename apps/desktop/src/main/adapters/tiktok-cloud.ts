@@ -174,6 +174,17 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
     return { kind: 'event', event: direct, data };
   }
 
+  // Auch die SONDERFÄLLE unten zeigen im Diagnose-Modus, was sie mitbringen.
+  // Vorher taten das nur die Tabellen-Arten und die unbekannten — die Rahmen
+  // `roomInfo` und `tiktok.connect` blieben unsichtbar. Folge: Es war nicht
+  // feststellbar, ob `roomInfo` überhaupt ankommt und was darin steht. Aus
+  // seinem Fehlen im Log wurde geschlossen, es käme nie — tatsächlich kommt es
+  // einmal je Verbindung.
+  if (diagnoseAktiv()) {
+    log.einmal(`tiktok:felder:${type}`, 'info', 'TikTok',
+      `„${type}" bringt diese Felder mit: ${felderVon(data)}.`);
+  }
+
   switch (type) {
     case 'WebcastSocialMessage': {
       const dt: string = data?.common?.displayText?.displayType ?? '';
@@ -438,7 +449,15 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
           // Buch führen, BEVOR verworfen wird: Gerade das Verworfene ist die
           // interessante Hälfte. Hier und nicht im Router — der bleibt eine
           // reine Funktion ohne Gedächtnis.
-          this.artenbuch.verbuche(m.type, r?.kind === 'event');
+          //
+          // AUSGEWERTET ist alles, was der Router NICHT wegwirft — nicht nur
+          // Bus-Ereignisse. Die erste Fassung zählte `r?.kind === 'event'`, und
+          // damit standen `roomInfo`, `tiktok.connect` und die Live-Ansage in
+          // der Bilanz unter VERWORFEN, obwohl die App sie sehr wohl verarbeitet
+          // (Streamer-Name, Verbindungsaufbau). Eine Bilanz, die das Falsche
+          // behauptet, ist schlimmer als keine — sie schickt beim Suchen in die
+          // falsche Richtung, und genau das ist mir damit passiert.
+          this.artenbuch.verbuche(m.type, r !== null);
           if (!r) continue;
           if (r.kind === 'event') { settleOk(); this.emit(r.event, r.data); }
           else if (r.kind === 'connected') { if (r.host) this.emit('hostInfo', r.host); settleOk(); }

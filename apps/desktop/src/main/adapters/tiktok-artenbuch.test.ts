@@ -68,3 +68,25 @@ test('leeren() setzt zurück — der Bericht beschreibt EINEN Stream', () => {
   b.leeren();
   assert.equal(b.bericht(), null);
 });
+
+test('Sonderfälle zählen als AUSGEWERTET, nicht als verworfen', () => {
+  // Belegt aus einem echten Log: Die Bilanz meldete `roomInfo`, `tiktok.connect`
+  // und die Live-Ansage unter VERWORFEN — dabei verarbeitet die App sie sehr
+  // wohl (Streamer-Name, Verbindungsaufbau). Die erste Fassung zählte nur
+  // Bus-Ereignisse als genutzt.
+  //
+  // Der Schaden war nicht theoretisch: Aus „roomInfo steht unter verworfen und
+  // taucht sonst nirgends auf" wurde geschlossen, es käme gar nicht an.
+  const b = new Artenbuch();
+  b.verbuche('WebcastChatMessage', true);   // Bus-Ereignis
+  b.verbuche('roomInfo', true);             // Sonderfall, wird ausgewertet
+  b.verbuche('tiktok.connect', true);       // Verbindungs-Signal
+  b.verbuche('WebcastBarrageMessage', false); // wirklich verworfen
+
+  const text = b.bericht() ?? '';
+  assert.match(text, /AUSGEWERTET \(3\)/);
+  assert.match(text, /VERWORFEN \(1\)/);
+  assert.match(text, /roomInfo/);
+  assert.doesNotMatch(text.split('VERWORFEN')[1] ?? '', /roomInfo/,
+    'roomInfo darf NICHT in der Verworfen-Zeile stehen');
+});

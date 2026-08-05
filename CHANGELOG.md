@@ -3,6 +3,27 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.51.1] — 2026-08-05
+
+Zwei Korrekturen an der Bilanz aus v0.49.0 — beide aufgedeckt vom ersten
+vollständigen Log, das eine enthielt.
+
+### Behoben: Die Bilanz zählte falsch
+`roomInfo`, `tiktok.connect` und die Live-Ansage standen unter **VERWORFEN**,
+obwohl die App sie sehr wohl verarbeitet — daraus kommen der Name des Streamers
+und das Verbindungssignal. Gezählt wurde nur, was als Ereignis auf den Bus geht.
+
+Das war nicht bloß ein Schönheitsfehler: Aus „`roomInfo` steht unter verworfen
+und taucht sonst nirgends auf" wurde geschlossen, es käme überhaupt nicht an.
+Tatsächlich kommt es **einmal je Verbindung**. Eine Bilanz, die das Falsche
+behauptet, schickt beim Suchen in die falsche Richtung.
+
+### Behoben: Die Sonderfälle waren im Diagnose-Modus blind
+Für `roomInfo` und `tiktok.connect` gab es nie eine Feldliste — die Anzeige galt
+nur für Arten aus der Zuordnungstabelle und für unbekannte. Deshalb war bis
+heute nicht feststellbar, was in `roomInfo` überhaupt drinsteht. Jetzt zeigen
+auch sie ihre Felder (im Diagnose-Modus, nur die Namen, nie die Werte).
+
 ## [0.51.0] — 2026-08-05
 
 Die Auswertungsseite ist neu — und zwei Angaben, auf die sie wartet, kamen bis
