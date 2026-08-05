@@ -196,13 +196,26 @@ test('gift: icon-url aus giftDetails.giftImage wird übernommen', () => {
 test('detectRoles: Mod/Sub/Follower aus userIdentity (camelCase, Direkt-Modus)', () => {
   assert.deepEqual(
     detectRoles({ userIdentity: { isModeratorOfAnchor: true } }),
-    { isMod: true, isSub: false, isFollower: false },
+    { isMod: true, isSub: false, isFollower: false, isMutual: false, hatGeschenkt: false },
   );
   assert.deepEqual(
     detectRoles({ userIdentity: { isSubscriberOfAnchor: true } }),
-    { isMod: false, isSub: true, isFollower: false },
+    { isMod: false, isSub: true, isFollower: false, isMutual: false, hatGeschenkt: false },
   );
   assert.equal(detectRoles({ userIdentity: { isFollowerOfAnchor: true } }).isFollower, true);
+});
+
+test('detectRoles: gegenseitiges Folgen und Schon-Schenker', () => {
+  // Beide Angaben liegen an JEDER Chat-Nachricht bei und wurden bis v0.49.0
+  // weggeworfen. Sie sagen etwas über die BEZIEHUNG: „folgt euch gegenseitig"
+  // ist mehr als ein Follower, „hat schon mal geschenkt" gilt auch für einen
+  // früheren Stream, den die App nie gesehen hat.
+  assert.equal(detectRoles({ userIdentity: { isMutualFollowingWithAnchor: true } }).isMutual, true);
+  assert.equal(detectRoles({ userIdentity: { isGiftGiverOfAnchor: true } }).hatGeschenkt, true);
+  // Ein Follower ist NICHT automatisch gegenseitig — sonst wäre die Angabe wertlos.
+  assert.equal(detectRoles({ userIdentity: { isFollowerOfAnchor: true } }).isMutual, false);
+  // Auch in der GROSS-Schreibweise (defensive Cloud-Variante).
+  assert.equal(detectRoles({ UserIdentity: { isGiftGiverOfAnchor: true } }).hatGeschenkt, true);
 });
 
 test('detectRoles: Follower auch aus followInfo.followStatus / isFollower', () => {
@@ -219,8 +232,9 @@ test('detectRoles: GROSS geschriebenes UserIdentity (Cloud-Variante) wird auch g
 });
 
 test('detectRoles: leere/unbekannte Daten → alles false (kein Crash)', () => {
-  assert.deepEqual(detectRoles({}), { isMod: false, isSub: false, isFollower: false });
-  assert.deepEqual(detectRoles({ user: {} }), { isMod: false, isSub: false, isFollower: false });
+  const nichts = { isMod: false, isSub: false, isFollower: false, isMutual: false, hatGeschenkt: false };
+  assert.deepEqual(detectRoles({}), nichts);
+  assert.deepEqual(detectRoles({ user: {} }), nichts);
 });
 
 test('normalizeChat: reichert user mit Rollen an (Mod wird erkannt → wird vorgelesen)', () => {

@@ -232,8 +232,15 @@ export function felderVon(daten: unknown, max = 24): string {
   for (const [schluessel, wert] of Object.entries(daten as Record<string, unknown>)) {
     if (namen.length >= max) { namen.push('…'); break; }
     if (wert && typeof wert === 'object' && !Array.isArray(wert)) {
-      const kinder = Object.keys(wert as Record<string, unknown>).slice(0, 4);
-      namen.push(kinder.length ? `${schluessel}{${kinder.join(',')}}` : schluessel);
+      // Zwölf statt vier Unterfelder. Vier waren zu wenig: Bei der Coin-Truhe
+      // stand `envelopeInfo{envelopeId,businessType,envelopeIdc,sendUserName}`
+      // — und der Rest, in dem der Absender stecken könnte, war abgeschnitten.
+      // Die Zeile ist ohnehin nur im Diagnose-Modus zu sehen und wird jetzt
+      // genau EINMAL je Art geschrieben; sie darf also ruhig lang sein.
+      const alle = Object.keys(wert as Record<string, unknown>);
+      const kinder = alle.slice(0, 12);
+      const rest = alle.length > kinder.length ? `,+${alle.length - kinder.length}` : '';
+      namen.push(kinder.length ? `${schluessel}{${kinder.join(',')}${rest}}` : schluessel);
     } else if (Array.isArray(wert)) {
       namen.push(`${schluessel}[${wert.length}]`);
     } else {

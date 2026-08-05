@@ -42,9 +42,19 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
     { value: 'chat_command', label: 'Nachricht ist Befehl (z.B. !hype) …', valueType: 'text' },
     { value: 'chat_keyword', label: 'Nachricht enthält …', valueType: 'text' },
     { value: 'chat_first_time', label: 'Allererste Nachricht (neuer Zuschauer)' },
+    { value: 'user_gegenseitig', label: 'Ihr folgt euch GEGENSEITIG' },
+    { value: 'user_hat_geschenkt', label: 'Hat dir schon mal etwas geschenkt' },
   ],
   follow: [
     { value: 'follow_first_time', label: 'Nur beim ERSTEN Follow (kein Re-Follow)' },
+  ],
+  join: [
+    // TikTok markiert beim Betreten selbst, wer zu den Top-Supportern des
+    // Streams gehört — inklusive Platz. Das lag an jedem Beitritt bei und
+    // wurde bis v0.49.0 weggeworfen.
+    { value: 'ehrengast_betritt', label: 'Nur Top-Supporter (Ehrengast)' },
+    { value: 'user_gegenseitig', label: 'Ihr folgt euch GEGENSEITIG' },
+    { value: 'user_hat_geschenkt', label: 'Hat dir schon mal etwas geschenkt' },
   ],
   like: [
     { value: 'like_count_gte', label: 'Like-Meilenstein erreicht (bei … Likes)', valueType: 'number' },
@@ -117,6 +127,11 @@ function ruleToSentence(rule: TriggerRule, layerName: (id: string) => string, so
       case 'superfan_neu': wenn = 'jemand NEU Superfan wird'; break;
       case 'superfan_verlaengerung': wenn = 'jemand seinen Superfan VERLÄNGERT'; break;
       case 'superfan_monate_gte': wenn = `jemand seit mind. ${c.value} Monaten Superfan ist`; break;
+      case 'user_gegenseitig': wenn = 'jemand schreibt, dem du auch folgst'; break;
+      case 'user_hat_geschenkt': wenn = 'jemand schreibt, der dir schon mal was geschenkt hat'; break;
+      case 'ehrengast_betritt': wenn = c.value
+        ? `ein Top-Supporter bis Platz ${c.value} reinkommt`
+        : 'ein Top-Supporter reinkommt'; break;
     }
   } else if (rule.event === 'gift') wenn = 'IRGENDEIN Gift reinkommt';
   const parts: string[] = [];

@@ -87,13 +87,36 @@ test('Diagnose-Modus: an, Restlaufzeit, läuft von allein aus', () => {
   setzeDiagnoseModus(0, t0);
 });
 
-test('Diagnose-Modus schaltet die Drosselung durch', () => {
+test('Diagnose-Modus schaltet die ZEIT-Drosselung durch — aber nicht „genau einmal"', () => {
+  // Der Unterschied ist der zwischen einem Takt und einer Tatsache.
+  //
+  // Bei einer GEDROSSELTEN Meldung ist die Wiederholung die eigentliche
+  // Information: „kommt das alle zwei Sekunden oder alle zwei Minuten?" Genau
+  // dafür schaltet der Diagnose-Modus sie frei.
+  //
+  // Bei einer EINMAL-Meldung ist sie es nicht. Welche Felder eine
+  // Nachrichtenart mitbringt, ändert sich nicht beim 522. Mal — und genau 522
+  // Wiederholungen einer einzigen Zeile standen in einem echten Diagnose-Log.
+  // Von 1672 Zeilen waren 1512 sieben immer gleiche Feldlisten; der Streamer
+  // fand darin nichts mehr. Wie oft eine Art ankommt, beantwortet seit v0.49.0
+  // die Bilanz am Stream-Ende, und zwar als Zahl.
   const t0 = 2_000_000;
+
+  // „genau einmal" (abstandMs = 0) bleibt einmal — auch mit Diagnose.
   setzeDiagnoseModus(0, t0);
-  assert.equal(darfMelden('diag-test', 0, t0), true);
-  assert.equal(darfMelden('diag-test', 0, t0 + 1), false, 'normal: einmal heißt einmal');
+  assert.equal(darfMelden('diag-einmal', 0, t0), true);
+  assert.equal(darfMelden('diag-einmal', 0, t0 + 1), false, 'normal: einmal heißt einmal');
   setzeDiagnoseModus(10 * 60_000, t0);
-  assert.equal(darfMelden('diag-test', 0, t0 + 2), true, 'im Diagnose-Modus jede Wiederholung');
+  assert.equal(darfMelden('diag-einmal', 0, t0 + 2), false,
+    'auch im Diagnose-Modus heißt einmal einmal — sonst ersäuft das Log');
+
+  // Zeit-Drosselung (abstandMs > 0) wird dagegen sehr wohl freigeschaltet.
   setzeDiagnoseModus(0, t0);
-  assert.equal(darfMelden('diag-test', 0, t0 + 3), false, 'danach wieder gedrosselt');
+  assert.equal(darfMelden('diag-takt', 60_000, t0), true);
+  assert.equal(darfMelden('diag-takt', 60_000, t0 + 1), false, 'normal: erst nach einer Minute wieder');
+  setzeDiagnoseModus(10 * 60_000, t0);
+  assert.equal(darfMelden('diag-takt', 60_000, t0 + 2), true,
+    'im Diagnose-Modus jede Wiederholung — hier IST der Takt die Information');
+  setzeDiagnoseModus(0, t0);
+  assert.equal(darfMelden('diag-takt', 60_000, t0 + 3), false, 'danach wieder gedrosselt');
 });

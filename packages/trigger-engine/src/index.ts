@@ -56,6 +56,13 @@ export interface StudioUser {
   isMod?: boolean;
   /** Folgt dem Streamer. */
   isFollower?: boolean;
+  /** Ihr folgt euch GEGENSEITIG — mehr als ein Follower, und für einen kleinen
+   *  Kanal der Unterschied zwischen Publikum und Bekanntschaft. TikTok schickt
+   *  es an jeder Chat-Nachricht mit (UserIdentity.isMutualFollowingWithAnchor). */
+  isMutual?: boolean;
+  /** Hat dir schon einmal etwas geschenkt (UserIdentity.isGiftGiverOfAnchor) —
+   *  auch in einem früheren Stream, den die App gar nicht gesehen hat. */
+  hatGeschenkt?: boolean;
   /** Teamherz-Stufe (TikToks Fan-Club-Level, 0 = kein Teamherz).
    *
    *  TikTok schickt das an jedem Nutzer mit — wir haben es bisher weggeworfen.
@@ -123,6 +130,13 @@ export interface StudioEvent {
   /** TikToks EIGENE Raum-Bestenliste, die in jedem Zuschauer-Tick mitkommt und
    *  bisher komplett weggeworfen wurde: Platz, Punktzahl und Zuschauer. */
   raumBeste?: RaumPlatz[];
+  /** TikToks eigener Beliebtheitswert für den Raum (nur bei 'viewer_count').
+   *  Fehlt, wenn TikTok ihn nicht mitschickt — eine 0 sähe aus wie „Beliebtheit
+   *  null" statt „nicht geliefert". */
+  beliebtheit?: number;
+  /** Nur bei 'join': Dieser Zuschauer gehört zu TikToks Top-Supportern des
+   *  Streams. Platz und Punktzahl, soweit mitgeliefert. */
+  ehrengast?: { platz?: number; punkte?: number };
   /** true = dieser Zuschauer ist zum allerersten Mal aktiv (Studio reichert an). */
   firstOfUser?: boolean;
   /** true = dieser Zuschauer folgt zum ersten Mal (seit die App ihn kennt) —
@@ -158,6 +172,17 @@ export type TriggerCondition =
   | { kind: 'envelope_coins_gte'; value: number }
   | { kind: 'envelope_superfan' }
   /** Nur der echte Neu-Beitritt, keine Verlängerung/Stufenmeldung. */
+  /** Der Zuschauer folgt dir GEGENSEITIG — ihr folgt euch beide. Mehr als ein
+   *  Follower: für einen kleinen Kanal der Unterschied zwischen Publikum und
+   *  Bekanntschaft. TikTok schickt es an jeder Chat-Nachricht mit. */
+  | { kind: 'user_gegenseitig' }
+  /** Der Zuschauer hat dir schon einmal etwas geschenkt — auch in einem
+   *  früheren Stream, den die App nie gesehen hat. TikTok weiß das, wir nicht. */
+  | { kind: 'user_hat_geschenkt' }
+  /** Ein Top-Supporter betritt den Stream (TikToks eigene Wertung). Optional
+   *  erst ab einem Platz: `value: 3` = nur die ersten drei. 0/fehlt = jeder,
+   *  den TikTok als Top-Supporter markiert. */
+  | { kind: 'ehrengast_betritt'; value?: number }
   | { kind: 'superfan_neu' }
   /** Nur Verlängerungen (Treue!) — das Gegenstück zu superfan_neu. */
   | { kind: 'superfan_verlaengerung' }
@@ -469,6 +494,20 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return (event.envelope?.coins ?? 0) >= condition.value;
     case 'envelope_superfan':
       return event.envelope?.superFan === true;
+    case 'user_gegenseitig':
+      return event.user?.isMutual === true;
+    case 'user_hat_geschenkt':
+      return event.user?.hatGeschenkt === true;
+    case 'ehrengast_betritt': {
+      if (!event.ehrengast) return false;
+      const grenze = condition.value ?? 0;
+      if (grenze <= 0) return true;
+      // Ohne Platzangabe kann eine Platz-Grenze nicht erfüllt sein — sonst
+      // würde „nur die ersten drei" jeden Ehrengast durchlassen, sobald TikTok
+      // die Nummer einmal nicht mitschickt.
+      const platz = event.ehrengast.platz ?? 0;
+      return platz > 0 && platz <= grenze;
+    }
     case 'superfan_neu':
       return event.superfanNeu === true;
     case 'superfan_verlaengerung':

@@ -65,6 +65,12 @@ export interface StatsTotals {
   envelopes?: number;
   /** Höchststand unsichtbarer Zuschauer (TikTok „anonymous"). */
   peakAnonymous?: number;
+  /** Höchster von TikTok gemeldeter Beliebtheitswert des Raums.
+   *
+   *  TikToks eigene Zahl, nicht unsere: Sie kommt in jedem Zuschauer-Tick mit
+   *  und wurde bis v0.49.0 weggeworfen. Als Gegenprobe zu den selbst gezählten
+   *  Werten nützlich — und als das, was TikToks Empfehlungen vermutlich sehen. */
+  peakBeliebtheit?: number;
   /** Beste Platzierung dieser Session in einer TikTok-Rangliste. Niedriger ist
    *  besser — „Platz 7" heißt, nur sechs waren im Zeitraum stärker. */
   bestePlatzierung?: number;
@@ -297,6 +303,11 @@ export class SessionStats {
         // TikToks eigene Raum-Bestenliste: immer den ZULETZT gemeldeten Stand
         // halten (sie ist bereits kumulativ über den ganzen Stream).
         if (event.raumBeste && event.raumBeste.length > 0) this.raumBeste = event.raumBeste;
+        // TikToks eigener Beliebtheitswert — nur der Höchststand. Er schwankt
+        // im Sekundentakt; interessant ist, wie weit der Stream oben war.
+        if ((event.beliebtheit ?? 0) > (this.totals.peakBeliebtheit ?? 0)) {
+          this.totals.peakBeliebtheit = event.beliebtheit;
+        }
         return changed;
       }
       default:

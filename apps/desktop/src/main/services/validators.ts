@@ -53,6 +53,9 @@ const CONDITION_KINDS: ReadonlySet<string> = new Set([
   'gift_id_is',
   'envelope_coins_gte',
   'envelope_superfan',
+  'user_gegenseitig',
+  'user_hat_geschenkt',
+  'ehrengast_betritt',
   'superfan_neu',
   'superfan_verlaengerung',
   'superfan_monate_gte',
@@ -389,6 +392,15 @@ function validateCondition(
       if (value === null) return null;
       return { kind, value };
     }
+    case 'ehrengast_betritt': {
+      // Der Platz ist OPTIONAL: ohne ihn gilt jeder Ehrengast. Eine 0 wird
+      // bewusst weggelassen statt gespeichert — sonst stünde in der Regel
+      // „ab Platz 0", was es nicht gibt.
+      const value = nonNegInt(input['value']);
+      return value && value > 0 ? { kind, value } : { kind };
+    }
+    case 'user_gegenseitig':
+    case 'user_hat_geschenkt':
     case 'chat_first_time':
     case 'follow_first_time':
     case 'envelope_superfan':

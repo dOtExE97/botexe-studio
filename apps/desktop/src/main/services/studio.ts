@@ -496,6 +496,17 @@ export class Studio {
         this.sessionRoles.apply(e.user);
         this.logRoleDetection(e.user);
       }
+      // Ehrengast: TikTok markiert beim Betreten selbst, wer zu den
+      // Top-Supportern des Streams gehört. Für einen kleinen Kanal ist das die
+      // wertvollste Sekunde des Abends — sie soll nicht unbemerkt vorbeigehen.
+      // Je Zuschauer einmal, sonst meldet jeder Wiedereintritt dasselbe.
+      if (e.type === 'join' && e.ehrengast && e.user && !this.loggedRoleUsers.has(`gast:${e.user.id}`)) {
+        this.loggedRoleUsers.add(`gast:${e.user.id}`);
+        const platz = e.ehrengast.platz ? `Platz ${e.ehrengast.platz}` : 'Top-Supporter';
+        const punkte = e.ehrengast.punkte ? ` · ${e.ehrengast.punkte} Punkte` : '';
+        log.info('TikTok', `Ehrengast betritt den Stream: ${e.user.nickname} (${platz}${punkte}) — `
+          + 'das ist TikToks eigene Wertung. Unter „Trigger" lässt sich darauf ein Sound oder Alert legen.');
+      }
 
       // 1. Aufnahme (falls aktiv) — Test-/Replay-Events NICHT mitschneiden.
       if (!e.synthetic) this.recorder?.record(e);
@@ -2556,6 +2567,18 @@ export class Studio {
     if (user.isMod && !this.loggedRoleUsers.has(`mod:${user.id}`)) {
       this.loggedRoleUsers.add(`mod:${user.id}`);
       log.info('TikTok', `Mod erkannt: ${user.nickname}`);
+    }
+    // Zwei Beziehungs-Angaben, die TikTok mitliefert und die die App bis
+    // v0.49.0 weggeworfen hat. Sie einmal je Zuschauer zu melden beantwortet
+    // die Frage, ob sie im jeweiligen Verbindungsmodus überhaupt ankommen —
+    // dieselbe Frage, die bei Mods und Teamherz schon nützlich war.
+    if (user.isMutual && !this.loggedRoleUsers.has(`geg:${user.id}`)) {
+      this.loggedRoleUsers.add(`geg:${user.id}`);
+      log.info('TikTok', `Ihr folgt euch gegenseitig: ${user.nickname}`);
+    }
+    if (user.hatGeschenkt && !this.loggedRoleUsers.has(`gsch:${user.id}`)) {
+      this.loggedRoleUsers.add(`gsch:${user.id}`);
+      log.info('TikTok', `Hat dir schon einmal etwas geschenkt: ${user.nickname}`);
     }
     if (user.isSub && !this.loggedRoleUsers.has(`sub:${user.id}`)) {
       this.loggedRoleUsers.add(`sub:${user.id}`);

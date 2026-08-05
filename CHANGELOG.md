@@ -3,6 +3,67 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.50.0] — 2026-08-05
+
+Ein Diagnose-Log aus einem echten Stream hat drei Auswertungen aufgedeckt, die
+ins Leere liefen — und drei Angaben, die TikTok immer mitschickt und die die App
+weggeworfen hat.
+
+### Behoben: eulerstream schreibt Listen anders — wir haben am falschen Fach gesucht
+Bei wiederholten Feldern hängt der Cloud-Weg ein `List` an den Namen: aus
+`ranks` wird `ranksList`, aus `pieces` wird `piecesList`. Die App las nur die
+kurze Form. Zwei Auswertungen liefen deshalb im Cloud-Modus — dem Standard —
+dauerhaft ins Leere, ohne eine einzige Fehlermeldung:
+
+- **TikToks Raum-Bestenliste war immer leer**, obwohl vier bis fünf Plätze in
+  jedem Zuschauer-Tick mitkamen.
+- **Superfan-Ereignisse kamen ohne Absender an**: keine Punkte, kein Eintrag in
+  der Bestenliste, kein Name in der Ansage. Im Log stand dazu nur die
+  allgemeine Warnung „Ereignisse ohne erkennbaren Absender" — jeweils eine
+  Millisekunde nach dem Superfan-Banner.
+
+Beide Schreibweisen werden jetzt an einer zentralen Stelle behandelt.
+
+### Behoben: Die Teamherz-Stufe war die ganze Zeit da
+Im Log stand bei jedem Superfan „(Stufe nicht mitgeliefert)". Sie kam sehr wohl
+mit — in einem Feld, in das nie jemand geschaut hat (`fansLevelParam.currentGrade`).
+
+### Behoben: Der Diagnose-Modus ertränkte sein eigenes Log
+Von 1672 Zeilen waren **1512 dieselben sieben Feldlisten**, eine davon 522 mal.
+Der Diagnose-Modus hob die Regel „sag das genau einmal" für alles auf — auch für
+Meldungen, deren Wiederholung nichts Neues sagt. Welche Felder eine
+Nachrichtenart mitbringt, ändert sich nicht beim 522. Mal. Wie oft eine Art
+ankommt, beantwortet ohnehin die Bilanz am Stream-Ende, und zwar als Zahl.
+
+### Neu: Ihr folgt euch gegenseitig 🤝
+TikTok schickt an jeder Chat-Nachricht mit, ob ihr euch **gegenseitig** folgt und
+ob dieser Zuschauer dir **schon einmal etwas geschenkt** hat — auch in einem
+früheren Stream, den die App nie gesehen hat. Beides landet jetzt am Zuschauer,
+steht im Log und ist als Trigger-Bedingung wählbar.
+
+Für einen kleinen Kanal ist das ein Unterschied: „folgt dir" ist Publikum,
+„folgt euch gegenseitig" ist Bekanntschaft.
+
+### Neu: Ehrengast betritt den Stream 👑
+Beim Betreten markiert TikTok selbst, wer zu den **Top-Supportern** des Streams
+gehört — mit Platz und Punktzahl. Das lag an jedem einzelnen Beitritt bei und
+wurde verworfen. Jetzt gibt es dafür einen eigenen Auslöser: „Nur Top-Supporter",
+wahlweise begrenzt auf die ersten Plätze.
+
+### Neu: TikToks eigener Beliebtheitswert
+Kommt in jedem Zuschauer-Tick mit. Die Auswertung merkt sich den Höchststand —
+als Gegenprobe zu den selbst gezählten Zahlen.
+
+### Für Entwickler
+- `liste(kurz, lang)` in `tiktok-normalize.ts` ist die EINE Stelle für die
+  Listen-Schreibweise. Neue Wächter-Tests: `listen-schreibweise`,
+  `beziehung-und-ehrengast`.
+- `darfMelden()` unterscheidet jetzt zwischen „genau einmal" (auch im
+  Diagnose-Modus einmal) und „höchstens alle N Sekunden" (im Diagnose-Modus
+  frei). Der Unterschied ist der zwischen einer Tatsache und einem Takt.
+- Feldlisten im Diagnose-Modus zeigen zwölf statt vier Unterfelder — bei der
+  Coin-Truhe war die Stelle abgeschnitten, an der der Absender stehen müsste.
+
 ## [0.49.0] — 2026-08-05
 
 Ein Streamer verlor 45 Minuten Stream, ohne dass die App etwas merkte. Dieses

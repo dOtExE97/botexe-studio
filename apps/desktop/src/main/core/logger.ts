@@ -181,7 +181,21 @@ const MAX_SCHLUESSEL = 500;
 export function darfMelden(schluessel: string, abstandMs: number, jetzt = Date.now()): boolean {
   // Im Diagnose-Modus jede Wiederholung durchlassen — genau die will man dann
   // sehen (z.B. „wie oft kommt dieses Geschenk wirklich an?").
-  if (diagnoseBisMs > jetzt) return true;
+  //
+  // ABER NICHT bei `abstandMs === 0`, also bei „sag das genau EINMAL".
+  //
+  // Der Unterschied ist der zwischen einem Takt und einer Tatsache. Bei einer
+  // gedrosselten Meldung ist die Wiederholung die Information („kommt das alle
+  // 2 Sekunden oder alle 2 Minuten?"). Bei einer Einmal-Meldung ist sie es
+  // nicht: Welche Felder eine Nachrichtenart mitbringt, ändert sich nicht beim
+  // 522. Mal.
+  //
+  // Und genau 522 war es: In einem Diagnose-Log bestanden 1512 von 1672 Zeilen
+  // aus sieben immer gleichen Feldlisten. Der Streamer fand darin nichts mehr —
+  // die Kur hatte die Krankheit ersetzt. Wie oft eine Art ankommt, beantwortet
+  // seit v0.49.0 ohnehin die Bilanz am Stream-Ende, und zwar als Zahl statt als
+  // tausend Zeilen.
+  if (diagnoseBisMs > jetzt && abstandMs !== 0) return true;
   const zuletzt = gemeldet.get(schluessel);
   if (zuletzt !== undefined && (abstandMs === 0 || jetzt - zuletzt < abstandMs)) return false;
   if (gemeldet.size > MAX_SCHLUESSEL) gemeldet.clear();

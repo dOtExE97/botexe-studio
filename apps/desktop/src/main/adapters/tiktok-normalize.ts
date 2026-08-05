@@ -71,6 +71,37 @@ function abzeichenStufe(raw: RawUser, art: number): number {
   return ersteZahl(treffer?.privilegeLogExtra?.level);
 }
 
+/**
+ * eulerstream hängt an WIEDERHOLTE Felder ein „List" an: `pieces` heißt dort
+ * `piecesList`, `ranks` heißt `ranksList`. Die Bibliothek im Direkt-Modus
+ * benutzt die kurze Form. Wer nur eine Schreibweise liest, ist im jeweils
+ * anderen Modus blind — und zwar lautlos: Die Nachricht kommt an, das Feld ist
+ * schlicht `undefined`, und die Funktion gibt eine leere Liste zurück.
+ *
+ * Belegt in einem echten Cloud-Stream (Diagnose-Modus):
+ *   WebcastRoomUserSeqMessage → `ranksList[4]`   (gelesen wurde `ranks`)
+ *   superFan                  → `content{…,piecesList}` (gelesen wurde `pieces`)
+ * Beide Auswertungen liefen dadurch ins Leere: TikToks Raum-Bestenliste blieb
+ * im Cloud-Modus dauerhaft leer, und Superfan-Ereignisse kamen ohne Absender an.
+ *
+ * Diese beiden Helfer sind die EINE Stelle, an der das behandelt wird — damit
+ * nicht jede Normalisierung ihre eigene Fassung erfindet.
+ */
+export function liste<T>(kurz: T[] | undefined, lang: T[] | undefined): T[] {
+  if (Array.isArray(kurz) && kurz.length) return kurz;
+  if (Array.isArray(lang) && lang.length) return lang;
+  return [];
+}
+
+/** Text-Bausteine einer Banner-Nachricht, in beiden Schreibweisen. */
+interface Bausteine {
+  pieces?: Array<{ userValue?: { user?: RawUser } }>;
+  piecesList?: Array<{ userValue?: { user?: RawUser } }>;
+}
+function bausteine(b: Bausteine | undefined): Array<{ userValue?: { user?: RawUser } }> {
+  return liste(b?.pieces, b?.piecesList);
+}
+
 /** Erstes Bild aus einer der beiden Protokoll-Schreibweisen (url / urlList). */
 function ersteBildUrl(...bilder: Array<RawImage | { url?: string[] } | undefined>): string | undefined {
   for (const b of bilder) {
@@ -111,6 +142,10 @@ interface RawUserIdentity {
   isSubscriberOfAnchor?: boolean;
   isModeratorOfAnchor?: boolean;
   isFollowerOfAnchor?: boolean;
+  /** Ihr folgt euch GEGENSEITIG. */
+  isMutualFollowingWithAnchor?: boolean;
+  /** Dieser Zuschauer hat dir schon einmal etwas geschenkt. */
+  isGiftGiverOfAnchor?: boolean;
 }
 
 /** Daten, aus denen sich die Rolle eines Zuschauers ableiten lässt. */
@@ -132,7 +167,9 @@ interface RawRoleData {
  * TTS-Filter ("nur Mods/Follower") zuverlässig greift (sonst werden z.B. Mods
  * übersprungen, weil ein einzelnes Flag fehlt). Reine Funktion → testbar.
  */
-export function detectRoles(data: RawRoleData): { isMod: boolean; isSub: boolean; isFollower: boolean } {
+export function detectRoles(data: RawRoleData): {
+  isMod: boolean; isSub: boolean; isFollower: boolean; isMutual: boolean; hatGeschenkt: boolean;
+} {
   const id = data.userIdentity ?? data.UserIdentity;
   const u = data.user;
   const followStatus = Number(u?.followInfo?.followStatus ?? u?.followStatus ?? 0);
@@ -140,6 +177,14 @@ export function detectRoles(data: RawRoleData): { isMod: boolean; isSub: boolean
     isMod: !!id?.isModeratorOfAnchor,
     isSub: !!id?.isSubscriberOfAnchor,
     isFollower: !!(id?.isFollowerOfAnchor || u?.isFollower || (Number.isFinite(followStatus) && followStatus >= 1)),
+    // Zwei Angaben, die TikTok an JEDER Chat-Nachricht mitschickt und die die
+    // App bisher weggeworfen hat. Beide sagen etwas über die BEZIEHUNG, nicht
+    // nur über den Status: „folgt euch gegenseitig" ist mehr als ein Follower,
+    // und „hat schon mal geschenkt" ist der Unterschied zwischen einem Gast und
+    // einem Stammgast. (Belegt: UserIdentity in tiktok-live-proto/v3, und in
+    // einem echten Cloud-Stream an jeder WebcastChatMessage vorhanden.)
+    isMutual: !!id?.isMutualFollowingWithAnchor,
+    hatGeschenkt: !!id?.isGiftGiverOfAnchor,
   };
 }
 
@@ -159,6 +204,11 @@ export function normalizeChat(
     if (roles.isSub) user.isSub = true;
     if (roles.isMod) user.isMod = true;
     if (roles.isFollower) user.isFollower = true;
+    // Nur setzen, wenn WAHR: Ein `false` würde sonst überschreiben, was das
+    // Rollen-Gedächtnis aus einem früheren Ereignis schon weiß. Nicht jede
+    // Nachricht trägt alle Angaben mit.
+    if (roles.isMutual) user.isMutual = true;
+    if (roles.hatGeschenkt) user.hatGeschenkt = true;
   }
   return { type: 'chat', ts, user, text: data.comment ?? data.content ?? '' };
 }
@@ -356,16 +406,36 @@ export function normalizeEnvelope(
 export function normalizeSuperfan(
   data: {
     user?: RawUser;
-    content?: { pieces?: Array<{ userValue?: { user?: RawUser } }> };
-    commonBarrageContent?: { pieces?: Array<{ userValue?: { user?: RawUser } }> };
+    content?: Bausteine;
+    commonBarrageContent?: Bausteine;
+    /** Teamherz-Angaben — hier steckt die STUFE, die bisher immer fehlte. */
+    fansLevelParam?: { currentGrade?: number | string; user?: RawUser };
   },
   beigetreten: boolean,
   ts: number,
 ): StudioEvent {
-  const ausBausteinen = [...(data.content?.pieces ?? []), ...(data.commonBarrageContent?.pieces ?? [])]
+  const ausBausteinen = [...bausteine(data.content), ...bausteine(data.commonBarrageContent)]
     .map((p) => p?.userValue?.user)
     .find((u) => u);
-  return { type: 'superfan', ts, user: toUser(data.user ?? ausBausteinen), superfanNeu: beigetreten };
+  // Drei Wege zum Absender, in absteigender Verlässlichkeit. `fansLevelParam.user`
+  // ist neu: In einem echten Cloud-Stream war es das EINZIGE Feld mit einem
+  // Nutzer darin — die anderen beiden waren leer, und das Ereignis lief ohne
+  // Namen durch (keine Punkte, kein Eintrag in der Bestenliste, kein Name in
+  // der Ansage).
+  const user = toUser(data.user ?? ausBausteinen ?? data.fansLevelParam?.user);
+  // Die Teamherz-Stufe steckt bei dieser Nachricht in `fansLevelParam.currentGrade`
+  // und NICHT beim Nutzer. Sie wandert trotzdem in den Nutzer statt in ein
+  // eigenes Ereignis-Feld: Dann greifen Rollen-Gedächtnis, Anzeige und Logzeile
+  // automatisch mit — sonst wäre dieselbe Angabe an zwei Stellen gepflegt, und
+  // eine davon liefe irgendwann hinterher. Genau daran ist diese App schon
+  // mehrfach erblindet.
+  const stufe = ersteZahl(data.fansLevelParam?.currentGrade);
+  return {
+    type: 'superfan',
+    ts,
+    user: user && stufe > 0 && !user.teamLevel ? { ...user, teamLevel: stufe } : user,
+    superfanNeu: beigetreten,
+  };
 }
 
 /**
@@ -386,11 +456,44 @@ export const ENVELOPE_SUPER_FAN_BOX = 19;
 
 /** v2 splittet WebcastSocialMessage selbst in follow/share/join — wir mappen 1:1. */
 export function normalizeSocial(
-  data: { user?: RawUser },
+  data: {
+    user?: RawUser;
+    /** Nur beim Betreten (WebcastMemberMessage): TikTok sagt dabei mit, ob der
+     *  Zuschauer zu den Top-Supportern des Streams gehört — inklusive Platz und
+     *  Punktzahl. Die Angaben lagen an jedem Beitritt bei und wurden bisher
+     *  verworfen. Für einen kleinen Kanal ist „Platz 2 betritt den Raum" die
+     *  wertvollste Sekunde des Abends. */
+    isTopUser?: boolean;
+    rankScore?: number | string;
+    topUserNo?: number | string;
+  } & RawRoleData,
   kind: 'follow' | 'share' | 'join',
   ts: number,
 ): StudioEvent {
-  return { type: kind, ts, user: toUser(data.user) };
+  const user = toUser(data.user);
+  if (user) {
+    // Auch am Beitritt hängen die Beziehungs-Angaben — nur setzen, wenn wahr
+    // (siehe normalizeChat).
+    const roles = detectRoles(data);
+    if (roles.isMod) user.isMod = true;
+    if (roles.isSub) user.isSub = true;
+    if (roles.isFollower) user.isFollower = true;
+    if (roles.isMutual) user.isMutual = true;
+    if (roles.hatGeschenkt) user.hatGeschenkt = true;
+  }
+  const platz = ersteZahl(data.topUserNo);
+  const punkte = ersteZahl(data.rankScore);
+  // „Ehrengast" nur, wenn TikTok es sagt ODER ein echter Platz mitkam. Eine
+  // Punktzahl allein reicht nicht: Die hat fast jeder, der schon mal da war.
+  const ehrengast = !!data.isTopUser || platz > 0;
+  return {
+    type: kind,
+    ts,
+    user,
+    ...(kind === 'join' && ehrengast
+      ? { ehrengast: { ...(platz > 0 ? { platz } : {}), ...(punkte > 0 ? { punkte } : {}) } }
+      : {}),
+  };
 }
 
 export function normalizeViewerCount(
@@ -405,11 +508,23 @@ export function normalizeViewerCount(
     viewerCount?: number | string; totalUser?: number | string; total?: number | string;
     anonymous?: number | string;
     ranks?: Array<{ rank?: number | string; score?: number | string; user?: RawUser }>;
+    /** Dieselbe Liste in eulerstreams Schreibweise — siehe liste(). */
+    ranksList?: Array<{ rank?: number | string; score?: number | string; user?: RawUser }>;
+    /** TikToks EIGENER Beliebtheitswert für den Raum. Kommt im Sekundentakt mit
+     *  und wurde bisher weggeworfen. Laut Schema ein String (v3: `popularity:
+     *  string`), `popStr` ist die bereits aufbereitete Anzeigeform. */
+    popularity?: number | string;
+    popStr?: string;
   },
   ts: number,
 ): StudioEvent {
+  // TikToks eigener Beliebtheitswert. `popularity` ist laut Schema ein String;
+  // `popStr` kann eine gekürzte Anzeigeform sein („1.2K"), deshalb erst die
+  // rohe Zahl versuchen. Kommt nichts Zählbares, bleibt das Feld weg statt auf
+  // 0 zu stehen — eine 0 sähe aus wie „Beliebtheit null" statt „nicht geliefert".
+  const beliebtheit = ersteZahl(data.popularity, data.popStr);
   const beste: RaumPlatz[] = [];
-  for (const [i, eintrag] of (Array.isArray(data.ranks) ? data.ranks : []).entries()) {
+  for (const [i, eintrag] of liste(data.ranks, data.ranksList).entries()) {
     const user = toUser(eintrag?.user);
     if (!user) continue; // ohne erkennbaren Zuschauer ist der Platz wertlos
     beste.push({ platz: zahl(eintrag?.rank) || i + 1, punkte: zahl(eintrag?.score), user });
@@ -420,5 +535,6 @@ export function normalizeViewerCount(
     viewerCount: zahl(data.viewerCount ?? data.totalUser ?? data.total),
     ...(data.anonymous !== undefined ? { anonymousViewers: zahl(data.anonymous) } : {}),
     ...(beste.length > 0 ? { raumBeste: beste } : {}),
+    ...(beliebtheit > 0 ? { beliebtheit } : {}),
   };
 }
