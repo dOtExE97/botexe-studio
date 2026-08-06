@@ -3,6 +3,63 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.52.0] — 2026-08-06
+
+Ein echter PK-Kampf und zwei angepinnte Nachrichten haben gereicht, um drei
+Dinge zu bauen, die vorher nur Vermutung waren.
+
+### Neu: PK-Kämpfe ⚔️
+Zwei Streamer treten gegeneinander an, die Zuschauer schenken, und wessen Seite
+mehr Punkte hat, gewinnt. Für viele Streamer der wichtigste Moment des Abends —
+die App hat davon **gar nichts** mitbekommen.
+
+```
+PK-Kampf gestartet gegen 1 Gegner · 5 Minuten.
+PK-Stand: 4200 : 3100 — du führst mit 1100
+PK-Kampf beendet.
+```
+
+Ausgelesen werden Punktestand beider Seiten, wer führt, wer welches Geschenk
+beisteuert, Start, Dauer und Ergebnis. **Die eigene Zahl steht immer vorn** —
+„4200 : 3100" allein sagt nichts, wenn man nicht weiß, welche die eigene ist.
+
+Der Punktestand kommt rund **62×** pro Kampf; ins Log geht er nur, wenn er sich
+wirklich geändert hat. Sonst wäre das Log nach einem Kampf unlesbar.
+
+### Neu: Angepinnte Nachrichten 📌
+Was der Streamer oben festhält, sieht bisher nur, wer in der TikTok-App
+zuschaut. Jetzt steht es im Log — und die Daten reichen für ein Overlay-Widget:
+
+```
+Chat-Nachricht angepinnt von Noni: „Heute nur Chill-Zocken"
+Geschenk angepinnt von marie_x: Löwe ×3
+Angepinnte Nachricht wieder gelöst.
+```
+
+Alle fünf Sorten werden unterschieden (Chat, Geschenk, Beitritt, Social, Like),
+und das **Lösen** ist mit dabei — ohne das bliebe ein Pin für den Rest des
+Abends stehen.
+
+### Behoben: Das Profilbild des Streamers
+Es fehlte weiterhin, obwohl Name und Titel längst ankamen. Der Grund war klein
+und typisch: Im `roomInfo`-Rahmen ist `avatarUrl` eine **fertige Adresse als
+Text**, in der Live-Ansage dagegen ein **Objekt** mit `urlList`. Die Funktion
+kannte nur die Objekt-Form.
+
+Damit kommen aus demselben Rahmen jetzt auch die **Follower-Zahl** und die
+**echte Stream-Startzeit** — ohne zusätzlichen Abruf, sie lagen die ganze Zeit
+im Live-Strom.
+
+### Behoben: Der Diagnose-Modus verschwieg Varianten
+Feldlisten wurden **einmal je Nachrichtenart** ausgegeben. Eine Art kann aber
+je nach Anlass ganz verschieden aussehen: Beim Anpinnen eines Geschenks steht
+etwas anderes drin als beim Anpinnen einer Chat-Nachricht.
+
+Genau das ist passiert — im Log stand nur die Geschenk-Form, die Chat-Form
+wurde stillschweigend verschluckt. Ein daraus gebautes Widget wäre bei jeder
+gepinnten Chat-Nachricht leer geblieben, ohne Fehlermeldung. Jetzt werden die
+ersten **drei** Formen je Art gezeigt, mit Kennzeichnung.
+
 ## [0.51.1] — 2026-08-05
 
 Zwei Korrekturen an der Bilanz aus v0.49.0 — beide aufgedeckt vom ersten

@@ -38,7 +38,8 @@ export function buildCloudUrl(opts: { uniqueId: string; apiKey: string; baseUrl?
 }
 
 export type CloudEmitEvent = 'chat' | 'gift' | 'like' | 'follow' | 'share' | 'member' | 'roomUser'
-  | 'subNotify' | 'envelope' | 'superFan' | 'superFanJoin' | 'emote' | 'rankUpdate';
+  | 'subNotify' | 'envelope' | 'superFan' | 'superFanJoin' | 'emote' | 'rankUpdate'
+  | 'linkMicBattle' | 'linkMicArmies' | 'roomPin';
 
 /** Name, Bild und Livetitel des STREAMERS selbst.
  *
@@ -110,6 +111,20 @@ const TYPE_TO_EVENT: Record<string, CloudEmitEvent> = {
   WebcastRankUpdateMessage: 'rankUpdate',
   rankUpdate: 'rankUpdate',
 
+  // PK-Kämpfe. Bis v0.49.0 standen beide auf der Liste „harmlos, nicht
+  // melden" und wurden stumm verworfen — für viele Streamer der wichtigste
+  // Moment des Abends. Nach dem Entstummen hat ein echter Kampf gezeigt,
+  // was ankommt: der Rahmen 2×, der Punktestand 62×.
+  WebcastLinkMicBattle: 'linkMicBattle',
+  linkMicBattle: 'linkMicBattle',
+  WebcastLinkMicArmies: 'linkMicArmies',
+  linkMicArmies: 'linkMicArmies',
+
+  // Angepinnte Nachrichten. Stand bis eben auf der Liste „harmlos" — dabei
+  // ist es das, was der Streamer AUSDRÜCKLICH hervorheben wollte.
+  WebcastRoomPinMessage: 'roomPin',
+  roomPin: 'roomPin',
+
   // BEIDE Schreibweisen konsequent, auch für die Grundarten. eulerstream mischt
   // Protokoll-Namen („WebcastChatMessage") und Kurznamen der Bibliothek
   // („superFan") — belegt in einem echten Stream. Für Chat, Geschenke, Likes,
@@ -167,10 +182,7 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
     // nutzt oft nur einen Bruchteil der Felder — welche das sind und was
     // daneben liegt, war bisher unsichtbar. Nur im Diagnose-Modus und nur
     // einmal je Art; wieder ausschließlich die NAMEN, nie die Werte.
-    if (diagnoseAktiv()) {
-      log.einmal(`tiktok:felder:${type}`, 'info', 'TikTok',
-        `„${type}" bringt diese Felder mit: ${felderVon(data)}.`);
-    }
+    zeigeFelder(type, data);
     return { kind: 'event', event: direct, data };
   }
 
@@ -180,10 +192,7 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
   // feststellbar, ob `roomInfo` überhaupt ankommt und was darin steht. Aus
   // seinem Fehlen im Log wurde geschlossen, es käme nie — tatsächlich kommt es
   // einmal je Verbindung.
-  if (diagnoseAktiv()) {
-    log.einmal(`tiktok:felder:${type}`, 'info', 'TikTok',
-      `„${type}" bringt diese Felder mit: ${felderVon(data)}.`);
-  }
+  zeigeFelder(type, data);
 
   switch (type) {
     case 'WebcastSocialMessage': {
@@ -207,19 +216,13 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
     // Euler-Custom-Frames (kein Webcast-Protobuf):
     case 'tiktok.connect':
       return { kind: 'connected' };
-    case 'WebcastLiveIntroMessage': {
-      // HIER kommen Name, Bild und Livetitel des Streamers an — nicht in
-      // `roomInfo`, auf das die App jahrelang gewartet hat (siehe HostInfo).
-      // Die Nachricht kommt einmal kurz nach dem Verbinden.
-      const host = leseHost(data);
-      const titel = typeof data?.description === 'string' ? data.description.trim() : '';
-      const sprache = typeof data?.language === 'string' ? data.language.trim() : '';
-      if (!host && !titel) return null;
-      return {
-        kind: 'connected',
-        host: { ...(host ?? {}), ...(titel ? { titel } : {}), ...(sprache ? { sprache } : {}) },
-      };
-    }
+    // ZWEI Quellen für dieselben Angaben, und beide kommen wirklich an:
+    //   `roomInfo`                 → Name, BILD (avatarUrl), Follower, Startzeit
+    //   `WebcastLiveIntroMessage`  → Name, Bild, Livetitel, Sprache
+    // Sie ergänzen sich: Der Titel steht nur in der Live-Ansage, Follower und
+    // Startzeit nur im roomInfo-Rahmen. Deshalb werden BEIDE ausgewertet und
+    // das Ergebnis oben zusammengeführt — wer zuerst kommt, gewinnt nicht.
+    case 'WebcastLiveIntroMessage':
     case 'roomInfo':
       // Hier stecken Name und Profilbild des Streamers — bisher landete der
       // ganze Rahmen im Papierkorb. DEFENSIV auslesen: TikTok liefert das
@@ -294,6 +297,39 @@ export function felderVon(daten: unknown, max = 24): string {
   return namen.join(', ') || '(leer)';
 }
 
+/**
+ * Im Diagnose-Modus zeigen, welche Felder eine Nachricht mitbringt.
+ *
+ * NICHT nur beim ersten Mal — und das ist der Punkt. Eine Nachrichtenart kann
+ * je nach Anlass ganz VERSCHIEDEN aussehen: `WebcastRoomPinMessage` trägt mal
+ * `giftMessage`, mal `chatMessage`, mal `memberMessage`. Wer nur das erste
+ * Vorkommen protokolliert, sieht genau eine Form und hält sie für die einzige.
+ *
+ * Belegt: In einem echten Stream wurde erst ein Geschenk und danach eine
+ * Chat-Nachricht angepinnt. Im Log stand nur die Geschenk-Form — die zweite
+ * Nachricht wurde stillschweigend verschluckt. Ein daraus gebautes Widget wäre
+ * bei jeder gepinnten Chat-Nachricht leer geblieben.
+ *
+ * Deshalb: die ersten DREI Vorkommen je Art. Genug, um Varianten zu sehen,
+ * wenig genug, dass 1122 Zuschauer-Ticks nicht das Log fluten.
+ */
+const felderGezeigt = new Map<string, number>();
+const FELDER_MAX_PRO_ART = 3;
+
+function zeigeFelder(type: string, data: unknown): void {
+  if (!diagnoseAktiv()) return;
+  const bisher = felderGezeigt.get(type) ?? 0;
+  if (bisher >= FELDER_MAX_PRO_ART) return;
+  felderGezeigt.set(type, bisher + 1);
+  const wievielt = bisher === 0 ? '' : ` (${bisher + 1}. Form)`;
+  log.info('TikTok', `„${type}"${wievielt} bringt diese Felder mit: ${felderVon(data)}.`);
+}
+
+/** Beim Verbinden zurücksetzen — sonst zeigt der zweite Stream des Abends nichts. */
+export function felderMerkerLeeren(): void {
+  felderGezeigt.clear();
+}
+
 /** Arten, die bekanntermaßen nichts bedeuten — die sollen das Log nicht füllen.
  *
  *  ACHTUNG BEIM ERWEITERN: Hier gehört NUR hinein, was die App auch dann nicht
@@ -312,7 +348,7 @@ export function felderVon(daten: unknown, max = 24): string {
  *
  *  Kurz: Diese Liste ist für RAUSCHEN, nicht für „noch nicht gebaut". */
 const HARMLOSE_ARTEN = new Set([
-  'workerInfo', 'decodeError', 'SyntheticPresence', 'WebcastRoomPinMessage',
+  'workerInfo', 'decodeError', 'SyntheticPresence',
   'WebcastCaptionMessage', 'WebcastImDeleteMessage',
   'WebcastInRoomBannerMessage', 'WebcastMsgDetectMessage',
 ]);
@@ -324,27 +360,78 @@ const HARMLOSE_ARTEN = new Set([
  *  fest verdrahtete Annahme, die beim nächsten TikTok-Umbau still bricht. */
 export function leseHost(roh: unknown): HostInfo | undefined {
   const d = roh as Record<string, unknown> | undefined;
+  if (!d) return undefined;
+
+  // Der Nutzer-Teil. Alle Pfade sind BELEGT aus echten Streams:
+  //   `user`  → roomInfo-Rahmen (eulerstream)
+  //   `host`  → WebcastLiveIntroMessage
+  //   `owner` → ältere/andere Fassungen, nie beobachtet, aber harmlos
   const kandidaten = [
-    // BELEGT: So kommt es wirklich an (WebcastLiveIntroMessage → `host`).
-    (d?.['host'] as Record<string, unknown> | undefined),
-    // Die drei folgenden Pfade waren geraten und haben nie getroffen. Sie
-    // bleiben stehen, falls eulerstream doch einmal einen roomInfo-Rahmen
-    // schickt — kosten aber nichts, wenn nicht.
-    (d?.['owner'] as Record<string, unknown> | undefined),
-    ((d?.['data'] as Record<string, unknown> | undefined)?.['owner'] as Record<string, unknown> | undefined),
-    (((d?.['data'] as Record<string, unknown> | undefined)?.['data'] as Record<string, unknown> | undefined)?.['owner'] as Record<string, unknown> | undefined),
-  ].filter(Boolean) as Record<string, unknown>[];
+    d['user'], d['host'], d['owner'],
+    (d['data'] as Record<string, unknown> | undefined)?.['owner'],
+    ((d['data'] as Record<string, unknown> | undefined)?.['data'] as Record<string, unknown> | undefined)?.['owner'],
+  ].filter((x): x is Record<string, unknown> => !!x && typeof x === 'object');
+
+  let nickname: string | undefined;
+  let avatar: string | undefined;
+  let follower: number | undefined;
   for (const o of kandidaten) {
-    const nickname = typeof o['nickname'] === 'string' ? o['nickname'] : undefined;
-    // `profilePicture` zuerst — das ist die Schreibweise, die im echten
-    // Stream ankommt. Die anderen sind Altlasten aus dem Raten.
-    const bild = o['profilePicture'] ?? o['avatar_thumb'] ?? o['avatarThumb'] ?? o['avatar_medium'] ?? o['avatarMedium'];
-    const liste = (bild as { url_list?: unknown[]; urlList?: unknown[] } | undefined);
-    const url = [...(liste?.url_list ?? []), ...(liste?.urlList ?? [])].find((u) => typeof u === 'string' && u.startsWith('http'));
-    if (nickname || url) return { ...(nickname ? { nickname } : {}), ...(url ? { avatar: String(url) } : {}) };
+    if (!nickname && typeof o['nickname'] === 'string' && o['nickname']) nickname = o['nickname'];
+    if (!avatar) avatar = leseBild(o);
+    if (follower === undefined && typeof o['followers'] === 'number') follower = o['followers'];
+    if (nickname && avatar && follower !== undefined) break;
   }
-  return undefined;
+
+  // Der RAUM-Teil: Titel, Startzeit, Zuschauer-Gesamtzahl. Nur im
+  // roomInfo-Rahmen; die Live-Ansage trägt den Titel unter `description`.
+  const raum = d['roomInfo'] as Record<string, unknown> | undefined;
+  const titel = [raum?.['title'], d['description']]
+    .find((t): t is string => typeof t === 'string' && t.trim().length > 0)?.trim();
+  const startetAt = leseZeit(raum?.['startTime']);
+  const sprache = typeof d['language'] === 'string' && d['language'] ? d['language'] : undefined;
+
+  const info: HostInfo = {
+    ...(nickname ? { nickname } : {}),
+    ...(avatar ? { avatar } : {}),
+    ...(titel ? { titel } : {}),
+    ...(sprache ? { sprache } : {}),
+    ...(startetAt ? { startetAt } : {}),
+    ...(follower !== undefined && follower > 0 ? { follower } : {}),
+  };
+  return Object.keys(info).length > 0 ? info : undefined;
 }
+
+/**
+ * Profilbild — TikTok liefert es in DREI Formen, alle belegt:
+ *   `avatarUrl`       fertige Adresse als Text   (roomInfo)
+ *   `profilePicture`  Objekt mit url/urlList     (Live-Ansage, Chat-Nutzer)
+ *   `avatarThumb` …   dasselbe unter altem Namen
+ * Die erste Fassung kannte nur die Objekt-Form und ließ das Bild deshalb leer,
+ * obwohl es als fertige Adresse danebenstand.
+ */
+function leseBild(o: Record<string, unknown>): string | undefined {
+  const direkt = o['avatarUrl'] ?? o['avatar_url'];
+  if (typeof direkt === 'string' && direkt.startsWith('http')) return direkt;
+  const objekt = o['profilePicture'] ?? o['avatar_thumb'] ?? o['avatarThumb']
+    ?? o['avatar_medium'] ?? o['avatarMedium'];
+  const liste = objekt as { url?: unknown[]; url_list?: unknown[]; urlList?: unknown[] } | undefined;
+  const url = [...(liste?.url ?? []), ...(liste?.url_list ?? []), ...(liste?.urlList ?? [])]
+    .find((u) => typeof u === 'string' && u.startsWith('http'));
+  return url ? String(url) : undefined;
+}
+
+/** Zeitstempel in ms. TikTok liefert mal Sekunden, mal Millisekunden —
+ *  unterschieden an der Größenordnung, nicht geraten. */
+function leseZeit(wert: unknown): number | undefined {
+  const n = typeof wert === 'string' ? Number(wert) : typeof wert === 'number' ? wert : NaN;
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  // Alles unter 10^12 kann keine Millisekunden-Zeit nach 2001 sein.
+  const ms = n < 1e12 ? n * 1000 : n;
+  // Sicherheitsnetz gegen Unfug: nicht vor 2020, nicht in der Zukunft.
+  if (ms < 1_577_836_800_000 || ms > Date.now() + 60_000) return undefined;
+  return ms;
+}
+
 
 /** Minimal-Interface eines WebSocket — in Tests durch Fake ersetzt. */
 export interface CloudWsLike {
@@ -504,6 +591,7 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
     // Verbindungen ist das Buch leer, dort passiert nichts.
     this.artenbuch.schreibeBericht();
     this.artenbuch.leeren();
+    felderMerkerLeeren();
     if (this.ws) {
       // Erst Handler abräumen (kein Geister-'disconnected'/'streamEnd' nach close),
       // dann schließen.
