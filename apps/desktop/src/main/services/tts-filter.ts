@@ -4,8 +4,16 @@
 import type { StudioEvent } from '@botexe/trigger-engine';
 
 /** Ankreuzbare Gruppen fürs Vorlesen (Multi-Select, ODER-verknüpft).
- *  App-VIPs (von dir markiert) werden immer vorgelesen. */
-export type ReadGroup = 'all' | 'followers' | 'subs' | 'mods' | 'vips';
+ *  App-VIPs (von dir markiert) werden immer vorgelesen.
+ *
+ *  `subs` und `teamherz` sind ZWEI VERSCHIEDENE DINGE und deshalb zwei
+ *  Häkchen — sie wurden lange in eins geworfen:
+ *    subs      = SUPERFAN, das bezahlte Abo (`isSub`). Kein Stufensystem.
+ *    teamherz  = TEAMHERZ, der gratis Fanclub. Hat eine STUFE (`teamLevel`),
+ *                auf die sich die Mindeststufe bezieht.
+ *  Solange die Stufe unter „Superfans" hing, musste man BEIDES sein, damit
+ *  überhaupt etwas vorgelesen wurde — der Filter griff praktisch nie. */
+export type ReadGroup = 'all' | 'followers' | 'subs' | 'teamherz' | 'mods' | 'vips';
 
 /** Legacy: alte Einzel-Stufe (vor dem Multi-Select). Nur noch für die Migration. */
 export type ReadWho = ReadGroup;
@@ -27,16 +35,15 @@ function groupMatches(group: ReadGroup, u: StudioEvent['user'], teamMinLevel = 0
   switch (group) {
     case 'all': return true;
     case 'mods': return !!u?.isMod;
-    case 'subs': {
-      if (!u?.isSub) return false;
-      // Mindest-Stufe: TikTok schickt die Teamherz-Stufe mit (Fan-Club-Level).
-      // 0 = keine Schwelle, jedes Teamherz zählt.
-      if (teamMinLevel <= 0) return true;
-      // Stufe unbekannt (nicht jedes Ereignis trägt Abzeichen-Daten) → zulassen.
-      // Lieber einmal zu viel vorlesen als einen echten Unterstützer stumm
-      // schalten, nur weil TikTok die Stufe gerade nicht mitgeschickt hat.
-      if (u.teamLevel === undefined) return true;
-      return u.teamLevel >= teamMinLevel;
+    // SUPERFAN = das bezahlte Abo. Keine Stufe, die gibt es dort nicht.
+    case 'subs': return !!u?.isSub;
+    // TEAMHERZ = der gratis Fanclub, MIT Stufe.
+    case 'teamherz': {
+      const stufe = u?.teamLevel ?? 0;
+      // Ohne Stufe kein Teamherz: TikTok schickt sie an jedem Zuschauer mit,
+      // der einen hat. Kein Wert heißt hier wirklich „keiner".
+      if (stufe <= 0) return false;
+      return teamMinLevel <= 0 || stufe >= teamMinLevel;
     }
     case 'followers': return !!u?.isFollower;
     case 'vips': return false; // nur App-VIPs (separat behandelt)
@@ -62,6 +69,57 @@ export function containsBlockedWord(text: string, blockedWords: string[]): boole
   });
 }
 
+/**
+ * Ist die Nachricht bloß eine nackte Zahl?
+ *
+ * Läuft ein Zahlenraten-Spiel, besteht der Chat minutenlang aus „42", „7",
+ * „100" — und die Sprachausgabe liest jede einzeln vor. Das ist kein Fehler
+ * im Filter, sondern schlicht keine sinnvolle Ansage.
+ *
+ * BEWUSST ENG gefasst: nur Ziffern, dazwischen höchstens Leerzeichen, Punkt
+ * oder Komma. „42" und „1.000" fliegen raus, „42!" und „ich sage 42" bleiben —
+ * wer einen Satz schreibt, will vorgelesen werden.
+ */
+export function istNurEineZahl(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  return /^\d[\d\s.,]*$/.test(t);
+}
+
+/**
+ * Greift die eingestellte Teamherz-Mindeststufe überhaupt?
+ *
+ * NEIN, sobald „Alle Zuschauer" mit angekreuzt ist: Die Gruppen sind
+ * ODER-verknüpft, und „Alle" trifft immer zuerst zu. Die Stufe steht dann in
+ * der Oberfläche, tut aber nichts — eine Einstellung, die zu wirken scheint
+ * und es nicht tut. Genau so gemeldet: „TTS nur mit Teamherz Stufe 3, es wird
+ * trotzdem alles vorgelesen."
+ */
+export function stufeWirktNicht(groups: ReadGroup[], teamMinLevel: number): boolean {
+  if (teamMinLevel <= 0) return false;
+  // „Alle" schlägt jede Stufe — die Gruppen sind ODER-verknüpft.
+  if (groups.includes('all')) return true;
+  // Und ohne die Gruppe „Teamherz" bezieht sich die Stufe auf gar nichts.
+  return !groups.includes('teamherz');
+}
+
+/**
+ * Ist bei „Wer wird vorgelesen" gar nichts angekreuzt?
+ *
+ * Dann ist Schluss: Ohne Gruppe trifft nichts zu, und es wird KEINE
+ * Chat-Nachricht mehr vorgelesen — nur die ★VIPs, die man im Zuschauer-Tab
+ * selbst markiert hat, kommen noch durch.
+ *
+ * Das ist die andere Hälfte derselben Falle: Nimmt man das Häkchen bei „Alle
+ * Zuschauer" weg (weil die Teamherz-Stufe sonst nicht greift) und kreuzt nichts
+ * anderes an, wird es schlagartig komplett still. Begründet wurde das bisher
+ * nur auf der Debug-Ebene — also für den Nutzer gar nicht. Man setzt das
+ * Häkchen wieder und ist genauso schlau wie vorher.
+ */
+export function niemandWirdVorgelesen(groups: ReadGroup[]): boolean {
+  return groups.length === 0;
+}
+
 export function shouldReadChat(
   event: StudioEvent,
   groups: ReadGroup[],
@@ -85,4 +143,53 @@ export function shouldReadChat(
   const groupOk = isAppVip || groups.some((g) => groupMatches(g, u, teamMinLevel));
 
   return groupOk ? { read: true, text } : { read: false, text, reason: 'group' };
+}
+
+// ── Emojis ─────────────────────────────────────────────────────────────────
+// Vorlese-Stimmen sprechen Emojis entweder aus („Sonne mit Gesicht, rotes
+// Herz, Funken") oder verschlucken sie. Beides stört: Aus „☀️Sarüüüh❤️✨☀️"
+// wird eine Litanei, bevor überhaupt der Name kommt.
+//
+// Zwei getrennte Schalter, weil es zwei getrennte Ärgernisse sind: Emojis IM
+// TEXT sind oft Teil der Aussage („😂😂"), Emojis IM NAMEN nie.
+
+/**
+ * Alle Emojis und ihr Beiwerk entfernen.
+ *
+ * Nicht nur das Bildzeichen selbst: Hautfarben-Modifikatoren, Variantenwähler
+ * und der Zero-Width-Joiner (der zusammengesetzte Emojis wie 👨‍👩‍👧 verklebt)
+ * müssen mit weg. Bleiben sie stehen, hat man unsichtbare Zeichen im Text —
+ * und manche Stimmen stolpern genau darüber.
+ *
+ * Ziffern und Rautezeichen bleiben ausdrücklich erhalten: Sie sind zwar Teil
+ * mancher Emoji-Folgen (0️⃣, #️⃣), aber viel häufiger einfach Text.
+ */
+export function entferneEmoji(text: string): string {
+  return text
+    // Das Bildzeichen selbst.
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    // Flaggen: zwei Regionalzeichen, die zusammen ein Land ergeben.
+    .replace(/\p{Regional_Indicator}/gu, '')
+    // Das Beiwerk EINZELN, nicht als eine Zeichenklasse: Hautfarbe,
+    // Variantenwähler, Kombi-Fuge (ZWJ), Umrahmung. In eine Klasse geworfen
+    // sieht es aus, als ließe sich damit ein zusammengesetztes Emoji treffen —
+    // kann es nicht, und der Linter beanstandet das zu Recht.
+    .replace(/[\u{1F3FB}-\u{1F3FF}]/gu, '')
+    .replace(/︎|️/g, '')
+    .replace(/‍/g, '')
+    .replace(/⃣/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Name ohne Emojis — aber niemals ein LEERER Name.
+ *
+ * Es gibt Zuschauer, deren Anzeigename nur aus Emojis besteht. Würde man den
+ * blank putzen, sagte die Ansage „ sagt: hallo" — schlimmer als ein paar
+ * vorgelesene Bildzeichen. In dem Fall bleibt der Name, wie er ist.
+ */
+export function nameOhneEmoji(name: string): string {
+  const sauber = entferneEmoji(name);
+  return sauber.length > 0 ? sauber : name;
 }

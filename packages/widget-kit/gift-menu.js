@@ -76,12 +76,12 @@ const CSS = `
    Speisekarten-Zeile (Name … Punkte … Preis). */
 .bx-gm-line { flex:none; display:flex; align-items:center; justify-content:center; gap:.45em;
   max-width:100%; width:100%; min-width:0; }
-.bx-gm-name { flex:0 1 auto; min-width:0; font-family: var(--bx-font-display); font-size:1.05em; line-height:1.15;
+.bx-gm-name { flex:0 1 auto; min-width:0; font-family: var(--bx-font-display); font-size:calc(1.05em * var(--bx-gm-name-fs,1)); line-height:1.15;
   text-transform:uppercase; letter-spacing:.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.bx-gm-coins { flex:none; display:inline-flex; align-items:center; gap:.25em; font-size:.62em; line-height:1;
+.bx-gm-coins { flex:none; display:inline-flex; align-items:center; gap:.25em; font-size:calc(.62em * var(--bx-gm-coins-fs,1)); line-height:1;
   padding:.3em .55em; border-radius:99em; background: rgba(255,255,255,.1);
   color: var(--bx-gold,#ffd23e); white-space:nowrap; }
-.bx-gm-act { flex:none; max-width:100%; font-size:.82em; line-height:1.25; opacity:.95;
+.bx-gm-act { flex:none; max-width:100%; font-size:calc(.82em * var(--bx-gm-act-fs,1)); line-height:1.25; opacity:.95;
   display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; line-clamp:3; overflow:hidden;
   overflow-wrap:anywhere; }
 .bx-gm-act b { font-family: var(--bx-font-display); font-weight:400; color: var(--bx-accent,#ff5e8a); }
@@ -325,11 +325,16 @@ const CSS = `
 .bx-gm-chip { position:relative; overflow:hidden; display:inline-flex; align-items:center; gap:.4em;
   flex:none; height:3.05em; box-sizing:border-box; padding:.26em .62em .26em .42em; border-radius:.5em; }
 .bx-gm-chip .bx-gm-ic { width:2.15em; height:2.15em; }
+/* Die Textspalte wächst MIT der eingestellten Schriftgröße der Wirkung.
+   Ohne das lief die Vergrößerung ins Leere: Der Text wurde größer, die Spalte
+   blieb 9.5em breit — und schnitt genau die Information ab, die man größer
+   sehen wollte („Ich mache 10 Liegestü…"). Im Laufband ist nach rechts Platz
+   ohne Ende, das darf ruhig breiter werden. */
 .bx-gm-txt { display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
-  gap:.1em; min-width:0; max-width:9.5em; }
+  gap:.1em; min-width:0; max-width:calc(9.5em * var(--bx-gm-act-fs, 1)); }
 /* Im Laufband darf der Name NICHT schrumpfen — dort ist Platz nach rechts
    ohne Ende, ein schrumpfbarer Name wäre auf 0 zusammengefallen. */
-.bx-gm-chip .bx-gm-name { flex:none; font-size:.82em; line-height:1.05; }
+.bx-gm-chip .bx-gm-name { flex:none; font-size:calc(.82em * var(--bx-gm-name-fs,1)); line-height:1.05; }
 .bx-gm-chip .bx-gm-line { width:auto; justify-content:flex-start; gap:.32em; }
 /* Die Speisekarten-Führungslinie der Preistafel gehört auf die große Karte.
    In der schmalen Laufband-Kachel blieb davon nur ein sinnloser Strich
@@ -338,9 +343,9 @@ const CSS = `
 /* Dasselbe für die Namensplatte der Sammelkarte: als Balken hinter einem
    zweizeiligen Kacheltext wirkte sie wie ein Kasten im Kasten. */
 .bx-gm-chip .bx-gm-line { background:none; padding:0; }
-.bx-gm-chip .bx-gm-act { font-size:.62em; line-height:1.1; opacity:.92; max-width:100%;
+.bx-gm-chip .bx-gm-act { font-size:calc(.62em * var(--bx-gm-act-fs,1)); line-height:1.1; opacity:.92; max-width:100%;
   -webkit-line-clamp:1; line-clamp:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bx-gm-chip .bx-gm-coins { font-size:.46em; padding:.28em .5em; }
+.bx-gm-chip .bx-gm-coins { font-size:calc(.46em * var(--bx-gm-coins-fs,1)); padding:.28em .5em; }
 /* Der Pfeil ist im Laufband überflüssig — die zweite Zeile IST die Wirkung. */
 .bx-gm-chip .bx-gm-arr { display:none; }
 
@@ -390,11 +395,11 @@ const CSS = `
   width:78cqh; height:76cqh; gap:1cqh; padding:3cqh 3cqh 4cqh; }
 .bx-gm-t-quadrat .bx-gm-chip .bx-gm-ic { width:38cqh; height:38cqh; }
 .bx-gm-t-quadrat .bx-gm-txt { align-items:center; max-width:100%; gap:0; }
-.bx-gm-t-quadrat .bx-gm-chip .bx-gm-name { font-size:13cqh; line-height:1.05; max-width:66cqh;
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-name { font-size:calc(13cqh * var(--bx-gm-name-fs,1)); line-height:1.05; max-width:66cqh;
   overflow:hidden; text-overflow:ellipsis; }
-.bx-gm-t-quadrat .bx-gm-chip .bx-gm-act { font-size:10.5cqh; line-height:1.1; max-width:66cqh; }
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-act { font-size:calc(10.5cqh * var(--bx-gm-act-fs,1)); line-height:1.1; max-width:66cqh; }
 /* Preis als Eck-Marke — im Quadrat ist keine Zeile dafür frei. */
-.bx-gm-t-quadrat .bx-gm-chip .bx-gm-coins { position:absolute; top:2cqh; right:2cqh; font-size:8cqh;
+.bx-gm-t-quadrat .bx-gm-chip .bx-gm-coins { position:absolute; top:2cqh; right:2cqh; font-size:calc(8cqh * var(--bx-gm-coins-fs,1));
   padding:.9cqh 2cqh; }
 .bx-gm-t-quadrat .bx-gm-chip .bx-gm-line { justify-content:center; }
 /* Challenge-Countdown: das Geschenk füllt hier schon die obere Hälfte der
@@ -418,9 +423,9 @@ const CSS = `
 .bx-gm-t-etikett .bx-gm-chip .bx-gm-line { position:absolute; left:0; bottom:0; width:78cqh;
   justify-content:center; gap:1.5cqh; padding:1.5cqh 0; box-sizing:border-box;
   background:rgba(6,7,14,.82); }
-.bx-gm-t-etikett .bx-gm-chip .bx-gm-name { font-size:11cqh; max-width:56cqh; overflow:hidden; text-overflow:ellipsis; }
-.bx-gm-t-etikett .bx-gm-chip .bx-gm-coins { font-size:8cqh; padding:.8cqh 1.8cqh; }
-.bx-gm-t-etikett .bx-gm-chip .bx-gm-act { font-size:13cqh; max-width:52cqh; white-space:normal;
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-name { font-size:calc(11cqh * var(--bx-gm-name-fs,1)); max-width:56cqh; overflow:hidden; text-overflow:ellipsis; }
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-coins { font-size:calc(8cqh * var(--bx-gm-coins-fs,1)); padding:.8cqh 1.8cqh; }
+.bx-gm-t-etikett .bx-gm-chip .bx-gm-act { font-size:calc(13cqh * var(--bx-gm-act-fs,1)); max-width:52cqh; white-space:normal;
   -webkit-line-clamp:2; line-clamp:2; display:-webkit-box; -webkit-box-orient:vertical; text-overflow:clip; }
 /* Challenge-Countdown: die (jetzt größere) Kapsel würde in der em-Bemessung
    der Basisregel in die groß gesetzte Wirkung (13cqh, mittig neben dem Bild)
@@ -474,7 +479,7 @@ const CSS = `
 .bx-gm-t-untertitel .bx-gm-chip .bx-gm-ic { top:0; }
 .bx-gm-t-untertitel .bx-gm-chip .bx-gm-line { position:absolute; left:0; right:0; top:1.5cqh;
   justify-content:flex-start; padding:0 2cqh; background:none; }
-.bx-gm-t-untertitel .bx-gm-chip .bx-gm-name { font-size:9.5cqh; max-width:56cqh; opacity:.95;
+.bx-gm-t-untertitel .bx-gm-chip .bx-gm-name { font-size:calc(9.5cqh * var(--bx-gm-name-fs,1)); max-width:56cqh; opacity:.95;
   -webkit-text-stroke: max(2px,.5cqh) #0a0b12; paint-order: stroke fill; }
 .bx-gm-t-untertitel .bx-gm-chip .bx-gm-act { position:absolute; left:0; right:0; bottom:0;
   padding:2.5cqh 2cqh 3cqh; box-sizing:border-box;
@@ -488,7 +493,7 @@ const CSS = `
 .bx-gm-t-banderole .bx-gm-chip .bx-gm-ic { top:11cqh; }
 .bx-gm-t-banderole .bx-gm-chip .bx-gm-line { position:absolute; left:0; right:0; top:2cqh;
   justify-content:flex-start; background:none; padding:0 30cqh 0 3cqh; box-sizing:border-box; }
-.bx-gm-t-banderole .bx-gm-chip .bx-gm-name { font-size:10cqh; max-width:100%; opacity:.95;
+.bx-gm-t-banderole .bx-gm-chip .bx-gm-name { font-size:calc(10cqh * var(--bx-gm-name-fs,1)); max-width:100%; opacity:.95;
   -webkit-text-stroke: max(2px,.5cqh) #0a0b12; paint-order: stroke fill; }
 .bx-gm-t-banderole .bx-gm-chip .bx-gm-act { position:absolute; left:1cqh; right:1cqh; top:42cqh;
   rotate:-7deg; padding:1.6cqh 0; box-sizing:border-box;
@@ -509,7 +514,7 @@ const CSS = `
 /* Ohne Coin-Preis (Gift noch nie gesehen) blieb hier eine LEERE Pille als
    dunkler Klecks unter dem Geschenk stehen. */
 .bx-gm-t-ablage .bx-gm-chip .bx-gm-line { justify-content:center; background:none; padding:0; }
-.bx-gm-t-ablage .bx-gm-chip .bx-gm-coins { font-size:15cqh; padding:1.4cqh 3cqh;
+.bx-gm-t-ablage .bx-gm-chip .bx-gm-coins { font-size:calc(15cqh * var(--bx-gm-coins-fs,1)); padding:1.4cqh 3cqh;
   background:rgba(0,0,0,.55); box-shadow:0 0 0 max(1px,.02em) rgba(255,255,255,.18); }
 .bx-gm-arr { flex:none; opacity:.55; font-size:.85em; }
 
@@ -585,7 +590,7 @@ const CSS = `
   border-bottom: max(1px,.03em) dotted rgba(238,245,232,.5); }
 .bx-st-tafel .bx-gm-line .bx-gm-name { order:-1; }
 .bx-st-tafel .bx-gm-line .bx-gm-coins { order:1; }
-.bx-st-tafel .bx-gm-coins { background:none; padding:0; font-size:.72em;
+.bx-st-tafel .bx-gm-coins { background:none; padding:0; font-size:calc(.72em * var(--bx-gm-coins-fs,1));
   font-family: var(--bx-font-display); color:#ffe08a; text-shadow: 0 0 .16em rgba(255,208,120,.5); }
 .bx-st-tafel .bx-gm-act { align-self:stretch; text-align:left; color:#dfe9d8; letter-spacing:.02em; }
 .bx-st-tafel .bx-gm-act b { color: color-mix(in srgb, var(--bx-accent,#ff5e8a) 55%, #fff); }
@@ -731,9 +736,9 @@ const CSS = `
     drop-shadow(0 .1em .2em rgba(0,0,0,.8)); }
 .bx-frameless .bx-gm-title { -webkit-text-stroke: max(2.5px,.07em) #0a0b12; paint-order: stroke fill;
   opacity:1; text-shadow: 0 .1em .18em rgba(0,0,0,.6); }
-.bx-frameless .bx-gm-name { font-size:1.24em; color:#fff; -webkit-text-stroke: max(3px,.085em) #0a0b12; paint-order: stroke fill;
+.bx-frameless .bx-gm-name { font-size:calc(1.24em * var(--bx-gm-name-fs,1)); color:#fff; -webkit-text-stroke: max(3px,.085em) #0a0b12; paint-order: stroke fill;
   text-shadow: 0 .08em .14em rgba(0,0,0,.6); }
-.bx-frameless .bx-gm-act { font-size:.92em; color:#fff; -webkit-text-stroke: max(2.5px,.07em) #0a0b12; paint-order: stroke fill;
+.bx-frameless .bx-gm-act { font-size:calc(.92em * var(--bx-gm-act-fs,1)); color:#fff; -webkit-text-stroke: max(2.5px,.07em) #0a0b12; paint-order: stroke fill;
   text-shadow: 0 .08em .14em rgba(0,0,0,.55); }
 /* Preis ohne Pille, als Gold-Sticker mit Kontur — eine Pille ohne Karte wirkt
    wie ein vergessenes Bruchstück. */
@@ -1453,6 +1458,27 @@ export default class GiftMenu {
     this.luckyRunning = false; // Lucky-Card (Task 1): verhindert überlappende Draws
 
     if (props.accent) root.style.setProperty('--bx-accent', String(props.accent));
+
+    // SCHRIFTGRÖSSEN EINZELN.
+    //
+    // Der globale Regler (--bx-fs) vergrößert alles gleichzeitig — auch das
+    // Geschenkbild und die Kachel. Wer nur die WIRKUNG größer haben will
+    // („was löst dieses Geschenk aus"), musste bisher das ganze Widget
+    // aufblasen. Diese drei Faktoren multiplizieren gezielt je Textsorte und
+    // greifen in ALLEN Kachelformen, weil jede font-size-Regel den Faktor
+    // mitrechnet.
+    //
+    // Der Auslöser-Text steht ab Werk auf 130%: Er ist die eigentliche
+    // Botschaft der Tafel und war mit .82em (im Laufband sogar .62em) das
+    // Kleinste im Widget — genau andersherum als gedacht.
+    const skala = (wert, standard) => {
+      const n = Number(wert);
+      // 50–300 %: darunter unlesbar, darüber sprengt es jede Kachel.
+      return Number.isFinite(n) && n > 0 ? Math.min(300, Math.max(50, n)) / 100 : standard;
+    };
+    root.style.setProperty('--bx-gm-name-fs', String(skala(props.nameScale, 1)));
+    root.style.setProperty('--bx-gm-act-fs', String(skala(props.aktionScale, 1.3)));
+    root.style.setProperty('--bx-gm-coins-fs', String(skala(props.coinsScale, 1)));
     this.mode = MODES.has(props.mode) ? props.mode : 'rotation';
     this.style = STYLES.has(props.style) ? props.style : 'karte';
     this.timerStyle = TIMER_STYLES.has(props.timerStyle) ? props.timerStyle : 'balken';

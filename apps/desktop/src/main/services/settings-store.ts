@@ -30,6 +30,17 @@ export interface TTSSettings {
   teamMinLevel?: number;
   /** Nachrichten, die mit ! beginnen, nicht vorlesen (Befehle). */
   skipCommands: boolean;
+  /** Nachrichten, die nur aus einer Zahl bestehen, nicht vorlesen.
+   *
+   *  Für Zahlenraten & Co.: Dort besteht der Chat minutenlang aus „42", „7",
+   *  „100" — jede einzeln vorgelesen ist Lärm, kein Erlebnis. */
+  skipNumbers?: boolean;
+  /** Emojis im NACHRICHTENTEXT nicht mitsprechen. */
+  skipEmojiText?: boolean;
+  /** Emojis im NAMEN des Zuschauers nicht mitsprechen („☀️Sarüüüh❤️✨" →
+   *  „Sarüüüh"). Besteht ein Name NUR aus Emojis, bleibt er wie er ist —
+   *  ein leerer Name wäre schlimmer. */
+  skipEmojiName?: boolean;
   maxTextLen: number;
   /** Vorlese-Format, z.B. '{user} sagt: {text}' */
   chatTemplate: string;
@@ -83,6 +94,13 @@ export interface StudioSettings {
   hostTitel?: string;
   /** Follower-Gesamtzahl des Kanals (aus der Raum-Info, nicht aus dem Live-Strom). */
   hostFollower?: number;
+  /** Die eigene TikTok-Nutzer-ID (rein numerisch, als Text).
+   *
+   *  Wird beim Verbinden aus dem Raum-Datensatz gelesen und hier behalten,
+   *  damit die Auswertung auch dann weiß, welche Seite die eigene war, wenn
+   *  gerade kein Stream läuft. Kein Geheimnis: Die ID steht in jedem
+   *  öffentlichen Profil. */
+  hostUserId?: string;
   /** Bewegung in der Oberfläche: Zahlen zählen hoch, Kurven zeichnen sich,
    *  Balken wachsen. Auf einem schwachen Rechner kostet das spürbar Leistung —
    *  und wer die App den ganzen Abend offen hat, will die Schau vielleicht
@@ -200,6 +218,13 @@ const TTS_DEFAULTS: TTSSettings = {
   rate: 0,
   pitch: 0,
   skipCommands: true,
+  // Standard AUS: Wer bisher Zahlen vorgelesen bekam, soll das nach einem
+  // Update nicht stillschweigend verlieren.
+  skipNumbers: false,
+  // Beide Standard AUS: Emojis im Text sind oft Teil der Aussage, und ein
+  // Update soll niemandem still das Vorlesen verändern.
+  skipEmojiText: false,
+  skipEmojiName: false,
   maxTextLen: 200,
   chatTemplate: '{user} sagt: {text}',
   readGroups: ['all'],
@@ -353,6 +378,24 @@ export class SettingsStore {
         merged.tts.readGroups = migrateReadWho(rawTts.readWho);
       }
       delete (merged.tts as unknown as Record<string, unknown>).readWho; // Legacy-Feld entfernen
+      // Migration: „Superfans" und „Teamherz" waren EIN Häkchen — die
+      // Mindeststufe hing unter „Superfans", obwohl sie zum Teamherz-Fanclub
+      // gehört. Wer eine Stufe eingestellt hatte, meinte also Teamherz.
+      //
+      // Deshalb wird aus „Superfans + Stufe" hier einmalig „Teamherz + Stufe".
+      // Ohne das behielte die alte Einstellung ihre Optik und verlöre ihren
+      // Sinn: „Superfans" ohne Stufe liest ab sofort JEDEN Superfan vor — das
+      // Gegenteil dessen, was eingestellt war.
+      const gruppenVorher = merged.tts.readGroups;
+      if (Array.isArray(gruppenVorher)
+        && gruppenVorher.includes('subs')
+        && !gruppenVorher.includes('teamherz')
+        && (merged.tts.teamMinLevel ?? 0) > 0) {
+        merged.tts.readGroups = gruppenVorher.map((g) => (g === 'subs' ? 'teamherz' : g));
+        log.info('Einstellungen', 'Beim Vorlesen wurden „Superfans" und „Teamherz" getrennt — sie sind '
+          + 'zweierlei (Superfan = bezahltes Abo, Teamherz = gratis Fanclub mit Stufe). '
+          + `Deine Mindeststufe ${merged.tts.teamMinLevel} gehört zum Teamherz und ist dorthin umgezogen.`);
+      }
       // Migration: Tuning-Regler PRO ANBIETER (vorher galt rate/pitch global,
       // wirkte aber nur bei Edge). Waren rate/pitch gesetzt und existiert noch
       // kein tuning.edge, wird daraus einmalig tuning.edge gebaut — sonst
@@ -596,6 +639,9 @@ export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): 
       ...(typeof t.readChat === 'boolean' ? { readChat: t.readChat } : {}),
       ...(t.chatVoiceMode === 'fixed' || t.chatVoiceMode === 'perUser' ? { chatVoiceMode: t.chatVoiceMode } : {}),
       ...(typeof t.skipCommands === 'boolean' ? { skipCommands: t.skipCommands } : {}),
+      ...(typeof t.skipNumbers === 'boolean' ? { skipNumbers: t.skipNumbers } : {}),
+      ...(typeof t.skipEmojiText === 'boolean' ? { skipEmojiText: t.skipEmojiText } : {}),
+      ...(typeof t.skipEmojiName === 'boolean' ? { skipEmojiName: t.skipEmojiName } : {}),
       ...(typeof t.maxTextLen === 'number' ? { maxTextLen: Math.min(500, Math.max(20, t.maxTextLen)) } : {}),
       ...(typeof t.chatTemplate === 'string' ? { chatTemplate: t.chatTemplate } : {}),
       ...(typeof t.teamMinLevel === 'number' ? { teamMinLevel: Math.min(50, Math.max(0, Math.round(t.teamMinLevel))) } : {}),
@@ -604,8 +650,8 @@ export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): 
       ...(Array.isArray(t.readGroups)
         ? {
             readGroups: (t.readGroups as unknown[]).filter(
-              (g): g is 'all' | 'followers' | 'subs' | 'mods' | 'vips' =>
-                typeof g === 'string' && ['all', 'followers', 'subs', 'mods', 'vips'].includes(g),
+              (g): g is ReadGroup =>
+                typeof g === 'string' && ['all', 'followers', 'subs', 'teamherz', 'mods', 'vips'].includes(g),
             ),
           }
         : {}),

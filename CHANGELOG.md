@@ -3,6 +3,92 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.54.0] — 2026-08-17
+
+Diese Fassung räumt beim Vorlesen auf. Auslöser war eine einzige Rückfrage —
+„Teamherz und Superfan sind doch was anderes?" — und die war berechtigt.
+
+### Teamherz und Superfan sind zwei Dinge, endlich auch in der App
+
+Sie standen als **ein** Häkchen da, und die Mindeststufe hing darunter. Nur:
+
+- **Superfan** ist das bezahlte Abo. Es hat keine Stufen.
+- **Teamherz** ist der gratis Fanclub. *Der* hat die Stufen.
+
+Wer „erst ab Teamherz-Stufe 3 vorlesen" einstellte, verlangte damit
+unbeabsichtigt, dass jemand **beides** ist — Abo *und* Fanclub-Stufe 3. Das
+trifft fast niemanden, also wirkte die Einstellung wie kaputt.
+
+Jetzt sind es zwei Häkchen, und die Stufe hängt beim Teamherz. Bestehende
+Einstellungen ziehen automatisch um; im Log steht eine Zeile, die es erklärt.
+
+### Zwei stille Fallen beim „Wer wird vorgelesen"
+
+Beide sorgten dafür, dass man im Kreis lief:
+
+- **Häkchen bei „Alle Zuschauer" drin?** Dann wirkt die Teamherz-Stufe daneben
+  **nicht** — „Alle" schließt jeden ein. Die Stufe stand da und tat nichts.
+- **Gar kein Häkchen gesetzt?** Dann wird **niemand** mehr vorgelesen, nur die
+  eigenen ★VIPs. Begründet war das bisher nur auf der Debug-Ebene — also für
+  niemanden.
+
+Beides steht jetzt als farbiger Hinweis direkt an der Einstellung. Man nimmt
+das eine Häkchen weg, es wird still, und diesmal sagt die App warum.
+
+### Neu: Reine Zahlen überspringen
+
+Läuft ein Zahlenraten, besteht der Chat minutenlang aus „42", „7", „100" —
+jede Zahl einzeln vorgelesen. Ein Häkchen stellt das ab.
+
+Bewusst eng gefasst: `42` und `1.000` fliegen raus, `42!` und „ich sage 42"
+bleiben. Wer einen Satz schreibt, will vorgelesen werden. Und die Regel gilt
+**auch für Trigger-Ansagen** — dort fehlte sie zuerst, weshalb Zahlen trotz
+Häkchen weiter vorgelesen worden wären.
+
+### Neu: Emojis weglassen — Text und Name getrennt
+
+Zwei Häkchen, weil es zwei verschiedene Ärgernisse sind:
+
+- **Im Text**: Stimmen sprechen Emojis aus („Sonne mit Gesicht, rotes Herz")
+  oder stolpern darüber.
+- **Im Namen**: Aus „☀️Sarüüüh❤️✨☀️" wird „Sarüüüh". Gilt auch für Follower-,
+  Gift- und Stammgast-Ansagen.
+
+Mit entfernt wird das Unsichtbare drumherum — Hautfarben, Variantenwähler, die
+Klebezeichen zusammengesetzter Emojis. Bleiben die stehen, hat man unsichtbaren
+Müll im Text, an dem manche Stimmen hängenbleiben.
+
+Besteht ein Name **nur** aus Emojis, bleibt er wie er ist: „ sagt: hallo" wäre
+schlimmer als ein paar vorgelesene Bildzeichen.
+
+### Geschenke-Menü: Schriftgrößen einzeln einstellbar
+
+Drei Regler für **Wirkung**, **Geschenkname** und **Coin-Preis**, je 50–300 %.
+Sie greifen in allen Kachelformen.
+
+Die Wirkung — der Text, der sagt, was das Geschenk auslöst — steht ab Werk auf
+**130 %**. Sie war bisher das Kleinste im Widget, obwohl sie die eigentliche
+Botschaft der Tafel ist.
+
+Damit das nicht nach hinten losgeht, wächst die Textspalte mit: Sonst hätte die
+größere Schrift genau die Information abgeschnitten, die man größer sehen
+wollte („Ich mache 10 Liegestü…").
+
+### Der PK-Kampf weiß jetzt, welche Seite deine ist
+
+Im Log stand „4200 : 3100" — ohne zu sagen, welche Zahl die eigene war. Der
+Punktestand kommt als Objekt, dessen Schlüssel die Streamer-Nummern sind, und
+die eigene Nummer kannte die App nicht.
+
+Sie kam die ganze Zeit mit, im selben Datensatz wie Name und Profilbild. Jetzt
+wird sie gelesen:
+
+```
+PK-Stand: 4200 : 3100 — du führst mit 1100
+```
+
+Kein Zusatzabruf, kein Bezahlplan.
+
 ## [0.53.0] — 2026-08-17
 
 Kein neues Feature. Diese Fassung räumt auf: an Schaltern, die man übersah, an

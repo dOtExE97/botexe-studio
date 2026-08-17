@@ -72,6 +72,9 @@ export interface TikTokAdapterOptions {
   onAvailableGifts?: (gifts: unknown) => void;
   /** TikToks Live-Ranglisten („dein Platz") — Zustand, kein Bus-Ereignis. */
   onRank?: (staende: RangStand[]) => void;
+  /** Die zuletzt bekannte eigene TikTok-Nutzer-ID (aus den Einstellungen).
+   *  Rückfall für den Fall, dass der Raum-Datensatz diesmal ausbleibt. */
+  getEigeneId?: () => string | undefined;
   // ABSICHTLICH KEIN onPk / onPin.
   //
   // Beides gab es hier schon einmal — und niemand hat sie je übergeben. Zwei
@@ -212,6 +215,14 @@ export class TikTokAdapter {
   private readonly onRank?: (staende: RangStand[]) => void;
   /** Letzter gemeldeter Punktestand je Kampf — gegen Log-Flut bei 62 Updates. */
   private pkZuletzt = new Map<string, string>();
+  /** Die eigene TikTok-Nutzer-ID, sobald der Raum-Datensatz sie mitbringt.
+   *
+   *  Nötig, um im PK-Kampf die eigene Seite zu erkennen: Der Punktestand kommt
+   *  als Objekt mit den Streamer-IDs als Schlüssel. Ohne diese Zeile stand im
+   *  Log „4200 : 3100" in beliebiger Reihenfolge — man wusste nicht, welche
+   *  Zahl die eigene war. */
+  private eigeneId?: string;
+  private readonly getEigeneId?: () => string | undefined;
   private readonly onHostInfo?: (info: HostInfo) => void;
   private readonly onGiftGallery?: (galerie: unknown) => void;
   private readonly maxReconnect: number;
@@ -280,6 +291,7 @@ export class TikTokAdapter {
     this.onStatus = options.onStatus ?? (() => undefined);
     this.onAvailableGifts = options.onAvailableGifts;
     this.onRank = options.onRank;
+    this.getEigeneId = options.getEigeneId;
     this.onHostInfo = options.onHostInfo;
     this.onGiftGallery = options.onGiftGallery;
     this.maxReconnect = options.maxReconnect ?? DEFAULTS.maxReconnect;
@@ -825,7 +837,12 @@ export class TikTokAdapter {
     on('superFan', guard((d: Parameters<typeof normalizeSuperfan>[0]) => { if (!dedup(d)) publish(normalizeSuperfan(d, false, this.now())); }));
     on('emote', guard((d: Parameters<typeof normalizeEmote>[0]) => { if (!dedup(d)) publish(normalizeEmote(d, this.now())); }));
     // Name und Bild des Streamers selbst (aus dem roomInfo-Rahmen).
-    on('hostInfo', guard((d: { nickname?: string; avatar?: string }) => this.onHostInfo?.(d)));
+    on('hostInfo', guard((d: HostInfo) => {
+      // Die eigene ID hier abgreifen, nicht erst beim Kampf: Der Raum-Datensatz
+      // kommt EINMAL beim Verbinden, ein PK-Kampf womöglich zwei Stunden später.
+      if (d.userId) this.eigeneId = d.userId;
+      this.onHostInfo?.(d);
+    }));
     // Ranglisten-Stand: nicht auf den Bus, sondern direkt an den Aufrufer —
     // es ist ein Zustand („Platz 12"), kein Vorfall, den Trigger auswerten müssten.
     if (this.onRank) {
@@ -864,7 +881,8 @@ export class TikTokAdapter {
     on('linkMicArmies', guard((d: unknown) => {
       const stand = lesePkStand(d);
       if (!stand) return;
-      const text = pkText(stand);
+      // Frisch aus dem Raum-Datensatz, sonst die gemerkte aus den Einstellungen.
+      const text = pkText(stand, this.eigeneId ?? this.getEigeneId?.());
       if (this.pkZuletzt.get(stand.battleId) === text) return; // nichts Neues
       this.pkZuletzt.set(stand.battleId, text);
       log.gedrosselt(`pk:${stand.battleId}`, 15_000, 'info', 'TikTok', `PK-Stand: ${text}`);

@@ -32,7 +32,7 @@ import { parseApiAction, API_ACTION_KINDS } from './api-actions';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
 import { MediaLibrary } from './media-library';
-import { shouldReadChat, containsBlockedWord } from './tts-filter';
+import { shouldReadChat, containsBlockedWord, istNurEineZahl, stufeWirktNicht, niemandWirdVorgelesen, entferneEmoji, nameOhneEmoji } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { planWheelSpins } from './wheel-gift';
 import { planSlotSpins } from './slot-gift';
@@ -360,6 +360,11 @@ export class Studio {
       // Komplette Gift-Liste (mit Bildern) nach dem Connect in den Katalog —
       // so kennt z.B. das Bingo ALLE Gift-Bilder, bevor das erste Gift kommt.
       onAvailableGifts: (gifts) => this.importAvailableGifts(gifts),
+      // Die zuletzt erkannte eigene ID mitgeben. Der Raum-Datensatz kommt
+      // normalerweise beim Verbinden — aber „normalerweise" ist bei TikTok
+      // keine Zusage. Bleibt er einmal aus, weiß der Adapter dank dieser Zeile
+      // trotzdem, welche Seite im PK-Kampf die eigene ist.
+      getEigeneId: () => this.settings.peek().hostUserId || undefined,
       onRank: (staende) => this.merkeRang(staende),
       // Geschenke-Galerie: dieselbe Aufbereitung wie die Gift-Liste — die
       // Einträge tragen Bild und Coin-Wert und füllen damit den Katalog.
@@ -368,6 +373,11 @@ export class Studio {
         // Name und Bild des Streamers dauerhaft merken — die Auswertung
         // begrüßt ihn damit, auch wenn gerade kein Stream läuft.
         const s2 = this.settings.peek();
+        if (info.userId && info.userId !== s2.hostUserId) {
+          this.settings.update({ hostUserId: info.userId });
+          log.einmal('tiktok:eigene-id', 'info', 'TikTok',
+            'Eigene Kanal-Nummer erkannt — im PK-Kampf steht ab jetzt fest, welche Seite deine ist.');
+        }
         if (info.nickname && info.nickname !== s2.hostNickname) this.settings.update({ hostNickname: info.nickname });
         if (info.avatar && info.avatar !== s2.hostAvatar) this.settings.update({ hostAvatar: info.avatar });
         if (info.titel && info.titel !== s2.hostTitel) this.settings.update({ hostTitel: info.titel });
@@ -2115,7 +2125,12 @@ export class Studio {
     const tts = this.settings.get().tts;
     if (!tts.enabled) return;
     const text = TTSService.sanitize(
-      g.template.replace(/\{user\}/g, event.user.nickname).replace(/\{visits\}/g, String(visits)),
+      // Auch hier den Namen putzen, wenn eingestellt — sonst gilt die Regel
+      // überall außer bei der Stammgast-Begrüßung, und das fällt genau einmal
+      // im Stream auf.
+      g.template
+        .replace(/\{user\}/g, tts.skipEmojiName ? nameOhneEmoji(event.user.nickname) : event.user.nickname)
+        .replace(/\{visits\}/g, String(visits)),
       tts.maxTextLen,
     );
     if (text && !this.moderationBlocked(text)) this.tts.speak(text, tts.voice);
@@ -2536,8 +2551,35 @@ export class Studio {
 
   // ── TTS ───────────────────────────────────────────────────────────────
 
+  /** Ereignis für die Ansage aufbereiten: Emojis raus, je nach Einstellung.
+   *
+   *  MUSS an EINER Stelle passieren, durch die JEDE Ansage läuft. Vorher galt
+   *  die Zahlen-Regel nur fürs Chat-Vorlesen — eine Trigger-Regel mit
+   *  „{user}: {text}" las beim Zahlenraten munter weiter Zahlen vor. Genau die
+   *  Sorte halb verdrahteter Filter, die man für kaputt hält. */
+  private fuerAnsageAufbereiten(event: StudioEvent): StudioEvent {
+    const tts = this.settings.get().tts;
+    if (!tts.skipEmojiText && !tts.skipEmojiName) return event;
+    const out = { ...event };
+    if (tts.skipEmojiText && out.text) out.text = entferneEmoji(out.text);
+    if (tts.skipEmojiName && out.user?.nickname) {
+      out.user = { ...out.user, nickname: nameOhneEmoji(out.user.nickname) };
+    }
+    return out;
+  }
+
   private speakForEvent(template: string, event: StudioEvent, voiceOverride?: string): void {
     const tts = this.settings.get().tts;
+    // Zahlen-Regel gilt AUCH hier, nicht nur beim Chat-Vorlesen: Sonst liest
+    // eine Trigger-Regel mit {text} beim Zahlenraten weiter jede Zahl vor.
+    if (tts.skipNumbers && event.type === 'chat' && istNurEineZahl(event.text ?? '')) {
+      // Nur alle 10 Minuten und auf info: Bei laufendem Zahlenraten wäre jede
+      // einzelne Zahl eine Zeile — genau der Lärm, den wir abstellen wollen.
+      log.gedrosselt('tts:zahl-trigger', 10 * 60_000, 'info', 'TTS',
+        'Trigger-Ansagen für reine Zahlen werden übersprungen — der Schalter „Reine Zahlen überspringen" ist an.');
+      return;
+    }
+    event = this.fuerAnsageAufbereiten(event);
     if (!tts.enabled) {
       // Eine Regel MIT Ansage, aber die Sprachausgabe ist im Haupt-Schalter
       // aus: Von außen sieht das aus, als würde die Regel gar nicht feuern.
@@ -2604,6 +2646,12 @@ export class Studio {
     const raw = event.text ?? '';
     if (!raw.trim()) return;
     if (tts.skipCommands && raw.trimStart().startsWith('!')) return;
+    // Reine Zahlen überspringen — bei laufendem Zahlenraten besteht der Chat
+    // sonst minutenlang aus vorgelesenen Einzelzahlen.
+    if (tts.skipNumbers && istNurEineZahl(raw)) {
+      this.logTtsDecision(`übersprungen: ${event.user?.nickname ?? '—'} (nur eine Zahl)`, 'debug');
+      return;
+    }
     const nick = event.user?.nickname ?? '—';
     if (event.user && this.points.isMuted(event.user.id)) { this.logTtsDecision(`übersprungen: ${nick} (stummgeschaltet)`); return; }
     // Chat-Moderation: gesperrte Wörter nicht vorlesen.
@@ -2612,7 +2660,24 @@ export class Studio {
     // Wer-Filter (Teamherz/Mod/Follower/VIP) + optionaler Prefix-Modus.
     const isVip = event.user ? this.points.isVip(event.user.id) : false;
     const prefix = tts.readPrefix ?? '';
-    const decision = shouldReadChat(event, tts.readGroups ?? ['all'], prefix, isVip, tts.teamMinLevel ?? 0);
+    const gruppen = tts.readGroups ?? ['all'];
+    // Die Teamherz-Stufe steht in der Oberfläche, wirkt aber nicht, solange
+    // „Alle Zuschauer" mit angekreuzt ist — die Gruppen sind ODER-verknüpft.
+    // Ohne diese Zeile sucht man den Fehler bei der Stufenerkennung.
+    // Gar nichts angekreuzt = komplette Stille. Das MUSS sichtbar sein: Vorher
+    // stand der Grund nur auf der Debug-Ebene, die niemand sieht.
+    if (niemandWirdVorgelesen(gruppen)) {
+      log.gedrosselt('tts:keine-gruppe', 10 * 60_000, 'info', 'TTS',
+        'Es wird gerade NIEMAND vorgelesen: Bei „Wer wird vorgelesen" ist kein einziges Häkchen gesetzt. '
+        + 'Setz mindestens eins (z.B. „Alle Zuschauer" oder „Follower") — nur deine ★VIPs kommen ohne Häkchen durch.');
+    }
+    if (stufeWirktNicht(gruppen, tts.teamMinLevel ?? 0)) {
+      log.einmal('tts:stufe-wirkungslos', 'info', 'TTS',
+        `Deine Teamherz-Mindeststufe (${tts.teamMinLevel}) hat gerade KEINE Wirkung: Bei „Wer wird vorgelesen" ist `
+        + 'auch „Alle Zuschauer" angekreuzt, und das schließt alle ein. Nimm das Häkchen bei „Alle Zuschauer" '
+        + 'weg, dann greift die Stufe.');
+    }
+    const decision = shouldReadChat(event, gruppen, prefix, isVip, tts.teamMinLevel ?? 0);
     if (!decision.read) {
       // Klarer Grund: Prefix fehlt (gilt AUCH für Mods/Follower!) vs. nicht in
       // gewählter Gruppe — sonst führt das Log auf die falsche Fährte.

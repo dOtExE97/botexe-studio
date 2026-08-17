@@ -150,7 +150,7 @@ interface VoiceGroup {
   voices: TtsVoice[];
 }
 
-type ReadGroup = 'all' | 'followers' | 'subs' | 'mods' | 'vips';
+type ReadGroup = 'all' | 'followers' | 'subs' | 'teamherz' | 'mods' | 'vips';
 interface AnnounceCfg { enabled: boolean; template: string; voice: string }
 interface GiftAnnounceCfg extends AnnounceCfg { minCoins: number }
 
@@ -163,6 +163,9 @@ interface TtsSettings {
   readChat: boolean;
   chatVoiceMode: 'fixed' | 'perUser';
   skipCommands: boolean;
+  skipNumbers?: boolean;
+  skipEmojiText?: boolean;
+  skipEmojiName?: boolean;
   maxTextLen: number;
   chatTemplate: string;
   readGroups?: ReadGroup[];
@@ -174,10 +177,15 @@ interface TtsSettings {
   tuning?: Record<string, Record<string, number | string>>;
 }
 
-const READ_GROUP_LABELS: { id: ReadGroup; label: string }[] = [
+// Superfan und Teamherz sind ZWEIERLEI und stehen deshalb als zwei Häkchen da:
+// Superfan kostet Geld (monatliches Abo), Teamherz ist der gratis Fanclub und
+// hat eine Stufe. Vorher waren sie EIN Häkchen — die Stufe hing unter
+// „Superfans", man musste also beides sein.
+const READ_GROUP_LABELS: { id: ReadGroup; label: string; hint?: string }[] = [
   { id: 'all', label: 'Alle Zuschauer' },
   { id: 'followers', label: 'Follower' },
-  { id: 'subs', label: 'Superfans' },
+  { id: 'teamherz', label: 'Teamherz', hint: 'gratis Fanclub, hat Stufen' },
+  { id: 'subs', label: 'Superfans', hint: 'bezahltes Abo' },
   { id: 'mods', label: 'Moderatoren' },
   { id: 'vips', label: 'Meine VIPs (Zuschauer-Tab)' },
 ];
@@ -524,7 +532,12 @@ export default function TtsPage() {
                         update({ readGroups: [...cur] });
                       }}
                     />
-                    {g.label}
+                    <span>
+                      {g.label}
+                      {g.hint && (
+                        <span className="ml-1 text-[9px] text-studio-muted/70">({g.hint})</span>
+                      )}
+                    </span>
                   </label>
                 );
               })}
@@ -533,9 +546,20 @@ export default function TtsPage() {
               Vorgelesen wird, wer in mindestens einer angekreuzten Gruppe ist. Deine ★VIPs werden immer
               vorgelesen, Stumm-geschaltete nie. „Alle" liest jeden.
             </span>
+            {/* KEIN Haekchen = komplette Stille. Ohne diesen Hinweis nimmt man
+                das Haeckchen bei „Alle" weg (damit die Teamherz-Stufe greift),
+                es wird still, nichts erklaert warum — und man setzt es wieder
+                rein. Genau dieser Kreis wurde gemeldet. */}
+            {(tts.readGroups ?? ['all']).length === 0 && (
+              <span className="mt-1.5 block rounded border border-studio-accent/50 bg-studio-accent/10 px-2 py-1.5
+                text-[10px] normal-case tracking-normal text-studio-accent">
+                So wird <strong>niemand</strong> vorgelesen — es ist kein einziges Häkchen gesetzt.
+                Nur deine ★VIPs kommen noch durch. Setz mindestens eins.
+              </span>
+            )}
             {/* Erscheint nur, wenn „Teamherz" angekreuzt ist — sonst waere es ein
                 Regler ohne Wirkung. */}
-            {(tts.readGroups ?? ['all']).includes('subs') && (
+            {(tts.readGroups ?? ['all']).includes('teamherz') && (
               <label className="mt-2 flex items-center gap-2 normal-case tracking-normal text-xs text-studio-text">
                 Erst ab Teamherz-Stufe
                 <input
@@ -549,7 +573,21 @@ export default function TtsPage() {
                 <span className="text-[10px] text-studio-muted">0 = jede Stufe</span>
               </label>
             )}
-            {(tts.readGroups ?? ['all']).includes('subs') && (tts.teamMinLevel ?? 0) > 0 && (
+            {/* Die Stufe steht da und tut nichts, solange „Alle Zuschauer"
+                angekreuzt ist: Die Gruppen sind ODER-verknüpft, „Alle" trifft
+                immer zuerst zu. Genau so gemeldet — „TTS nur ab Stufe 3, es
+                wird trotzdem alles vorgelesen". Deshalb steht der Hinweis hier
+                und nicht im Log. */}
+            {(tts.readGroups ?? ['all']).includes('teamherz') && (tts.teamMinLevel ?? 0) > 0
+              && (tts.readGroups ?? ['all']).includes('all') && (
+              <span className="mt-1 block rounded border border-studio-gold/40 bg-studio-gold/10 px-2 py-1.5
+                text-[10px] normal-case tracking-normal text-studio-gold">
+                Diese Stufe wirkt gerade nicht: Oben ist auch <strong>„Alle Zuschauer"</strong> angekreuzt,
+                und das schließt jeden ein. Nimm dort das Häkchen weg, dann greift die Stufe.
+              </span>
+            )}
+            {(tts.readGroups ?? ['all']).includes('teamherz') && (tts.teamMinLevel ?? 0) > 0
+              && !(tts.readGroups ?? ['all']).includes('all') && (
               <span className="mt-1 block text-[9px] normal-case tracking-normal text-studio-muted/80">
                 TikTok schickt die Teamherz-Stufe mit. Kommt sie bei einer Nachricht ausnahmsweise
                 nicht mit, wird trotzdem vorgelesen — lieber einmal zu viel, als einen echten
@@ -577,6 +615,47 @@ export default function TtsPage() {
               onChange={(e) => update({ skipCommands: e.target.checked })}
             />
             Befehle (!…) überspringen
+          </label>
+          <label className="flex items-center gap-2 text-xs normal-case">
+            <input
+              type="checkbox" checked={tts.skipNumbers === true}
+              onChange={(e) => update({ skipNumbers: e.target.checked })}
+            />
+            <span>
+              Reine Zahlen überspringen
+              <span className="mt-0.5 block text-[9px] text-studio-muted/80">
+                Beim Zahlenraten besteht der Chat minutenlang aus „42", „7", „100" — jede Zahl
+                einzeln vorgelesen ist Lärm. Sätze mit Zahlen darin bleiben. Gilt auch für
+                Trigger-Ansagen.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-center gap-2 text-xs normal-case">
+            <input
+              type="checkbox" checked={tts.skipEmojiText === true}
+              onChange={(e) => update({ skipEmojiText: e.target.checked })}
+            />
+            <span>
+              Emojis im Text weglassen
+              <span className="mt-0.5 block text-[9px] text-studio-muted/80">
+                Stimmen sprechen Emojis oft aus („Sonne mit Gesicht, rotes Herz") oder stolpern
+                darüber. Der Rest der Nachricht bleibt.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-center gap-2 text-xs normal-case">
+            <input
+              type="checkbox" checked={tts.skipEmojiName === true}
+              onChange={(e) => update({ skipEmojiName: e.target.checked })}
+            />
+            <span>
+              Emojis im Namen weglassen
+              <span className="mt-0.5 block text-[9px] text-studio-muted/80">
+                Aus „☀️Sarüüüh❤️✨☀️" wird „Sarüüüh". Besteht ein Name NUR aus Emojis, bleibt er
+                wie er ist — ein leerer Name wäre schlimmer. Gilt auch für Follower-, Gift- und
+                Stammgast-Ansagen.
+              </span>
+            </span>
           </label>
           <label className="text-[10px] uppercase tracking-widest text-studio-muted">
             Max. Zeichen pro Nachricht

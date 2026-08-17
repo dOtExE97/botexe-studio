@@ -110,3 +110,78 @@ test('SELBSTTEST: die alte Fassung hätte das Bild NICHT gefunden', () => {
     'die alte Fassung fand im roomInfo-Rahmen nichts …');
   assert.ok(leseHost(ROOM_INFO)?.avatar, '… die neue findet das Bild');
 });
+
+// ── Die eigene Nutzer-ID ───────────────────────────────────────────────────
+// Wozu: Im PK-Kampf stehen die Punkte in einem Objekt, dessen SCHLÜSSEL die
+// Streamer-IDs sind. Ohne die eigene ID lässt sich nicht sagen, welche der
+// beiden Zahlen die eigene ist — im Log stand deshalb „4200 : 3100" in
+// beliebiger Reihenfolge.
+//
+// Der Stolperstein steckt in den Schreibweisen: Die Typdefinition des SDK sagt
+// `numeric_uid`, auf der Leitung kommt `numericUid`. Beide müssen gelesen
+// werden, sonst findet man nichts und merkt es nicht.
+
+test('roomInfo: die eigene Nutzer-ID wird gelesen (Höckerschrift!)', () => {
+  assert.equal(leseHost(ROOM_INFO)?.userId, '6635416940436602885');
+});
+
+test('Live-Ansage: dort heißt dasselbe Feld userId', () => {
+  assert.equal(leseHost(LIVE_INTRO)?.userId, '6635416940436602885');
+});
+
+test('auch die Unterstrich-Schreibweise der Typdefinition trifft', () => {
+  const h = leseHost({ user: { nickname: 'x', numeric_uid: '6635416940436602885' } });
+  assert.equal(h?.userId, '6635416940436602885');
+});
+
+test('der Direktweg nennt es id_str', () => {
+  assert.equal(leseHost({ user: { nickname: 'x', id_str: '6635416940436602885' } })?.userId,
+    '6635416940436602885');
+});
+
+test('eine ID als ZAHL wird abgewiesen, wenn sie nicht mehr heil sein kann', () => {
+  // TikTok-IDs haben 19 Stellen, JavaScript rechnet nur 16 sicher: Aus
+  // …602885 wird beim Einlesen …603000. Diese Zahl SIEHT richtig aus, passt
+  // aber nie zu den Schlüsseln im PK-Punktestand — „du führst" ginge dauerhaft
+  // nicht, ohne dass irgendwo ein Fehler stünde. Deshalb: lieber nichts.
+  // Die Zahl wird ABSICHTLICH aus Text erzeugt: Als Literal beanstandet der
+  // Linter sie zu Recht („verliert zur Laufzeit an Genauigkeit") — und genau
+  // dieser Verlust ist der Fall, den wir hier nachstellen wollen.
+  const kaputt = Number('6635416940436602885');
+  const h = leseHost({ user: { nickname: 'x', id: kaputt } });
+  assert.equal(h?.userId, undefined, 'gerundete Zahl wird NICHT übernommen');
+});
+
+test('… aber eine kleine Zahl ist unbedenklich und zählt', () => {
+  assert.equal(leseHost({ user: { nickname: 'x', id: 123456789 } })?.userId, '123456789');
+});
+
+test('steht die ID daneben als Text, wird die kaputte Zahl übergangen', () => {
+  // Der eigentliche Grund, warum es die Text-Felder gibt: Beide Formen liegen
+  // im selben Objekt, und die heile muss gewinnen.
+  const h = leseHost({
+    user: { nickname: 'x', id: Number('6635416940436602885'), id_str: '6635416940436602885' },
+  });
+  assert.equal(h?.userId, '6635416940436602885');
+});
+
+test('die secUid wird NICHT als ID genommen', () => {
+  // Sie steht direkt daneben und sieht nach Kennung aus — passt aber nie zu den
+  // Schlüsseln im PK-Punktestand. Würde sie durchrutschen, gäbe es keinen
+  // Fehler, nur dauerhaft falsche Zuordnung.
+  const h = leseHost({ user: { nickname: 'x', secUid: 'MS4wLjABAAAAxyz123' } });
+  assert.equal(h?.userId, undefined);
+});
+
+test('offensichtlicher Unfug wird abgewiesen', () => {
+  assert.equal(leseHost({ user: { nickname: 'x', userId: '' } })?.userId, undefined);
+  assert.equal(leseHost({ user: { nickname: 'x', userId: '123' } })?.userId, undefined,
+    'zu kurz für eine TikTok-ID');
+  assert.equal(leseHost({ user: { nickname: 'x', userId: 'abc123def456' } })?.userId, undefined);
+});
+
+test('fehlt die ID, bleibt der Rest heil', () => {
+  const h = leseHost({ user: { nickname: 'dOtExE_97', avatarUrl: 'https://x/a.jpg' } });
+  assert.equal(h?.userId, undefined);
+  assert.equal(h?.nickname, 'dOtExE_97', 'Name kommt trotzdem an');
+});

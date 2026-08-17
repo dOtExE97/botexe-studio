@@ -395,3 +395,89 @@ test('Gift-Liste: fetchAvailableGifts der Verbindung wird an onAvailableGifts du
   await wait(10); // fetchAvailableGifts läuft async nach dem Connect
   assert.deepEqual(received, gifts);
 });
+
+// ── Die eigene Seite im PK-Kampf ───────────────────────────────────────────
+// WARUM DIESER TEST: pkText() konnte die eigene Zahl schon immer nach vorn
+// stellen — bekam die eigene ID aber nie übergeben. Die Fähigkeit war da, die
+// Leitung fehlte. Genau diese Sorte Fehler fällt Einzeltests nicht auf: Beide
+// Enden sind grün, nur verbunden sind sie nicht. Deshalb wird hier die ganze
+// Kette geprüft, von der Rohnachricht bis zur Logzeile.
+
+/** Schreibt der Logger währenddessen etwas, landet es hier.
+ *  Abgefangen an stdout, weil der Logger sich seine console-Methoden beim
+ *  Laden merkt — ein späterer console.log-Austausch käme zu spät. */
+async function mitLogMitschnitt(fn: () => void | Promise<void>): Promise<string> {
+  const echt = process.stdout.write.bind(process.stdout);
+  let gesammelt = '';
+  (process.stdout as unknown as { write: (s: string) => boolean }).write = (s: string) => {
+    gesammelt += s;
+    return true;
+  };
+  try {
+    await fn();
+    await wait(5);
+  } finally {
+    (process.stdout as unknown as { write: typeof echt }).write = echt;
+  }
+  return gesammelt;
+}
+
+/** Jeder Test braucht eine EIGENE Kampf-Nummer: Die Drossel im Logger merkt
+ *  sich je Schlüssel, wann zuletzt gemeldet wurde — und zwar modulweit, über
+ *  Testgrenzen hinweg. Mit derselben Nummer bliebe der zweite Test stumm und
+ *  sähe aus wie ein Fehler in der Sache. */
+const pkStand = (battleId: string) => ({
+  battleId,
+  battleItems: { '6635416940436602885': 4200, '7069026870822716421': 3100 },
+});
+
+test('PK: mit eigener ID steht die eigene Punktzahl vorn', async () => {
+  const { adapter, connections } = setup();
+  await adapter.connect('testuser');
+  const c = connections[0];
+
+  const ausgabe = await mitLogMitschnitt(() => {
+    // So kommt der Raum-Datensatz beim Verbinden an …
+    c?.emit('hostInfo', { nickname: 'dOtExE_97', userId: '6635416940436602885' });
+    // … und erst danach, womöglich Stunden später, der Kampf.
+    c?.emit('linkMicArmies', pkStand('77001'));
+  });
+
+  assert.match(ausgabe, /4200 : 3100/, 'die eigene Zahl steht vorn');
+  assert.match(ausgabe, /du führst mit 1100/);
+  await adapter.disconnect();
+});
+
+test('PK: ohne eigene ID bleibt es bei nackten Zahlen — aber es kracht nicht', async () => {
+  const { adapter, connections } = setup();
+  await adapter.connect('testuser');
+
+  const ausgabe = await mitLogMitschnitt(() => {
+    connections[0]?.emit('linkMicArmies', pkStand('77002'));
+  });
+
+  assert.match(ausgabe, /PK-Stand/, 'gemeldet wird trotzdem');
+  assert.doesNotMatch(ausgabe, /du führst/, 'ohne ID wird nichts behauptet');
+  await adapter.disconnect();
+});
+
+test('PK: die gemerkte ID aus den Einstellungen springt ein', async () => {
+  // Der Raum-Datensatz kommt normalerweise beim Verbinden — „normalerweise" ist
+  // bei TikTok aber keine Zusage. Bleibt er aus, muss die gespeicherte greifen.
+  const bus = new EventBus();
+  const connections: FakeConnection[] = [];
+  const adapter = new TikTokAdapter(bus, {
+    factory: () => { const c = new FakeConnection(); connections.push(c); return c; },
+    onStatus: () => undefined,
+    getEigeneId: () => '6635416940436602885',
+    baseReconnectDelayMs: 1, jitterMs: 0, maxReconnect: 1,
+  });
+  await adapter.connect('testuser');
+
+  const ausgabe = await mitLogMitschnitt(() => {
+    connections[0]?.emit('linkMicArmies', pkStand('77003'));
+  });
+
+  assert.match(ausgabe, /du führst mit 1100/, 'auch ohne hostInfo richtig zugeordnet');
+  await adapter.disconnect();
+});

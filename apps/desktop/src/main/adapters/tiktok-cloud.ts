@@ -55,6 +55,20 @@ export type CloudEmitEvent = 'chat' | 'gift' | 'like' | 'follow' | 'share' | 'me
 export interface HostInfo {
   nickname?: string;
   avatar?: string;
+  /** Die eigene TikTok-Nutzer-ID (rein numerisch, als Text).
+   *
+   *  Klingt nach Kleinkram, ist aber die Antwort auf „welche der beiden Zahlen
+   *  ist meine?". Im PK-Kampf stehen die Punkte in einem Objekt, dessen
+   *  SCHLÜSSEL die Streamer-IDs sind — ohne die eigene ID lässt sich nicht
+   *  sagen, wer führt. Genau deshalb stand im Log bisher „4200 : 3100" in
+   *  beliebiger Reihenfolge.
+   *
+   *  Belegt in node_modules/tiktok-live-api-sdk/dist/index.d.ts:
+   *    TikTokLiveUserUser { avatar_url?, nickname?, sec_uid?,
+   *                         numeric_uid?, followers?, unique_id }
+   *  Also dasselbe Objekt, aus dem Name und Bild ohnehin schon kommen —
+   *  kein zusätzlicher Abruf, kein Bezahlplan. */
+  userId?: string;
   /** Der Titel, den der Streamer seinem Live gegeben hat. */
   titel?: string;
   /** Sprache des Streams laut TikTok (z.B. „de"). */
@@ -375,11 +389,13 @@ export function leseHost(roh: unknown): HostInfo | undefined {
   let nickname: string | undefined;
   let avatar: string | undefined;
   let follower: number | undefined;
+  let userId: string | undefined;
   for (const o of kandidaten) {
     if (!nickname && typeof o['nickname'] === 'string' && o['nickname']) nickname = o['nickname'];
     if (!avatar) avatar = leseBild(o);
     if (follower === undefined && typeof o['followers'] === 'number') follower = o['followers'];
-    if (nickname && avatar && follower !== undefined) break;
+    if (!userId) userId = leseUserId(o);
+    if (nickname && avatar && follower !== undefined && userId) break;
   }
 
   // Der RAUM-Teil: Titel, Startzeit, Zuschauer-Gesamtzahl. Nur im
@@ -393,12 +409,62 @@ export function leseHost(roh: unknown): HostInfo | undefined {
   const info: HostInfo = {
     ...(nickname ? { nickname } : {}),
     ...(avatar ? { avatar } : {}),
+    ...(userId ? { userId } : {}),
     ...(titel ? { titel } : {}),
     ...(sprache ? { sprache } : {}),
     ...(startetAt ? { startetAt } : {}),
     ...(follower !== undefined && follower > 0 ? { follower } : {}),
   };
   return Object.keys(info).length > 0 ? info : undefined;
+}
+
+/**
+ * Die eigene Nutzer-ID aus dem Streamer-Objekt.
+ *
+ * Sechs Feldnamen, weil dieselbe Zahl je nach Weg anders heißt.
+ *
+ * BEIDE SCHREIBWEISEN, und das ist kein Übereifer: Die Typdefinition des SDK
+ * sagt `numeric_uid` mit Unterstrich — auf der Leitung kommt aber `numericUid`
+ * in Höckerschrift an (belegt in streamer-daten.test.ts, nachgebaut aus einem
+ * echten Stream). Wer nur der Typdefinition folgt, findet nichts und merkt es
+ * nicht. Dieselbe Doppelschreibung ist uns bei eulerstream schon einmal
+ * begegnet, damals bei den Ereignisnamen.
+ *
+ *   `numericUid` / `numeric_uid`  Raum-Datensatz über eulerstream
+ *   `userId`                      Live-Ansage (WebcastLiveIntroMessage)
+ *   `idStr` / `id_str`            Direktweg (WebcastFeedResponseUser)
+ *   `id`                          dieselbe Zahl, dort numerisch
+ *
+ * `secUid` wird BEWUSST NICHT genommen: Das ist eine lange Buchstabenkennung
+ * („MS4wLjA…"), eine völlig andere Größe. Im PK-Kampf sind die Schlüssel rein
+ * numerisch — eine secUid würde dort nie passen, und der Fehler wäre still.
+ */
+function leseUserId(o: Record<string, unknown>): string | undefined {
+  for (const feld of ['numericUid', 'numeric_uid', 'userId', 'idStr', 'id_str', 'id'] as const) {
+    const w = o[feld];
+    let s = '';
+    if (typeof w === 'string') {
+      s = w.trim();
+    } else if (typeof w === 'number') {
+      // ZAHLEN NUR, WENN SIE HEIL SIND.
+      //
+      // TikTok-IDs haben 19 Stellen, JavaScript rechnet nur 16 sicher. Kommt
+      // die ID als Zahl an, sind die letzten Stellen schon gerundet, bevor wir
+      // sie sehen: aus …602885 wird …603000. Genau dafür gibt es die
+      // Text-Felder (`id_str`).
+      //
+      // Eine falsche ID ist SCHLIMMER als gar keine: Sie sieht richtig aus,
+      // passt aber nie zu den Schlüsseln im PK-Punktestand. „Du führst" ginge
+      // dann dauerhaft nicht — ohne Fehler, ohne Meldung. Lieber nichts
+      // zurückgeben und das nächste Feld probieren.
+      if (!Number.isSafeInteger(w)) continue;
+      s = String(w);
+    }
+    // Dieselbe Prüfung wie beim PK-Punktestand: mindestens sechs Ziffern, sonst
+    // ist es keine TikTok-Nutzer-ID.
+    if (/^\d{6,}$/.test(s)) return s;
+  }
+  return undefined;
 }
 
 /**

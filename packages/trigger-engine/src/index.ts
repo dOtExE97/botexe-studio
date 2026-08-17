@@ -50,7 +50,14 @@ export interface StudioUser {
   userId?: string;
   nickname: string;
   profilePic?: string;
-  /** TikTok-Rollen (bei Chat-Events mitgeliefert): Teamherz-Mitglied. */
+  /** SUPERFAN — das BEZAHLTE Abo (UserIdentity.isSubscriberOfAnchor).
+   *
+   *  NICHT Teamherz. Die beiden werden ständig verwechselt, auch hier stand
+   *  jahrelang „Teamherz-Mitglied" — falsch:
+   *    Superfan  = kostet Geld, monatlich, `isSub`
+   *    Teamherz  = gratis, Fanclub, hat eine STUFE, siehe `teamLevel`
+   *  Man kann das eine ohne das andere sein. Wer beides in einen Topf wirft,
+   *  baut Filter, die nie greifen. */
   isSub?: boolean;
   /** Moderator dieses Streams. */
   isMod?: boolean;
