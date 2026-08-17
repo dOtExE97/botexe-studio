@@ -37,7 +37,12 @@ const SECRET_VALUE = new RegExp(
 
 const REDACTED = '[entfernt]';
 
-function scrubString(s: string): string {
+/** Schlüssel-artige Zeichenfolgen in freiem Text maskieren.
+ *
+ *  Exportiert, weil nicht nur Sentry-Berichte das braucht: Auch was aus einer
+ *  fremden API-Fehlermeldung ins Log wandert, kann einen Schlüssel enthalten —
+ *  und Logdateien schickt man weiter. */
+export function scrubString(s: string): string {
   return s.replace(SECRET_VALUE, REDACTED);
 }
 

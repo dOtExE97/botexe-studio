@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal, Stethoscope, Sliders, Square, BarChart3, Frame } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
-import SoundPlayer from './components/SoundPlayer';
+import SoundPlayer, { stoppeAlleSounds, laufenSounds } from './components/SoundPlayer';
 import ToastHost, { toast } from './components/ToastHost';
 import UpdateBanner from './components/UpdateBanner';
 import OverlayHealthBanner, { markTtlsLinkUsed } from './components/OverlayHealthBanner';
 import TelemetryConsent from './components/TelemetryConsent';
 import ProfileSwitcher from './components/ProfileSwitcher';
-import { stoppeAlleSounds, laufenSounds } from './components/SoundPlayer';
 import OnboardingTour from './components/OnboardingTour';
 import WhatsNew from './components/WhatsNew';
 import KeyWizard from './components/KeyWizard';

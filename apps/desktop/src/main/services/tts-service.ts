@@ -283,6 +283,13 @@ export class TTSService {
         }
         finish();
       }, p.durationMs * 2 + 10_000);
+      // Dieser Wecker darf den Prozess NIEMALS am Leben halten. In der App
+      // ändert das nichts (Fenster und IPC halten die Schleife offen), im
+      // Testlauf alles: Eine einzige Ansage mit großzügiger Schätzdauer hielt
+      // den Node-Prozess nach dem letzten Test noch dreieinhalb Minuten offen.
+      // Derselbe Fehler wie beim Verbindungs-Wachhund — deshalb hier gleich
+      // mit erledigt.
+      timer.unref?.();
       this.pendingEnded.set(p.fileId, finish);
     });
   }
@@ -574,10 +581,19 @@ export class TTSService {
     // Online-Dienst getrimmte kurze Riegel — mit 7s würde ausgerechnet der Notnagel
     // scheitern und es bliebe doch still. Piper bricht intern nach 15s selbst ab.
     const budget = ns === 'piper' ? LOCAL_SYNTH_TIMEOUT_MS : SYNTH_TIMEOUT_MS;
+    // Der Zeitriegel MUSS abgeräumt werden, auch (und gerade) wenn die Synthese
+    // rechtzeitig fertig war.
+    //
+    // Vorher lief er nach jeder gelungenen Ansage weiter — bis zu 25 Sekunden
+    // ein Timer ohne Zweck, je Ansage einer. Zu sehen war das nirgends: Der
+    // Fehler kostet keine Funktion, nur einen Prozess, der nicht zur Ruhe
+    // kommt. Im Testlauf hing der Node-Prozess dadurch nach dem letzten
+    // grünen Test noch 25 Sekunden.
+    let riegel: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
         work,
-        new Promise((_r, reject) => setTimeout(() => reject(new Error('TTS-Timeout')), budget)),
+        new Promise((_r, reject) => { riegel = setTimeout(() => reject(new Error('TTS-Timeout')), budget); }),
       ]);
       if (!fs.existsSync(teil) || fs.statSync(teil).size === 0) throw new Error('Keine Audio-Datei erzeugt');
       fs.renameSync(teil, target);
@@ -585,6 +601,8 @@ export class TTSService {
       // Bruchstück wegräumen, sonst wächst der Ordner mit unbrauchbaren Resten.
       try { fs.rmSync(teil, { force: true }); } catch { /* dann eben nicht */ }
       throw err;
+    } finally {
+      clearTimeout(riegel);
     }
 
     this.cleanupCache();

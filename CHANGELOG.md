@@ -3,6 +3,80 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.53.0] — 2026-08-17
+
+Kein neues Feature. Diese Fassung räumt auf: an Schaltern, die man übersah, an
+Meldungen, die in die Irre führten, und an zwei Timern, die niemals abliefen.
+Ausgelöst hat es eine Nutzerin, bei der „TTS nur teilweise ging" — und eine
+Durchsicht des Codes durch ein zweites Werkzeug.
+
+### Die Schalter sieht man jetzt
+
+Auf der Stimme-Seite gab es **einen** auffälligen Schalter und **drei**
+unauffällige. „Chat vorlesen", „Follower ansagen" und „Gifts ansagen" waren
+13-Pixel-Kästchen am Rand einer Kopfzeile — und die Einstellungen darunter
+sahen immer gleich aus, ob der Schalter nun an war oder aus.
+
+Bei einer Nutzerin lief genau das schief: Oben stand „TTS AKTIV", darunter
+standen Stimme, Format und Filter fertig eingerichtet. Nur das Kästchen war
+leer. Der Chat blieb stumm, während Follower-Ansagen kamen — von außen sieht
+das aus wie ein halb kaputtes Programm.
+
+Jetzt hat jeder dieser drei einen **richtigen Schieber** mit dem Zustand als
+Wort daneben (**An** / **Aus**, nicht nur als Farbe — Farbe allein hilft
+rot-grün-blinden Augen nicht). Ist er aus, wird alles darunter **gedämpft und
+unbedienbar**: Man stellt keine Stimme mehr ein, die nie zum Einsatz kommt.
+
+Und im Aus-Zustand steht dort der Satz, der die Verwirrung auflöst:
+
+> Follower- und Gift-Ansagen laufen weiter — die hängen an ihren eigenen
+> Schaltern oben, nicht an diesem.
+
+### Zwei Timer, die nie abgeräumt wurden
+
+Beim Nachgehen einer Kleinigkeit — der Testlauf dauerte auffällig lange — kamen
+zwei echte Fehler zum Vorschein. Beide kosten keine Funktion. Sie sorgen nur
+dafür, dass das Programm nie zur Ruhe kommt:
+
+- **Der Zeitriegel um die Sprachsynthese lief bei ERFOLG weiter.** Nach jeder
+  gelungenen Ansage blieb bis zu 25 Sekunden lang ein Wecker stehen, der nichts
+  mehr zu tun hatte — einer pro Ansage.
+- **Der Notfall-Wecker für „hat sich das Audio zurückgemeldet?"** hielt den
+  Prozess offen, statt ihn ziehen zu lassen.
+
+Nebenbei ist der Testlauf dadurch von rund vier Minuten auf **zwölf Sekunden**
+gefallen. Das war der Anlass, nicht der Zweck.
+
+### Meldungen, die nicht mehr in die Irre führen
+
+- **Die Geschenke-Galerie meldete einen Fehler als „leer".** Kam vom Abruf eine
+  Fehlerantwort zurück, las die App darin nach Geschenken, fand keine und
+  schrieb „enthielt keine erkennbaren Einträge". Das klingt nach einem Streamer
+  ohne Galerie statt nach einem gescheiterten Abruf — und schickt die
+  Fehlersuche in die falsche Richtung. Jetzt steht der Grund da. Freitext aus
+  fremden Fehlermeldungen läuft dabei durch den Geheimnis-Filter: Solche
+  Meldungen zitieren gern die aufgerufene Adresse samt Schlüssel, und
+  Logdateien gibt man weiter.
+- **Ansagen aus Trigger-Regeln hinterließen bei Erfolg keine Spur.** Im Log
+  stand „Regel X → TTS-Ansage" und danach nichts. Ob die Ansage tatsächlich
+  rausging oder unterwegs verworfen wurde, war nicht zu unterscheiden. Jetzt
+  steht der Ausgang dort.
+- **„Der Chat wird nicht vorgelesen"** sagt jetzt dazu, dass Follower-, Gift-
+  und Trigger-Ansagen davon *nicht* betroffen sind.
+- Die PK-Meldung versprach „steht ab jetzt im Log **und im Cockpit**". Im
+  Cockpit stand er nie. Jetzt verspricht sie nur noch, was sie hält.
+
+### Unter der Haube
+
+- Zwei Rückrufe für PK-Kämpfe und angepinnte Nachrichten sind **entfernt**. Sie
+  sahen aus wie eine Leitung ins Cockpit und waren nie eine — niemand hat sie
+  je übergeben. Erkennung und Log bleiben unverändert; sobald es ein PK-Overlay
+  oder ein Pin-Widget gibt, kommen sie zusammen mit dem Empfänger zurück.
+- Ein neuer Wächter-Test hält fest, dass Geschenk-Bilder **vor** dem Versand ans
+  Overlay nachgetragen werden. Diese Reihenfolge stand bisher nirgends
+  geschrieben; wer sie versehentlich umdreht, lässt zehn Widgets lautlos wieder
+  Platzhalter zeigen.
+
 ## [0.52.0] — 2026-08-06
 
 Ein echter PK-Kampf und zwei angepinnte Nachrichten haben gereicht, um drei

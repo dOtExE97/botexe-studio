@@ -176,8 +176,27 @@ class LangsamTTS extends TTSService {
   }
 }
 
+/** LangsamTTS, das sich wie ein gesunder Renderer verhält: Es meldet jedes
+ *  Audio sofort als beendet zurück.
+ *
+ *  OHNE diese Rückmeldung wartet der Dienst auf seinen Notfall-Wecker
+ *  (`durationMs * 2 + 10_000`, siehe waitForPlayback) — und genau das taten
+ *  diese beiden Tests: gut 10 Sekunden Leerlauf pro Stück, für eine Prüfung,
+ *  die 60 Millisekunden dauert. Hier geht es um die Auswahl in der
+ *  Warteschlange, nicht um das Warten auf Ton.
+ *
+ *  Die Rückmeldung MUSS verzögert kommen (setTimeout 0): Der Dienst trägt den
+ *  Warte-Eintrag erst NACH dem onAudio-Aufruf ein. Ein sofortiger Aufruf liefe
+ *  ins Leere — und der Test wäre wieder 10 Sekunden lang. */
+function langsamMitRueckmeldung(): LangsamTTS {
+  const tts: LangsamTTS = new LangsamTTS(tmpDir(), (p) => {
+    setTimeout(() => tts.notifyEnded(p.fileId), 0);
+  });
+  return tts;
+}
+
 test('zu alte Ansagen werden übersprungen statt verspätet vorgelesen', async () => {
-  const tts = new LangsamTTS(tmpDir(), () => undefined);
+  const tts = langsamMitRueckmeldung();
   // Direkt in die Warteschlange schreiben, mit altem Zeitstempel.
   const q = (tts as unknown as { queue: { text: string; voice: string; at?: number }[] }).queue;
   q.push({ text: 'uralt', voice: 'v', at: Date.now() - 5 * 60_000 });
@@ -189,7 +208,7 @@ test('zu alte Ansagen werden übersprungen statt verspätet vorgelesen', async (
 });
 
 test('Ansagen ohne Zeitstempel (Alt-Einträge) werden NICHT verworfen', async () => {
-  const tts = new LangsamTTS(tmpDir(), () => undefined);
+  const tts = langsamMitRueckmeldung();
   const q = (tts as unknown as { queue: { text: string; voice: string; at?: number }[] }).queue;
   q.push({ text: 'ohne-stempel', voice: 'v' });
   await (tts as unknown as { processNext: () => Promise<void> }).processNext();

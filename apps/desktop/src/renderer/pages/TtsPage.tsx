@@ -1,5 +1,6 @@
 // TtsPage — Stimme von bOtExE Studio: Chat vorlesen (wie TikFinity),
 // Stimmen testen, Verhalten einstellen. Gesprochen wird lokal über die App.
+import { AnAusSchalter } from '../components/AnAusSchalter';
 import { useEffect, useState } from 'react';
 import {
   Mic,
@@ -231,12 +232,13 @@ function AnnounceSection({
       </h2>
       <div className="flex flex-col gap-4">
         {/* Neue Follower */}
-        <div className="rounded-lg border border-studio-border p-3">
-          <label className="flex items-center gap-2 text-xs font-bold">
-            <input type="checkbox" checked={af.enabled} onChange={(e) => update({ announceFollow: { ...af, enabled: e.target.checked } })} />
-            Neue Follower ansagen
-          </label>
-          <div className="mt-2 flex flex-wrap items-end gap-3">
+        <AnAusSchalter
+          an={af.enabled}
+          onChange={(an) => update({ announceFollow: { ...af, enabled: an } })}
+          titel="Neue Follower ansagen"
+          beschreibung="Sagt den Namen an, wenn dir jemand neu folgt."
+          kinder={(
+          <div className="flex flex-wrap items-end gap-3">
             <label className="flex-1 text-[10px] uppercase tracking-widest text-studio-muted">
               Text
               <input value={af.template} onChange={(e) => update({ announceFollow: { ...af, template: e.target.value } })}
@@ -247,14 +249,16 @@ function AnnounceSection({
               <VoiceSelect groups={groups} value={af.voice} onChange={(v) => update({ announceFollow: { ...af, voice: v } })} />
             </label>
           </div>
-        </div>
+          )}
+        />
         {/* Große Gifts */}
-        <div className="rounded-lg border border-studio-border p-3">
-          <label className="flex items-center gap-2 text-xs font-bold">
-            <input type="checkbox" checked={ag.enabled} onChange={(e) => update({ announceGift: { ...ag, enabled: e.target.checked } })} />
-            Große Gifts ansagen
-          </label>
-          <div className="mt-2 flex flex-wrap items-end gap-3">
+        <AnAusSchalter
+          an={ag.enabled}
+          onChange={(an) => update({ announceGift: { ...ag, enabled: an } })}
+          titel="Große Gifts ansagen"
+          beschreibung="Sagt Geschenke an — erst ab der Coin-Grenze unten."
+          kinder={(<>
+          <div className="flex flex-wrap items-end gap-3">
             <label className="text-[10px] uppercase tracking-widest text-studio-muted">
               Ab Coins
               <input type="number" value={ag.minCoins} min={0}
@@ -274,7 +278,8 @@ function AnnounceSection({
           <span className="mt-1.5 block text-[9px] tracking-normal text-studio-muted/80">
             Platzhalter: {'{user}'}, {'{gift}'}, {'{count}'}, {'{coins}'}
           </span>
-        </div>
+          </>)}
+        />
         <p className="text-[11px] leading-relaxed text-studio-muted">
           Tipp: Wenn du für Follower/Gifts bereits eigene „Sprechen"-Trigger angelegt hast, kann es sonst
           <b> doppelt</b> vorgelesen werden — dann hier oder dort eins ausschalten.
@@ -283,6 +288,7 @@ function AnnounceSection({
     </section>
   );
 }
+
 
 export default function TtsPage() {
   const [groups, setGroups] = useState<VoiceGroup[]>([]);
@@ -468,18 +474,16 @@ export default function TtsPage() {
 
       {/* Chat vorlesen */}
       <section className="bx-card p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
-            <MessageSquare size={15} /> Chat vorlesen
-          </h2>
-          <label className="flex cursor-pointer items-center gap-2 text-xs">
-            <input
-              type="checkbox" checked={tts.readChat}
-              onChange={(e) => update({ readChat: e.target.checked })}
-            />
-            Jede Chat-Nachricht vorlesen
-          </label>
-        </div>
+        <h2 className="mb-3 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.28em] text-studio-gold">
+          <MessageSquare size={15} /> Chat vorlesen
+        </h2>
+        <AnAusSchalter
+          an={tts.readChat}
+          onChange={(an) => update({ readChat: an })}
+          titel="Jede Chat-Nachricht vorlesen"
+          beschreibung="Liest mit, was im Chat geschrieben wird."
+          hinweis="Follower- und Gift-Ansagen laufen weiter — die hängen an ihren eigenen Schaltern oben, nicht an diesem."
+          kinder={(
         <div className="grid grid-cols-2 gap-4">
           <label className="text-[10px] uppercase tracking-widest text-studio-muted">
             Stimmen-Modus
@@ -583,6 +587,8 @@ export default function TtsPage() {
             />
           </label>
         </div>
+          )}
+        />
         <p className="mt-3 text-[11px] leading-relaxed text-studio-muted">
           Troll-Schutz ist immer aktiv: Links fliegen raus, Emoji- und Zeichen-Spam wird eingedampft,
           lange Texte werden gekürzt, und bei Nachrichten-Fluten liest bOtExE nur die neuesten vor.

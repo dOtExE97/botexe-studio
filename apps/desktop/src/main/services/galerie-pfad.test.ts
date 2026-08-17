@@ -12,7 +12,7 @@
 //   WebcastGiftGalleryData     { normal_gifts: NormalGiftItem[], … }
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { liesGalerieEintraege } from './studio';
+import { liesGalerieEintraege, liesGalerieFehler } from './studio';
 
 test('der echte Pfad ist data.normal_gifts', () => {
   // Nachgebaut nach der Typdefinition des SDK.
@@ -58,4 +58,36 @@ test('kaputte oder leere Antworten geben ein leeres Array, keinen Absturz', () =
   assert.deepEqual(liesGalerieEintraege({ data: {} }), []);
   assert.deepEqual(liesGalerieEintraege({ code: 4003, message: 'no permission' }), []);
   assert.deepEqual(liesGalerieEintraege('kaputt'), []);
+});
+
+// ── Fehlerantwort vs. leere Galerie ────────────────────────────────────────
+// Zweiter Fall aus dem Feld: Bei einer Nutzerin kam `{ code, error, detail }`
+// zurück — eine Fehlermeldung. Die App las darin nach Geschenken, fand keine
+// und meldete „enthielt keine erkennbaren Einträge". Sachlich wahr, in der
+// Wirkung falsch: Es klang nach einem Streamer ohne Galerie statt nach einem
+// gescheiterten Abruf, und schickte die Fehlersuche in die falsche Richtung.
+
+test('eine Fehlerantwort wird als Fehler erkannt, nicht als leere Galerie', () => {
+  const satz = liesGalerieFehler({ code: 403, error: 'forbidden', detail: 'plan required' });
+  assert.ok(satz, 'wird als Fehler erkannt');
+  assert.match(satz, /forbidden/);
+  assert.match(satz, /403/);
+});
+
+test('eine ERFOLGREICHE Antwort gilt nicht als Fehler', () => {
+  // Wichtig, weil auch die Erfolgsantwort ein `code`-Feld trägt: Auf `code`
+  // allein zu prüfen, würde jeden geglückten Abruf zum Fehler erklären.
+  assert.equal(liesGalerieFehler({ code: 0, data: { normal_gifts: [] } }), null);
+  assert.equal(liesGalerieFehler({ code: 0, data: { normal_gifts: [{ name: 'Rose' }] } }), null);
+  assert.equal(liesGalerieFehler([]), null, 'eine blanke Liste ist keine Fehlermeldung');
+  assert.equal(liesGalerieFehler(undefined), null);
+});
+
+test('aus der Fehlermeldung fliegt raus, was nach Schlüssel aussieht', () => {
+  // Fremde Fehlermeldungen zitieren gern die aufgerufene URL — samt Schlüssel.
+  // Logdateien gibt man weiter, deshalb läuft der Text durch den Filter.
+  const satz = liesGalerieFehler({ code: 401, error: 'bad key euler_abc123def456ghi789jkl' });
+  assert.ok(satz);
+  assert.doesNotMatch(satz, /euler_abc123/, 'der Schlüssel steht NICHT im Log');
+  assert.match(satz, /entfernt/);
 });

@@ -16,8 +16,8 @@ import { kannFortsetzung } from '../services/session-continuity';
 import { Artenbuch } from './tiktok-artenbuch';
 import type { HostInfo } from './tiktok-cloud';
 import { leseRangUpdate, type RangStand } from './tiktok-rank';
-import { lesePkStand, lesePkRahmen, pkText, type PkStand, type PkRahmen } from './tiktok-pk';
-import { lesePin, pinText, type PinEreignis } from './tiktok-pin';
+import { lesePkStand, lesePkRahmen, pkText } from './tiktok-pk';
+import { lesePin, pinText } from './tiktok-pin';
 import {
   normalizeChat,
   normalizeGift,
@@ -72,14 +72,17 @@ export interface TikTokAdapterOptions {
   onAvailableGifts?: (gifts: unknown) => void;
   /** TikToks Live-Ranglisten („dein Platz") — Zustand, kein Bus-Ereignis. */
   onRank?: (staende: RangStand[]) => void;
-  /** PK-Kampf: Punktestand-Update bzw. Start/Ende. Wie die Ranglisten ein
-   *  ZUSTAND, kein Ereignis — der Punktestand ändert sich im Sekundentakt und
-   *  gehört nicht als Einzelereignis auf den Bus. */
-  onPk?: (info: { stand?: PkStand; rahmen?: PkRahmen }) => void;
-  /** Angepinnte Nachricht — ebenfalls ZUSTAND: Sie bleibt stehen, bis der
-   *  Streamer sie löst. Ein Ereignis auf dem Bus wäre falsch, weil ein
-   *  Overlay, das später startet, den Pin sonst nie zu sehen bekäme. */
-  onPin?: (pin: PinEreignis) => void;
+  // ABSICHTLICH KEIN onPk / onPin.
+  //
+  // Beides gab es hier schon einmal — und niemand hat sie je übergeben. Zwei
+  // Rückrufe, die aussahen wie eine Leitung ins Cockpit und keine waren. Genau
+  // die Sorte toter Code, bei der man beim nächsten Blick glaubt, das Signal
+  // käme irgendwo an, und die Ursache dann an der falschen Stelle sucht.
+  //
+  // PK-Kämpfe und Pins werden weiterhin vollständig gelesen (tiktok-pk.ts,
+  // tiktok-pin.ts, beide mit Tests) und landen im Log. Sobald es einen echten
+  // Empfänger gibt — ein PK-Overlay, ein Pin-Widget —, kommen die Rückrufe
+  // ZUSAMMEN mit ihm zurück. Wie es geht, steht in der Historie von v0.52.0.
   /** Geschenke-Galerie des Streamers (TikToks Sammel-Album), falls abrufbar. */
   onGiftGallery?: (galerie: unknown) => void;
   /** Name, Bild und Livetitel des Streamers, sobald TikTok sie schickt.
@@ -207,8 +210,6 @@ export class TikTokAdapter {
   private readonly onStatus: (info: AdapterStatusInfo) => void;
   private readonly onAvailableGifts?: (gifts: unknown) => void;
   private readonly onRank?: (staende: RangStand[]) => void;
-  private readonly onPk?: (info: { stand?: PkStand; rahmen?: PkRahmen }) => void;
-  private readonly onPin?: (pin: PinEreignis) => void;
   /** Letzter gemeldeter Punktestand je Kampf — gegen Log-Flut bei 62 Updates. */
   private pkZuletzt = new Map<string, string>();
   private readonly onHostInfo?: (info: HostInfo) => void;
@@ -279,8 +280,6 @@ export class TikTokAdapter {
     this.onStatus = options.onStatus ?? (() => undefined);
     this.onAvailableGifts = options.onAvailableGifts;
     this.onRank = options.onRank;
-    this.onPk = options.onPk;
-    this.onPin = options.onPin;
     this.onHostInfo = options.onHostInfo;
     this.onGiftGallery = options.onGiftGallery;
     this.maxReconnect = options.maxReconnect ?? DEFAULTS.maxReconnect;
@@ -846,28 +845,25 @@ export class TikTokAdapter {
     on('linkMicBattle', guard((d: unknown) => {
       const rahmen = lesePkRahmen(d);
       if (!rahmen) return;
-      this.onPk?.({ rahmen });
       if (rahmen.ergebnis) {
         log.info('TikTok', `PK-Kampf beendet (Kampf ${rahmen.battleId}).`);
         this.pkZuletzt.delete(rahmen.battleId);
       } else {
         const dauer = rahmen.dauerSek ? ` · ${Math.round(rahmen.dauerSek / 60)} Minuten` : '';
         log.info('TikTok', `PK-Kampf gestartet gegen ${rahmen.teilnehmer.length - 1 || 1} Gegner${dauer}. `
-          + 'Der Punktestand steht ab jetzt im Log und im Cockpit.');
+          + 'Der Punktestand steht ab jetzt im Log.');
       }
     }));
 
     on('roomPin', guard((d: unknown) => {
       const pin = lesePin(d);
       if (!pin) return;
-      this.onPin?.(pin);
       log.info('TikTok', pinText(pin));
     }));
 
     on('linkMicArmies', guard((d: unknown) => {
       const stand = lesePkStand(d);
       if (!stand) return;
-      this.onPk?.({ stand });
       const text = pkText(stand);
       if (this.pkZuletzt.get(stand.battleId) === text) return; // nichts Neues
       this.pkZuletzt.set(stand.battleId, text);

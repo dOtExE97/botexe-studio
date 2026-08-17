@@ -27,6 +27,7 @@ import type { SoundCategory } from '../../shared/mixer';
 import { OVERLAY_PORT } from '../../shared/constants';
 import { mergeMitMasterAlsMap, masterIcon, type KatalogEintrag } from '../../shared/gift-master';
 import { giftDisplayName } from '../../shared/gift-names-de';
+import { scrubString } from '../../shared/telemetry';
 import { parseApiAction, API_ACTION_KINDS } from './api-actions';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
@@ -1565,6 +1566,18 @@ export class Studio {
    *  Name/ID gesucht — findet sich nichts Brauchbares, passiert eben nichts.
    *  Der Katalog bleibt in jedem Fall unbeschädigt. */
   private importGiftGallery(galerie: unknown): void {
+    // ERST prüfen, ob die Antwort überhaupt eine Galerie IST.
+    //
+    // Bei einer Nutzerin kam `{code, error, detail}` zurück — eine
+    // Fehlerantwort. Die App meldete trotzdem „enthielt keine erkennbaren
+    // Einträge", also einen Zustand statt eines Fehlers. Wer das liest, sucht
+    // beim falschen Streamer nach der Ursache, statt beim Abruf.
+    const fehler = liesGalerieFehler(galerie);
+    if (fehler) {
+      log.info('TikTok', `Die Geschenke-Galerie konnte nicht abgerufen werden: ${fehler} `
+        + 'Der Katalog füllt sich trotzdem — nur eben erst, wenn ein Geschenk tatsächlich kommt.');
+      return;
+    }
     const eintraege = liesGalerieEintraege(galerie);
     if (eintraege.length === 0) {
       // Feldnamen zeigen, NIEMALS Werte: In der Antwort stecken Raum- und
@@ -2554,6 +2567,16 @@ export class Studio {
         ? this.tts.voiceForUser(event.user.id, tts.voice)
         : tts.voice);
     this.tts.speak(text, voice);
+    // ERFOLG PROTOKOLLIEREN — und zwar hier, als letzter Schritt.
+    //
+    // Bisher hinterließ dieser Weg bei Erfolg KEINE Spur: Im Log stand nur
+    // „Regel X → TTS-Ansage" (vom Trigger), danach nichts. Ob die Ansage
+    // tatsächlich rausging oder unterwegs verworfen wurde, war von außen nicht
+    // zu unterscheiden — jede Fehlersuche begann mit Raten.
+    //
+    // Nur der TEXT, nie die Stimme: Bei eigenen Stimmen steckt darin die
+    // Zuordnung zu einem Zuschauer.
+    log.info('TTS', `angesagt: ${text.slice(0, 80)}${text.length > 80 ? '…' : ''}`);
   }
 
   /** Zentraler Moderations-Wächter für ALLE TTS-Ausgaben — auch Ansagen/
@@ -2569,7 +2592,12 @@ export class Studio {
       // Die beiden Schalter sehen von außen gleich aus („es liest nichts vor"),
       // meinen aber Verschiedenes. Selten genug melden, dass es nicht nervt.
       log.gedrosselt('tts:chat-aus', 10 * 60_000, 'info', 'TTS', tts.enabled
-        ? 'Der Chat wird nicht vorgelesen — der Schalter „Chat vorlesen" ist aus (die Sprachausgabe selbst ist an).'
+        // Der Zusatz ist der eigentliche Punkt: Eine Nutzerin meldete „TTS geht
+        // nur teilweise" — Follower-Ansagen kamen, der Chat blieb stumm. Ohne
+        // den zweiten Satz liest man die Meldung als „irgendwas ist kaputt"
+        // statt als „genau so ist es eingestellt".
+        ? 'Der Chat wird nicht vorgelesen — der Schalter „Chat vorlesen" ist aus (die Sprachausgabe selbst ist an). '
+          + 'Follower-, Gift- und Trigger-Ansagen sind davon NICHT betroffen: Die hängen an ihren eigenen Schaltern.'
         : 'Der Chat wird nicht vorgelesen — die Sprachausgabe ist komplett ausgeschaltet, deshalb gibt es auch keine Ansagen.');
       return;
     }
@@ -2971,6 +2999,34 @@ export class Studio {
  *
  * Eigene Funktion, damit ein Test den Feldnamen festnagelt.
  */
+/**
+ * War die Galerie-Antwort in Wahrheit eine FEHLERMELDUNG?
+ *
+ * Bei einer Nutzerin kam `{ code, error, detail }` zurück. Die App las darin
+ * nach Geschenken, fand keine und meldete „enthielt keine erkennbaren
+ * Einträge" — sachlich wahr und trotzdem irreführend: Es klang nach einem
+ * Streamer ohne Galerie, nicht nach einem gescheiterten Abruf. Genau die
+ * Sorte Meldung, die eine Fehlersuche in die falsche Richtung schickt.
+ *
+ * Rückgabe: ein fertiger Satz fürs Log, oder null wenn kein Fehler vorliegt.
+ * Freitext läuft durch den Geheimnis-Filter — eine fremde Fehlermeldung kann
+ * die aufgerufene URL samt Schlüssel enthalten, und Logs gibt man weiter.
+ *
+ * Eigene Funktion, damit ein Test die Feldnamen festnagelt.
+ */
+export function liesGalerieFehler(galerie: unknown): string | null {
+  if (!galerie || typeof galerie !== 'object' || Array.isArray(galerie)) return null;
+  const g = galerie as { code?: unknown; error?: unknown; detail?: unknown; message?: unknown };
+  // `code` allein reicht NICHT: Die Erfolgsantwort trägt ebenfalls ein `code`
+  // (0 bzw. 200). Erst ein error/detail-Feld macht daraus eine Fehlermeldung.
+  const text = [g.error, g.detail, g.message]
+    .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+    .join(' — ');
+  if (!text) return null;
+  const code = typeof g.code === 'number' || typeof g.code === 'string' ? ` (Code ${g.code})` : '';
+  return `${scrubString(text).slice(0, 200)}${code}.`;
+}
+
 export function liesGalerieEintraege(galerie: unknown): unknown[] {
   if (Array.isArray(galerie)) return galerie;
   const g = galerie as {
