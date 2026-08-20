@@ -62,6 +62,22 @@ export interface PointsEntry {
   teamLevel?: number;
   /** Ebenso für die Gifter-Stufe (TikToks payGrade). */
   gifterLevel?: number;
+  /** Wie lange dieser Zuschauer schon folgt (TikToks `followedDays`).
+   *  Höchstwert, aus demselben Grund wie bei teamLevel: nicht jede Nachricht
+   *  trägt die Etiketten, und eine ohne sie würde den Wert sonst löschen. */
+  folgtSeitTagen?: number;
+  /** Wie lange im Fanclub/Teamherz (TikToks `memberDays`). Höchstwert. */
+  fanclubSeitTagen?: number;
+  /** Wie lange Superfan (TikToks `subForMo`, in Monaten). Höchstwert. */
+  superfanSeitMonaten?: number;
+  /** TikTok markiert ihn als Top-Schenker. Einmal wahr, bleibt wahr — es ist
+   *  eine Auszeichnung, kein Zustand, der zwischendurch verschwinden soll. */
+  istTopGifter?: boolean;
+  /** Wie viele Follower er SELBST hat. Hier gilt der LETZTE Wert, nicht der
+   *  höchste — diese Zahl ändert sich echt, in beide Richtungen. */
+  followerCount?: number;
+  /** Woher er zuletzt hereinkam (TikToks `clientEnterSource`, roh). */
+  herkunft?: string;
   /** Gewonnene Spiel-Runden (z.B. Zahlen-Raten) — fürs Spiel-Leaderboard. */
   gameWins?: number;
   /** Eigenes Begrüßungs-Medium (Media-ID) — spielt z.B. beim Teamherz. */
@@ -161,6 +177,13 @@ export class PointsStore {
       case 'gift':
         pts = cfg.perCoin * (event.gift?.totalCoins ?? 0);
         break;
+      case 'join':
+        // KEINE Punkte fürs bloße Hereinkommen — aber die Statistik muss laufen:
+        // Nur am Beitritt sagt TikTok, WOHER der Zuschauer kam, und wer nur
+        // zuschaut ohne zu schreiben, war bisher überhaupt nicht erfasst. Seine
+        // Besuche wurden erst beim ersten Kommentar gezählt.
+        this.touchStats(event);
+        return 0;
       default:
         return 0;
     }
@@ -196,6 +219,19 @@ export class PointsStore {
     // bekannte Stufe nicht löschen (dieselbe Regel wie in toUser()).
     if ((user.teamLevel ?? 0) > (e.teamLevel ?? 0)) e.teamLevel = user.teamLevel;
     if ((user.gifterLevel ?? 0) > (e.gifterLevel ?? 0)) e.gifterLevel = user.gifterLevel;
+    // Beziehungs-Angaben aus TikToks Etiketten — gleiche Höchstwert-Regel.
+    // „Folgt seit 437 Tagen" darf nicht auf undefined fallen, bloß weil die
+    // nächste Nachricht die Etiketten nicht mitbringt.
+    const b = event.beziehung;
+    if (b) {
+      if ((b.folgtSeitTagen ?? 0) > (e.folgtSeitTagen ?? 0)) e.folgtSeitTagen = b.folgtSeitTagen;
+      if ((b.fanclubSeitTagen ?? 0) > (e.fanclubSeitTagen ?? 0)) e.fanclubSeitTagen = b.fanclubSeitTagen;
+      if ((b.superfanSeitMonaten ?? 0) > (e.superfanSeitMonaten ?? 0)) e.superfanSeitMonaten = b.superfanSeitMonaten;
+      if (b.istTopGifter) e.istTopGifter = true;
+    }
+    // Die eigene Follower-Zahl ändert sich wirklich — hier gilt der letzte Wert.
+    if (user.followerCount) e.followerCount = user.followerCount;
+    if (event.herkunft) e.herkunft = event.herkunft;
     if (event.type === 'gift' && event.gift) {
       // Stückzahl, nicht Ereignisse — DIESELBE Funktion wie in SessionStats,
       // damit die Zuschauerkarte nicht andere Zahlen zeigt als das Overlay.

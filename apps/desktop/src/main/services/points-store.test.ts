@@ -261,3 +261,58 @@ test('Teamherz-Stufe wird dauerhaft gemerkt und nur nach OBEN nachgezogen', () =
   assert.equal(s.get('u1')?.teamLevel, 5);
   assert.equal(s.get('u1')?.gifterLevel, 14);
 });
+
+// ── Beziehungs-Angaben aus TikToks Etiketten ───────────────────────────────
+// Sie kommen nicht an jeder Nachricht mit. Werden sie beim letzten Wert
+// gespeichert, loescht die naechste Nachricht ohne Etiketten alles wieder —
+// genau der Fehler, den teamLevel schon einmal hatte.
+
+function chat(overrides: Partial<StudioEvent> = {}): StudioEvent {
+  return { type: 'chat', ts: 1_000, user: { id: 'u1', nickname: 'Solo Leveling' }, ...overrides };
+}
+
+test('Beziehungs-Angaben werden als HOECHSTWERT gemerkt', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordEvent(chat({ beziehung: { folgtSeitTagen: 437, fanclubSeitTagen: 424, superfanSeitMonaten: 2 } }), DEFAULT_POINTS_CONFIG);
+  // Zweite Nachricht OHNE Etiketten — der Regelfall.
+  s.recordEvent(chat({ ts: 2_000 }), DEFAULT_POINTS_CONFIG);
+  const e = s.get('u1');
+  assert.equal(e?.folgtSeitTagen, 437, 'eine Nachricht ohne Etiketten darf nichts zuruecksetzen');
+  assert.equal(e?.fanclubSeitTagen, 424);
+  assert.equal(e?.superfanSeitMonaten, 2);
+});
+
+test('Top-Gifter bleibt gemerkt — es ist eine Auszeichnung, kein Zustand', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordEvent(chat({ beziehung: { istTopGifter: true } }), DEFAULT_POINTS_CONFIG);
+  s.recordEvent(chat({ ts: 2_000, beziehung: { folgtSeitTagen: 5 } }), DEFAULT_POINTS_CONFIG);
+  assert.equal(s.get('u1')?.istTopGifter, true);
+});
+
+test('die eigene Follower-Zahl nimmt den LETZTEN Wert — die aendert sich echt', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordEvent(chat({ user: { id: 'u1', nickname: 'A', followerCount: 1_932 } }), DEFAULT_POINTS_CONFIG);
+  s.recordEvent(chat({ ts: 2_000, user: { id: 'u1', nickname: 'A', followerCount: 1_800 } }), DEFAULT_POINTS_CONFIG);
+  assert.equal(s.get('u1')?.followerCount, 1_800);
+});
+
+test('die Follower-Zahl bleibt stehen, wenn eine Nachricht sie nicht mitbringt', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordEvent(chat({ user: { id: 'u1', nickname: 'A', followerCount: 1_932 } }), DEFAULT_POINTS_CONFIG);
+  s.recordEvent(chat({ ts: 2_000, user: { id: 'u1', nickname: 'A' } }), DEFAULT_POINTS_CONFIG);
+  assert.equal(s.get('u1')?.followerCount, 1_932, 'kein Zuruecksetzen auf undefined');
+});
+
+test('Herkunft wird beim Beitritt gemerkt', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordEvent({ type: 'join', ts: 1_000, user: { id: 'u1', nickname: 'A' }, herkunft: 'homepage_hot-live_cell' }, DEFAULT_POINTS_CONFIG);
+  assert.equal(s.get('u1')?.herkunft, 'homepage_hot-live_cell');
+});
+
+test('ohne Beziehungs-Angaben wird nichts erfunden', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordEvent(chat(), DEFAULT_POINTS_CONFIG);
+  const e = s.get('u1');
+  assert.equal(e?.folgtSeitTagen, undefined, 'nicht 0 — unbekannt ist etwas anderes als „seit null Tagen"');
+  assert.equal(e?.istTopGifter, undefined);
+});
