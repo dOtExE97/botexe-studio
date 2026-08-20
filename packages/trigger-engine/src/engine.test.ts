@@ -507,3 +507,52 @@ test('sticker_ist: keine Abklingzeit voreingestellt — jeder Sticker feuert', (
   assert.equal(engine.evaluate(stickerEvent(['42'])).length, 1);
   assert.equal(engine.evaluate({ ...stickerEvent(['42']), ts: 1_010 }).length, 1, 'auch 10 ms spaeter');
 });
+
+// ── Treue-Bedingungen aus TikToks Etiketten ────────────────────────────────
+// Kernpunkt: FEHLT die Angabe, gilt die Bedingung als NICHT erfuellt. Sonst
+// begruesst die Treue-Regel jeden Fremden.
+
+function chatMit(overrides: Partial<StudioEvent>): StudioEvent {
+  return { type: 'chat', ts: 1_000, user: { id: 'u1', nickname: 'Anna' }, text: 'hi', ...overrides };
+}
+
+function feuert(bedingung: TriggerRule['conditions'], ev: StudioEvent): boolean {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ event: ev.type, conditions: bedingung, actions: [{ kind: 'play_sound', soundId: 's1' }] })]);
+  return engine.evaluate(ev).length > 0;
+}
+
+test('folgt_seit_tagen_gte: trifft ab der Schwelle', () => {
+  const ev = chatMit({ beziehung: { folgtSeitTagen: 437 } });
+  assert.equal(feuert([{ kind: 'folgt_seit_tagen_gte', value: 100 }], ev), true);
+  assert.equal(feuert([{ kind: 'folgt_seit_tagen_gte', value: 437 }], ev), true, 'genau auf der Schwelle zaehlt');
+  assert.equal(feuert([{ kind: 'folgt_seit_tagen_gte', value: 500 }], ev), false);
+});
+
+test('folgt_seit_tagen_gte: OHNE Angabe NICHT erfuellt', () => {
+  assert.equal(feuert([{ kind: 'folgt_seit_tagen_gte', value: 1 }], chatMit({})), false,
+    'sonst begruesst die Treue-Regel jeden Fremden');
+});
+
+test('ist_top_gifter', () => {
+  assert.equal(feuert([{ kind: 'ist_top_gifter' }], chatMit({ beziehung: { istTopGifter: true } })), true);
+  assert.equal(feuert([{ kind: 'ist_top_gifter' }], chatMit({})), false);
+  assert.equal(feuert([{ kind: 'ist_top_gifter' }], chatMit({ beziehung: { folgtSeitTagen: 5 } })), false);
+});
+
+test('folgt_seit_heute: der brandneue Follower', () => {
+  assert.equal(feuert([{ kind: 'folgt_seit_heute' }], chatMit({ beziehung: { folgtSeitHeute: true } })), true);
+  assert.equal(feuert([{ kind: 'folgt_seit_heute' }], chatMit({ beziehung: { folgtSeitTagen: 437 } })), false);
+});
+
+test('follower_count_gte: der Zuschauer ist selbst gross', () => {
+  const gross = chatMit({ user: { id: 'u1', nickname: 'Streamer', followerCount: 20_000 } });
+  assert.equal(feuert([{ kind: 'follower_count_gte', value: 10_000 }], gross), true);
+  assert.equal(feuert([{ kind: 'follower_count_gte', value: 50_000 }], gross), false);
+  assert.equal(feuert([{ kind: 'follower_count_gte', value: 1 }], chatMit({})), false, 'ohne Angabe nicht erfuellt');
+});
+
+test('fanclub_seit_tagen_gte', () => {
+  assert.equal(feuert([{ kind: 'fanclub_seit_tagen_gte', value: 400 }], chatMit({ beziehung: { fanclubSeitTagen: 424 } })), true);
+  assert.equal(feuert([{ kind: 'fanclub_seit_tagen_gte', value: 400 }], chatMit({})), false);
+});

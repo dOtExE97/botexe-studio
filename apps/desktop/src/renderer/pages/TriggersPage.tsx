@@ -44,6 +44,11 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
     { value: 'chat_first_time', label: 'Allererste Nachricht (neuer Zuschauer)' },
     { value: 'user_gegenseitig', label: 'Ihr folgt euch GEGENSEITIG' },
     { value: 'user_hat_geschenkt', label: 'Hat dir schon mal etwas geschenkt' },
+    { value: 'folgt_seit_tagen_gte', label: 'Folgt dir seit mind. … Tagen', valueType: 'number' },
+    { value: 'fanclub_seit_tagen_gte', label: 'Im Teamherz seit mind. … Tagen', valueType: 'number' },
+    { value: 'folgt_seit_heute', label: 'Folgt dir seit HEUTE (brandneu)' },
+    { value: 'ist_top_gifter', label: 'Ist Top-Schenker (TikToks eigene Wertung)' },
+    { value: 'follower_count_gte', label: 'Hat selbst mind. … Follower', valueType: 'number' },
   ],
   follow: [
     { value: 'follow_first_time', label: 'Nur beim ERSTEN Follow (kein Re-Follow)' },
@@ -55,6 +60,11 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
     { value: 'ehrengast_betritt', label: 'Nur Top-Supporter (Ehrengast)' },
     { value: 'user_gegenseitig', label: 'Ihr folgt euch GEGENSEITIG' },
     { value: 'user_hat_geschenkt', label: 'Hat dir schon mal etwas geschenkt' },
+    { value: 'folgt_seit_tagen_gte', label: 'Folgt dir seit mind. … Tagen', valueType: 'number' },
+    { value: 'fanclub_seit_tagen_gte', label: 'Im Teamherz seit mind. … Tagen', valueType: 'number' },
+    { value: 'folgt_seit_heute', label: 'Folgt dir seit HEUTE (brandneu)' },
+    { value: 'ist_top_gifter', label: 'Ist Top-Schenker (TikToks eigene Wertung)' },
+    { value: 'follower_count_gte', label: 'Hat selbst mind. … Follower', valueType: 'number' },
   ],
   like: [
     { value: 'like_count_gte', label: 'Like-Meilenstein erreicht (bei … Likes)', valueType: 'number' },
@@ -128,6 +138,11 @@ function ruleToSentence(rule: TriggerRule, layerName: (id: string) => string, so
       case 'superfan_verlaengerung': wenn = 'jemand seinen Superfan VERLÄNGERT'; break;
       case 'superfan_monate_gte': wenn = `jemand seit mind. ${c.value} Monaten Superfan ist`; break;
       case 'user_gegenseitig': wenn = 'jemand schreibt, dem du auch folgst'; break;
+      case 'folgt_seit_tagen_gte': wenn = `jemand dir schon mind. ${c.value} Tage folgt (wer neu ist, löst nichts aus)`; break;
+      case 'fanclub_seit_tagen_gte': wenn = `jemand seit mind. ${c.value} Tagen im Teamherz ist`; break;
+      case 'folgt_seit_heute': wenn = 'jemand dir seit heute folgt'; break;
+      case 'ist_top_gifter': wenn = 'TikTok jemanden als Top-Schenker markiert'; break;
+      case 'follower_count_gte': wenn = `jemand selbst mind. ${c.value} Follower hat`; break;
       case 'user_hat_geschenkt': wenn = 'jemand schreibt, der dir schon mal was geschenkt hat'; break;
       case 'ehrengast_betritt': wenn = c.value
         ? `ein Top-Supporter bis Platz ${c.value} reinkommt`

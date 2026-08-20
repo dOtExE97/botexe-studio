@@ -252,6 +252,22 @@ export type TriggerCondition =
   | { kind: 'superfan_verlaengerung' }
   /** Ab wie vielen Monaten Superfan-Treue. */
   | { kind: 'superfan_monate_gte'; value: number }
+  /** Wie lange dieser Zuschauer dir schon folgt. TikTok liefert es an fast
+   *  jeder Nachricht mit — „seit 437 Tagen dabei", ohne dass die App je
+   *  mitzählen musste.
+   *
+   *  FEHLT die Angabe, gilt die Bedingung als NICHT erfüllt. Nie andersherum:
+   *  sonst begrüßt die Treue-Regel jeden Fremden. */
+  | { kind: 'folgt_seit_tagen_gte'; value: number }
+  /** Wie lange im Teamherz/Fanclub (TikToks `memberDays`). */
+  | { kind: 'fanclub_seit_tagen_gte'; value: number }
+  /** Folgt seit HEUTE — der brandneue Follower. */
+  | { kind: 'folgt_seit_heute' }
+  /** TikTok markiert diesen Zuschauer als Top-Schenker. */
+  | { kind: 'ist_top_gifter' }
+  /** Der Zuschauer hat SELBST mindestens so viele Follower — z.B. um einen
+   *  großen Kanal im Raum besonders zu begrüßen. */
+  | { kind: 'follower_count_gte'; value: number }
   /** Ein bestimmter Sticker (TikToks emoteId). TikTok liefert zu Stickern
    *  KEINEN Namen — die Nummer ist der einzige stabile Anker. Die Sticker-Seite
    *  zeigt dazu das Bild, damit niemand Nummern vergleichen muss. */
@@ -582,6 +598,18 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return event.superfanNeu === false;
     case 'superfan_monate_gte':
       return (event.subMonths ?? 0) >= condition.value;
+    // Alle Beziehungs-Bedingungen: fehlt die Angabe, ist die Bedingung FALSCH.
+    // Das `?? 0` sorgt genau dafür — value ist immer >= 1.
+    case 'folgt_seit_tagen_gte':
+      return (event.beziehung?.folgtSeitTagen ?? 0) >= condition.value;
+    case 'fanclub_seit_tagen_gte':
+      return (event.beziehung?.fanclubSeitTagen ?? 0) >= condition.value;
+    case 'folgt_seit_heute':
+      return event.beziehung?.folgtSeitHeute === true;
+    case 'ist_top_gifter':
+      return event.beziehung?.istTopGifter === true;
+    case 'follower_count_gte':
+      return (event.user?.followerCount ?? 0) >= condition.value;
     case 'sticker_ist':
       return (event.sticker ?? []).some((s) => s.id === condition.value);
     case 'chat_keyword':

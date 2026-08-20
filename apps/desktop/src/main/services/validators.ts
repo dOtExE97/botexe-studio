@@ -60,6 +60,11 @@ const CONDITION_KINDS: ReadonlySet<string> = new Set([
   'superfan_verlaengerung',
   'superfan_monate_gte',
   'sticker_ist',
+  'folgt_seit_tagen_gte',
+  'fanclub_seit_tagen_gte',
+  'folgt_seit_heute',
+  'ist_top_gifter',
+  'follower_count_gte',
   'chat_keyword',
   'chat_command',
   'chat_first_time',
@@ -385,6 +390,10 @@ function validateCondition(
       if (value === null) return null;
       return { kind, value };
     }
+    // Treue-Angaben aus TikToks Etiketten — ganze, nicht-negative Zahlen.
+    case 'folgt_seit_tagen_gte':
+    case 'fanclub_seit_tagen_gte':
+    case 'follower_count_gte':
     case 'superfan_monate_gte': {
       const value = nonNegInt(input['value']);
       if (value === null) return null;
@@ -409,6 +418,8 @@ function validateCondition(
     case 'envelope_superfan':
     case 'superfan_neu':
     case 'superfan_verlaengerung':
+    case 'folgt_seit_heute':
+    case 'ist_top_gifter':
       return { kind };
     default:
       return null;
