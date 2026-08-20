@@ -11,6 +11,7 @@ import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
 import { giftDisplayName, giftNameDe } from '../../shared/gift-names-de';
 import { toast } from '../components/ToastHost';
 import { passt, bewerte } from '../../shared/suche';
+import { sortiereGeschenke } from './galerie-sortierung';
 import { hatEigeneReaktion, slugsAusFeldwert, type WidgetGiftFeld } from '../../shared/gift-reaktionen';
 import { WIDGET_TYPES } from './widget-types';
 
@@ -113,25 +114,13 @@ export default function GalleryPage() {
     // „Heart", „Hertz" (Tippfehler) oder „fette Rakete" finden alle etwas.
     if (needle) list = list.filter((g) => passt(needle, g.slug, giftNameDe(g.slug) ?? undefined, g.customName));
 
-    const sorted = [...list];
-    const dn = (g: GiftEntry) => giftDisplayName(g.slug, lang, g.customName);
-    // Beim SUCHEN zaehlt zuerst, wie gut der Treffer passt — die gewaehlte
-    // Sortierung entscheidet nur noch bei gleicher Trefferguete.
-    //
-    // Das muss in DERSELBEN Sortierung stecken wie Coins/Name/Zuletzt: Eine
-    // vorgelagerte Relevanz-Sortierung waere hier wirkungslos, weil die
-    // folgenden Vergleiche eine vollstaendige Ordnung ueber einen anderen
-    // Schluessel bilden und sie damit komplett ueberschreiben. Genau so stand
-    // die Rose bei Sortierung „Name" wieder mittendrin.
-    const rel = needle
-      ? (g: GiftEntry) => bewerte(needle, [g.slug, giftNameDe(g.slug) ?? undefined, g.customName])
-      : null;
-    const nachRelevanz = (a: GiftEntry, b: GiftEntry) => (rel ? rel(b) - rel(a) : 0);
-
-    if (sort === 'coins') sorted.sort((a, b) => nachRelevanz(a, b) || (b.coins || 0) - (a.coins || 0) || dn(a).localeCompare(dn(b)));
-    else if (sort === 'name') sorted.sort((a, b) => nachRelevanz(a, b) || dn(a).localeCompare(dn(b)));
-    else sorted.sort((a, b) => nachRelevanz(a, b) || (b.lastSeen || 0) - (a.lastSeen || 0));
-    return sorted;
+    // Reihenfolge in galerie-sortierung.ts — DOM-frei und dadurch pruefbar.
+    // Genau hier war der Fehler unsichtbar: eine vorgelagerte Relevanz-Sortierung
+    // wurde von der gewaehlten Sortierung wieder ueberschrieben.
+    return sortiereGeschenke(list, sort, {
+      anzeigeName: (g) => giftDisplayName(g.slug, lang, g.customName),
+      relevanz: (g) => (needle ? bewerte(needle, [g.slug, giftNameDe(g.slug) ?? undefined, g.customName]) : 0),
+    });
   }, [gifts, view, q, sort, lang]);
 
   // ---- Vorschlags-Leiste -------------------------------------------------
