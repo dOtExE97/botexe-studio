@@ -850,6 +850,12 @@ function registerIpc(): void {
     return { ok: true };
   });
   ipcMain.handle(IPC.GIFT_CATALOG_GET, () => isStudio().getGiftCatalog());
+  ipcMain.handle(IPC.STICKER_CATALOG_GET, () => isStudio().getStickerCatalog());
+  ipcMain.handle(IPC.STICKER_NAME_SET, (_e, id: unknown, name: unknown) => {
+    // Beides muss Text sein — der Katalog kürzt und trimmt selbst weiter.
+    if (typeof id !== 'string' || typeof name !== 'string') return;
+    isStudio().stickerCatalog.umbenennen(id, name);
+  });
   ipcMain.handle(IPC.GIFT_META_SET, (_e, slug: unknown, patch: unknown) => {
     if (typeof slug !== 'string' || typeof patch !== 'object' || patch === null) return {};
     // P3d-Audit: bisher nur ein TS-Cast, kein Runtime-Check der Feldtypen —

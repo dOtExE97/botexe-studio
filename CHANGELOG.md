@@ -3,6 +3,43 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [Unveröffentlicht]
+
+### Sticker aus dem Chat werden sichtbar — und können einen Sound auslösen
+
+Schickt jemand einen Sticker (Fanclub-Sticker, Superfan-Emote), **verschwand
+seine Nachricht bisher spurlos** aus dem Chat-Widget. Nicht als leere Zeile —
+komplett. Eine reine Sticker-Nachricht trägt als Text nur ein Leerzeichen, und
+das Widget warf jede Nachricht ohne Text weg.
+
+Wie groß das war, wurde gemessen statt geschätzt: In 90 Sekunden aus einem
+fremden Live trugen **8 von 21 Chat-Nachrichten Sticker — 38 %**.
+
+Neu:
+
+- Sticker erscheinen im Chat-Widget an ihrer Stelle im Text.
+- Eine neue Seite **Sticker** zeigt alle, die im Stream durchgekommen sind, und
+  lässt jedem einen Sound zuweisen. Daraus wird eine ganz normale Trigger-Regel
+  — auf der Trigger-Seite kann sie um Video, Overlay oder Bedingungen erweitert
+  werden.
+- Eigene Namen für Sticker (TikTok liefert keine mit, nur Nummern).
+- Bilder werden lokal abgelegt, weil TikToks Adressen ablaufen.
+
+**Warum die Sticker-Liste erst mit der Zeit voll wird:** TikTok gibt die Sticker
+eines Kanals nicht vorab heraus. Das wurde untersucht und ausgeschlossen — die
+Raum-Antwort führt sie nicht, das eulerstream-SDK kennt nur Geschenk-Abrufe, und
+über TikToks Weboberfläche ist der Abruf nicht auffindbar (dort lassen sich
+Sticker nicht einmal senden). Wer nicht warten will, schickt sie einmal selbst
+per Handy in den eigenen Live.
+
+**Achtung bei der Auswertung:** Der Zähler „Emotes" zählte bisher nur die
+seltenen reinen Sticker-Nachrichten — im Mitschnitt waren das null. Jetzt zählt
+er die Sticker aus dem Chat mit und **springt deutlich nach oben**. Das ist
+richtig so, aber der Vergleich mit Streams von vorher hinkt ab hier.
+
+Und: Eine Chat-Nachricht mit Sticker löst ab jetzt **beides** aus — deine
+Chat-Regeln und deine Sticker-Regeln.
+
 ## [0.54.1] — 2026-08-20
 
 Ein Abend mit Gewitter hat gezeigt, wie die App auf eine wackelige Leitung

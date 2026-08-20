@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal, Stethoscope, Sliders, Square, BarChart3, Frame } from 'lucide-react';
+import { Radio, LayoutPanelTop, Zap, Gift, Gamepad2, Volume2, Mic, Settings, Users, Clapperboard, Images, Terminal, Stethoscope, Sliders, Square, BarChart3, Frame, Smile } from 'lucide-react';
 import { useStudio } from './hooks/useStudio';
 import SoundPlayer, { stoppeAlleSounds, laufenSounds } from './components/SoundPlayer';
 import ToastHost, { toast } from './components/ToastHost';
@@ -23,16 +23,18 @@ import TtsPage from './pages/TtsPage';
 import SettingsPage from './pages/SettingsPage';
 import ViewersPage from './pages/ViewersPage';
 import GalleryPage from './pages/GalleryPage';
+import StickerPage from './pages/StickerPage';
 import CommandsPage from './pages/CommandsPage';
 import MixerPage from './pages/MixerPage';
 
-type Page = 'live' | 'analyse' | 'media' | 'overlay' | 'triggers' | 'commands' | 'gallery' | 'store' | 'panel' | 'sounds' | 'tts' | 'mixer' | 'viewers' | 'diagnose' | 'settings';
+type Page = 'live' | 'analyse' | 'media' | 'overlay' | 'triggers' | 'commands' | 'gallery' | 'sticker' | 'store' | 'panel' | 'sounds' | 'tts' | 'mixer' | 'viewers' | 'diagnose' | 'settings';
 
 const NAV: { id: Page; label: string; icon: typeof Radio; group: string; hint: string }[] = [
   { id: 'live', label: 'Live', icon: Radio, group: 'Stream', hint: 'Mit TikTok verbinden, Live-Zahlen & Chat-Spiele starten' },
   { id: 'analyse', label: 'Auswertung', icon: BarChart3, group: 'Stream', hint: 'Deine Streams im Vergleich: Verlauf, starke Wochentage, bester Stream' },
   { id: 'overlay', label: 'Overlay', icon: LayoutPanelTop, group: 'Stream', hint: 'Overlay bauen: Widgets aufs Bild ziehen, Link für OBS/TikTok kopieren' },
   { id: 'gallery', label: 'Geschenke', icon: Images, group: 'Reaktionen', hint: 'Geschenke-Galerie: einem Gift direkt einen Sound/eine Aktion zuweisen (wird zur Trigger-Regel)' },
+  { id: 'sticker', label: 'Sticker', icon: Smile, group: 'Reaktionen', hint: 'Sticker aus dem Chat: einem Sticker einen Sound zuweisen (wird zur Trigger-Regel)' },
   { id: 'triggers', label: 'Trigger', icon: Zap, group: 'Reaktionen', hint: 'Reaktion auf Gift/Follow/Like/Sub — „wenn X passiert, dann tu Y"' },
   { id: 'commands', label: 'Befehle', icon: Terminal, group: 'Reaktionen', hint: 'Chat-Befehle: schreibt jemand „!wort", antwortet der Bot' },
   { id: 'store', label: 'Store', icon: Gift, group: 'Reaktionen', hint: 'Zuschauer geben ihre gesammelten Punkte für Aktionen aus' },
@@ -285,6 +287,7 @@ export default function App() {
           {page === 'triggers' && <TriggersPage />}
           {page === 'commands' && <CommandsPage />}
           {page === 'gallery' && <GalleryPage />}
+          {page === 'sticker' && <StickerPage />}
           {page === 'store' && <StorePage />}
           {page === 'panel' && <PanelPage />}
           {page === 'sounds' && <SoundsPage />}

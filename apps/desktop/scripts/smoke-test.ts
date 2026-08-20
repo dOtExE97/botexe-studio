@@ -50,7 +50,7 @@ const IGNORE = [
 const ignored = (t: string): boolean => IGNORE.some((re) => re.test(t));
 
 // Nav-Labels wie in App.tsx (Reihenfolge egal — es wird per Text geklickt).
-const PAGES = ['Live', 'Auswertung', 'Overlay', 'Bilder & Videos', 'Geschenke', 'Trigger', 'Befehle', 'Store', 'Panel', 'Sounds', 'Stimme', 'Mixer', 'Zuschauer', 'Diagnose', 'Einstellungen'];
+const PAGES = ['Live', 'Auswertung', 'Overlay', 'Bilder & Videos', 'Geschenke', 'Sticker', 'Trigger', 'Befehle', 'Store', 'Panel', 'Sounds', 'Stimme', 'Mixer', 'Zuschauer', 'Diagnose', 'Einstellungen'];
 
 interface Problem { page: string; text: string }
 

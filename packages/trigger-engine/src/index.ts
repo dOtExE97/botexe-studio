@@ -2,6 +2,7 @@
 // Cooldowns rechnen mit event.ts (nicht Wanduhr) → Replay-Tests sind exakt reproduzierbar.
 
 export { giftRuleId, findGiftRule, upsertGiftRule, otherGiftRules, orderedGiftKeys, type GiftKey } from './gift-mapping';
+export { stickerRuleId, findStickerRule, upsertStickerRule, otherStickerRules } from './sticker-mapping';
 // giftKey nach außen: JEDER Vergleich „ist das dieses Geschenk?" muss ihn
 // benutzen. Die Widget-Bindungen (Rad/Automat/Lucky-Card) verglichen die
 // Namen vorher buchstabengenau und verfehlten dadurch dasselbe Geschenk in

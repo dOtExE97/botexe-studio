@@ -1739,6 +1739,29 @@ export class Studio {
    *  bloß die selbst gesammelten. Deshalb ließ sich ein Geschenk im Fenster mit
    *  Bild auswählen, während dasselbe Geschenk im Stream als grauer Platzhalter
    *  erschien. Beide Seiten nutzen jetzt dieselbe Zusammenführung. */
+  /**
+   * Alle gesehenen Sticker für die Sticker-Seite — mit einer Bild-Adresse, die
+   * das App-Fenster wirklich laden kann.
+   *
+   * Anders als bei Geschenken gibt es keine eingebaute Ersatzliste: Was hier
+   * nicht steht, hat noch nie jemand geschickt. Fehlt die lokale Kopie (noch),
+   * wird TikToks Adresse durchgereicht — die zeigt jetzt noch etwas, läuft aber
+   * irgendwann ab.
+   */
+  getStickerCatalog(): Array<import('./sticker-catalog').StickerEntry & { bild: string }> {
+    const base = `http://127.0.0.1:${this.server.getPort()}`;
+    const token = this.server.getToken();
+    return this.stickerCatalog.alle().map((e) => {
+      const datei = this.stickerCatalog.localeDatei(e);
+      return {
+        ...e,
+        bild: datei
+          ? `${base}/sticker-img/${encodeURIComponent(datei)}?token=${token}`
+          : e.bildUrl,
+      };
+    });
+  }
+
   getGiftCatalog(): Record<string, import('./gift-catalog').GiftEntry> {
     const cat = mergeMitMasterAlsMap(
       this.giftCatalog.all() as unknown as Record<string, KatalogEintrag>,

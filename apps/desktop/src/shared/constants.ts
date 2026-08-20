@@ -56,6 +56,9 @@ export const IPC = {
   // Geschenke-Galerie (kompletter Gift-Katalog mit Bildern)
   GIFT_CATALOG_GET: 'gift-catalog:get',
   GIFT_META_SET: 'gift-catalog:meta',
+  // Sticker-Seite (gesehene Sticker mit lokalen Bildern)
+  STICKER_CATALOG_GET: 'sticker-catalog:get',
+  STICKER_NAME_SET: 'sticker-catalog:name',
   // Punkte-Einlöse-Store
   REDEMPTIONS_GET: 'redemptions:get',
   REDEMPTIONS_SET: 'redemptions:set',
