@@ -1,6 +1,12 @@
 // chat-box.js — Premium Live-Chat im Overlay (NEU ggü. Alt-App).
 // Glas-Bubbles, Avatar-Glow, hash-stabile Nickname-Farben, Mask-Fade.
 // textContent-only (kein HTML-Inject). props: { max?, hideAfterMs? }
+//
+// ACHTUNG Namen: Der Optik-Stil 'sticker' (Klasse .bx-cb-sticker) ist der helle
+// Bubble-Look und hat NICHTS mit TikTok-Stickern zu tun. Die Bilder aus dem
+// Chat heissen deshalb durchgaengig „emote" (.bx-cb-emote).
+import { textMitStickern, hatInhalt } from './sticker-text.js';
+
 const STYLE_ID = 'bx-cb-style';
 const CSS = `
 .bx-cb { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: clamp(3px,1.4cqh,12px);
@@ -24,6 +30,11 @@ const CSS = `
   text-shadow: 0 1px 3px rgba(0,0,0,.8); }
 .bx-cb-text { font-size: calc((clamp(11px,min(4.4cqi,5.4cqh),28px)) * var(--bx-fs, 1)); line-height: 1.28; color: var(--bx-text,#f2f3f8); text-shadow: 0 1px 2px rgba(0,0,0,.6);
   word-break: break-word; overflow-wrap: anywhere; }
+/* TikTok-Sticker im Text. Hoehe an die Zeile gekoppelt (em, nicht cq), damit er
+   in jeder Widget-Groesse mitwaechst und die Zeile nie sprengt. */
+.bx-cb-emote { height: 1.5em; width: auto; vertical-align: -0.35em; border-radius: 5px; object-fit: contain; }
+/* Bild nicht ladbar → farbiges Kaestchen statt kaputtem Bildsymbol. */
+.bx-cb-emote-leer { width: 1.5em; opacity: .55; border-radius: 5px; }
 @keyframes bx-cb-in { to { transform: translateY(0); opacity: 1; } }
 @keyframes bx-cb-out { to { opacity: 0; } }
 
@@ -108,6 +119,31 @@ const DEMO = [
   ['Pia', 'erster'],
   ['ExE', 'Kommt gleich noch eine Runde?'],
 ];
+/** Text und Sticker in das Textfeld schreiben.
+ *
+ *  Bewusst Element fuer Element gebaut: Diese Datei ist textContent-only (siehe
+ *  Kopf), damit nie fremder Text als HTML ausgefuehrt wird. Eine Bild-Adresse
+ *  von TikTok gehoert genauso wenig in ein innerHTML wie ein Kommentar. */
+function fuelleText(el, text, sticker) {
+  if (!el) return;
+  for (const teil of textMitStickern(text || '', sticker)) {
+    if (teil.art === 'text') {
+      if (teil.wert) el.appendChild(document.createTextNode(teil.wert));
+      continue;
+    }
+    const img = document.createElement('img');
+    img.className = 'bx-cb-emote';
+    img.alt = '';
+    // avgColor als Grundton, solange das Bild laedt — sonst blitzt ein Loch auf.
+    if (teil.wert.farbe) img.style.background = teil.wert.farbe;
+    // Laedt das Bild nicht (abgelaufene TikTok-Adresse), bleibt ein farbiges
+    // Kaestchen stehen statt eines kaputten Bildsymbols im Overlay.
+    img.addEventListener('error', () => { img.classList.add('bx-cb-emote-leer'); });
+    img.src = teil.wert.bild;
+    el.appendChild(img);
+  }
+}
+
 export default class ChatBox {
   constructor(root, props, ctx) {
     ensureStyle();
@@ -150,7 +186,12 @@ export default class ChatBox {
   }
   onEvent(event) {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
-    if (event.type !== 'chat' || !event.text) return;
+    if (event.type !== 'chat') return;
+    // Eine reine Sticker-Nachricht traegt als Text nur ein Leerzeichen. Die
+    // alte Bedingung (!event.text) hat sie deshalb KOMPLETT verworfen — im
+    // Mitschnitt vom 20.08.2026 waren das 8 von 21 Chat-Nachrichten (38 %).
+    const stickerListe = Array.isArray(event.sticker) ? event.sticker : [];
+    if (!hatInhalt(event)) return;
     const msg = document.createElement('div');
     msg.className = 'bx-cb-msg';
     msg.innerHTML = `<div class="bx-cb-pic"></div><div class="bx-cb-body"><div class="bx-cb-name"></div><div class="bx-cb-text"></div></div>`;
@@ -159,7 +200,7 @@ export default class ChatBox {
     nameEl.textContent = name;
     // Sticker-Stil hat helle Bubbles → dunklere Namensfarbe, sonst unlesbar.
     nameEl.style.color = this.style === 'sticker' ? nameColor(name).replace('88% 70%', '80% 34%') : nameColor(name);
-    msg.querySelector('.bx-cb-text').textContent = event.text;
+    fuelleText(msg.querySelector('.bx-cb-text'), event.text, stickerListe);
     avSet(msg.querySelector('.bx-cb-pic'), name, event.user?.profilePic);
     this.el.appendChild(msg);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();
