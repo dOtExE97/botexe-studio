@@ -79,6 +79,8 @@ export interface OverlayServerOptions {
   mediaDir?: string;
   /** Lokal gespeicherte Gift-Bilder — überleben ablaufende TikTok-CDN-URLs. */
   giftImagesDir?: string;
+  /** Lokal gespeicherte Sticker-Bilder — gleiche Begründung wie oben. */
+  stickerImagesDir?: string;
   /** Spotify-OAuth-Redirect-Callback (ohne Token-Auth — Spotify redirectet pur). */
   onSpotifyCallback?: (code: string, state: string) => Promise<{ ok: boolean; error?: string }>;
   /** Letzter Now-Playing-Stand für Late-Joiner (Spotify-Widget startet nicht leer). */
@@ -312,10 +314,12 @@ export class OverlayServer {
       void this.options.onSpotifyCallback(code, state).then((r) => done(r.ok, r.ok ? 'Zurück zur App.' : (r.error ?? 'Fehler')));
     });
 
-    // Lokal gespeicherte Gift-Bilder (gift-images/) — stabil cachebar.
-    this.expressApp.get('/gift-img/:filename', auth, (req, res) => {
-      const dir = this.options.giftImagesDir;
-      if (!dir) { res.status(404).send('Gift-Bilder nicht konfiguriert'); return; }
+    // Lokal gespeicherte Bilder ausliefern — Gift-Bilder und Sticker.
+    // EINE Umsetzung für beide: die Pfad-Prüfung unten ist der sicherheits-
+    // relevante Teil, und den darf es nicht zweimal in leicht verschiedenen
+    // Fassungen geben.
+    const bildAusOrdner = (dir: string | undefined, was: string) => (req: Request, res: Response) => {
+      if (!dir) { res.status(404).send(`${was} nicht konfiguriert`); return; }
       const raw = req.params.filename;
       const filename = path.basename(Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? ''));
       // Bis v0.40.0 waren NUR die selbst geladenen `gift-<id>.<ext>` erlaubt.
@@ -343,7 +347,12 @@ export class OverlayServer {
       res.setHeader('Content-Type', mime[ext] ?? 'image/png');
       res.setHeader('Cache-Control', 'public, max-age=86400');
       fs.createReadStream(target).pipe(res);
-    });
+    };
+
+    this.expressApp.get('/gift-img/:filename', auth, bildAusOrdner(this.options.giftImagesDir, 'Gift-Bilder'));
+    // Sticker sind Bilder aus dem Chat. Sie liegen lokal, weil TikToks Adressen
+    // ablaufen — ohne Kopie wären die Kacheln nach ein paar Tagen leer.
+    this.expressApp.get('/sticker-img/:filename', auth, bildAusOrdner(this.options.stickerImagesDir, 'Sticker-Bilder'));
 
     // Sport-Liveticker: das Widget pollt hier, der Main holt+cacht von der API.
     this.expressApp.get('/sport', auth, (req, res) => {

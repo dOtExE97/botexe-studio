@@ -42,6 +42,7 @@ import { matchingLuckyLayers, matchLuckyCommand, planLuckyDraws, luckyDrawDauerM
 import { kannFortsetzung, istFortsetzung } from './session-continuity';
 import { PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
+import { StickerCatalog } from './sticker-catalog';
 import { ProfileStore, type ProfileMeta } from './profile-store';
 import { decryptTfc } from './tikfinity-decrypt';
 import { mapTikfinity, collectSoundUrls, mapWidgets } from './tikfinity-map';
@@ -160,6 +161,7 @@ export class Studio {
   readonly tts: TTSService;
   readonly points: PointsStore;
   readonly giftCatalog: GiftCatalog;
+  readonly stickerCatalog: StickerCatalog;
   readonly profiles: ProfileStore;
   readonly spotify: SpotifyService;
   /** Letzter Now-Playing-Stand (für Late-Joiner + Renderer). */
@@ -273,6 +275,7 @@ export class Studio {
     this.media = new MediaLibrary(paths.userDataDir);
     this.points = new PointsStore(paths.userDataDir);
     this.giftCatalog = new GiftCatalog(paths.userDataDir);
+    this.stickerCatalog = new StickerCatalog(paths.userDataDir);
     this.profiles = new ProfileStore(paths.userDataDir);
     this.statsHistory = new StatsHistory(paths.userDataDir);
     // Laufende Session-Stats wiederherstellen (z.B. nach Update-Neustart), damit
@@ -321,6 +324,7 @@ export class Studio {
       onWidgetSound: (soundId) => this.playSound(soundId, undefined, 'game'),
       onGameWin: (_winId, user) => this.recordGameWin(user),
       giftImagesDir: this.giftCatalog.getImagesDir(),
+      stickerImagesDir: this.stickerCatalog.getImagesDir(),
       getGiftCatalog: () => this.getGiftCatalog(),
       getTriggerRules: () => this.getRulesForOverlay(),
       onSpotifyCallback: (code, state) => this.onSpotifyCallback(code, state),
@@ -521,6 +525,20 @@ export class Studio {
           const eigen = this.giftCatalog.all()[e.gift.slug.trim().toLowerCase()]?.customName;
           const anzeige = giftDisplayName(e.gift.slug, 'de', eigen);
           if (anzeige && anzeige !== e.gift.slug) e.gift.displayName = anzeige;
+        }
+      }
+
+      // 0c. Sticker: merken und das Bild auf die lokale Kopie umbiegen.
+      //
+      // Beides gehört zusammen. TikToks Bildadressen laufen ab — ein Overlay,
+      // das die CDN-Adresse anzeigt, hätte nach ein paar Tagen Löcher im Chat.
+      // Test-/Replay-Ereignisse (synthetic) dürfen den Katalog nicht füllen,
+      // sonst stehen erfundene Sticker in der Sticker-Liste.
+      if (e.sticker?.length) {
+        if (!e.synthetic) this.stickerCatalog.merken(e.sticker, e.ts);
+        for (const s of e.sticker) {
+          const lokal = this.stickerBildFuer(s.id);
+          if (lokal) s.bild = lokal;
         }
       }
 
@@ -1692,6 +1710,24 @@ export class Studio {
       if (eigen.icon) return eigen.icon;
     }
     return masterIcon(slug, giftId);
+  }
+
+  /**
+   * Adresse des lokal abgelegten Sticker-Bildes — oder leer, wenn es (noch)
+   * keins gibt.
+   *
+   * Anders als bei Geschenken gibt es hier KEINE eingebaute Ersatzliste:
+   * TikTok rückt die Sticker eines Kanals nicht heraus (untersucht am
+   * 20.08.2026, siehe sticker-catalog.ts). Ist das Bild noch nicht geladen,
+   * bleibt die TikTok-Adresse im Ereignis stehen — die funktioniert für den
+   * Moment ja, sie läuft nur später ab.
+   */
+  private stickerBildFuer(id: string): string {
+    const eintrag = this.stickerCatalog.get(id);
+    if (!eintrag) return '';
+    const datei = this.stickerCatalog.localeDatei(eintrag);
+    if (!datei) return '';
+    return `http://127.0.0.1:${this.server.getPort()}/sticker-img/${encodeURIComponent(datei)}?token=${this.server.getToken()}`;
   }
 
   /** Kompletter Gift-Katalog für Galerie + Overlay-Widgets. Lokal gespeicherte
