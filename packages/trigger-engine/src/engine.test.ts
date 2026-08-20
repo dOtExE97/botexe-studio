@@ -459,3 +459,51 @@ test('Truhen-Regel feuert NICHT bei einem normalen Geschenk', () => {
   e.setRules([{ id: 'r', name: 'Truhe', event: 'envelope', enabled: true, conditions: [], actions: [{ kind: 'speak', template: 'x' }] }] as TriggerRule[]);
   assert.equal(e.evaluate(giftEvent()).length, 0);
 });
+
+// ── Sticker-Bedingung ──────────────────────────────────────────────────────
+// TikTok liefert zu einem Sticker KEINEN Namen, nur eine Nummer. Sie ist damit
+// der einzige stabile Anker; das Bild dazu zeigt die Sticker-Seite.
+
+function stickerEvent(ids: string[]): StudioEvent {
+  return {
+    type: 'emote',
+    ts: 1_000,
+    user: { id: 'u1', nickname: 'Anna' },
+    sticker: ids.map((id, i) => ({ id, bild: `https://x/${id}.webp`, index: i, animiert: false })),
+  };
+}
+
+test('sticker_ist: feuert nur beim passenden Sticker', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({
+    event: 'emote',
+    conditions: [{ kind: 'sticker_ist', value: '7444741533452225312' }],
+    actions: [{ kind: 'play_sound', soundId: 's1' }],
+  })]);
+
+  assert.equal(engine.evaluate(stickerEvent(['7444741533452225312'])).length, 1);
+  assert.equal(engine.evaluate(stickerEvent(['1234'])).length, 0);
+});
+
+test('sticker_ist: ohne Sticker im Ereignis feuert nichts', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({
+    event: 'emote',
+    conditions: [{ kind: 'sticker_ist', value: '42' }],
+    actions: [{ kind: 'play_sound', soundId: 's1' }],
+  })]);
+  assert.equal(engine.evaluate({ type: 'emote', ts: 1_000, user: { id: 'u1', nickname: 'A' } }).length, 0);
+});
+
+test('sticker_ist: keine Abklingzeit voreingestellt — jeder Sticker feuert', () => {
+  // Ausdrueckliche Entscheidung des Streamers: lieber laut als verschluckt.
+  // Die Felder cooldownMs/userCooldownMs stehen bereit, falls es doch kracht.
+  const engine = new TriggerEngine();
+  engine.setRules([rule({
+    event: 'emote',
+    conditions: [{ kind: 'sticker_ist', value: '42' }],
+    actions: [{ kind: 'play_sound', soundId: 's1' }],
+  })]);
+  assert.equal(engine.evaluate(stickerEvent(['42'])).length, 1);
+  assert.equal(engine.evaluate({ ...stickerEvent(['42']), ts: 1_010 }).length, 1, 'auch 10 ms spaeter');
+});

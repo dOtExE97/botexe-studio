@@ -59,6 +59,7 @@ const CONDITION_KINDS: ReadonlySet<string> = new Set([
   'superfan_neu',
   'superfan_verlaengerung',
   'superfan_monate_gte',
+  'sticker_ist',
   'chat_keyword',
   'chat_command',
   'chat_first_time',
@@ -375,7 +376,9 @@ function validateCondition(
       if (value === null) return null;
       return { kind, value };
     }
+    // 'sticker_ist' traegt TikToks emoteId — eine lange Zahl als Text.
     case 'gift_slug_is':
+    case 'sticker_ist':
     case 'chat_keyword':
     case 'chat_command': {
       const value = str(input['value'], CAP_SHORT);

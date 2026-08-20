@@ -527,3 +527,50 @@ test('echte Absagen des Cloud-Sign (4401/4403) werden weiterhin erkannt', () => 
   assert.equal(isSignServerError(
     'eulerstream Cloud-Sign abgelehnt (Code 4403, API-Key/Plan): no permission'), true);
 });
+
+// ── Sticker im Chat lösen Sticker-Regeln aus ───────────────────────────────
+// Sticker kommen fast immer IM Chat an, nicht als eigene Nachricht (im
+// Mitschnitt vom 20.08.2026: 8 Chat-Sticker, 0 reine Sticker-Nachrichten).
+// Ohne das Nachreichen würde eine Sticker-Regel im echten Stream nie feuern.
+
+const EIN_STICKER = (id: string) => ({
+  index: 0,
+  emote: { emoteId: id, image: { urlList: [`https://x/${id}.webp`] } },
+});
+
+test('Chat mit Sticker: chat UND je ein emote-Ereignis', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+
+  connections[0]?.emit('chat', {
+    common: { msgId: 'm1' },
+    user: { uniqueId: 'anna' },
+    comment: ' ',
+    emotes: [EIN_STICKER('42'), EIN_STICKER('43')],
+  });
+
+  // viewer_count kommt beim Verbinden mit und ist hier nicht von Belang.
+  const nachricht = events.filter((e) => e.type === 'chat' || e.type === 'emote');
+  assert.deepEqual(nachricht.map((e) => e.type), ['chat', 'emote', 'emote']);
+  assert.equal(nachricht[1]?.sticker?.length, 1, 'genau EIN Sticker je Ereignis — sonst feuert eine Regel doppelt');
+  assert.equal(nachricht[1]?.sticker?.[0]?.id, '42');
+  assert.equal(nachricht[2]?.sticker?.[0]?.id, '43');
+  assert.equal(nachricht[1]?.user?.nickname, 'anna', 'der Absender bleibt am Sticker-Ereignis');
+});
+
+test('Chat ohne Sticker: nur chat', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  connections[0]?.emit('chat', { common: { msgId: 'm1' }, user: { uniqueId: 'anna' }, comment: 'hi' });
+  assert.deepEqual(events.filter((e) => e.type === 'chat' || e.type === 'emote').map((e) => e.type), ['chat']);
+});
+
+test('Reconnect-Replay: eine wiederholte Sticker-Nachricht feuert nicht doppelt', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  const c = connections[0];
+  const nachricht = { common: { msgId: 'm1' }, user: { uniqueId: 'anna' }, comment: ' ', emotes: [EIN_STICKER('42')] };
+  c?.emit('chat', nachricht);
+  c?.emit('chat', nachricht); // Replay nach Reconnect
+  assert.equal(events.filter((e) => e.type === 'emote').length, 1, 'sonst spielt der Sound zweimal');
+});

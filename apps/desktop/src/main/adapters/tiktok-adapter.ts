@@ -796,7 +796,19 @@ export class TikTokAdapter {
       this.abonnierteEreignisse.add(event);
       return roh(event, cb);
     };
-    on('chat', guard((d: Parameters<typeof normalizeChat>[0]) => { if (!dedup(d)) publish(normalizeChat(d, this.now())); }));
+    on('chat', guard((d: Parameters<typeof normalizeChat>[0]) => {
+      if (dedup(d)) return;
+      const e = normalizeChat(d, this.now());
+      publish(e);
+      // Sticker im Chat sind der Regelfall (im Mitschnitt vom 20.08.2026: 8 von
+      // 21 Nachrichten), reine Sticker-Nachrichten die Ausnahme. Damit eine
+      // Sticker-Regel BEIDES erwischt, wird je Sticker ein 'emote' nachgereicht
+      // — mit GENAU EINEM Sticker, sonst würde eine Regel bei zwei Stickern
+      // derselben Nachricht doppelt feuern.
+      for (const s of e.sticker ?? []) {
+        publish({ type: 'emote', ts: e.ts, user: e.user, sticker: [s] });
+      }
+    }));
     on('gift', guard((d: Parameters<typeof normalizeGift>[0]) => {
       if (dedup(d)) return;
       const e = normalizeGift(d, this.now());

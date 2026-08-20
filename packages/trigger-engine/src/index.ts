@@ -220,6 +220,10 @@ export type TriggerCondition =
   | { kind: 'superfan_verlaengerung' }
   /** Ab wie vielen Monaten Superfan-Treue. */
   | { kind: 'superfan_monate_gte'; value: number }
+  /** Ein bestimmter Sticker (TikToks emoteId). TikTok liefert zu Stickern
+   *  KEINEN Namen — die Nummer ist der einzige stabile Anker. Die Sticker-Seite
+   *  zeigt dazu das Bild, damit niemand Nummern vergleichen muss. */
+  | { kind: 'sticker_ist'; value: string }
   | { kind: 'chat_keyword'; value: string }
   /** Nachricht beginnt mit dem Befehl (z.B. '!hype'), optional mit Argumenten. */
   | { kind: 'chat_command'; value: string }
@@ -546,6 +550,8 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return event.superfanNeu === false;
     case 'superfan_monate_gte':
       return (event.subMonths ?? 0) >= condition.value;
+    case 'sticker_ist':
+      return (event.sticker ?? []).some((s) => s.id === condition.value);
     case 'chat_keyword':
       return (event.text ?? '').toLowerCase().includes(condition.value.toLowerCase()) && condition.value !== '';
     case 'chat_command':
