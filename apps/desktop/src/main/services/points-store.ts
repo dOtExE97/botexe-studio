@@ -111,7 +111,14 @@ export function istErsterAuftritt(
   eventTyp: string,
 ): boolean {
   if (!bekannt) return true;
-  return eventTyp === 'chat' && (bekannt.totalChats ?? 0) === 0;
+  // FEHLT der Zähler ganz, ist das ein Eintrag von VOR seiner Einführung
+  // (26.06.2026) — über den wissen wir schlicht nicht, ob er je geschrieben
+  // hat. Ihn als „noch nie" zu lesen würde die Begrüßung für neue Leute bei
+  // jedem langjährigen Stammgast einmal auslösen. Im Zweifel: nicht begrüßen.
+  // Frische Einträge bekommen in touchStats() immer eine 0, sind also
+  // unterscheidbar.
+  if (bekannt.totalChats === undefined) return false;
+  return eventTyp === 'chat' && bekannt.totalChats === 0;
 }
 
 /** Erster Kontakt ODER nach längerer Pause = neuer Besuch (für Stammgast-Zähler). */
@@ -242,6 +249,9 @@ export class PointsStore {
     if (isNewVisit(e.lastSeen, event.ts, RETURN_GAP_MS)) e.visitCount = (e.visitCount ?? 0) + 1;
     e.firstSeen = e.firstSeen ?? event.ts;
     e.lastSeen = event.ts;
+    // Immer setzen, auch bei 0: Nur so ist „hat noch nie geschrieben" von
+    // „stammt aus der Zeit vor diesem Zähler" zu unterscheiden (istErsterAuftritt).
+    e.totalChats = e.totalChats ?? 0;
     // Ein Beitritt ist Anwesenheit, keine Aktivität — siehe lastActive.
     if (event.type !== 'join') e.lastActive = event.ts;
     // Nur nach OBEN nachziehen: Ein Ereignis ohne Abzeichen-Daten darf eine
@@ -364,8 +374,17 @@ export class PointsStore {
       if (nach === 'zuletzt') return e.lastSeen;
       return e.points;
     };
-    return Array.from(this.viewers.values())
-      .filter((e) => !q || passt(q, e.nickname, e.id))
+    const liste = Array.from(this.viewers.values()).filter((e) => !q || passt(q, e.nickname, e.id));
+    // Namens-Sortierung ist die einzige über Text — sie braucht einen eigenen
+    // Zweig. Ohne ihn wurde auch dafür nach PUNKTEN abgeschnitten, und „Anna"
+    // mit drei Punkten stand nie oben.
+    if (nach === 'name') {
+      return liste
+        .sort((a, b) => a.nickname.localeCompare(b.nickname, 'de'))
+        .slice(0, limit)
+        .map((e) => ({ ...e }));
+    }
+    return liste
       .sort((a, b) => {
         const wa = wert(a);
         const wb = wert(b);

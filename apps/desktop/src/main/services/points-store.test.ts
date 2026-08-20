@@ -398,3 +398,29 @@ test('search: ohne Angabe landet man hinten, nicht bei null', () => {
   s.recordEvent(chat({ user: { id: 'mit', nickname: 'Mit' }, beziehung: { folgtSeitTagen: 5 } }), DEFAULT_POINTS_CONFIG);
   assert.deepEqual(s.search('', 10, 'treue').map((e) => e.id), ['mit', 'ohne']);
 });
+
+test('istErsterAuftritt: ALT-Eintraege ohne Zaehler gelten NICHT als neu', () => {
+  // Der Zaehler kam erst am 26.06.2026 dazu; aeltere Eintraege haben ihn nicht
+  // (in einer echten points.json vom 20.08.2026: 10 von 10 Eintraegen). Wer
+  // „kein Zaehler" als „hat noch nie geschrieben" liest, begruesst nach dem
+  // Update jeden langjaehrigen Stammgast einmal als Neuling.
+  assert.equal(istErsterAuftritt({}, 'chat'), false, 'im Zweifel NICHT begruessen');
+  assert.equal(istErsterAuftritt({ totalChats: undefined }, 'chat'), false);
+});
+
+test('frische Eintraege bekommen immer einen Zaehler — sonst sind sie nicht unterscheidbar', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordEvent({ type: 'join', ts: 1_000, user: { id: 'neu', nickname: 'N' } }, DEFAULT_POINTS_CONFIG);
+  assert.equal(s.get('neu')?.totalChats, 0, 'ohne die 0 saehe der Eintrag aus wie ein Alt-Eintrag');
+  assert.equal(istErsterAuftritt(s.get('neu'), 'chat'), true, 'und die Begruessung greift trotzdem');
+});
+
+test('search: auch die Namens-Sortierung schneidet nicht mehr nach Punkten ab', () => {
+  // Vorher fehlte 'name' in der Store-Sortierung und fiel auf Punkte zurueck —
+  // „Anna" mit drei Punkten war damit nie unter den ersten 200.
+  const s = new PointsStore(tmpDir());
+  s.recordEvent(chat({ user: { id: 'z', nickname: 'Zoe' } }), DEFAULT_POINTS_CONFIG);
+  s.grant('z', 10_000);
+  s.recordEvent(chat({ user: { id: 'a', nickname: 'Anna' } }), DEFAULT_POINTS_CONFIG);
+  assert.equal(s.search('', 1, 'name')[0]?.nickname, 'Anna');
+});

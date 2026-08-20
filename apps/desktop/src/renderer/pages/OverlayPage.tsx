@@ -825,7 +825,10 @@ export default function OverlayPage() {
         beliebtId: 'beliebt',
         beliebt: POPULAR_WIDGETS,
         varianten: RELATED_MEMBERS,
-        spezial: RARELY_USED,
+        // Aufgeklappt heisst „Alle Widgets auf einmal zeigen" — dann duerfen
+        // die Spezialfaelle nicht ausgerechnet dort fehlen. Eingeklappt
+        // bleiben sie wie gehabt am Listenende versteckt.
+        spezial: new Set<string>(),
         rueckfall: 'deko',
       }),
     [],

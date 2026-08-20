@@ -111,11 +111,47 @@ test('kaputte Katalog-Datei wirft nicht — die Sticker werden neu gelernt', () 
 // Beide tragen dasselbe Sticker-Objekt — und zwischendurch biegt die App
 // dessen Bild auf die lokale Kopie um.
 
-test('derselbe Sticker zur selben Zeit zaehlt nur EINMAL', () => {
+test('derselbe Sticker aus DERSELBEN Nachricht zaehlt nur EINMAL', () => {
   const c = new StickerCatalog(tmpDir());
-  c.merken([s('42')], 1_000);
-  c.merken([s('42')], 1_000); // das nachgereichte emote-Ereignis
+  c.merken([s('42')], 1_000, 'anna');
+  c.merken([s('42')], 1_000, 'anna'); // das nachgereichte emote-Ereignis
   assert.equal(c.alle()[0]?.anzahl, 1, 'sonst behauptet die Seite „2x gesehen" fuer ein einziges Mal');
+});
+
+test('ZWEI Sticker in einer Nachricht: beide zaehlen, keiner doppelt', () => {
+  // Die Falle: Im Chat-Ereignis stehen beide in EINER Liste, nachgereicht wird
+  // jeder EINZELN. Wer die Listenposition als Merkmal nimmt, zaehlt den zweiten
+  // Sticker doppelt (er steht dann naemlich auch an Position 0).
+  const c = new StickerCatalog(tmpDir());
+  const a = { id: 'A', bild: '', index: 0, animiert: false };
+  const b = { id: 'B', bild: '', index: 5, animiert: false };
+  c.merken([a, b], 1_000, 'anna');   // Chat-Ereignis mit beiden
+  c.merken([a], 1_000, 'anna');      // nachgereicht fuer A
+  c.merken([b], 1_000, 'anna');      // nachgereicht fuer B
+  assert.equal(c.get('A')?.anzahl, 1);
+  assert.equal(c.get('B')?.anzahl, 1, 'der zweite Sticker darf nicht doppelt zaehlen');
+});
+
+test('ZWEI Zuschauer, derselbe Sticker, dieselbe Millisekunde: beides zaehlt', () => {
+  // Passiert wirklich — die Bibliothek verarbeitet gebuendelte Nachrichten in
+  // einer Schleife. Das sind zwei echte Sichtungen.
+  const c = new StickerCatalog(tmpDir());
+  c.merken([s('42')], 1_000, 'anna');
+  c.merken([s('42')], 1_000, 'ben');
+  assert.equal(c.alle()[0]?.anzahl, 2);
+});
+
+test('derselbe Sticker zweimal IN einer Nachricht zaehlt zweimal', () => {
+  const c = new StickerCatalog(tmpDir());
+  c.merken([
+    { id: '42', bild: '', index: 0, animiert: false },
+    { id: '42', bild: '', index: 7, animiert: false },
+  ], 1_000, 'anna');
+  assert.equal(c.alle()[0]?.anzahl, 2, 'zwei Stellen im Text sind zwei Sticker');
+});
+
+test('istFremdeAdresse: IPv6-Loopback wird erkannt (hostname traegt Klammern)', () => {
+  assert.equal(istFremdeAdresse('http://[::1]:7777/sticker-img/x.webp'), false);
 });
 
 test('derselbe Sticker spaeter zaehlt wieder', () => {

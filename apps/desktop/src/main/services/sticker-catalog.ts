@@ -51,7 +51,9 @@ interface Serialized {
 export function istFremdeAdresse(url: string | undefined): boolean {
   if (!url || !/^https?:\/\//i.test(url)) return false;
   try {
-    const h = new URL(url).hostname.toLowerCase();
+    // Achtung: `hostname` liefert IPv6 MIT Klammern — '[::1]', nicht '::1'.
+    // Der Vergleich ohne Klammern wäre nie wahr geworden.
+    const h = new URL(url).hostname.toLowerCase().replace(/^\[|\]$/g, '');
     return h !== '127.0.0.1' && h !== 'localhost' && h !== '::1';
   } catch {
     return false;
@@ -65,7 +67,7 @@ export class StickerCatalog {
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   /** Laufende Downloads (Dateiname) — gegen Doppel-Downloads bei Sticker-Regen. */
   private downloading = new Set<string>();
-  /** Zuletzt gezählte Sichtung je Sticker (Zeitstempel des Ereignisses).
+  /** Schon gezählte Sichtungen (Schlüssel → Zeitpunkt, wird aufgeräumt).
    *  Eine Chat-Nachricht mit Sticker erzeugt ZWEI Ereignisse — das Chat-
    *  Ereignis und ein nachgereichtes 'emote' je Sticker, damit Sticker-Regeln
    *  greifen. Ohne diese Sperre zählte jeder Sticker doppelt, und die Sticker-
@@ -96,15 +98,33 @@ export class StickerCatalog {
    * Der eigene Name wird NIE überschrieben — sonst wäre er nach der nächsten
    * Sichtung wieder weg.
    */
-  merken(sticker: StudioSticker[] | undefined, ts: number): void {
+  merken(sticker: StudioSticker[] | undefined, ts: number, absenderId?: string): void {
     if (!Array.isArray(sticker) || sticker.length === 0) return;
     let geaendert = false;
     for (const s of sticker) {
       if (!s?.id) continue;
-      // Derselbe Sticker zur selben Zeit ist DIESELBE Sichtung, egal über
-      // welchen Weg er hereinkommt.
-      if (this.zuletztGezaehlt.get(s.id) === ts) continue;
-      this.zuletztGezaehlt.set(s.id, ts);
+      // Der Schlüssel muss das EREIGNIS identifizieren, nicht bloß den Sticker:
+      // Zwei Zuschauer können denselben Sticker in derselben Millisekunde
+      // schicken (die Bibliothek verarbeitet gebündelte Nachrichten in einer
+      // Schleife), und eine Nachricht kann denselben Sticker zweimal enthalten.
+      // Beides sind echte Sichtungen. Nur die nachgereichte Kopie desselben
+      // Stickers derselben Nachricht soll wegfallen.
+      //
+      // Der Anker ist `index` — die Position IM TEXT. Sie ist der einzige Wert,
+      // der über beide Ereignisse gleich bleibt: Im Chat-Ereignis stehen alle
+      // Sticker zusammen in einer Liste, im nachgereichten steht jeder allein
+      // (und hätte damit immer die Listenposition 0). Wer die Listenposition
+      // nähme, würde den ZWEITEN Sticker einer Nachricht wieder doppelt zählen.
+      const schluessel = `${s.id}|${ts}|${absenderId ?? ''}|${s.index}`;
+      if (this.zuletztGezaehlt.has(schluessel)) continue;
+      this.zuletztGezaehlt.set(schluessel, ts);
+      // Der Merker darf nicht endlos wachsen — er braucht nur die letzten
+      // Sekunden, weil das nachgereichte Ereignis unmittelbar folgt.
+      if (this.zuletztGezaehlt.size > 500) {
+        for (const [k, t] of this.zuletztGezaehlt) {
+          if (ts - t > 10_000) this.zuletztGezaehlt.delete(k);
+        }
+      }
       const vorhanden = this.sticker.get(s.id);
       if (vorhanden) {
         vorhanden.anzahl++;

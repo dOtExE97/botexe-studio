@@ -540,7 +540,7 @@ export class Studio {
       // Test-/Replay-Ereignisse (synthetic) dürfen den Katalog nicht füllen,
       // sonst stehen erfundene Sticker in der Sticker-Liste.
       if (e.sticker?.length) {
-        if (!e.synthetic) this.stickerCatalog.merken(e.sticker, e.ts);
+        if (!e.synthetic) this.stickerCatalog.merken(e.sticker, e.ts, e.user?.id);
         for (const s of e.sticker) {
           const lokal = this.stickerBildFuer(s.id);
           if (lokal) s.bild = lokal;

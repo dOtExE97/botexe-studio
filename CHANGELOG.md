@@ -30,6 +30,17 @@ die sonst erst im Stream aufgefallen wären:
 - Der Sticker-Katalog wurde beim Beenden nicht gesichert: Wer einen Sticker
   umbenannte und die App gleich schloss, verlor den Namen.
 
+Eine zweite Durchsicht der Reparaturen fand dann noch drei Nachwirkungen:
+
+- **„Neue begrüßen" hätte einmal alle erwischt.** Der Zähler für Kommentare
+  gibt es erst seit Juni; ältere Einträge haben ihn nicht. Sie wären nach dem
+  Update als „hat noch nie geschrieben" gelesen worden — jeder langjährige
+  Stammgast wäre einmal als Neuling begrüßt worden. (In einer echten
+  Zuschauer-Datei betraf das 10 von 10 Einträgen.)
+- Die Zuschauer-Sortierung **nach Namen** schnitt weiterhin nach Punkten ab.
+- Im aufgeklappten Widget-Modus fehlte der Sport-Ticker — ausgerechnet in der
+  Ansicht, die „alle Widgets" verspricht.
+
 ### Sticker aus dem Chat werden sichtbar — und können einen Sound auslösen
 
 Schickt jemand einen Sticker (Fanclub-Sticker, Superfan-Emote), **verschwand
