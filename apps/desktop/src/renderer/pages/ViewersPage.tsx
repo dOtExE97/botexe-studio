@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Users, Search, Star, VolumeX, Minus, Plus, Play } from 'lucide-react';
 import { toast } from '../components/ToastHost';
+import { sortiereZuschauer, treueZeile, SORT_LABELS, type SortSchluessel } from './viewers-sortierung';
 
 interface Viewer {
   id: string;
@@ -17,6 +18,15 @@ interface Viewer {
   voice?: string;
   gameWins?: number;
   welcomeMediaId?: string;
+  // Aus TikToks Etiketten (portraitTag) — liegen an fast jeder Nachricht an
+  // und wurden bis heute weggeworfen. Fehlt ein Wert, ist er UNBEKANNT.
+  folgtSeitTagen?: number;
+  fanclubSeitTagen?: number;
+  superfanSeitMonaten?: number;
+  istTopGifter?: boolean;
+  followerCount?: number;
+  herkunft?: string;
+  lastSeen?: number;
 }
 
 interface TtsVoice { id: string; name: string }
@@ -56,6 +66,7 @@ export default function ViewersPage() {
   const [voices, setVoices] = useState<VoiceGroup[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [currency, setCurrency] = useState('Punkte');
+  const [sortierung, setSortierung] = useState<SortSchluessel>('punkte');
 
   const refresh = async () => {
     setViewers((await window.studio.listViewers(query)) as Viewer[]);
@@ -109,9 +120,18 @@ export default function ViewersPage() {
           </h1>
           <p className="mt-1 text-xs text-studio-muted">
             Punkte ({currency}) verwalten, VIPs markieren, Trolle vom Vorlesen sperren, eigene Stimme zuweisen.
-            Die Basis fürs Glücksrad und das Kartenspiel.
+            Darunter steht, was TikTok über jeden mitliefert: wie lange er dir folgt, im Teamherz ist,
+            Superfan ist — und wie groß sein eigener Kanal ist.
           </p>
         </div>
+        <select
+          value={sortierung}
+          onChange={(e) => setSortierung(e.target.value as SortSchluessel)}
+          title="Sortierung"
+          className="bx-select w-48 flex-none py-1.5 text-xs"
+        >
+          {SORT_LABELS.map((s) => <option key={s.id} value={s.id}>Sortieren: {s.label}</option>)}
+        </select>
         <div className="relative w-64 flex-none">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-studio-muted" />
           <input
@@ -132,7 +152,7 @@ export default function ViewersPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-col gap-2">
-          {viewers.map((v) => (
+          {sortiereZuschauer(viewers, sortierung).map((v) => (
             <div
               key={v.id}
               className="flex items-center gap-3 rounded-lg border border-studio-border bg-studio-raised/40 px-4 py-2.5 transition-colors hover:border-studio-accent/30"
@@ -141,7 +161,7 @@ export default function ViewersPage() {
                 className="h-10 w-10 flex-none rounded-full bg-studio-raised bg-cover bg-center"
                 style={v.profilePic ? { backgroundImage: `url("${v.profilePic}")` } : undefined}
               />
-              <div className="w-40 min-w-0">
+              <div className="w-52 min-w-0">
                 <div className="flex items-center gap-1.5 truncate text-sm font-bold">
                   {v.nickname}
                   {v.vip && <Star size={11} className="flex-none fill-studio-gold text-studio-gold" aria-label="VIP" />}
@@ -150,6 +170,13 @@ export default function ViewersPage() {
                 <div className="font-mono text-[10px] text-studio-muted">
                   {v.gifts ?? 0} Gifts · {(v.coins ?? 0).toLocaleString('de-DE')} Coins · {(v.likes ?? 0).toLocaleString('de-DE')} Likes
                 </div>
+                {/* Was TikTok ueber die Beziehung sagt. Bleibt WEG, wenn nichts
+                    geliefert wurde — „0 Tage" waere eine erfundene Aussage. */}
+                {treueZeile(v) && (
+                  <div className="truncate text-[10px] text-studio-teal" title={treueZeile(v)}>
+                    {treueZeile(v)}
+                  </div>
+                )}
               </div>
 
               {/* Punkte */}
