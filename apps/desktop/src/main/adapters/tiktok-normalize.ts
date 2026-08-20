@@ -16,7 +16,7 @@
 //    noch die alte Form, sie hinkt dem Schema hinterher.)
 // Deshalb wird JEDES Feld unter beiden Namen gesucht. Kommt eine dritte
 // Fassung, ist hier die einzige Stelle, die es wissen muss.
-import type { StudioEvent, StudioUser, RaumPlatz, StudioSticker } from '@botexe/trigger-engine';
+import type { StudioEvent, StudioUser, RaumPlatz, StudioSticker, StudioBeziehung } from '@botexe/trigger-engine';
 
 interface RawImage {
   url?: string[];
@@ -30,6 +30,91 @@ interface RawEmote {
   emoteId?: string;
   packageId?: string;
   image?: RawImage;
+}
+
+/** Ein Etikett am Zuschauer, wie TikTok es liefert. */
+interface RawPortraitTag {
+  /** Übersetzungsschlüssel, z.B. `ttlive_ls_msgGroups_viewerLabel_followedDays`. */
+  showValue?: string;
+  /** JSON als TEXT (!), z.B. `{"s_num":"437","num":"437"}`. */
+  showArgs?: string;
+}
+
+/** Die Zahl aus `showArgs` holen. Ist der Text kein gültiges JSON, kostet das
+ *  nur die Zahl — niemals das ganze Ereignis. */
+function zahlAusArgs(args: string | undefined): number | undefined {
+  if (!args) return undefined;
+  try {
+    const o = JSON.parse(args) as Record<string, unknown>;
+    const roh = o['num'] ?? o['s_num'];
+    const n = typeof roh === 'number' ? roh : parseInt(String(roh ?? ''), 10);
+    // > 0 statt >= 0: TikTok schickt keine echten Nullen, und eine 0 aus einem
+    // kaputten Feld darf nicht als Angabe durchgehen.
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * TikToks Etiketten am Zuschauer auswerten (`portraitTag`).
+ *
+ * Sie liegen an fast jeder Nachricht an und sagen MIT ZAHL, wie lange jemand
+ * folgt, im Fanclub ist und Superfan ist. Bisher komplett verworfen — sie
+ * stecken tief in `publicAreaMessageCommon`, weshalb sie auch dem aus dem
+ * Protokoll-Schema erzeugten Inventar entgangen sind.
+ *
+ * `showValue` ist ein Übersetzungsschlüssel; ausgewertet wird nur die Endung
+ * nach dem letzten `_`. Unbekannte Endungen werden ignoriert — TikTok erfindet
+ * neue, und was sie bedeuten, wissen wir nicht.
+ */
+export function beziehungAuslesen(data: unknown): StudioBeziehung | undefined {
+  const tags = (data as { publicAreaMessageCommon?: { portraitInfo?: { portraitTag?: RawPortraitTag[] } } })
+    ?.publicAreaMessageCommon?.portraitInfo?.portraitTag;
+  if (!Array.isArray(tags) || tags.length === 0) return undefined;
+
+  const raus: StudioBeziehung = {};
+  let etwasErkannt = false;
+  for (const tag of tags) {
+    const art = String(tag?.showValue ?? '').split('_').pop();
+    if (!art) continue;
+    switch (art) {
+      case 'followedDays':
+        raus.folgtSeitTagen = zahlAusArgs(tag.showArgs);
+        etwasErkannt = true;
+        break;
+      case 'memberDays':
+        raus.fanclubSeitTagen = zahlAusArgs(tag.showArgs);
+        etwasErkannt = true;
+        break;
+      case 'subForMo':
+        raus.superfanSeitMonaten = zahlAusArgs(tag.showArgs);
+        etwasErkannt = true;
+        break;
+      case 'followedToday':
+        // Brandneuer Follower — TikTok schickt hier KEINE Zahl, das Etikett
+        // selbst ist die Aussage. Gefunden erst beim Lauf gegen echte Daten.
+        raus.folgtSeitHeute = true;
+        etwasErkannt = true;
+        break;
+      // 'notSub' („kein Superfan", im Mitschnitt 13x) wird BEWUSST ignoriert:
+      // Es sagt nichts, was das Fehlen von subForMo nicht schon sagt. Ein
+      // eigenes Feld waere doppeltes Wissen.
+      case 'topGifter':
+        raus.istTopGifter = true;
+        etwasErkannt = true;
+        break;
+      case 'notFollower':
+        raus.folgtNicht = true;
+        etwasErkannt = true;
+        break;
+      default:
+        // Unbekanntes Etikett — bewusst still. Im Diagnose-Modus fällt es über
+        // die Feldnamen-Ausgabe ohnehin auf.
+        break;
+    }
+  }
+  return etwasErkannt ? raus : undefined;
 }
 
 /**
@@ -80,6 +165,9 @@ interface RawUser {
    *  User.fansClubInfo.fansLevel, sowie das Abzeichen mit sceneType FANS=10.) */
   fansClub?: { data?: { level?: number; clubName?: string } };
   fansClubInfo?: { fansLevel?: string | number };
+  /** Wie gross der ZUSCHAUER selbst ist. Lag immer an, gelesen wurde bisher
+   *  nur der Folge-Status weiter unten. */
+  followInfo?: RawFollowInfo;
   /** Geschenke-Stufe des Zuschauers bei TikTok insgesamt. */
   payGrade?: { level?: number };
   /** Abzeichen-Liste — enthält Stufen als Text unter privilegeLogExtra.level. */
@@ -162,6 +250,8 @@ function toUser(raw: RawUser | undefined): StudioUser | undefined {
     raw.fansClubInfo?.fansLevel,
   ) || abzeichenStufe(raw, BADGE_FANS);
   const gifterLevel = ersteZahl(raw.payGrade?.level) || abzeichenStufe(raw, BADGE_USER_GRADE);
+  const follower = ersteZahl(raw.followInfo?.followerCount);
+  const folgt = ersteZahl(raw.followInfo?.followingCount);
   return {
     id,
     // Zweiter Schlüssel fürs Rollen-Gedächtnis: rohe userId, falls sie von der
@@ -174,7 +264,15 @@ function toUser(raw: RawUser | undefined): StudioUser | undefined {
     // Ereignis ohne Abzeichen-Daten das, was das Rollen-Gedächtnis schon weiß.
     ...(teamLevel > 0 ? { teamLevel } : {}),
     ...(gifterLevel > 0 ? { gifterLevel } : {}),
+    // Nur setzen, wenn eine Zahl kam: eine 0 saehe aus wie „keine Follower".
+    ...(follower > 0 ? { followerCount: follower } : {}),
+    ...(folgt > 0 ? { followingCount: folgt } : {}),
   };
+}
+
+interface RawFollowInfo {
+  followerCount?: number | string;
+  followingCount?: number | string;
 }
 
 interface RawUserIdentity {
@@ -251,7 +349,13 @@ export function normalizeChat(
     if (roles.hatGeschenkt) user.hatGeschenkt = true;
   }
   const sticker = stickerAusListe(data.emotes);
-  return { type: 'chat', ts, user, text: data.comment ?? data.content ?? '', ...(sticker ? { sticker } : {}) };
+  const beziehung = beziehungAuslesen(data);
+  return {
+    type: 'chat', ts, user,
+    text: data.comment ?? data.content ?? '',
+    ...(sticker ? { sticker } : {}),
+    ...(beziehung ? { beziehung } : {}),
+  };
 }
 
 /**
@@ -307,6 +411,7 @@ export function normalizeGift(
   // Gift-Katalog wie auch die Bedingung „genau dieses Geschenk" (gift_id_is)
   // vergleichen strikt — ein String hätte dort nie getroffen.
   const giftId = Number(data.giftId) || undefined;
+  const beziehung = beziehungAuslesen(data);
   return {
     type: 'gift',
     ts,
@@ -319,6 +424,7 @@ export function normalizeGift(
       totalCoins: coinsPerUnit * count,
       ...(icon ? { icon } : {}),
     },
+    ...(beziehung ? { beziehung } : {}),
   };
 }
 
@@ -333,12 +439,14 @@ export function normalizeLike(
   },
   ts: number,
 ): StudioEvent {
+  const beziehung = beziehungAuslesen(data);
   return {
     type: 'like',
     ts,
     user: toUser(data.user),
     likeCount: zahl(data.likeCount ?? data.count) || 1,
     totalLikes: zahl(data.totalLikeCount ?? data.totalLikes ?? data.total),
+    ...(beziehung ? { beziehung } : {}),
   };
 }
 
@@ -508,6 +616,9 @@ export function normalizeSocial(
     isTopUser?: boolean;
     rankScore?: number | string;
     topUserNo?: number | string;
+    /** Woher der Zuschauer kam (nur beim Betreten). TikTok liefert Werte wie
+     *  `live_merge-live_cover`; was es alles gibt, ist NICHT dokumentiert. */
+    clientEnterSource?: string;
   } & RawRoleData,
   kind: 'follow' | 'share' | 'join',
   ts: number,
@@ -528,6 +639,7 @@ export function normalizeSocial(
   // „Ehrengast" nur, wenn TikTok es sagt ODER ein echter Platz mitkam. Eine
   // Punktzahl allein reicht nicht: Die hat fast jeder, der schon mal da war.
   const ehrengast = !!data.isTopUser || platz > 0;
+  const beziehung = beziehungAuslesen(data);
   return {
     type: kind,
     ts,
@@ -535,6 +647,10 @@ export function normalizeSocial(
     ...(kind === 'join' && ehrengast
       ? { ehrengast: { ...(platz > 0 ? { platz } : {}), ...(punkte > 0 ? { punkte } : {}) } }
       : {}),
+    // Herkunft NUR beim Betreten: bei follow/share sagt TikTok nichts darueber,
+    // ein Wert dort waere geraten.
+    ...(kind === 'join' && data.clientEnterSource ? { herkunft: data.clientEnterSource } : {}),
+    ...(beziehung ? { beziehung } : {}),
   };
 }
 

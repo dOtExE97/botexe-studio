@@ -79,6 +79,30 @@ export interface StudioUser {
   /** Geschenke-Stufe des Zuschauers bei TikTok insgesamt (payGrade), nicht
    *  bezogen auf diesen Stream. 0 = unbekannt. */
   gifterLevel?: number;
+  /** Wie viele Follower dieser ZUSCHAUER selbst hat (user.followInfo).
+   *  Lag an jeder Nachricht an; gelesen wurde bisher nur der Folge-Status.
+   *  Ein Streamer mit 20 000 Followern im Raum ist eine Info wert. */
+  followerCount?: number;
+  /** Wie vielen der Zuschauer selbst folgt. */
+  followingCount?: number;
+}
+
+/** Was TikTok an fast jeder Nachricht über die Beziehung dieses Zuschauers zum
+ *  Kanal mitliefert (`portraitTag`) — mit Zahlen, nicht nur als Etikett.
+ *
+ *  Fehlt ein Feld, ist es UNBEKANNT, nicht null. Jede Auswertung und jede
+ *  Bedingung muss das unterscheiden: „folgt seit 0 Tagen" wäre eine Aussage,
+ *  „keine Angabe" ist keine. */
+export interface StudioBeziehung {
+  folgtSeitTagen?: number;
+  fanclubSeitTagen?: number;
+  superfanSeitMonaten?: number;
+  istTopGifter?: boolean;
+  folgtNicht?: boolean;
+  /** Folgt seit HEUTE (TikToks `followedToday`). Eigenes Feld statt
+   *  `folgtSeitTagen: 0`, weil 0 sonst nicht von „keine Angabe" zu
+   *  unterscheiden waere. */
+  folgtSeitHeute?: boolean;
 }
 
 export interface StudioGift {
@@ -153,6 +177,13 @@ export interface StudioEvent {
    *  ihr Text ist leer. Im Mitschnitt vom 20.08.2026 (@hi_im_billa, 90 s):
    *  8 von 21 Chat-Nachrichten, also 38 %. */
   sticker?: StudioSticker[];
+  /** Wie lange dieser Zuschauer schon folgt / im Fanclub / Superfan ist.
+   *  Liegt an fast jeder Nachricht an und wurde nie gelesen. */
+  beziehung?: StudioBeziehung;
+  /** Nur bei 'join': woher der Zuschauer kam (TikToks `clientEnterSource`, ROH).
+   *  Die möglichen Werte sind nirgends dokumentiert — deshalb wird der Wert
+   *  unverändert weitergereicht und nirgends in erfundene Schubladen sortiert. */
+  herkunft?: string;
   gift?: StudioGift;
   likeCount?: number;
   totalLikes?: number;

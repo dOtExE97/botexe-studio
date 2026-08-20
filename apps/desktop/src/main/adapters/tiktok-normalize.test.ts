@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeSuperfan,
   normalizeEmote,
+  beziehungAuslesen,
   normalizeSub,
   normalizeEnvelope,
   normalizeChat,
@@ -535,4 +536,117 @@ test('normalizeEmote: emoteList wird nicht mehr weggeworfen', () => {
 test('normalizeEmote: ohne emoteList bleibt sticker undefined', () => {
   const e = normalizeEmote({ user: { uniqueId: 'a', nickname: 'A' } }, 1_000);
   assert.equal(e.sticker, undefined);
+});
+
+// ── Beziehungs-Etiketten (portraitTag) ─────────────────────────────────────
+// Liegen an FAST JEDER Nachricht an und sagen mit Zahl, wie lange jemand schon
+// folgt, im Fanclub ist und Superfan ist. Wurden nie gelesen — sie stecken tief
+// in publicAreaMessageCommon, weshalb auch das aus dem Schema erzeugte Inventar
+// sie nicht kannte. Die Werte unten stammen 1:1 aus dem Mitschnitt vom
+// 20.08.2026 (@hi_im_billa).
+
+const ECHTE_TAGS = {
+  publicAreaMessageCommon: {
+    portraitInfo: {
+      portraitTag: [
+        { tagId: '7399855526094195474', priority: '2', showValue: 'ttlive_ls_msgGroups_viewerLabel_followedDays', showArgs: '{"s_num":"437","num":"437"}' },
+        { tagId: '7399855526094359314', priority: '5', showValue: 'ttlive_ls_msgGroups_viewerLabel_memberDays', showArgs: '{"s_num":"424","num":"424"}' },
+        { tagId: '7399855526094261010', priority: '7', showValue: 'ttlive_ls_msgGroups_viewerLabel_subForMo', showArgs: '{"s_num":"2"}' },
+      ],
+    },
+  },
+};
+
+function tags(...eintraege: Array<{ showValue: string; showArgs?: string }>) {
+  return { publicAreaMessageCommon: { portraitInfo: { portraitTag: eintraege } } };
+}
+
+test('beziehungAuslesen: Tage und Monate aus den echten Etiketten', () => {
+  const b = beziehungAuslesen(ECHTE_TAGS);
+  assert.equal(b?.folgtSeitTagen, 437);
+  assert.equal(b?.fanclubSeitTagen, 424);
+  assert.equal(b?.superfanSeitMonaten, 2, 'hier gibt es nur s_num, kein num');
+});
+
+test('beziehungAuslesen: notFollower und topGifter', () => {
+  const b = beziehungAuslesen(tags(
+    { showValue: 'ttlive_ls_msgGroups_viewerLabel_notFollower', showArgs: '' },
+    { showValue: 'ttlive_ls_msgGroups_viewerLabel_topGifter', showArgs: '' },
+  ));
+  assert.equal(b?.folgtNicht, true);
+  assert.equal(b?.istTopGifter, true);
+});
+
+test('beziehungAuslesen: kaputtes showArgs wirft nicht — nur die Zahl fehlt', () => {
+  const b = beziehungAuslesen(tags({ showValue: 'ttlive_ls_msgGroups_viewerLabel_followedDays', showArgs: '{kaputt' }));
+  assert.equal(b?.folgtSeitTagen, undefined, 'keine erfundene Zahl');
+});
+
+test('beziehungAuslesen: unbekannte Endung wird ignoriert, nicht geraten', () => {
+  // TikTok erfindet neue Etiketten. Raten gehoert nicht ins Produkt.
+  assert.equal(beziehungAuslesen(tags({ showValue: 'ttlive_ls_msgGroups_viewerLabel_waskomplettneues', showArgs: '{"num":"5"}' })), undefined);
+});
+
+test('beziehungAuslesen: ohne portraitTag undefined', () => {
+  assert.equal(beziehungAuslesen({}), undefined);
+  assert.equal(beziehungAuslesen(undefined), undefined);
+  assert.equal(beziehungAuslesen({ publicAreaMessageCommon: {} }), undefined);
+});
+
+test('beziehungAuslesen: Null-Werte werden nicht als Angabe gewertet', () => {
+  // „0 Tage" ist nicht dasselbe wie „unbekannt" — aber TikTok schickt 0 nicht,
+  // und eine 0 aus einem kaputten Feld darf nicht als Angabe durchgehen.
+  const b = beziehungAuslesen(tags({ showValue: 'ttlive_ls_msgGroups_viewerLabel_followedDays', showArgs: '{"num":"0"}' }));
+  assert.equal(b?.folgtSeitTagen, undefined);
+});
+
+test('normalizeChat: Beziehung landet am Ereignis', () => {
+  const e = normalizeChat({ user: { userId: '1' }, content: 'hi', ...ECHTE_TAGS }, 1_000);
+  assert.equal(e.beziehung?.folgtSeitTagen, 437);
+  assert.equal(e.beziehung?.superfanSeitMonaten, 2);
+});
+
+test('normalizeChat: ohne Etiketten bleibt beziehung undefined', () => {
+  const e = normalizeChat({ user: { userId: '1' }, content: 'hi' }, 1_000);
+  assert.equal(e.beziehung, undefined);
+});
+
+test('normalizeSocial: clientEnterSource landet als herkunft am Beitritt', () => {
+  const e = normalizeSocial({ user: { userId: '1' }, clientEnterSource: 'live_merge-live_cover' }, 'join', 1_000);
+  assert.equal(e.herkunft, 'live_merge-live_cover');
+});
+
+test('normalizeSocial: herkunft nur beim Beitritt, nicht bei follow/share', () => {
+  // Beim Folgen sagt TikTok nichts ueber die Herkunft — ein Wert dort waere
+  // geraten.
+  const e = normalizeSocial({ user: { userId: '1' }, clientEnterSource: 'x' }, 'follow', 1_000);
+  assert.equal(e.herkunft, undefined);
+});
+
+test('toUser: die Follower-Zahl des ZUSCHAUERS wird gelesen', () => {
+  const e = normalizeChat({ user: { userId: '1', followInfo: { followerCount: '1932', followingCount: '191' } }, content: 'hi' }, 1_000);
+  assert.equal(e.user?.followerCount, 1932);
+  assert.equal(e.user?.followingCount, 191);
+});
+
+test('toUser: ohne Follower-Angabe wird nichts behauptet', () => {
+  const e = normalizeChat({ user: { userId: '1' }, content: 'hi' }, 1_000);
+  assert.equal(e.user?.followerCount, undefined, 'eine 0 saehe aus wie „keine Follower"');
+});
+
+test('beziehungAuslesen: „folgt seit heute" (im echten Mitschnitt gefunden)', () => {
+  const b = beziehungAuslesen(tags({ showValue: 'ttlive_ls_msgGroups_viewerLabel_followedToday', showArgs: '' }));
+  assert.equal(b?.folgtSeitHeute, true);
+  assert.equal(b?.folgtSeitTagen, undefined, 'nicht als 0 Tage ausgeben — das hiesse „keine Angabe"');
+});
+
+test('beziehungAuslesen: „kein Superfan" erzeugt bewusst kein Feld', () => {
+  // notSub kam 13x im Mitschnitt vor, sagt aber nichts, was das Fehlen von
+  // subForMo nicht schon sagt. Ein eigenes Feld waere doppeltes Wissen.
+  const b = beziehungAuslesen(tags(
+    { showValue: 'ttlive_ls_msgGroups_viewerLabel_notSub', showArgs: '' },
+    { showValue: 'ttlive_ls_msgGroups_viewerLabel_followedDays', showArgs: '{"num":"5"}' },
+  ));
+  assert.equal(b?.folgtSeitTagen, 5);
+  assert.deepEqual(Object.keys(b ?? {}), ['folgtSeitTagen'], 'kein Feld fuer notSub');
 });
