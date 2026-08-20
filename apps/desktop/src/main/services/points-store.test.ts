@@ -316,3 +316,18 @@ test('ohne Beziehungs-Angaben wird nichts erfunden', () => {
   assert.equal(e?.folgtSeitTagen, undefined, 'nicht 0 — unbekannt ist etwas anderes als „seit null Tagen"');
   assert.equal(e?.istTopGifter, undefined);
 });
+
+test('treueVerteilung: „unbekannt" ist eine eigene Gruppe, kein Neuling', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordEvent(chat({ user: { id: 'a', nickname: 'A' }, beziehung: { folgtSeitTagen: 874 } }), DEFAULT_POINTS_CONFIG);
+  s.recordEvent(chat({ user: { id: 'b', nickname: 'B' }, beziehung: { folgtSeitTagen: 40 } }), DEFAULT_POINTS_CONFIG);
+  s.recordEvent(chat({ user: { id: 'c', nickname: 'C' }, beziehung: { folgtSeitTagen: 10 } }), DEFAULT_POINTS_CONFIG);
+  s.recordEvent(chat({ user: { id: 'd', nickname: 'D' }, beziehung: { folgtSeitTagen: 3 } }), DEFAULT_POINTS_CONFIG);
+  s.recordEvent(chat({ user: { id: 'e', nickname: 'E' } }), DEFAULT_POINTS_CONFIG);
+  assert.deepEqual(s.treueVerteilung(), { neu: 1, wochen: 1, monate: 1, jahr: 1, unbekannt: 1 });
+});
+
+test('treueVerteilung: leerer Store liefert lauter Nullen', () => {
+  assert.deepEqual(new PointsStore(tmpDir()).treueVerteilung(),
+    { neu: 0, wochen: 0, monate: 0, jahr: 0, unbekannt: 0 });
+});

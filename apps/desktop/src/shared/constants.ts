@@ -59,6 +59,8 @@ export const IPC = {
   // Sticker-Seite (gesehene Sticker mit lokalen Bildern)
   STICKER_CATALOG_GET: 'sticker-catalog:get',
   STICKER_NAME_SET: 'sticker-catalog:name',
+  /** Treue-Verteilung ueber alle bekannten Zuschauer (fuer die Auswertung). */
+  TREUE_VERTEILUNG: 'viewers:treue',
   // Punkte-Einlöse-Store
   REDEMPTIONS_GET: 'redemptions:get',
   REDEMPTIONS_SET: 'redemptions:set',

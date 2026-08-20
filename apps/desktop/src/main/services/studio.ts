@@ -2459,6 +2459,7 @@ export class Studio {
   // ── Zuschauer-Verwaltung ──────────────────────────────────────────────
   listViewers(query: string, limit = 100) { return this.points.search(query, limit); }
   viewerCount() { return this.points.count(); }
+  treueVerteilung() { return this.points.treueVerteilung(); }
   setViewerFlag(userId: string, flag: 'vip' | 'muted', value: boolean) { this.points.setFlag(userId, flag, value); }
   grantPoints(userId: string, delta: number) { this.points.grant(userId, delta); }
   setViewerVoice(userId: string, voice: string | undefined) { this.points.setVoice(userId, voice); }

@@ -115,7 +115,7 @@ und landen als `StudioEvent` in der Trigger-Engine
 
 | Nachrichtenart | Kurzname | Ereignis | Normalisierer | Was wir davon lesen |
 | --- | --- | --- | --- | --- |
-| `WebcastChatMessage` | `chat` | `chat` | `normalizeChat` (`tiktok-normalize.ts:191`) | Nutzer, Text, Rollen — **`emotes` NICHT** (siehe unten) |
+| `WebcastChatMessage` | `chat` | `chat` | `normalizeChat` | Nutzer, Text, Rollen, **Sticker** (`emotes`) und **Beziehungs-Etiketten** (seit 20.08.2026) |
 | `WebcastGiftMessage` | `gift` | `gift` | `normalizeGift` (`:171`) | Nutzer, Geschenk, Anzahl, Coins (`coinsPerUnit × count`, `:213`/`:228`) |
 | `WebcastLikeMessage` | `like` | `like` | `normalizeLike` (`:234`) | Nutzer, Anzahl, Gesamtzahl |
 | `WebcastMemberMessage` | `member` | `join` | `normalizeSocial` (`:388`) | Beitritte |
@@ -123,7 +123,7 @@ und landen als `StudioEvent` in der Trigger-Engine
 | `WebcastSocialMessage` | — | `follow` / `share` | `normalizeSocial` (`:388`) | Aufgeteilt nach `common.displayText.displayType` (`tiktok-cloud.ts:151-156`) |
 | `WebcastSubNotifyMessage` | `subNotify` | `sub` | `normalizeSub` (`:269`) | Nutzer, Monate, Erst-Abo vs. Verlängerung (`oldSubscribeStatus`) |
 | `WebcastEnvelopeMessage` | `envelope`, `superFanBox` | `envelope` | `normalizeEnvelope` (`:309`) | Absender, Coin-Wert, Gewinnerzahl; Superfan-Truhe an `businessType` 19 |
-| `WebcastEmoteChatMessage` | `emote` | `emote` | `normalizeEmote` (`:447`) | Nur den Nutzer — **`emoteList` wird verworfen** (`:451`) |
+| `WebcastEmoteChatMessage` | `emote` | `emote` | `normalizeEmote` | Nutzer **und Sticker** (`emoteList`, seit 20.08.2026). Kommt selten — Sticker laufen fast immer über `chat.emotes` |
 | — (nur Kurzname) | `superFan`, `superFanJoin` | `superfan` | `normalizeSuperfan` (`:356-369`) | Nutzer aus `content.pieces[].userValue.user` |
 
 ### 1.2 Live-Nachrichten ohne Bus-Ereignis (bewusst)
@@ -150,23 +150,32 @@ ankommen, deren Felder wir aber nicht auslesen.
 - **`WebcastGiftMessage.matchInfo`** (`v3.d.ts:7001`) — die einzige belegte
   PK-Verbindung an einer Nachricht, die sicher ankommt. Ungelesen; welche Felder
   sie im Cloud-Weg trägt: **unbelegt**.
-- **`WebcastChatMessage.emotes`** (`v3.d.ts:6917`) — die Sticker der Nachricht.
-  `normalizeChat` liest sie nicht, und `chat-box.js:153` verwirft jede Nachricht
-  ohne Text. Sticker-Nachrichten haben als Text nur ein Leerzeichen und
-  **verschwinden dadurch spurlos**. Im Mitschnitt vom 20.08.2026 (@hi_im_billa,
-  90 s) waren das **8 von 21 Chat-Nachrichten — 38 %**. Entwurf:
-  `docs/specs/2026-08-20-sticker-sichtbar-design.md`.
-- **`publicAreaMessageCommon.portraitInfo.portraitTag[]`** — liegt an **jeder**
-  Chat-Nachricht und sagt, wie lange dieser Zuschauer schon folgt
-  (`followedDays`), im Fanclub ist (`memberDays`) und Superfan ist (`subForMo`),
-  jeweils mit Zahl in `showArgs` (JSON-**String**). Im Mitschnitt: 437 Tage /
-  424 Tage / 2 Monate. Ebenso ungelesen: **`clientEnterSource`** an
-  Beitritts-Nachrichten (woher der Zuschauer kam, z. B. `live_merge-live_cover`)
-  und **`user.followInfo.followerCount`** (wie groß der Zuschauer selbst ist).
+- ~~**`WebcastChatMessage.emotes`**~~ (`v3.d.ts:6917`) — **seit 20.08.2026
+  ausgewertet.** Vorher las `normalizeChat` sie nicht, und `chat-box.js` verwarf
+  jede Nachricht ohne Text — Sticker-Nachrichten haben als Text nur ein
+  Leerzeichen und **verschwanden dadurch spurlos**. Im Mitschnitt vom 20.08.2026
+  (@hi_im_billa, 90 s) waren das **8 von 21 Chat-Nachrichten — 38 %**.
+  Umsetzung: `stickerAusListe` (`tiktok-normalize.ts`), `sticker-catalog.ts`,
+  `sticker-text.js`.
+- ~~**`publicAreaMessageCommon.portraitInfo.portraitTag[]`**~~ — **seit
+  20.08.2026 ausgewertet** (`beziehungAuslesen` in `tiktok-normalize.ts`).
+  Liegt an fast **jeder** Nachricht an und sagt mit Zahl, wie lange der
+  Zuschauer folgt (`followedDays`), im Fanclub ist (`memberDays`) und Superfan
+  ist (`subForMo`) — `showArgs` ist dabei ein JSON-**String**, kein Objekt.
+  Ebenfalls jetzt gelesen: **`clientEnterSource`** (woher der Zuschauer kam) und
+  **`user.followInfo.followerCount`** (wie groß er selbst ist).
+
   Diese Felder fehlten hier, weil dieses Dokument aus dem Protokoll-Schema
   erzeugt wird und sie tief in `publicAreaMessageCommon` liegen — **gefunden nur
-  durch einen echten Mitschnitt.** Entwurf:
-  `docs/specs/2026-08-20-zuschauer-daten-design.md`.
+  durch einen echten Mitschnitt**, und derselbe Mitschnitt brachte zwei weitere
+  Etiketten ans Licht, die in keiner Überlegung vorkamen: `followedToday`
+  (brandneuer Follower, wird ausgewertet) und `notSub` (bewusst ignoriert, sagt
+  nichts, was das Fehlen von `subForMo` nicht schon sagt).
+
+  **Lehre fürs nächste Mal:** `npm run inventar` liest das Schema. Was TikTok
+  tatsächlich in `publicAreaMessageCommon` mitschickt, sieht man erst an echten
+  Daten — ein 90-Sekunden-Mitschnitt kostet nichts und findet mehr als jede
+  Schema-Lektüre.
 
 ---
 

@@ -851,6 +851,7 @@ function registerIpc(): void {
   });
   ipcMain.handle(IPC.GIFT_CATALOG_GET, () => isStudio().getGiftCatalog());
   ipcMain.handle(IPC.STICKER_CATALOG_GET, () => isStudio().getStickerCatalog());
+  ipcMain.handle(IPC.TREUE_VERTEILUNG, () => isStudio().treueVerteilung());
   ipcMain.handle(IPC.STICKER_NAME_SET, (_e, id: unknown, name: unknown) => {
     // Beides muss Text sein — der Katalog kürzt und trimmt selbst weiter.
     if (typeof id !== 'string' || typeof name !== 'string') return;

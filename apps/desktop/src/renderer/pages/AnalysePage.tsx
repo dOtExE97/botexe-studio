@@ -244,6 +244,27 @@ export default function AnalysePage({ studio }: { studio: ReturnType<typeof useS
     return rest > 0 ? [...erste, { name: 'Alle anderen', wert: rest, farbe: '#3a4052' }] : erste;
   }, [studio.stats]);
 
+  // Wie treu ist das Publikum insgesamt? Kommt aus dem Zuschauer-Gedaechtnis,
+  // nicht aus der Session: „wie viele meiner Leute sind Langzeit-Fans" ist
+  // keine Frage an einen einzelnen Abend.
+  const [treue, setTreue] = useState<{ neu: number; wochen: number; monate: number; jahr: number; unbekannt: number } | null>(null);
+  useEffect(() => {
+    void window.studio.getTreueVerteilung?.().then(setTreue).catch(() => setTreue(null));
+  }, []);
+
+  const treueBalken: GeberAnteil[] = useMemo(() => {
+    if (!treue) return [];
+    const eintraege = [
+      { name: 'Über ein Jahr dabei', wert: treue.jahr, farbe: 'var(--color-studio-gold)' },
+      { name: 'Monate dabei', wert: treue.monate, farbe: 'var(--color-studio-teal)' },
+      { name: 'Wochen dabei', wert: treue.wochen, farbe: 'var(--color-studio-accent)' },
+      { name: 'Neu (unter einer Woche)', wert: treue.neu, farbe: '#7d86a8' },
+      // Eigene Gruppe: wer nie mit Etiketten auftauchte, ist deshalb kein Neuling.
+      { name: 'Keine Angabe von TikTok', wert: treue.unbekannt, farbe: '#3a4052' },
+    ];
+    return eintraege.filter((e) => e.wert > 0);
+  }, [treue]);
+
   // Woher die Zuschauer kamen (TikToks clientEnterSource). Die Werte sind ROH —
   // welche es gibt und was sie genau bedeuten, ist nirgends dokumentiert.
   // Deshalb wird nur lesbarer gemacht (Unterstriche raus), nicht uminterpretiert.
@@ -494,6 +515,19 @@ export default function AnalysePage({ studio }: { studio: ReturnType<typeof useS
                   Das sind TikToks eigene Bezeichnungen, unverändert übernommen — was genau dahintersteckt,
                   sagt TikTok nirgends. „homepage hot" heißt, jemand hat dich auf der Startseite gefunden.
                   Gezählt wird jeder Zuschauer nur beim ersten Auftauchen.
+                </p>
+              </div>
+            </section>
+          )}
+
+          {treueBalken.length > 1 && (
+            <section className="mt-10" style={auf(9)}>
+              <span className={kicker}>Wie treu dein Publikum ist</span>
+              <div className="rounded-xl border border-studio-border p-5" style={{ background: 'var(--color-studio-panel)' }}>
+                <Herkunft geber={treueBalken} einheit="Zuschauer" />
+                <p className="mt-4 border-t border-studio-border pt-3 text-xs text-studio-muted">
+                  Über alle Zuschauer, die botexe-studio je gesehen hat — nicht nur den letzten Abend.
+                  TikTok liefert an fast jeder Nachricht mit, wie lange jemand dir schon folgt.
                 </p>
               </div>
             </section>

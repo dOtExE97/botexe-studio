@@ -39,6 +39,7 @@ const api = {
   getGiftCatalog: () => ipcRenderer.invoke(IPC.GIFT_CATALOG_GET),
   getStickerCatalog: () => ipcRenderer.invoke(IPC.STICKER_CATALOG_GET),
   setStickerName: (id: string, name: string) => ipcRenderer.invoke(IPC.STICKER_NAME_SET, id, name),
+  getTreueVerteilung: () => ipcRenderer.invoke(IPC.TREUE_VERTEILUNG),
   setGiftMeta: (slug: string, patch: { favorite?: boolean; customName?: string }) => ipcRenderer.invoke(IPC.GIFT_META_SET, slug, patch),
   // Stats-Zeitraum (Woche/Monat/Jahr)
   getStatsHistory: (range: 'week' | 'month' | 'year') => ipcRenderer.invoke(IPC.STATS_HISTORY_GET, range),

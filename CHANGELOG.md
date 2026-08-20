@@ -40,6 +40,34 @@ richtig so, aber der Vergleich mit Streams von vorher hinkt ab hier.
 Und: Eine Chat-Nachricht mit Sticker löst ab jetzt **beides** aus — deine
 Chat-Regeln und deine Sticker-Regeln.
 
+### Was TikTok über deine Zuschauer verrät — und niemand nutzt
+
+An fast jeder Nachricht hängt mit, wie lange dieser Zuschauer dir schon folgt,
+wie lange er im Teamherz ist und seit wie vielen Monaten er Superfan ist. Mit
+echten Zahlen. Das lag immer an und wurde immer weggeworfen — auch von
+TikFinity, in deren Programm die Feldnamen kein einziges Mal vorkommen.
+
+Neu:
+
+- **Zuschauer-Seite**: unter jedem Namen steht jetzt „folgt seit 2,4 Jahren ·
+  Teamherz 2,3 Jahren · Superfan 27 Mon. · 678 Follower". Sortierbar nach Treue,
+  nach eigener Kanalgröße, nach zuletzt gesehen.
+- **Auswertung**: zwei neue Abschnitte — *woher deine Zuschauer kamen* (TikToks
+  eigene Angabe, z. B. Startseite oder geteilter Link) und *wie treu dein
+  Publikum ist*.
+- **Neue Trigger-Bedingungen**: „folgt seit mind. … Tagen", „im Teamherz seit
+  mind. … Tagen", „folgt seit HEUTE", „ist Top-Schenker", „hat selbst mind. …
+  Follower". Damit wird eine besondere Begrüßung für Langzeit-Fans eine ganz
+  normale Regel.
+
+Fehlt eine Angabe, steht dort „—" und keine Null: TikTok schickt die Etiketten
+nicht an jeder Nachricht mit, und „unbekannt" ist etwas anderes als „seit null
+Tagen". Aus demselben Grund feuert eine Treue-Bedingung bei fehlender Angabe
+NICHT — sonst würde die Stammgast-Begrüßung jeden Fremden erwischen.
+
+Nebenbei repariert: Wer nur zuschaute, ohne je zu schreiben, war überhaupt nicht
+erfasst — seine Besuche zählten erst ab dem ersten Kommentar.
+
 ## [0.54.1] — 2026-08-20
 
 Ein Abend mit Gewitter hat gezeigt, wie die App auf eine wackelige Leitung

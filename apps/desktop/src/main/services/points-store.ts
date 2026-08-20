@@ -327,6 +327,29 @@ export class PointsStore {
 
   count(): number { return this.viewers.size; }
 
+  /**
+   * Wie treu ist das Publikum? Verteilung ueber ALLE bekannten Zuschauer.
+   *
+   * Bewusst hier und nicht in der Session-Statistik: Die Frage „wie viele
+   * meiner Leute sind Langzeit-Fans" ist keine Frage an einen Abend. Und der
+   * Wert steht ohnehin dauerhaft an jedem Zuschauer.
+   *
+   * `unbekannt` ist eine eigene Gruppe und wird NICHT unter „neu" verbucht —
+   * wer nie mit Etiketten aufgetaucht ist, ist deshalb kein Neuling.
+   */
+  treueVerteilung(): { neu: number; wochen: number; monate: number; jahr: number; unbekannt: number } {
+    const raus = { neu: 0, wochen: 0, monate: 0, jahr: 0, unbekannt: 0 };
+    for (const v of this.viewers.values()) {
+      const tage = v.folgtSeitTagen;
+      if (tage === undefined) raus.unbekannt++;
+      else if (tage < 7) raus.neu++;
+      else if (tage < 30) raus.wochen++;
+      else if (tage < 365) raus.monate++;
+      else raus.jahr++;
+    }
+    return raus;
+  }
+
   /** Punkte abziehen (für künftige Einlösungen); false wenn zu wenig. */
   spend(userId: string, points: number): boolean {
     const entry = this.viewers.get(userId);
