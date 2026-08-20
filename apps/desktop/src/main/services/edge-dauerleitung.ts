@@ -56,6 +56,9 @@ const ANSAGE_TIMEOUT_MS = 10_000;
  *  praktisch JEDE Ansage neu aufbauen musste. */
 const LEERLAUF_MS = 10 * 60_000;
 
+/** Takt des Lebenszeichens, solange die Leitung steht (siehe planeHerzschlag). */
+const HERZSCHLAG_MS = 45_000;
+
 export interface EdgeLeitungOptionen {
   /** Nur für Tests: eigene WebSocket-Fabrik. */
   wsFactory?: (url: string, opts: Record<string, unknown>) => WsAehnlich;
@@ -69,6 +72,8 @@ export interface WsAehnlich {
   send(daten: string): void;
   close(): void;
   terminate?(): void;
+  /** Lebenszeichen — haelt den Weg durch Router und Anbieter offen. */
+  ping?(): void;
   removeAllListeners?(): void;
   readyState?: number;
 }
@@ -118,6 +123,7 @@ export class EdgeDauerleitung {
   private verbinden: Promise<WsAehnlich> | null = null;
   private readonly offen = new Map<string, OffeneAnsage>();
   private leerlaufTimer: ReturnType<typeof setTimeout> | null = null;
+  private herzTicker: ReturnType<typeof setInterval> | null = null;
   private readonly wsFactory: NonNullable<EdgeLeitungOptionen['wsFactory']>;
   /** Wie viele Ansagen diese Leitung schon getragen hat — fürs Log. */
   private getragen = 0;
@@ -189,7 +195,34 @@ export class EdgeDauerleitung {
     if (!ws) return;
     // terminate() statt close(): Ein sauberes Schließen wartet auf eine Antwort
     // der Gegenstelle — die bei einer toten Leitung nie kommt.
+    this.stoppeHerzschlag();
     try { ws.removeAllListeners?.(); (ws.terminate ?? ws.close).call(ws); } catch { /* egal */ }
+  }
+
+  /** Lebenszeichen alle 45 Sekunden, solange die Leitung steht.
+   *
+   *  WARUM: Router, Firewalls und Anbieter räumen stille Verbindungen nach
+   *  einer Weile weg — sie sehen ja keinen Verkehr. Bei einem ruhigen Stream
+   *  mit einer Ansage alle paar Minuten ist die Leitung genau deshalb oft
+   *  schon tot, wenn sie gebraucht wird. Regelmäßiger Verkehr hält den Weg
+   *  offen; die Empfehlung dazu steht auch in der edge-tts-Diskussion (#347).
+   *
+   *  BEWUSST NICHT künstlich am Leben halten: Die 10-Minuten-Leerlaufregel
+   *  bleibt. Eine Leitung, die niemand braucht, wird geschlossen — sonst
+   *  läuft man in Grenzen des Anbieters. Der Herzschlag hält nur durch, was
+   *  ohnehin gebraucht wird. */
+  private planeHerzschlag(ws: WsAehnlich): void {
+    this.stoppeHerzschlag();
+    if (typeof ws.ping !== 'function') return;
+    this.herzTicker = setInterval(() => {
+      if (this.ws !== ws) { this.stoppeHerzschlag(); return; }
+      try { ws.ping?.(); } catch { /* der naechste Bedarf merkt es */ }
+    }, HERZSCHLAG_MS);
+    this.herzTicker.unref?.();
+  }
+
+  private stoppeHerzschlag(): void {
+    if (this.herzTicker) { clearInterval(this.herzTicker); this.herzTicker = null; }
   }
 
   private planeLeerlauf(): void {
@@ -253,6 +286,7 @@ export class EdgeDauerleitung {
           + `"outputFormat":"${AUSGABEFORMAT}"}}}}`,
         );
         this.ws = ws;
+        this.planeHerzschlag(ws);
         this.getragen = 0;
         erfuellen(ws);
       }) as never);

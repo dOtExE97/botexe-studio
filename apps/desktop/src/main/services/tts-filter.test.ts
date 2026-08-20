@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldReadChat, containsBlockedWord, migrateReadWho, istNurEineZahl, stufeWirktNicht, niemandWirdVorgelesen, entferneEmoji, nameOhneEmoji } from './tts-filter';
+import { shouldReadChat, containsBlockedWord, migrateReadWho, istNurEineZahl, stufeWirktNicht, niemandWirdVorgelesen, entferneEmoji, nameOhneEmoji, istNachlieferung, NACHLIEFERUNG_MS } from './tts-filter';
 import type { StudioEvent } from '@botexe/trigger-engine';
 
 function chat(text: string, user: Partial<NonNullable<StudioEvent['user']>> = {}): StudioEvent {
@@ -257,4 +257,27 @@ test('ein Name aus lauter Emojis bleibt stehen statt leer zu werden', () => {
   assert.equal(nameOhneEmoji('🌸🌸🌸'), '🌸🌸🌸');
   assert.equal(nameOhneEmoji('☀️Sarüüüh❤️'), 'Sarüüüh');
   assert.equal(nameOhneEmoji('dOtExE_97'), 'dOtExE_97');
+});
+
+// ── Nachgelieferter Chat ───────────────────────────────────────────────────
+// Gemeldet als „TTS kommt ewig nicht" (Stream 19.08.2026). Ursache: Nach jedem
+// Neuverbinden schickt TikTok den verpassten Verlauf nach — sechsmal kamen
+// exakt sechs Nachrichten mit identischem Zeitstempel. Alle wurden vorgelesen,
+// macht rund eine halbe Minute Rueckstand mit Chat von vor fuenf Minuten.
+
+test('kurz nach dem Verbinden gilt Chat als nachgeliefert', () => {
+  const verbunden = 1_000_000;
+  assert.equal(istNachlieferung(verbunden, verbunden + 1_000), true, 'eine Sekunde danach');
+  assert.equal(istNachlieferung(verbunden, verbunden + 20_000), true, '20 Sekunden danach');
+});
+
+test('spaeter ist es normaler Chat', () => {
+  const verbunden = 1_000_000;
+  assert.equal(istNachlieferung(verbunden, verbunden + NACHLIEFERUNG_MS), false, 'genau auf der Grenze');
+  assert.equal(istNachlieferung(verbunden, verbunden + 60_000), false);
+});
+
+test('ohne bekannte Verbindungszeit wird NICHTS uebersprungen', () => {
+  // Sonst waere beim allerersten Start alles stumm — schlimmer als das Problem.
+  assert.equal(istNachlieferung(0, Date.now()), false);
 });

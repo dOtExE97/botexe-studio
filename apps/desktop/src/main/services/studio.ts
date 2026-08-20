@@ -32,7 +32,7 @@ import { parseApiAction, API_ACTION_KINDS } from './api-actions';
 import { LayoutStore } from './layout-store';
 import { SoundLibrary } from './sound-library';
 import { MediaLibrary } from './media-library';
-import { shouldReadChat, containsBlockedWord, istNurEineZahl, stufeWirktNicht, niemandWirdVorgelesen, entferneEmoji, nameOhneEmoji } from './tts-filter';
+import { shouldReadChat, containsBlockedWord, istNurEineZahl, stufeWirktNicht, niemandWirdVorgelesen, entferneEmoji, nameOhneEmoji, istNachlieferung } from './tts-filter';
 import { collectGiftSounds, findWheelSounds } from './widget-sounds';
 import { planWheelSpins } from './wheel-gift';
 import { planSlotSpins } from './slot-gift';
@@ -225,6 +225,13 @@ export class Studio {
   private readonly games: GameService;
   private readonly boss = new BossService();
   private bossActive = false;
+  /** Wann die Verbindung zuletzt (neu) stand.
+   *
+   *  Nach einem Neuverbinden liefert TikTok den verpassten Chat NACH — im
+   *  Stream vom 19.08.2026 sechsmal je sechs Nachrichten mit identischem
+   *  Zeitstempel. Die wurden alle vorgelesen: eine halbe Minute Rückstand, und
+   *  zu hören war Chat von vor fünf Minuten. Siehe `istNachlieferung`. */
+  private verbundenSeit = 0;
   private lastPlatformStatus: { status: string; detail?: string; at: number } = { status: 'disconnected', at: 0 };
   /** Voller letzter Status (P1-3) — separat von lastPlatformStatus (das ist die
    *  abgespeckte Diagnose-Projektion), damit getPlatformStatus() dem Renderer
@@ -449,6 +456,7 @@ export class Studio {
           this.settings.update({ lastLiveRoomId: info.roomId });
         }
         if (info.status === 'connected') {
+          this.verbundenSeit = Date.now();
           const mode = this.settings.get().tiktokConnectMode ?? 'cloud';
           log.info('TikTok', `Verbindungsmodus: ${mode === 'cloud' ? 'Cloud (Euler)' : 'Direkt'}`);
           // Der Cloud-Weg liefert keine Raum-Nummer. Die „neuer Stream"-Erkennung
@@ -2646,6 +2654,14 @@ export class Studio {
     const raw = event.text ?? '';
     if (!raw.trim()) return;
     if (tts.skipCommands && raw.trimStart().startsWith('!')) return;
+    // Nachgelieferter Chat nach einem Neuverbinden: nicht vorlesen.
+    if (istNachlieferung(this.verbundenSeit, Date.now())) {
+      log.gedrosselt('tts:nachlieferung', 5 * 60_000, 'info', 'TTS',
+        'Direkt nach dem Neuverbinden liefert TikTok den verpassten Chat nach — der wird NICHT '
+        + 'vorgelesen. Sonst hörst du eine halbe Minute lang Nachrichten von vor fünf Minuten, '
+        + 'während im Stream längst etwas anderes läuft. Trigger und Zähler bekommen sie weiterhin.');
+      return;
+    }
     // Reine Zahlen überspringen — bei laufendem Zahlenraten besteht der Chat
     // sonst minutenlang aus vorgelesenen Einzelzahlen.
     if (tts.skipNumbers && istNurEineZahl(raw)) {

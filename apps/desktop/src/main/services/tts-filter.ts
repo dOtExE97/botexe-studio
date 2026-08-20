@@ -193,3 +193,39 @@ export function nameOhneEmoji(name: string): string {
   const sauber = entferneEmoji(name);
   return sauber.length > 0 ? sauber : name;
 }
+
+// ── Nachgelieferter Chat ───────────────────────────────────────────────────
+
+/** So lange nach dem Verbinden gilt Chat als nachgeliefert. */
+export const NACHLIEFERUNG_MS = 25_000;
+
+/**
+ * Kommt diese Nachricht aus TikToks Nachlieferung statt aus dem laufenden Chat?
+ *
+ * Reisst die Verbindung ab, schreiben die Leute weiter. Beim Neuverbinden
+ * schickt TikTok den verpassten Verlauf auf einen Schlag hinterher. Belegt im
+ * Stream vom 19.08.2026: SECHSMAL kamen exakt sechs Nachrichten mit identischem
+ * Zeitstempel, jeweils Sekunden nach einem Neuverbinden.
+ *
+ * Alle wurden vorgelesen — bei rund vier Sekunden je Ansage eine halbe Minute
+ * Rückstand. Zu hören war Chat von vor fünf Minuten, während im Stream längst
+ * etwas anderes lief. Genau das meinte der Streamer mit „TTS kommt ewig nicht".
+ *
+ * WARUM ES NICHT ÜBER DAS ALTER GEHT: Die Warteschlange misst, wie lange eine
+ * Ansage IN IHR lag. Die nachgelieferten landen alle gleichzeitig darin und
+ * gelten damit als brandneu. Und TikToks eigenen Zeitstempel führt die App
+ * nicht mit — sie setzt den Empfangszeitpunkt, der bei Nachlieferungen
+ * ebenfalls „jetzt" ist.
+ *
+ * Deshalb der Umweg über den Verbindungszeitpunkt: Was unmittelbar nach dem
+ * Verbinden hereinkommt, ist mit hoher Wahrscheinlichkeit Verlauf.
+ *
+ * DER PREIS, offen benannt: In diesem Fenster wird auch eine ECHT neue
+ * Nachricht nicht vorgelesen. Das ist der bessere Tausch — eine verpasste
+ * Nachricht wiegt leichter als eine halbe Minute nachgeplapperter alter Chat.
+ * Trigger, Zähler und Widgets sehen sie ohnehin weiterhin.
+ */
+export function istNachlieferung(verbundenSeit: number, jetzt: number): boolean {
+  if (verbundenSeit <= 0) return false;
+  return jetzt - verbundenSeit < NACHLIEFERUNG_MS;
+}

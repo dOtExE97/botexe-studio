@@ -3,6 +3,64 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.54.1] — 2026-08-20
+
+Ein Abend mit Gewitter hat gezeigt, wie die App auf eine wackelige Leitung
+reagiert — und dass sie das an vier Stellen schlechter machte, als sie musste.
+
+### Sie gab bei einem Verbindungsabbruch endgültig auf
+
+Der schlimmste Fehler: Riss die Leitung ab (Code 1006, ein gewöhnlicher
+Netz-Aussetzer), **verband die App nie wieder** und verlangte einen Sign-Key —
+den der Streamer längst hatte und der zehn Minuten vorher noch funktioniert
+hatte.
+
+Ursache war ein Eigentor: Die App baut zu diesem Fehler einen hilfreichen
+Hinweis, in dem der Anbietername vorkommt. Ihre eigene Fehler-Einordnung suchte
+nach genau diesem Wort und schloss daraus „der Anbieter hat abgelehnt" — und
+Absagen bedeuten „Wiederholen ist zwecklos". Sie hat sich also an ihrer eigenen
+Erklärung verschluckt.
+
+Ein abgerissener WebSocket gilt jetzt nie mehr als Absage. Und die Meldung
+behauptet nicht länger „Tageskontingent aufgebraucht", wenn in Wahrheit nur
+kurz das Internet weg war.
+
+### Abrisse fallen jetzt in Sekunden auf statt in Minuten
+
+Bricht die Verbindung weg, merkt das bei einem WebSocket zunächst niemand —
+beide Seiten sitzen nur da. Die Leitung „steht" und liefert trotzdem nichts.
+Bisher fiel das erst auf, wenn fünf Minuten lang gar nichts kam.
+
+An einem Abend passierte das **fünfmal**: 25 Minuten ohne Overlay.
+
+Jetzt tauscht die App alle 30 Sekunden ein Lebenszeichen aus. Bleibt es zweimal
+hintereinander aus, wird sofort neu verbunden. Aus fünf Minuten wird eine.
+
+Zwei Sicherungen sind eingebaut, damit die Kur nicht schlimmer wird als die
+Krankheit: Jede eingehende Nachricht zählt als Lebenszeichen (eine Leitung mit
+laufendem Chat ist offensichtlich am Leben), und die Abriss-Regel greift
+überhaupt nur, wenn die Gegenstelle wenigstens einmal geantwortet hat.
+
+### Die Sprachausgabe wartet nicht mehr auf eine tote Leitung
+
+Die App hält eine offene Leitung zur Sprachausgabe — das spart bei jeder Ansage
+den Verbindungsaufbau. Fällt sie aus, kostete bisher **jede einzelne Ansage**
+bis zu zehn Sekunden Wartezeit, bevor der Ersatzweg überhaupt anfing.
+
+Nach drei Ausfällen in Folge wird sie jetzt drei Minuten übersprungen. Danach
+wird sie automatisch wieder versucht. Zusätzlich hält ein Lebenszeichen alle 45
+Sekunden den Weg offen, solange die Leitung gebraucht wird.
+
+### Kein nachgeplapperter Chat mehr
+
+Nach einem Neuverbinden schickt TikTok den verpassten Chat nach. Die App las
+alles vor — an einem Abend sechsmal je sechs Nachrichten auf einen Schlag. Das
+sind gut 30 Sekunden Rückstand, in denen man Chat von vor fünf Minuten hört,
+während im Stream längst etwas anderes läuft.
+
+Diese Nachlieferung wird nicht mehr vorgelesen. Trigger, Zähler und Widgets
+bekommen sie unverändert.
+
 ## [0.54.0] — 2026-08-17
 
 Diese Fassung räumt beim Vorlesen auf. Auslöser war eine einzige Rückfrage —

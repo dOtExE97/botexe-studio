@@ -481,3 +481,49 @@ test('PK: die gemerkte ID aus den Einstellungen springt ein', async () => {
   assert.match(ausgabe, /du führst mit 1100/, 'auch ohne hostInfo richtig zugeordnet');
   await adapter.disconnect();
 });
+
+// ── Die App darf sich nicht an der EIGENEN Erklärung verschlucken ──────────
+// Gemeldet aus einem echten Stream (19.08.2026): Nach einem Verbindungsabbruch
+// mitten im Live gab die App endgültig auf und verlangte einen Sign-Key, den
+// der Streamer längst hatte.
+//
+// Ursache: Bei Code 1006 baut tiktok-cloud.ts einen HILFREICHEN Hinweis, in dem
+// „eulerstream.com" vorkommt. isSignServerError() suchte nach genau diesem Wort
+// und stufte die eigene Erklärung als Absage des Sign-Servers ein — also
+// „Retry zwecklos, aufgeben". Der Streamer stand danach ohne Overlay da.
+
+test('ein normaler Verbindungsabbruch (1006) ist KEIN Sign-Fehler', () => {
+  const echt = 'Cloud-WS geschlossen (Code 1006) — bei einem Gratis-Key sind das fast immer '
+    + 'die Grenzen des Community-Plans: Tageskontingent aufgebraucht oder schon zu viele '
+    + 'Verbindungen offen. Nachsehen kannst du das im Dashboard auf eulerstream.com; sonst hilft warten.';
+  assert.equal(isSignServerError(echt), false,
+    'sonst gibt die App nach jedem Netz-Aussetzer endgültig auf');
+});
+
+test('ECHTE Sign-Absagen werden weiterhin erkannt', () => {
+  // Die Fälle, für die es die Erkennung gibt — dort ist Aufgeben richtig,
+  // weil jeder weitere Versuch nur Kontingent verbrennt.
+  assert.equal(isSignServerError(
+    '[fetchWebcastSignatureFromEulerRoute] Failed to sign a request: This endpoint requires a Business plan.'), true);
+  assert.equal(isSignServerError('Failed to sign a request'), true);
+  assert.equal(isSignServerError('signature verification failed'), true);
+  assert.equal(isSignServerError('This endpoint requires a Business plan'), true);
+});
+
+test('gewöhnliche Verbindungsfehler bleiben Verbindungsfehler', () => {
+  assert.equal(isSignServerError('read ECONNRESET'), false);
+  assert.equal(isSignServerError('Cloud-WS geschlossen (Code 1006)'), false);
+  assert.equal(isSignServerError('connection timeout'), false);
+  assert.equal(isSignServerError('socket hang up'), false);
+});
+
+test('echte Absagen des Cloud-Sign (4401/4403) werden weiterhin erkannt', () => {
+  // Wichtig als Gegengewicht zum 1006-Fix: Waere hier faelschlich „kein
+  // Sign-Fehler" herausgekommen, wuerde die App bei einem ungueltigen Key
+  // endlos weiterprobieren und Kontingent verbrennen. Beim Reparieren des
+  // 1006-Falls war genau das kurzzeitig kaputt.
+  assert.equal(isSignServerError(
+    'eulerstream Cloud-Sign abgelehnt (Code 4401, API-Key/Plan): invalid key'), true);
+  assert.equal(isSignServerError(
+    'eulerstream Cloud-Sign abgelehnt (Code 4403, API-Key/Plan): no permission'), true);
+});

@@ -56,20 +56,33 @@ test('mapCloudMessage: Euler-Custom-Frames steuern den Verbindungsstatus', () =>
 // --- EulerCloudConnection --------------------------------------------------
 class FakeWs extends EventEmitter implements CloudWsLike {
   closed = false;
+  terminated = false;
+  pings = 0;
+  /** Antwortet die Gegenseite auf Lebenszeichen? Fuer den Toter-Leitung-Test. */
+  antwortet = true;
   url: string;
   constructor(url: string) { super(); this.url = url; }
   close(): void { this.closed = true; }
+  terminate(): void { this.terminated = true; this.closed = true; }
+  ping(): void {
+    this.pings++;
+    // Eine gesunde Gegenstelle antwortet sofort.
+    if (this.antwortet) this.emit('pong');
+  }
   // Helfer für Tests: einen gebündelten Frame zustellen.
   deliver(messages: Array<{ type: string; data: unknown }>): void {
     this.emit('message', Buffer.from(JSON.stringify({ messages })));
   }
 }
 
-function makeConn(opts: { onWs?: (ws: FakeWs) => void } = {}) {
+function makeConn(opts: { onWs?: (ws: FakeWs) => void; herzschlagMs?: number } = {}) {
   let ws!: FakeWs;
   const conn = new EulerCloudConnection('@ExE', {
     apiKey: 'euler_abc',
     connectTimeoutMs: 1000,
+    // Standard AUS in Tests: Sonst laesst ein 30-Sekunden-Ticker den Testlauf
+    // haengen. Wer den Herzschlag prueft, schaltet ihn ausdruecklich ein.
+    herzschlagMs: opts.herzschlagMs ?? 0,
     wsFactory: (url) => { ws = new FakeWs(url); opts.onWs?.(ws); return ws; },
   });
   return { conn, getWs: () => ws };
@@ -234,4 +247,99 @@ test('felderVon bleibt lesbar und kippt bei Unsinn nicht um', () => {
   const viele = Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`f${i}`, i]));
   const s = felderVon(viele);
   assert.ok(s.endsWith('…'), 'wird gedeckelt statt endlos lang');
+});
+
+// ── Lebenszeichen (Herzschlag) ─────────────────────────────────────────────
+// WARUM: Reisst die Internetverbindung ab, merkt das bei einem WebSocket
+// zunaechst NIEMAND — beide Seiten sitzen nur da, die Leitung „steht" und
+// liefert trotzdem nichts. Im Stream vom 19.08.2026 fiel das fuenfmal erst
+// nach fuenf Minuten auf: 25 Minuten Overlay-Ausfall an einem Abend.
+
+const warte = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+test('Herzschlag: sendet regelmaessig ein Lebenszeichen', async () => {
+  const { conn, getWs } = makeConn({ herzschlagMs: 25 });
+  const p = conn.connect();
+  getWs().deliver([{ type: 'tiktok.connect', data: {} }]);
+  await p;
+  await warte(90);
+  assert.ok(getWs().pings >= 2, `mindestens 2 Lebenszeichen erwartet, waren ${getWs().pings}`);
+  assert.equal(getWs().terminated, false, 'eine antwortende Leitung wird NICHT abgerissen');
+  conn.disconnect();
+});
+
+test('Herzschlag: eine stumme Leitung wird abgerissen statt ausgesessen', async () => {
+  const { conn, getWs } = makeConn({ herzschlagMs: 25 });
+  const p = conn.connect();
+  getWs().deliver([{ type: 'tiktok.connect', data: {} }]);
+  await p;
+  await warte(40);                    // ein Pong, damit die Regel ueberhaupt greift
+  getWs().antwortet = false;          // ab jetzt: keine Antwort mehr
+  await warte(140);
+  assert.equal(getWs().terminated, true,
+    'ohne Antwort muss die Leitung abgerissen werden — sonst faellt es erst nach Minuten auf');
+  conn.disconnect();
+});
+
+test('Herzschlag: laufender Verkehr zaehlt als Lebenszeichen', async () => {
+  // Eine Leitung, ueber die gerade Chat fliesst, ist offensichtlich am Leben —
+  // auch wenn das Pong mal ausbleibt. Sonst wuerde ein voller Stream staendig
+  // grundlos neu verbinden.
+  const { conn, getWs } = makeConn({ herzschlagMs: 25 });
+  const p = conn.connect();
+  getWs().deliver([{ type: 'tiktok.connect', data: {} }]);
+  await p;
+  getWs().antwortet = false;
+  for (let i = 0; i < 6; i++) {
+    getWs().deliver([{ type: 'WebcastChatMessage', data: { comment: 'hi' } }]);
+    await warte(15);
+  }
+  assert.equal(getWs().terminated, false, 'trotz fehlender Pongs: es kommt ja Verkehr');
+  conn.disconnect();
+});
+
+test('Herzschlag: nach disconnect laeuft kein Ticker weiter', async () => {
+  // Sonst bleibt ein Timer zurueck — dieselbe Klasse Fehler wie beim
+  // Verbindungs-Wachhund und beim TTS-Wecker (beide hielten den Testlauf offen).
+  const { conn, getWs } = makeConn({ herzschlagMs: 25 });
+  const p = conn.connect();
+  getWs().deliver([{ type: 'tiktok.connect', data: {} }]);
+  await p;
+  await warte(40);
+  conn.disconnect();
+  const vorher = getWs().pings;
+  await warte(90);
+  assert.equal(getWs().pings, vorher, 'nach dem Trennen darf kein Lebenszeichen mehr gehen');
+});
+
+test('Herzschlag: eine Gegenstelle, die NIE pongt, wird NICHT abgerissen', async () => {
+  // DAS WICHTIGSTE SICHERHEITSNETZ. eulerstream dokumentiert sein
+  // Ping-Verhalten nirgends. Antwortet der Dienst grundsaetzlich nicht, waere
+  // „kein Pong = tot" verheerend: Die App wuerde JEDE gesunde Verbindung im
+  // Takt abreissen und in eine Neuverbindungs-Schleife laufen — deutlich
+  // schlimmer als das Problem, das der Herzschlag loesen soll.
+  const { conn, getWs } = makeConn({ herzschlagMs: 20 });
+  const p = conn.connect();
+  getWs().antwortet = false;          // von Anfang an stumm auf Pings
+  getWs().deliver([{ type: 'tiktok.connect', data: {} }]);
+  await p;
+  await warte(140);                   // sieben Takte lang gar nichts
+  assert.equal(getWs().terminated, false,
+    'ohne je gesehenes Pong darf die Abriss-Regel NICHT greifen');
+  assert.ok(getWs().pings >= 3, 'gepingt wird trotzdem — das haelt den Weg offen');
+  conn.disconnect();
+});
+
+test('Herzschlag: EIN verpasster Takt reisst noch nicht ab', async () => {
+  // Ein einzelnes Pong kann bei schwankender Leitung auch mal laenger brauchen.
+  // Erst zwei Takte hintereinander ohne jedes Lebenszeichen zaehlen.
+  const { conn, getWs } = makeConn({ herzschlagMs: 30 });
+  const p = conn.connect();
+  getWs().deliver([{ type: 'tiktok.connect', data: {} }]);
+  await p;
+  await warte(45);                    // ein sauberer Takt mit Pong
+  getWs().antwortet = false;
+  await warte(40);                    // genau EIN verpasster Takt
+  assert.equal(getWs().terminated, false, 'ein Aussetzer ist noch kein Abriss');
+  conn.disconnect();
 });

@@ -1162,5 +1162,20 @@ export function isOfflineError(msg: string): boolean {
 /** Fehler vom externen Sign-Server (eulerstream): Retry zwecklos, braucht einen
  *  API-Key/Plan. Klar abgrenzen von „offline" o.Ä. */
 export function isSignServerError(msg: string): boolean {
-  return /sign a request|eulerstream|business plan|signature/i.test(String(msg || ''));
+  const t = String(msg || '');
+  // Ein abgebrochener WebSocket ist NIE eine Sign-Absage — er ist ein
+  // Netz-Aussetzer, und der gehört wiederholt statt aufgegeben.
+  //
+  // WARUM DIESE ZEILE ZUERST KOMMT: Der Hinweistext, den die App bei Code 1006
+  // selbst baut (tiktok-cloud.ts), erwähnt „eulerstream.com" als Anlaufstelle
+  // fürs Kontingent. Der alte Ausdruck unten suchte nach genau diesem Wort —
+  // die App stufte damit ihre EIGENE Erklärung als Absage des Sign-Servers ein
+  // und gab endgültig auf. Belegt im Stream vom 19.08.2026: Verbindung um
+  // 21:56 einwandfrei, um 22:06 ein Aussetzer, danach kein Reconnect mehr und
+  // die Aufforderung, sich einen Sign-Key zu holen — den es längst gab.
+  if (/Cloud-WS geschlossen|Code 100[0-9]/i.test(t)) return false;
+  // „eulerstream" allein reicht NICHT mehr: Der Name taucht in Hinweisen,
+  // Adressen und Routennamen auf, ohne dass etwas abgelehnt wurde. Gesucht wird
+  // nur noch, was eine ECHTE Absage beschreibt — der Vorgang, nicht der Anbieter.
+  return /sign a request|business plan|signature|sign server|requires a .*plan|rate limit|sign abgelehnt/i.test(t);
 }

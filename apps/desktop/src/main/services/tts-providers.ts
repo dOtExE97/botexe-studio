@@ -66,10 +66,21 @@ const EDGE_VOICES: Array<[string, string, 'de' | 'en']> = [
  *  Wird beim ersten Bedarf aufgebaut und danach wiederverwendet. */
 let dauerleitung: EdgeDauerleitung | null = null;
 
+/** Wie oft die Dauerleitung hintereinander nicht geliefert hat. */
+let leitungFehler = 0;
+/** Bis dahin wird sie übersprungen (0 = keine Sperre). */
+let leitungGesperrtBis = 0;
+/** Nach so vielen Fehlschlägen in Folge gilt sie als gestört. */
+const LEITUNG_FEHLER_BIS_SPERRE = 3;
+/** So lange wird dann direkt der klassische Weg genommen. */
+const LEITUNG_SPERRE_MS = 3 * 60_000;
+
 /** Leitung schließen — beim Beenden der App und beim Zurücksetzen. */
 export function edgeLeitungSchliessen(): void {
   dauerleitung?.schliesse();
   dauerleitung = null;
+  leitungFehler = 0;
+  leitungGesperrtBis = 0;
 }
 
 async function edgeSynthesize(
@@ -78,12 +89,27 @@ async function edgeSynthesize(
   target: string,
   tuning?: Record<string, number | string>,
 ): Promise<void> {
+  // IST DIE LEITUNG GERADE GESPERRT? Dann gar nicht erst versuchen.
+  //
+  // Ein Fehlversuch über die Dauerleitung kostet bis zu 10 Sekunden Geduld,
+  // BEVOR der klassische Weg überhaupt anfängt. Bei gestörtem Internet zahlt
+  // man diesen Zoll bei JEDER Ansage — im Stream vom 19.08.2026 lag genau
+  // darin das „TTS kommt ewig nicht": sechs Ansagen im Schub, jede mit
+  // Vorlauf ins Leere.
+  //
+  // Dieselbe Bremse gibt es im TTS-Dienst längst für den Anbieter selbst
+  // (ONLINE_PAUSE_MS) — sie fehlte nur hier eine Ebene tiefer.
+  if (leitungGesperrtBis > Date.now()) {
+    return edgeSynthesizeKlassisch(text, voiceId, target, tuning);
+  }
+
   // ZUERST über die offene Leitung. Das spart bei jeder Ansage außer der
   // ersten den kompletten Verbindungsaufbau — bei schwachem WLAN der
   // Unterschied zwischen „geht" und „Zeitüberschreitung".
   dauerleitung ??= new EdgeDauerleitung();
   try {
     await dauerleitung.synthetisiere(text, voiceId, target, tuning);
+    leitungFehler = 0;
     return;
   } catch (err) {
     // Fällt die Dauerleitung aus, NICHT gleich aufgeben: Der bewährte Weg über
@@ -94,6 +120,15 @@ async function edgeSynthesize(
       + 'für diese Ansage wird der klassische Weg mit eigenem Verbindungsaufbau genutzt.');
     dauerleitung.schliesse();
     dauerleitung = null;
+    leitungFehler += 1;
+    if (leitungFehler >= LEITUNG_FEHLER_BIS_SPERRE) {
+      leitungGesperrtBis = Date.now() + LEITUNG_SPERRE_MS;
+      leitungFehler = 0;
+      log.info('TTS', `Die offene Sprach-Leitung ist ${LEITUNG_FEHLER_BIS_SPERRE}× hintereinander ausgefallen — `
+        + `sie wird für ${Math.round(LEITUNG_SPERRE_MS / 60_000)} Minuten übersprungen. `
+        + 'Die Ansagen laufen weiter über den klassischen Weg und kommen ab jetzt SCHNELLER, '
+        + 'weil die Wartezeit auf die tote Leitung entfällt.');
+    }
   }
   return edgeSynthesizeKlassisch(text, voiceId, target, tuning);
 }

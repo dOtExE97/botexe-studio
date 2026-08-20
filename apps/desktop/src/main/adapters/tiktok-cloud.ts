@@ -504,6 +504,11 @@ export interface CloudWsLike {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on(event: string, cb: (...args: any[]) => void): unknown;
   close(): void;
+  /** Lebenszeichen senden. Die Gegenseite antwortet per Protokoll mit 'pong'. */
+  ping?(): void;
+  /** Hart abreissen — fuer eine Leitung, die nicht mehr antwortet. `close()`
+   *  wuerde dort auf einen Abschiedsgruss warten, der nie kommt. */
+  terminate?(): void;
   /** Beim Trennen die WS-Handler abräumen (die echte ws-Lib kann das). */
   removeAllListeners?(): void;
 }
@@ -515,7 +520,29 @@ export interface EulerCloudOptions {
   wsFactory?: CloudWsFactory;
   baseUrl?: string;
   connectTimeoutMs?: number;
+  /** Takt des Lebenszeichens in ms (0 = aus). Nur für Tests interessant. */
+  herzschlagMs?: number;
 }
+
+/** Wie oft ein Lebenszeichen an die Gegenseite geht.
+ *
+ *  WARUM ES DAS BRAUCHT: Reißt die Internetverbindung ab, bemerkt das bei einem
+ *  WebSocket zunächst NIEMAND — beide Seiten sitzen nur da. Die Leitung „steht"
+ *  und liefert trotzdem nichts. Ohne Lebenszeichen fällt das erst auf, wenn
+ *  lange genug keine Nachricht kam: Der Wachhund im Adapter warnt nach zwei und
+ *  verbindet nach fünf Minuten neu.
+ *
+ *  Im Stream vom 19.08.2026 ist das fünfmal passiert — macht 25 Minuten
+ *  Overlay-Ausfall an einem Abend, plus den Chat, der beim Wiederverbinden
+ *  gesammelt nachgeliefert und dann vorgelesen wurde.
+ *
+ *  Mit Lebenszeichen sind es Sekunden statt Minuten. Und der regelmäßige
+ *  Verkehr hält den Weg durch Router und Anbieter offen — die räumen stille
+ *  Verbindungen nach einer Weile ohnehin weg.
+ *
+ *  30 Sekunden: derselbe Takt wie beim Overlay-Server, wo sich das Muster
+ *  bewährt hat. */
+const HERZSCHLAG_MS = 30_000;
 
 function defaultWsFactory(url: string): CloudWsLike {
   // Lazy import: hält Tests/Startpfad frei von der ws-Lib.
@@ -534,14 +561,24 @@ function closeRejectMessage(code: number, reason: string): string {
     case 4403: // NO_PERMISSION
       return `eulerstream Cloud-Sign abgelehnt (Code ${code}, API-Key/Plan): ${reason}`;
     default:
-      // Klartext statt nackter Zahl: Mit einem Gratis-Key sind unbekannte
-      // Close-Codes fast immer die Plan-Grenzen (Tageskontingent, zu viele
-      // gleichzeitige Verbindungen). Ohne diesen Satz trägt der Streamer
-      // seinen Key immer wieder neu ein, obwohl der völlig in Ordnung ist.
+      // 1006 ist KEIN Plan-Problem, sondern „Leitung weg ohne Abschiedsgruß".
+      //
+      // Vorher stand hier für JEDEN unbekannten Code „Tageskontingent
+      // aufgebraucht". Bei einem Streamer war die Verbindung zehn Minuten
+      // vorher einwandfrei und brach mitten im Live ab (19.08.2026) — die
+      // Meldung schickte ihn trotzdem zum Kontingent-Dashboard. Eine Vermutung
+      // als Tatsache auszugeben ist schlimmer als keine Vermutung.
+      if (code === 1006) {
+        return `Cloud-WS geschlossen (Code ${code})${reason ? `: ${reason.slice(0, 120)}` : ''}`
+          + ' — die Leitung ist abgerissen, ohne dass die Gegenseite sich abgemeldet hat.'
+          + ' Meist WLAN oder Internet für einen Moment weg; die App verbindet gleich neu.'
+          + ' Kommt es dauernd, ist das Kontingent des Gratis-Keys eine mögliche Ursache.';
+      }
+      // Andere unbekannte Codes: Mit einem Gratis-Key sind das häufig die
+      // Plan-Grenzen. Als Möglichkeit formuliert, nicht als Diagnose.
       return `Cloud-WS geschlossen (Code ${code})${reason ? `: ${reason.slice(0, 120)}` : ''}`
-        + ' — bei einem Gratis-Key sind das fast immer die Grenzen des Community-Plans:'
-        + ' Tageskontingent aufgebraucht oder schon zu viele Verbindungen offen.'
-        + ' Nachsehen kannst du das im Dashboard auf eulerstream.com; sonst hilft warten.';
+        + ' — möglich sind die Grenzen des Community-Plans (Tageskontingent oder zu viele'
+        + ' gleichzeitige Verbindungen); nachsehen im Dashboard des Anbieters.';
   }
 }
 
@@ -557,6 +594,24 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
   private readonly wsFactory: CloudWsFactory;
   private readonly connectTimeoutMs: number;
   private ws: CloudWsLike | null = null;
+  /** Läuft der Lebenszeichen-Takt? */
+  private herzTicker: ReturnType<typeof setInterval> | null = null;
+  /** Hat die Gegenseite seit dem letzten Lebenszeichen etwas von sich hören
+   *  lassen? Wird von JEDER Nachricht bestätigt, nicht nur vom Pong — eine
+   *  Leitung, über die gerade Chat fliesst, ist offensichtlich am Leben. */
+  private lebt = true;
+  /** Hat die Gegenseite JEMALS auf ein Lebenszeichen geantwortet?
+   *
+   *  SICHERHEITSNETZ: eulerstream dokumentiert sein Ping-Verhalten nirgends.
+   *  Antwortet der Dienst grundsätzlich nicht, wäre „kein Pong = tot" eine
+   *  Katastrophe — die App würde jede GESUNDE Verbindung im Takt abreißen und
+   *  in eine Neuverbindungs-Schleife laufen. Deshalb greift die Abriss-Regel
+   *  erst, wenn wenigstens einmal ein Pong kam. Sonst bleibt es beim alten
+   *  Wachhund, der auf ausbleibende Ereignisse achtet. */
+  private pongGesehen = false;
+  /** Wie viele Takte hintereinander ohne jedes Lebenszeichen vergingen. */
+  private verpassteTakte = 0;
+  private readonly herzschlagMs: number;
   private settled = false;
   private connectedOnce = false;
   /** true ab disconnect() → unterdrückt Geister-Events eines selbst ausgelösten Close. */
@@ -568,6 +623,7 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
     super();
     this.url = buildCloudUrl({ uniqueId: username, apiKey: opts.apiKey, baseUrl: opts.baseUrl });
     this.wsFactory = opts.wsFactory ?? defaultWsFactory;
+    this.herzschlagMs = opts.herzschlagMs ?? HERZSCHLAG_MS;
     this.connectTimeoutMs = opts.connectTimeoutMs ?? 20_000;
   }
 
@@ -588,15 +644,25 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
         reject(new Error('Cloud-WS antwortet nicht (Timeout)'));
       }, this.connectTimeoutMs);
 
+      // Die Gegenseite antwortet auf ein Lebenszeichen — Leitung ist am Leben.
+      ws.on('pong', () => { this.lebt = true; this.pongGesehen = true; });
+      // Schickt SIE uns eins, ist sie ebenfalls offensichtlich da. (Die
+      // ws-Bibliothek antwortet automatisch mit Pong, wir merken es uns nur.)
+      ws.on('ping', () => { this.lebt = true; });
+
       const settleOk = () => {
         if (this.settled) return;
         this.settled = true;
         this.connectedOnce = true;
         clearTimeout(timer);
+        this.starteHerzschlag(ws);
         resolve({});
       };
 
       ws.on('message', (raw: unknown) => {
+        // Jede Nachricht ist ein Lebenszeichen — nicht nur das Pong. Eine
+        // Leitung, über die gerade Chat fliesst, muss nicht extra bestätigen.
+        this.lebt = true;
         for (const m of parseFrames(raw)) {
           const r = mapCloudMessage(m.type, m.data);
           // Buch führen, BEVOR verworfen wird: Gerade das Verworfene ist die
@@ -620,6 +686,7 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
       });
 
       ws.on('close', (code: number, reasonBuf: unknown) => {
+        this.stoppeHerzschlag();
         const reason = reasonBuf ? String(reasonBuf) : '';
         if (!this.settled) {
           this.settled = true;
@@ -649,7 +716,56 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
     });
   }
 
+  /** Lebenszeichen-Takt starten.
+   *
+   *  Muster wie im Overlay-Server (dort seit Langem bewährt): vor jedem
+   *  Lebenszeichen `lebt` auf false setzen; kommt bis zum nächsten Takt nichts
+   *  zurück, ist die Leitung nachweislich tot.
+   *
+   *  `terminate()` statt `close()`: Ein sauberes Schliessen wartet auf einen
+   *  Abschiedsgruss der Gegenseite — den es bei einer toten Leitung nie geben
+   *  wird. Man würde ewig warten. */
+  private starteHerzschlag(ws: CloudWsLike): void {
+    this.stoppeHerzschlag();
+    if (this.herzschlagMs <= 0 || typeof ws.ping !== 'function') return;
+    this.lebt = true;
+    this.verpassteTakte = 0;
+    this.herzTicker = setInterval(() => {
+      if (this.ws !== ws || this.closing) { this.stoppeHerzschlag(); return; }
+      if (!this.lebt) this.verpassteTakte += 1; else this.verpassteTakte = 0;
+      // ZWEI verpasste Takte, nicht einer: Ein einzelnes Pong kann bei
+      // schwankender Leitung auch mal 30 Sekunden brauchen. Erst wenn zweimal
+      // hintereinander gar nichts kommt — kein Pong UND keine einzige
+      // Nachricht — ist die Leitung wirklich weg.
+      //
+      // Und nur, wenn diese Gegenstelle überhaupt jemals geantwortet hat:
+      // sonst wäre „kein Pong" kein Signal, sondern Normalzustand.
+      if (this.pongGesehen && this.verpassteTakte >= 2) {
+        log.warn('TikTokCloud', `Die Leitung hat ${Math.round((this.herzschlagMs * 2) / 1000)} Sekunden lang weder `
+          + 'auf Lebenszeichen geantwortet noch irgendetwas geschickt — sie gilt als abgerissen und wird neu '
+          + 'aufgebaut. Ohne diese Prüfung würde erst nach fünf Minuten auffallen, dass nichts mehr kommt.');
+        this.stoppeHerzschlag();
+        // NICHT `ws.terminate?.() ?? ws.close()`: terminate() gibt nichts
+        // zurück, also greift `??` und close() liefe ZUSÄTZLICH. Genau das,
+        // was hier vermieden werden soll — close() wartet auf einen
+        // Abschiedsgruss, den eine tote Leitung nie schickt.
+        try { if (typeof ws.terminate === 'function') ws.terminate(); else ws.close(); } catch { /* egal */ }
+        return;
+      }
+      this.lebt = false;
+      try { ws.ping?.(); } catch { /* der naechste Takt merkt es */ }
+    }, this.herzschlagMs);
+    // Darf den Prozess nicht am Leben halten — dieselbe Lehre wie beim
+    // Verbindungs-Wachhund und beim TTS-Wecker.
+    this.herzTicker.unref?.();
+  }
+
+  private stoppeHerzschlag(): void {
+    if (this.herzTicker) { clearInterval(this.herzTicker); this.herzTicker = null; }
+  }
+
   disconnect(): void {
+    this.stoppeHerzschlag();
     this.closing = true;
     // Zum Schluss EINE Zeile, die den ganzen Stream zusammenfasst — statt
     // dass jemand hinterher die Logdatei nach „Unbekannte Nachrichtenart"
