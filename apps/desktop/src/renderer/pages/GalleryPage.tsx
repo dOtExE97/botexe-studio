@@ -111,21 +111,26 @@ export default function GalleryPage() {
     // Suche matcht BEIDE Sprachen + eigenen Namen: „Herz", „Heart" oder „fette Rakete".
     // Tolerante Suche über beide Sprachen UND den eigenen Namen: „Herz",
     // „Heart", „Hertz" (Tippfehler) oder „fette Rakete" finden alle etwas.
-    if (needle) {
-      list = list.filter((g) => passt(needle, g.slug, giftNameDe(g.slug) ?? undefined, g.customName));
-      // Nach Relevanz sortieren, sonst steht das Gesuchte irgendwo mittendrin:
-      // „rose" ergab 49 Treffer mit der Rose auf Platz 22, „loewe" 126 mit dem
-      // Loewen auf Platz 125. Deutscher und eigener Name zaehlen dabei als
-      // vollwertige Namen, nicht als Beiwerk.
-      list = [...list].sort((a, b) =>
-        bewerte(needle, [b.slug, giftNameDe(b.slug) ?? undefined, b.customName])
-        - bewerte(needle, [a.slug, giftNameDe(a.slug) ?? undefined, a.customName]));
-    }
+    if (needle) list = list.filter((g) => passt(needle, g.slug, giftNameDe(g.slug) ?? undefined, g.customName));
+
     const sorted = [...list];
     const dn = (g: GiftEntry) => giftDisplayName(g.slug, lang, g.customName);
-    if (sort === 'coins') sorted.sort((a, b) => (b.coins || 0) - (a.coins || 0) || dn(a).localeCompare(dn(b)));
-    else if (sort === 'name') sorted.sort((a, b) => dn(a).localeCompare(dn(b)));
-    else sorted.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+    // Beim SUCHEN zaehlt zuerst, wie gut der Treffer passt — die gewaehlte
+    // Sortierung entscheidet nur noch bei gleicher Trefferguete.
+    //
+    // Das muss in DERSELBEN Sortierung stecken wie Coins/Name/Zuletzt: Eine
+    // vorgelagerte Relevanz-Sortierung waere hier wirkungslos, weil die
+    // folgenden Vergleiche eine vollstaendige Ordnung ueber einen anderen
+    // Schluessel bilden und sie damit komplett ueberschreiben. Genau so stand
+    // die Rose bei Sortierung „Name" wieder mittendrin.
+    const rel = needle
+      ? (g: GiftEntry) => bewerte(needle, [g.slug, giftNameDe(g.slug) ?? undefined, g.customName])
+      : null;
+    const nachRelevanz = (a: GiftEntry, b: GiftEntry) => (rel ? rel(b) - rel(a) : 0);
+
+    if (sort === 'coins') sorted.sort((a, b) => nachRelevanz(a, b) || (b.coins || 0) - (a.coins || 0) || dn(a).localeCompare(dn(b)));
+    else if (sort === 'name') sorted.sort((a, b) => nachRelevanz(a, b) || dn(a).localeCompare(dn(b)));
+    else sorted.sort((a, b) => nachRelevanz(a, b) || (b.lastSeen || 0) - (a.lastSeen || 0));
     return sorted;
   }, [gifts, view, q, sort, lang]);
 

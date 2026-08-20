@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stickerRuleId, findStickerRule, upsertStickerRule, otherStickerRules } from './sticker-mapping';
-import type { TriggerRule } from './index';
+import type { TriggerRule, TriggerAction } from './index';
 
-const SOUND = { kind: { kind: 'play_sound', soundId: 's1' } } as unknown as Parameters<typeof upsertStickerRule>[2][number];
+// FLACH — genau wie TriggerActionKind es definiert. Ein verschachteltes
+// { kind: { kind: … } } wäre beim Speichern still verworfen worden.
+const SOUND: TriggerAction = { kind: 'play_sound', soundId: 's1' };
 
 test('upsertStickerRule: erzeugt eine ganz normale Regel, die die Trigger-Seite versteht', () => {
   const [r] = upsertStickerRule([], '7444741533452225312', [SOUND]);

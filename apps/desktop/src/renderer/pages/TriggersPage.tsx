@@ -21,6 +21,11 @@ const EVENT_OPTIONS: { value: StudioEventType; label: string }[] = [
   { value: 'viewer_count', label: 'Zuschauerzahl' },
   { value: 'envelope', label: 'Coin-Kiste / Truhe' },
   { value: 'superfan', label: 'Superfan' },
+  // Ohne diesen Eintrag landen die von der Sticker-Seite angelegten Regeln in
+  // „Sonstige", und schlimmer: Beim Anfassen des Ereignis-Feldes findet das
+  // <select> seinen Wert nicht, setzt ihn um und wirft dabei die Bedingung
+  // weg — die Regel wuerde danach bei JEDEM Sticker feuern.
+  { value: 'emote', label: 'Sticker im Chat' },
   { value: 'timer', label: 'Timer (wiederkehrend)' },
 ];
 
@@ -76,6 +81,9 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
   ],
   superfan: [
     { value: 'superfan_neu', label: 'Nur wenn jemand NEU beitritt' },
+  ],
+  emote: [
+    { value: 'sticker_ist', label: 'Nur dieser Sticker (Nummer)', valueType: 'text' },
   ],
   sub: [
     { value: 'superfan_neu', label: 'Nur NEUE Superfans' },
@@ -138,6 +146,7 @@ function ruleToSentence(rule: TriggerRule, layerName: (id: string) => string, so
       case 'superfan_verlaengerung': wenn = 'jemand seinen Superfan VERLÄNGERT'; break;
       case 'superfan_monate_gte': wenn = `jemand seit mind. ${c.value} Monaten Superfan ist`; break;
       case 'user_gegenseitig': wenn = 'jemand schreibt, dem du auch folgst'; break;
+      case 'sticker_ist': wenn = `jemand den Sticker #${c.value} schickt`; break;
       case 'folgt_seit_tagen_gte': wenn = `jemand dir schon mind. ${c.value} Tage folgt (wer neu ist, löst nichts aus)`; break;
       case 'fanclub_seit_tagen_gte': wenn = `jemand seit mind. ${c.value} Tagen im Teamherz ist`; break;
       case 'folgt_seit_heute': wenn = 'jemand dir seit heute folgt'; break;

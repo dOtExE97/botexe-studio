@@ -5,6 +5,31 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [0.55.0] — 2026-08-20
 
+### Vor der Veröffentlichung noch gefunden
+
+Eine gründliche Durchsicht kurz vor dem Release hat mehrere Sachen aufgedeckt,
+die sonst erst im Stream aufgefallen wären:
+
+- **Sticker-Regeln hätten gar nicht funktioniert.** Der Prüfer, der jede Regel
+  beim Speichern durchsieht, kannte die Ereignisart „Sticker" nicht und hätte
+  die ganze Regel verworfen. Dasselbe galt — schon länger — für **Superfan**-
+  Regeln: Auch die wurden beim Speichern stillschweigend weggeworfen.
+- **„Neue begrüßen" hätte aufgehört zu funktionieren.** Seit auch der Beitritt
+  erfasst wird, kannte die App den Zuschauer schon, bevor er das erste Mal
+  schrieb — die Begrüßung für neue Leute wäre nie wieder ausgelöst worden.
+- **Die Suche in der Geschenke-Galerie war weiter unsortiert.** Die neue
+  Relevanz-Reihenfolge wurde zwei Zeilen später von der gewählten Sortierung
+  wieder überschrieben.
+- **Sticker wurden doppelt gezählt** („2× gesehen" für ein einziges Mal), und
+  die Herkunfts-Adresse eines Sticker-Bildes wurde durch die eigene ersetzt —
+  ein einmal gelöschtes Bild wäre für immer weg gewesen.
+- **Zuschauzeit-Punkte** hätten auch die bekommen, die nur kurz hereinschauen
+  und sofort wieder gehen.
+- **Die Zuschauer-Sortierung** wirkte nur auf die 200 mit den meisten Punkten —
+  wer am längsten folgt, aber wenig Punkte hat, tauchte nie auf.
+- Der Sticker-Katalog wurde beim Beenden nicht gesichert: Wer einen Sticker
+  umbenannte und die App gleich schloss, verlor den Namen.
+
 ### Sticker aus dem Chat werden sichtbar — und können einen Sound auslösen
 
 Schickt jemand einen Sticker (Fanclub-Sticker, Superfan-Emote), **verschwand

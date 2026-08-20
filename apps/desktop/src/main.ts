@@ -781,8 +781,15 @@ function registerIpc(): void {
     else if (level === 'warn') log.warn(s, m);
     else log.info(s, m);
   });
-  ipcMain.handle(IPC.VIEWERS_LIST, (_e, query: unknown) =>
-    isStudio().listViewers(typeof query === 'string' ? query : '', 200),
+  ipcMain.handle(IPC.VIEWERS_LIST, (_e, query: unknown, nach: unknown) =>
+    isStudio().listViewers(
+      typeof query === 'string' ? query : '',
+      200,
+      // Nur bekannte Werte durchlassen — der Store hat einen sicheren Standard.
+      typeof nach === 'string' && ['punkte', 'treue', 'groesse', 'zuletzt', 'name'].includes(nach)
+        ? (nach as import('./main/services/points-store').ViewerSort)
+        : 'punkte',
+    ),
   );
   ipcMain.handle(IPC.VIEWER_FLAG, (_e, userId: unknown, flag: unknown, value: unknown) => {
     if (typeof userId === 'string' && (flag === 'vip' || flag === 'muted') && typeof value === 'boolean') {

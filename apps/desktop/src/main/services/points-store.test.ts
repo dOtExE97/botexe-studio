@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { PointsStore, DEFAULT_POINTS_CONFIG, isNewVisit } from './points-store';
+import { PointsStore, DEFAULT_POINTS_CONFIG, isNewVisit, istErsterAuftritt } from './points-store';
 import type { StudioEvent } from '@botexe/trigger-engine';
 
 function tmpDir(): string {
@@ -330,4 +330,71 @@ test('treueVerteilung: „unbekannt" ist eine eigene Gruppe, kein Neuling', () =
 test('treueVerteilung: leerer Store liefert lauter Nullen', () => {
   assert.deepEqual(new PointsStore(tmpDir()).treueVerteilung(),
     { neu: 0, wochen: 0, monate: 0, jahr: 0, unbekannt: 0 });
+});
+
+// ── „Zum ersten Mal da" ────────────────────────────────────────────────────
+// Regression aus dieser Runde: Seit der Beitritt in der Statistik landet (fuer
+// die Herkunft), existiert der Eintrag beim ersten Kommentar schon. Wer
+// „erster Auftritt" mit „Eintrag existiert nicht" gleichsetzt, bricht damit die
+// Begruessung „Neue begruessen" (chat_first_time) fuer praktisch jeden.
+
+test('istErsterAuftritt: voellig unbekannter Zuschauer', () => {
+  assert.equal(istErsterAuftritt(undefined, 'chat'), true);
+  assert.equal(istErsterAuftritt(undefined, 'join'), true);
+});
+
+test('istErsterAuftritt: bekannt vom BEITRITT, aber erste Nachricht', () => {
+  // Genau der Fall, der die Begruessung gekillt hat.
+  assert.equal(istErsterAuftritt({ totalChats: 0 }, 'chat'), true,
+    'wer noch nie geschrieben hat, schreibt beim ersten Mal ZUM ERSTEN MAL');
+});
+
+test('istErsterAuftritt: wer schon geschrieben hat, ist nicht mehr neu', () => {
+  assert.equal(istErsterAuftritt({ totalChats: 1 }, 'chat'), false);
+  assert.equal(istErsterAuftritt({ totalChats: 42 }, 'chat'), false);
+});
+
+test('istErsterAuftritt: andere Ereignisarten machen niemanden neu', () => {
+  // Sonst waere ein bekannter Zuschauer bei jedem Like wieder „zum ersten Mal da".
+  assert.equal(istErsterAuftritt({ totalChats: 0 }, 'like'), false);
+  assert.equal(istErsterAuftritt({ totalChats: 0 }, 'join'), false);
+});
+
+test('Beitritt und danach erste Nachricht: die Begruessung greift noch', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordEvent({ type: 'join', ts: 1_000, user: { id: 'u1', nickname: 'A' }, herkunft: 'x' }, DEFAULT_POINTS_CONFIG);
+  assert.equal(istErsterAuftritt(s.get('u1'), 'chat'), true, 'nach dem Beitritt ist die erste Nachricht immer noch die erste');
+  s.recordEvent(chat({ ts: 2_000, user: { id: 'u1', nickname: 'A' } }), DEFAULT_POINTS_CONFIG);
+  assert.equal(istErsterAuftritt(s.get('u1'), 'chat'), false, 'danach nicht mehr');
+});
+
+test('Zuschauzeit-Punkte gibt es nur fuer echte Aktivitaet, nicht fuers Hereinschauen', () => {
+  const s = new PointsStore(tmpDir());
+  const cfg = { ...DEFAULT_POINTS_CONFIG, perMinute: 5 };
+  s.recordEvent({ type: 'join', ts: 1_000, user: { id: 'lurker', nickname: 'L' } }, cfg);
+  s.recordEvent(chat({ ts: 1_000, user: { id: 'aktiv', nickname: 'A' } }), cfg);
+
+  assert.equal(s.awardWatchTime(cfg, 2_000), 1, 'nur der Aktive bekommt Zuschauzeit');
+  assert.equal(s.get('lurker')?.points ?? 0, 0, 'wer nur hereinschaut, sammelt nichts');
+});
+
+test('search: die Sortierung entscheidet, WER in den ersten Plaetzen landet', () => {
+  // Der Kern des Problems: Der Hauptprozess liefert nur die ersten 200. Wurde
+  // immer nach Punkten geschnitten, war der treueste Zuschauer mit wenig
+  // Punkten gar nicht dabei — keine Sortierung der Oberflaeche konnte ihn
+  // danach noch hervorholen.
+  const s = new PointsStore(tmpDir());
+  s.recordEvent(chat({ user: { id: 'reich', nickname: 'Reich' }, beziehung: { folgtSeitTagen: 3 } }), DEFAULT_POINTS_CONFIG);
+  s.grant('reich', 10_000);
+  s.recordEvent(chat({ user: { id: 'treu', nickname: 'Treu' }, beziehung: { folgtSeitTagen: 874 } }), DEFAULT_POINTS_CONFIG);
+
+  assert.equal(s.search('', 1, 'punkte')[0]?.id, 'reich');
+  assert.equal(s.search('', 1, 'treue')[0]?.id, 'treu', 'bei „Treue" muss der Treueste den ersten Platz kriegen');
+});
+
+test('search: ohne Angabe landet man hinten, nicht bei null', () => {
+  const s = new PointsStore(tmpDir());
+  s.recordEvent(chat({ user: { id: 'ohne', nickname: 'Ohne' } }), DEFAULT_POINTS_CONFIG);
+  s.recordEvent(chat({ user: { id: 'mit', nickname: 'Mit' }, beziehung: { folgtSeitTagen: 5 } }), DEFAULT_POINTS_CONFIG);
+  assert.deepEqual(s.search('', 10, 'treue').map((e) => e.id), ['mit', 'ohne']);
 });

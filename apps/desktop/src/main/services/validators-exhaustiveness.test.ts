@@ -122,3 +122,27 @@ test('jeder TriggerConditionKind der Engine steht in CONDITION_KINDS (validators
       + 'Regel feuert danach auf JEDES Event ihres Typs statt nur unter der gedachten Einschränkung (siehe bc76025).',
   );
 });
+
+// ── Ereignisarten ──────────────────────────────────────────────────────────
+// Gleiche Fehlerklasse wie bei CONDITION_KINDS, nur schlimmer: Fehlt eine Art
+// in EVENT_TYPES, wird die GANZE Regel verworfen statt nur ein Feld. Genau so
+// liefen Superfan-Regeln ins Leere, und Sticker-Regeln waeren beim ersten
+// Speichern spurlos verschwunden.
+test('jede StudioEventType-Art steht in EVENT_TYPES (validators.ts)', () => {
+  const typQuelle = readFileSync(join(REPO_ROOT, 'packages', 'trigger-engine', 'src', 'index.ts'), 'utf-8');
+  const von = typQuelle.indexOf('export type StudioEventType =');
+  const bis = typQuelle.indexOf(';', von);
+  const arten = [...typQuelle.slice(von, bis).matchAll(/'([a-z_]+)'/g)].map((m) => m[1] as string);
+  assert.ok(arten.length >= 10, `nur ${arten.length} Ereignisarten erkannt — Regex pruefen`);
+
+  const valQuelle = readFileSync(join(SRC, 'main', 'services', 'validators.ts'), 'utf-8');
+  const listeVon = valQuelle.indexOf('const EVENT_TYPES');
+  const listeBis = valQuelle.indexOf(']);', listeVon);
+  const liste = valQuelle.slice(listeVon, listeBis);
+  const fehlen = arten.filter((a) => !new RegExp(`'${a}'`).test(liste));
+  assert.deepEqual(
+    fehlen, [],
+    `Diese Ereignisarten kennt die Engine, EVENT_TYPES fehlen sie: ${fehlen.join(', ')}. `
+    + 'Eine Regel mit diesem Ereignis wird beim Speichern KOMPLETT verworfen.',
+  );
+});

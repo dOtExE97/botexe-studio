@@ -47,8 +47,17 @@ test('die Test-Event-Route kennt jedes Feld eines StudioEvent', () => {
   assert.ok(von > 0, 'Test-Event-Route nicht gefunden');
   const routenBlock = route.slice(von, route.indexOf('this.bus.publish(clean)', von));
 
+  // Gegen den eigenen Kommentar-Text pruefen waere zu lasch: Ein Feldname, der
+  // zufaellig in einem der (langen) deutschen Kommentare vorkommt, wuerde den
+  // Waechter beruhigen, obwohl die Route das Feld weiter verwirft. Deshalb
+  // zaehlen nur echte Zuweisungen `feld:` — und Kommentarzeilen fliegen vorher
+  // raus.
+  const ohneKommentare = routenBlock
+    .split('\n')
+    .filter((z) => !z.trim().startsWith('//') && !z.trim().startsWith('*') && !z.trim().startsWith('/*'))
+    .join('\n');
   const fehlen = felder.filter(
-    (f) => !BEWUSST_DRAUSSEN.has(f) && !new RegExp(`\\b${f}\\b`).test(routenBlock),
+    (f) => !BEWUSST_DRAUSSEN.has(f) && !new RegExp(`\\b${f}\\s*:`).test(ohneKommentare),
   );
   assert.deepEqual(
     fehlen,

@@ -23,6 +23,10 @@ const CAP_SHORT = 200; // soundId, scene, source, action, query …
 const CAP_COMMAND = 200;
 const CAP_RESPONSE = 1000;
 
+// MUSS mit StudioEventType uebereinstimmen (validators-exhaustiveness.test.ts
+// prueft das). Fehlt eine Art, wird die GANZE Regel beim Speichern/Import
+// verworfen — nicht nur ein Feld. So funktionierten Superfan-Regeln nie, und
+// Sticker-Regeln waeren beim ersten Speichern verschwunden.
 const EVENT_TYPES: ReadonlySet<string> = new Set<StudioEventType>([
   'chat',
   'gift',
@@ -34,6 +38,8 @@ const EVENT_TYPES: ReadonlySet<string> = new Set<StudioEventType>([
   'viewer_count',
   'envelope',
   'timer',
+  'superfan',
+  'emote',
 ]);
 
 const WHO_VALUES: ReadonlySet<string> = new Set(['all', 'followers', 'subs', 'mods']);

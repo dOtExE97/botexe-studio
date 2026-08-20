@@ -49,9 +49,12 @@ export default function StickerPage() {
   };
 
   const soundSetzen = (e: StickerEintrag, soundId: string) => {
-    const aktionen: TriggerAction[] = soundId
-      ? ([{ kind: { kind: 'play_sound', soundId } }] as unknown as TriggerAction[])
-      : [];
+    // TriggerAction ist FLACH: { kind: 'play_sound', soundId }. Hier stand
+    // einmal ein verschachteltes { kind: { kind: … } }, versteckt hinter einem
+    // `as unknown as`-Cast — die Regel wäre beim Speichern still verworfen
+    // worden (validateTriggerAction erwartet einen Text in `kind`), und die
+    // Sticker-Seite hätte gar nichts ausgelöst.
+    const aktionen: TriggerAction[] = soundId ? [{ kind: 'play_sound', soundId }] : [];
     regelnSpeichern(upsertStickerRule(regeln, e.id, aktionen, e.eigenerName));
     toast('success', soundId
       ? `Sound gesetzt — ${stickerName(e)} spielt ihn ab sofort.`
@@ -140,7 +143,8 @@ export default function StickerPage() {
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(190px,1fr))]">
         {gefiltert.map((e) => {
           const regel = findStickerRule(regeln, e.id);
-          const soundId = (regel?.actions?.[0]?.kind as { soundId?: string } | undefined)?.soundId ?? '';
+          const erste = regel?.actions?.[0];
+          const soundId = erste?.kind === 'play_sound' ? erste.soundId : '';
           const fremde = otherStickerRules(regeln, e.id);
           return (
             <div key={e.id} className="space-y-2 rounded-xl border border-studio-border bg-studio-panel p-3">

@@ -51,6 +51,12 @@ export interface PointsEntry {
   totalChats?: number; // Gesamt-Kommentare dieser Person (für VIP-Karten/Stats)
   firstSeen?: number;
   lastSeen?: number;
+  /** Zuletzt wirklich AKTIV (Chat/Like/Gift/Follow) — nicht bloß hereingekommen.
+   *
+   *  Getrennt von `lastSeen`, seit auch der Beitritt erfasst wird: Sonst würde
+   *  ein Zuschauer, der nur kurz hereinschaut und sofort wieder geht, fünf
+   *  Minuten lang Zuschauzeit-Punkte bekommen, ohne je etwas zu tun. */
+  lastActive?: number;
   /** Eigene TTS-Stimme für diesen Zuschauer (überschreibt Default). */
   voice?: string;
   /** Höchste je gesehene Teamherz-Stufe (TikToks Fan-Club-Level, 0 = kein
@@ -92,12 +98,33 @@ export interface PointsEntry {
 /** Abstand, ab dem ein erneuter Kontakt als NEUER Besuch zählt (4 h → neuer Stream). */
 export const RETURN_GAP_MS = 4 * 3600 * 1000;
 
+/**
+ * Ist das der „allererste Auftritt" dieses Zuschauers?
+ *
+ * Bei einer NACHRICHT heißt das: hat noch nie geschrieben — nicht bloß „die App
+ * kennt ihn noch nicht". Seit der Beitritt in der Statistik landet (nötig für
+ * die Herkunft), existiert der Eintrag beim ersten Kommentar nämlich schon, und
+ * die Begrüßung „Neue begrüßen" (chat_first_time) hätte nie wieder ausgelöst.
+ */
+export function istErsterAuftritt(
+  bekannt: { totalChats?: number } | undefined,
+  eventTyp: string,
+): boolean {
+  if (!bekannt) return true;
+  return eventTyp === 'chat' && (bekannt.totalChats ?? 0) === 0;
+}
+
 /** Erster Kontakt ODER nach längerer Pause = neuer Besuch (für Stammgast-Zähler). */
 export function isNewVisit(lastSeen: number | undefined, ts: number, gapMs: number): boolean {
   return lastSeen === undefined || ts - lastSeen > gapMs;
 }
 
 export type ViewerFlag = 'vip' | 'muted';
+
+/** Wonach die Zuschauer-Seite sortieren lässt. Muss dort ANKOMMEN, nicht erst
+ *  auf der fertigen Liste greifen — sonst wirkt die Sortierung nur auf den
+ *  abgeschnittenen Ausschnitt. */
+export type ViewerSort = 'punkte' | 'treue' | 'groesse' | 'zuletzt' | 'name';
 
 interface Serialized {
   schemaVersion: number;
@@ -215,6 +242,8 @@ export class PointsStore {
     if (isNewVisit(e.lastSeen, event.ts, RETURN_GAP_MS)) e.visitCount = (e.visitCount ?? 0) + 1;
     e.firstSeen = e.firstSeen ?? event.ts;
     e.lastSeen = event.ts;
+    // Ein Beitritt ist Anwesenheit, keine Aktivität — siehe lastActive.
+    if (event.type !== 'join') e.lastActive = event.ts;
     // Nur nach OBEN nachziehen: Ein Ereignis ohne Abzeichen-Daten darf eine
     // bekannte Stufe nicht löschen (dieselbe Regel wie in toUser()).
     if ((user.teamLevel ?? 0) > (e.teamLevel ?? 0)) e.teamLevel = user.teamLevel;
@@ -256,7 +285,14 @@ export class PointsStore {
     if (!cfg.enabled || cfg.perMinute <= 0) return 0;
     let n = 0;
     for (const e of this.viewers.values()) {
-      if (e.lastSeen !== undefined && now - e.lastSeen <= activeWindowMs) {
+      // Bewusst lastActive, nicht lastSeen: Wer nur hereinschaut, hat keine
+      // Zuschauzeit verdient (und TikTok meldet uns stille Zuschauer ohnehin
+      // nicht — der Zähler wäre also weder vollständig noch fair).
+      // KEIN Rückfall auf lastSeen: Der würde genau die Zuschauer wieder
+      // einschliessen, die nur hereingeschaut haben. Einträge aus der Zeit vor
+      // diesem Feld holen es beim nächsten Kommentar/Like/Geschenk nach — das
+      // ist höchstens ein verpasster Zyklus.
+      if (e.lastActive !== undefined && now - e.lastActive <= activeWindowMs) {
         e.points = Math.max(0, e.points + cfg.perMinute);
         n++;
       }
@@ -312,15 +348,33 @@ export class PointsStore {
     log.info('Punkte', `${e.nickname}: ${delta > 0 ? '+' : ''}${delta} von Hand vergeben — neuer Stand ${e.points}.`);
   }
 
-  search(query: string, limit: number): PointsEntry[] {
+  search(query: string, limit: number, nach: ViewerSort = 'punkte'): PointsEntry[] {
     const q = query.trim();
     // Tolerante Suche wie überall in der App (shared/suche.ts): Umlaute in
     // beiden Schreibweisen, Trennzeichen egal, Tippfehler verziehen. Zusätzlich
     // wird die TikTok-Kennung durchsucht — der angezeigte Name ändert sich, die
     // Kennung nicht, und manchmal weiß man nur die.
+    // WICHTIG: erst sortieren, dann abschneiden — und zwar nach dem, was die
+    // Seite anzeigen will. Vorher wurde IMMER nach Punkten geschnitten; wer am
+    // längsten folgt oder den größten Kanal hat, aber wenig Punkte, war damit
+    // nie in den ersten 200 und für die Sortierung schlicht unsichtbar.
+    const wert = (e: PointsEntry): number | undefined => {
+      if (nach === 'treue') return e.folgtSeitTagen;
+      if (nach === 'groesse') return e.followerCount;
+      if (nach === 'zuletzt') return e.lastSeen;
+      return e.points;
+    };
     return Array.from(this.viewers.values())
       .filter((e) => !q || passt(q, e.nickname, e.id))
-      .sort((a, b) => b.points - a.points)
+      .sort((a, b) => {
+        const wa = wert(a);
+        const wb = wert(b);
+        // Ohne Angabe nach hinten — nicht als 0 einsortieren.
+        if (wa === undefined && wb === undefined) return b.points - a.points;
+        if (wa === undefined) return 1;
+        if (wb === undefined) return -1;
+        return wb - wa || b.points - a.points;
+      })
       .slice(0, limit)
       .map((e) => ({ ...e }));
   }

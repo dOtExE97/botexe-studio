@@ -833,11 +833,14 @@ export default function OverlayPage() {
 
   // Die Spezialfälle der aktiven Kategorie, eingeklappt am Listenende.
   const rareItems = useMemo(() => {
-    if (paletteQuery.trim() || activeCat === 'beliebt') return [];
+    // Aufgeklappt gibt es keine „aktive Kategorie" mehr — die Spezialfaelle
+    // einer nicht sichtbaren Kategorie unter alle Gruppen zu haengen, waere
+    // schlicht verwirrend.
+    if (paletteQuery.trim() || paletteBreit || activeCat === 'beliebt') return [];
     return WIDGET_TYPES.filter(
       (w) => RARELY_USED.has(w.type) && (CATEGORY_OF[w.type] ?? 'deko') === activeCat,
     );
-  }, [paletteQuery, activeCat]);
+  }, [paletteQuery, activeCat, paletteBreit]);
 
   // Eine Palette-Kachel — je nach Live-Schalter mit echter Vorschau oder als
   // schlanke Text-Kachel. Ausgelagert, weil Anführer, Varianten und
@@ -941,9 +944,10 @@ export default function OverlayPage() {
             {visibleItems.length} Treffer für „{paletteQuery.trim()}“
           </div>
         ) : null}
-        {visibleItems.length === 0 ? (
-          <div className="px-1 py-6 text-center text-[11px] text-studio-muted">Nichts gefunden.</div>
-        ) : paletteBreit && !paletteQuery.trim() ? (
+        {/* Die aufgeklappte Ansicht zeigt ALLE Gruppen und haengt nicht an der
+            aktiven Kategorie — sonst stuende dort „Nichts gefunden", nur weil
+            der zuletzt gewaehlte Reiter gerade leer ist. */}
+        {paletteBreit && !paletteQuery.trim() ? (
           /* Aufgeklappt: ALLE Kategorien untereinander. Das ist der eigentliche
              Punkt — in der schmalen Spalte ist immer nur eine sichtbar, und wer
              nicht weiß, in welchem Tab etwas liegt, findet es nicht. */
@@ -958,6 +962,8 @@ export default function OverlayPage() {
               </section>
             ))}
           </div>
+        ) : visibleItems.length === 0 ? (
+          <div className="px-1 py-6 text-center text-[11px] text-studio-muted">Nichts gefunden.</div>
         ) : (
           renderListe(visibleItems)
         )}

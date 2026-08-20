@@ -196,7 +196,7 @@ const api = {
   logRenderer: (level: 'info' | 'warn' | 'error', scope: string, message: string) =>
     ipcRenderer.send(IPC.LOG_RENDERER, level, scope, message),
   resetPoints: () => ipcRenderer.invoke(IPC.POINTS_RESET),
-  listViewers: (query: string) => ipcRenderer.invoke(IPC.VIEWERS_LIST, query),
+  listViewers: (query: string, nach?: string) => ipcRenderer.invoke(IPC.VIEWERS_LIST, query, nach),
   setViewerFlag: (userId: string, flag: string, value: boolean) => ipcRenderer.invoke(IPC.VIEWER_FLAG, userId, flag, value),
   grantPoints: (userId: string, delta: number) => ipcRenderer.invoke(IPC.VIEWER_GRANT, userId, delta),
   setViewerVoice: (userId: string, voice: string) => ipcRenderer.invoke(IPC.VIEWER_VOICE, userId, voice),

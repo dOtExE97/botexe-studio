@@ -40,7 +40,7 @@ import { sollIntroLaufen, INTRO_AUSLOESER_TEXT, TEAMHERZ_GIFT_ID } from './intro
 import { besterRang, type RangStand } from '../adapters/tiktok-rank';
 import { matchingLuckyLayers, matchLuckyCommand, planLuckyDraws, luckyDrawDauerMs, type LuckyLayer } from './lucky-draw';
 import { kannFortsetzung, istFortsetzung } from './session-continuity';
-import { PointsStore } from './points-store';
+import { istErsterAuftritt, PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { StickerCatalog } from './sticker-catalog';
 import { ProfileStore, type ProfileMeta } from './profile-store';
@@ -502,7 +502,12 @@ export class Studio {
     this.bus.subscribeAll((e) => {
       // 0. Anreichern: allererster Auftritt dieses Zuschauers? (für die
       // „Erste Nachricht"-Begrüßung — VOR recordEvent, das legt den Eintrag an.)
-      if (e.user && !this.points.get(e.user.id)) e.firstOfUser = true;
+      // Bei einer Nachricht heißt „zum ersten Mal" auch wirklich „hat noch nie
+      // geschrieben" — nicht bloß „die App kennt ihn noch nicht". Seit der
+      // Beitritt in der Statistik landet (nötig für die Herkunft), existiert
+      // der Eintrag beim ersten Kommentar nämlich längst, und die Begrüßung
+      // „Neue begrüßen" hätte nie wieder ausgelöst.
+      if (e.user && istErsterAuftritt(this.points.get(e.user.id), e.type)) e.firstOfUser = true;
 
       // 0a. Fehlendes Geschenk-Bild ergänzen — MUSS hier ganz oben stehen, vor
       // jedem Verbraucher (Katalog, Widgets, Overlay-Broadcast).
@@ -1232,6 +1237,10 @@ export class Studio {
     }
     this.points.save();
     this.giftCatalog.save();
+    // Der Sticker-Katalog speichert sonst erst nach 2 Sekunden — und sein Timer
+    // ist unref'd, hält das Beenden also nicht auf. Wer einen Sticker umbenennt
+    // und die App gleich schliesst, haette den Namen sonst verloren.
+    this.stickerCatalog.save();
     this.statsHistory.save();
     this.obs.dispose();
     this.streamerbot.dispose();
@@ -2457,7 +2466,9 @@ export class Studio {
   }
 
   // ── Zuschauer-Verwaltung ──────────────────────────────────────────────
-  listViewers(query: string, limit = 100) { return this.points.search(query, limit); }
+  listViewers(query: string, limit = 100, nach?: import('./points-store').ViewerSort) {
+    return this.points.search(query, limit, nach ?? 'punkte');
+  }
   viewerCount() { return this.points.count(); }
   treueVerteilung() { return this.points.treueVerteilung(); }
   setViewerFlag(userId: string, flag: 'vip' | 'muted', value: boolean) { this.points.setFlag(userId, flag, value); }

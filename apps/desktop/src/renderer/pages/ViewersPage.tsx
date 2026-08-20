@@ -68,8 +68,12 @@ export default function ViewersPage() {
   const [currency, setCurrency] = useState('Punkte');
   const [sortierung, setSortierung] = useState<SortSchluessel>('punkte');
 
+  // Die Sortierung geht MIT: Der Hauptprozess liefert nur die ersten 200, und
+  // vorher wurde immer nach Punkten abgeschnitten. Wer am längsten folgt, aber
+  // wenig Punkte hat, war damit gar nicht in der Liste — die Sortierung hier
+  // hätte ihn nie zeigen können.
   const refresh = async () => {
-    setViewers((await window.studio.listViewers(query)) as Viewer[]);
+    setViewers((await window.studio.listViewers(query, sortierung)) as Viewer[]);
   };
 
   useEffect(() => {
@@ -81,7 +85,7 @@ export default function ViewersPage() {
   useEffect(() => {
     const t = setTimeout(() => void refresh(), 200);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [query, sortierung]);
 
   const patchLocal = (id: string, patch: Partial<Viewer>) =>
     setViewers((vs) => vs.map((v) => (v.id === id ? { ...v, ...patch } : v)));

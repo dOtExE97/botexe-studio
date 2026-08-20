@@ -45,6 +45,19 @@ interface Serialized {
   sticker: StickerEntry[];
 }
 
+/** Eine echte Herkunfts-Adresse — nicht unsere eigene Auslieferung.
+ *  Alles, was auf 127.0.0.1/localhost zeigt, kommt aus unserem eigenen Server
+ *  und taugt nicht als Quelle für ein erneutes Laden. */
+export function istFremdeAdresse(url: string | undefined): boolean {
+  if (!url || !/^https?:\/\//i.test(url)) return false;
+  try {
+    const h = new URL(url).hostname.toLowerCase();
+    return h !== '127.0.0.1' && h !== 'localhost' && h !== '::1';
+  } catch {
+    return false;
+  }
+}
+
 export class StickerCatalog {
   private readonly file: string;
   private readonly imagesDir: string;
@@ -52,6 +65,12 @@ export class StickerCatalog {
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   /** Laufende Downloads (Dateiname) — gegen Doppel-Downloads bei Sticker-Regen. */
   private downloading = new Set<string>();
+  /** Zuletzt gezählte Sichtung je Sticker (Zeitstempel des Ereignisses).
+   *  Eine Chat-Nachricht mit Sticker erzeugt ZWEI Ereignisse — das Chat-
+   *  Ereignis und ein nachgereichtes 'emote' je Sticker, damit Sticker-Regeln
+   *  greifen. Ohne diese Sperre zählte jeder Sticker doppelt, und die Sticker-
+   *  Seite behauptete „2× gesehen" für ein einziges Mal. */
+  private zuletztGezaehlt = new Map<string, number>();
 
   constructor(userDataDir: string) {
     fs.mkdirSync(userDataDir, { recursive: true });
@@ -82,12 +101,20 @@ export class StickerCatalog {
     let geaendert = false;
     for (const s of sticker) {
       if (!s?.id) continue;
+      // Derselbe Sticker zur selben Zeit ist DIESELBE Sichtung, egal über
+      // welchen Weg er hereinkommt.
+      if (this.zuletztGezaehlt.get(s.id) === ts) continue;
+      this.zuletztGezaehlt.set(s.id, ts);
       const vorhanden = this.sticker.get(s.id);
       if (vorhanden) {
         vorhanden.anzahl++;
         vorhanden.zuletztGesehen = ts;
-        // Adresse auffrischen: die alte ist womöglich abgelaufen.
-        if (s.bild) vorhanden.bildUrl = s.bild;
+        // Adresse auffrischen: die alte ist womöglich abgelaufen. ABER nur
+        // echte TikTok-Adressen — sobald das Bild lokal liegt, trägt das
+        // Ereignis unsere eigene Adresse (mit Port und Zugangsschlüssel), und
+        // die als „Herkunft" zu speichern würde die einzige Möglichkeit
+        // zerstören, das Bild je wieder neu zu laden.
+        if (istFremdeAdresse(s.bild)) vorhanden.bildUrl = s.bild;
         if (s.paket) vorhanden.paket = s.paket;
         if (s.farbe) vorhanden.farbe = s.farbe;
       } else {
