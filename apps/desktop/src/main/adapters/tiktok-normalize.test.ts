@@ -463,3 +463,76 @@ test('Superfan: ohne Angabe wird NICHTS behauptet', () => {
 test('Superfan: Treue-Monate kommen als Text und werden Zahl', () => {
   assert.equal(normalizeSub({ user: { uniqueId: 'a', nickname: 'A' }, subMonth: '14' }, 1).subMonths, 14);
 });
+
+// ── Sticker (TikToks „emotes") ─────────────────────────────────────────────
+// Sie liegen an JEDER Chat-Nachricht an und wurden bisher verworfen. Weil eine
+// reine Sticker-Nachricht als Text nur ein Leerzeichen trägt, verschwand sie
+// damit spurlos. Die Werte unten stammen aus einem echten Mitschnitt
+// (@hi_im_billa, 20.08.2026) — dort waren 8 von 21 Chat-Nachrichten Sticker.
+
+test('normalizeChat: Sticker aus emotes werden übernommen', () => {
+  const e = normalizeChat({
+    user: { userId: '1', nickname: 'Solo Leveling' },
+    content: ' ',
+    emotes: [{
+      index: 0,
+      emote: {
+        emoteId: '7444741533452225312',
+        image: { urlList: ['https://p16-webcast.tiktokcdn.com/img/x.webp'], avgColor: '#DCDCFA', isAnimated: false },
+        packageId: 'fansclub',
+      },
+    }],
+  }, 1_000);
+  assert.equal(e.sticker?.length, 1);
+  assert.equal(e.sticker?.[0]?.id, '7444741533452225312');
+  assert.equal(e.sticker?.[0]?.bild, 'https://p16-webcast.tiktokcdn.com/img/x.webp');
+  assert.equal(e.sticker?.[0]?.index, 0);
+  assert.equal(e.sticker?.[0]?.paket, 'fansclub');
+  assert.equal(e.sticker?.[0]?.farbe, '#DCDCFA');
+  assert.equal(e.text, ' ', 'Text bleibt unverändert');
+});
+
+test('normalizeChat: ohne emotes bleibt sticker undefined', () => {
+  const e = normalizeChat({ user: { userId: '1' }, content: 'hallo' }, 1_000);
+  assert.equal(e.sticker, undefined, 'kein leeres Array — sonst denkt jeder Leser, da wären welche');
+});
+
+test('normalizeChat: Sticker ohne emoteId wird verworfen, der Rest überlebt', () => {
+  // Ohne ID ist ein Sticker für Regeln wertlos — aber er darf die Nachricht
+  // nicht mitreißen.
+  const e = normalizeChat({
+    user: { userId: '1' },
+    content: '',
+    emotes: [
+      { index: 0, emote: { image: { urlList: ['https://x/1.webp'] } } },
+      { index: 1, emote: { emoteId: '42', image: { urlList: ['https://x/2.webp'] } } },
+    ],
+  }, 1_000);
+  assert.equal(e.sticker?.length, 1);
+  assert.equal(e.sticker?.[0]?.id, '42');
+});
+
+test('normalizeChat: Sticker mitten im Text behält seine Position', () => {
+  const e = normalizeChat({
+    user: { userId: '1' },
+    content: '@J.Ezra ',
+    emotes: [{ index: 8, emote: { emoteId: '99', image: { urlList: ['https://x/9.webp'] } } }],
+  }, 1_000);
+  assert.equal(e.sticker?.[0]?.index, 8);
+});
+
+test('normalizeEmote: emoteList wird nicht mehr weggeworfen', () => {
+  const e = normalizeEmote({
+    user: { uniqueId: 'a', nickname: 'A' },
+    emoteList: [{ emoteId: '99', image: { urlList: ['https://x/9.webp'], isAnimated: true } }],
+  }, 1_000);
+  assert.equal(e.sticker?.length, 1);
+  assert.equal(e.sticker?.[0]?.id, '99');
+  assert.equal(e.sticker?.[0]?.animiert, true);
+  assert.equal(e.sticker?.[0]?.index, 0, 'reine Sticker-Nachricht: Position 0');
+});
+
+test('normalizeEmote: ohne emoteList bleibt sticker undefined', () => {
+  const e = normalizeEmote({ user: { uniqueId: 'a', nickname: 'A' } }, 1_000);
+  assert.equal(e.sticker, undefined);
+});

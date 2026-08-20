@@ -122,11 +122,36 @@ export interface RaumPlatz {
   user: StudioUser;
 }
 
+/** Ein Sticker aus einer Nachricht (TikToks „emote").
+ *
+ *  TikTok liefert dazu KEINEN Namen — nur eine Nummer und ein Bild. Deshalb ist
+ *  `id` der einzige stabile Anker für Regeln, und die Sticker-Seite lässt den
+ *  Streamer selbst einen Namen vergeben. */
+export interface StudioSticker {
+  /** TikToks emoteId. */
+  id: string;
+  /** Bild: lokaler Pfad, sobald der Katalog es abgelegt hat, sonst die
+   *  CDN-Adresse. TikToks Adressen laufen ab — deshalb wird kopiert. */
+  bild: string;
+  /** Position im Text (0 = ganz vorne). Ein Sticker kann mitten im Satz stehen. */
+  index: number;
+  animiert: boolean;
+  /** TikToks packageId, z.B. 'fansclub' — aus welchem Set der Sticker stammt. */
+  paket?: string;
+  /** Platzhalter-Farbe, solange das Bild lädt (TikToks avgColor). */
+  farbe?: string;
+}
+
 export interface StudioEvent {
   type: StudioEventType;
   ts: number;
   user?: StudioUser;
   text?: string;
+  /** Sticker dieser Nachricht. Lagen an jeder Chat-Nachricht an und wurden
+   *  verworfen — wodurch reine Sticker-Nachrichten spurlos verschwanden, denn
+   *  ihr Text ist leer. Im Mitschnitt vom 20.08.2026 (@hi_im_billa, 90 s):
+   *  8 von 21 Chat-Nachrichten, also 38 %. */
+  sticker?: StudioSticker[];
   gift?: StudioGift;
   likeCount?: number;
   totalLikes?: number;

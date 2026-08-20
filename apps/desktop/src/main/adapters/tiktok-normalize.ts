@@ -16,11 +16,50 @@
 //    noch die alte Form, sie hinkt dem Schema hinterher.)
 // Deshalb wird JEDES Feld unter beiden Namen gesucht. Kommt eine dritte
 // Fassung, ist hier die einzige Stelle, die es wissen muss.
-import type { StudioEvent, StudioUser, RaumPlatz } from '@botexe/trigger-engine';
+import type { StudioEvent, StudioUser, RaumPlatz, StudioSticker } from '@botexe/trigger-engine';
 
 interface RawImage {
   url?: string[];
   urlList?: string[];
+  avgColor?: string;
+  isAnimated?: boolean;
+}
+
+/** TikToks EmoteModel — der Sticker selbst. */
+interface RawEmote {
+  emoteId?: string;
+  packageId?: string;
+  image?: RawImage;
+}
+
+/**
+ * Rohe TikTok-Sticker in unsere Form bringen.
+ *
+ * Nimmt BEIDE Bauarten: `EmoteWithIndex` aus dem Chat (`{index, emote}`) und den
+ * nackten `EmoteModel` aus der reinen Sticker-Nachricht (`emoteList`). Einträge
+ * ohne `emoteId` fliegen raus — ohne diesen Anker lässt sich keine Regel daran
+ * binden. Sie dürfen die Nachricht aber nicht mitreißen.
+ */
+export function stickerAusListe(rohe: unknown): StudioSticker[] | undefined {
+  if (!Array.isArray(rohe) || rohe.length === 0) return undefined;
+  const raus: StudioSticker[] = [];
+  rohe.forEach((eintrag, i) => {
+    const e = (eintrag ?? {}) as { index?: number; emote?: RawEmote } & RawEmote;
+    const emote: RawEmote = e.emote ?? e;
+    const id = emote?.emoteId;
+    if (!id) return;
+    const bild = emote.image?.urlList?.[0] ?? emote.image?.url?.[0] ?? '';
+    raus.push({
+      id: String(id),
+      bild,
+      // Fehlt der Index (reine Sticker-Nachricht), zählt die Reihenfolge.
+      index: typeof e.index === 'number' ? e.index : i,
+      animiert: !!emote.image?.isAnimated,
+      ...(emote.packageId ? { paket: emote.packageId } : {}),
+      ...(emote.image?.avgColor ? { farbe: emote.image.avgColor } : {}),
+    });
+  });
+  return raus.length > 0 ? raus : undefined;
 }
 
 interface RawUser {
@@ -194,7 +233,8 @@ export function normalizeChat(
   // umbenannt, und wer nur den alten Namen liest, bekommt LEEREN Text — kein
   // Vorlesen, kein Schlüsselwort, kein !befehl. Besonders bitter, weil die App
   // bei Problemen selbst den Direkt-Modus vorschlägt.
-  data: { user?: RawUser; comment?: string; content?: string } & RawRoleData,
+  // `emotes` = Sticker in der Nachricht. Lag immer an und wurde immer verworfen.
+  data: { user?: RawUser; comment?: string; content?: string; emotes?: unknown } & RawRoleData,
   ts: number,
 ): StudioEvent {
   const user = toUser(data.user);
@@ -210,7 +250,8 @@ export function normalizeChat(
     if (roles.isMutual) user.isMutual = true;
     if (roles.hatGeschenkt) user.hatGeschenkt = true;
   }
-  return { type: 'chat', ts, user, text: data.comment ?? data.content ?? '' };
+  const sticker = stickerAusListe(data.emotes);
+  return { type: 'chat', ts, user, text: data.comment ?? data.content ?? '', ...(sticker ? { sticker } : {}) };
 }
 
 /**
@@ -448,7 +489,8 @@ export function normalizeEmote(
   data: { user?: RawUser; emoteList?: unknown[] } & RawRoleData,
   ts: number,
 ): StudioEvent {
-  return { type: 'emote', ts, user: toUser(data.user) };
+  const sticker = stickerAusListe(data.emoteList);
+  return { type: 'emote', ts, user: toUser(data.user), ...(sticker ? { sticker } : {}) };
 }
 
 /** businessType der Superfan-Truhe (belegt im Protokoll-Schema, EnvelopeBusinessType). */
