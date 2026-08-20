@@ -40,6 +40,35 @@ richtig so, aber der Vergleich mit Streams von vorher hinkt ab hier.
 Und: Eine Chat-Nachricht mit Sticker löst ab jetzt **beides** aus — deine
 Chat-Regeln und deine Sticker-Regeln.
 
+### Die Suche findet endlich das Richtige zuerst
+
+Nervie suchte in der Geschenke-Auswahl nach einem Geschenk und fand es nicht.
+Bei den Widgets tippte sie „Geschenk" — und sah die Geschenk-Widgets nicht.
+
+Der Grund war nicht, dass die Suche zu wenig findet. Sie fand zu viel und
+sortierte das Gesuchte nach hinten. Gemessen am echten Katalog mit 5034
+Geschenken:
+
+- „rose" ergab **49 Treffer** — die Rose stand auf **Platz 22**
+- „löwe" ergab **126 Treffer** — der Löwe stand auf **Platz 125**
+
+Und weil der Gift-Auswähler nur die ersten 60 Kacheln zeigt, war der Löwe
+schlicht **nicht zu sehen**. Bei den Widgets dasselbe in klein: „Geschenk"
+listete den Hype-Train vor dem Geschenk-Menü, weil das Wort in dessen
+Beschreibung vorkommt.
+
+Jetzt zählt, wie gut ein Treffer passt: Der Name schlägt die Beschreibung, ein
+Wortanfang schlägt „steht irgendwo drin", und Tippfehler-Treffer („Pose" für
+„rose") landen ganz unten statt oben. Der deutsche Geschenkname zählt dabei
+gleichwertig zum englischen — vorher war er nur Beiwerk, weshalb „löwe" jedes
+„Love"-Geschenk vor dem Löwen zeigte.
+
+Nach dem Umbau: Rose auf Platz 1, Löwe auf Platz 1.
+
+Ebenfalls behoben: Der Gift-Auswähler durchsuchte deine **eigenen** Geschenknamen
+nicht — wer sein Geschenk in der Galerie „fette Rakete" genannt hat, fand es dort
+nur unter „Rocket".
+
 ### Was TikTok über deine Zuschauer verrät — und niemand nutzt
 
 An fast jeder Nachricht hängt mit, wie lange dieser Zuschauer dir schon folgt,

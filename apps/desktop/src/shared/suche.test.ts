@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normText, passt } from './suche';
+import { normText, passt, bewerte } from './suche';
 
 test('normText: Umlaute, Akzente und Trennzeichen fallen weg', () => {
   // Umlaut wird zum Grundbuchstaben — dadurch ergeben beide Schreibweisen
@@ -77,4 +77,61 @@ test('Tippfehler-Toleranz haengt an der Wortlaenge', () => {
   assert.equal(passt('Feuerwerck', 'Gift-Feuerwerk'), true, 'lang: zwei Fehler ok');
   assert.equal(passt('Kase', 'Hase'), true, 'kurz: EIN Fehler ok');
   assert.equal(passt('Kise', 'Hase'), false, 'kurz: zwei Fehler zu viel');
+});
+
+// ── Relevanz: das Gesuchte muss OBEN stehen ────────────────────────────────
+// Der eigentliche Fehler war nie „findet nichts", sondern „findet zu viel und
+// das Richtige geht unter". Gemessen am echten Katalog (5034 Geschenke):
+// „rose" → 49 Treffer, die Rose auf Platz 22. „löwe" → 126 Treffer, der Löwe
+// auf Platz 125. Genau das meldete Nervie als „findet nichts".
+
+test('bewerte: exakter Name schlaegt alles andere', () => {
+  assert.ok(bewerte('rose', 'Rose') > bewerte('rose', 'Anhelex Rosa'));
+  assert.ok(bewerte('rose', 'Rose') > bewerte('rose', 'Bless Pose'));
+});
+
+test('bewerte: Wortanfang schlaegt „steht irgendwo drin"', () => {
+  assert.ok(bewerte('gift', 'Gift-Alert') > bewerte('gift', 'Top Gifter'));
+});
+
+test('bewerte: Treffer im NAMEN schlaegt Treffer in der Beschreibung', () => {
+  const imNamen = bewerte('geschenk', 'Geschenk-Menue', 'zeigt eine Liste');
+  const inDerBeschreibung = bewerte('geschenk', 'Hype-Train', 'faellt bei jedem Geschenk voller');
+  assert.ok(imNamen > inDerBeschreibung, `Name (${imNamen}) muss Beschreibung (${inDerBeschreibung}) schlagen`);
+});
+
+test('bewerte: Tippfehler-Treffer landen ganz unten', () => {
+  assert.ok(bewerte('rose', 'Rose') > bewerte('rose', 'Pose'));
+  assert.ok(bewerte('rose', 'Pose') > 0, 'aber sie zaehlen noch als Treffer');
+});
+
+test('bewerte: kein Treffer ergibt 0', () => {
+  assert.equal(bewerte('rose', 'Dog', 'ein Hund'), 0);
+});
+
+test('bewerte: leere Suche ergibt fuer alle dasselbe', () => {
+  assert.equal(bewerte('', 'Rose'), bewerte('', 'Dog'));
+});
+
+test('bewerte: deckt sich mit passt() — was punktet, passt auch', () => {
+  // Sonst zeigt die Liste etwas anderes an, als sie sortiert.
+  const proben: [string, string, string][] = [
+    ['rose', 'Rose', ''], ['gift', 'Top Gifter', ''], ['rose', 'Pose', ''],
+    ['rose', 'Dog', 'ein Hund'], ['geschenk', 'Hype-Train', 'bei jedem Geschenk'],
+  ];
+  for (const [q, name, desc] of proben) {
+    assert.equal(bewerte(q, name, desc) > 0, passt(q, name, desc), `${q} / ${name}`);
+  }
+});
+
+test('bewerte: mehrere Namen sind gleichwertig (englisch UND deutsch)', () => {
+  // „Lion" heisst deutsch „Loewe". Zaehlt der deutsche Name nur als Beiwerk,
+  // landet der Loewe hinter jedem „Love"-Geschenk — gemessen: Platz 16 statt 1.
+  const lion = bewerte('löwe', ['Lion', 'Löwe']);
+  const love = bewerte('löwe', ['Bunz Love', undefined]);
+  assert.ok(lion > love, `Lion/Löwe (${lion}) muss Bunz Love (${love}) schlagen`);
+});
+
+test('bewerte: einzelner Name und Ein-Element-Liste sind gleich', () => {
+  assert.equal(bewerte('rose', 'Rose'), bewerte('rose', ['Rose']));
 });

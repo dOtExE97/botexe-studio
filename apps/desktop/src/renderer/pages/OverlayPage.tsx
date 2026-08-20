@@ -3,7 +3,7 @@
 // am Objekt draggen/resizen, Eigenschaften rechts im Panel. TikTok-SafeZones
 // werden als Guides eingeblendet (wo Chat/Buttons der TikTok-UI liegen).
 // Speichern validiert (ajv) und pusht live.
-import { passt } from '../../shared/suche';
+import { passt, bewerte } from '../../shared/suche';
 import EbenenListe from '../components/EbenenListe';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -731,7 +731,13 @@ export default function OverlayPage() {
       // `includes` — „Glucksrad" fand nichts, „gift jar" auch nicht.
       // Der interne Typ zählt mit: wer „gift-jar" aus einer Anleitung kennt,
       // findet damit das Coin-Glas.
-      return WIDGET_TYPES.filter((w) => passt(q, w.label, w.desc, w.type));
+      // Nach Relevanz sortiert: Ein Treffer im NAMEN schlaegt einen in der
+      // Beschreibung. Vorher listete „geschenk" den Hype-Train vor dem
+      // Geschenk-Menue, weil das Wort in dessen Beschreibung vorkommt — und in
+      // der schmalen Spalte sah man die echten Geschenk-Widgets gar nicht.
+      return WIDGET_TYPES
+        .filter((w) => passt(q, w.label, w.desc, w.type))
+        .sort((a, b) => bewerte(q, b.label, b.desc, b.type) - bewerte(q, a.label, a.desc, a.type));
     }
     if (activeCat === 'beliebt') {
       return POPULAR_WIDGETS

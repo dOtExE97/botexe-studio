@@ -5,13 +5,10 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Search, ChevronDown, X, Star } from 'lucide-react';
 import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
-import { passt } from '../../shared/suche';
+import { passt, bewerte } from '../../shared/suche';
 
 // Suche kommt aus shared/suche.ts — dieselbe, die auch die Widget-Palette
 // nutzt. Vorher lag hier eine eigene Kopie mit eigener Normalisierung.
-function matchGift(needle: string, slug: string): boolean {
-  return passt(needle, slug);
-}
 
 /** So viele Kacheln passen sinnvoll ins Popover. Mehr zu zeigen hilft nicht —
  *  ab da muss man ohnehin suchen. */
@@ -47,7 +44,9 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
   const results = useMemo(() => {
     const needle = q.trim();
     const list = needle
-      ? gifts.filter((g) => matchGift(needle, g.slug) || (g.de ? matchGift(needle, g.de) : false))
+      // Eigener Name zaehlt mit: Wer sein Geschenk in der Galerie „fette Rakete"
+      // genannt hat, sucht danach — nicht nach „Rocket".
+      ? gifts.filter((g) => passt(needle, g.slug, g.de, g.customName))
       : gifts;
 
     // Reihenfolge nach NÜTZLICHKEIT, nicht nach Preis.
@@ -66,9 +65,18 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
       return 3;                                  // vermutlich fremdes Fan-Club-Abzeichen
     };
 
+    // Bei aktiver Suche zaehlt ZUERST, wie gut der Treffer passt. Ohne das
+    // stand bei „loewe" der Loewe auf Platz 125 von 126 — und weil nur die
+    // ersten 60 Kacheln gezeigt werden, war er GAR NICHT ZU SEHEN. Genau so
+    // entsteht der Eindruck, die Suche finde nichts.
+    const punkte = needle
+      ? new Map(list.map((g) => [g.slug, bewerte(needle, [g.slug, g.de, g.customName])]))
+      : null;
+
     return [...list]
       .sort((a, b) =>
-        rang(a) - rang(b)
+        (punkte ? (punkte.get(b.slug) ?? 0) - (punkte.get(a.slug) ?? 0) : 0)
+        || rang(a) - rang(b)
         // Innerhalb einer Gruppe: günstige zuerst (dort sucht man meistens),
         // bei gleichem Preis alphabetisch.
         || (a.coins || 0) - (b.coins || 0)
@@ -81,7 +89,7 @@ export default function GiftPicker({ value, onChange, placeholder = 'Gift wähle
   const gesamtTreffer = useMemo(() => {
     const needle = q.trim();
     if (!needle) return gifts.length;
-    return gifts.filter((g) => matchGift(needle, g.slug) || (g.de ? matchGift(needle, g.de) : false)).length;
+    return gifts.filter((g) => passt(needle, g.slug, g.de, g.customName)).length;
   }, [gifts, q]);
 
   return (

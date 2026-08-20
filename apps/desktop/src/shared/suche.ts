@@ -60,6 +60,72 @@ export function lev(a: string, b: string): number {
 }
 
 /**
+ * Wie gut passt der Suchbegriff? 0 = gar nicht, höher = besser.
+ *
+ * WARUM ES DAS BRAUCHT: `passt()` beantwortet nur „ja oder nein". Ohne
+ * Reihenfolge steht das Gesuchte irgendwo zwischen den Zufallstreffern —
+ * gemessen am echten Katalog (5034 Geschenke) landete „rose" bei 49 Treffern
+ * mit der ROSE auf Platz 22, und „löwe" bei 126 Treffern mit dem LÖWEN auf
+ * Platz 125. Für den Streamer sieht das aus, als fände die Suche nichts.
+ *
+ * Der erste Parameter sind die NAMEN und zählen am meisten. Mehrere sind
+ * erlaubt und gleichwertig — der deutsche Geschenkname ist genauso ein Name wie
+ * der englische. Ohne das landete „Lion" bei der Suche nach „löwe" auf Platz 16
+ * hinter lauter „Love"-Geschenken, weil sein deutscher Name nur als Beiwerk
+ * zählte.
+ *
+ * Alles Weitere (Beschreibung, interner Typ) ist Beiwerk: Ein Widget, das
+ * „Geschenk" nur in der Beschreibung trägt, darf nie vor dem Geschenk-Menü
+ * stehen.
+ */
+export function bewerte(
+  suche: string,
+  namen: string | undefined | (string | undefined)[],
+  ...weitere: (string | undefined)[]
+): number {
+  const gesucht = lesarten(suche);
+  const n = gesucht[0] ?? '';
+  if (!n) return 1; // leere Suche: alle gleichwertig, Reihenfolge bleibt wie sie war
+
+  const punkteFuer = (text: string | undefined, faktor: number): number => {
+    if (!text) return 0;
+    for (const ziel of lesarten(text)) {
+      for (const g of gesucht) {
+        if (!g) continue;
+        if (ziel === g) return 100 * faktor;          // genau das
+        if (ziel.startsWith(g)) return 80 * faktor;   // fängt damit an
+        // Wortanfang mitten im Text („Gift-Alert" bei Suche „alert") zählt mehr
+        // als ein Treffer irgendwo im Wort („Top Gifter" bei Suche „gift").
+        if (wortAnfang(text, g)) return 60 * faktor;
+        if (ziel.includes(g)) return 40 * faktor;
+      }
+    }
+    return 0;
+  };
+
+  const nameListe = Array.isArray(namen) ? namen : [namen];
+  const beste = Math.max(
+    0,
+    ...nameListe.map((t) => punkteFuer(t, 1)),
+    ...weitere.map((t) => punkteFuer(t, 0.3)),
+  );
+  if (beste > 0) return beste;
+
+  // Nichts gefunden? Dann zählt nur noch die Tippfehler-Toleranz — und die
+  // landet bewusst ganz unten, damit „Pose" nie vor „Rose" steht.
+  return passt(suche, ...nameListe, ...weitere) ? 1 : 0;
+}
+
+/** Beginnt ein Wort des Textes mit dem Suchbegriff? */
+function wortAnfang(text: string, gesucht: string): boolean {
+  return text
+    .toLowerCase()
+    .split(/[^a-zA-ZäöüßÄÖÜ0-9]+/)
+    .flatMap(lesarten)
+    .some((w) => w.startsWith(gesucht));
+}
+
+/**
  * Passt der Suchbegriff auf einen der Texte?
  *
  * Reihenfolge: erst Teilstring (schnell und meistens gemeint), dann

@@ -10,7 +10,7 @@ import { findGiftRule, upsertGiftRule, otherGiftRules } from '@botexe/trigger-en
 import { useGiftCatalog, type GiftEntry } from '../hooks/useGiftCatalog';
 import { giftDisplayName, giftNameDe } from '../../shared/gift-names-de';
 import { toast } from '../components/ToastHost';
-import { passt } from '../../shared/suche';
+import { passt, bewerte } from '../../shared/suche';
 import { hatEigeneReaktion, slugsAusFeldwert, type WidgetGiftFeld } from '../../shared/gift-reaktionen';
 import { WIDGET_TYPES } from './widget-types';
 
@@ -111,7 +111,16 @@ export default function GalleryPage() {
     // Suche matcht BEIDE Sprachen + eigenen Namen: „Herz", „Heart" oder „fette Rakete".
     // Tolerante Suche über beide Sprachen UND den eigenen Namen: „Herz",
     // „Heart", „Hertz" (Tippfehler) oder „fette Rakete" finden alle etwas.
-    if (needle) list = list.filter((g) => passt(needle, g.slug, giftNameDe(g.slug) ?? undefined, g.customName));
+    if (needle) {
+      list = list.filter((g) => passt(needle, g.slug, giftNameDe(g.slug) ?? undefined, g.customName));
+      // Nach Relevanz sortieren, sonst steht das Gesuchte irgendwo mittendrin:
+      // „rose" ergab 49 Treffer mit der Rose auf Platz 22, „loewe" 126 mit dem
+      // Loewen auf Platz 125. Deutscher und eigener Name zaehlen dabei als
+      // vollwertige Namen, nicht als Beiwerk.
+      list = [...list].sort((a, b) =>
+        bewerte(needle, [b.slug, giftNameDe(b.slug) ?? undefined, b.customName])
+        - bewerte(needle, [a.slug, giftNameDe(a.slug) ?? undefined, a.customName]));
+    }
     const sorted = [...list];
     const dn = (g: GiftEntry) => giftDisplayName(g.slug, lang, g.customName);
     if (sort === 'coins') sorted.sort((a, b) => (b.coins || 0) - (a.coins || 0) || dn(a).localeCompare(dn(b)));
