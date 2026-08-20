@@ -65,6 +65,14 @@ export interface StatsTotals {
   envelopes?: number;
   /** Höchststand unsichtbarer Zuschauer (TikTok „anonymous"). */
   peakAnonymous?: number;
+  /** Woher die Zuschauer kamen: TikToks `clientEnterSource` → Anzahl NEUER
+   *  Zuschauer aus dieser Quelle.
+   *
+   *  Die Werte sind ROH (z.B. `homepage_hot-live_cell`) — welche es gibt, ist
+   *  nirgends dokumentiert, deshalb wird nichts in erfundene Schubladen
+   *  einsortiert. Gezählt wird nur beim ERSTEN Auftauchen eines Zuschauers,
+   *  sonst zählt jedes Rein-und-wieder-Rein erneut. */
+  herkunft?: Record<string, number>;
   /** Höchster von TikTok gemeldeter Beliebtheitswert des Raums.
    *
    *  TikToks eigene Zahl, nicht unsere: Sie kommt in jedem Zuschauer-Tick mit
@@ -249,6 +257,13 @@ export class SessionStats {
   /** Verarbeitet ein Event; liefert true, wenn sich der Zustand geändert hat. */
   apply(event: StudioEvent): boolean {
     const userNew = this.trackViewer(event.user?.id);
+    // Herkunft nur bei NEUEN Zuschauern: `seenUsers` ist dafür schon da und
+    // wird mitgespeichert — ein eigenes Merk-Set müsste die Schema-Version
+    // brechen und würde laufende Sessions beim Update verwerfen.
+    if (userNew && event.type === 'join' && event.herkunft) {
+      const bisher = this.totals.herkunft ?? {};
+      this.totals.herkunft = { ...bisher, [event.herkunft]: (bisher[event.herkunft] ?? 0) + 1 };
+    }
     const changed = this.applyInner(event) || userNew;
     if (changed) this.dirty = true;
     return changed;

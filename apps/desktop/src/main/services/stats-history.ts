@@ -110,6 +110,15 @@ export class StatsHistory {
       out.superfans = (out.superfans ?? 0) + (e.superfans ?? 0);
       out.emotes = (out.emotes ?? 0) + (e.emotes ?? 0);
       out.peakAnonymous = Math.max(out.peakAnonymous ?? 0, e.peakAnonymous ?? 0);
+      // Herkunft je Quelle zusammenzaehlen. Bleibt UNDEFINIERT, wenn kein
+      // einziger Eintrag im Zeitraum sie hat — ein leeres {} saehe in der
+      // Auswertung aus wie „0 Zuschauer aus jeder Quelle" statt „keine Daten"
+      // (aeltere Streams von vor dieser Fassung haben das Feld schlicht nicht).
+      if (e.herkunft) {
+        const ziel = out.herkunft ?? {};
+        for (const [quelle, n] of Object.entries(e.herkunft)) ziel[quelle] = (ziel[quelle] ?? 0) + n;
+        out.herkunft = ziel;
+      }
       out.sessions += 1;
     }
     return out;

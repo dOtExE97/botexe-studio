@@ -51,3 +51,25 @@ test('persistiert und lädt wieder', () => {
   const b = new StatsHistory(dir);
   assert.equal(b.summary('week', now).coins, 77);
 });
+
+// ── Herkunft der Zuschauer ─────────────────────────────────────────────────
+// TikToks clientEnterSource, roh. Weder TikFinity noch andere Tools werten das
+// aus — im entpackten TikFinity-Bundle kommt der Feldname 0x vor.
+
+test('Herkunft wird ueber die Sessions zusammengezaehlt', () => {
+  const h = new StatsHistory(tmpDir());
+  const now = 1_000 * DAY;
+  h.record({ ...totals(10, 1), herkunft: { 'homepage_hot-live_cell': 3 } }, now - DAY);
+  h.record({ ...totals(10, 1), herkunft: { 'homepage_hot-live_cell': 2, 'message-live_cover': 1 } }, now - 2 * DAY);
+  const s = h.summary('week', now);
+  assert.deepEqual(s.herkunft, { 'homepage_hot-live_cell': 5, 'message-live_cover': 1 });
+});
+
+test('Alte Eintraege ohne Herkunft ergeben „unbekannt", nicht leer', () => {
+  // Ein leeres {} saehe in der Auswertung aus wie „0 aus jeder Quelle" —
+  // dabei hat der Stream die Angabe nur nie erfasst.
+  const now = 1_000 * DAY;
+  const h = new StatsHistory(tmpDir());
+  h.record(totals(10, 1), now - DAY);
+  assert.equal(h.summary('week', now).herkunft, undefined);
+});

@@ -244,6 +244,23 @@ export default function AnalysePage({ studio }: { studio: ReturnType<typeof useS
     return rest > 0 ? [...erste, { name: 'Alle anderen', wert: rest, farbe: '#3a4052' }] : erste;
   }, [studio.stats]);
 
+  // Woher die Zuschauer kamen (TikToks clientEnterSource). Die Werte sind ROH —
+  // welche es gibt und was sie genau bedeuten, ist nirgends dokumentiert.
+  // Deshalb wird nur lesbarer gemacht (Unterstriche raus), nicht uminterpretiert.
+  const zuschauerHerkunft: GeberAnteil[] = useMemo(() => {
+    const roh = studio.stats?.totals?.herkunft;
+    if (!roh) return [];
+    const farben = ['var(--color-studio-teal)', 'var(--color-studio-gold)', 'var(--color-studio-accent)', '#7d86a8'];
+    const sortiert = Object.entries(roh).sort((a, b) => b[1] - a[1]);
+    const erste = sortiert.slice(0, 4).map(([quelle, n], i) => ({
+      name: quelle.replace(/[_-]+/g, ' '),
+      wert: n,
+      farbe: farben[i] ?? '#3a4052',
+    }));
+    const rest = sortiert.slice(4).reduce((sum, [, n]) => sum + n, 0);
+    return rest > 0 ? [...erste, { name: 'Andere Wege', wert: rest, farbe: '#3a4052' }] : erste;
+  }, [studio.stats]);
+
   const podest: PodestPlatz[] = useMemo(() => {
     const top = studio.stats?.topGifters ?? [];
     if (top.length < 3) return [];
@@ -464,6 +481,20 @@ export default function AnalysePage({ studio }: { studio: ReturnType<typeof useS
               <span className={kicker}>Woher die Coins kamen {laeuft ? '(läuft gerade)' : '(letzter Abend)'}</span>
               <div className="rounded-xl border border-studio-border p-5" style={{ background: 'var(--color-studio-panel)' }}>
                 <Herkunft geber={geber} einheit="Coins" />
+              </div>
+            </section>
+          )}
+
+          {zuschauerHerkunft.length > 0 && (
+            <section className="mt-10" style={auf(9)}>
+              <span className={kicker}>Woher deine Zuschauer kamen {laeuft ? '(läuft gerade)' : '(letzter Abend)'}</span>
+              <div className="rounded-xl border border-studio-border p-5" style={{ background: 'var(--color-studio-panel)' }}>
+                <Herkunft geber={zuschauerHerkunft} einheit="Zuschauer" />
+                <p className="mt-4 border-t border-studio-border pt-3 text-xs text-studio-muted">
+                  Das sind TikToks eigene Bezeichnungen, unverändert übernommen — was genau dahintersteckt,
+                  sagt TikTok nirgends. „homepage hot" heißt, jemand hat dich auf der Startseite gefunden.
+                  Gezählt wird jeder Zuschauer nur beim ersten Auftauchen.
+                </p>
               </div>
             </section>
           )}
