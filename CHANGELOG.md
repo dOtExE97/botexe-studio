@@ -3,7 +3,7 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
-## [Unveröffentlicht]
+## [0.55.0] — 2026-08-20
 
 ### Sticker aus dem Chat werden sichtbar — und können einen Sound auslösen
 

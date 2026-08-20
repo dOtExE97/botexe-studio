@@ -585,6 +585,16 @@ export class OverlayServer {
         ...(typeof e.totalLikes === 'number' ? { totalLikes: e.totalLikes } : {}),
         ...(typeof e.viewerCount === 'number' ? { viewerCount: e.viewerCount } : {}),
         ...(typeof e.firstOfUser === 'boolean' ? { firstOfUser: e.firstOfUser } : {}),
+        // Sticker und die Beziehungs-Angaben gehoeren dazu, sonst laesst sich
+        // ein Sticker-Overlay ohne echten Stream gar nicht ausprobieren. Diese
+        // Liste ist die dritte ihrer Art im Projekt, und alle drei sind schon
+        // einmal vergessen worden — deshalb haelt sie ein Waechter-Test
+        // (test-event-allowlist.test.ts) vollstaendig.
+        ...(Array.isArray(e.sticker) ? { sticker: e.sticker } : {}),
+        ...(e.beziehung ? { beziehung: e.beziehung } : {}),
+        ...(typeof e.herkunft === 'string' ? { herkunft: e.herkunft } : {}),
+        ...(typeof e.subMonths === 'number' ? { subMonths: e.subMonths } : {}),
+        ...(e.envelope ? { envelope: e.envelope } : {}),
       };
       this.bus.publish(clean);
       res.json({ ok: true });
