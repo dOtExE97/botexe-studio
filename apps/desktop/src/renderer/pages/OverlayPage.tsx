@@ -4,11 +4,14 @@
 // werden als Guides eingeblendet (wo Chat/Buttons der TikTok-UI liegen).
 // Speichern validiert (ajv) und pusht live.
 import { passt, bewerte } from '../../shared/suche';
+import { gruppiereNachKategorie } from './palette-gruppen';
 import EbenenListe from '../components/EbenenListe';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   X,
   ChevronDown,
+  PanelLeftOpen,
+  PanelLeftClose,
   ChevronUp,
   ChevronRight,
   Clapperboard,
@@ -90,6 +93,10 @@ const POPULAR_WIDGETS = [
 const CATEGORY_OF: Record<string, string> = {
   'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts', 'gift-cannon': 'alerts', 'action-screen': 'alerts',
   bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele', giveaway: 'spiele', 'gift-battle': 'spiele', 'live-poll': 'spiele',
+  // Der Automat FEHLTE hier und landete dadurch still in „Ambient & Deko" —
+  // genau die Falle, vor der der Kommentar oben warnt. Ein Wächter-Test hält
+  // die Liste jetzt vollständig.
+  'slot-machine': 'spiele',
   'quiz-game': 'spiele', 'hangman-game': 'spiele', 'tic-tac-toe-game': 'spiele', 'connect-four-game': 'spiele', 'stream-boss': 'spiele',
   'gift-menu': 'gifts', 'gift-jar': 'gifts', 'gift-counter': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts', 'goal-countdown': 'gifts',
   'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',
@@ -272,6 +279,10 @@ export default function OverlayPage() {
   // + An/Aus-Schalter (auf schwachen PCs abschaltbar).
   const [overlayBase, setOverlayBase] = useState<string | null>(null);
   const [livePalette, setLivePalette] = useState(() => localStorage.getItem('bx-palette-live') !== '0');
+  // Aufgeklappte Palette: alle Kategorien untereinander statt einer pro Tab.
+  // Gemerkt, weil es eine Arbeitsweise ist und keine einmalige Aktion — wer so
+  // sucht, sucht beim nächsten Mal wieder so.
+  const [paletteBreit, setPaletteBreit] = useState(() => localStorage.getItem('bx-palette-breit') === '1');
   // Vorschau-Sounds: standardmäßig AUS (sonst Demo-Sound-Spam), per Schalter an.
   const [previewSound, setPreviewSound] = useState(() => localStorage.getItem('bx-preview-sound') === '1');
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
@@ -285,6 +296,57 @@ export default function OverlayPage() {
   // rAF-gedrosselter Drag (max. 1 State-Update pro Frame statt pro pointermove).
   const dragRaf = useRef<number | null>(null);
   const dragLatest = useRef<Partial<OverlayLayer> | null>(null);
+
+  /** Eine Widget-Liste rendern — mit Varianten-Aufklapper.
+   *
+   *  Ausgelagert, weil die aufgeklappte Ansicht sie JE KATEGORIE braucht und
+   *  die schmale einmal. Zwei Kopien wären zwei Stellen, an denen der
+   *  Varianten-Knopf künftig auseinanderläuft. */
+  const renderListe = (items: (typeof WIDGET_TYPES)[number][]) => (
+          // Aufgeklappt passen mehrere Kacheln nebeneinander — genau dafür ist
+          // die Breite da. Schmal bleibt es wie gehabt: eine Spalte mit
+          // Live-Vorschau, zwei ohne.
+          <div
+            className={
+              paletteBreit
+                ? 'grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]'
+                : livePalette ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2'
+            }
+          >
+            {items.map((w) => {
+              // Varianten nur außerhalb der Suche anbieten — bei einer Suche ist
+              // ohnehin schon jedes Widget einzeln in der Trefferliste.
+              const variants = paletteQuery.trim()
+                ? []
+                : (RELATED_OF[w.type] ?? [])
+                    .map((t) => WIDGET_TYPES.find((x) => x.type === t))
+                    .filter((x): x is (typeof WIDGET_TYPES)[number] => !!x);
+              const open = openGroup === w.type;
+              return (
+                <Fragment key={w.type}>
+                  {renderPaletteCard(w)}
+                  {variants.length > 0 && (
+                    <button
+                      onClick={() => setOpenGroup(open ? null : w.type)}
+                      className={`flex items-center justify-center gap-1 rounded-md border border-dashed px-2 py-1 text-[10px] font-bold transition-colors ${
+                        livePalette && !paletteBreit ? '' : 'col-span-full'
+                      } ${
+                        open
+                          ? 'border-studio-accent/60 text-studio-accent'
+                          : 'border-studio-border text-studio-muted hover:border-studio-accent/40 hover:text-studio-text'
+                      }`}
+                      title="Ähnliche Widgets, die dasselbe anders darstellen"
+                    >
+                      {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                      {open ? 'Varianten zu' : `${variants.length} Variante${variants.length > 1 ? 'n' : ''} zu`} „{w.label}“
+                    </button>
+                  )}
+                  {open && variants.map((v) => renderPaletteCard(v))}
+                </Fragment>
+              );
+            })}
+          </div>
+  );
 
   const canvasW = layout?.canvas.width ?? CANVAS_PRESETS.portrait.width;
   const canvasH = layout?.canvas.height ?? CANVAS_PRESETS.portrait.height;
@@ -752,6 +814,23 @@ export default function OverlayPage() {
     );
   }, [paletteQuery, activeCat]);
 
+  // Alle Kategorien mit Inhalt — für die aufgeklappte Ansicht. Die Einteilung
+  // steckt in palette-gruppen.ts, damit sie prüfbar ist und nicht in der
+  // Ansicht verstreut liegt.
+  const gruppen = useMemo(
+    () =>
+      gruppiereNachKategorie(WIDGET_TYPES, {
+        kategorieVon: CATEGORY_OF,
+        kategorien: PALETTE_CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
+        beliebtId: 'beliebt',
+        beliebt: POPULAR_WIDGETS,
+        varianten: RELATED_MEMBERS,
+        spezial: RARELY_USED,
+        rueckfall: 'deko',
+      }),
+    [],
+  );
+
   // Die Spezialfälle der aktiven Kategorie, eingeklappt am Listenende.
   const rareItems = useMemo(() => {
     if (paletteQuery.trim() || activeCat === 'beliebt') return [];
@@ -801,11 +880,25 @@ export default function OverlayPage() {
   const isPortrait = canvasH > canvasW;
 
   return (
-    <div className="grid h-full grid-cols-[220px_1fr_260px] gap-0">
+    <div
+      className="grid h-full gap-0"
+      // Aufgeklappt nimmt die Palette knapp die halbe Fensterbreite — genug für
+      // drei Kacheln nebeneinander, ohne die Bühne ganz zu verlieren.
+      style={{ gridTemplateColumns: paletteBreit ? 'minmax(430px, 44vw) 1fr 260px' : '220px 1fr 260px' }}
+    >
       {/* Widget-Palette — Kategorie-Tabs + Suche (nur eine Kategorie sichtbar) */}
       <aside data-palette-scroll className="overflow-y-auto border-r border-studio-border bg-studio-panel p-3">
         <div className="mb-2 flex items-center justify-between px-1">
           <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-gold">Widgets</h2>
+          <div className="flex items-center gap-2">
+          <button
+            onClick={() => setPaletteBreit((on) => { const next = !on; localStorage.setItem('bx-palette-breit', next ? '1' : '0'); return next; })}
+            className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${paletteBreit ? 'text-studio-accent' : 'text-studio-muted'} hover:text-studio-accent`}
+            title={paletteBreit ? 'Palette wieder schmal machen' : 'Alle Widgets auf einmal zeigen — jede Kategorie untereinander'}
+          >
+            {paletteBreit ? <PanelLeftClose size={11} /> : <PanelLeftOpen size={11} />}
+            {paletteBreit ? 'Zuklappen' : 'Alle zeigen'}
+          </button>
           <button
             onClick={() => setLivePalette((on) => { const next = !on; localStorage.setItem('bx-palette-live', next ? '1' : '0'); return next; })}
             className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${livePalette ? 'text-studio-teal' : 'text-studio-muted'} hover:text-studio-teal`}
@@ -813,6 +906,7 @@ export default function OverlayPage() {
           >
             <Play size={11} /> {livePalette ? 'Live an' : 'Live aus'}
           </button>
+          </div>
         </div>
         <input
           value={paletteQuery}
@@ -822,7 +916,7 @@ export default function OverlayPage() {
         />
         {/* Kategorie-Tabs (nur eine Kategorie sichtbar). Bei aktiver Suche
             werden stattdessen Treffer quer über alle Kategorien gezeigt. */}
-        {!paletteQuery.trim() ? (
+        {!paletteQuery.trim() && !paletteBreit ? (
           <div className="mb-3 flex flex-wrap gap-1">
             {PALETTE_CATEGORIES.map((cat) => {
               const Icon = cat.icon;
@@ -842,48 +936,30 @@ export default function OverlayPage() {
               );
             })}
           </div>
-        ) : (
+        ) : paletteQuery.trim() ? (
           <div className="mb-2 px-1 text-[10px] text-studio-muted">
             {visibleItems.length} Treffer für „{paletteQuery.trim()}“
           </div>
-        )}
+        ) : null}
         {visibleItems.length === 0 ? (
           <div className="px-1 py-6 text-center text-[11px] text-studio-muted">Nichts gefunden.</div>
-        ) : (
-          <div className={livePalette ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2'}>
-            {visibleItems.map((w) => {
-              // Varianten nur außerhalb der Suche anbieten — bei einer Suche ist
-              // ohnehin schon jedes Widget einzeln in der Trefferliste.
-              const variants = paletteQuery.trim()
-                ? []
-                : (RELATED_OF[w.type] ?? [])
-                    .map((t) => WIDGET_TYPES.find((x) => x.type === t))
-                    .filter((x): x is (typeof WIDGET_TYPES)[number] => !!x);
-              const open = openGroup === w.type;
-              return (
-                <Fragment key={w.type}>
-                  {renderPaletteCard(w)}
-                  {variants.length > 0 && (
-                    <button
-                      onClick={() => setOpenGroup(open ? null : w.type)}
-                      className={`flex items-center justify-center gap-1 rounded-md border border-dashed px-2 py-1 text-[10px] font-bold transition-colors ${
-                        livePalette ? '' : 'col-span-2'
-                      } ${
-                        open
-                          ? 'border-studio-accent/60 text-studio-accent'
-                          : 'border-studio-border text-studio-muted hover:border-studio-accent/40 hover:text-studio-text'
-                      }`}
-                      title="Ähnliche Widgets, die dasselbe anders darstellen"
-                    >
-                      {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                      {open ? 'Varianten zu' : `${variants.length} Variante${variants.length > 1 ? 'n' : ''} zu`} „{w.label}“
-                    </button>
-                  )}
-                  {open && variants.map((v) => renderPaletteCard(v))}
-                </Fragment>
-              );
-            })}
+        ) : paletteBreit && !paletteQuery.trim() ? (
+          /* Aufgeklappt: ALLE Kategorien untereinander. Das ist der eigentliche
+             Punkt — in der schmalen Spalte ist immer nur eine sichtbar, und wer
+             nicht weiß, in welchem Tab etwas liegt, findet es nicht. */
+          <div className="flex flex-col gap-4">
+            {gruppen.map((g) => (
+              <section key={g.id}>
+                <h3 className="mb-1.5 flex items-baseline gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.2em] text-studio-gold">
+                  {g.label}
+                  <span className="font-mono text-[9px] tracking-normal text-studio-muted">{g.items.length}</span>
+                </h3>
+                {renderListe(g.items)}
+              </section>
+            ))}
           </div>
+        ) : (
+          renderListe(visibleItems)
         )}
         {/* Spezialfälle — vorhanden, aber bewusst aus der Hauptliste heraus. */}
         {rareItems.length > 0 && (

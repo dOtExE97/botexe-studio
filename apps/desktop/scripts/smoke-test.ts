@@ -108,6 +108,39 @@ async function main(): Promise<void> {
     console.log(`  ${problems.some((p) => p.page === label) ? '❌' : '✓'} ${label}`);
   }
 
+  // Widget-Palette: der AUFGEKLAPPTE Zustand. Der Durchklick oben sieht nur den
+  // Standard (schmal, ein Kategorie-Tab) — die aufgeklappte Ansicht ist eine
+  // eigene Verzweigung und war damit voellig ungeprueft.
+  current = 'Overlay';
+  await evalJs(ws, `(() => { const b=[...document.querySelectorAll('nav button')].find(x=>(x.textContent||'').trim().startsWith('Overlay')); b&&b.click(); return true; })()`);
+  await sleep(600);
+  const paletteCheck = (await evalJs(ws, `(async () => {
+    const aside = document.querySelector('[data-palette-scroll]');
+    if (!aside) return { fehler: 'Palette nicht gefunden' };
+    const schmalBreite = Math.round(aside.getBoundingClientRect().width);
+    const knopf = [...document.querySelectorAll('button')].find(b => (b.textContent||'').includes('Alle zeigen'));
+    if (!knopf) return { fehler: 'Knopf „Alle zeigen" nicht gefunden' };
+    knopf.click();
+    await new Promise(r => setTimeout(r, 500));
+    const a2 = document.querySelector('[data-palette-scroll]');
+    const gruppen = [...a2.querySelectorAll('h3')].map(h => (h.textContent||'').trim().split(/\\s+/)[0]);
+    const breit = Math.round(a2.getBoundingClientRect().width);
+    // Wieder zuklappen, damit die restlichen Pruefungen den Normalzustand sehen.
+    const zu = [...document.querySelectorAll('button')].find(b => (b.textContent||'').includes('Zuklappen'));
+    zu && zu.click();
+    return { schmalBreite, breit, gruppen };
+  })()`)) as { fehler?: string; schmalBreite?: number; breit?: number; gruppen?: string[] };
+  if (paletteCheck.fehler) {
+    problems.push({ page: 'Overlay', text: `Palette: ${paletteCheck.fehler}` });
+  } else {
+    const g = paletteCheck.gruppen ?? [];
+    if (g.length < 4) problems.push({ page: 'Overlay', text: `Aufgeklappte Palette zeigt nur ${g.length} Kategorien` });
+    if ((paletteCheck.breit ?? 0) <= (paletteCheck.schmalBreite ?? 0)) {
+      problems.push({ page: 'Overlay', text: 'Palette wurde beim Aufklappen nicht breiter' });
+    }
+    console.log(`  🧩 Palette: ${paletteCheck.schmalBreite}px → ${paletteCheck.breit}px, ${g.length} Kategorien untereinander`);
+  }
+
   // Mixer-spezifisch: Regler vorhanden + Live-Event feuerbar (ohne echtes Audio).
   current = 'Mixer';
   await evalJs(ws, `(() => { const b=[...document.querySelectorAll('nav button')].find(x=>(x.textContent||'').trim().startsWith('Mixer')); b&&b.click(); return true; })()`);

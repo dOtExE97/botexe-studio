@@ -40,6 +40,24 @@ richtig so, aber der Vergleich mit Streams von vorher hinkt ab hier.
 Und: Eine Chat-Nachricht mit Sticker löst ab jetzt **beides** aus — deine
 Chat-Regeln und deine Sticker-Regeln.
 
+### Die Widget-Liste lässt sich aufklappen
+
+Bisher war in der Widget-Spalte immer nur **eine** Kategorie sichtbar. Wer nicht
+wusste, in welchem der acht Reiter etwas liegt, musste raten — und wer den Namen
+nicht kannte, konnte auch nicht suchen. Von 46 Widgets waren ohne Suche nur 33
+überhaupt sichtbar.
+
+Neuer Knopf **„Alle zeigen"** über der Liste: Die Spalte klappt auf gut die
+halbe Fensterbreite auf und zeigt **alle Kategorien untereinander**, mit
+mehreren Kacheln nebeneinander und der Anzahl je Gruppe. „Zuklappen" bringt sie
+zurück. Die App merkt sich, wie du sie zuletzt hattest.
+
+Der Vorteil gegenüber einem eigenen Fenster: Die Bühne bleibt sichtbar, und
+Widgets lassen sich weiterhin direkt an die richtige Stelle ziehen.
+
+Nebenbei behoben: Der **Gambling-Automat** hatte keine Kategorie und landete
+dadurch still in „Ambient & Deko" statt bei den Spielen.
+
 ### Die Suche findet endlich das Richtige zuerst
 
 Nervie suchte in der Geschenke-Auswahl nach einem Geschenk und fand es nicht.
