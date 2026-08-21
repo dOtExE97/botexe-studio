@@ -287,6 +287,16 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
  *  weil genau dort die interessanten Sachen liegen. Tiefer nicht — sonst wird
  *  die Zeile unlesbar und die Gefahr wächst, doch noch etwas mitzunehmen,
  *  das niemanden etwas angeht. */
+/** Felder, die für eine App-Funktion entscheidend sind und deshalb im
+ *  Diagnose-Modus IMMER auftauchen müssen — auch wenn sie weit hinten stehen.
+ *  Ihr Fehlen ist die Antwort auf „warum greift die Einstellung nicht?". */
+const WICHTIGE_FELDER = new Set([
+  'fansClub', 'fansClubInfo', 'badgeList', 'payGrade',  // Teamherz + Geschenke-Stufe
+  'userIdentity', 'followInfo',                          // Rollen und Follower-Zahlen
+  'emoteList', 'emotes',                                 // Sticker
+  'publicAreaMessageCommon',                             // Beziehungs-Etiketten
+]);
+
 export function felderVon(daten: unknown, max = 24): string {
   if (!daten || typeof daten !== 'object') return typeof daten;
   const namen: string[] = [];
@@ -299,7 +309,15 @@ export function felderVon(daten: unknown, max = 24): string {
       // Die Zeile ist ohnehin nur im Diagnose-Modus zu sehen und wird jetzt
       // genau EINMAL je Art geschrieben; sie darf also ruhig lang sein.
       const alle = Object.keys(wert as Record<string, unknown>);
-      const kinder = alle.slice(0, 12);
+      // Erst die zwölf ersten — DANN alles, wonach die App wirklich fragt.
+      //
+      // Anlass: Im Live vom 21.08.2026 stand beim Zuschauer nur
+      // `user{userId,nickname,…,+60}`. Ob TikTok die Teamherz-Stufe überhaupt
+      // mitschickt (`fansClub`), lag hinter dem Abschnitt — die Frage „warum
+      // liest er Teamherz-Leute nicht vor?" war mit dem Log NICHT zu
+      // beantworten. Genau dafür ist der Diagnose-Modus da.
+      const wichtig = alle.filter((k) => WICHTIGE_FELDER.has(k));
+      const kinder = [...new Set([...alle.slice(0, 12), ...wichtig])];
       const rest = alle.length > kinder.length ? `,+${alle.length - kinder.length}` : '';
       namen.push(kinder.length ? `${schluessel}{${kinder.join(',')}${rest}}` : schluessel);
     } else if (Array.isArray(wert)) {

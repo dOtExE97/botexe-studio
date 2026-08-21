@@ -2803,11 +2803,20 @@ export class Studio {
     }
     if (user.isSub && !this.loggedRoleUsers.has(`sub:${user.id}`)) {
       this.loggedRoleUsers.add(`sub:${user.id}`);
-      // Stufe mitschreiben: Erst ein echter Stream zeigt, ob TikTok sie
-      // wirklich liefert. „Stufe unbekannt" heißt nicht, dass jemand keine hat
-      // — nicht jede Nachrichtenart trägt die Abzeichen-Daten mit.
-      const stufe = user.teamLevel ? `Stufe ${user.teamLevel}` : 'Stufe nicht mitgeliefert';
-      log.info('TikTok', `Superfan erkannt: ${user.nickname} (${stufe})`);
+      // KEINE Stufe: Superfan ist das bezahlte Abo und hat kein Stufensystem.
+      // Hier stand die TEAMHERZ-Stufe als „Superfan-Stufe" — genau die
+      // Verwechslung, die im ganzen Projekt schon mehrfach Filter gebaut hat,
+      // die nie greifen konnten.
+      log.info('TikTok', `Superfan erkannt: ${user.nickname}`);
+    }
+    // TEAMHERZ (gratis Fanclub, MIT Stufe) — die einzige Rolle, die bisher gar
+    // nicht gemeldet wurde. Dadurch war im Log nicht zu unterscheiden, ob
+    // niemand einen hat oder ob TikTok die Stufe nicht mitschickt. Genau diese
+    // Frage stand nach dem Live vom 21.08.2026 im Raum, als „nur Teamherz ab
+    // Stufe 3 vorlesen" 26 Minuten lang niemanden vorlas.
+    if ((user.teamLevel ?? 0) > 0 && !this.loggedRoleUsers.has(`team:${user.id}`)) {
+      this.loggedRoleUsers.add(`team:${user.id}`);
+      log.info('TikTok', `Teamherz erkannt: ${user.nickname} → Stufe ${user.teamLevel}`);
     }
     if (user.gifterLevel && !this.loggedRoleUsers.has(`grade:${user.id}`)) {
       this.loggedRoleUsers.add(`grade:${user.id}`);

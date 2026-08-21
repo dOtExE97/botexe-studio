@@ -343,3 +343,31 @@ test('Herzschlag: EIN verpasster Takt reisst noch nicht ab', async () => {
   assert.equal(getWs().terminated, false, 'ein Aussetzer ist noch kein Abriss');
   conn.disconnect();
 });
+
+test('felderVon zeigt die entscheidenden Felder AUCH, wenn sie weit hinten stehen', () => {
+  // Anlass, echter Live vom 21.08.2026: Im Log stand nur
+  // `user{userId,nickname,…,+60}` — ob TikTok die Teamherz-Stufe ueberhaupt
+  // mitschickt, war damit nicht zu beantworten. Genau das soll der
+  // Diagnose-Modus koennen.
+  const user: Record<string, unknown> = {};
+  for (let i = 0; i < 30; i++) user[`fuellfeld${i}`] = i;
+  user['fansClub'] = { data: { level: 3 } };   // ganz hinten
+  user['payGrade'] = { level: 7 };
+
+  const s = felderVon({ user });
+  assert.match(s, /fansClub/, 'die Teamherz-Quelle muss auftauchen');
+  assert.match(s, /payGrade/, 'die Geschenke-Stufe ebenso');
+  assert.match(s, /fuellfeld0/, 'die ersten Felder bleiben trotzdem drin');
+});
+
+test('felderVon: fehlt das wichtige Feld, taucht es auch NICHT auf', () => {
+  // Sonst waere die Ausgabe wertlos — sie soll ja gerade die Abwesenheit zeigen.
+  const user: Record<string, unknown> = { userId: '1', nickname: 'A' };
+  const s = felderVon({ user });
+  assert.doesNotMatch(s, /fansClub/, 'kein Feld erfinden, das gar nicht kam');
+});
+
+test('felderVon nennt weiterhin keine Werte, auch bei den wichtigen Feldern', () => {
+  const s = felderVon({ user: { fansClub: { data: { level: 42 } }, followInfo: { followerCount: '1932' } } });
+  assert.doesNotMatch(s, /42|1932/, 'Werte gehoeren nie ins Log');
+});
