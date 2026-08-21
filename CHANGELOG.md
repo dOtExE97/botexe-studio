@@ -3,6 +3,30 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.55.2] — 2026-08-21
+
+### Sticker-Bilder und Teamherz-Stufe funktionieren jetzt auch im Cloud-Modus
+
+Zwei Sachen aus dem letzten Live, die beide **dieselbe** Ursache hatten:
+
+- Die Sticker-Seite zeigte sechs erkannte Sticker mit **leeren Kacheln**.
+- „Nur Teamherz ab Stufe 3 vorlesen" las 26 Minuten lang **niemanden** vor.
+
+Der Grund: TikTok schickt über den **Cloud-Weg** (der Standard) eine ältere
+Fassung der Daten als über den Direkt-Weg — und dort heißen mehrere Sachen
+anders. Beim Sticker ist die Bildadresse ein einzelner Link statt einer Liste,
+und die Stufen-Abzeichen liegen unter einem anderen Namen. Die App las nur die
+neuere Fassung und fand deshalb nichts.
+
+Nachgeprüft an einem echten fremden Live: Über den Direkt-Weg funktionierte
+beides einwandfrei (sieben von neun Schreibern mit erkannter Teamherz-Stufe,
+Sticker-Bild gefunden) — der Unterschied lag also nie am Sticker selbst,
+sondern am Übertragungsweg.
+
+Beide Fassungen werden jetzt gelesen. Der Unterschied ist außerdem in
+`docs/tiktok-datenquellen.md` festgehalten, damit die nächste Funktion nicht
+wieder in dieselbe Falle läuft.
+
 ## [0.55.1] — 2026-08-21
 
 ### Die App sagt jetzt, ob sie ein Teamherz sieht

@@ -21,11 +21,20 @@ import type { StudioEvent, StudioUser, RaumPlatz, StudioSticker, StudioBeziehung
 interface RawImage {
   url?: string[];
   urlList?: string[];
+  /** v2 (Cloud-Weg): EIN fertiger Link statt einer Liste. */
+  imageUrl?: string;
   avgColor?: string;
   isAnimated?: boolean;
 }
 
-/** TikToks EmoteModel — der Sticker selbst. */
+/** Der Sticker selbst.
+ *
+ *  DREI Formen, alle belegt im Protokoll-Schema:
+ *   · v3 (Direkt-Weg):  image.urlList[]        — `EmoteModel`
+ *   · v2 (Cloud-Weg):   image.imageUrl         — `EmoteDetails`/`EmoteImage`
+ *   · v2, reine Sticker-Nachricht: image.url[] — `Emote`
+ *  Wer nur die erste liest, bekommt im Cloud-Modus leere Kacheln — genau das
+ *  war am 21.08.2026 im echten Stream zu sehen. */
 interface RawEmote {
   emoteId?: string;
   packageId?: string;
@@ -129,16 +138,20 @@ export function stickerAusListe(rohe: unknown): StudioSticker[] | undefined {
   if (!Array.isArray(rohe) || rohe.length === 0) return undefined;
   const raus: StudioSticker[] = [];
   rohe.forEach((eintrag, i) => {
-    const e = (eintrag ?? {}) as { index?: number; emote?: RawEmote } & RawEmote;
+    const e = (eintrag ?? {}) as { index?: number; placeInComment?: number; emote?: RawEmote } & RawEmote;
     const emote: RawEmote = e.emote ?? e;
     const id = emote?.emoteId;
     if (!id) return;
-    const bild = emote.image?.urlList?.[0] ?? emote.image?.url?.[0] ?? '';
+    const bild = emote.image?.urlList?.[0] ?? emote.image?.url?.[0] ?? emote.image?.imageUrl ?? '';
+    // v3 nennt die Stelle im Text `index`, v2 `placeInComment`. Fehlt beides
+    // (reine Sticker-Nachricht), zählt die Reihenfolge in der Liste.
+    const stelle = typeof e.index === 'number' ? e.index
+      : typeof e.placeInComment === 'number' ? e.placeInComment
+      : i;
     raus.push({
       id: String(id),
       bild,
-      // Fehlt der Index (reine Sticker-Nachricht), zählt die Reihenfolge.
-      index: typeof e.index === 'number' ? e.index : i,
+      index: stelle,
       animiert: !!emote.image?.isAnimated,
       ...(emote.packageId ? { paket: emote.packageId } : {}),
       ...(emote.image?.avgColor ? { farbe: emote.image.avgColor } : {}),
@@ -170,12 +183,23 @@ interface RawUser {
   followInfo?: RawFollowInfo;
   /** Geschenke-Stufe des Zuschauers bei TikTok insgesamt. */
   payGrade?: { level?: number };
-  /** Abzeichen-Liste — enthält Stufen als Text unter privilegeLogExtra.level. */
-  badgeList?: Array<{
-    sceneType?: number;
-    badgeSceneType?: number;
-    privilegeLogExtra?: { level?: string };
-  }>;
+  /** Abzeichen-Liste mit den Stufen. Auch hier zwei Schreibweisen:
+   *   · v3 (Direkt-Weg): `badgeList` mit `sceneType` + `privilegeLogExtra.level`
+   *   · v2 (Cloud-Weg):  `badges`    mit `badgeScene` + `logExtra.level`
+   *  Nur die erste zu lesen heißt: im Cloud-Modus gibt es über diesen Weg nie
+   *  eine Teamherz- oder Geschenke-Stufe. */
+  badgeList?: RawBadge[];
+  badges?: RawBadge[];
+}
+
+interface RawBadge {
+  sceneType?: number;
+  badgeSceneType?: number;
+  /** v2-Name derselben Angabe. */
+  badgeScene?: number;
+  privilegeLogExtra?: { level?: string };
+  /** v2-Name derselben Angabe. */
+  logExtra?: { level?: string };
 }
 
 /** Abzeichen-Arten laut Protokoll (tiktok-live-proto/v3, BadgeSceneType). */
@@ -194,8 +218,9 @@ function ersteZahl(...werte: unknown[]): number {
 
 /** Stufe aus der Abzeichen-Liste (beide Feldnamen, je nach Protokoll-Fassung). */
 function abzeichenStufe(raw: RawUser, art: number): number {
-  const treffer = (raw.badgeList ?? []).find((b) => (b.sceneType ?? b.badgeSceneType) === art);
-  return ersteZahl(treffer?.privilegeLogExtra?.level);
+  const alle = [...(raw.badgeList ?? []), ...(raw.badges ?? [])];
+  const treffer = alle.find((b) => (b.sceneType ?? b.badgeSceneType ?? b.badgeScene) === art);
+  return ersteZahl(treffer?.privilegeLogExtra?.level, treffer?.logExtra?.level);
 }
 
 /**

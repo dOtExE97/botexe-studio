@@ -650,3 +650,76 @@ test('beziehungAuslesen: „kein Superfan" erzeugt bewusst kein Feld', () => {
   assert.equal(b?.folgtSeitTagen, 5);
   assert.deepEqual(Object.keys(b ?? {}), ['folgtSeitTagen'], 'kein Feld fuer notSub');
 });
+
+// ── Cloud-Weg: das v2-Schema ───────────────────────────────────────────────
+// Belegt am Live vom 21.08.2026: Die Feldreihenfolge des Zuschauers stimmt dort
+// EXAKT mit `interface User` aus tiktok-live-proto/v2 ueberein (userId,
+// nickname, bioDescription, profilePicture, …) — der Cloud-Weg spricht also v2,
+// der Direkt-Weg v3. In v2 heissen mehrere Felder anders, und genau deshalb
+// blieben die Sticker-Kacheln leer und die Teamherz-Stufe unerkannt.
+
+test('Sticker v2 (Chat): Bild steht in image.imageUrl — EIN String, kein Array', () => {
+  // interface EmoteImage { imageUrl: string }
+  const e = normalizeChat({
+    user: { userId: '1', nickname: 'A' },
+    comment: ' ',
+    emotes: [{ placeInComment: 0, emote: { emoteId: '7591555354694912790', image: { imageUrl: 'https://p16-webcast.tiktokcdn.com/x.webp' } } }],
+  }, 1_000);
+  assert.equal(e.sticker?.length, 1);
+  assert.equal(e.sticker?.[0]?.bild, 'https://p16-webcast.tiktokcdn.com/x.webp',
+    'ohne diese Lesart bleibt die Sticker-Kachel leer');
+});
+
+test('Sticker v2: Position heisst placeInComment, nicht index', () => {
+  const e = normalizeChat({
+    user: { userId: '1' },
+    comment: 'hallo welt',
+    emotes: [{ placeInComment: 5, emote: { emoteId: '42', image: { imageUrl: 'https://x/1.webp' } } }],
+  }, 1_000);
+  assert.equal(e.sticker?.[0]?.index, 5);
+});
+
+test('Sticker v2 (reine Sticker-Nachricht): image.url ist ein Array', () => {
+  // interface Emote { image: Image { url: string[] } }
+  const e = normalizeEmote({
+    user: { userId: '1', nickname: 'A' },
+    emoteList: [{ emoteId: '99', image: { url: ['https://x/9.webp'], avgColor: '#ABC' } }],
+  }, 1_000);
+  assert.equal(e.sticker?.[0]?.bild, 'https://x/9.webp');
+  assert.equal(e.sticker?.[0]?.farbe, '#ABC');
+});
+
+test('Sticker v3 funktioniert unveraendert weiter (Direkt-Weg)', () => {
+  const e = normalizeChat({
+    user: { userId: '1' },
+    content: ' ',
+    emotes: [{ index: 0, emote: { emoteId: '7', image: { urlList: ['https://x/7.webp'] } } }],
+  }, 1_000);
+  assert.equal(e.sticker?.[0]?.bild, 'https://x/7.webp');
+});
+
+test('Teamherz v2: Stufe aus dem Abzeichen (badges statt badgeList)', () => {
+  // v2: badges[] mit badgeScene + logExtra.level
+  // v3: badgeList[] mit sceneType + privilegeLogExtra.level
+  const e = normalizeChat({
+    user: { userId: '1', nickname: 'A', badges: [{ badgeScene: 10, logExtra: { level: '4' } }] },
+    comment: 'hi',
+  }, 1_000);
+  assert.equal(e.user?.teamLevel, 4, 'ohne diese Lesart bleibt der Teamherz-Filter im Cloud-Modus wirkungslos');
+});
+
+test('Geschenke-Stufe v2: ebenfalls aus badges', () => {
+  const e = normalizeChat({
+    user: { userId: '1', nickname: 'A', badges: [{ badgeScene: 8, logExtra: { level: '21' } }] },
+    comment: 'hi',
+  }, 1_000);
+  assert.equal(e.user?.gifterLevel, 21);
+});
+
+test('Teamherz v3 funktioniert unveraendert weiter', () => {
+  const e = normalizeChat({
+    user: { userId: '1', nickname: 'A', badgeList: [{ sceneType: 10, privilegeLogExtra: { level: '6' } }] },
+    comment: 'hi',
+  }, 1_000);
+  assert.equal(e.user?.teamLevel, 6);
+});

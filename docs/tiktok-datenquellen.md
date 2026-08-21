@@ -69,6 +69,33 @@ Dokument die geprüfte (was tatsächlich ankommt und was es wert ist).
 
 ## 0. Fünf Dinge über den Transportweg, die alles andere erklären
 
+**a0) Der Cloud-Weg spricht v2, der Direkt-Weg v3 — und das ist der Grund für
+die meisten „geht im Cloud-Modus nicht"-Fehler.**
+
+Belegt am 21.08.2026: Die Feldreihenfolge des Zuschauers im echten Cloud-Stream
+(`userId, nickname, bioDescription, profilePicture, verified, status,
+createTime, modifyTime, secret, shareQrcodeUri, badgeImageList, followInfo, …`)
+stimmt **exakt** mit `interface User` aus `tiktok-live-proto/dist/node/v2.d.ts`
+überein. Der Direkt-Weg liefert dagegen v3 (`id, deprecated1, nickname, …,
+avatarThumb`). Die Schemas liegen beide im Projekt und sind die verlässliche
+Quelle — **vor** dem Bauen dort nachsehen, nicht nur in v3.
+
+Die Unterschiede, die schon zugeschlagen haben:
+
+| Sache | v2 (Cloud) | v3 (Direkt) |
+| --- | --- | --- |
+| Sticker im Chat | `emotes[].emote.image.imageUrl` (ein String!) | `emotes[].emote.image.urlList[]` |
+| Stelle im Text | `placeInComment` | `index` |
+| reine Sticker-Nachricht | `emoteList[].image.url[]` | `emoteList[].image.urlList[]` |
+| Abzeichen-Liste | `badges[]` | `badgeList[]` |
+| Abzeichen-Art | `badgeScene` | `sceneType` / `badgeSceneType` |
+| Stufe im Abzeichen | `logExtra.level` | `privilegeLogExtra.level` |
+| Bild allgemein | `Image.url[]` | `ImageModel.urlList[]` |
+
+Folge im Alltag (v0.55.0): Die Sticker-Seite zeigte 6 erkannte Sticker mit
+**leeren Kacheln**, und „nur Teamherz ab Stufe 3 vorlesen" las 26 Minuten lang
+niemanden vor. Beides derselbe Grund, beides in v0.55.2 behoben.
+
 **a) eulerstream schickt ZWEI Schreibweisen durcheinander.** Neben den
 Protokollnamen (`WebcastGiftMessage`) kommen auch die Kurznamen der Bibliothek
 (`superFan`, `rankUpdate`). Belegt: `superFan` steht 6× als unbekannte Art in
