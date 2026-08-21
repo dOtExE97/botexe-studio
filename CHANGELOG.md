@@ -3,6 +3,33 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.55.1] — 2026-08-21
+
+### Die App sagt jetzt, ob sie ein Teamherz sieht
+
+Im ersten Live mit 0.55.0 hat die Einstellung „nur Teamherz ab Stufe 3
+vorlesen" 26 Minuten lang niemanden vorgelesen. Der Filter selbst arbeitet
+korrekt — die Stufe kam einfach nie an. **Warum**, ließ sich am Log nicht
+erkennen, und daran waren zwei Dinge schuld:
+
+- **Teamherz war die einzige Rolle ohne Meldung.** Mods, gegenseitiges Folgen,
+  frühere Geschenke, Superfan, Geschenke-Stufe — alles steht im Log. Teamherz
+  nicht. Man konnte also nicht unterscheiden zwischen „hat niemand" und „sieht
+  die App nicht". Jetzt steht dort: *Teamherz erkannt: Name → Stufe 3*.
+- **Der Diagnose-Modus schnitt die Antwort ab.** Er zeigte pro Zuschauer nur die
+  ersten zwölf Angaben und dahinter „+60 weitere" — ausgerechnet die
+  Teamherz-Angabe lag in diesen 60. Die entscheidenden Angaben werden jetzt
+  immer gezeigt, egal an welcher Stelle sie stehen. (Die Sticker gehören dazu,
+  das hilft bei der offenen Sticker-Frage gleich mit.)
+
+Damit klärt der nächste Live mit Diagnose-Modus beide offenen Punkte auf einmal.
+
+### Superfan und Teamherz nicht mehr verwechselt
+
+Die Meldung „Superfan erkannt" schrieb die **Teamherz**-Stufe als
+Superfan-Stufe hin — dabei hat das bezahlte Abo gar kein Stufensystem. Steht
+jetzt richtig da.
+
 ## [0.55.0] — 2026-08-20
 
 ### Vor der Veröffentlichung noch gefunden
