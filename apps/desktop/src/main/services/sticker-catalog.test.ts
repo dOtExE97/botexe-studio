@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { StickerCatalog, istFremdeAdresse } from './sticker-catalog';
+import { StickerCatalog, istFremdeAdresse, formatVonBytes } from './sticker-catalog';
 
 function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'stickercat-'));
@@ -177,4 +177,28 @@ test('istFremdeAdresse trennt TikTok von der eigenen Auslieferung', () => {
   assert.equal(istFremdeAdresse(''), false);
   assert.equal(istFremdeAdresse('kein-url'), false);
   assert.equal(istFremdeAdresse(undefined), false);
+});
+
+// ── Dateiformat aus dem INHALT statt aus der Adresse ───────────────────────
+// Belegt am echten Live vom 22.08.2026: Die kanaleigenen Sticker (die der
+// Streamer selbst hochgeladen hat) kommen unter Adressen OHNE Dateiendung —
+// `…/webcast-no/sub_9497d2d4ea4c…` — und sind PNG. Die Endung aus der Adresse
+// zu raten heisst: PNG-Daten landen unter `.webp` und werden mit falschem
+// Inhaltstyp ausgeliefert. Heute faellt das nicht auf (der Browser erkennt das
+// Format selbst), aber es bricht, sobald jemand `nosniff` setzt.
+
+test('formatVonBytes erkennt PNG, WebP, JPEG und GIF am Inhalt', () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+  const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.from([0, 0, 0, 0]), Buffer.from('WEBP')]);
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const gif = Buffer.concat([Buffer.from('GIF89a'), Buffer.alloc(6)]);
+  assert.equal(formatVonBytes(png), 'png');
+  assert.equal(formatVonBytes(webp), 'webp');
+  assert.equal(formatVonBytes(jpeg), 'jpg');
+  assert.equal(formatVonBytes(gif), 'gif');
+});
+
+test('formatVonBytes: Unbekanntes bleibt undefined — kein Raten', () => {
+  assert.equal(formatVonBytes(Buffer.from('kein bild hier drin')), undefined);
+  assert.equal(formatVonBytes(Buffer.alloc(2)), undefined);
 });

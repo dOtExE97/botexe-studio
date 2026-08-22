@@ -60,6 +60,26 @@ export function istFremdeAdresse(url: string | undefined): boolean {
   }
 }
 
+/**
+ * Das Bildformat am INHALT erkennen, nicht am Dateinamen.
+ *
+ * Nötig, weil die kanaleigenen Sticker (die der Streamer selbst hochlädt) unter
+ * Adressen OHNE Endung kommen: `…/webcast-no/sub_9497d2d4ea4c…`. Aus der
+ * Adresse zu raten hieße, PNG-Daten unter `.webp` abzulegen und später mit
+ * falschem Inhaltstyp auszuliefern. (Belegt am echten Live vom 22.08.2026.)
+ *
+ * `undefined` = kein bekanntes Bild. Dann wird nichts gespeichert — lieber
+ * kein Bild als eine Datei, von der niemand weiß, was drinsteckt.
+ */
+export function formatVonBytes(buf: Buffer): 'png' | 'webp' | 'jpg' | 'gif' | undefined {
+  if (buf.length < 12) return undefined;
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'png';
+  if (buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
+  if (buf.toString('ascii', 0, 3) === 'GIF') return 'gif';
+  return undefined;
+}
+
 export class StickerCatalog {
   private readonly file: string;
   private readonly imagesDir: string;
@@ -181,19 +201,16 @@ export class StickerCatalog {
   private holeBild(entry: StickerEntry): void {
     const url = entry.bildUrl;
     if (!url || !/^https?:\/\//i.test(url)) return;
-    const ext = ((url.split('?')[0] ?? url).match(/\.(png|webp|jpe?g|gif)$/i)?.[1] || 'webp').toLowerCase();
-    const name = `sticker-${entry.id}.${ext}`;
-    const dest = path.join(this.imagesDir, name);
-    if (fs.existsSync(dest)) {
-      if (entry.bildDatei !== name) { entry.bildDatei = name; this.scheduleSave(); }
-      return;
-    }
-    if (this.downloading.has(name)) return;
-    this.downloading.add(name);
-    void this.ladeBild(url, dest, name, entry);
+    // Liegt schon eine Datei zu diesem Sticker da? Der Name traegt die Kennung,
+    // die Endung ergibt sich erst aus dem Inhalt — deshalb hier suchen statt
+    // raten.
+    if (entry.bildDatei && fs.existsSync(path.join(this.imagesDir, entry.bildDatei))) return;
+    if (this.downloading.has(entry.id)) return;
+    this.downloading.add(entry.id);
+    void this.ladeBild(url, entry);
   }
 
-  private async ladeBild(url: string, dest: string, name: string, entry: StickerEntry): Promise<void> {
+  private async ladeBild(url: string, entry: StickerEntry): Promise<void> {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
       if (!res.ok) {
@@ -206,13 +223,20 @@ export class StickerCatalog {
       }
       const buf = Buffer.from(await res.arrayBuffer());
       if (buf.length === 0 || buf.length > 2 * 1024 * 1024) return; // Sanity-Cap
-      fs.writeFileSync(dest, buf);
+      const ext = formatVonBytes(buf);
+      if (!ext) {
+        log.gedrosselt('sticker-bild:format', 5 * 60_000, 'warn', 'StickerCatalog',
+          'Ein Sticker-Bild kam in einem unbekannten Format — es wird nicht gespeichert.');
+        return;
+      }
+      const name = `sticker-${entry.id}.${ext}`;
+      fs.writeFileSync(path.join(this.imagesDir, name), buf);
       entry.bildDatei = name;
       this.scheduleSave();
     } catch (err) {
-      log.warn('StickerCatalog', `Sticker-Bild nicht ladbar (${name})`, (err as Error).message);
+      log.warn('StickerCatalog', `Sticker-Bild nicht ladbar (${entry.id})`, (err as Error).message);
     } finally {
-      this.downloading.delete(name);
+      this.downloading.delete(entry.id);
     }
   }
 
