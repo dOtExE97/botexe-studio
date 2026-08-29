@@ -76,6 +76,102 @@ const CSS = `
 .bx-gco-medaille .bx-gco-icon, .bx-gco-medaille img { filter: drop-shadow(0 0 12px var(--bx-gold)); }
 .bx-gco-medaille .bx-gco-count { color: var(--bx-gold); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 60%, transparent); }
 
+/* ══ Drei weitere Stile ══════════════════════════════════════════════════
+   Alle drei benutzen dasselbe Gerüst (Rahmen · Ring · Icon · Titel · Zahl)
+   und stellen nur um, was der Ring IST. Neue Werte, keine Änderung an den
+   bestehenden — vorhandene Overlays bleiben unberührt.
+   Animiert wird ausschließlich transform/opacity/filter (der TTLS-Browser ist
+   schwach), und jede Ruhebewegung ist langsam genug, um im Stream nicht zu
+   nerven. */
+
+/* ── Stil „Aufladung" — der Ring wird zum Füllstand: die Farbe steigt von
+   unten hinter dem Geschenk hoch, mit heller Kante an der Oberfläche. Das
+   Geschenk selbst ist bei 0 fast farblos und wird mit jedem Eingang satter
+   (--pctn = Fortschritt als Zahl 0..1, in render() gesetzt) — der Fortschritt
+   ist damit auch ohne Zahl auf einen Blick zu sehen. */
+.bx-gco-aufladung .bx-gco-ring {
+  -webkit-mask: none; mask: none; border-radius: 50%;
+  background: linear-gradient(to top,
+    color-mix(in srgb, var(--bx-accent) 92%, black) 0%,
+    color-mix(in srgb, var(--bx-accent) 70%, white) calc(var(--pct, 0%) - 4%),
+    color-mix(in srgb, white 88%, var(--bx-accent)) calc(var(--pct, 0%) - 1.5%),
+    rgba(255,255,255,.06) var(--pct, 0%), rgba(255,255,255,.06) 100%);
+  /* Innenschatten = Wölbung des Gefäßes, heller Rand = seine Kante. Ohne die
+     Kante schwebte die Farbe frei im Bild, statt in etwas drin zu stehen. */
+  box-shadow: inset 0 0 26px rgba(0,0,0,.55),
+    inset 0 0 0 calc(var(--u) * 3) color-mix(in srgb, var(--bx-accent) 30%, transparent),
+    0 0 24px -6px color-mix(in srgb, var(--bx-accent) 70%, transparent);
+  /* Sanftes Schwappen wie in einem Glas — nur Drehung, also GPU-billig. */
+  animation: bx-gco-schwapp 6.5s ease-in-out infinite;
+}
+@keyframes bx-gco-schwapp { 0%,100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
+.bx-gco-aufladung .bx-gco-icon { filter: saturate(calc(0.25 + 0.75 * var(--pctn, 0))) drop-shadow(0 3px 10px rgba(0,0,0,.6)); }
+/* Volles Glas: die Oberfläche verschwindet, alles leuchtet türkis. */
+.bx-gco-aufladung.done .bx-gco-ring {
+  background: linear-gradient(to top, color-mix(in srgb, var(--bx-teal) 90%, black), color-mix(in srgb, var(--bx-teal) 55%, white));
+  animation: bx-gco-schwapp 3.4s ease-in-out infinite; }
+.bx-gco-aufladung.hit .bx-gco-ring { animation: bx-gco-schwapp 6.5s ease-in-out infinite, bx-gco-platsch 520ms ease-out; }
+@keyframes bx-gco-platsch { 0% { filter: brightness(1); } 22% { filter: brightness(1.85); } 100% { filter: brightness(1); } }
+
+/* ── Stil „Arcade" — der Ring zerfällt in Segmente wie eine Boss-Leiste im
+   Spielautomaten, dazu ein eckiges Gehäuse mit Rasterlinien.
+   FALLE: Die Segmente entstehen aus ZWEI Masken (Loch in der Mitte UND
+   Zahnkranz), die sich überschneiden müssen. Die Kurzschreibweise von -webkit-mask
+   in der Grundregel setzt auch die Verrechnung mit — deshalb hier die Langform,
+   sonst liegen die Masken übereinander statt sich zu schneiden. */
+.bx-gco-arcade { background: linear-gradient(180deg, rgba(10,12,26,.94), rgba(6,7,16,.96)) !important;
+  border: 2px solid color-mix(in srgb, var(--bx-accent) 70%, transparent); border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.6), 0 0 34px -10px var(--bx-accent), inset 0 0 30px rgba(0,0,0,.6) !important;
+  overflow: hidden; }
+/* Rasterlinien. ::after ist bei diesem Widget frei (der Rahmen-Hairline der
+   Basis greift hier nicht, gift-counter hat kein Glas-Panel). */
+.bx-gco-arcade::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.045) 0 1px, transparent 1px 3px); }
+.bx-gco-arcade .bx-gco-ring {
+  -webkit-mask-image: radial-gradient(circle, transparent 52%, #000 54%), repeating-conic-gradient(from -90deg, #000 0 12deg, transparent 12deg 18deg);
+  mask-image: radial-gradient(circle, transparent 52%, #000 54%), repeating-conic-gradient(from -90deg, #000 0 12deg, transparent 12deg 18deg);
+  -webkit-mask-composite: source-in; mask-composite: intersect;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--bx-accent) 80%, transparent)); }
+.bx-gco-arcade .bx-gco-title { letter-spacing: .14em; color: color-mix(in srgb, var(--bx-accent) 45%, white); }
+.bx-gco-arcade .bx-gco-prog { font-family: var(--bx-font-mono, var(--bx-font-num)); color: color-mix(in srgb, var(--bx-accent) 30%, white); }
+/* Ziel erreicht: die Zahl blinkt wie ein Highscore. */
+.bx-gco-arcade.done .bx-gco-prog { animation: bx-gco-blink 1s steps(1) infinite; }
+@keyframes bx-gco-blink { 0%,49% { opacity: 1; } 50%,100% { opacity: .25; } }
+/* Treffer: ein kurzes Ruckeln des Automaten. */
+.bx-gco-arcade.hit { animation: bx-gco-ruckel 260ms steps(2) 2; }
+@keyframes bx-gco-ruckel { 0%,100% { transform: translate(0,0); } 50% { transform: translate(1.5px,-1.5px); } }
+
+/* ── Stil „Sticker" — verspielt, wie ein aufgeklebter Chat-Sticker: dicker
+   weißer Rand ums Geschenk, Zahl in einer Pille, alles leicht schief und in
+   ruhiger Bewegung. Kein Panel, damit er auf jedem Videobild sitzt. */
+.bx-gco-sticker { background: none !important; box-shadow: none !important; }
+.bx-gco-sticker .bx-gco-iconwrap { border-radius: 50%; background: color-mix(in srgb, var(--bx-accent) 22%, #14121f);
+  box-shadow: 0 0 0 calc(var(--u) * 6) #fff, 0 calc(var(--u) * 5) calc(var(--u) * 14) rgba(0,0,0,.5);
+  animation: bx-gco-wackel 5s ease-in-out infinite; }
+@keyframes bx-gco-wackel { 0%,100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+/* Der Ring liegt hier ALS Rand direkt auf dem weißen Sticker-Rand. */
+/* Der Ring liegt AUSSERHALB des weißen Stickerrands — innen lag er auf Weiß
+   und war praktisch unsichtbar. */
+.bx-gco-sticker .bx-gco-ring { inset: calc(var(--u) * -16);
+  /* FALLE: Bei radial-gradient(circle, …) sind 100% die Ecke, nicht die Kante —
+     der Kreis reicht also über die Box hinaus. 86% wären außerhalb gewesen und
+     der Ring blieb unsichtbar. 62% ≈ 0,88 der halben Breite. Dieselbe Rechnung
+     steckt hinter den 54% der Grundregel. */
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%); mask: radial-gradient(circle, transparent 62%, #000 64%);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--bx-accent) 65%, transparent)); }
+.bx-gco-sticker .bx-gco-title { color: #fff; -webkit-text-stroke: calc(var(--u) * 5) var(--bx-ink, #0a0b12); }
+.bx-gco-sticker .bx-gco-prog { background: #fff; color: #14121f; -webkit-text-stroke: 0;
+  border-radius: 999px; padding: 0 calc(var(--u) * 14); margin-top: calc(var(--u) * 4);
+  box-shadow: 0 calc(var(--u) * 4) calc(var(--u) * 10) rgba(0,0,0,.45); }
+.bx-gco-sticker.done .bx-gco-prog { background: var(--bx-teal); color: #06241e; }
+/* Treffer: ein kräftiger Hüpfer statt des kleinen Standard-Pochens. */
+.bx-gco-sticker.hit .bx-gco-iconwrap { animation: bx-gco-huepf 620ms cubic-bezier(.2,1.8,.35,1); }
+@keyframes bx-gco-huepf {
+  0% { transform: rotate(-2.5deg) scale(1); }
+  35% { transform: rotate(4deg) scale(1.18); }
+  70% { transform: rotate(-3deg) scale(.96); }
+  100% { transform: rotate(-2.5deg) scale(1); } }
+
 /* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
    dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
    Titel und Zähler haben bereits eine Kontur — hier reicht ein satterer Schatten.
@@ -130,6 +226,11 @@ export function findGiftIcon(catalog, slug) {
   return '';
 }
 
+/** Die wählbaren Stile. Reihenfolge = die des Auswahlfelds; 'glas' ist der
+ *  Rückfall für alles Unbekannte (z.B. ein Overlay von einer neueren Fassung).
+ *  Ein Stil wird NIE entfernt — das würde vorhandene Overlays umgestalten. */
+export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker'];
+
 /** Welche Anzeige-Klassen an der Wurzel hängen (Titel/Zähler/Ring aus).
  *
  *  FEHLENDER WERT HEISST „AN": Alle Overlays, die vor diesen Schaltern gebaut
@@ -175,7 +276,7 @@ export default class GiftCounter {
     this.lastIcon = saved.icon || '';
 
     this.el = document.createElement('div');
-    this.style = ['glas', 'neon', 'medaille'].includes(props.style) ? props.style : 'glas';
+    this.style = STILE.includes(props.style) ? props.style : 'glas';
     this.el.className = [
       'bx-gco',
       ...(this.style !== 'glas' ? [`bx-gco-${this.style}`] : []),
@@ -246,7 +347,18 @@ export default class GiftCounter {
     // Ring an den echten Fortschritt binden (0..100 %).
     const pct = Math.max(0, Math.min(100, (this.count / Math.max(1, this.target)) * 100));
     this.el.style.setProperty('--pct', `${pct}%`);
-    if (animate) { this.el.classList.remove('hit'); void this.el.offsetWidth; this.el.classList.add('hit'); }
+    // Derselbe Wert als reine Zahl (0..1): der Stil „Aufladung" rechnet damit
+    // in filter: saturate(), und dort ist eine Prozentangabe nicht brauchbar.
+    this.el.style.setProperty('--pctn', String(pct / 100));
+    if (animate) {
+      this.el.classList.remove('hit'); void this.el.offsetWidth; this.el.classList.add('hit');
+      // Die Klasse WIEDER abnehmen. Ohne das blieb sie nach dem ersten Geschenk
+      // für immer stehen — und weil die Treffer-Animation die Ruhebewegung
+      // desselben Elements ersetzt, hörte das Geschenk danach auf zu pulsieren.
+      // Der längste Treffer-Ablauf dauert 620ms, 700 lässt Luft.
+      const t = setTimeout(() => { this.timers.delete(t); this.el.classList.remove('hit'); }, 700);
+      this.timers.add(t);
+    }
     // Premium-Auslöser: der Zähler ist gestiegen. Ist damit das Ziel erreicht,
     // bekommt zusätzlich der Fortschritts-Text den Auftritt — deutlich lauter.
     if (animate) {
@@ -283,6 +395,7 @@ export default class GiftCounter {
     const demo = Math.max(1, Math.round(this.target * 0.4));
     this.el.querySelector('.bx-gco-prog').textContent = `${demo} / ${this.target}`;
     this.el.style.setProperty('--pct', '40%');
+    this.el.style.setProperty('--pctn', '0.4');
   }
 
   // Neuer Stream → Zähler + Ziel zurück auf Start, altes Gift-Icon weg.

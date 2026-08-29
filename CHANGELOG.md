@@ -16,6 +16,21 @@ Box, statt klein in der Mitte zu schweben.
 Bestehende Overlays ändern sich nicht: Ein fehlender Wert gilt als „an", nur
 ein ausdrückliches Abwählen blendet etwas aus.
 
+### Drei neue Designs für den Geschenkzähler
+
+- **🔋 Aufladung** — der Ring wird zum Füllstand: die Farbe steigt von unten
+  hinter dem Geschenk hoch, mit heller Kante an der Oberfläche und ruhigem
+  Schwappen. Das Geschenk selbst ist bei 0 fast farblos und wird mit jedem
+  Eingang satter — der Stand ist damit auch ohne Zahl auf einen Blick zu sehen.
+- **👾 Arcade** — der Ring zerfällt in Segmente wie eine Boss-Leiste, dazu ein
+  eckiges Gehäuse mit Rasterlinien. Bei jedem Eingang ruckelt der Automat kurz,
+  bei erreichtem Ziel blinkt die Zahl wie ein Highscore.
+- **🩷 Sticker** — wie ein aufgeklebter Chat-Sticker: dicker weißer Rand, Zahl
+  in einer Pille, alles leicht schief und in ruhiger Bewegung. Ein Eingang löst
+  einen kräftigen Hüpfer aus.
+
+Die bestehenden drei Stile sind unverändert.
+
 ### Widget-Suche findet jetzt auch, was anders heißt
 
 Eine Zuschauerin suchte „geschenk" und bekam vier von elf Geschenk-Widgets —
@@ -58,6 +73,9 @@ zeigt wirklich jedes Widget. `docs/widgets.md` wird daraus erzeugt
   Adresse; sie landeten als PNG unter `.webp` und wurden mit falschem Inhaltstyp
   ausgeliefert. Heute merkt das kein Browser — sobald wir aber einen
   `nosniff`-Header setzen, wären genau diese Sticker leer geblieben.
+- Der Geschenkzähler hörte nach dem **ersten** Geschenk auf zu pulsieren: die
+  Treffer-Animation ersetzt die Ruhebewegung desselben Elements, und ihre Klasse
+  wurde nie wieder abgenommen.
 - Doppelte React-Schlüssel in der Palette: „Top Gifter" und „Like-Liste" sind
   derselbe Widget-Typ und stehen beide in „Listen & Chat".
 

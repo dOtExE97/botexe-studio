@@ -1,7 +1,7 @@
 // gift-counter.test.ts — Ziel-Logik bei Erreichen (DOM-frei).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { onGiftGoalReached, findGiftIcon, anzeigeKlassen } from './gift-counter.js';
+import { onGiftGoalReached, findGiftIcon, anzeigeKlassen, STILE } from './gift-counter.js';
 
 test('findGiftIcon: Icon per lowercase-Slug (Katalog-Key ODER entry.slug), sonst leer', () => {
   const cat = {
@@ -58,4 +58,33 @@ test('Titel und Zähler aus → nur das Geschenk, und es füllt die Box', () => 
 test('nur der Zähler aus (der gemeldete Wunsch) lässt den Titel stehen', () => {
   const k = anzeigeKlassen({ showCount: false });
   assert.ok(!k.includes('nur-icon'), 'mit Titel ist es nicht „nur das Geschenk"');
+});
+
+// ── Stile: Auswahlfeld, Code und CSS müssen sich decken ────────────────────
+// Drei Listen sagen dasselbe: STILE (was der Code annimmt), das Auswahlfeld in
+// widget-types.ts (was der Nutzer wählen kann) und die CSS-Regeln (was man
+// sieht). Läuft eine davon weg, gibt es entweder einen Eintrag ohne Wirkung
+// oder ein fertiges Design, das niemand auswählen kann. Der Katalog liegt in
+// TypeScript im anderen Paket — deshalb wird er hier als Text gelesen.
+test('jeder Stil steht im Auswahlfeld UND hat eigene CSS-Regeln', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const hier = dirname(fileURLToPath(import.meta.url));
+
+  const katalog = readFileSync(join(hier, '../../apps/desktop/src/renderer/pages/widget-types.ts'), 'utf-8');
+  const block = katalog.slice(katalog.indexOf("type: 'gift-counter'"), katalog.indexOf("type: 'gift-fireworks'"));
+  assert.ok(block.length > 0, 'gift-counter im Katalog nicht gefunden — Test anpassen');
+  // Nur der Stil-Block — sonst zaehlt der Test die Optionen von
+  // „Bei Zielerreichung" (raise/reset/keep) mit.
+  const stilBlock = block.slice(block.indexOf('styleField(['), block.indexOf(']),'));
+  const imFeld = [...stilBlock.matchAll(/\{ value: '([a-z]+)', label:/g)].map((m) => m[1]);
+
+  assert.deepEqual([...STILE].sort(), [...imFeld].sort(),
+    `Auswahlfeld (${imFeld.join(', ')}) und STILE (${STILE.join(', ')}) laufen auseinander`);
+
+  const quelle = readFileSync(join(hier, 'gift-counter.js'), 'utf-8');
+  // 'glas' ist der Standard und braucht keine eigene Klasse — er IST die Grundregel.
+  const ohneCss = STILE.filter((s) => s !== 'glas' && !quelle.includes(`.bx-gco-${s} `));
+  assert.deepEqual(ohneCss, [], `Stil wählbar, sieht aber aus wie der Standard: ${ohneCss.join(', ')}`);
 });
