@@ -666,53 +666,104 @@ html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal
    nebeneinander, übereinander oder gestapelt. Die Reihenfolge im Dokument
    bleibt, wie sie ist. */
 
-/* ── Stil „Sammelkarte" — Hochformat wie eine Spielkarte: das Geschenk in
-   einem gerahmten Fenster oben, darunter ein Namensschild, unten die Zahl auf
-   einer Platte, ganz unten die Fortschrittsleiste im Kartenrand.
-   Der Fortschrittsring liegt hier NICHT ums Bild: dafür wird der Bildrahmen zum
-   Bezugspunkt (position:static), und der Ring kann sich an der ganzen KARTE
-   ausrichten statt am Bild. */
-.bx-gco-karte { justify-content: flex-start; gap: 0; padding: 5% 6% 7%;
-  background: linear-gradient(168deg, #2a2115 0%, #14100a 42%, #0a0a0f 100%) !important;
-  border-radius: calc(var(--u) * 14);
-  box-shadow: inset 0 0 0 calc(var(--u) * 2) color-mix(in srgb, var(--bx-gold) 45%, transparent),
-    0 calc(var(--u) * 10) calc(var(--u) * 26) rgba(0,0,0,.5) !important; }
-/* Die Haarlinie innen — das, was eine Karte zur Karte macht. */
-.bx-gco-karte .bx-gco-deko { inset: calc(var(--u) * 6); border-radius: calc(var(--u) * 9);
-  border: 1px solid color-mix(in srgb, var(--bx-gold) 32%, transparent); }
-/* Das Bildfenster. */
-/* overflow:hidden ist hier nicht Kosmetik: Die Höhe des Fensters ist eine
-   Prozentangabe, und ein Bild darin bekommt seine Höhe dann aus dem eigenen
-   Seitenverhältnis statt aus dem Fenster — gemessen ragte der Löwe 62px unten
-   heraus, quer über das Namensschild. Ein Bildfenster, das beschneidet, ist bei
-   einer Karte ohnehin richtig. */
+/* ── Stil „Sammelkarte" — eine echte Sammelkarte, kein Rahmen um ein Bild.
+   Was eine Karte teuer aussehen lässt, sind nicht mehr Verzierungen, sondern
+   vier Dinge, die zusammenkommen:
+     1. GESCHICHTETES METALL statt einer Linie: Lichtkante, Goldband, dunkle
+        Fuge, Schatten nach außen — vier Schatten übereinander, die dem Rand
+        Dicke geben. Ein einzelner 1px-Rand sieht immer nach Aufkleber aus.
+     2. FOLIE: ein breiter, weicher Lichtschleier, der langsam über die ganze
+        Karte wandert. Genau das macht eine Folienkarte aus.
+     3. TIEFE IM BILD: Das Geschenk bekommt denselben Körper wie im
+        Studio-Stil (zwölf Kopien mit Versatz) und einen Glanz in seiner
+        eigenen Form. Aus dem flachen Bild wird ein Gegenstand IM Rahmen.
+     4. GRAVIERTE Beschriftung: Namensschild mit Innenschatten, Zahl in einem
+        Wappen. Beides sitzt IM Material, statt daraufzuliegen.
+   Die Bodenspiegelung des Studio-Stils bleibt weg — im Bilderrahmen gibt es
+   keinen Boden, auf dem sich etwas spiegeln könnte. */
+.bx-gco-karte { justify-content: flex-start; gap: 0; padding: 4.5% 5.5% 6%;
+  background:
+    radial-gradient(120% 60% at 50% -6%, rgba(255,236,180,.14), transparent 55%),
+    linear-gradient(163deg, #3b2f18 0%, #241b0d 22%, #12100b 55%, #0a0908 100%) !important;
+  border-radius: calc(var(--u) * 15);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,240,200,.22),
+    inset 0 0 0 calc(var(--u) * 3) color-mix(in srgb, var(--bx-gold) 62%, #6b5320),
+    inset 0 0 0 calc(var(--u) * 4) rgba(0,0,0,.75),
+    0 calc(var(--u) * 12) calc(var(--u) * 30) rgba(0,0,0,.65) !important;
+  overflow: hidden; }
+/* Die Folie. Bewusst breit und weich — ein schmaler harter Streif liest sich
+   als Glasscheibe, nicht als Folie. */
+.bx-gco-karte::after { content: ''; position: absolute; top: -30%; bottom: -30%; left: -60%; width: 45%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent,
+    rgba(255,255,255,.05) 30%, rgba(255,240,210,.17) 50%, rgba(255,255,255,.05) 70%, transparent);
+  transform: rotate(16deg);
+  animation: bx-gco-folie 9s cubic-bezier(.5,0,.5,1) infinite; }
+@keyframes bx-gco-folie {
+  0%, 55% { transform: rotate(16deg) translateX(0); }
+  100% { transform: rotate(16deg) translateX(560%); } }
+/* Innere Haarlinie — der zweite, feinere Rahmen. */
+.bx-gco-karte .bx-gco-deko { inset: calc(var(--u) * 7); border-radius: calc(var(--u) * 10);
+  border: 1px solid color-mix(in srgb, var(--bx-gold) 28%, transparent);
+  box-shadow: inset 0 0 calc(var(--u) * 26) rgba(0,0,0,.55); }
+/* Das Bildfenster: eingelassen statt aufgesetzt (Innenschatten oben,
+   Lichtkante unten) und mit eigener Fassung. */
 .bx-gco-karte .bx-gco-iconwrap { position: static; overflow: hidden;
-  width: 100%; height: 60%; margin: 0 0 3.5% 0;
-  border-radius: calc(var(--u) * 8);
-  background: radial-gradient(80% 70% at 50% 22%, color-mix(in srgb, var(--bx-accent) 20%, transparent), rgba(0,0,0,.5) 72%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bx-gold) 30%, transparent), inset 0 0 calc(var(--u) * 30) rgba(0,0,0,.75); }
-.bx-gco-karte .bx-gco-icon { width: 88%; height: 88%; }
-/* Namensschild statt freistehender Überschrift. */
-.bx-gco-karte .bx-gco-title { width: 100%; padding: 2.5% 4%; -webkit-text-stroke: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(0,0,0,.35));
-  border-top: 1px solid color-mix(in srgb, var(--bx-gold) 40%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--bx-gold) 40%, transparent);
-  color: color-mix(in srgb, var(--bx-gold) 30%, white); letter-spacing: .12em;
-  font-size: clamp(9px, calc(var(--u) * 15), 58px); text-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 4) rgba(0,0,0,.9); }
-.bx-gco-karte .bx-gco-prog { margin: auto 0; -webkit-text-stroke: 0; color: var(--bx-gold);
-  text-shadow: 0 0 calc(var(--u) * 16) color-mix(in srgb, var(--bx-gold) 60%, transparent); }
-/* Fortschritt als Leiste im unteren Kartenrand. */
-.bx-gco-karte .bx-gco-ring { inset: auto 9% 4% 9%; height: calc(var(--u) * 5); border-radius: 999px;
+  width: 100%; height: 60%; margin: 0 0 0 0;
+  border-radius: calc(var(--u) * 7);
+  background:
+    radial-gradient(85% 75% at 50% 18%, color-mix(in srgb, var(--bx-accent) 26%, transparent), transparent 72%),
+    repeating-linear-gradient(112deg, rgba(255,255,255,.028) 0 2px, transparent 2px 7px),
+    linear-gradient(180deg, #14121a, #08070c);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--bx-gold) 45%, transparent),
+    inset 0 calc(var(--u) * 3) calc(var(--u) * 10) rgba(0,0,0,.8),
+    inset 0 calc(var(--u) * -2) 0 rgba(255,240,200,.10),
+    0 calc(var(--u) * 2) calc(var(--u) * 6) rgba(0,0,0,.5); }
+/* Die Perspektive gehört ans BILD, nicht ans Fenster: perspective macht ein
+   Element zum Bezugspunkt für alles absolut Positionierte darin — mit ihr am
+   Fenster landete die Fortschrittsleiste im Bild statt am Kartenrand. */
+.bx-gco-karte .bx-gco-icon { width: 86%; height: 86%; perspective: calc(var(--u) * 560); }
+/* Im Rahmen gibt es keinen Boden — also auch keine Spiegelung. */
+.bx-gco-karte .bx-gco-spiegel { display: none; }
+/* Namensschild: graviert. Innenschatten und Lichtkante unten, Gold mit
+   dunkler Fußlinie, damit die Schrift IN der Fläche liegt statt darauf. */
+/* Das Schild überlappt die Unterkante des Bildes — so machen es echte Karten,
+   und genau das nimmt der Anordnung das Gestapelte. */
+.bx-gco-karte .bx-gco-title { width: 92%; padding: 2.4% 6%; -webkit-text-stroke: 0;
+  position: relative; z-index: 1; margin-top: -4.5%;
+  border-radius: calc(var(--u) * 4);
+  background: linear-gradient(180deg, rgba(0,0,0,.55), rgba(255,235,190,.07));
+  box-shadow: inset 0 1px calc(var(--u) * 4) rgba(0,0,0,.85),
+    inset 0 -1px 0 rgba(255,240,200,.16),
+    0 0 0 1px color-mix(in srgb, var(--bx-gold) 30%, transparent);
+  color: color-mix(in srgb, var(--bx-gold) 45%, white); letter-spacing: .16em;
+  font-size: clamp(9px, calc(var(--u) * 15), 58px);
+  text-shadow: 0 calc(var(--u) * 1) 0 rgba(0,0,0,.9); }
+/* Die Zahl sitzt in einem Wappen. */
+.bx-gco-karte .bx-gco-prog { margin: auto 0 6% 0; -webkit-text-stroke: 0;
+  padding: 1.5% calc(var(--u) * 16); border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,236,180,.16), rgba(0,0,0,.5));
+  box-shadow: inset 0 1px 0 rgba(255,245,215,.35), inset 0 -1px calc(var(--u) * 3) rgba(0,0,0,.7),
+    0 0 0 1px color-mix(in srgb, var(--bx-gold) 40%, transparent);
+  color: color-mix(in srgb, var(--bx-gold) 20%, white);
+  text-shadow: 0 0 calc(var(--u) * 14) color-mix(in srgb, var(--bx-gold) 70%, transparent), 0 calc(var(--u) * 1) 0 rgba(0,0,0,.9); }
+/* Fortschritt als eingelassene Leiste im unteren Kartenrand. */
+.bx-gco-karte .bx-gco-ring { inset: auto 8% 3.5% 8%; height: calc(var(--u) * 6); border-radius: 999px;
   -webkit-mask: none; mask: none;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-gold) 92%, white) 0 var(--pct, 0%), rgba(255,255,255,.10) var(--pct, 0%) 100%);
-  filter: drop-shadow(0 0 calc(var(--u) * 7) color-mix(in srgb, var(--bx-gold) 55%, transparent)); }
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-gold) 92%, white) 0 var(--pct, 0%), rgba(0,0,0,.55) var(--pct, 0%) 100%);
+  box-shadow: inset 0 1px calc(var(--u) * 3) rgba(0,0,0,.8), 0 0 calc(var(--u) * 8) -2px color-mix(in srgb, var(--bx-gold) 55%, transparent); }
 .bx-gco-karte.done .bx-gco-ring { background: linear-gradient(90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white)); animation: none; }
-.bx-gco-karte.hit .bx-gco-iconwrap { animation: bx-gco-kartenpuls 620ms ease-out; }
-@keyframes bx-gco-kartenpuls {
-  0% { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bx-gold) 30%, transparent), inset 0 0 calc(var(--u) * 30) rgba(0,0,0,.75); }
-  25% { box-shadow: inset 0 0 0 calc(var(--u) * 2) var(--bx-gold), inset 0 0 calc(var(--u) * 40) color-mix(in srgb, var(--bx-accent) 45%, transparent); }
-  100% { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bx-gold) 30%, transparent), inset 0 0 calc(var(--u) * 30) rgba(0,0,0,.75); } }
-
+/* Ziel erreicht: die Karte bekommt den Schein einer seltenen Karte. */
+.bx-gco-karte.done { box-shadow:
+    inset 0 0 0 1px rgba(255,240,200,.3),
+    inset 0 0 0 calc(var(--u) * 3) color-mix(in srgb, var(--bx-teal) 70%, white),
+    inset 0 0 0 calc(var(--u) * 4) rgba(0,0,0,.75),
+    0 0 calc(var(--u) * 40) -6px var(--bx-teal),
+    0 calc(var(--u) * 12) calc(var(--u) * 30) rgba(0,0,0,.65) !important; }
+/* Ein Geschenk lässt die Folie sofort durchlaufen — wie wenn man eine Karte kippt. */
+.bx-gco-karte.hit::after { animation: bx-gco-folie 900ms cubic-bezier(.4,0,.25,1); }
 /* ── Stil „Zeile" — quer statt hoch: Geschenk links, Text rechts. Für flache,
    breite Kästen (die Leiste unter dem Stream), wo eine gestapelte Anordnung
    nur zwei Zeilen Platz hätte und alles winzig würde. */
@@ -843,7 +894,15 @@ const STUDIO_TIEFE = 12;
 /** Stile, die aus dem flachen Geschenkbild einen Körper bauen (studioSchichten).
  *  Der Aufbau ist bei allen derselbe — es unterscheidet sich nur, WORIN der
  *  Gegenstand steht: freie Studio-Rundung, Glaskasten oder Scheinwerferkegel. */
-const STILE_MIT_KOERPER = new Set(['studio', 'vitrine', 'museum']);
+const STILE_MIT_KOERPER = new Set(['studio', 'vitrine', 'museum', 'karte']);
+
+/** Die Stile mit der GEMEINSAMEN BÜHNE (Boden, Ring, Spiegelung, Perspektive).
+ *
+ *  Nicht dasselbe wie STILE_MIT_KOERPER: Die Sammelkarte baut denselben Körper,
+ *  stellt ihn aber in ihren eigenen Bilderrahmen statt auf eine Bühne. Zwei
+ *  getrennte Mengen, weil das eine sagt „welches Gerüst baue ich" und das
+ *  andere „welche Kulisse steht drumherum". */
+const STILE_MIT_BUEHNE = new Set(['studio', 'vitrine', 'museum']);
 
 /** Stile, die die Größe ihres Bildrahmens SELBST bestimmen.
  *
@@ -942,7 +1001,7 @@ export default class GiftCounter {
     this.el.className = [
       'bx-gco',
       ...(this.style !== 'glas' ? [`bx-gco-${this.style}`] : []),
-      ...(STILE_MIT_KOERPER.has(this.style) ? ['bx-gco-koerper-buehne'] : []),
+      ...(STILE_MIT_BUEHNE.has(this.style) ? ['bx-gco-koerper-buehne'] : []),
       ...(EIGENES_MASS.has(this.style) ? ['bx-gco-eigenmass'] : []),
       ...anzeigeKlassen(props),
     ].join(' ');
