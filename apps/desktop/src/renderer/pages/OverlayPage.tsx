@@ -227,12 +227,17 @@ export default function OverlayPage() {
     });
   }, []);
   // Schaufenster: Overlay-Basis-URL (für die Live-Vorschau-Iframes der Palette)
-  // + An/Aus-Schalter (auf schwachen PCs abschaltbar).
+  // + An/Aus-Schalter (auf schwachen PCs abschaltbar). Gilt für die schmale
+  // Leiste UND den Katalog — beide zeigen dieselbe Kachel.
+  //
+  // MERKPOSTEN für Screenshots: Die Kacheln laden ihr Widget erst, wenn ein
+  // IntersectionObserver sie als sichtbar meldet — und der feuert unter Xvfb
+  // (Smoke-Test, e2e-Aufnahmen) NIE. Dort steht in jeder Kachel „Vorschau …",
+  // in der Leiste genauso wie im Katalog. Das ist kein Defekt der Ansicht,
+  // sondern die fehlende Sichtbarkeitsmeldung; nachgemessen am laufenden
+  // Programm (Kachel 996x3728, keine Meldung nach 1,5s).
   const [overlayBase, setOverlayBase] = useState<string | null>(null);
   const [livePalette, setLivePalette] = useState(() => localStorage.getItem('bx-palette-live') !== '0');
-  // Aufgeklappte Palette: alle Kategorien untereinander statt einer pro Tab.
-  // Gemerkt, weil es eine Arbeitsweise ist und keine einmalige Aktion — wer so
-  // sucht, sucht beim nächsten Mal wieder so.
   // Der Katalog ist ein Fenster über der ganzen App (WidgetKatalog.tsx). Er
   // löst die frühere „breite Palette" ab: Die nahm der Bühne die halbe Breite
   // und zeigte trotzdem nur zwei bis drei Kacheln nebeneinander.
