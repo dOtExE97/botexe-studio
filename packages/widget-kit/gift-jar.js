@@ -208,7 +208,10 @@ export default class GiftJar {
     this.updateBadge();
     const gift = { slug: 'Rose', count: 1, coinsPerUnit: 10, totalCoins: 10, icon: '' };
     for (let i = 0; i < 16; i++) {
-      const t = setTimeout(() => { this.pendingTimers?.delete(t); this.spawn(gift, 5 + i * 45); }, i * 70);
+      // Im Teamherz-Glas sind die Bälle gleich groß — die Vorschau soll zeigen,
+      // wie es später wirklich aussieht, nicht die Coin-Staffelung.
+      const wert = this.quelle === 'teamherz' ? TEAMHERZ_BALLWERT : 5 + i * 45;
+      const t = setTimeout(() => { this.pendingTimers?.delete(t); this.spawn(gift, wert); }, i * 70);
       (this.pendingTimers ??= new Set()).add(t);
     }
   }

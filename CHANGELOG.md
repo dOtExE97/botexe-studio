@@ -5,6 +5,29 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht]
 
+### Durchsicht des Tages — vier Fehler in den heutigen Änderungen
+
+Alles, was heute dazukam, noch einmal gegengelesen. Gefunden und behoben:
+
+- **„Nur das Geschenk" zerriss die neuen Anordnungen.** Sind Titel und
+  Zählerstand aus, wird der Bildrahmen auf die ganze Box vergrößert — bei der
+  Sammelkarte schrumpfte das Fenster dadurch auf ein Quadrat und darunter blieb
+  die halbe Karte leer. Stile, die ihren Rahmen selbst bemessen, sind jetzt
+  ausgenommen; ein Test liest die Liste aus dem CSS zurück.
+- **Die Schmuckschrift-Aufbereitung landete auch in Chat-Antworten.** Dieselbe
+  Vorlage füllt Ansagen UND Chat — die App hätte „Danke Mia!" an eine
+  Zuschauerin geschrieben, die 𝓜𝓲𝓪 heißt, und bei einem Emoji-Namen „Danke
+  Jemand!". Sprechbar gemacht wird jetzt erst im Sprechweg.
+- **Die Suche war 30–50 % langsamer geworden.** Die Synonyme werden je Eintrag
+  ausgewertet — bei 5726 Geschenken über zehntausendmal pro Tastendruck. Mit
+  einem Merker für die zerlegte Eingabe ist sie jetzt sogar **schneller als vor
+  allen Änderungen** (gemessen an den echten 5726 Geschenken: „rose" 23,2 →
+  22,0 ms, ein einzelnes „r" 82,7 → 75,9 ms) und findet trotzdem 26 statt 3
+  Geschenke bei „geschenk".
+- Kleinigkeit: Die Editor-Vorschau des Teamherz-Glases zeigte noch die
+  Coin-Staffelung der Bälle statt gleich großer.
+
+
 ### Geschenkzähler: Zähler und Titel abschaltbar
 
 Der Geschenkzähler zeigte immer alles — Titel, Geschenk und „6 / 15" darunter.

@@ -1,7 +1,7 @@
 // gift-counter.test.ts — Ziel-Logik bei Erreichen (DOM-frei).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { onGiftGoalReached, findGiftIcon, anzeigeKlassen, STILE, studioSchichten, sichereBildAdresse } from './gift-counter.js';
+import { onGiftGoalReached, findGiftIcon, anzeigeKlassen, STILE, EIGENES_MASS, studioSchichten, sichereBildAdresse } from './gift-counter.js';
 
 test('findGiftIcon: Icon per lowercase-Slug (Katalog-Key ODER entry.slug), sonst leer', () => {
   const cat = {
@@ -114,4 +114,40 @@ test('sichereBildAdresse: nichts, was url(…) vorzeitig schließen könnte', ()
   for (const zeichen of ['"', "'", '(', ')', '\\', ' ', '\n']) {
     assert.ok(!sichereBildAdresse(`a${zeichen}b`).includes(zeichen), `${JSON.stringify(zeichen)} bleibt stehen`);
   }
+});
+
+// ── Wächter: „nur das Geschenk" darf keine Anordnung zerreißen ─────────────
+// Sind Titel und Zählerstand aus, vergrößert eine Regel den Bildrahmen auf die
+// ganze Box. Für Stile, die ihren Rahmen SELBST bemessen (Sammelkarte, Rakete,
+// Zeile, die Bühnen-Stile …), ist das falsch: gemessen schrumpfte das
+// Kartenfenster auf ein Quadrat und darunter blieb die halbe Karte leer.
+// Sie stehen deshalb in EIGENES_MASS und werden von der Regel ausgenommen.
+// Dieser Test liest die Liste aus dem CSS zurück, damit sie beim nächsten
+// neuen Stil nicht vergessen wird.
+test('EIGENES_MASS enthält jeden Stil, der seinen Bildrahmen selbst bemisst', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const quelle = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'gift-counter.js'), 'utf-8');
+
+  // „bx-gco-koerper-buehne" ist keine Stil-Klasse, sondern die gemeinsame Bühne
+  // der drei aufwendigen Stile — sie steht für alle drei.
+  const AUFLOESUNG: Record<string, string[]> = { 'koerper-buehne': ['studio', 'vitrine', 'museum'] };
+
+  const gefunden = new Set<string>();
+  for (const m of quelle.matchAll(/\.bx-gco-([a-z-]+)[^{;]*?\.bx-gco-iconwrap[^{]*\{([^}]*)\}/g)) {
+    // Nur echte Stile zählen. Sonst meldet sich die Markierungs-Klasse
+    // bx-gco-eigenmass selbst als Stil — sie steht in genau der Regel, um die
+    // es hier geht (.bx-gco.nur-icon:not(.bx-gco-eigenmass) …).
+    const name = m[1] as string;
+    if (!(name in AUFLOESUNG) && !STILE.includes(name)) continue;
+    if (!/(^|[;\s])width\s*:/.test(m[2] as string)) continue;
+    for (const s of AUFLOESUNG[name] ?? [name]) gefunden.add(s);
+  }
+
+  assert.ok(gefunden.size > 0, 'keine einzige Regel gefunden — Muster stimmt nicht mehr');
+  const fehlen = [...gefunden].filter((s) => !EIGENES_MASS.has(s));
+  assert.deepEqual(fehlen, [], `Diese Stile bemessen ihren Bildrahmen selbst, stehen aber nicht in EIGENES_MASS: ${fehlen.join(', ')}`);
+  const zuviel = [...EIGENES_MASS].filter((s) => !gefunden.has(s));
+  assert.deepEqual(zuviel, [], `Stehen in EIGENES_MASS, bemessen aber nichts selbst: ${zuviel.join(', ')}`);
 });

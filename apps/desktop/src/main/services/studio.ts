@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { TriggerEngine, giftKey, renderSpeakTemplate, matchRedemption, matchChatCommand, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
+import { TriggerEngine, giftKey, renderSpeakTemplate, sprechbarerName, matchRedemption, matchChatCommand, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { schreibeAtomar } from '../core/atomar-schreiben';
@@ -2638,12 +2638,16 @@ export class Studio {
    *  Sorte halb verdrahteter Filter, die man für kaputt hält. */
   private fuerAnsageAufbereiten(event: StudioEvent): StudioEvent {
     const tts = this.settings.get().tts;
-    if (!tts.skipEmojiText && !tts.skipEmojiName) return event;
     const out = { ...event };
     if (tts.skipEmojiText && out.text) out.text = entferneEmoji(out.text);
     if (tts.skipEmojiName && out.user?.nickname) {
       out.user = { ...out.user, nickname: nameOhneEmoji(out.user.nickname) };
     }
+    // ZULETZT und IMMER: Schmuckschriften auf normale Buchstaben bringen und
+    // einem Namen aus reinen Zierzeichen einen Ersatz geben. Bewusst hier und
+    // nicht in der Vorlage — die füllt auch Chat-Antworten, und dort muss der
+    // Name so dastehen, wie der Zuschauer heißt.
+    if (out.user) out.user = { ...out.user, nickname: sprechbarerName(out.user.nickname) };
     return out;
   }
 

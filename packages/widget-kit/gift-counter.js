@@ -60,9 +60,22 @@ const CSS = `
 .bx-gco.ohne-ring .bx-gco-ring { display: none; }
 /* Bleibt nur das Geschenk übrig, füllt es die Box aus — sonst schwebte ein
    kleines Icon in viel Leere, weil die Größe für Icon + zwei Textzeilen
-   gerechnet ist. Weiter über --u, damit es beim Ziehen mitwächst. */
-.bx-gco.nur-icon .bx-gco-iconwrap { width: clamp(40px, calc(var(--u) * 300), 900px);
+   gerechnet ist. Weiter über --u, damit es beim Ziehen mitwächst.
+
+   NUR für Stile, die ihren Bildrahmen NICHT selbst bemessen. Die Sammelkarte
+   hat ein Fenster über die volle Kartenbreite, die Rakete eine hohe Startbahn,
+   die Zeile ein kleines Bild links — ihnen hier eine 300er-Kachel überzustülpen
+   riss die Anordnung auseinander (gemessen: bei der Sammelkarte schrumpfte das
+   Fenster auf ein Quadrat und darunter blieb die halbe Karte leer). Welche
+   Stile ihr Maß selbst setzen, steht in EIGENES_MASS; ein Test hält die Liste
+   vollständig. */
+.bx-gco.nur-icon:not(.bx-gco-eigenmass) .bx-gco-iconwrap {
+  width: clamp(40px, calc(var(--u) * 300), 900px);
   height: clamp(40px, calc(var(--u) * 300), 900px); margin-bottom: 0; }
+/* Die Sammelkarte hat ohne Schrift Platz frei — den bekommt das Bildfenster. */
+.bx-gco-karte.ohne-titel.ohne-zaehler .bx-gco-iconwrap { height: 90%; }
+/* Eine Zeile ohne Text ist keine Zeile mehr: dann mittig statt links. */
+.bx-gco-zeile.ohne-titel.ohne-zaehler { grid-template-columns: 1fr; justify-items: center; padding: 0; }
 
 /* ── Stil „Neon" — freistehend: Icon + Zahlen mit Glow, kein Panel. */
 .bx-gco-neon { background: none !important; box-shadow: none !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -832,6 +845,16 @@ const STUDIO_TIEFE = 12;
  *  Gegenstand steht: freie Studio-Rundung, Glaskasten oder Scheinwerferkegel. */
 const STILE_MIT_KOERPER = new Set(['studio', 'vitrine', 'museum']);
 
+/** Stile, die die Größe ihres Bildrahmens SELBST bestimmen.
+ *
+ *  Für sie darf der Schalter „nur das Geschenk" den Rahmen nicht überschreiben
+ *  — sonst zerfällt ihre Anordnung. Sie bekommen die Klasse bx-gco-eigenmass,
+ *  und die CSS-Regel schließt sie damit aus. Ein Test in gift-counter.test.ts
+ *  vergleicht diese Liste mit den CSS-Regeln, damit kein Stil vergessen wird. */
+export const EIGENES_MASS = new Set([
+  'rakete', 'studio', 'vitrine', 'museum', 'karte', 'zeile', 'fokus', 'plakat', 'davor',
+]);
+
 /**
  * Das Gerüst für den Stil „Studio": aus EINEM flachen Bild einen Körper bauen.
  *
@@ -920,6 +943,7 @@ export default class GiftCounter {
       'bx-gco',
       ...(this.style !== 'glas' ? [`bx-gco-${this.style}`] : []),
       ...(STILE_MIT_KOERPER.has(this.style) ? ['bx-gco-koerper-buehne'] : []),
+      ...(EIGENES_MASS.has(this.style) ? ['bx-gco-eigenmass'] : []),
       ...anzeigeKlassen(props),
     ].join(' ');
     // .bx-gco-deko ist eine leere Bühne für die aufwendigen Stile (Portal,

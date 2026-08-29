@@ -66,3 +66,14 @@ test('istSprechbar erkennt leere Hüllen', () => {
   assert.equal(istSprechbar('𝓐'), true);
   assert.equal(istSprechbar('7'), true);
 });
+
+test('renderSpeakTemplate lässt den Namen in Ruhe', async () => {
+  // WICHTIG: Dieselbe Vorlage füllt Ansagen UND Chat-Antworten. Würde der Name
+  // hier schon geglättet, schriebe die App „Danke Mia!" an eine Zuschauerin,
+  // die 𝓜𝓲𝓪 heißt — und bei einem Namen aus reinen Emojis stünde im Chat
+  // „Danke Jemand!". Sprechbar gemacht wird erst im Sprechweg
+  // (fuerAnsageAufbereiten in studio.ts).
+  const { renderSpeakTemplate } = await import('./index');
+  const ev = { type: 'chat', ts: 1, user: { id: 'u', nickname: '𝓜𝓲𝓪' }, text: 'hi' } as Parameters<typeof renderSpeakTemplate>[1];
+  assert.equal(renderSpeakTemplate('Danke {user}!', ev), 'Danke 𝓜𝓲𝓪!');
+});

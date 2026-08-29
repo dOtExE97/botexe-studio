@@ -175,3 +175,15 @@ test('Geschenke-Suche bleibt unberuehrt: „rose" findet nicht die halbe Liste',
   assert.ok(!passt('rose', 'Galaxy'));
   assert.ok(!passt('rose', 'Lion'));
 });
+
+test('der Merker liefert bei wechselnden Eingaben trotzdem richtig', () => {
+  // Die Zerlegung der Eingabe wird gemerkt, weil sie sonst je Katalogeintrag
+  // neu berechnet würde (5726-mal pro Tastendruck). Der Merker darf aber nie
+  // ein Ergebnis von der VORIGEN Eingabe zurückgeben.
+  assert.ok(passt('gift', 'Geschenk-Menü'));
+  assert.ok(!passt('rose', 'Geschenk-Menü'));
+  assert.ok(passt('gift', 'Geschenk-Menü'), 'nach einer anderen Suche wieder korrekt');
+  assert.equal(bewerte('rose', 'Rose'), 100);
+  assert.equal(bewerte('gift', 'Rose'), 0);
+  assert.equal(bewerte('rose', 'Rose'), 100, 'unverändert nach Zwischensuche');
+});

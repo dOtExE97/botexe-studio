@@ -102,7 +102,19 @@ interface Suchkern { kern: string; gewicht: number }
  *  Erweitert wird nur, wenn die GANZE Eingabe ein bekanntes Wort ist. „gift"
  *  holt „geschenk" dazu; „gift-alert" bleibt wörtlich — sonst zöge jede
  *  längere Eingabe die halbe Gruppe mit und die Trefferliste würde beliebig. */
+/** Letzte Eingabe und ihr Ergebnis.
+ *
+ *  WARUM: `passt()` und `bewerte()` werden je EINTRAG aufgerufen — beim
+ *  Geschenke-Auswähler 5726-mal pro Tastendruck, und `bewerte()` gleich noch
+ *  einmal beim Sortieren. Die Eingabe ist dabei immer dieselbe. Ohne diesen
+ *  Merker zerlegt die Suche denselben Begriff über zehntausendmal je Anschlag;
+ *  gemessen kostete allein das rund ein Drittel der Laufzeit. Ein einziger
+ *  Platz reicht — es gibt nie zwei Suchen gleichzeitig. */
+let letzteEingabe: string | null = null;
+let letzteKerne: Suchkern[] = [];
+
 function suchkerne(suche: string): Suchkern[] {
+  if (suche === letzteEingabe) return letzteKerne;
   const raus: Suchkern[] = [];
   const gesehen = new Set<string>();
   const zufuegen = (kern: string, gewicht: number) => {
@@ -112,6 +124,8 @@ function suchkerne(suche: string): Suchkern[] {
   };
   for (const l of lesarten(suche)) zufuegen(l, 1);
   for (const l of lesarten(suche)) for (const s of SYNONYME.get(l) ?? []) zufuegen(s, 0.85);
+  letzteEingabe = suche;
+  letzteKerne = raus;
   return raus;
 }
 
