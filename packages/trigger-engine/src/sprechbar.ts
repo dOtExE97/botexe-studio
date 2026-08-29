@@ -43,14 +43,26 @@ const TABELLE: Record<string, string> = {
   '🅥': 'V', '🅦': 'W', '🅧': 'X', '🅨': 'Y', '🅩': 'Z',
 };
 
-/** Unsichtbares Beiwerk: weiches Trennzeichen, Nullbreiten-Zeichen,
- *  Schreibrichtungs-Marken, Darstellungswahl, Byte-Reihenfolge-Marke.
+/** Unsichtbares Beiwerk: weiches Trennzeichen, Nullbreiten-Leerzeichen,
+ *  Schreibrichtungs-Marken, Wortverbinder, Byte-Reihenfolge-Marke.
+ *
+ *  WAS HIER BEWUSST FEHLT — an echten Live-Daten gelernt:
+ *  • U+200D, der Verbinder. Er klebt Emojis zu EINEM zusammen. Eine
+ *    Zuschauerin heißt „Miri1997🎮❤️🐈‍⬛"; ohne den Verbinder wird aus der
+ *    schwarzen Katze eine Katze UND ein schwarzes Quadrat. Genauso hängen
+ *    Familien-, Flaggen- und Berufs-Emojis daran.
+ *  • U+FE0F, die Darstellungswahl. Sie entscheidet, ob ❤️ als Emoji oder als
+ *    Schriftzeichen ❤ erscheint.
+ *  • U+200C, der Nicht-Verbinder. In persischer und indischer Schrift ist er
+ *    Teil der Rechtschreibung, kein Ballast.
+ *  Diese drei sind unsichtbar, aber nicht bedeutungslos — und die Sprachausgabe
+ *  wird durch sie nicht schlechter.
  *
  *  ALS ESCAPE-FOLGEN, nicht als Zeichen: Die Zeichen selbst sind unsichtbar,
  *  im Quelltext steht dann scheinbar nichts. Der Uebersetzer stolperte prompt
  *  ueber einen Schreibrichtungs-Marker mitten im Ausdruck und meldete eine
  *  nicht geschlossene regulaere Ausdrucksfolge. */
-const UNSICHTBAR = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFE00-\uFE0F\uFEFF]/gu;
+const UNSICHTBAR = /[\u00AD\u200B\u200E\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/gu;
 
 /** Akzente ohne Grundzeichen — stehen am Anfang eines Zalgo-Textes. */
 const AKZENTE_AM_ANFANG = /^\p{Mn}+/u;

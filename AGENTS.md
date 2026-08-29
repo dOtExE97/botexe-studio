@@ -51,6 +51,18 @@ export default class MeinWidget {
 - **`.bx-premium`** („Premium-Effekte", opt-in): gemeinsame Ebene in `widget-base.css` — mehr Tiefe, tabellarische Zahlen, langsames Atmen, Auslöser-Choreografie. Für den Auslöser setzt ein Widget nur die Klasse **`bx-hit`** (nach ~900ms per Timer entfernen; bei schnellen Folgen/Combos: entfernen → `void el.offsetWidth` → neu setzen). **FALLE:** `::before`/`::after` sind bei vielen Widgets schon belegt (Rahmen-Hairline, Lichtstreif) — der Premium-Ring läuft deshalb über `box-shadow`, nicht über ein Pseudo-Element.
 - **Nur `transform` / `opacity` / `filter` / `scale` animieren** (GPU-compositet) — der TTLS-Browser ist schwach. Wo ein Element schon `translateY(-50%)` in `transform` trägt (z.B. zentrierte Karten), für den Puls `scale` statt `transform` benutzen.
 
+## Die vier Prüfungen der Widgets
+
+| Kommando | Frage |
+|---|---|
+| `npm run widget-check` | Passt jedes Widget in seine Box — in sechs Größen, beiden Datenlagen UND jedem wählbaren Stil? |
+| `npm run widget-belastung` | Geht ein Widget kaputt, wenn Unerwartetes kommt? Jede Ereignisart, auch NACKT (nur Art + Zeitstempel — der Alltag, TikTok lässt Felder weg), dazu leere Stats, Spotify null, Verkleinern auf 40x30, Ereignis nach `destroy()`. Ein Wurf im Widget bleibt sonst unsichtbar: Die Runtime fängt ihn, das Widget hört auf zu arbeiten, niemand sieht warum. |
+| `npm test` | Die Wächter — tote CSS-Klassen, Backticks im CSS-Literal, Vorbelegung der Felder, Vollständigkeit der Palette. |
+| `npm run smoke` | Rendert die echte App durch, inklusive Widget-Katalog. |
+
+`widget-belastung` braucht ~3 Minuten (ein Browserstart je Widget) und läuft
+deshalb nicht in `npm test` mit — vor einem Release aber schon.
+
 ## TikTok-Gift-Bilder
 
 Kommen AUSSCHLIESSLICH aus dem App-Katalog (Route `/gift-catalog` → lokale Kopie unter

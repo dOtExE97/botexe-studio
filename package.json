@@ -19,6 +19,7 @@
     "typecheck": "npm --workspaces --if-present run typecheck",
     "test": "npm --workspaces --if-present run test",
     "widget-check": "npm --workspace apps/desktop run widget-check",
+    "widget-belastung": "npm --workspace apps/desktop run widget-belastung",
     "licenses": "node scripts/build-licenses.mjs",
     "galerie": "node --import tsx scripts/baue-widget-galerie.mjs",
     "inventar": "node scripts/tiktok-inventar.mjs"

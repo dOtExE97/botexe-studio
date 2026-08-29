@@ -5,6 +5,41 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht]
 
+### Vollprüfung: ein Fehler an echten Live-Daten gefunden
+
+Das ganze Studio noch einmal durchgeprüft — nicht über die vorhandenen Tests,
+sondern mit neuen Sonden.
+
+**Der Fund:** Die neue Namens-Aufbereitung fürs Vorlesen zerlegte
+**zusammengesetzte Emojis**. Aufgefallen ist das erst am Mitschnitt aus einem
+echten Live: Eine Zuschauerin heißt „Miri1997🎮❤️🐈‍⬛" — aus der schwarzen Katze
+wurde eine Katze UND ein schwarzes Quadrat. Schuld war der unsichtbare
+*Verbinder*, den die Aufbereitung pauschal als Ballast entfernte. Er hält aber
+Familien-, Flaggen- und Berufs-Emojis zusammen; dasselbe gilt für die
+Darstellungswahl (ob ❤️ als Emoji oder ❤ als Zeichen erscheint) und für den
+Nicht-Verbinder, der in persischer und indischer Schrift zur Rechtschreibung
+gehört. Die drei bleiben jetzt stehen. An denselben echten Daten gegengeprüft:
+kein Name wird mehr verändert.
+
+**Was sauber war** — jeweils frisch nachgemessen statt den Tests geglaubt:
+
+- Alle handgepflegten Listen decken sich mit den Typen (Ereignisarten,
+  Bedingungen, Aktionen). Genau die Klasse, die hier schon zweimal zugeschlagen
+  hat.
+- Jede der 19 Trigger-Aktionen hat auch jemanden, der sie ausführt — keine
+  Aktion, die man einstellen kann und die nichts tut.
+- Ereignisse werden auf dem Weg ins Overlay nirgends gefiltert.
+- Der Teamherz-Filter arbeitet an den echten Chat-Nachrichten korrekt (Stufe 11
+  lässt 3 von 33 durch, Stufe 30 niemanden).
+
+**Neues Werkzeug: `npm run widget-belastung`.** Jedes der 45 Widgets bekommt
+jede Ereignisart — auch NACKT, also nur Art und Zeitstempel, was im Stream der
+Normalfall ist —, dazu leere Zahlen, Spotify ohne Inhalt, Verkleinern auf 40×30
+und ein Ereignis nach dem Aufräumen. Ergebnis: **kein einziger Wurf.** Das
+zählt, weil ein Wurf im Widget sonst unsichtbar bleibt: Die Runtime fängt ihn
+ab, das Widget hört auf zu arbeiten, und niemand sieht warum.
+
+
 ### Durchsicht des Tages — vier Fehler in den heutigen Änderungen
 
 Alles, was heute dazukam, noch einmal gegengelesen. Gefunden und behoben:

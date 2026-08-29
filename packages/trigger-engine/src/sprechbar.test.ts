@@ -31,7 +31,7 @@ test('echte fremde Schriften bleiben stehen', () => {
 
 test('unsichtbarer Ballast fliegt raus', () => {
   assert.equal(sprechbar('Al​ex'), 'Alex', 'Nullbreiten-Zeichen');
-  assert.equal(sprechbar('Alex️'), 'Alex', 'Darstellungswahl');
+  // Die Darstellungswahl BLEIBT — siehe den Test zu zusammengesetzten Emojis.
   assert.equal(sprechbar('  Alex   B  '), 'Alex B', 'Leerraum');
 });
 
@@ -76,4 +76,21 @@ test('renderSpeakTemplate lässt den Namen in Ruhe', async () => {
   const { renderSpeakTemplate } = await import('./index');
   const ev = { type: 'chat', ts: 1, user: { id: 'u', nickname: '𝓜𝓲𝓪' }, text: 'hi' } as Parameters<typeof renderSpeakTemplate>[1];
   assert.equal(renderSpeakTemplate('Danke {user}!', ev), 'Danke 𝓜𝓲𝓪!');
+});
+
+test('zusammengesetzte Emojis bleiben heil', () => {
+  // AN ECHTEN LIVE-DATEN GEFUNDEN: Eine Zuschauerin heißt „Miri1997🎮❤️🐈‍⬛".
+  // Der erste Wurf entfernte pauschal alle unsichtbaren Zeichen — darunter den
+  // Verbinder, der die schwarze Katze zusammenhält. Aus 🐈‍⬛ wurde 🐈 ⬛.
+  const name = 'Miri1997\u{1F3AE}❤️\u{1F408}‍⬛';
+  assert.equal(sprechbar(name), name, 'Verbinder und Darstellungswahl müssen bleiben');
+  assert.equal(sprechbar('\u{1F3F3}️‍\u{1F308}'), '\u{1F3F3}️‍\u{1F308}', 'Regenbogenflagge');
+  assert.equal(sprechbar('\u{1F468}‍\u{1F469}‍\u{1F467}'), '\u{1F468}‍\u{1F469}‍\u{1F467}', 'Familie');
+});
+
+test('wirklich bedeutungsloses Unsichtbares fliegt weiter raus', () => {
+  assert.equal(sprechbar('Al​ex'), 'Alex', 'Nullbreiten-Leerzeichen');
+  assert.equal(sprechbar('Al­ex'), 'Alex', 'weiches Trennzeichen');
+  assert.equal(sprechbar('‮Alex'), 'Alex', 'Schreibrichtungs-Umkehr');
+  assert.equal(sprechbar('Al﻿ex'), 'Alex', 'Byte-Reihenfolge-Marke');
 });
