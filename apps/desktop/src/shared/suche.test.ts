@@ -135,3 +135,43 @@ test('bewerte: mehrere Namen sind gleichwertig (englisch UND deutsch)', () => {
 test('bewerte: einzelner Name und Ein-Element-Liste sind gleich', () => {
   assert.equal(bewerte('rose', 'Rose'), bewerte('rose', ['Rose']));
 });
+
+// ── Sinnverwandte Begriffe (deutsch ↔ englisch) ────────────────────────────
+// Der Anlass: Eine Zuschauerin suchte in der Widget-Palette „geschenk" und
+// bekam nichts Brauchbares — die Haelfte der Geschenk-Widgets heisst englisch
+// („Gift-Alert", „Gift-Feed", „Coin-Glas").
+
+test('passt: deutsch findet englisch und umgekehrt', () => {
+  assert.ok(passt('geschenk', 'Gift-Alert'), 'geschenk muss Gift-Alert finden');
+  assert.ok(passt('gift', 'Geschenk-Menü'), 'gift muss Geschenk-Menü finden');
+  assert.ok(passt('musik', 'Spotify — Läuft gerade'));
+  assert.ok(passt('uhr', 'Countdown'));
+  assert.ok(passt('alarm', 'Gift-Alert'));
+  assert.ok(passt('herz', 'Like-Liste'));
+});
+
+test('bewerte: der woertliche Treffer steht immer vor dem sinnverwandten', () => {
+  // Wer „gift" tippt, will „Gift-Alert" oben sehen, nicht „Geschenk-Menü".
+  assert.ok(bewerte('gift', 'Gift-Alert') > bewerte('gift', 'Geschenk-Menü'));
+  // Und andersherum genauso.
+  assert.ok(bewerte('geschenk', 'Geschenk-Menü') > bewerte('geschenk', 'Gift-Alert'));
+});
+
+test('sinnverwandte Woerter erweitern nur die GANZE Eingabe', () => {
+  // „gift" holt „geschenk" dazu …
+  assert.ok(passt('gift', 'Geschenk-Menü'));
+  // … „gift-alert" bleibt woertlich, sonst zoege jede laengere Eingabe die
+  // halbe Gruppe mit und die Trefferliste wuerde beliebig.
+  assert.ok(!passt('gift-alert', 'Geschenk-Menü'));
+});
+
+test('Tippfehler-Toleranz gilt nur fuer die woertliche Eingabe', () => {
+  // „rose" darf ueber KEIN sinnverwandtes Wort ploetzlich „Ziel" finden.
+  assert.ok(!passt('geschenk', 'Gilt'), 'Tippfehler-Naehe zu „gift" darf nicht zaehlen');
+});
+
+test('Geschenke-Suche bleibt unberuehrt: „rose" findet nicht die halbe Liste', () => {
+  assert.ok(passt('rose', 'Rose'));
+  assert.ok(!passt('rose', 'Galaxy'));
+  assert.ok(!passt('rose', 'Lion'));
+});

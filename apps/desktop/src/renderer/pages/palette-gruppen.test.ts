@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { gruppiereNachKategorie, type GruppenRegeln } from './palette-gruppen';
+import {
+  gruppiereNachKategorie,
+  alleGruppen,
+  PALETTE_KATEGORIEN,
+  POPULAR_WIDGETS,
+  CATEGORY_OF,
+  RELATED_OF,
+  RELATED_MEMBERS,
+  RARELY_USED,
+  type GruppenRegeln,
+} from './palette-gruppen';
+import { WIDGET_TYPES } from './widget-types';
 
 const W = [
   { type: 'gift-alert', label: 'Gift-Alert' },
@@ -68,4 +79,60 @@ test('jedes Widget taucht höchstens EINMAL auf (außer in Beliebt)', () => {
 
 test('leere Widget-Liste ergibt keine Gruppen', () => {
   assert.deepEqual(gruppiereNachKategorie([], REGELN), []);
+});
+
+// ── Wächter gegen die echten Katalogdaten ──────────────────────────────────
+// Bis hierher prüft der Test die Mechanik mit erfundenen Widgets. Ab hier geht
+// es um den WIRKLICHEN Katalog — genau dort saßen alle bisherigen Fehler.
+
+test('jedes Widget hat eine Kategorie (sonst landet es still in der Deko)', () => {
+  // Fehlt ein Eintrag in CATEGORY_OF, fällt das Widget auf „Ambient & Deko"
+  // zurück und ist im falschen Reiter praktisch unauffindbar. Genau so lag der
+  // Gambling-Automat monatelang bei der Deko statt bei den Spielen.
+  const bekannt = new Set(PALETTE_KATEGORIEN.map((c) => c.id));
+  const fehlen = [...new Set(WIDGET_TYPES.map((w) => w.type))].filter((t) => !CATEGORY_OF[t]);
+  assert.deepEqual(fehlen, [], `ohne Kategorie: ${fehlen.join(', ')}`);
+  const unbekannt = Object.entries(CATEGORY_OF).filter(([, k]) => !bekannt.has(k));
+  assert.deepEqual(unbekannt, [], 'Kategorie-id, die es als Reiter gar nicht gibt');
+});
+
+test('„Alle zeigen" zeigt wirklich JEDES Widget', () => {
+  // Der Punkt der aufgeklappten Ansicht ist „zeig mir alles". Vorher lagen dort
+  // die Varianten trotzdem hinter einem Aufklapper — 13 von 46 Widgets waren
+  // ausgerechnet in dieser Ansicht unsichtbar.
+  // alleGruppen() ist genau das, was die Ansicht aufruft — nicht eine hier
+  // nachgebaute Kopie der Regeln, die immer gruen bliebe.
+  const gruppen = alleGruppen(WIDGET_TYPES);
+  const gezeigt = new Set(gruppen.flatMap((g) => g.items.map((i) => i.type)));
+  const fehlen = [...new Set(WIDGET_TYPES.map((w) => w.type))].filter((t) => !gezeigt.has(t));
+  assert.deepEqual(fehlen, [], `in „Alle zeigen" unsichtbar: ${fehlen.join(', ')}`);
+});
+
+test('Anführer und seine Varianten liegen im selben Reiter', () => {
+  // Sonst steht der Aufklapper „2 Varianten zu Countdown" in einem Reiter und
+  // die Varianten gehören laut Einteilung in einen anderen — beim Umsortieren
+  // die naheliegendste Falle.
+  const falsch: string[] = [];
+  for (const [anfuehrer, varianten] of Object.entries(RELATED_OF)) {
+    for (const v of varianten) {
+      if (CATEGORY_OF[v] !== CATEGORY_OF[anfuehrer]) {
+        falsch.push(`${v} (${CATEGORY_OF[v]}) unter ${anfuehrer} (${CATEGORY_OF[anfuehrer]})`);
+      }
+    }
+  }
+  assert.deepEqual(falsch, [], falsch.join('; '));
+});
+
+test('kein Anführer ist selbst Variante, und jede Variante gibt es wirklich', () => {
+  const typen = new Set(WIDGET_TYPES.map((w) => w.type));
+  const unbekannt = [...RELATED_MEMBERS, ...Object.keys(RELATED_OF)].filter((t) => !typen.has(t));
+  assert.deepEqual(unbekannt, [], `Verwandten-Gruppe zeigt auf ein Widget, das es nicht gibt: ${unbekannt.join(', ')}`);
+  const beides = Object.keys(RELATED_OF).filter((t) => RELATED_MEMBERS.has(t));
+  assert.deepEqual(beides, [], `Anführer und Variante zugleich — dann verschwindet er ganz: ${beides.join(', ')}`);
+});
+
+test('„Beliebt" und die Spezialfälle zeigen auf echte Widgets', () => {
+  const typen = new Set(WIDGET_TYPES.map((w) => w.type));
+  assert.deepEqual(POPULAR_WIDGETS.filter((t) => !typen.has(t)), [], 'Beliebt-Eintrag ohne Widget → Kachel fehlt still');
+  assert.deepEqual([...RARELY_USED].filter((t) => !typen.has(t)), []);
 });

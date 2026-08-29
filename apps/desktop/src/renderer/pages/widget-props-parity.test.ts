@@ -119,25 +119,6 @@ test('jedes registrierte Widget existiert auch als Datei', () => {
   assert.deepEqual(fehlend, [], `Diese Widgets sind in der App wählbar, aber die Datei fehlt:\n  ${fehlend.join('\n  ')}`);
 });
 
-// ── Wächter: hat jedes Widget eine Kategorie? ──────────────────────────────
-// Fehlt ein Eintrag in CATEGORY_OF, fällt das Widget still auf „Ambient & Deko"
-// zurück und ist im falschen Reiter praktisch unauffindbar. Genau so lag der
-// Gambling-Automat monatelang bei der Deko statt bei den Spielen — und der
-// Kommentar im Code warnte sogar davor, ohne dass es jemand merkte.
-test('jedes Widget hat eine Kategorie (sonst landet es still in der Deko)', () => {
-  const quelle = readFileSync(join(WURZEL, 'apps/desktop/src/renderer/pages/OverlayPage.tsx'), 'utf-8');
-  const anfang = quelle.indexOf('const CATEGORY_OF');
-  const ende = quelle.indexOf('const RELATED_OF');
-  assert.ok(anfang > 0 && ende > anfang, 'CATEGORY_OF nicht gefunden — Test muss angepasst werden');
-  const block = quelle.slice(anfang, ende);
-
-  const eingetragen = new Set(
-    [...block.matchAll(/'?([a-z0-9-]+)'?\s*:\s*'(?:beliebt|alerts|spiele|gifts|listen|stats|deko|media)'/g)]
-      .map((m) => m[1]),
-  );
-  const fehlen = [...new Set(WIDGET_TYPES.map((w) => w.type))].filter((t) => !eingetragen.has(t));
-  assert.deepEqual(
-    fehlen, [],
-    `Diese Widgets haben keinen Eintrag in CATEGORY_OF und landen dadurch in „Ambient & Deko": ${fehlen.join(', ')}`,
-  );
-});
+// Der Wächter „jedes Widget hat eine Kategorie“ ist nach palette-gruppen.test.ts
+// umgezogen: seit die Einteilung in palette-gruppen.ts liegt, kann er sie
+// importieren, statt CATEGORY_OF als Text aus der Ansicht zu klauben.

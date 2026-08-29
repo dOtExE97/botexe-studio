@@ -929,7 +929,7 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'gift-counter', label: 'Geschenkzähler', desc: 'Zählt ein bestimmtes Gift (oder alle) Richtung Ziel — großes animiertes Gift-Icon, „aktuell / Ziel", Aktion bei Erreichen.',
-    w: 340, h: 360, props: { style: 'glas', giftSlug: '', target: 15, label: 'Geschenk-Ziel', onReach: 'raise', accent: '#ffd23e', theme: 'glas' },
+    w: 340, h: 360, props: { style: 'glas', giftSlug: '', target: 15, label: 'Geschenk-Ziel', onReach: 'raise', showTitle: true, showCount: true, showRing: true, accent: '#ffd23e', theme: 'glas' },
     fields: [
       styleField([
         { value: 'glas', label: 'Glas (Standard)' },
@@ -943,7 +943,10 @@ export const WIDGET_TYPES: {
         { value: 'reset', label: 'Zähler auf 0 zurück' },
         { value: 'keep', label: 'Nichts (drüber zählen)' },
       ] },
-      { key: 'label', label: 'Titel', type: 'text', hint: 'Über dem Zähler, z.B. „Du bist gut genug!".' },
+      { key: 'showTitle', label: 'Titel zeigen', type: 'boolean', hint: 'Aus: die Textzeile über dem Zähler verschwindet.' },
+      { key: 'label', label: 'Titel', type: 'text', hint: 'Über dem Zähler, z.B. „Du bist gut genug!".', showIf: (p) => p.showTitle !== false },
+      { key: 'showCount', label: 'Zählerstand zeigen', type: 'boolean', hint: 'Aus: die Zahl „6 / 15" unter dem Geschenk verschwindet. Gezählt wird weiter — der Fortschritt steht dann nur noch im Ring.' },
+      { key: 'showRing', label: 'Fortschrittsring zeigen', type: 'boolean', hint: 'Der farbige Ring um das Geschenk, der sich mit jedem Eingang füllt. Aus: nur das Geschenk. Sind Titel, Zählerstand und Ring alle aus, bleibt das Geschenk-Bild allein übrig und füllt die ganze Box.' },
       ACCENT_FIELD,
       THEME_FIELD,
     ],

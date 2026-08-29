@@ -4,7 +4,16 @@
 // werden als Guides eingeblendet (wo Chat/Buttons der TikTok-UI liegen).
 // Speichern validiert (ajv) und pusht live.
 import { passt, bewerte } from '../../shared/suche';
-import { gruppiereNachKategorie } from './palette-gruppen';
+import {
+  alleGruppen,
+  PALETTE_KATEGORIEN,
+  POPULAR_WIDGETS,
+  CATEGORY_OF,
+  RELATED_OF,
+  RELATED_MEMBERS,
+  RARELY_USED,
+  katLabel,
+} from './palette-gruppen';
 import EbenenListe from '../components/EbenenListe';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -71,73 +80,17 @@ import {
  *  anfassbar — man müsste es über die Ebenenliste zurückholen. */
 const SICHTBAR_MIN = 24;
 
-const PALETTE_CATEGORIES: { id: string; label: string; icon: typeof Star }[] = [
-  { id: 'beliebt', label: 'Beliebt', icon: Star },
-  { id: 'alerts', label: 'Alerts', icon: Zap },
-  { id: 'spiele', label: 'Spiele', icon: Gamepad2 },
-  { id: 'gifts', label: 'Gifts & Ziele', icon: Gift },
-  { id: 'listen', label: 'Listen & Chat', icon: MessageSquare },
-  { id: 'stats', label: 'Stats & Zähler', icon: BarChart3 },
-  { id: 'deko', label: 'Ambient & Deko', icon: Sparkles },
-  { id: 'media', label: 'Media', icon: Clapperboard },
-];
-// „Beliebt": die typischen Einsteiger-/Stream-Basics, in sinnvoller Reihenfolge.
-// (heart-rain statt stream-boss: null Konfiguration, sofort sichtbarer Effekt.)
-const POPULAR_WIDGETS = [
-  'gift-alert', 'follow-alert', 'stat-chips', 'goal-bar', 'leaderboard',
-  'chat-box', 'gift-feed', 'gift-menu', 'top-gift', 'heart-rain', 'wheel',
-];
-// JEDES Widget MUSS hier stehen — fehlende fallen auf 'deko' zurück und sind
-// dann im falschen Tab unauffindbar (genau so verschwand mal die halbe
-// Spiele-Sammlung in „Ambient & Deko").
-const CATEGORY_OF: Record<string, string> = {
-  'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts', 'gift-cannon': 'alerts', 'action-screen': 'alerts',
-  bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele', giveaway: 'spiele', 'gift-battle': 'spiele', 'live-poll': 'spiele',
-  // Der Automat FEHLTE hier und landete dadurch still in „Ambient & Deko" —
-  // genau die Falle, vor der der Kommentar oben warnt. Ein Wächter-Test hält
-  // die Liste jetzt vollständig.
-  'slot-machine': 'spiele',
-  'quiz-game': 'spiele', 'hangman-game': 'spiele', 'tic-tac-toe-game': 'spiele', 'connect-four-game': 'spiele', 'stream-boss': 'spiele',
-  'gift-menu': 'gifts', 'gift-jar': 'gifts', 'gift-counter': 'gifts', 'goal-bar': 'gifts', 'top-gift': 'gifts', 'top-streak': 'gifts', countdown: 'gifts', 'hype-train': 'gifts', subathon: 'gifts', 'milestone-confetti': 'gifts', 'goal-countdown': 'gifts',
-  'gift-feed': 'listen', 'chat-box': 'listen', 'activity-feed': 'listen', leaderboard: 'listen', 'points-board': 'listen', 'top-rotator': 'listen', 'sport-ticker': 'listen',
-  'stat-chips': 'stats', counter: 'stats',
-  // Das Befehl-Karussell zeigt Geschenke — es gehört zu „Gifts & Ziele", nicht
-  // zur Deko, und liegt dort als Variante unter dem Geschenk-Menü.
-  'command-carousel': 'gifts',
-  'heart-rain': 'deko', 'text-ticker': 'deko', 'social-rotator': 'deko', emojify: 'deko', 'text-label': 'deko',
-  media: 'media', 'spotify-now-playing': 'media',
+// Die Einteilung selbst (Kategorien, Zuordnung, Verwandten-Gruppen) liegt in
+// palette-gruppen.ts — dort ist sie ohne React prüfbar, und genau dort standen
+// schon die Fehler, die niemand sah (ein Widget ohne Kategorie verschwindet
+// still in „Ambient & Deko"). Hier bleibt nur, was React braucht: das Symbol
+// je Kategorie.
+const KATEGORIE_ICON: Record<string, typeof Star> = {
+  beliebt: Star, alerts: Zap, spiele: Gamepad2, gifts: Gift,
+  listen: MessageSquare, stats: BarChart3, deko: Sparkles, media: Clapperboard,
 };
+const PALETTE_CATEGORIES = PALETTE_KATEGORIEN.map((c) => ({ ...c, icon: KATEGORIE_ICON[c.id] ?? Sparkles }));
 
-// Verwandten-Gruppen — ein Audit über alle 44 Widgets fand mehrere Gruppen, die
-// sich für den Nutzer kaum unterscheiden (drei Bestenlisten, zwei Laufbänder,
-// drei Ziel-Anzeigen …). Sie ERSATZLOS zusammenzulegen würde bestehende
-// Overlays zerreißen, deshalb bleiben alle Typen erhalten: in der Palette zeigen
-// wir nur den Anführer, die Varianten liegen einen Klick darunter. Effekt ist
-// derselbe (kürzere Liste), Risiko null.
-// Schlüssel = Anführer, Werte = Varianten (die dann NICHT einzeln gelistet werden).
-const RELATED_OF: Record<string, string[]> = {
-  leaderboard: ['top-rotator', 'points-board'],
-  'gift-feed': ['activity-feed'],
-  'goal-bar': ['goal-countdown', 'gift-counter'],
-  countdown: ['subathon'],
-  'top-gift': ['top-streak'],
-  'quiz-game': ['live-poll', 'guess-number'],
-  'tic-tac-toe-game': ['connect-four-game'],
-  // Das Geschenk-Menü kann alles, was das Befehl-Karussell kann, und mehr
-  // (Rotations-Modus, Coin-Preis, Einträge automatisch aus den Triggern) —
-  // deshalb führt es, das Karussell liegt als Variante darunter.
-  'gift-menu': ['command-carousel'],
-  'gift-fireworks': ['gift-cannon'],
-  'heart-rain': ['emojify'],
-};
-// Alle Typen, die als Variante hinter einem Anführer liegen. Bei aktiver SUCHE
-// werden sie trotzdem gefunden — sonst wäre ein Widget unauffindbar, dessen
-// Namen der Nutzer kennt.
-const RELATED_MEMBERS = new Set(Object.values(RELATED_OF).flat());
-// Spezialfälle, die kaum jemand braucht (Sport-Ticker: externer Anbieter, 13
-// technische Optionen, thematisch neben der Spur). Nicht gelöscht — wer sie
-// schon nutzt, behält sie —, aber am Ende der Kategorie eingeklappt.
-const RARELY_USED = new Set(['sport-ticker']);
 
 // widgetType → Label, einmalig aufgebaut. Spart das lineare WIDGET_TYPES.find()
 // pro Layer pro Render in der Ebenen-Liste.
@@ -315,15 +268,22 @@ export default function OverlayPage() {
           >
             {items.map((w) => {
               // Varianten nur außerhalb der Suche anbieten — bei einer Suche ist
-              // ohnehin schon jedes Widget einzeln in der Trefferliste.
-              const variants = paletteQuery.trim()
+              // ohnehin schon jedes Widget einzeln in der Trefferliste. In der
+              // aufgeklappten Ansicht ebenso: dort steht jede Variante bereits
+              // als eigene Kachel, ein Aufklapper waere ein zweiter Weg zum
+              // selben Widget.
+              const variants = paletteQuery.trim() || paletteBreit
                 ? []
                 : (RELATED_OF[w.type] ?? [])
                     .map((t) => WIDGET_TYPES.find((x) => x.type === t))
                     .filter((x): x is (typeof WIDGET_TYPES)[number] => !!x);
               const open = openGroup === w.type;
               return (
-                <Fragment key={w.type}>
+                // Key aus Typ UND Label: „Top Gifter" und „Like-Liste" sind
+                // derselbe Widget-Typ mit anderer Voreinstellung und stehen
+                // beide in „Listen & Chat" — mit `key={w.type}` waeren das zwei
+                // React-Kinder mit demselben Schluessel.
+                <Fragment key={`${w.type}-${w.label}`}>
                   {renderPaletteCard(w)}
                   {variants.length > 0 && (
                     <button
@@ -797,9 +757,16 @@ export default function OverlayPage() {
       // Beschreibung. Vorher listete „geschenk" den Hype-Train vor dem
       // Geschenk-Menue, weil das Wort in dessen Beschreibung vorkommt — und in
       // der schmalen Spalte sah man die echten Geschenk-Widgets gar nicht.
+      // Die Kategorie zaehlt als Beiwerk mit: Wer „spiel" tippt, meint die
+      // Spiele — auch die, deren Name das Wort nicht enthaelt (Glücksrad,
+      // Galgenmännchen, 4 Gewinnt). Vorher fand „spiel" drei von zwoelf.
       return WIDGET_TYPES
-        .filter((w) => passt(q, w.label, w.desc, w.type))
-        .sort((a, b) => bewerte(q, b.label, b.desc, b.type) - bewerte(q, a.label, a.desc, a.type));
+        .filter((w) => passt(q, w.label, w.desc, w.type, katLabel(w.type)))
+        .sort(
+          (a, b) =>
+            bewerte(q, b.label, b.desc, b.type, katLabel(b.type))
+            - bewerte(q, a.label, a.desc, a.type, katLabel(a.type)),
+        );
     }
     if (activeCat === 'beliebt') {
       return POPULAR_WIDGETS
@@ -817,22 +784,7 @@ export default function OverlayPage() {
   // Alle Kategorien mit Inhalt — für die aufgeklappte Ansicht. Die Einteilung
   // steckt in palette-gruppen.ts, damit sie prüfbar ist und nicht in der
   // Ansicht verstreut liegt.
-  const gruppen = useMemo(
-    () =>
-      gruppiereNachKategorie(WIDGET_TYPES, {
-        kategorieVon: CATEGORY_OF,
-        kategorien: PALETTE_CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
-        beliebtId: 'beliebt',
-        beliebt: POPULAR_WIDGETS,
-        varianten: RELATED_MEMBERS,
-        // Aufgeklappt heisst „Alle Widgets auf einmal zeigen" — dann duerfen
-        // die Spezialfaelle nicht ausgerechnet dort fehlen. Eingeklappt
-        // bleiben sie wie gehabt am Listenende versteckt.
-        spezial: new Set<string>(),
-        rueckfall: 'deko',
-      }),
-    [],
-  );
+  const gruppen = useMemo(() => alleGruppen(WIDGET_TYPES), []);
 
   // Die Spezialfälle der aktiven Kategorie, eingeklappt am Listenende.
   const rareItems = useMemo(() => {
@@ -851,7 +803,7 @@ export default function OverlayPage() {
   const renderPaletteCard = (w: (typeof WIDGET_TYPES)[number]) =>
     livePalette ? (
       <WidgetPreview
-        key={w.type}
+        key={`${w.type}-${w.label}`}
         type={w.type}
         props={w.props}
         w={w.w}
@@ -864,7 +816,7 @@ export default function OverlayPage() {
       />
     ) : (
       <button
-        key={w.type}
+        key={`${w.type}-${w.label}`}
         onClick={() => addWidget(w)}
         className="clip-slant group rounded-lg border border-studio-border bg-studio-raised p-2.5 text-left transition-colors hover:border-studio-accent/60"
       >

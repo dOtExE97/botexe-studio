@@ -3,6 +3,64 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [Unveröffentlicht]
+
+### Geschenkzähler: Zähler und Titel abschaltbar
+
+Der Geschenkzähler zeigte immer alles — Titel, Geschenk und „6 / 15" darunter.
+Wer nur **das Geschenk** im Bild haben will, konnte das nicht einstellen. Es
+gibt jetzt drei Schalter (Titel, Zählerstand, Fortschrittsring), alle
+standardmäßig an. Sind Titel und Zählerstand aus, füllt das Geschenk die ganze
+Box, statt klein in der Mitte zu schweben.
+
+Bestehende Overlays ändern sich nicht: Ein fehlender Wert gilt als „an", nur
+ein ausdrückliches Abwählen blendet etwas aus.
+
+### Widget-Suche findet jetzt auch, was anders heißt
+
+Eine Zuschauerin suchte „geschenk" und bekam vier von elf Geschenk-Widgets —
+der Rest heißt englisch („Gift-Alert", „Gift-Feed", „Coin-Glas"). Die Suche
+kennt jetzt sinnverwandte Wörter (geschenk↔gift, uhr↔timer, musik↔spotify,
+alarm↔alert, spiel↔game, herz↔like …) und durchsucht zusätzlich den
+Kategorienamen. Der wörtliche Treffer steht dabei immer vorn: Wer „gift" tippt,
+sieht weiter „Gift-Alert" zuerst.
+
+Gemessen am echten Katalog: „geschenk" 9 → 21 Treffer, „spiel" 3 → 14,
+„alarm" 0 → 6, „musik" und „uhr" von 0 auf die richtigen Widgets.
+
+### „Alle zeigen" zeigt jetzt wirklich alles
+
+In der aufgeklappten Palette lagen 13 von 46 Widgets trotzdem hinter einem
+„2 Varianten zu …"-Knopf — ausgerechnet in der Ansicht, die „zeig mir alles"
+heißt. Jetzt steht dort jedes Widget als eigene Kachel. Die schmale Palette
+fasst weiter zusammen; dort ist das ja der Sinn.
+
+### Drei Widgets lagen im falschen Reiter
+
+- **Countdown** und **Subathon-Timer** standen unter „Gifts & Ziele" — wer eine
+  Uhr sucht, sucht sie nicht bei den Geschenken. Jetzt „Stats & Zähler".
+- **Meilenstein-Konfetti** zeigt keinen Stand an, es feiert einen Moment →
+  „Alerts".
+- Der **Geschenkzähler** lag als Variante hinter der Goal-Bar und war in der
+  schmalen Palette gar nicht zu sehen, obwohl er etwas anderes tut. Er steht
+  jetzt für sich.
+
+Die Einteilung liegt jetzt in `palette-gruppen.ts` statt in der Ansicht, und
+Wächter-Tests prüfen sie gegen den echten Katalog: jedes Widget hat eine
+Kategorie, Anführer und Varianten liegen im selben Reiter, und „Alle zeigen"
+zeigt wirklich jedes Widget. `docs/widgets.md` wird daraus erzeugt
+(`npm run galerie`) — die Galerie hatte das Befehl-Karussell noch bei der Deko.
+
+### Behoben
+
+- Sticker-Bilder werden am **Inhalt** erkannt, nicht an der Adresse. Kanaleigene
+  Sticker (die vom Streamer selbst hochgeladenen) haben keine Dateiendung in der
+  Adresse; sie landeten als PNG unter `.webp` und wurden mit falschem Inhaltstyp
+  ausgeliefert. Heute merkt das kein Browser — sobald wir aber einen
+  `nosniff`-Header setzen, wären genau diese Sticker leer geblieben.
+- Doppelte React-Schlüssel in der Palette: „Top Gifter" und „Like-Liste" sind
+  derselbe Widget-Typ und stehen beide in „Listen & Chat".
+
 ## [0.55.2] — 2026-08-21
 
 ### Sticker-Bilder und Teamherz-Stufe funktionieren jetzt auch im Cloud-Modus

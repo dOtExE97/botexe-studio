@@ -3,8 +3,10 @@
 // Glow-Ring), Titel, „aktuell / Ziel". Bei Zielerreichung: Ziel erhöhen / Reset /
 // belassen. Wert überlebt Overlay-Reloads (localStorage pro Layer).
 // props: { giftSlug?, target?, label?, onReach?: 'raise'|'reset'|'keep',
-//          accent?, theme? }  — bei „raise" steigt das Ziel um die ursprüngliche
-//          Zielgröße (15 → 30 → 45 …).
+//          showTitle?, showCount?, showRing?, accent?, theme? }  — bei „raise"
+//          steigt das Ziel um die ursprüngliche Zielgröße (15 → 30 → 45 …).
+//          Die show*-Schalter sind standardmäßig an; alle drei aus = nur das
+//          Geschenk-Bild.
 //
 // giftKey() kommt aus gift-rules.js (EINZIGE Quelle, s. dortiger Kommentar) —
 // vorher hatte diese Datei eine eigene, textidentische Kopie (4. unabhängige
@@ -46,6 +48,21 @@ const CSS = `
 .bx-gco-prog { font-family: var(--bx-font-num, var(--bx-font-display)); font-weight:800; font-size: clamp(16px, calc(var(--u) * 31), 120px);
   color: var(--bx-gold); -webkit-text-stroke: 2.5px var(--bx-ink,#0a0b12); paint-order: stroke fill; }
 .bx-gco.done .bx-gco-prog { color: var(--bx-teal); }
+
+/* ── Was gezeigt wird (Titel / Zählerstand / Fortschrittsring) ──────────────
+   Wunsch aus der Praxis: „nur das Geschenk, ohne Zähler drunter". Ohne diese
+   Schalter musste man dafür den Titel leeren UND konnte die Zahl gar nicht
+   loswerden. Standard ist unverändert alles an — bestehende Overlays sehen
+   also genauso aus wie vorher (die Klassen kommen nur bei ausdrücklichem
+   Abwählen dazu). */
+.bx-gco.ohne-titel .bx-gco-title { display: none; }
+.bx-gco.ohne-zaehler .bx-gco-prog { display: none; }
+.bx-gco.ohne-ring .bx-gco-ring { display: none; }
+/* Bleibt nur das Geschenk übrig, füllt es die Box aus — sonst schwebte ein
+   kleines Icon in viel Leere, weil die Größe für Icon + zwei Textzeilen
+   gerechnet ist. Weiter über --u, damit es beim Ziehen mitwächst. */
+.bx-gco.nur-icon .bx-gco-iconwrap { width: clamp(40px, calc(var(--u) * 300), 900px);
+  height: clamp(40px, calc(var(--u) * 300), 900px); margin-bottom: 0; }
 
 /* ── Stil „Neon" — freistehend: Icon + Zahlen mit Glow, kein Panel. */
 .bx-gco-neon { background: none !important; box-shadow: none !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -113,6 +130,26 @@ export function findGiftIcon(catalog, slug) {
   return '';
 }
 
+/** Welche Anzeige-Klassen an der Wurzel hängen (Titel/Zähler/Ring aus).
+ *
+ *  FEHLENDER WERT HEISST „AN": Alle Overlays, die vor diesen Schaltern gebaut
+ *  wurden, haben die Schlüssel gar nicht — sie müssen unverändert aussehen.
+ *  Nur ein ausdrückliches `false` blendet aus. Ausgelagert, weil der Rest des
+ *  Widgets DOM braucht und diese Regel damit sonst ungeprüft bliebe. */
+export function anzeigeKlassen(props) {
+  const p = props || {};
+  const titel = p.showTitle !== false;
+  const zaehler = p.showCount !== false;
+  const klassen = [];
+  if (!titel) klassen.push('ohne-titel');
+  if (!zaehler) klassen.push('ohne-zaehler');
+  if (p.showRing === false) klassen.push('ohne-ring');
+  // Ohne Titel UND ohne Zahl bleibt nur das Geschenk — dann darf es die Box
+  // ausfüllen statt in der Mitte zu schweben.
+  if (!titel && !zaehler) klassen.push('nur-icon');
+  return klassen;
+}
+
 /** Was bei Zielerreichung passiert. step = ursprüngliche Schrittweite. */
 export function onGiftGoalReached(count, target, step, mode) {
   if (mode === 'raise') return step > 0 ? { count, target: target + step } : { count, target };
@@ -139,7 +176,11 @@ export default class GiftCounter {
 
     this.el = document.createElement('div');
     this.style = ['glas', 'neon', 'medaille'].includes(props.style) ? props.style : 'glas';
-    this.el.className = `bx-gco${this.style !== 'glas' ? ` bx-gco-${this.style}` : ''}`;
+    this.el.className = [
+      'bx-gco',
+      ...(this.style !== 'glas' ? [`bx-gco-${this.style}`] : []),
+      ...anzeigeKlassen(props),
+    ].join(' ');
     this.el.innerHTML = `<div class="bx-gco-iconwrap"><div class="bx-gco-ring"></div><div class="bx-gco-icon"></div></div>
       <div class="bx-gco-title"></div><div class="bx-gco-prog"></div>`;
     this.el.querySelector('.bx-gco-title').textContent = this.label;

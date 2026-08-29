@@ -1,7 +1,7 @@
 // gift-counter.test.ts — Ziel-Logik bei Erreichen (DOM-frei).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { onGiftGoalReached, findGiftIcon } from './gift-counter.js';
+import { onGiftGoalReached, findGiftIcon, anzeigeKlassen } from './gift-counter.js';
 
 test('findGiftIcon: Icon per lowercase-Slug (Katalog-Key ODER entry.slug), sonst leer', () => {
   const cat = {
@@ -33,4 +33,29 @@ test('keep (Default): nichts ändern', () => {
 
 test('Schrittweite ungültig/0 → Ziel bleibt auch bei raise (kein Stillstand-Bug)', () => {
   assert.deepEqual(onGiftGoalReached(15, 15, 0, 'raise'), { count: 15, target: 15 });
+});
+
+// ── Anzeige-Schalter (Titel / Zählerstand / Fortschrittsring) ───────────────
+test('ohne Angabe bleibt alles sichtbar — bestehende Overlays ändern sich nicht', () => {
+  assert.deepEqual(anzeigeKlassen({}), []);
+  assert.deepEqual(anzeigeKlassen(undefined), []);
+  // Auch ein ausdrückliches true darf nichts ausblenden.
+  assert.deepEqual(anzeigeKlassen({ showTitle: true, showCount: true, showRing: true }), []);
+});
+
+test('jeder Schalter blendet genau sein Teil aus', () => {
+  assert.deepEqual(anzeigeKlassen({ showTitle: false }), ['ohne-titel']);
+  assert.deepEqual(anzeigeKlassen({ showCount: false }), ['ohne-zaehler']);
+  assert.deepEqual(anzeigeKlassen({ showRing: false }), ['ohne-ring']);
+});
+
+test('Titel und Zähler aus → nur das Geschenk, und es füllt die Box', () => {
+  assert.deepEqual(anzeigeKlassen({ showTitle: false, showCount: false }), ['ohne-titel', 'ohne-zaehler', 'nur-icon']);
+  // Der Ring darf dabei bleiben — „nur-icon" hängt nicht an ihm.
+  assert.ok(!anzeigeKlassen({ showTitle: false, showCount: false }).includes('ohne-ring'));
+});
+
+test('nur der Zähler aus (der gemeldete Wunsch) lässt den Titel stehen', () => {
+  const k = anzeigeKlassen({ showCount: false });
+  assert.ok(!k.includes('nur-icon'), 'mit Titel ist es nicht „nur das Geschenk"');
 });
