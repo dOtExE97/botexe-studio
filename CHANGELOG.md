@@ -111,6 +111,43 @@ Und drei ruhigere:
 Die bestehenden drei Stile sind unverändert. Alle neuen bewegen ausschließlich
 transform/opacity/filter — der Browser in TikTok Live Studio ist schwach.
 
+### Namen mit Schmuckschrift werden endlich normal vorgelesen
+
+Viele Zuschauer schreiben ihren Namen in Zierschriften — 𝓐𝓵𝓮𝔁, 𝔸𝕝𝕖𝕩, ᴀʟᴇx,
+Ａｌｅｘ, 🅐🅛🅔🅧. Das sind keine Schriftarten, sondern eigene Zeichen. Für dich
+sieht es aus wie „Alex", für die Sprachausgabe ist es etwas völlig anderes: Sie
+buchstabiert, spricht Zeichennamen aus oder überspringt den Namen wortlos.
+
+Vor dem Vorlesen werden diese Zeichen jetzt auf normale Buchstaben
+zurückgeführt. Deutsche Umlaute bleiben dabei unangetastet (der naheliegende
+Weg macht aus „Grüße für München" ein „Grusse fur Munchen"), und wer wirklich
+kyrillisch oder japanisch heißt, wird weiter so vorgelesen. Unsichtbarer Ballast
+und gestapelte Akzente („Zalgo") fliegen raus.
+
+Besteht ein Name nur aus Emojis oder Sternchen, sagt die Stimme „Jemand" statt
+mitten im Satz zu verstummen.
+
+Das gilt für alles, was vorgelesen wird — Ansagen und Chat.
+
+### Teamherz-Glas
+
+Das Coin-Glas hat eine neue Einstellung: **Was füllt den Behälter.**
+
+- **Alle Geschenke (nach Coins)** — wie bisher, ein großes Geschenk füllt viel.
+- **Nur Teamherzen (nach Stück)** — jedes Teamherz ist ein Ball, egal was es
+  kostet. Das Ziel meint dann Teamherzen: 30 statt 2000.
+
+Nach Coins gezählt käme so ein Glas nie vom Fleck — ein Teamherz kostet einen
+einzigen Coin.
+
+### Gift-Alert im Neon-Stil passt wieder in seine Box
+
+Er ragte in jeder Größe rund 25px über sein Kästchen hinaus. Im Stream fällt das
+nicht auf, im Editor passen Anfasser und Bild aber nicht zusammen, und zwei dicht
+gesetzte Widgets überlappen unerklärlich. Schriften und Bild sind jetzt rund 15%
+kleiner. Bewusst NICHT den Stil entfernt: Wer ihn nutzt, hätte kommentarlos das
+Glas-Design zurückbekommen — eine viel größere Änderung.
+
 ### Durchsicht aller Widget-Stile und -Einstellungen
 
 Alle 46 Katalogeinträge, 92 wählbaren Stile und jedes Bedienfeld einmal

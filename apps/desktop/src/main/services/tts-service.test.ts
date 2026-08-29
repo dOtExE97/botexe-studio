@@ -215,3 +215,16 @@ test('Ansagen ohne Zeitstempel (Alt-Einträge) werden NICHT verworfen', async ()
   await wait(60);
   assert.ok(tts.gesprochen.includes('ohne-stempel'));
 });
+
+// ── Schmuckschriften: der Grund für „merkwürdig vorgelesene Namen" ─────────
+test('sanitize glättet Schmuckschriften — sonst buchstabiert die Stimme', () => {
+  assert.equal(TTSService.sanitize('𝓜𝓲𝓪 hat ein Geschenk geschickt', 200), 'Mia hat ein Geschenk geschickt');
+  assert.equal(TTSService.sanitize('ᴀʟᴇx ist da', 200), 'ALEx ist da');
+  assert.equal(TTSService.sanitize('Ｈａｌｌｏ', 200), 'Hallo');
+});
+
+test('sanitize lässt deutsche Umlaute in Ruhe', () => {
+  // Der naheliegende Weg (zerlegen und Akzente wegwerfen) macht daraus
+  // „Grusse fur Munchen".
+  assert.equal(TTSService.sanitize('Grüße für München', 200), 'Grüße für München');
+});

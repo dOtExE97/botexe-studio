@@ -12,6 +12,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { log } from '../core/logger';
+import { sprechbar } from '@botexe/trigger-engine';
 import {
   PiperRuntime,
   getVoiceGroups,
@@ -210,7 +211,11 @@ export class TTSService {
 
   /** Text-Hygiene gegen TTS-Trolling: Links raus, Emoji-Fluten kürzen, Cap. */
   static sanitize(text: string, maxLen: number): string {
-    let t = text
+    // sprechbar() zuerst: Schmuckschriften („𝓐𝓵𝓮𝔁", „ᴀʟᴇx", „Ａｌｅｘ") werden zu
+    // normalen Buchstaben, unsichtbarer Ballast fliegt raus. Das war der Grund,
+    // warum manche Zuschauernamen im Live buchstabiert oder gar nicht
+    // vorgelesen wurden. Siehe sprechbar.ts im Trigger-Paket.
+    let t = sprechbar(text)
       .replace(/https?:\/\/\S+/gi, '') // links
       // Auch NACKTE Domains nicht vorlesen ("xyz.com", "www.spam.de") —
       // Werbe-/Scam-Links sind der Hauptgrund, warum Streamer TTS fürchten.

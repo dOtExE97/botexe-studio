@@ -67,3 +67,17 @@ test('„Bei allem" schließt Betreten, Abo UND Teamherz-Geschenk ein', () => {
   assert.equal(sollIntroLaufen({ ...f, typ: 'gift', giftId: TEAMHERZ_GIFT_ID }), true);
   assert.equal(sollIntroLaufen({ ...f, typ: 'gift', giftId: 1 }), false, 'ein x-beliebiges Geschenk nicht');
 });
+
+// Wächter: Die Geschenk-Nummer des Teamherzens steht ein zweites Mal im
+// Coin-Glas (packages/widget-kit/gift-jar.js) — reines JavaScript kann diese
+// TypeScript-Datei nicht importieren. Laufen die Zahlen auseinander, füllt sich
+// das Teamherz-Glas einfach nie, ohne dass irgendwo ein Fehler auftaucht.
+test('die Teamherz-Geschenknummer im Coin-Glas ist dieselbe', async () => {
+  const { readFileSync, existsSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const wurzel = existsSync(join(process.cwd(), 'src', 'main.ts')) ? join(process.cwd(), '..', '..') : process.cwd();
+  const quelle = readFileSync(join(wurzel, 'packages/widget-kit/gift-jar.js'), 'utf-8');
+  const m = quelle.match(/const TEAMHERZ_GIFT_ID = (\d+);/);
+  assert.ok(m, 'TEAMHERZ_GIFT_ID im Coin-Glas nicht gefunden — Kopie umbenannt?');
+  assert.equal(Number(m[1]), TEAMHERZ_GIFT_ID);
+});

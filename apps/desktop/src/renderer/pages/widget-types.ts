@@ -914,9 +914,13 @@ export const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'gift-jar', label: 'Coin-Glas', desc: 'Behälter, der sich mit den Geschenken füllt — jedes Gift ein Ball mit Bild, größer bei mehr Coins. Als Glas, Herz, Pokal, Schatztruhe oder im TikFinity-Original-Look.',
-    w: 440, h: 520, props: { target: 2000, label: '', shape: 'glas', showToast: true, accent: '#ffd23e' },
+    type: 'gift-jar', label: 'Coin-Glas', desc: 'Behälter, der sich mit den Geschenken füllt — jedes Gift ein Ball mit Bild, größer bei mehr Coins. Wahlweise auch als reines Teamherz-Glas. Als Glas, Herz, Pokal, Schatztruhe oder im TikFinity-Original-Look.',
+    w: 440, h: 520, props: { target: 2000, label: '', quelle: 'coins', shape: 'glas', showToast: true, accent: '#ffd23e' },
     fields: [
+      { key: 'quelle', label: 'Was füllt den Behälter', type: 'select', hint: '„Alle Geschenke" zählt Coins — ein großes Geschenk füllt viel, ein kleines wenig. „Nur Teamherzen" zählt Stück: jedes Teamherz ist ein Ball, egal was es kostet. Das Ziel unten meint dann Teamherzen statt Coins.', options: [
+        { value: 'coins', label: '🎁 Alle Geschenke (nach Coins)' },
+        { value: 'teamherz', label: '💗 Nur Teamherzen (nach Stück)' },
+      ] },
       { key: 'shape', label: 'Form', type: 'select', options: [
         { value: 'glas', label: '🫙 Bonbon-Glas (Standard)' },
         { value: 'tikfinity', label: '🫙 Mason-Glas (TikFinity-Original)' },
@@ -924,7 +928,7 @@ export const WIDGET_TYPES: {
         { value: 'pokal', label: '🏆 Pokal (Gold-Henkel)' },
         { value: 'truhe', label: '🪙 Schatztruhe' },
       ], hint: 'In welchen Behälter die Geschenke fallen.' },
-      { key: 'target', label: 'Ziel (Coins)', type: 'number', hint: 'Bei diesem Wert ist der Behälter voll.' },
+      { key: 'target', label: 'Ziel', type: 'number', hint: 'Bei diesem Wert ist der Behälter voll — Coins oder Teamherzen, je nach der Einstellung darüber. Für Teamherzen ist 2000 viel zu hoch; 20 bis 50 passen eher.' },
       { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Text über dem Glas, leer = „Coin-Glas".' },
       { key: 'showToast', label: 'Donation-Toasts', type: 'boolean', hint: 'Zeigt bei jedem Gift kurz „Name schickt Gift ×N" .' },
       ACCENT_FIELD,

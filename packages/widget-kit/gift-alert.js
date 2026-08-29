@@ -60,16 +60,24 @@ const CSS = `
 
 /* ── Stil „Neon" — freistehend, ohne Panel: riesiger Kontur-Name mit hartem
    Glow, Gift-Bild groß. Gemacht für Overlays direkt über dem Gameplay. */
-.bx-ga-neon .bx-ga-card { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding: 10px 20px; }
+.bx-ga-neon .bx-ga-card { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding: 2px 20px; gap: 0; }
 .bx-ga-neon .bx-ga-card::before, .bx-ga-neon .bx-ga-card::after { display: none; }
 .bx-ga-neon .bx-ga-kicker { display: inline-block; padding: 4px 22px; transform: rotate(-2deg);
   background: linear-gradient(120deg, var(--bx-accent), var(--bx-accent-2)); color: #0a0b10;
   clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%); text-shadow: none; letter-spacing: .34em; }
-.bx-ga-neon .bx-ga-name { font-size: calc((clamp(20px,min(8.4cqi,16.8cqh),130px)) * var(--bx-fs, 1)); -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill;
+/* Etwa 10% kleiner als zuvor: Der Neon-Stil ragte in JEDER Boxgröße rund 25px
+   nach oben und unten über sein Kästchen hinaus (die Kicker-Zeile oben, die
+   Coins-Zeile unten). Im Stream fällt das nicht auf, weil nichts beschneidet —
+   aber im Editor passen Anfasser und Bild nicht zusammen, und wer zwei Widgets
+   dicht setzt, bekommt eine Überlappung, die er nicht erklären kann.
+   Bewusst verkleinert statt den Stil zu entfernen: Wer ihn schon benutzt, hätte
+   sonst kommentarlos das Glas-Design zurückbekommen — eine viel größere
+   Änderung als 10% Schriftgröße. */
+.bx-ga-neon .bx-ga-name { font-size: calc((clamp(17px,min(7cqi,14cqh),108px)) * var(--bx-fs, 1)); -webkit-text-stroke: 3px var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 0 34px var(--bx-accent), 0 6px 0 rgba(0,0,0,.35); max-width: none; }
-.bx-ga-neon .bx-ga-img { height: clamp(40px,min(17cqi,34cqh),270px); }
-.bx-ga-neon .bx-ga-ph { height: clamp(38px,min(16cqi,32cqh),250px); }
-.bx-ga-neon .bx-ga-coins { font-size: calc((clamp(15px,min(5cqi,10cqh),76px)) * var(--bx-fs, 1)); -webkit-text-stroke: 2px var(--bx-ink, #0a0b12); paint-order: stroke fill; }
+.bx-ga-neon .bx-ga-img { height: clamp(34px,min(14cqi,28cqh),224px); }
+.bx-ga-neon .bx-ga-ph { height: clamp(34px,min(14.2cqi,28.4cqh),222px); }
+.bx-ga-neon .bx-ga-coins { font-size: calc((clamp(14px,min(4.5cqi,9cqh),68px)) * var(--bx-fs, 1)); -webkit-text-stroke: 2px var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 
 /* ── Stil „Banner" — Lower-Third-Leiste: schmale Zeile, schräge Kanten, slidet
    von links. Dezent für Streamer, denen der Vollformat-Alert zu viel ist. */

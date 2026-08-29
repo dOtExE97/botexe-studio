@@ -8,6 +8,17 @@ import { comboPlan } from './combo.js';
 // Anzeigename (deutscher/eigener Name, falls eingestellt) — gemeinsame Quelle.
 import { giftName } from './gift-rules.js';
 
+/** Die Geschenk-Nummer des Teamherzens bei TikTok.
+ *  KOPIE von TEAMHERZ_GIFT_ID in apps/desktop/src/main/services/intro.ts —
+ *  dieses Paket ist reines JavaScript und kann die TypeScript-Seite nicht
+ *  importieren. Ein Test hält beide Zahlen gleich. */
+const TEAMHERZ_GIFT_ID = 7934;
+/** Ballgröße im Teamherz-Glas: ein fester Coin-Wert, damit alle Bälle gleich
+ *  groß fallen (die Größe steht sonst für den Coin-Wert des Geschenks). */
+const TEAMHERZ_BALLWERT = 120;
+/** Was das Glas füllen kann. */
+const QUELLEN = ['coins', 'teamherz'];
+
 const STYLE_ID = 'bx-jar-style';
 // --u = „1px bei Standardgröße" (440×520): Badge, Label und Toasts sind
 // Vielfache davon und wachsen mit, wenn das Glas größer gezogen wird.
@@ -130,6 +141,10 @@ export default class GiftJar {
     this.resting = [];
     this.running = false;
     this.showToast = props.showToast !== false; // Donation-Toasts (TikFinity-Style)
+    // Was das Glas füllt. 'coins' = alle Geschenke nach ihrem Coin-Wert (wie
+    // bisher, damit vorhandene Overlays sich nicht verändern), 'teamherz' = nur
+    // Teamherzen, jedes zählt eins.
+    this.quelle = QUELLEN.includes(props.quelle) ? props.quelle : 'coins';
     // Behälter-Form: klassisches Glas, Herz, Pokal, Schatztruhe oder das
     // originalgetreu nachgezeichnete TikFinity-Mason-Glas.
     this.shape = ['glas', 'herz', 'pokal', 'truhe', 'tikfinity'].includes(props.shape) ? props.shape : 'glas';
@@ -267,7 +282,14 @@ export default class GiftJar {
   onEvent(event) {
     if (event.sticky) return; // Reconnect-Replay: rehydriert nur Anzeigen, keine Effekte/Zähler
     if (event.type !== 'gift' || !event.gift) return;
-    this.coinsValue += event.gift.totalCoins;
+    // Teamherz-Glas: NUR das Teamherz zählt, und zwar als STÜCK, nicht als
+    // Coins. Ein Teamherz kostet 1 Coin — nach Coins gezählt käme das Glas nie
+    // vom Fleck, und ein Ziel wie „30 Teamherzen" ließe sich gar nicht
+    // ausdrücken.
+    if (this.quelle === 'teamherz') {
+      if (Number(event.gift.giftId) !== TEAMHERZ_GIFT_ID) return;
+      this.coinsValue += Math.max(1, Math.floor(event.gift.count || 1));
+    } else this.coinsValue += event.gift.totalCoins;
     const zielErreicht = this.updateBadge();
     // Premium-Auslöser: der Stand ist gestiegen → Zahl-Abzeichen. Ist damit das
     // Ziel erreicht → zusätzlich die Überschrift, deutlich lauter.
@@ -277,7 +299,11 @@ export default class GiftJar {
     // Combo (z.B. 10x Rose) wirft EINEN Ball pro Gift — nicht nur einen für die
     // ganze Combo. Anzahl gedeckelt, Ballgröße aus dem Einzel-Coin-Wert.
     const count = comboPlan(event.gift, 24).rockets;
-    const coinsPerUnit = event.gift.coinsPerUnit || event.gift.totalCoins || 1;
+    // Im Teamherz-Glas sind alle Bälle gleich groß: Die Größe steht sonst für
+    // den Coin-Wert, und den gibt es hier nicht zu vergleichen.
+    const coinsPerUnit = this.quelle === 'teamherz'
+      ? TEAMHERZ_BALLWERT
+      : (event.gift.coinsPerUnit || event.gift.totalCoins || 1);
     for (let i = 0; i < count; i++) {
       if (i === 0) this.spawn(event.gift, coinsPerUnit);
       else {
@@ -286,6 +312,8 @@ export default class GiftJar {
       }
     }
   }
+  /** Beispielstand für die Editor-Vorschau — im Teamherz-Glas sind es Stück,
+   *  nicht Coins, also darf der Demo-Ball auch nicht coin-groß sein. */
   spawn(gift, coins) {
     // Glas noch nicht vermessen (z.B. 0-Größe beim Mount/in der Vorschau)? Einmal
     // nachmessen; klappt das nicht, Ball überspringen (der Zähler lief schon) —

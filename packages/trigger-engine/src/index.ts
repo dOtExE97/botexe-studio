@@ -3,6 +3,8 @@
 
 export { giftRuleId, findGiftRule, upsertGiftRule, otherGiftRules, orderedGiftKeys, type GiftKey } from './gift-mapping';
 export { stickerRuleId, findStickerRule, upsertStickerRule, otherStickerRules } from './sticker-mapping';
+export { sprechbar, sprechbarerName, istSprechbar } from './sprechbar';
+import { sprechbarerName } from './sprechbar';
 // giftKey nach außen: JEDER Vergleich „ist das dieses Geschenk?" muss ihn
 // benutzen. Die Widget-Bindungen (Rad/Automat/Lucky-Card) verglichen die
 // Namen vorher buchstabengenau und verfehlten dadurch dasselbe Geschenk in
@@ -553,7 +555,10 @@ export function matchChatCommand(commands: ChatCommand[], message: string): Chat
 /** Füllt ein speak-Template mit Werten aus dem Event ({user} → Nickname usw.). */
 export function renderSpeakTemplate(template: string, event: StudioEvent): string {
   return template
-    .replace(/\{user\}/g, event.user?.nickname ?? 'Jemand')
+    // Der Name geht durch die Schmuckschrift-Aufbereitung: „𝓜𝓲𝓪" wird „Mia",
+    // und ein Name aus reinen Zierzeichen bekommt einen Ersatz, damit die
+    // Stimme nicht mitten im Satz verstummt. Siehe sprechbar.ts.
+    .replace(/\{user\}/g, sprechbarerName(event.user?.nickname))
     .replace(/\{text\}/g, event.text ?? '')
     // {args} = Chat-Text NACH dem ersten Wort (dem Befehl) — z.B. "!sr Song" → "Song".
     .replace(/\{args\}/g, (event.text ?? '').replace(/^\s*\S+\s*/, ''))
