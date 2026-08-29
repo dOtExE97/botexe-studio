@@ -16,7 +16,20 @@ Box, statt klein in der Mitte zu schweben.
 Bestehende Overlays ändern sich nicht: Ein fehlender Wert gilt als „an", nur
 ein ausdrückliches Abwählen blendet etwas aus.
 
-### Neun neue Designs für den Geschenkzähler
+### Zwölf neue Designs für den Geschenkzähler
+
+Drei davon stellen die Teile **anders auf** — bis dahin war jeder Stil dasselbe
+Gerüst mit anderer Deko (Bild in der Mitte, Titel darunter, Zahl unten), und
+genau deshalb fühlten sich viele Stile trotzdem gleich an:
+
+- **🃏 Sammelkarte** — Hochformat wie eine Spielkarte: das Geschenk in einem
+  gerahmten Bildfenster, darunter ein Namensschild, die Zahl auf einer Platte
+  und der Fortschritt als Leiste im unteren Kartenrand.
+- **📊 Zeile** — quer statt hoch: Geschenk links, Titel und Zahl rechts daneben.
+  Für die flache breite Leiste unter dem Stream, wo gestapelt alles winzig wird.
+  Die Größe richtet sich hier nach der Höhe, wie bei einer Textzeile.
+- **🔢 Zahl im Fokus** — die Zahl *ist* das Bild: riesig in der Mitte, das
+  Geschenk sitzt als Marke darauf, der Titel klein darunter.
 
 **💎 Studio** ist der aufwendigste: das Geschenk als Produktfoto statt als
 Aufkleber. Vier Handgriffe machen aus dem flachen Bild einen Gegenstand —

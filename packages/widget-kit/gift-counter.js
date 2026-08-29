@@ -629,6 +629,102 @@ html .bx-frameless .bx-gco-portal .bx-gco-deko::after {
   border-color: color-mix(in srgb, var(--bx-accent) 55%, transparent) !important; }
 html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal) !important; }
 
+/* ══ Drei ANDERE Anordnungen ═════════════════════════════════════════════
+   Bis hierher war jeder Stil dasselbe Gerüst mit anderer Deko: Bild in der
+   Mitte, Titel darunter, Zahl ganz unten. Das ist der Grund, warum sich zehn
+   Stile trotzdem gleich anfühlen — die SILHOUETTE war immer dieselbe.
+
+   Diese drei stellen die Teile anders auf. Möglich ist das ohne Änderung am
+   Gerüst, weil die Wurzel ein Raster wird und jedem Kind eine Fläche zuweist:
+   nebeneinander, übereinander oder gestapelt. Die Reihenfolge im Dokument
+   bleibt, wie sie ist. */
+
+/* ── Stil „Sammelkarte" — Hochformat wie eine Spielkarte: das Geschenk in
+   einem gerahmten Fenster oben, darunter ein Namensschild, unten die Zahl auf
+   einer Platte, ganz unten die Fortschrittsleiste im Kartenrand.
+   Der Fortschrittsring liegt hier NICHT ums Bild: dafür wird der Bildrahmen zum
+   Bezugspunkt (position:static), und der Ring kann sich an der ganzen KARTE
+   ausrichten statt am Bild. */
+.bx-gco-karte { justify-content: flex-start; gap: 0; padding: 5% 6% 7%;
+  background: linear-gradient(168deg, #2a2115 0%, #14100a 42%, #0a0a0f 100%) !important;
+  border-radius: calc(var(--u) * 14);
+  box-shadow: inset 0 0 0 calc(var(--u) * 2) color-mix(in srgb, var(--bx-gold) 45%, transparent),
+    0 calc(var(--u) * 10) calc(var(--u) * 26) rgba(0,0,0,.5) !important; }
+/* Die Haarlinie innen — das, was eine Karte zur Karte macht. */
+.bx-gco-karte .bx-gco-deko { inset: calc(var(--u) * 6); border-radius: calc(var(--u) * 9);
+  border: 1px solid color-mix(in srgb, var(--bx-gold) 32%, transparent); }
+/* Das Bildfenster. */
+/* overflow:hidden ist hier nicht Kosmetik: Die Höhe des Fensters ist eine
+   Prozentangabe, und ein Bild darin bekommt seine Höhe dann aus dem eigenen
+   Seitenverhältnis statt aus dem Fenster — gemessen ragte der Löwe 62px unten
+   heraus, quer über das Namensschild. Ein Bildfenster, das beschneidet, ist bei
+   einer Karte ohnehin richtig. */
+.bx-gco-karte .bx-gco-iconwrap { position: static; overflow: hidden;
+  width: 100%; height: 60%; margin: 0 0 3.5% 0;
+  border-radius: calc(var(--u) * 8);
+  background: radial-gradient(80% 70% at 50% 22%, color-mix(in srgb, var(--bx-accent) 20%, transparent), rgba(0,0,0,.5) 72%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bx-gold) 30%, transparent), inset 0 0 calc(var(--u) * 30) rgba(0,0,0,.75); }
+.bx-gco-karte .bx-gco-icon { width: 88%; height: 88%; }
+/* Namensschild statt freistehender Überschrift. */
+.bx-gco-karte .bx-gco-title { width: 100%; padding: 2.5% 4%; -webkit-text-stroke: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(0,0,0,.35));
+  border-top: 1px solid color-mix(in srgb, var(--bx-gold) 40%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--bx-gold) 40%, transparent);
+  color: color-mix(in srgb, var(--bx-gold) 30%, white); letter-spacing: .12em;
+  font-size: clamp(9px, calc(var(--u) * 15), 58px); text-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 4) rgba(0,0,0,.9); }
+.bx-gco-karte .bx-gco-prog { margin: auto 0; -webkit-text-stroke: 0; color: var(--bx-gold);
+  text-shadow: 0 0 calc(var(--u) * 16) color-mix(in srgb, var(--bx-gold) 60%, transparent); }
+/* Fortschritt als Leiste im unteren Kartenrand. */
+.bx-gco-karte .bx-gco-ring { inset: auto 9% 4% 9%; height: calc(var(--u) * 5); border-radius: 999px;
+  -webkit-mask: none; mask: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-gold) 92%, white) 0 var(--pct, 0%), rgba(255,255,255,.10) var(--pct, 0%) 100%);
+  filter: drop-shadow(0 0 calc(var(--u) * 7) color-mix(in srgb, var(--bx-gold) 55%, transparent)); }
+.bx-gco-karte.done .bx-gco-ring { background: linear-gradient(90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white)); animation: none; }
+.bx-gco-karte.hit .bx-gco-iconwrap { animation: bx-gco-kartenpuls 620ms ease-out; }
+@keyframes bx-gco-kartenpuls {
+  0% { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bx-gold) 30%, transparent), inset 0 0 calc(var(--u) * 30) rgba(0,0,0,.75); }
+  25% { box-shadow: inset 0 0 0 calc(var(--u) * 2) var(--bx-gold), inset 0 0 calc(var(--u) * 40) color-mix(in srgb, var(--bx-accent) 45%, transparent); }
+  100% { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bx-gold) 30%, transparent), inset 0 0 calc(var(--u) * 30) rgba(0,0,0,.75); } }
+
+/* ── Stil „Zeile" — quer statt hoch: Geschenk links, Text rechts. Für flache,
+   breite Kästen (die Leiste unter dem Stream), wo eine gestapelte Anordnung
+   nur zwei Zeilen Platz hätte und alles winzig würde. */
+/* In einer flachen, breiten Box ist die kurze Seite die Höhe — die
+   Grundformel (min aus Breite und Höhe) macht dort alles winzig. Eine Zeile
+   soll sich aber an ihrer Höhe ausrichten, so wie eine Textzeile auch. */
+/* Die Breite bleibt als Deckel drin: in einem hohen, schmalen Kasten wäre eine
+   rein höhenbezogene Größe absurd (gemessen: das Geschenk dreimal so breit wie
+   die Box). Der kleinere der beiden Werte gewinnt. */
+.bx-gco-zeile { --u: calc(min(0.62cqh, 0.30cqi) * var(--bx-fs, 1));
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'bild titel' 'bild zahl'; align-items: center; justify-items: start;
+  column-gap: 4%; row-gap: 0; padding: 0 5%; text-align: left; }
+.bx-gco-zeile .bx-gco-iconwrap { grid-area: bild; margin: 0;
+  width: clamp(30px, calc(var(--u) * 108), 420px); height: clamp(30px, calc(var(--u) * 108), 420px); }
+.bx-gco-zeile .bx-gco-title { grid-area: titel; align-self: end; font-size: clamp(9px, calc(var(--u) * 16), 62px);
+  letter-spacing: .1em; }
+.bx-gco-zeile .bx-gco-prog { grid-area: zahl; align-self: start; line-height: 1; }
+
+/* ── Stil „Zahl im Fokus" — die Zahl IST das Bild: riesig in der Mitte, das
+   Geschenk sitzt als Marke davor, der Titel steht klein darunter. Alle drei
+   liegen in DERSELBEN Rasterfläche, überlagern sich also. */
+.bx-gco-fokus { display: grid; grid-template-areas: 'stapel'; place-items: center; }
+.bx-gco-fokus > * { grid-area: stapel; }
+.bx-gco-fokus .bx-gco-prog { font-size: clamp(26px, calc(var(--u) * 88), 340px); line-height: 1;
+  letter-spacing: -.04em; opacity: .95;
+  color: color-mix(in srgb, var(--bx-accent) 20%, white);
+  -webkit-text-stroke: calc(var(--u) * 3) var(--bx-ink, #0a0b12);
+  text-shadow: 0 0 calc(var(--u) * 26) color-mix(in srgb, var(--bx-accent) 55%, transparent); }
+/* Die Marke sitzt AUF der Zahl, oben links versetzt — in der Ecke der Box
+   wirkte sie wie ein zweites, unbeteiligtes Element. */
+.bx-gco-fokus .bx-gco-iconwrap { margin: 0; align-self: center; justify-self: center;
+  width: clamp(24px, calc(var(--u) * 96), 380px); height: clamp(24px, calc(var(--u) * 96), 380px);
+  transform: translate(-52%, -58%); }
+.bx-gco-fokus .bx-gco-title { align-self: end; justify-self: center;
+  font-size: clamp(9px, calc(var(--u) * 14), 54px); letter-spacing: .16em;
+  transform: translateY(-14%); }
+.bx-gco-fokus .bx-gco-ring { filter: drop-shadow(0 0 calc(var(--u) * 8) color-mix(in srgb, var(--bx-accent) 70%, transparent)); }
+
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
@@ -691,7 +787,7 @@ export function sichereBildAdresse(url) {
 /** Die wählbaren Stile. Reihenfolge = die des Auswahlfelds; 'glas' ist der
  *  Rückfall für alles Unbekannte (z.B. ein Overlay von einer neueren Fassung).
  *  Ein Stil wird NIE entfernt — das würde vorhandene Overlays umgestalten. */
-export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm', 'studio', 'vitrine', 'museum'];
+export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm', 'studio', 'vitrine', 'museum', 'karte', 'zeile', 'fokus'];
 
 /** Welche Anzeige-Klassen an der Wurzel hängen (Titel/Zähler/Ring aus).
  *
