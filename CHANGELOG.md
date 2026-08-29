@@ -3,171 +3,79 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
-## [Unveröffentlicht]
+## [0.56.0] — 2026-08-30
 
-### Vollprüfung: ein Fehler an echten Live-Daten gefunden
+Ein Release mit zwei Schwerpunkten: **Widgets finden** und **der
+Geschenkzähler**. Dazu ein Vorlese-Fehler, den man im Live hört, und ein halbes
+Dutzend Wächter, damit das alles so bleibt.
 
-Das ganze Studio noch einmal durchgeprüft — nicht über die vorhandenen Tests,
-sondern mit neuen Sonden.
+### Widget-Katalog — alle Widgets auf einem Schirm
 
-**Der Fund:** Die neue Namens-Aufbereitung fürs Vorlesen zerlegte
-**zusammengesetzte Emojis**. Aufgefallen ist das erst am Mitschnitt aus einem
-echten Live: Eine Zuschauerin heißt „Miri1997🎮❤️🐈‍⬛" — aus der schwarzen Katze
-wurde eine Katze UND ein schwarzes Quadrat. Schuld war der unsichtbare
-*Verbinder*, den die Aufbereitung pauschal als Ballast entfernte. Er hält aber
-Familien-, Flaggen- und Berufs-Emojis zusammen; dasselbe gilt für die
-Darstellungswahl (ob ❤️ als Emoji oder ❤ als Zeichen erscheint) und für den
-Nicht-Verbinder, der in persischer und indischer Schrift zur Rechtschreibung
-gehört. Die drei bleiben jetzt stehen. An denselben echten Daten gegengeprüft:
-kein Name wird mehr verändert.
+Die schmale Leiste am Rand zeigt immer nur EINE Kategorie. Wer nicht weiß, in
+welchem Reiter etwas liegt, findet es nicht — und wer den Namen nicht kennt,
+kann auch nicht danach suchen.
 
-**Was sauber war** — jeweils frisch nachgemessen statt den Tests geglaubt:
+Der Knopf **Alle Widgets** öffnet jetzt ein Fenster über der ganzen App: volle
+Breite, vier bis fünf echte Vorschauen nebeneinander, Kategorien als
+Sprungleiste links (mit Anzahl, wandert beim Scrollen mit), Suche oben. Ein
+Klick legt das Widget an und schließt; Escape oder ein Klick daneben bricht ab.
 
-- Alle handgepflegten Listen decken sich mit den Typen (Ereignisarten,
-  Bedingungen, Aktionen). Genau die Klasse, die hier schon zweimal zugeschlagen
-  hat.
-- Jede der 19 Trigger-Aktionen hat auch jemanden, der sie ausführt — keine
-  Aktion, die man einstellen kann und die nichts tut.
-- Ereignisse werden auf dem Weg ins Overlay nirgends gefiltert.
-- Der Teamherz-Filter arbeitet an den echten Chat-Nachrichten korrekt (Stufe 11
-  lässt 3 von 33 durch, Stufe 30 niemanden).
+### Die Suche findet jetzt auch, was anders heißt
 
-**Neues Werkzeug: `npm run widget-belastung`.** Jedes der 45 Widgets bekommt
-jede Ereignisart — auch NACKT, also nur Art und Zeitstempel, was im Stream der
-Normalfall ist —, dazu leere Zahlen, Spotify ohne Inhalt, Verkleinern auf 40×30
-und ein Ereignis nach dem Aufräumen. Ergebnis: **kein einziger Wurf.** Das
-zählt, weil ein Wurf im Widget sonst unsichtbar bleibt: Die Runtime fängt ihn
-ab, das Widget hört auf zu arbeiten, und niemand sieht warum.
+Eine Zuschauerin suchte „geschenk" und bekam vier von elf Geschenk-Widgets — der
+Rest heißt englisch („Gift-Alert", „Gift-Feed", „Coin-Glas"). Die Suche kennt
+jetzt sinnverwandte Wörter (geschenk↔gift, uhr↔timer, musik↔spotify,
+alarm↔alert, spiel↔game, herz↔like …) und durchsucht zusätzlich den
+Kategorienamen. Der wörtliche Treffer steht dabei immer vorn.
 
+Gemessen am echten Katalog: „geschenk" 9 → 21 Treffer, „spiel" 3 → 14,
+„alarm" 0 → 6, „musik" und „uhr" von 0 auf die richtigen Widgets. Und trotz
+mehr Arbeit ist sie **schneller als vorher** (im Geschenke-Auswähler mit 5726
+Einträgen: „rose" 23,2 → 22,0 ms).
 
-### Durchsicht des Tages — vier Fehler in den heutigen Änderungen
+### Drei Widgets lagen im falschen Reiter
 
-Alles, was heute dazukam, noch einmal gegengelesen. Gefunden und behoben:
+**Countdown** und **Subathon-Timer** standen unter „Gifts & Ziele" — wer eine Uhr
+sucht, sucht sie nicht bei den Geschenken. Jetzt „Stats & Zähler".
+**Meilenstein-Konfetti** zeigt keinen Stand an, es feiert einen Moment → „Alerts".
+Der **Geschenkzähler** lag als Variante hinter der Goal-Bar und war in der
+schmalen Leiste gar nicht zu sehen.
 
-- **„Nur das Geschenk" zerriss die neuen Anordnungen.** Sind Titel und
-  Zählerstand aus, wird der Bildrahmen auf die ganze Box vergrößert — bei der
-  Sammelkarte schrumpfte das Fenster dadurch auf ein Quadrat und darunter blieb
-  die halbe Karte leer. Stile, die ihren Rahmen selbst bemessen, sind jetzt
-  ausgenommen; ein Test liest die Liste aus dem CSS zurück.
-- **Die Schmuckschrift-Aufbereitung landete auch in Chat-Antworten.** Dieselbe
-  Vorlage füllt Ansagen UND Chat — die App hätte „Danke Mia!" an eine
-  Zuschauerin geschrieben, die 𝓜𝓲𝓪 heißt, und bei einem Emoji-Namen „Danke
-  Jemand!". Sprechbar gemacht wird jetzt erst im Sprechweg.
-- **Die Suche war 30–50 % langsamer geworden.** Die Synonyme werden je Eintrag
-  ausgewertet — bei 5726 Geschenken über zehntausendmal pro Tastendruck. Mit
-  einem Merker für die zerlegte Eingabe ist sie jetzt sogar **schneller als vor
-  allen Änderungen** (gemessen an den echten 5726 Geschenken: „rose" 23,2 →
-  22,0 ms, ein einzelnes „r" 82,7 → 75,9 ms) und findet trotzdem 26 statt 3
-  Geschenke bei „geschenk".
-- Kleinigkeit: Die Editor-Vorschau des Teamherz-Glases zeigte noch die
-  Coin-Staffelung der Bälle statt gleich großer.
+### Geschenkzähler: neun neue Designs, Titel und Zähler abschaltbar
 
+Der Zähler hatte drei Designs, die sich kaum unterschieden. Jetzt sind es zehn,
+und jedes steht für eine andere **Form**, nicht nur für andere Farben:
 
-### Geschenkzähler: Zähler und Titel abschaltbar
-
-Der Geschenkzähler zeigte immer alles — Titel, Geschenk und „6 / 15" darunter.
-Wer nur **das Geschenk** im Bild haben will, konnte das nicht einstellen. Es
-gibt jetzt drei Schalter (Titel, Zählerstand, Fortschrittsring), alle
-standardmäßig an. Sind Titel und Zählerstand aus, füllt das Geschenk die ganze
-Box, statt klein in der Mitte zu schweben.
-
-Bestehende Overlays ändern sich nicht: Ein fehlender Wert gilt als „an", nur
-ein ausdrückliches Abwählen blendet etwas aus.
-
-### Vierzehn neue Designs für den Geschenkzähler
-
-Drei davon stellen die Teile **anders auf** — bis dahin war jeder Stil dasselbe
-Gerüst mit anderer Deko (Bild in der Mitte, Titel darunter, Zahl unten), und
-genau deshalb fühlten sich viele Stile trotzdem gleich an:
-
-- **🃏 Sammelkarte** — Hochformat wie eine Spielkarte: das Geschenk in einem
-  gerahmten Bildfenster, darunter ein Namensschild, die Zahl auf einer Platte
-  und der Fortschritt als Leiste im unteren Kartenrand.
-- **📊 Zeile** — quer statt hoch: Geschenk links, Titel und Zahl rechts daneben.
-  Für die flache breite Leiste unter dem Stream, wo gestapelt alles winzig wird.
-  Die Größe richtet sich hier nach der Höhe, wie bei einer Textzeile.
-- **🔢 Zahl im Fokus** — die Zahl *ist* das Bild: riesig in der Mitte, das
-  Geschenk sitzt als Marke darauf, der Titel klein darunter.
-- **📰 Plakat** — der Text liegt **auf** dem Geschenk: es füllt die ganze Box,
-  der Titel groß als Band oben, die Zahl klein unten, der Fortschritt als Leiste
-  am Bildrand. Kein Platz geht für Textzeilen verloren.
-- **🎯 Davor** — die Ansage steht **vor** dem Geschenk, groß und mittig, mit
-  einem abgedunkelten Fleck darunter, damit Text und Bild nicht um dieselbe
-  Fläche kämpfen. Die Zahl sitzt klein darunter, der Fortschritt rahmt als
-  schmaler Ring.
-
-Bei diesen beiden ist die Gewichtung umgedreht: **der Titel ist die Ansage**
-(„FN Löschen"), die Zahl nur der Beleg dafür. Wer es andersherum will, nimmt
-„Zahl im Fokus".
-
-**💎 Studio** ist der aufwendigste: das Geschenk als Produktfoto statt als
-Aufkleber. Vier Handgriffe machen aus dem flachen Bild einen Gegenstand —
-
-1. **Körper:** dasselbe Bild zwölfmal übereinander, jede Kopie ein Stück weiter
-   hinten und dunkler. Der Stapel wiegt sich langsam, an den Rändern sieht man
-   dabei die Dicke.
-2. **Glanz:** ein Lichtstreif wandert über das Geschenk — aber in seiner *Form*,
-   nicht als Rechteck darüber.
-3. **Boden:** Kontaktschatten und eine gespiegelte, ausblendende Kopie. Erst
-   dadurch *steht* etwas, statt zu schweben.
-4. **Licht:** eine Studio-Rundung mit Licht von oben links und Randabdunklung.
-   Der Fortschritt ist ein in den Boden eingelassener Ring.
-
-Nichts davon ist ein gerendertes Bild — alles rechnet sich aus der Boxgröße und
-deiner Akzentfarbe. Das ist Absicht: TikTok hat über 5000 verschiedene
-Geschenkbilder, ein vorgerendertes 3D-Modell könnte immer nur eines davon
-zeigen. So funktioniert der Aufbau mit *jedem*.
-
-**Der Kasten ist abschaltbar.** Im Overlay ist oft kein Platz für eine Fläche —
-der Haken „Rahmen ausblenden" (bisher beim Geschenkzähler gar nicht angeboten,
-weil vorher kein Stil eine Fläche hatte) nimmt nur den Hintergrund weg. Tiefe,
-Standlicht, Kontaktschatten, Spiegelung und Fortschritt bleiben; das Geschenk
-steht dann frei auf dem Videobild. Beim Museum bleibt sogar der Lichtkegel —
-über dem Videobild wirkt er besser als im schwarzen Kasten. Titel und Zahl
-bekommen ohne Fläche wieder eine Kontur, sonst verschwinden sie auf hellen
-Szenen.
-
-Dieselbe Bühnentechnik gibt es in zwei weiteren Fassungen:
-
-- **🔮 Vitrine** — das Stück unter Glas. Der Unterschied zum Studio ist keine
-  Deko: eine Glasscheibe spiegelt in der Form der *Scheibe*, nicht in der Form
-  des Geschenks. Erst dieser Widerspruch — scharfes Objekt, darüber eine flache
-  Reflexion — liest sich als „hinter Glas". Der Fortschritt ist eine Leuchtleiste
-  in der Sockelplatte.
-- **🔦 Museum** — dunkler Raum, ein Scheinwerfer. Sichtbarer Lichtkegel von oben
-  mit langsam wanderndem Staub darin, eine Lichtinsel auf dem Boden und ringsum
-  Dunkelheit. Der Fortschritt läuft als schmaler Bogen um die Insel.
-
-Dazu drei bewegte:
-
-- **🌀 Portal** — das Geschenk schwebt in einem Energiewirbel: drei Ringe in
-  verschiedenen Größen drehen gegeneinander, dahinter ein weicher Sog. Jedes
-  Geschenk schickt eine Schockwelle nach außen; bei erreichtem Ziel dreht alles
-  schneller.
-- **🚀 Rakete** — statt Ring eine senkrechte Startbahn mit Sternenfeld: das
-  Geschenk steigt mit dem Fortschritt zum Ziel hoch, der Antrieb flackert und
-  zündet bei jedem Eingang kurz durch. Man sieht „wie weit noch", ohne eine Zahl
-  zu lesen.
-- **📺 Hologramm** — das Geschenk als Projektion über einem Sockel: Lichtkegel,
-  hochlaufende Scanlinien, ein Hauch Farbversatz an den Kanten und
-  unregelmäßiges Flackern. Der Sockel ist der Fortschritt.
-
-Und drei ruhigere:
-
-
-- **🔋 Aufladung** — der Ring wird zum Füllstand: die Farbe steigt von unten
-  hinter dem Geschenk hoch, mit heller Kante an der Oberfläche und ruhigem
-  Schwappen. Das Geschenk selbst ist bei 0 fast farblos und wird mit jedem
-  Eingang satter — der Stand ist damit auch ohne Zahl auf einen Blick zu sehen.
+- **Glas** — der schlichte Standard, unverändert.
+- **🔋 Aufladung** — die Farbe steigt hinter dem Geschenk hoch, das Geschenk
+  selbst wird mit dem Fortschritt satter. Der Stand ist ohne Zahl ablesbar.
 - **👾 Arcade** — der Ring zerfällt in Segmente wie eine Boss-Leiste, dazu ein
-  eckiges Gehäuse mit Rasterlinien. Bei jedem Eingang ruckelt der Automat kurz,
-  bei erreichtem Ziel blinkt die Zahl wie ein Highscore.
-- **🩷 Sticker** — wie ein aufgeklebter Chat-Sticker: dicker weißer Rand, Zahl
-  in einer Pille, alles leicht schief und in ruhiger Bewegung. Ein Eingang löst
-  einen kräftigen Hüpfer aus.
+  eckiges Gehäuse mit Rasterlinien.
+- **🎯 Davor** — die Ansage steht groß VOR dem Geschenk.
+- **🖼 Vollbild-Karte** — das Geschenk füllt die ganze Karte, die Ansage liegt
+  darauf, die Zahl sitzt als Marke oben rechts.
+- **🔷 Schräge Karte** — abgeschnittene Ecken, Holo-Band, schräger Namensbalken.
+- **💎 Studio** — das Geschenk als Ausstellungsstück mit Tiefe, Standlicht,
+  Kontaktschatten und Bodenspiegelung.
+- **🔦 Museum** — dunkler Raum, ein Scheinwerferkegel mit wanderndem Staub.
+- **📊 Zeile** — quer statt hoch, für die flache Leiste über oder unter dem
+  Stream.
+- **🔢 Zahl im Fokus** — die Zahl ist das Bild, das Geschenk sitzt als Marke
+  darauf.
 
-Die bestehenden drei Stile sind unverändert. Alle neuen bewegen ausschließlich
-transform/opacity/filter — der Browser in TikTok Live Studio ist schwach.
+Der Trick hinter Studio, Museum und den Karten: Aus dem **flachen** Geschenkbild
+wird ein Körper, indem dasselbe Bild zwölfmal übereinander liegt — jede Kopie
+ein Stück weiter hinten und dunkler. Dazu ein Lichtstreif, der in der FORM des
+Geschenks darüberwandert, und ein Kontaktschatten, damit es steht statt zu
+schweben. Alles rechnet sich aus der Boxgröße und deiner Akzentfarbe, kein
+vorgerendertes Bild — deshalb funktioniert es mit allen 5726 Geschenken aus
+TikToks Katalog.
+
+Dazu drei Schalter: **Titel**, **Zählerstand** und **Fortschrittsring** lassen
+sich einzeln ausblenden. Sind Titel und Zähler aus, füllt das Geschenk die Box.
+Und „Rahmen ausblenden" gibt es für den Zähler überhaupt erstmals — bei Studio
+und Museum fällt damit nur die Fläche weg, Licht, Schatten und Spiegelung
+bleiben.
 
 ### Namen mit Schmuckschrift werden endlich normal vorgelesen
 
@@ -177,168 +85,62 @@ sieht es aus wie „Alex", für die Sprachausgabe ist es etwas völlig anderes: 
 buchstabiert, spricht Zeichennamen aus oder überspringt den Namen wortlos.
 
 Vor dem Vorlesen werden diese Zeichen jetzt auf normale Buchstaben
-zurückgeführt. Deutsche Umlaute bleiben dabei unangetastet (der naheliegende
-Weg macht aus „Grüße für München" ein „Grusse fur Munchen"), und wer wirklich
-kyrillisch oder japanisch heißt, wird weiter so vorgelesen. Unsichtbarer Ballast
-und gestapelte Akzente („Zalgo") fliegen raus.
+zurückgeführt. Deutsche Umlaute bleiben dabei unangetastet (der naheliegende Weg
+macht aus „Grüße für München" ein „Grusse fur Munchen"), zusammengesetzte Emojis
+bleiben heil (🐈‍⬛ zerfiel im ersten Anlauf in Katze + schwarzes Quadrat — an
+einem echten Live-Mitschnitt gefunden), und wer kyrillisch oder japanisch heißt,
+wird weiter so vorgelesen. Besteht ein Name nur aus Emojis, sagt die Stimme
+„Jemand" statt mitten im Satz zu verstummen.
 
-Besteht ein Name nur aus Emojis oder Sternchen, sagt die Stimme „Jemand" statt
-mitten im Satz zu verstummen.
-
-Das gilt für alles, was vorgelesen wird — Ansagen und Chat.
+Im **Chat** bleibt der Name unverändert — dort soll dastehen, wie jemand heißt.
 
 ### Teamherz-Glas
 
-Das Coin-Glas hat eine neue Einstellung: **Was füllt den Behälter.**
-
-- **Alle Geschenke (nach Coins)** — wie bisher, ein großes Geschenk füllt viel.
-- **Nur Teamherzen (nach Stück)** — jedes Teamherz ist ein Ball, egal was es
-  kostet. Das Ziel meint dann Teamherzen: 30 statt 2000.
-
-Nach Coins gezählt käme so ein Glas nie vom Fleck — ein Teamherz kostet einen
-einzigen Coin.
-
-### Gift-Alert im Neon-Stil passt wieder in seine Box
-
-Er ragte in jeder Größe rund 25px über sein Kästchen hinaus. Im Stream fällt das
-nicht auf, im Editor passen Anfasser und Bild aber nicht zusammen, und zwei dicht
-gesetzte Widgets überlappen unerklärlich. Schriften und Bild sind jetzt rund 15%
-kleiner. Bewusst NICHT den Stil entfernt: Wer ihn nutzt, hätte kommentarlos das
-Glas-Design zurückbekommen — eine viel größere Änderung.
-
-### Durchsicht aller Widget-Stile und -Einstellungen
-
-Alle 46 Katalogeinträge, 92 wählbaren Stile und jedes Bedienfeld einmal
-durchgeprüft — teils automatisch, teils am Bild.
-
-**Gefunden und behoben:**
-
-- **Der Stil „Neon" des Geschenkzählers war ein Blindgänger.** Seine Regeln
-  gestalteten `.bx-gco-count` und `.bx-gco-label` — Klassen, die es in dem
-  Widget nie gab (sie heißen `-prog` und `-title`). „Neon" war damit Pixel für
-  Pixel derselbe Stil wie „Glas". Gefunden, indem jeder Stil gerendert und mit
-  seinem Standard verglichen wurde: von 92 Stilen war genau dieser eine
-  identisch. Jetzt leuchtet er wirklich; bei der Medaille war die Regel für die
-  Zahl aus demselben Grund tot.
-- **Drei Felder standen beim ersten Öffnen leer da**, obwohl das Widget im
-  Hintergrund längst mit einem Wert arbeitete (Titel des Gambling-Automaten,
-  Einheit des Ziel-Countdowns, Profilbilder der Bestenlisten).
-- **Zehn Auswahl- und Zahlenfelder hatten keine Erklärung** — „Metrik",
-  „Quelle", „Design", „Animation", „Bei Zielerreichung", „Sek. pro Follower".
-  Wer rät, probiert im Live aus. Jetzt steht überall dran, was es tut.
-- Sechs tote CSS-Regeln entfernt (Geschenk-Menü, Giveaway).
-
-**Damit das so bleibt, vier neue Wächter:**
-
-- Keine CSS-Regel für eine Klasse, die das Widget nie vergibt.
-- Jede Einstellung hat einen Standardwert.
-- Der Standardwert eines Auswahlfelds steht auch in seiner Liste.
-- Auswahl- und Zahlenfelder erklären sich.
-
-Alles andere hielt der Prüfung stand: Jeder der übrigen 91 Stile ändert sichtbar
-etwas, und kein Bedienfeld ist ohne Wirkung.
-
-### Wächter: kein Backtick im CSS eines Widgets
-
-Jedes Widget hält sein CSS in einem Template-Literal. Schreibt jemand im
-Kommentar darin eine Klasse in Backticks — in Markdown und Chat völlig normal —,
-endet die Zeichenkette mitten im CSS und der Rest wird als JavaScript gelesen.
-
-Das Tückische: Das ist oft syntaktisch gültig, und `node --check` bleibt still
-(nachgestellt und bestätigt: Exit-Code 0). Ein Punkt nach der geschlossenen
-Zeichenkette ist ein Eigenschaftszugriff, ein Stern eine Multiplikation. Die
-Datei lädt, das Widget bleibt leer — und man sucht den Fehler im Widget. Beim
-Bau dieser Designs ist das dreimal passiert, zweimal davon lautlos. Ein Test
-prüft das jetzt für alle Widgets.
-
-### Der Widget-Prüfer prüft jetzt auch die Stile
-
-Bisher wurde jedes Widget nur in seinem Standard-Stil vermessen — dabei ist ein
-anderer Stil die häufigste Optik-Änderung überhaupt, und einer kann das Gerüst
-komplett umbauen (die neue Rakete etwa ist eine senkrechte Bahn statt eines
-Rings). Jetzt läuft jeder wählbare Stil einmal durch alle sechs Boxgrößen: 92
-zusätzliche Messungen über 32 Widgets.
-
-Der erste Lauf hat prompt zwei Altlasten gefunden, die vorher niemand sehen
-konnte — der **Gift-Alert im Neon-Stil** ragt etwa 25px über seine Box hinaus
-(noch offen, weil kleinere Schriften das Aussehen bei allen ändern würden, die
-ihn schon nutzen), und der **gekippte Aufkleber beim Counter** stößt mit seinen
-Ecken heraus (Absicht). Beide stehen namentlich im Prüfer und tauchen im
-Bericht als „bekannt" auf; jeder andere Überhang macht weiter rot.
-
-Nebenbei misst der Prüfer jetzt im Ruhezustand: headless folgen CSS-Animationen
-der virtuellen Zeit nicht, weshalb ein Einflug-Alert beim Messen noch auf seinem
-Startbild stand und als Überhang gezählt wurde.
-
-### Widget-Suche findet jetzt auch, was anders heißt
-
-Eine Zuschauerin suchte „geschenk" und bekam vier von elf Geschenk-Widgets —
-der Rest heißt englisch („Gift-Alert", „Gift-Feed", „Coin-Glas"). Die Suche
-kennt jetzt sinnverwandte Wörter (geschenk↔gift, uhr↔timer, musik↔spotify,
-alarm↔alert, spiel↔game, herz↔like …) und durchsucht zusätzlich den
-Kategorienamen. Der wörtliche Treffer steht dabei immer vorn: Wer „gift" tippt,
-sieht weiter „Gift-Alert" zuerst.
-
-Gemessen am echten Katalog: „geschenk" 9 → 21 Treffer, „spiel" 3 → 14,
-„alarm" 0 → 6, „musik" und „uhr" von 0 auf die richtigen Widgets.
-
-### Widget-Katalog — alle Widgets auf einem Schirm
-
-Die schmale Leiste am Rand zeigt immer nur EINE Kategorie. Wer nicht weiß, in
-welchem Reiter etwas liegt, findet es nicht — und wer den Namen nicht kennt,
-kann auch nicht danach suchen.
-
-Der Knopf **Alle Widgets** öffnet jetzt ein Fenster über der ganzen App:
-
-- **volle Fensterbreite**, vier bis fünf echte Vorschauen nebeneinander
-- **Kategorien als Sprungleiste links**, mit Anzahl je Kategorie; sie wandert
-  beim Scrollen mit
-- **Suche oben**, dieselbe wie in der Leiste — sie kennt auch Umschreibungen
-- **Klick legt das Widget an und schließt**, Escape oder Klick daneben bricht ab
-
-Das löst die frühere aufgeklappte Palette ab: Die nahm der Bühne die halbe
-Breite und zeigte trotzdem nur zwei bis drei Kacheln nebeneinander.
-
-Der Smoke-Test öffnet den Katalog jetzt in der echten App und prüft nach, was
-ihn ausmacht — gemessen beim letzten Lauf: **220px → 1038px, 8 Kategorien,
-57 Kacheln, „geschenk" findet 21 Widgets**, und Escape schließt ihn wieder.
-
-
-### „Alle zeigen" zeigt jetzt wirklich alles
-
-In der aufgeklappten Palette lagen 13 von 46 Widgets trotzdem hinter einem
-„2 Varianten zu …"-Knopf — ausgerechnet in der Ansicht, die „zeig mir alles"
-heißt. Jetzt steht dort jedes Widget als eigene Kachel. Die schmale Palette
-fasst weiter zusammen; dort ist das ja der Sinn.
-
-### Drei Widgets lagen im falschen Reiter
-
-- **Countdown** und **Subathon-Timer** standen unter „Gifts & Ziele" — wer eine
-  Uhr sucht, sucht sie nicht bei den Geschenken. Jetzt „Stats & Zähler".
-- **Meilenstein-Konfetti** zeigt keinen Stand an, es feiert einen Moment →
-  „Alerts".
-- Der **Geschenkzähler** lag als Variante hinter der Goal-Bar und war in der
-  schmalen Palette gar nicht zu sehen, obwohl er etwas anderes tut. Er steht
-  jetzt für sich.
-
-Die Einteilung liegt jetzt in `palette-gruppen.ts` statt in der Ansicht, und
-Wächter-Tests prüfen sie gegen den echten Katalog: jedes Widget hat eine
-Kategorie, Anführer und Varianten liegen im selben Reiter, und „Alle zeigen"
-zeigt wirklich jedes Widget. `docs/widgets.md` wird daraus erzeugt
-(`npm run galerie`) — die Galerie hatte das Befehl-Karussell noch bei der Deko.
+Das Coin-Glas hat eine neue Einstellung: **Was füllt den Behälter.** „Alle
+Geschenke (nach Coins)" wie bisher, oder **„Nur Teamherzen (nach Stück)"** —
+jedes Teamherz ein Ball, egal was es kostet. Nach Coins gezählt käme so ein Glas
+nie vom Fleck: ein Teamherz kostet einen einzigen Coin.
 
 ### Behoben
 
-- Sticker-Bilder werden am **Inhalt** erkannt, nicht an der Adresse. Kanaleigene
-  Sticker (die vom Streamer selbst hochgeladenen) haben keine Dateiendung in der
-  Adresse; sie landeten als PNG unter `.webp` und wurden mit falschem Inhaltstyp
-  ausgeliefert. Heute merkt das kein Browser — sobald wir aber einen
-  `nosniff`-Header setzen, wären genau diese Sticker leer geblieben.
-- Der Geschenkzähler hörte nach dem **ersten** Geschenk auf zu pulsieren: die
-  Treffer-Animation ersetzt die Ruhebewegung desselben Elements, und ihre Klasse
-  wurde nie wieder abgenommen.
-- Doppelte React-Schlüssel in der Palette: „Top Gifter" und „Like-Liste" sind
-  derselbe Widget-Typ und stehen beide in „Listen & Chat".
+- **Sticker-Bilder** werden am Inhalt erkannt, nicht an der Adresse. Kanaleigene
+  Sticker haben keine Dateiendung in der Adresse und landeten als PNG unter
+  `.webp`.
+- Der **Geschenkzähler hörte nach dem ersten Geschenk auf zu pulsieren** — die
+  Treffer-Animation ersetzt die Ruhebewegung und wurde nie wieder abgenommen.
+- Der Stil **„Neon" des Geschenkzählers war ein Blindgänger**: Seine Regeln
+  gestalteten Klassen, die es in dem Widget nie gab — er sah Pixel für Pixel aus
+  wie „Glas". (Der Stil ist beim Aufräumen entfallen, der Fehler steckte aber
+  auch in der Medaille.)
+- Der **Gift-Alert im Neon-Stil** ragte in jeder Größe rund 25px über seine Box
+  hinaus.
+- **Drei Felder standen beim ersten Öffnen leer da**, obwohl das Widget längst
+  mit einem Wert arbeitete (Titel des Gambling-Automaten, Einheit des
+  Ziel-Countdowns, Profilbilder der Bestenlisten).
+- **Zehn Auswahl- und Zahlenfelder hatten keine Erklärung** — „Metrik",
+  „Quelle", „Design", „Animation", „Bei Zielerreichung", „Sek. pro Follower".
+- Doppelte Bezeichner in der Widget-Palette („Top Gifter" und „Like-Liste" sind
+  derselbe Widget-Typ).
+- Sechs tote CSS-Regeln entfernt (Geschenk-Menü, Giveaway).
+
+### Neue Prüfungen — damit das so bleibt
+
+Sieben Wächter und ein neues Werkzeug, jeder gegengeprobt (Fehler absichtlich
+wieder eingebaut, geschaut ob der Test fällt):
+
+| Prüfung | Was sie verhindert |
+|---|---|
+| Stile im Überlauf-Prüfer | 92 Designs waren **nie** vermessen — fand sofort zwei Altlasten |
+| Keine toten CSS-Klassen | Ein Design, das nichts tut (der Neon-Fall) |
+| Jede Animation hat ihre Definition | Eine Bewegung ohne `@keyframes` ist im CSS kein Fehler — der Browser tut still nichts |
+| Kein Backtick im CSS eines Widgets | Widget wird lautlos leer, `node --check` merkt nichts |
+| Jede Einstellung hat einen Standardwert | Felder, die leer dastehen |
+| Standardwert steht in seiner Liste | Feld zeigt etwas, das es nicht gibt |
+| Auswahl- und Zahlenfelder erklären sich | Raten im Live |
+| `npm run widget-belastung` | Jedes der 45 Widgets bekommt jede Ereignisart, auch NACKT (im Stream der Normalfall, TikTok lässt Felder weg), dazu leere Zahlen und ein Ereignis nach dem Aufräumen |
+
+Der Smoke-Test öffnet außerdem den Katalog in der echten App und prüft Breite,
+Kategorien, Kachelzahl, Suche und Escape.
 
 ## [0.55.2] — 2026-08-21
 

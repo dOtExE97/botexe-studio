@@ -72,36 +72,8 @@ const CSS = `
 .bx-gco.nur-icon:not(.bx-gco-eigenmass) .bx-gco-iconwrap {
   width: clamp(40px, calc(var(--u) * 300), 900px);
   height: clamp(40px, calc(var(--u) * 300), 900px); margin-bottom: 0; }
-/* Die Sammelkarte hat ohne Schrift Platz frei — den bekommt das Bildfenster. */
-.bx-gco-karte.ohne-titel.ohne-zaehler .bx-gco-iconwrap { height: 90%; }
 /* Eine Zeile ohne Text ist keine Zeile mehr: dann mittig statt links. */
 .bx-gco-zeile.ohne-titel.ohne-zaehler { grid-template-columns: 1fr; justify-items: center; padding: 0; }
-
-/* ── Stil „Neon" — freistehend: Icon + Zahlen mit Glow, kein Panel. */
-.bx-gco-neon { background: none !important; box-shadow: none !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
-.bx-gco-neon::before { display: none; }
-/* FRÜHER TOT: Diese Regel sprach .bx-gco-count und .bx-gco-label an — Klassen,
-   die es in diesem Widget nie gab (sie heißen .bx-gco-prog und .bx-gco-title).
-   Und weil der Zähler von Haus aus gar kein Panel hat, tat auch das
-   background:none oben nichts. Der Stil „Neon" war damit Pixel für Pixel
-   derselbe wie „Glas" — gefunden, indem beide Stile gerendert und verglichen
-   wurden. Jetzt leuchtet er wirklich. */
-.bx-gco-neon .bx-gco-prog, .bx-gco-neon .bx-gco-title {
-  color: color-mix(in srgb, var(--bx-accent) 25%, white); -webkit-text-stroke: 0;
-  text-shadow: 0 0 .18em var(--bx-accent), 0 0 .5em var(--bx-accent),
-    0 0 1.1em color-mix(in srgb, var(--bx-accent) 70%, transparent), 0 2px 4px rgba(0,0,0,.9); }
-.bx-gco-neon .bx-gco-ring { filter: drop-shadow(0 0 .3em var(--bx-accent)) drop-shadow(0 0 .8em color-mix(in srgb, var(--bx-accent) 75%, transparent)); }
-.bx-gco-neon .bx-gco-icon { filter: drop-shadow(0 0 .35em color-mix(in srgb, var(--bx-accent) 70%, transparent)); }
-
-/* ── Stil „Medaille" — Gold-Auszeichnung: Icon im gravierten Goldring. */
-.bx-gco-medaille { background: linear-gradient(170deg, rgba(30,24,10,.95), rgba(16,12,6,.96)) !important;
-  border: 1px solid color-mix(in srgb, var(--bx-gold) 65%, transparent); border-radius: 14px;
-  box-shadow: 0 0 30px -8px var(--bx-gold), inset 0 0 40px rgba(0,0,0,.5) !important; }
-.bx-gco-medaille .bx-gco-icon, .bx-gco-medaille img { filter: drop-shadow(0 0 12px var(--bx-gold)); }
-/* Ebenfalls tot gewesen (.bx-gco-count gibt es nicht) — die Medaille war
-   deshalb nur ein goldener Kasten, ihre Zahl blieb wie im Standard. */
-.bx-gco-medaille .bx-gco-prog { color: var(--bx-gold); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 60%, transparent); }
-.bx-gco-medaille .bx-gco-title { color: color-mix(in srgb, var(--bx-gold) 35%, white); }
 
 /* ══ Drei weitere Stile ══════════════════════════════════════════════════
    Alle drei benutzen dasselbe Gerüst (Rahmen · Ring · Icon · Titel · Zahl)
@@ -168,75 +140,6 @@ const CSS = `
 .bx-gco-arcade.hit { animation: bx-gco-ruckel 260ms steps(2) 2; }
 @keyframes bx-gco-ruckel { 0%,100% { transform: translate(0,0); } 50% { transform: translate(1.5px,-1.5px); } }
 
-/* ── Stil „Sticker" — verspielt, wie ein aufgeklebter Chat-Sticker: dicker
-   weißer Rand ums Geschenk, Zahl in einer Pille, alles leicht schief und in
-   ruhiger Bewegung. Kein Panel, damit er auf jedem Videobild sitzt. */
-.bx-gco-sticker { background: none !important; box-shadow: none !important; }
-.bx-gco-sticker .bx-gco-iconwrap { border-radius: 50%; background: color-mix(in srgb, var(--bx-accent) 22%, #14121f);
-  box-shadow: 0 0 0 calc(var(--u) * 6) #fff, 0 calc(var(--u) * 5) calc(var(--u) * 14) rgba(0,0,0,.5);
-  animation: bx-gco-wackel 5s ease-in-out infinite; }
-@keyframes bx-gco-wackel { 0%,100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
-/* Der Ring liegt hier ALS Rand direkt auf dem weißen Sticker-Rand. */
-/* Der Ring liegt AUSSERHALB des weißen Stickerrands — innen lag er auf Weiß
-   und war praktisch unsichtbar. */
-.bx-gco-sticker .bx-gco-ring { inset: calc(var(--u) * -16);
-  /* FALLE: Bei radial-gradient(circle, …) sind 100% die Ecke, nicht die Kante —
-     der Kreis reicht also über die Box hinaus. 86% wären außerhalb gewesen und
-     der Ring blieb unsichtbar. 62% ≈ 0,88 der halben Breite. Dieselbe Rechnung
-     steckt hinter den 54% der Grundregel. */
-  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%); mask: radial-gradient(circle, transparent 62%, #000 64%);
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--bx-accent) 65%, transparent)); }
-.bx-gco-sticker .bx-gco-title { color: #fff; -webkit-text-stroke: calc(var(--u) * 5) var(--bx-ink, #0a0b12); }
-.bx-gco-sticker .bx-gco-prog { background: #fff; color: #14121f; -webkit-text-stroke: 0;
-  border-radius: 999px; padding: 0 calc(var(--u) * 14); margin-top: calc(var(--u) * 4);
-  box-shadow: 0 calc(var(--u) * 4) calc(var(--u) * 10) rgba(0,0,0,.45); }
-.bx-gco-sticker.done .bx-gco-prog { background: var(--bx-teal); color: #06241e; }
-/* Treffer: ein kräftiger Hüpfer statt des kleinen Standard-Pochens. */
-.bx-gco-sticker.hit .bx-gco-iconwrap { animation: bx-gco-huepf 620ms cubic-bezier(.2,1.8,.35,1); }
-@keyframes bx-gco-huepf {
-  0% { transform: rotate(-2.5deg) scale(1); }
-  35% { transform: rotate(4deg) scale(1.18); }
-  70% { transform: rotate(-3deg) scale(.96); }
-  100% { transform: rotate(-2.5deg) scale(1); } }
-
-/* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
-   dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
-   Titel und Zähler haben bereits eine Kontur — hier reicht ein satterer Schatten.
-   Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
-   frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
-html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow: 0 3px 10px rgba(0,0,0,.55); }
-
-/* ── Premium-Ebene (.bx-premium, widget-base.css) ─────────────────────────
-   Zwei Stufen: jedes gezählte Geschenk löst am Gift-Rund aus; ist damit das
-   Ziel erreicht, löst zusätzlich der Fortschritts-Text aus — derselbe Effekt
-   an zwei Stellen liest sich deutlich lauter als an einer.
-
-   KOLLISION: Der Icon-Rahmen heißt „bx-gco-iconwrap", das Icon
-   „bx-gco-icon" — beide fallen unter den breiten Selektor [class*='-ic'] der
-   Basis, der Bildern ein langsames Atmen gibt. Beim Icon hätte das dessen
-   eigenen Herzschlag (bx-gco-pulse) ersetzt, weil der Basis-Selektor
-   spezifischer ist als „.bx-gco-icon". Also hier zurückgeholt. */
-.bx-premium .bx-gco-icon { animation: bx-gco-pulse 2.4s ease-in-out infinite; }
-/* Der Ring der Basis ist eine box-shadow-Kontur. Der Icon-Rahmen ist eckig,
-   der Fortschrittsring darin rund — ohne Radius säße ein Kasten um einen
-   Kreis. Der Rahmen hat keinen Hintergrund, der Radius ändert also nichts
-   außer der Form des Auslöser-Rings. */
-.bx-premium .bx-gco-iconwrap { border-radius: 50%; }
-/* Die Fortschrittszahl ist reiner Text. Der Ring der Basis ist in em bemessen
-   und wird dort in großen Boxen zu einer Farbplatte statt zu einer Kontur —
-   deshalb ein Schein, der der Ziffernform folgt. Türkis wie der volle Ring,
-   denn dieser Auslöser feuert nur bei erreichtem Ziel. */
-.bx-premium .bx-gco-prog.bx-hit {
-  animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
-    bx-gco-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
-@keyframes bx-gco-hit-schein {
-  0% { filter: drop-shadow(0 0 0 var(--bx-teal)) drop-shadow(0 0 0 var(--bx-teal)); }
-  18% { filter: drop-shadow(0 0 .14em var(--bx-teal)) drop-shadow(0 0 .34em var(--bx-teal)); }
-  100% { filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); }
-}
-/* Mehr Tiefe an der Fortschrittszahl. */
-.bx-premium .bx-gco-prog { text-shadow: 0 0 .45em color-mix(in srgb, var(--bx-gold) 55%, transparent), 0 .05em .1em rgba(0,0,0,.7); }
-.bx-premium .bx-gco.done .bx-gco-prog { text-shadow: 0 0 .45em color-mix(in srgb, var(--bx-teal) 60%, transparent), 0 .05em .1em rgba(0,0,0,.7); }
 /* ══ Die großen drei ═════════════════════════════════════════════════════
    Aufwendigere Stile, die die freie Bühne .bx-gco-deko benutzen. Bewegt wird
    auch hier nur transform/opacity/filter — nichts, wofür der Browser neu
@@ -244,149 +147,6 @@ html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow:
    nicht die Aufmerksamkeit vom Spiel ziehen; laut wird es nur im Moment des
    Geschenks. */
 .bx-gco-deko { position:absolute; inset:0; pointer-events:none; }
-
-/* ── Stil „Portal" — das Geschenk schwebt in einem Energiewirbel. Drei Ringe
-   in verschiedenen Größen drehen GEGENEINANDER; das ergibt Tiefe, die ein
-   einzelner drehender Ring nie hat. Bei jedem Eingang läuft eine Schockwelle
-   nach außen. */
-.bx-gco-portal .bx-gco-ring {
-  background: conic-gradient(from -90deg,
-    transparent 0, color-mix(in srgb, var(--bx-accent) 35%, transparent) calc(var(--pct, 0%) * 0.55),
-    color-mix(in srgb, var(--bx-accent) 100%, white) var(--pct, 0%),
-    rgba(255,255,255,.05) var(--pct, 0%) 100%);
-  -webkit-mask: radial-gradient(circle, transparent 60%, #000 63%); mask: radial-gradient(circle, transparent 60%, #000 63%);
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--bx-accent) 85%, transparent)); }
-/* Der Sog hinter dem Geschenk: ein weicher Wirbel, der langsam dreht. */
-.bx-gco-portal .bx-gco-iconwrap::before { content:''; position:absolute; inset:14%; border-radius:50%;
-  background: conic-gradient(from 0deg, transparent 0 18%, color-mix(in srgb, var(--bx-accent) 30%, transparent) 34%,
-    transparent 52%, color-mix(in srgb, var(--bx-accent) 34%, transparent) 74%, transparent 92%);
-  filter: blur(6px); animation: bx-gco-dreh 14s linear infinite; }
-/* Zwei gestrichelte Bahnen, gegenläufig — die äußere langsam, die innere schnell. */
-.bx-gco-portal .bx-gco-deko::before, .bx-gco-portal .bx-gco-deko::after { content:''; position:absolute; border-radius:50%;
-  border: calc(var(--u) * 2) dashed color-mix(in srgb, var(--bx-accent) 55%, transparent); }
-.bx-gco-portal .bx-gco-deko::before { inset: -9%; animation: bx-gco-dreh 22s linear infinite; }
-/* Genau in den freien Streifen zwischen Geschenk (70 % der Fläche) und dem
-   Fortschrittsring — bei 24 % lag sie hinter dem Geschenk und war unsichtbar. */
-.bx-gco-portal .bx-gco-deko::after { inset: 11%; border-style: dotted; opacity:.75;
-  animation: bx-gco-dreh 9s linear infinite reverse; }
-@keyframes bx-gco-dreh { to { transform: rotate(360deg); } }
-/* Die Schockwelle liegt auf dem Rahmen, NICHT auf der Deko-Bühne: eine
-   Deckkraft von 0 dort hätte auch die beiden Bahnen darin unsichtbar gemacht
-   (Deckkraft wirkt auf den ganzen Teilbaum, nicht nur auf das Element). */
-.bx-gco-portal .bx-gco-iconwrap::after { content:''; position:absolute; inset:0; border-radius:50%;
-  border: calc(var(--u) * 3) solid var(--bx-accent); opacity:0; }
-.bx-gco-portal.hit .bx-gco-iconwrap::after { animation: bx-gco-welle 720ms cubic-bezier(.15,.7,.3,1); }
-@keyframes bx-gco-welle {
-  0% { opacity:.9; transform: scale(.82); }
-  100% { opacity:0; transform: scale(1.75); } }
-.bx-gco-portal.done .bx-gco-deko::before { animation-duration: 6s; }
-.bx-gco-portal.done .bx-gco-deko::after { animation-duration: 2.6s; }
-.bx-gco-portal .bx-gco-prog { color: color-mix(in srgb, var(--bx-accent) 25%, white);
-  text-shadow: 0 0 .5em color-mix(in srgb, var(--bx-accent) 70%, transparent); }
-
-/* ── Stil „Rakete" — senkrechte Startbahn statt Ring: das Geschenk steigt mit
-   dem Fortschritt zum Ziel hoch. Damit sieht man „wie weit noch" ohne eine
-   einzige Zahl zu lesen, und ein Geschenk bewegt sichtbar etwas.
-   Der Weg ist in --u gerechnet (nicht in Prozent): Prozente in translate()
-   beziehen sich auf die GRÖSSE DES GESCHENKS, nicht auf die Bahn — damit wäre
-   der Weg von der Bildgröße abhängig statt von der Bahnlänge. */
-.bx-gco-rakete .bx-gco-iconwrap { width: clamp(30px, calc(var(--u) * 96), 380px);
-  height: clamp(60px, calc(var(--u) * 250), 980px); border-radius: 999px;
-  background: linear-gradient(180deg, rgba(6,8,20,.85), rgba(10,12,28,.6));
-  box-shadow: inset 0 0 0 calc(var(--u) * 2) rgba(255,255,255,.09); overflow: hidden; }
-/* Sternenfeld, das nach unten zieht — zwei Kopien untereinander, damit die
-   Schleife ohne Sprung durchläuft. */
-.bx-gco-rakete .bx-gco-iconwrap::before { content:''; position:absolute; left:0; right:0; top:-100%; height:200%;
-  background:
-    radial-gradient(1.5px 1.5px at 20% 8%, rgba(255,255,255,.75), transparent),
-    radial-gradient(1.5px 1.5px at 72% 22%, rgba(255,255,255,.55), transparent),
-    radial-gradient(1.5px 1.5px at 38% 41%, rgba(255,255,255,.7), transparent),
-    radial-gradient(1.5px 1.5px at 84% 63%, rgba(255,255,255,.5), transparent),
-    radial-gradient(1.5px 1.5px at 12% 79%, rgba(255,255,255,.65), transparent);
-  background-size: 100% 50%; animation: bx-gco-sterne 9s linear infinite; }
-@keyframes bx-gco-sterne { to { transform: translateY(50%); } }
-/* Zurückgelegter Weg als schmale Leuchtspur in der Bahnmitte. Als BREITE
-   Füllung sah die Bahn aus wie ein Tank — die Rakete soll aber fliegen, nicht
-   schwimmen. */
-.bx-gco-rakete .bx-gco-ring { -webkit-mask:none; mask:none; border-radius:999px;
-  inset: 0 auto 0 50%; width: calc(var(--u) * 5); transform: translateX(-50%);
-  background: linear-gradient(to top, color-mix(in srgb, var(--bx-accent) 85%, transparent) 0%,
-    color-mix(in srgb, var(--bx-accent) 45%, transparent) calc(var(--pct, 0%) - 8%),
-    color-mix(in srgb, white 60%, var(--bx-accent)) var(--pct, 0%),
-    rgba(255,255,255,.07) var(--pct, 0%), rgba(255,255,255,.07) 100%);
-  animation: none; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--bx-accent) 70%, transparent)); }
-/* Das Ziel oben in der Bahn — blinkt erst, wenn es erreicht ist. */
-.bx-gco-rakete .bx-gco-deko { top: calc(var(--u) * 10); bottom: auto; left: 16%; right: 16%; height: 0;
-  border-top: calc(var(--u) * 3) dashed var(--bx-teal);
-  filter: drop-shadow(0 0 calc(var(--u) * 6) color-mix(in srgb, var(--bx-teal) 80%, transparent)); }
-.bx-gco-rakete.done .bx-gco-deko { animation: bx-gco-blink 900ms steps(1) infinite; }
-/* Die Rakete selbst: sitzt unten und wird um den Fortschritt nach oben
-   geschoben. Die Fahrt ist weich, damit ein Geschenk als Aufstieg zu sehen ist. */
-.bx-gco-rakete .bx-gco-icon { position:absolute; left:50%; bottom: calc(var(--u) * 12);
-  width: clamp(24px, calc(var(--u) * 74), 300px); height: clamp(24px, calc(var(--u) * 74), 300px);
-  transform: translateX(-50%) translateY(calc(var(--u) * -196 * var(--pctn, 0)));
-  transition: transform 900ms cubic-bezier(.2,.9,.25,1); animation: none; }
-/* Antrieb: flackert immer, beim Eingang kurz kräftig. */
-.bx-gco-rakete .bx-gco-icon::after { content:''; position:absolute; left:50%; top:90%;
-  width: 36%; height: 40%; transform: translateX(-50%); transform-origin: 50% 0%;
-  border-radius: 50% 50% 50% 50% / 30% 30% 100% 100%;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bx-accent) 90%, white), color-mix(in srgb, var(--bx-accent) 60%, transparent) 60%, transparent);
-  filter: blur(1.5px); animation: bx-gco-schub 260ms ease-in-out infinite alternate; }
-@keyframes bx-gco-schub { from { transform: translateX(-50%) scaleY(.75); opacity:.75; } to { transform: translateX(-50%) scaleY(1.15); opacity:1; } }
-.bx-gco-rakete.hit .bx-gco-icon::after { animation: bx-gco-zuendung 620ms ease-out; }
-@keyframes bx-gco-zuendung {
-  0% { transform: translateX(-50%) scaleY(1); opacity:1; }
-  30% { transform: translateX(-50%) scaleY(2.4); opacity:1; }
-  100% { transform: translateX(-50%) scaleY(1); opacity:.85; } }
-
-/* ── Stil „Hologramm" — das Geschenk als Projektion über einem Sockel:
-   Lichtkegel, hochlaufende Scanlinien, ein Hauch Farbversatz an den Kanten und
-   ein unregelmäßiges Flackern. Der Sockel IST der Fortschritt (eine flache
-   Scheibe, die sich füllt) — deshalb liegt er hier statt des Rings. */
-.bx-gco-hologramm { background:none !important; box-shadow:none !important; }
-.bx-gco-hologramm .bx-gco-icon {
-  filter: drop-shadow(calc(var(--u) * -2) 0 0 rgba(255,45,110,.5))
-          drop-shadow(calc(var(--u) * 2) 0 0 rgba(0,225,255,.5))
-          drop-shadow(0 0 calc(var(--u) * 12) color-mix(in srgb, var(--bx-accent) 75%, transparent));
-  animation: bx-gco-schweben 6s ease-in-out infinite, bx-gco-flacker 5.5s steps(1) infinite; }
-@keyframes bx-gco-schweben { 0%,100% { transform: translateY(calc(var(--u) * -3)); } 50% { transform: translateY(calc(var(--u) * 3)); } }
-/* Unregelmäßig — ein gleichmäßiges Blinken sieht nach Defekt aus, ein
-   ungleichmäßiges nach Projektion. */
-@keyframes bx-gco-flacker {
-  0%,7%,9%,44%,46%,100% { opacity:1; }
-  8%,45% { opacity:.55; }
-  71% { opacity:.82; } }
-/* Scanlinien laufen nach oben durchs Bild. */
-/* Die Linien laufen zu den Rändern hin aus — ohne die Maske stand da ein
-   sichtbares Rechteck aus Streifen statt einer Projektion. */
-.bx-gco-hologramm .bx-gco-deko::before { content:''; position:absolute; inset:-8%;
-  background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--bx-accent) 26%, transparent) 0 1px, transparent 1px 5px);
-  -webkit-mask: radial-gradient(58% 58% at 50% 46%, #000 35%, transparent 80%);
-  mask: radial-gradient(58% 58% at 50% 46%, #000 35%, transparent 80%);
-  animation: bx-gco-scan 3.2s linear infinite; }
-@keyframes bx-gco-scan { to { transform: translateY(-5px); } }
-/* Lichtkegel vom Sockel nach oben. */
-.bx-gco-hologramm .bx-gco-deko::after { content:''; position:absolute; left:50%; bottom:-2%;
-  width:150%; height:112%; transform: translateX(-50%);
-  clip-path: polygon(34% 0, 66% 0, 100% 100%, 0 100%);
-  background: linear-gradient(to top, color-mix(in srgb, var(--bx-accent) 30%, transparent), transparent 78%);
-  filter: blur(3px); }
-/* Der Sockel: flache Scheibe, füllt sich mit dem Fortschritt. */
-.bx-gco-hologramm .bx-gco-ring { -webkit-mask:none; mask:none;
-  inset: auto 20% -5% 20%; height: 13%; border-radius: 50%;
-  background: conic-gradient(from -90deg, color-mix(in srgb, var(--bx-accent) 95%, white) 0 var(--pct, 0%), rgba(255,255,255,.1) var(--pct, 0%) 100%);
-  box-shadow: 0 0 calc(var(--u) * 26) color-mix(in srgb, var(--bx-accent) 60%, transparent);
-  animation: bx-gco-sockel 4.5s ease-in-out infinite; }
-@keyframes bx-gco-sockel { 0%,100% { transform: scale(1); opacity:.9; } 50% { transform: scale(1.06); opacity:1; } }
-.bx-gco-hologramm.done .bx-gco-ring { background: conic-gradient(from -90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 50%, white), var(--bx-teal)); }
-.bx-gco-hologramm .bx-gco-title, .bx-gco-hologramm .bx-gco-prog {
-  color: color-mix(in srgb, var(--bx-accent) 22%, white);
-  text-shadow: calc(var(--u) * -1) 0 0 rgba(255,45,110,.45), var(--u) 0 0 rgba(0,225,255,.45),
-    0 0 calc(var(--u) * 10) color-mix(in srgb, var(--bx-accent) 60%, transparent); }
-.bx-gco-hologramm.hit .bx-gco-icon { animation: bx-gco-schweben 6s ease-in-out infinite, bx-gco-stoerung 460ms steps(3); }
-@keyframes bx-gco-stoerung {
-  0% { filter: drop-shadow(calc(var(--u) * -9) 0 0 rgba(255,45,110,.8)) drop-shadow(calc(var(--u) * 9) 0 0 rgba(0,225,255,.8)); }
-  100% { filter: drop-shadow(calc(var(--u) * -2) 0 0 rgba(255,45,110,.5)) drop-shadow(calc(var(--u) * 2) 0 0 rgba(0,225,255,.5)); } }
 
 /* ── Stil „Studio" — das Geschenk als Ausstellungsstück ────────────────────
    Der Anspruch: nicht noch ein Rahmen um ein flaches Bild, sondern das
@@ -521,141 +281,6 @@ html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow:
 .bx-premium .bx-gco-koerper-buehne .bx-gco-icon > * { animation-name: bx-gco-wiegen; }
 .bx-premium .bx-gco-koerper-buehne img.bx-gco-schicht, .bx-premium .bx-gco-koerper-buehne .bx-gco-spiegel img { animation: none; }
 
-/* ── Stil „Vitrine" — dasselbe Ausstellungsstück, aber unter Glas.
-   Der Unterschied zum Studio ist nicht Deko: eine Glasscheibe hat eine EIGENE
-   Spiegelung, die NICHT der Form des Geschenks folgt, sondern der Scheibe. Erst
-   dieser Widerspruch — scharfes Objekt, darüber eine flache Reflexion — liest
-   sich als „hinter Glas". */
-.bx-gco-vitrine {
-  background:
-    radial-gradient(110% 70% at 30% 4%, rgba(255,255,255,.10), transparent 52%),
-    linear-gradient(180deg, #171a26 0%, #0d0f1a 58%, #060710 100%) !important;
-  border-radius: calc(var(--u) * 10);
-  box-shadow: inset 0 0 0 calc(var(--u) * 2) rgba(255,255,255,.10),
-    inset 0 0 calc(var(--u) * 70) rgba(0,0,0,.65),
-    0 calc(var(--u) * 12) calc(var(--u) * 34) rgba(0,0,0,.5) !important;
-  overflow: hidden; }
-/* Dunkler Innenraum nach unten hin — die Haube steht in etwas, nicht auf nichts. */
-.bx-gco-vitrine::before { content:''; position:absolute; left:0; right:0; bottom:0; height:44%; pointer-events:none;
-  background: linear-gradient(180deg, transparent, rgba(0,0,0,.6) 70%); }
-/* Die Sockelplatte, auf der das Stück steht — direkt am Objekt, nicht am
-   Kartenrand. Sonst schwebt die Leuchtleiste irgendwo im Nichts. */
-.bx-gco-vitrine .bx-gco-iconwrap::after { content:''; position:absolute; inset: 66% 4% auto 4%; height: 13%;
-  border-radius: calc(var(--u) * 4);
-  background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.03) 22%, rgba(0,0,0,.55));
-  box-shadow: 0 calc(var(--u) * 6) calc(var(--u) * 16) rgba(0,0,0,.6); }
-/* Die Scheibe: ein breiter, flacher Lichtstreif über ALLES, plus Kantenlicht.
-   Bewusst schräg und weich — eine harte Kante sähe nach Aufkleber aus. */
-.bx-gco-vitrine::after { content:''; position:absolute; inset:0; pointer-events:none;
-  background: linear-gradient(114deg, rgba(255,255,255,.14) 0 16%, transparent 34%, transparent 62%, rgba(255,255,255,.07) 74%, transparent 88%),
-    radial-gradient(80% 66% at 50% 46%, transparent 58%, rgba(0,0,0,.45) 100%); }
-.bx-gco-vitrine .bx-gco-iconwrap { margin-bottom: calc(var(--u) * 14); }
-/* Der Fortschritt läuft als Leuchtleiste IM SOCKEL — waagerecht, weil ein Ring
-   unter Glas mit den Scheibenreflexen kollidiert. */
-.bx-gco-vitrine .bx-gco-ring { inset: 71% 12% auto 12%; height: calc(var(--u) * 6); border-radius: 999px;
-  -webkit-mask:none; mask:none;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent) 95%, white) 0 var(--pct, 0%), rgba(255,255,255,.10) var(--pct, 0%) 100%);
-  filter: drop-shadow(0 0 calc(var(--u) * 9) color-mix(in srgb, var(--bx-accent) 70%, transparent)); }
-.bx-gco-vitrine.done .bx-gco-ring { background: linear-gradient(90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 50%, white)); }
-.bx-gco-vitrine .bx-gco-deko { inset: 61% 26% auto 26%; height: 7%; border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(0,0,0,.8), transparent 78%); filter: blur(calc(var(--u) * 3)); }
-.bx-gco-vitrine .bx-gco-title { color: rgba(255,255,255,.6); letter-spacing:.2em; -webkit-text-stroke:0;
-  font-size: clamp(9px, calc(var(--u) * 14), 54px); }
-.bx-gco-vitrine .bx-gco-prog { color:#fff; -webkit-text-stroke:0;
-  text-shadow: 0 0 calc(var(--u) * 16) color-mix(in srgb, var(--bx-accent) 70%, transparent); }
-
-/* ── Stil „Museum" — dunkler Raum, EIN Scheinwerfer.
-   Hier macht nicht das Objekt die Bühne, sondern das Licht: ein sichtbarer
-   Lichtkegel von oben, eine harte Lichtinsel auf dem Boden und ringsum
-   Dunkelheit. Das Geschenk steht in der Insel, alles andere verschwindet. */
-.bx-gco-museum {
-  background: radial-gradient(70% 46% at 50% 78%, rgba(255,255,255,.05), transparent 72%),
-    linear-gradient(180deg, #0a0b12 0%, #05060b 100%) !important;
-  border-radius: calc(var(--u) * 12);
-  box-shadow: inset 0 0 calc(var(--u) * 80) rgba(0,0,0,.9) !important; overflow: hidden; }
-/* Der Kegel. Nach unten breiter, nach unten heller — und mit weicher Kante,
-   sonst ist es ein Dreieck statt Licht. */
-.bx-gco-museum .bx-gco-deko { inset: -20% -6% auto -6%; height: 96%; border:0; border-radius:0;
-  clip-path: polygon(41% 0, 59% 0, 92% 100%, 8% 100%);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bx-accent) 26%, transparent), color-mix(in srgb, var(--bx-accent) 7%, transparent) 62%, transparent);
-  filter: blur(calc(var(--u) * 5)); }
-/* Staub im Strahl — zwei Ebenen, die langsam gegeneinander wandern. */
-.bx-gco-museum .bx-gco-deko::after { content:''; position:absolute; inset:0;
-  background:
-    radial-gradient(1.6px 1.6px at 46% 22%, rgba(255,255,255,.6), transparent),
-    radial-gradient(1.4px 1.4px at 57% 44%, rgba(255,255,255,.45), transparent),
-    radial-gradient(1.6px 1.6px at 40% 63%, rgba(255,255,255,.5), transparent),
-    radial-gradient(1.4px 1.4px at 63% 78%, rgba(255,255,255,.4), transparent);
-  animation: bx-gco-staub 13s linear infinite; }
-@keyframes bx-gco-staub { 0% { transform: translateY(-6%); } 100% { transform: translateY(6%); } }
-/* Die Lichtinsel: gleichmäßig hell, damit sie wie Licht aussieht. Ein von
-   links gefüllter Verlauf sah aus, als stünde der Scheinwerfer schief. */
-.bx-gco-museum .bx-gco-iconwrap::after { content:''; position:absolute; inset: 56% 10% auto 10%; height: 28%;
-  border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--bx-accent) 62%, white), color-mix(in srgb, var(--bx-accent) 30%, transparent) 58%, transparent 82%);
-  filter: blur(calc(var(--u) * 3)); }
-/* Der Fortschritt läuft als schmaler Bogen um die Lichtinsel — er teilt sich
-   die Fläche mit ihr, kämpft aber nicht um dieselbe Helligkeit. */
-.bx-gco-museum .bx-gco-ring { inset: 53% 6% auto 6%; height: 34%; border-radius: 50%;
-  -webkit-mask: radial-gradient(closest-side, transparent 80%, #000 84%, #000 96%, transparent 100%);
-  mask: radial-gradient(closest-side, transparent 80%, #000 84%, #000 96%, transparent 100%);
-  background: conic-gradient(from -90deg, color-mix(in srgb, var(--bx-accent) 40%, white) 0 var(--pct, 0%), rgba(255,255,255,.10) var(--pct, 0%) 100%);
-  filter: drop-shadow(0 0 calc(var(--u) * 6) color-mix(in srgb, var(--bx-accent) 55%, transparent)); }
-.bx-gco-museum.done .bx-gco-ring { background: conic-gradient(from -90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white), var(--bx-teal)); }
-.bx-gco-museum .bx-gco-title { color: color-mix(in srgb, var(--bx-accent) 20%, white); letter-spacing:.22em; -webkit-text-stroke:0;
-  font-size: clamp(9px, calc(var(--u) * 14), 54px); opacity:.8; }
-.bx-gco-museum .bx-gco-prog { color:#fff; -webkit-text-stroke:0;
-  text-shadow: 0 0 calc(var(--u) * 20) color-mix(in srgb, var(--bx-accent) 80%, transparent); }
-/* Im Scheinwerfer gibt es keine Bodenspiegelung — der Boden ist matt. */
-.bx-gco-museum .bx-gco-spiegel { opacity:.12; }
-
-/* ── „Rahmen ausblenden" für die aufwendigen Stile ─────────────────────────
-   Der Kasten ist bei Studio, Vitrine und Museum Teil der Inszenierung — aber im
-   Overlay ist oft schlicht kein Platz dafür, und der Streamer will das Geschenk
-   frei auf seinem Videobild stehen haben.
-
-   Der Haken „Rahmen ausblenden" nimmt deshalb NUR die Fläche weg. Alles, was den
-   Gegenstand ausmacht, bleibt: Tiefe, Standlicht, Kontaktschatten, Spiegelung,
-   Fortschritt — beim Museum sogar der Lichtkegel, der über dem Videobild sogar
-   besser wirkt als im schwarzen Kasten.
-
-   FALLE (siehe AGENTS.md): Die Grundregel .bx-frameless * setzt JEDEN Rand
-   auf durchsichtig. Ränder, die hier eine FORM tragen statt einen Rahmen zu
-   ziehen — die Bahnen des Portals, das Gehäuse des Automaten, die Ziellinie der
-   Rakete — müssen sich ihre Farbe zurückholen. */
-html .bx-frameless .bx-gco-studio,
-html .bx-frameless .bx-gco-vitrine,
-html .bx-frameless .bx-gco-museum,
-html .bx-frameless .bx-gco-arcade,
-html .bx-frameless .bx-gco-medaille {
-  background: none !important; box-shadow: none !important;
-  -webkit-backdrop-filter: none; backdrop-filter: none; }
-/* Randabdunklung, Studio-Rundung, Glasscheibe und Sockelwanne gehören zur
-   Fläche und verschwinden mit ihr. */
-html .bx-frameless .bx-gco-studio::before, html .bx-frameless .bx-gco-studio::after,
-html .bx-frameless .bx-gco-vitrine::before, html .bx-frameless .bx-gco-vitrine::after,
-html .bx-frameless .bx-gco-arcade::after { display: none; }
-/* Ohne Fläche steht der Text direkt auf dem Videobild — dort braucht er wieder
-   eine Kontur, sonst verschwindet er auf hellen Szenen. */
-html .bx-frameless .bx-gco-studio .bx-gco-title, html .bx-frameless .bx-gco-vitrine .bx-gco-title,
-html .bx-frameless .bx-gco-museum .bx-gco-title, html .bx-frameless .bx-gco-studio .bx-gco-prog,
-html .bx-frameless .bx-gco-vitrine .bx-gco-prog, html .bx-frameless .bx-gco-museum .bx-gco-prog {
-  -webkit-text-stroke: calc(var(--u) * 2.5) var(--bx-ink, #0a0b12); paint-order: stroke fill;
-  text-shadow: 0 calc(var(--u) * 3) calc(var(--u) * 8) rgba(0,0,0,.75); }
-/* Der Museums-Kegel ohne schwarzen Raum: kräftiger, sonst geht er im Videobild
-   unter. Die Sockelplatte der Vitrine bleibt — sie ist der Boden, nicht der Kasten. */
-html .bx-frameless .bx-gco-museum .bx-gco-deko { filter: blur(calc(var(--u) * 4)); opacity: .85; }
-/* Die Sockelplatte der Vitrine bleibt (der Boden gehört zum Gegenstand), wird
-   aber schmaler und durchsichtiger — als volle graue Platte sähe sie aus wie
-   ein vergessener Rest des Kastens. */
-html .bx-frameless .bx-gco-vitrine .bx-gco-iconwrap::after { inset: 68% 16% auto 16%; height: 8%;
-  background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(0,0,0,.35));
-  box-shadow: 0 calc(var(--u) * 5) calc(var(--u) * 14) rgba(0,0,0,.5); }
-/* Formtragende Ränder zurückholen (siehe Falle oben). */
-html .bx-frameless .bx-gco-portal .bx-gco-deko::before,
-html .bx-frameless .bx-gco-portal .bx-gco-deko::after {
-  border-color: color-mix(in srgb, var(--bx-accent) 55%, transparent) !important; }
-html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal) !important; }
-
 /* ══ Drei ANDERE Anordnungen ═════════════════════════════════════════════
    Bis hierher war jeder Stil dasselbe Gerüst mit anderer Deko: Bild in der
    Mitte, Titel darunter, Zahl ganz unten. Das ist der Grund, warum sich zehn
@@ -666,105 +291,6 @@ html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal
    nebeneinander, übereinander oder gestapelt. Die Reihenfolge im Dokument
    bleibt, wie sie ist. */
 
-/* ── Stil „Sammelkarte" — eine echte Sammelkarte, kein Rahmen um ein Bild.
-   Was eine Karte teuer aussehen lässt, sind nicht mehr Verzierungen, sondern
-   vier Dinge, die zusammenkommen:
-     1. GESCHICHTETES METALL statt einer Linie: Lichtkante, Goldband, dunkle
-        Fuge, Schatten nach außen — vier Schatten übereinander, die dem Rand
-        Dicke geben. Ein einzelner 1px-Rand sieht immer nach Aufkleber aus.
-     2. FOLIE: ein breiter, weicher Lichtschleier, der langsam über die ganze
-        Karte wandert. Genau das macht eine Folienkarte aus.
-     3. TIEFE IM BILD: Das Geschenk bekommt denselben Körper wie im
-        Studio-Stil (zwölf Kopien mit Versatz) und einen Glanz in seiner
-        eigenen Form. Aus dem flachen Bild wird ein Gegenstand IM Rahmen.
-     4. GRAVIERTE Beschriftung: Namensschild mit Innenschatten, Zahl in einem
-        Wappen. Beides sitzt IM Material, statt daraufzuliegen.
-   Die Bodenspiegelung des Studio-Stils bleibt weg — im Bilderrahmen gibt es
-   keinen Boden, auf dem sich etwas spiegeln könnte. */
-.bx-gco-karte { justify-content: flex-start; gap: 0; padding: 4.5% 5.5% 6%;
-  background:
-    radial-gradient(120% 60% at 50% -6%, rgba(255,236,180,.14), transparent 55%),
-    linear-gradient(163deg, #3b2f18 0%, #241b0d 22%, #12100b 55%, #0a0908 100%) !important;
-  border-radius: calc(var(--u) * 15);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,240,200,.22),
-    inset 0 0 0 calc(var(--u) * 3) color-mix(in srgb, var(--bx-gold) 62%, #6b5320),
-    inset 0 0 0 calc(var(--u) * 4) rgba(0,0,0,.75),
-    0 calc(var(--u) * 12) calc(var(--u) * 30) rgba(0,0,0,.65) !important;
-  overflow: hidden; }
-/* Die Folie. Bewusst breit und weich — ein schmaler harter Streif liest sich
-   als Glasscheibe, nicht als Folie. */
-.bx-gco-karte::after { content: ''; position: absolute; top: -30%; bottom: -30%; left: -60%; width: 45%;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent,
-    rgba(255,255,255,.05) 30%, rgba(255,240,210,.17) 50%, rgba(255,255,255,.05) 70%, transparent);
-  transform: rotate(16deg);
-  animation: bx-gco-folie 9s cubic-bezier(.5,0,.5,1) infinite; }
-@keyframes bx-gco-folie {
-  0%, 55% { transform: rotate(16deg) translateX(0); }
-  100% { transform: rotate(16deg) translateX(560%); } }
-/* Innere Haarlinie — der zweite, feinere Rahmen. */
-.bx-gco-karte .bx-gco-deko { inset: calc(var(--u) * 7); border-radius: calc(var(--u) * 10);
-  border: 1px solid color-mix(in srgb, var(--bx-gold) 28%, transparent);
-  box-shadow: inset 0 0 calc(var(--u) * 26) rgba(0,0,0,.55); }
-/* Das Bildfenster: eingelassen statt aufgesetzt (Innenschatten oben,
-   Lichtkante unten) und mit eigener Fassung. */
-.bx-gco-karte .bx-gco-iconwrap { position: static; overflow: hidden;
-  width: 100%; height: 60%; margin: 0 0 0 0;
-  border-radius: calc(var(--u) * 7);
-  background:
-    radial-gradient(85% 75% at 50% 18%, color-mix(in srgb, var(--bx-accent) 26%, transparent), transparent 72%),
-    repeating-linear-gradient(112deg, rgba(255,255,255,.028) 0 2px, transparent 2px 7px),
-    linear-gradient(180deg, #14121a, #08070c);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--bx-gold) 45%, transparent),
-    inset 0 calc(var(--u) * 3) calc(var(--u) * 10) rgba(0,0,0,.8),
-    inset 0 calc(var(--u) * -2) 0 rgba(255,240,200,.10),
-    0 calc(var(--u) * 2) calc(var(--u) * 6) rgba(0,0,0,.5); }
-/* Die Perspektive gehört ans BILD, nicht ans Fenster: perspective macht ein
-   Element zum Bezugspunkt für alles absolut Positionierte darin — mit ihr am
-   Fenster landete die Fortschrittsleiste im Bild statt am Kartenrand. */
-.bx-gco-karte .bx-gco-icon { width: 86%; height: 86%; perspective: calc(var(--u) * 560); }
-/* Im Rahmen gibt es keinen Boden — also auch keine Spiegelung. */
-.bx-gco-karte .bx-gco-spiegel { display: none; }
-/* Namensschild: graviert. Innenschatten und Lichtkante unten, Gold mit
-   dunkler Fußlinie, damit die Schrift IN der Fläche liegt statt darauf. */
-/* Das Schild überlappt die Unterkante des Bildes — so machen es echte Karten,
-   und genau das nimmt der Anordnung das Gestapelte. */
-.bx-gco-karte .bx-gco-title { width: 92%; padding: 2.4% 6%; -webkit-text-stroke: 0;
-  position: relative; z-index: 1; margin-top: -4.5%;
-  border-radius: calc(var(--u) * 4);
-  background: linear-gradient(180deg, rgba(0,0,0,.55), rgba(255,235,190,.07));
-  box-shadow: inset 0 1px calc(var(--u) * 4) rgba(0,0,0,.85),
-    inset 0 -1px 0 rgba(255,240,200,.16),
-    0 0 0 1px color-mix(in srgb, var(--bx-gold) 30%, transparent);
-  color: color-mix(in srgb, var(--bx-gold) 45%, white); letter-spacing: .1em;
-  font-size: clamp(12px, calc(var(--u) * 24), 92px);
-  text-shadow: 0 calc(var(--u) * 1) 0 rgba(0,0,0,.9); }
-/* Die Zahl sitzt in einem Wappen. */
-.bx-gco-karte .bx-gco-prog { margin: auto 0 6% 0; -webkit-text-stroke: 0;
-  font-size: clamp(18px, calc(var(--u) * 38), 145px);
-  padding: 1% calc(var(--u) * 20); border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255,236,180,.16), rgba(0,0,0,.5));
-  box-shadow: inset 0 1px 0 rgba(255,245,215,.35), inset 0 -1px calc(var(--u) * 3) rgba(0,0,0,.7),
-    0 0 0 1px color-mix(in srgb, var(--bx-gold) 40%, transparent);
-  color: color-mix(in srgb, var(--bx-gold) 20%, white);
-  text-shadow: 0 0 calc(var(--u) * 14) color-mix(in srgb, var(--bx-gold) 70%, transparent), 0 calc(var(--u) * 1) 0 rgba(0,0,0,.9); }
-/* Fortschritt als eingelassene Leiste im unteren Kartenrand. */
-.bx-gco-karte .bx-gco-ring { inset: auto 8% 3.5% 8%; height: calc(var(--u) * 6); border-radius: 999px;
-  -webkit-mask: none; mask: none;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-gold) 92%, white) 0 var(--pct, 0%), rgba(0,0,0,.55) var(--pct, 0%) 100%);
-  box-shadow: inset 0 1px calc(var(--u) * 3) rgba(0,0,0,.8), 0 0 calc(var(--u) * 8) -2px color-mix(in srgb, var(--bx-gold) 55%, transparent); }
-.bx-gco-karte.done .bx-gco-ring { background: linear-gradient(90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white)); animation: none; }
-/* Ziel erreicht: die Karte bekommt den Schein einer seltenen Karte. */
-.bx-gco-karte.done { box-shadow:
-    inset 0 0 0 1px rgba(255,240,200,.3),
-    inset 0 0 0 calc(var(--u) * 3) color-mix(in srgb, var(--bx-teal) 70%, white),
-    inset 0 0 0 calc(var(--u) * 4) rgba(0,0,0,.75),
-    0 0 calc(var(--u) * 40) -6px var(--bx-teal),
-    0 calc(var(--u) * 12) calc(var(--u) * 30) rgba(0,0,0,.65) !important; }
-/* Ein Geschenk lässt die Folie sofort durchlaufen — wie wenn man eine Karte kippt. */
-.bx-gco-karte.hit::after { animation: bx-gco-folie 900ms cubic-bezier(.4,0,.25,1); }
 /* ── Stil „Zeile" — quer statt hoch: Geschenk links, Text rechts. Für flache,
    breite Kästen (die Leiste unter dem Stream), wo eine gestapelte Anordnung
    nur zwei Zeilen Platz hätte und alles winzig würde. */
@@ -787,6 +313,10 @@ html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal
 /* ── Stil „Zahl im Fokus" — die Zahl IST das Bild: riesig in der Mitte, das
    Geschenk sitzt als Marke davor, der Titel steht klein darunter. Alle drei
    liegen in DERSELBEN Rasterfläche, überlagern sich also. */
+/* Bei „Zahl im Fokus“ bekommt NUR der Titel eine eigene Ebene: dort soll das
+   Geschenk als Marke VOR der Zahl sitzen. (Stand vorher im Plakat-Block und
+   ging mit dessen Entfernen verloren.) */
+.bx-gco-fokus .bx-gco-title { position: relative; z-index: 1; }
 .bx-gco-fokus { display: grid; grid-template-areas: 'stapel'; place-items: center; }
 .bx-gco-fokus > * { grid-area: stapel; }
 .bx-gco-fokus .bx-gco-prog { font-size: clamp(26px, calc(var(--u) * 88), 340px); line-height: 1;
@@ -803,46 +333,6 @@ html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal
   font-size: clamp(9px, calc(var(--u) * 14), 54px); letter-spacing: .16em;
   transform: translateY(-14%); }
 .bx-gco-fokus .bx-gco-ring { filter: drop-shadow(0 0 calc(var(--u) * 8) color-mix(in srgb, var(--bx-accent) 70%, transparent)); }
-
-/* ── Stil „Plakat" — Text ÜBER dem Geschenk statt darunter.
-   Das Geschenk füllt die ganze Box, der Titel liegt als Band oben darauf, die
-   Zahl unten. Wie ein Vorschaubild: kein Platz geht für Textzeilen verloren,
-   das Geschenk wird so groß wie die Box hergibt.
-   Damit Text auf einem BELIEBIGEN Geschenkbild lesbar bleibt, liegt unter
-   beiden Bändern ein Verlauf ins Dunkle — eine Kontur allein reicht auf hellen
-   Geschenken (Diamant, Schwan) nicht. */
-.bx-gco-plakat { display: grid; grid-template-areas: 'stapel'; gap: 0; }
-.bx-gco-plakat > * { grid-area: stapel; }
-/* PFLICHT bei jeder überlagerten Anordnung: Das Geschenk-Element ist
-   positioniert (position:relative in der Grundregel), die Textzeilen sind es
-   nicht — und positionierte Elemente werden ÜBER unpositionierten gezeichnet,
-   ganz gleich, wie sie im Dokument stehen. Ohne die zwei Zeilen hier lag der
-   Text hinter dem Bild und war schlicht weg. In den gestapelten Anordnungen
-   fällt das zum ersten Mal auf, weil sich dort überhaupt etwas überlappt. */
-.bx-gco-plakat .bx-gco-title, .bx-gco-plakat .bx-gco-prog,
-.bx-gco-davor .bx-gco-title, .bx-gco-davor .bx-gco-prog { position: relative; z-index: 1; }
-/* Bei „Zahl im Fokus" ist es GENAU ANDERSHERUM gewollt: dort soll das Geschenk
-   als Marke vor der Zahl sitzen. Deshalb bekommt der Titel dort die Ebene, die
-   Zahl aber nicht. */
-.bx-gco-fokus .bx-gco-title { position: relative; z-index: 1; }
-.bx-gco-plakat .bx-gco-iconwrap { width: 100%; height: 100%; margin: 0; }
-.bx-gco-plakat .bx-gco-icon { width: 94%; height: 94%; }
-/* GEWICHTUNG: Der Titel ist die Ansage („FN Löschen"), die Zahl nur der Beleg.
-   Deshalb steht hier der Titel groß und die Zahl klein — umgekehrt wie in den
-   gestapelten Standard-Stilen. Wer es andersherum will, nimmt „Zahl im Fokus". */
-.bx-gco-plakat .bx-gco-title { align-self: start; justify-self: stretch; text-align: center;
-  padding: 5% 5% 10%; background: linear-gradient(180deg, rgba(0,0,0,.8), rgba(0,0,0,.4) 58%, transparent);
-  font-size: clamp(13px, calc(var(--u) * 34), 130px); line-height: 1.02; }
-.bx-gco-plakat .bx-gco-prog { align-self: end; justify-self: stretch; text-align: center;
-  padding: 10% 5% 4.5%; background: linear-gradient(0deg, rgba(0,0,0,.8), rgba(0,0,0,.35) 55%, transparent);
-  font-size: clamp(11px, calc(var(--u) * 19), 74px); opacity: .9; }
-/* Fortschritt als schmale Leiste ganz unten am Bildrand. z-index, weil sie
-   sonst unter dem Verlauf der Zahl liegt und ausgegraut wirkt. */
-.bx-gco-plakat .bx-gco-ring { inset: auto 0 0 0; height: calc(var(--u) * 5); border-radius: 0; z-index: 2;
-  -webkit-mask: none; mask: none;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent) 95%, white) 0 var(--pct, 0%), rgba(255,255,255,.14) var(--pct, 0%) 100%);
-  filter: drop-shadow(0 0 calc(var(--u) * 6) color-mix(in srgb, var(--bx-accent) 60%, transparent)); }
-.bx-gco-plakat.done .bx-gco-ring { background: linear-gradient(90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white)); animation: none; }
 
 /* ── Stil „Davor" — die Zahl steht VOR dem Geschenk.
    Das Geschenk ist groß und dahinter, die Zahl liegt mitten darauf. Der Trick
@@ -898,6 +388,15 @@ html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal
   width: auto; height: auto; perspective: calc(var(--u) * 560); }
 .bx-gco-karte-voll .bx-gco-spiegel { display: none; }
 /* Folie über allem. */
+/* Diese beiden Bewegungen standen bei Stilen, die wir entfernt haben —
+   benutzt werden sie aber hier und beim Studio-Ring. Sie stehen jetzt bei ihren
+   Nutzern. Ein Wächter (animationen-vorhanden.test.ts) fängt so etwas ab: Eine
+   Animation ohne @keyframes ist im CSS kein Fehler, der Browser tut einfach
+   nichts — die Karte hätte still ihren Glanz verloren. */
+@keyframes bx-gco-dreh { to { transform: rotate(360deg); } }
+@keyframes bx-gco-folie {
+  0%, 55% { transform: rotate(16deg) translateX(0); }
+  100% { transform: rotate(16deg) translateX(560%); } }
 .bx-gco-karte-voll::after { content: ''; position: absolute; top: -30%; bottom: -30%; left: -60%; width: 40%;
   pointer-events: none; transform: rotate(16deg);
   background: linear-gradient(90deg, transparent, rgba(255,255,255,.06) 35%, rgba(255,255,255,.18) 50%, rgba(255,255,255,.06) 65%, transparent);
@@ -966,6 +465,80 @@ html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal
   background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent) 95%, white) 0 var(--pct, 0%), rgba(255,255,255,.12) var(--pct, 0%) 100%); }
 .bx-gco-karte-schraeg.done .bx-gco-ring { background: linear-gradient(90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white)); animation: none; }
 
+/* ── Stil „Museum" — dunkler Raum, EIN Scheinwerfer.
+   Hier macht nicht das Objekt die Bühne, sondern das Licht: ein sichtbarer
+   Lichtkegel von oben, eine harte Lichtinsel auf dem Boden und ringsum
+   Dunkelheit. Das Geschenk steht in der Insel, alles andere verschwindet. */
+.bx-gco-museum {
+  background: radial-gradient(70% 46% at 50% 78%, rgba(255,255,255,.05), transparent 72%),
+    linear-gradient(180deg, #0a0b12 0%, #05060b 100%) !important;
+  border-radius: calc(var(--u) * 12);
+  box-shadow: inset 0 0 calc(var(--u) * 80) rgba(0,0,0,.9) !important; overflow: hidden; }
+/* Der Kegel. Nach unten breiter, nach unten heller — und mit weicher Kante,
+   sonst ist es ein Dreieck statt Licht. */
+.bx-gco-museum .bx-gco-deko { inset: -20% -6% auto -6%; height: 96%; border:0; border-radius:0;
+  clip-path: polygon(41% 0, 59% 0, 92% 100%, 8% 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bx-accent) 26%, transparent), color-mix(in srgb, var(--bx-accent) 7%, transparent) 62%, transparent);
+  filter: blur(calc(var(--u) * 5)); }
+/* Staub im Strahl — zwei Ebenen, die langsam gegeneinander wandern. */
+.bx-gco-museum .bx-gco-deko::after { content:''; position:absolute; inset:0;
+  background:
+    radial-gradient(1.6px 1.6px at 46% 22%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.4px 1.4px at 57% 44%, rgba(255,255,255,.45), transparent),
+    radial-gradient(1.6px 1.6px at 40% 63%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1.4px 1.4px at 63% 78%, rgba(255,255,255,.4), transparent);
+  animation: bx-gco-staub 13s linear infinite; }
+@keyframes bx-gco-staub { 0% { transform: translateY(-6%); } 100% { transform: translateY(6%); } }
+/* Die Lichtinsel: gleichmäßig hell, damit sie wie Licht aussieht. Ein von
+   links gefüllter Verlauf sah aus, als stünde der Scheinwerfer schief. */
+.bx-gco-museum .bx-gco-iconwrap::after { content:''; position:absolute; inset: 56% 10% auto 10%; height: 28%;
+  border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--bx-accent) 62%, white), color-mix(in srgb, var(--bx-accent) 30%, transparent) 58%, transparent 82%);
+  filter: blur(calc(var(--u) * 3)); }
+/* Der Fortschritt läuft als schmaler Bogen um die Lichtinsel — er teilt sich
+   die Fläche mit ihr, kämpft aber nicht um dieselbe Helligkeit. */
+.bx-gco-museum .bx-gco-ring { inset: 53% 6% auto 6%; height: 34%; border-radius: 50%;
+  -webkit-mask: radial-gradient(closest-side, transparent 80%, #000 84%, #000 96%, transparent 100%);
+  mask: radial-gradient(closest-side, transparent 80%, #000 84%, #000 96%, transparent 100%);
+  background: conic-gradient(from -90deg, color-mix(in srgb, var(--bx-accent) 40%, white) 0 var(--pct, 0%), rgba(255,255,255,.10) var(--pct, 0%) 100%);
+  filter: drop-shadow(0 0 calc(var(--u) * 6) color-mix(in srgb, var(--bx-accent) 55%, transparent)); }
+.bx-gco-museum.done .bx-gco-ring { background: conic-gradient(from -90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white), var(--bx-teal)); }
+.bx-gco-museum .bx-gco-title { color: color-mix(in srgb, var(--bx-accent) 20%, white); letter-spacing:.22em; -webkit-text-stroke:0;
+  font-size: clamp(9px, calc(var(--u) * 14), 54px); opacity:.8; }
+.bx-gco-museum .bx-gco-prog { color:#fff; -webkit-text-stroke:0;
+  text-shadow: 0 0 calc(var(--u) * 20) color-mix(in srgb, var(--bx-accent) 80%, transparent); }
+/* Im Scheinwerfer gibt es keine Bodenspiegelung — der Boden ist matt. */
+.bx-gco-museum .bx-gco-spiegel { opacity:.12; }
+
+/* ── „Rahmen ausblenden" für die Bühnen-Stile ──────────────────────────────
+   Der Kasten ist bei Studio und Museum Teil der Inszenierung — aber im Overlay
+   ist oft schlicht kein Platz dafür, und der Streamer will das Geschenk frei
+   auf seinem Videobild stehen haben.
+
+   Der Haken nimmt deshalb NUR die Fläche weg. Alles, was den Gegenstand
+   ausmacht, bleibt: Tiefe, Standlicht, Kontaktschatten, Spiegelung,
+   Fortschritt — beim Museum sogar der Lichtkegel, der über dem Videobild
+   besser wirkt als im schwarzen Kasten.
+
+   Die KARTEN stehen bewusst nicht hier: Bei ihnen IST der Rahmen das Design.
+   Ohne ihn bliebe ein Bild mit Schrift übrig — dafür gibt es „Davor". */
+html .bx-frameless .bx-gco-studio,
+html .bx-frameless .bx-gco-museum,
+html .bx-frameless .bx-gco-arcade {
+  background: none !important; box-shadow: none !important;
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* Randabdunklung und Studio-Rundung gehören zur Fläche und gehen mit ihr. */
+html .bx-frameless .bx-gco-studio::before, html .bx-frameless .bx-gco-studio::after,
+html .bx-frameless .bx-gco-arcade::after { display: none; }
+/* Ohne Fläche steht der Text direkt auf dem Videobild — dort braucht er wieder
+   eine Kontur, sonst verschwindet er auf hellen Szenen. */
+html .bx-frameless .bx-gco-studio .bx-gco-title, html .bx-frameless .bx-gco-museum .bx-gco-title,
+html .bx-frameless .bx-gco-davor .bx-gco-title, html .bx-frameless .bx-gco-davor .bx-gco-prog,
+html .bx-frameless .bx-gco-studio .bx-gco-prog, html .bx-frameless .bx-gco-museum .bx-gco-prog {
+  -webkit-text-stroke: calc(var(--u) * 2.5) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 calc(var(--u) * 3) calc(var(--u) * 8) rgba(0,0,0,.75); }
+/* Der Museums-Kegel ohne schwarzen Raum: kräftiger, sonst geht er unter. */
+html .bx-frameless .bx-gco-museum .bx-gco-deko { filter: blur(calc(var(--u) * 4)); opacity: .85; }
+
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
@@ -990,7 +563,7 @@ const STUDIO_TIEFE = 12;
 /** Stile, die aus dem flachen Geschenkbild einen Körper bauen (studioSchichten).
  *  Der Aufbau ist bei allen derselbe — es unterscheidet sich nur, WORIN der
  *  Gegenstand steht: freie Studio-Rundung, Glaskasten oder Scheinwerferkegel. */
-const STILE_MIT_KOERPER = new Set(['studio', 'vitrine', 'museum', 'karte', 'karte-voll', 'karte-schraeg']);
+const STILE_MIT_KOERPER = new Set(['studio', 'museum', 'karte-voll', 'karte-schraeg']);
 
 /** Die Stile mit der GEMEINSAMEN BÜHNE (Boden, Ring, Spiegelung, Perspektive).
  *
@@ -998,7 +571,7 @@ const STILE_MIT_KOERPER = new Set(['studio', 'vitrine', 'museum', 'karte', 'kart
  *  stellt ihn aber in ihren eigenen Bilderrahmen statt auf eine Bühne. Zwei
  *  getrennte Mengen, weil das eine sagt „welches Gerüst baue ich" und das
  *  andere „welche Kulisse steht drumherum". */
-const STILE_MIT_BUEHNE = new Set(['studio', 'vitrine', 'museum']);
+const STILE_MIT_BUEHNE = new Set(['studio', 'museum']);
 
 /** Stile, die die Größe ihres Bildrahmens SELBST bestimmen.
  *
@@ -1007,7 +580,7 @@ const STILE_MIT_BUEHNE = new Set(['studio', 'vitrine', 'museum']);
  *  und die CSS-Regel schließt sie damit aus. Ein Test in gift-counter.test.ts
  *  vergleicht diese Liste mit den CSS-Regeln, damit kein Stil vergessen wird. */
 export const EIGENES_MASS = new Set([
-  'rakete', 'studio', 'vitrine', 'museum', 'karte', 'karte-voll', 'karte-schraeg', 'zeile', 'fokus', 'plakat', 'davor',
+  'studio', 'museum', 'karte-voll', 'karte-schraeg', 'zeile', 'fokus', 'davor',
 ]);
 
 /**
@@ -1046,7 +619,10 @@ export function sichereBildAdresse(url) {
 /** Die wählbaren Stile. Reihenfolge = die des Auswahlfelds; 'glas' ist der
  *  Rückfall für alles Unbekannte (z.B. ein Overlay von einer neueren Fassung).
  *  Ein Stil wird NIE entfernt — das würde vorhandene Overlays umgestalten. */
-export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm', 'studio', 'vitrine', 'museum', 'karte', 'karte-voll', 'karte-schraeg', 'zeile', 'fokus', 'plakat', 'davor'];
+export const STILE = [
+  'glas', 'aufladung', 'arcade', 'davor',
+  'karte-voll', 'karte-schraeg', 'studio', 'museum', 'zeile', 'fokus',
+];
 
 /** Welche Anzeige-Klassen an der Wurzel hängen (Titel/Zähler/Ring aus).
  *

@@ -134,7 +134,7 @@ test('EIGENES_MASS enthält jeden Stil, der seinen Bildrahmen selbst bemisst', a
 
   // „bx-gco-koerper-buehne" ist keine Stil-Klasse, sondern die gemeinsame Bühne
   // der drei aufwendigen Stile — sie steht für alle drei.
-  const AUFLOESUNG: Record<string, string[]> = { 'koerper-buehne': ['studio', 'vitrine', 'museum'] };
+  const AUFLOESUNG: Record<string, string[]> = { 'koerper-buehne': ['studio', 'museum'] };
 
   const gefunden = new Set<string>();
   for (const m of quelle.matchAll(/\.bx-gco-([a-z-]+)[^{;]*?\.bx-gco-iconwrap[^{]*\{([^}]*)\}/g)) {
