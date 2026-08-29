@@ -950,6 +950,8 @@ export const WIDGET_TYPES: {
         { value: 'karte', label: '🃏 Sammelkarte (Bild im Rahmen)' },
         { value: 'zeile', label: '📊 Zeile (quer, Text rechts)' },
         { value: 'fokus', label: '🔢 Zahl im Fokus (Zahl groß)' },
+        { value: 'plakat', label: '📰 Plakat (Text über dem Geschenk)' },
+        { value: 'davor', label: '🎯 Davor (Zahl vor dem Geschenk)' },
       ]),
       { key: 'giftSlug', label: 'Gift zählen', type: 'gift', hint: 'Welches Gift gezählt wird — durchsuchbar auswählen (leer = ALLE Gifts).' },
       { key: 'target', label: 'Ziel', type: 'number', hint: 'Wie viele bis zum Ziel.' },

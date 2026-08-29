@@ -725,6 +725,63 @@ html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal
   transform: translateY(-14%); }
 .bx-gco-fokus .bx-gco-ring { filter: drop-shadow(0 0 calc(var(--u) * 8) color-mix(in srgb, var(--bx-accent) 70%, transparent)); }
 
+/* ── Stil „Plakat" — Text ÜBER dem Geschenk statt darunter.
+   Das Geschenk füllt die ganze Box, der Titel liegt als Band oben darauf, die
+   Zahl unten. Wie ein Vorschaubild: kein Platz geht für Textzeilen verloren,
+   das Geschenk wird so groß wie die Box hergibt.
+   Damit Text auf einem BELIEBIGEN Geschenkbild lesbar bleibt, liegt unter
+   beiden Bändern ein Verlauf ins Dunkle — eine Kontur allein reicht auf hellen
+   Geschenken (Diamant, Schwan) nicht. */
+.bx-gco-plakat { display: grid; grid-template-areas: 'stapel'; gap: 0; }
+.bx-gco-plakat > * { grid-area: stapel; }
+/* PFLICHT bei jeder überlagerten Anordnung: Das Geschenk-Element ist
+   positioniert (position:relative in der Grundregel), die Textzeilen sind es
+   nicht — und positionierte Elemente werden ÜBER unpositionierten gezeichnet,
+   ganz gleich, wie sie im Dokument stehen. Ohne die zwei Zeilen hier lag der
+   Text hinter dem Bild und war schlicht weg. In den gestapelten Anordnungen
+   fällt das zum ersten Mal auf, weil sich dort überhaupt etwas überlappt. */
+.bx-gco-plakat .bx-gco-title, .bx-gco-plakat .bx-gco-prog,
+.bx-gco-davor .bx-gco-title, .bx-gco-davor .bx-gco-prog { position: relative; z-index: 1; }
+/* Bei „Zahl im Fokus" ist es GENAU ANDERSHERUM gewollt: dort soll das Geschenk
+   als Marke vor der Zahl sitzen. Deshalb bekommt der Titel dort die Ebene, die
+   Zahl aber nicht. */
+.bx-gco-fokus .bx-gco-title { position: relative; z-index: 1; }
+.bx-gco-plakat .bx-gco-iconwrap { width: 100%; height: 100%; margin: 0; }
+.bx-gco-plakat .bx-gco-icon { width: 94%; height: 94%; }
+.bx-gco-plakat .bx-gco-title { align-self: start; justify-self: stretch; text-align: center;
+  padding: 4% 5% 9%; background: linear-gradient(180deg, rgba(0,0,0,.75), rgba(0,0,0,.35) 55%, transparent);
+  font-size: clamp(10px, calc(var(--u) * 18), 70px); }
+.bx-gco-plakat .bx-gco-prog { align-self: end; justify-self: stretch; text-align: center;
+  padding: 9% 5% 5%; background: linear-gradient(0deg, rgba(0,0,0,.8), rgba(0,0,0,.35) 55%, transparent); }
+/* Fortschritt als schmale Leiste ganz unten am Bildrand. z-index, weil sie
+   sonst unter dem Verlauf der Zahl liegt und ausgegraut wirkt. */
+.bx-gco-plakat .bx-gco-ring { inset: auto 0 0 0; height: calc(var(--u) * 5); border-radius: 0; z-index: 2;
+  -webkit-mask: none; mask: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent) 95%, white) 0 var(--pct, 0%), rgba(255,255,255,.14) var(--pct, 0%) 100%);
+  filter: drop-shadow(0 0 calc(var(--u) * 6) color-mix(in srgb, var(--bx-accent) 60%, transparent)); }
+.bx-gco-plakat.done .bx-gco-ring { background: linear-gradient(90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white)); animation: none; }
+
+/* ── Stil „Davor" — die Zahl steht VOR dem Geschenk.
+   Das Geschenk ist groß und dahinter, die Zahl liegt mitten darauf. Der Trick
+   ist der abgedunkelte Fleck unter der Zahl: ohne ihn kämpfen Ziffern und
+   Geschenkbild um dieselbe Fläche und beide verlieren. */
+.bx-gco-davor { display: grid; grid-template-areas: 'stapel'; place-items: center; gap: 0; }
+.bx-gco-davor > * { grid-area: stapel; }
+.bx-gco-davor .bx-gco-iconwrap { width: 96%; height: 96%; margin: 0; }
+.bx-gco-davor .bx-gco-icon { width: 92%; height: 92%; }
+/* Der Fortschritt rahmt hier nur — ein dicker Reifen um ein großes Geschenk
+   erschlägt beides. */
+.bx-gco-davor .bx-gco-ring {
+  -webkit-mask: radial-gradient(circle, transparent 66%, #000 68%); mask: radial-gradient(circle, transparent 66%, #000 68%); }
+.bx-gco-davor .bx-gco-iconwrap::after { content: ''; position: absolute; inset: 12%;
+  background: radial-gradient(closest-side, rgba(0,0,0,.62), rgba(0,0,0,.28) 55%, transparent 78%); }
+.bx-gco-davor .bx-gco-prog { align-self: center; font-size: clamp(24px, calc(var(--u) * 62), 240px);
+  line-height: 1; letter-spacing: -.02em; color: #fff;
+  -webkit-text-stroke: calc(var(--u) * 4) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 0 calc(var(--u) * 22) color-mix(in srgb, var(--bx-accent) 70%, transparent); }
+.bx-gco-davor .bx-gco-title { align-self: start; transform: translateY(48%);
+  font-size: clamp(10px, calc(var(--u) * 17), 66px); }
+
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
@@ -787,7 +844,7 @@ export function sichereBildAdresse(url) {
 /** Die wählbaren Stile. Reihenfolge = die des Auswahlfelds; 'glas' ist der
  *  Rückfall für alles Unbekannte (z.B. ein Overlay von einer neueren Fassung).
  *  Ein Stil wird NIE entfernt — das würde vorhandene Overlays umgestalten. */
-export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm', 'studio', 'vitrine', 'museum', 'karte', 'zeile', 'fokus'];
+export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm', 'studio', 'vitrine', 'museum', 'karte', 'zeile', 'fokus', 'plakat', 'davor'];
 
 /** Welche Anzeige-Klassen an der Wurzel hängen (Titel/Zähler/Ring aus).
  *

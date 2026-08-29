@@ -16,7 +16,7 @@ Box, statt klein in der Mitte zu schweben.
 Bestehende Overlays ändern sich nicht: Ein fehlender Wert gilt als „an", nur
 ein ausdrückliches Abwählen blendet etwas aus.
 
-### Zwölf neue Designs für den Geschenkzähler
+### Vierzehn neue Designs für den Geschenkzähler
 
 Drei davon stellen die Teile **anders auf** — bis dahin war jeder Stil dasselbe
 Gerüst mit anderer Deko (Bild in der Mitte, Titel darunter, Zahl unten), und
@@ -30,6 +30,12 @@ genau deshalb fühlten sich viele Stile trotzdem gleich an:
   Die Größe richtet sich hier nach der Höhe, wie bei einer Textzeile.
 - **🔢 Zahl im Fokus** — die Zahl *ist* das Bild: riesig in der Mitte, das
   Geschenk sitzt als Marke darauf, der Titel klein darunter.
+- **📰 Plakat** — der Text liegt **auf** dem Geschenk: es füllt die ganze Box,
+  der Titel als Band oben, die Zahl unten, der Fortschritt als Leiste am
+  Bildrand. Kein Platz geht für Textzeilen verloren.
+- **🎯 Davor** — die Zahl steht **vor** dem Geschenk, groß und mittig, mit einem
+  abgedunkelten Fleck darunter, damit Ziffern und Bild nicht um dieselbe Fläche
+  kämpfen. Der Fortschritt rahmt als schmaler Ring.
 
 **💎 Studio** ist der aufwendigste: das Geschenk als Produktfoto statt als
 Aufkleber. Vier Handgriffe machen aus dem flachen Bild einen Gegenstand —
