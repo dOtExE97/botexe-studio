@@ -16,7 +16,7 @@ Box, statt klein in der Mitte zu schweben.
 Bestehende Overlays ändern sich nicht: Ein fehlender Wert gilt als „an", nur
 ein ausdrückliches Abwählen blendet etwas aus.
 
-### Sieben neue Designs für den Geschenkzähler
+### Neun neue Designs für den Geschenkzähler
 
 **💎 Studio** ist der aufwendigste: das Geschenk als Produktfoto statt als
 Aufkleber. Vier Handgriffe machen aus dem flachen Bild einen Gegenstand —
@@ -35,6 +35,17 @@ Nichts davon ist ein gerendertes Bild — alles rechnet sich aus der Boxgröße 
 deiner Akzentfarbe. Das ist Absicht: TikTok hat über 5000 verschiedene
 Geschenkbilder, ein vorgerendertes 3D-Modell könnte immer nur eines davon
 zeigen. So funktioniert der Aufbau mit *jedem*.
+
+Dieselbe Bühnentechnik gibt es in zwei weiteren Fassungen:
+
+- **🔮 Vitrine** — das Stück unter Glas. Der Unterschied zum Studio ist keine
+  Deko: eine Glasscheibe spiegelt in der Form der *Scheibe*, nicht in der Form
+  des Geschenks. Erst dieser Widerspruch — scharfes Objekt, darüber eine flache
+  Reflexion — liest sich als „hinter Glas". Der Fortschritt ist eine Leuchtleiste
+  in der Sockelplatte.
+- **🔦 Museum** — dunkler Raum, ein Scheinwerfer. Sichtbarer Lichtkegel von oben
+  mit langsam wanderndem Staub darin, eine Lichtinsel auf dem Boden und ringsum
+  Dunkelheit. Der Fortschritt läuft als schmaler Bogen um die Insel.
 
 Dazu drei bewegte:
 

@@ -402,9 +402,9 @@ html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow:
 /* Das Geschenk ist der Hauptdarsteller: die Bühne ist größer als beim Standard
    und in zwei Zonen geteilt — oben der Gegenstand, unten der Boden mit Ring,
    Kontaktschatten und Spiegelung. Vorher lagen alle drei ÜBER dem Bild. */
-.bx-gco-studio .bx-gco-iconwrap { margin-bottom: calc(var(--u) * 10);
+.bx-gco-koerper-buehne .bx-gco-iconwrap { margin-bottom: calc(var(--u) * 10);
   width: clamp(50px, calc(var(--u) * 190), 740px); height: clamp(50px, calc(var(--u) * 190), 740px); }
-.bx-gco-studio .bx-gco-icon { position:absolute; left:9%; right:9%; top:1%; bottom:34%;
+.bx-gco-koerper-buehne .bx-gco-icon { position:absolute; left:9%; right:9%; top:1%; bottom:34%;
   width:auto; height:auto; }
 
 /* Der Fortschritt liegt als eingelassener Ring IM BODEN, nicht um das Bild —
@@ -425,7 +425,7 @@ html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow:
   background: radial-gradient(closest-side, rgba(0,0,0,.75), transparent 78%);
   filter: blur(calc(var(--u) * 3)); }
 
-.bx-gco-studio .bx-gco-icon { perspective: calc(var(--u) * 620); animation: none; overflow: visible; }
+.bx-gco-koerper-buehne .bx-gco-icon { perspective: calc(var(--u) * 620); animation: none; overflow: visible; }
 /* Der Körper wiegt sich — langsam und in beide Richtungen ungleich, damit es
    nicht wie ein Metronom aussieht. */
 .bx-gco-koerper { position:absolute; inset:0; transform-style: preserve-3d;
@@ -477,12 +477,12 @@ html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow:
 .bx-gco-icon .bx-gco-spiegel img { width:100%; height:100%; object-fit:contain; object-position: top center;
   filter: blur(calc(var(--u) * 1.4)) saturate(.8); }
 /* Ein Geschenk: der Gegenstand springt kurz an und der Lichtstreif feuert sofort. */
-.bx-gco-studio.hit .bx-gco-koerper { animation: bx-gco-sprung 780ms cubic-bezier(.2,1.5,.3,1); }
+.bx-gco-koerper-buehne.hit .bx-gco-koerper { animation: bx-gco-sprung 780ms cubic-bezier(.2,1.5,.3,1); }
 @keyframes bx-gco-sprung {
   0% { transform: rotateY(-17deg) rotateX(5deg) scale(1); }
   30% { transform: rotateY(6deg) rotateX(-8deg) scale(1.14) translateY(calc(var(--u) * -10)); }
   100% { transform: rotateY(-17deg) rotateX(5deg) scale(1); } }
-.bx-gco-studio.hit .bx-gco-glanz::after { animation: bx-gco-streif 780ms cubic-bezier(.4,0,.2,1); }
+.bx-gco-koerper-buehne.hit .bx-gco-glanz::after { animation: bx-gco-streif 780ms cubic-bezier(.4,0,.2,1); }
 /* Schrift: ruhig und hell, das Licht liegt auf dem Gegenstand — nicht auf dem Text. */
 .bx-gco-studio .bx-gco-title { color: rgba(255,255,255,.72); letter-spacing: .18em;
   -webkit-text-stroke: 0; text-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 6) rgba(0,0,0,.8);
@@ -491,8 +491,95 @@ html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow:
   text-shadow: 0 0 calc(var(--u) * 18) color-mix(in srgb, var(--bx-accent) 75%, transparent), 0 calc(var(--u) * 2) calc(var(--u) * 5) rgba(0,0,0,.9); }
 /* Die Basis lässt Bilder in .bx-gco-icon langsam atmen — hier würde das den
    Körper gegen sein eigenes Wiegen arbeiten lassen. */
-.bx-premium .bx-gco-studio .bx-gco-icon > * { animation-name: bx-gco-wiegen; }
-.bx-premium .bx-gco-studio img.bx-gco-schicht, .bx-premium .bx-gco-studio .bx-gco-spiegel img { animation: none; }
+.bx-premium .bx-gco-koerper-buehne .bx-gco-icon > * { animation-name: bx-gco-wiegen; }
+.bx-premium .bx-gco-koerper-buehne img.bx-gco-schicht, .bx-premium .bx-gco-koerper-buehne .bx-gco-spiegel img { animation: none; }
+
+/* ── Stil „Vitrine" — dasselbe Ausstellungsstück, aber unter Glas.
+   Der Unterschied zum Studio ist nicht Deko: eine Glasscheibe hat eine EIGENE
+   Spiegelung, die NICHT der Form des Geschenks folgt, sondern der Scheibe. Erst
+   dieser Widerspruch — scharfes Objekt, darüber eine flache Reflexion — liest
+   sich als „hinter Glas". */
+.bx-gco-vitrine {
+  background:
+    radial-gradient(110% 70% at 30% 4%, rgba(255,255,255,.10), transparent 52%),
+    linear-gradient(180deg, #171a26 0%, #0d0f1a 58%, #060710 100%) !important;
+  border-radius: calc(var(--u) * 10);
+  box-shadow: inset 0 0 0 calc(var(--u) * 2) rgba(255,255,255,.10),
+    inset 0 0 calc(var(--u) * 70) rgba(0,0,0,.65),
+    0 calc(var(--u) * 12) calc(var(--u) * 34) rgba(0,0,0,.5) !important;
+  overflow: hidden; }
+/* Dunkler Innenraum nach unten hin — die Haube steht in etwas, nicht auf nichts. */
+.bx-gco-vitrine::before { content:''; position:absolute; left:0; right:0; bottom:0; height:44%; pointer-events:none;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,.6) 70%); }
+/* Die Sockelplatte, auf der das Stück steht — direkt am Objekt, nicht am
+   Kartenrand. Sonst schwebt die Leuchtleiste irgendwo im Nichts. */
+.bx-gco-vitrine .bx-gco-iconwrap::after { content:''; position:absolute; inset: 66% 4% auto 4%; height: 13%;
+  border-radius: calc(var(--u) * 4);
+  background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.03) 22%, rgba(0,0,0,.55));
+  box-shadow: 0 calc(var(--u) * 6) calc(var(--u) * 16) rgba(0,0,0,.6); }
+/* Die Scheibe: ein breiter, flacher Lichtstreif über ALLES, plus Kantenlicht.
+   Bewusst schräg und weich — eine harte Kante sähe nach Aufkleber aus. */
+.bx-gco-vitrine::after { content:''; position:absolute; inset:0; pointer-events:none;
+  background: linear-gradient(114deg, rgba(255,255,255,.14) 0 16%, transparent 34%, transparent 62%, rgba(255,255,255,.07) 74%, transparent 88%),
+    radial-gradient(80% 66% at 50% 46%, transparent 58%, rgba(0,0,0,.45) 100%); }
+.bx-gco-vitrine .bx-gco-iconwrap { margin-bottom: calc(var(--u) * 14); }
+/* Der Fortschritt läuft als Leuchtleiste IM SOCKEL — waagerecht, weil ein Ring
+   unter Glas mit den Scheibenreflexen kollidiert. */
+.bx-gco-vitrine .bx-gco-ring { inset: 71% 12% auto 12%; height: calc(var(--u) * 6); border-radius: 999px;
+  -webkit-mask:none; mask:none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent) 95%, white) 0 var(--pct, 0%), rgba(255,255,255,.10) var(--pct, 0%) 100%);
+  filter: drop-shadow(0 0 calc(var(--u) * 9) color-mix(in srgb, var(--bx-accent) 70%, transparent)); }
+.bx-gco-vitrine.done .bx-gco-ring { background: linear-gradient(90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 50%, white)); }
+.bx-gco-vitrine .bx-gco-deko { inset: 61% 26% auto 26%; height: 7%; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0,0,0,.8), transparent 78%); filter: blur(calc(var(--u) * 3)); }
+.bx-gco-vitrine .bx-gco-title { color: rgba(255,255,255,.6); letter-spacing:.2em; -webkit-text-stroke:0;
+  font-size: clamp(9px, calc(var(--u) * 14), 54px); }
+.bx-gco-vitrine .bx-gco-prog { color:#fff; -webkit-text-stroke:0;
+  text-shadow: 0 0 calc(var(--u) * 16) color-mix(in srgb, var(--bx-accent) 70%, transparent); }
+
+/* ── Stil „Museum" — dunkler Raum, EIN Scheinwerfer.
+   Hier macht nicht das Objekt die Bühne, sondern das Licht: ein sichtbarer
+   Lichtkegel von oben, eine harte Lichtinsel auf dem Boden und ringsum
+   Dunkelheit. Das Geschenk steht in der Insel, alles andere verschwindet. */
+.bx-gco-museum {
+  background: radial-gradient(70% 46% at 50% 78%, rgba(255,255,255,.05), transparent 72%),
+    linear-gradient(180deg, #0a0b12 0%, #05060b 100%) !important;
+  border-radius: calc(var(--u) * 12);
+  box-shadow: inset 0 0 calc(var(--u) * 80) rgba(0,0,0,.9) !important; overflow: hidden; }
+/* Der Kegel. Nach unten breiter, nach unten heller — und mit weicher Kante,
+   sonst ist es ein Dreieck statt Licht. */
+.bx-gco-museum .bx-gco-deko { inset: -20% -6% auto -6%; height: 96%; border:0; border-radius:0;
+  clip-path: polygon(41% 0, 59% 0, 92% 100%, 8% 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bx-accent) 26%, transparent), color-mix(in srgb, var(--bx-accent) 7%, transparent) 62%, transparent);
+  filter: blur(calc(var(--u) * 5)); }
+/* Staub im Strahl — zwei Ebenen, die langsam gegeneinander wandern. */
+.bx-gco-museum .bx-gco-deko::after { content:''; position:absolute; inset:0;
+  background:
+    radial-gradient(1.6px 1.6px at 46% 22%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.4px 1.4px at 57% 44%, rgba(255,255,255,.45), transparent),
+    radial-gradient(1.6px 1.6px at 40% 63%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1.4px 1.4px at 63% 78%, rgba(255,255,255,.4), transparent);
+  animation: bx-gco-staub 13s linear infinite; }
+@keyframes bx-gco-staub { 0% { transform: translateY(-6%); } 100% { transform: translateY(6%); } }
+/* Die Lichtinsel: gleichmäßig hell, damit sie wie Licht aussieht. Ein von
+   links gefüllter Verlauf sah aus, als stünde der Scheinwerfer schief. */
+.bx-gco-museum .bx-gco-iconwrap::after { content:''; position:absolute; inset: 56% 10% auto 10%; height: 28%;
+  border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--bx-accent) 62%, white), color-mix(in srgb, var(--bx-accent) 30%, transparent) 58%, transparent 82%);
+  filter: blur(calc(var(--u) * 3)); }
+/* Der Fortschritt läuft als schmaler Bogen um die Lichtinsel — er teilt sich
+   die Fläche mit ihr, kämpft aber nicht um dieselbe Helligkeit. */
+.bx-gco-museum .bx-gco-ring { inset: 53% 6% auto 6%; height: 34%; border-radius: 50%;
+  -webkit-mask: radial-gradient(closest-side, transparent 80%, #000 84%, #000 96%, transparent 100%);
+  mask: radial-gradient(closest-side, transparent 80%, #000 84%, #000 96%, transparent 100%);
+  background: conic-gradient(from -90deg, color-mix(in srgb, var(--bx-accent) 40%, white) 0 var(--pct, 0%), rgba(255,255,255,.10) var(--pct, 0%) 100%);
+  filter: drop-shadow(0 0 calc(var(--u) * 6) color-mix(in srgb, var(--bx-accent) 55%, transparent)); }
+.bx-gco-museum.done .bx-gco-ring { background: conic-gradient(from -90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white), var(--bx-teal)); }
+.bx-gco-museum .bx-gco-title { color: color-mix(in srgb, var(--bx-accent) 20%, white); letter-spacing:.22em; -webkit-text-stroke:0;
+  font-size: clamp(9px, calc(var(--u) * 14), 54px); opacity:.8; }
+.bx-gco-museum .bx-gco-prog { color:#fff; -webkit-text-stroke:0;
+  text-shadow: 0 0 calc(var(--u) * 20) color-mix(in srgb, var(--bx-accent) 80%, transparent); }
+/* Im Scheinwerfer gibt es keine Bodenspiegelung — der Boden ist matt. */
+.bx-gco-museum .bx-gco-spiegel { opacity:.12; }
 
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
@@ -514,6 +601,11 @@ export function findGiftIcon(catalog, slug) {
  *  jede ist ein weiteres Bild im Baum; ab etwa 14 sieht man keinen Unterschied
  *  mehr. */
 const STUDIO_TIEFE = 12;
+
+/** Stile, die aus dem flachen Geschenkbild einen Körper bauen (studioSchichten).
+ *  Der Aufbau ist bei allen derselbe — es unterscheidet sich nur, WORIN der
+ *  Gegenstand steht: freie Studio-Rundung, Glaskasten oder Scheinwerferkegel. */
+const STILE_MIT_KOERPER = new Set(['studio', 'vitrine', 'museum']);
 
 /**
  * Das Gerüst für den Stil „Studio": aus EINEM flachen Bild einen Körper bauen.
@@ -551,7 +643,7 @@ export function sichereBildAdresse(url) {
 /** Die wählbaren Stile. Reihenfolge = die des Auswahlfelds; 'glas' ist der
  *  Rückfall für alles Unbekannte (z.B. ein Overlay von einer neueren Fassung).
  *  Ein Stil wird NIE entfernt — das würde vorhandene Overlays umgestalten. */
-export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm', 'studio'];
+export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm', 'studio', 'vitrine', 'museum'];
 
 /** Welche Anzeige-Klassen an der Wurzel hängen (Titel/Zähler/Ring aus).
  *
@@ -602,6 +694,7 @@ export default class GiftCounter {
     this.el.className = [
       'bx-gco',
       ...(this.style !== 'glas' ? [`bx-gco-${this.style}`] : []),
+      ...(STILE_MIT_KOERPER.has(this.style) ? ['bx-gco-koerper-buehne'] : []),
       ...anzeigeKlassen(props),
     ].join(' ');
     // .bx-gco-deko ist eine leere Bühne für die aufwendigen Stile (Portal,
@@ -665,7 +758,7 @@ export default class GiftCounter {
   renderIcon() {
     const slot = this.el.querySelector('.bx-gco-icon');
     if (!this.lastIcon) { slot.innerHTML = GIFT_SVG; return; }
-    if (this.style === 'studio') {
+    if (STILE_MIT_KOERPER.has(this.style)) {
       // Studio: aus dem flachen Bild wird ein Körper (siehe studioSchichten).
       slot.innerHTML = studioSchichten(STUDIO_TIEFE);
       for (const img of slot.querySelectorAll('img')) img.src = this.lastIcon;
