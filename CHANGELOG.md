@@ -224,6 +224,28 @@ sieht weiter „Gift-Alert" zuerst.
 Gemessen am echten Katalog: „geschenk" 9 → 21 Treffer, „spiel" 3 → 14,
 „alarm" 0 → 6, „musik" und „uhr" von 0 auf die richtigen Widgets.
 
+### Widget-Katalog — alle Widgets auf einem Schirm
+
+Die schmale Leiste am Rand zeigt immer nur EINE Kategorie. Wer nicht weiß, in
+welchem Reiter etwas liegt, findet es nicht — und wer den Namen nicht kennt,
+kann auch nicht danach suchen.
+
+Der Knopf **Alle Widgets** öffnet jetzt ein Fenster über der ganzen App:
+
+- **volle Fensterbreite**, vier bis fünf echte Vorschauen nebeneinander
+- **Kategorien als Sprungleiste links**, mit Anzahl je Kategorie; sie wandert
+  beim Scrollen mit
+- **Suche oben**, dieselbe wie in der Leiste — sie kennt auch Umschreibungen
+- **Klick legt das Widget an und schließt**, Escape oder Klick daneben bricht ab
+
+Das löst die frühere aufgeklappte Palette ab: Die nahm der Bühne die halbe
+Breite und zeigte trotzdem nur zwei bis drei Kacheln nebeneinander.
+
+Der Smoke-Test öffnet den Katalog jetzt in der echten App und prüft nach, was
+ihn ausmacht — gemessen beim letzten Lauf: **220px → 1038px, 8 Kategorien,
+57 Kacheln, „geschenk" findet 21 Widgets**, und Escape schließt ihn wieder.
+
+
 ### „Alle zeigen" zeigt jetzt wirklich alles
 
 In der aufgeklappten Palette lagen 13 von 46 Widgets trotzdem hinter einem

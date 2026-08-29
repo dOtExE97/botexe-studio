@@ -96,16 +96,16 @@ test('jedes Widget hat eine Kategorie (sonst landet es still in der Deko)', () =
   assert.deepEqual(unbekannt, [], 'Kategorie-id, die es als Reiter gar nicht gibt');
 });
 
-test('„Alle zeigen" zeigt wirklich JEDES Widget', () => {
-  // Der Punkt der aufgeklappten Ansicht ist „zeig mir alles". Vorher lagen dort
+test('der Katalog zeigt wirklich JEDES Widget', () => {
+  // Der Punkt des Katalogs ist „zeig mir alles". In der Vorgänger-Ansicht lagen
   // die Varianten trotzdem hinter einem Aufklapper — 13 von 46 Widgets waren
-  // ausgerechnet in dieser Ansicht unsichtbar.
-  // alleGruppen() ist genau das, was die Ansicht aufruft — nicht eine hier
+  // ausgerechnet dort unsichtbar.
+  // alleGruppen() ist genau das, was der Katalog aufruft — nicht eine hier
   // nachgebaute Kopie der Regeln, die immer gruen bliebe.
   const gruppen = alleGruppen(WIDGET_TYPES);
   const gezeigt = new Set(gruppen.flatMap((g) => g.items.map((i) => i.type)));
   const fehlen = [...new Set(WIDGET_TYPES.map((w) => w.type))].filter((t) => !gezeigt.has(t));
-  assert.deepEqual(fehlen, [], `in „Alle zeigen" unsichtbar: ${fehlen.join(', ')}`);
+  assert.deepEqual(fehlen, [], `im Katalog unsichtbar: ${fehlen.join(', ')}`);
 });
 
 test('Anführer und seine Varianten liegen im selben Reiter', () => {

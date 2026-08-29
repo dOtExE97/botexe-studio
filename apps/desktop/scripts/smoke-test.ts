@@ -108,37 +108,65 @@ async function main(): Promise<void> {
     console.log(`  ${problems.some((p) => p.page === label) ? '❌' : '✓'} ${label}`);
   }
 
-  // Widget-Palette: der AUFGEKLAPPTE Zustand. Der Durchklick oben sieht nur den
-  // Standard (schmal, ein Kategorie-Tab) — die aufgeklappte Ansicht ist eine
-  // eigene Verzweigung und war damit voellig ungeprueft.
+  // Widget-Katalog: das Fenster über der ganzen App. Der Durchklick oben sieht
+  // nur die schmale Leiste mit einem Kategorie-Reiter — der Katalog ist eine
+  // eigene Verzweigung und waere damit voellig ungeprueft. Geprueft wird, was
+  // ihn ausmacht: Er ist breiter als die Leiste, zeigt ALLE Kategorien, und
+  // seine Suche findet auch, was anders heisst.
   current = 'Overlay';
   await evalJs(ws, `(() => { const b=[...document.querySelectorAll('nav button')].find(x=>(x.textContent||'').trim().startsWith('Overlay')); b&&b.click(); return true; })()`);
   await sleep(600);
-  const paletteCheck = (await evalJs(ws, `(async () => {
-    const aside = document.querySelector('[data-palette-scroll]');
-    if (!aside) return { fehler: 'Palette nicht gefunden' };
-    const schmalBreite = Math.round(aside.getBoundingClientRect().width);
-    const knopf = [...document.querySelectorAll('button')].find(b => (b.textContent||'').includes('Alle zeigen'));
-    if (!knopf) return { fehler: 'Knopf „Alle zeigen" nicht gefunden' };
+  const katalogCheck = (await evalJs(ws, `(async () => {
+    const leiste = document.querySelector('[data-palette-scroll]');
+    if (!leiste) return { fehler: 'Palette nicht gefunden' };
+    const schmalBreite = Math.round(leiste.getBoundingClientRect().width);
+    const knopf = [...document.querySelectorAll('button')].find(b => (b.textContent||'').includes('Alle Widgets'));
+    if (!knopf) return { fehler: 'Knopf „Alle Widgets" nicht gefunden' };
     knopf.click();
-    await new Promise(r => setTimeout(r, 500));
-    const a2 = document.querySelector('[data-palette-scroll]');
-    const gruppen = [...a2.querySelectorAll('h3')].map(h => (h.textContent||'').trim().split(/\\s+/)[0]);
-    const breit = Math.round(a2.getBoundingClientRect().width);
-    // Wieder zuklappen, damit die restlichen Pruefungen den Normalzustand sehen.
-    const zu = [...document.querySelectorAll('button')].find(b => (b.textContent||'').includes('Zuklappen'));
-    zu && zu.click();
-    return { schmalBreite, breit, gruppen };
-  })()`)) as { fehler?: string; schmalBreite?: number; breit?: number; gruppen?: string[] };
-  if (paletteCheck.fehler) {
-    problems.push({ page: 'Overlay', text: `Palette: ${paletteCheck.fehler}` });
-  } else {
-    const g = paletteCheck.gruppen ?? [];
-    if (g.length < 4) problems.push({ page: 'Overlay', text: `Aufgeklappte Palette zeigt nur ${g.length} Kategorien` });
-    if ((paletteCheck.breit ?? 0) <= (paletteCheck.schmalBreite ?? 0)) {
-      problems.push({ page: 'Overlay', text: 'Palette wurde beim Aufklappen nicht breiter' });
+    await new Promise(r => setTimeout(r, 600));
+    // Der Katalog bringt seinen eigenen Scrollbereich mit. NICHT ueber die
+    // Reihenfolge suchen — er steht im Dokument VOR der Leiste, weil er als
+    // Fenster darueber liegt. Erkennbar ist er an den Kategorie-Abschnitten.
+    const bereiche = [...document.querySelectorAll('[data-palette-scroll]')];
+    const katalog = bereiche.find(b => b.querySelector('[data-kat]')) || bereiche[bereiche.length - 1];
+    if (bereiche.length < 2) return { fehler: 'Katalog hat sich nicht geoeffnet' };
+    const gruppen = [...katalog.querySelectorAll('[data-kat]')].map(el => el.getAttribute('data-kat'));
+    const breit = Math.round(katalog.getBoundingClientRect().width);
+    const kacheln = katalog.querySelectorAll('button, iframe').length;
+    // Suche: „geschenk" muss auch die englisch benannten Widgets finden.
+    const feld = document.querySelector('input[placeholder^="Suchen"]');
+    let treffer = -1;
+    if (feld) {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(feld, 'geschenk');
+      feld.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 400));
+      const kopf = [...katalog.querySelectorAll('div')].map(d => (d.textContent||'')).find(t => /Treffer f/.test(t)) || '';
+      treffer = Number((kopf.match(/(\\d+)\\s+Treffer/) || [])[1] ?? -1);
     }
-    console.log(`  🧩 Palette: ${paletteCheck.schmalBreite}px → ${paletteCheck.breit}px, ${g.length} Kategorien untereinander`);
+    // Mit Escape wieder zu, damit die restlichen Pruefungen den Normalzustand sehen.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await new Promise(r => setTimeout(r, 300));
+    const offenDanach = document.querySelectorAll('[data-palette-scroll]').length;
+    return { schmalBreite, breit, gruppen, kacheln, treffer, offenDanach };
+  })()`)) as { fehler?: string; schmalBreite?: number; breit?: number; gruppen?: string[]; kacheln?: number; treffer?: number; offenDanach?: number };
+  if (katalogCheck.fehler) {
+    problems.push({ page: 'Overlay', text: `Katalog: ${katalogCheck.fehler}` });
+  } else {
+    const g = katalogCheck.gruppen ?? [];
+    if (g.length < 6) problems.push({ page: 'Overlay', text: `Katalog zeigt nur ${g.length} Kategorien` });
+    if ((katalogCheck.breit ?? 0) <= (katalogCheck.schmalBreite ?? 0)) {
+      problems.push({ page: 'Overlay', text: 'Katalog ist nicht breiter als die schmale Leiste' });
+    }
+    if ((katalogCheck.kacheln ?? 0) < 20) problems.push({ page: 'Overlay', text: `Katalog zeigt nur ${katalogCheck.kacheln} Kacheln` });
+    // 21 Treffer sind es heute; die Schwelle liegt bewusst tiefer, damit ein
+    // neues Widget den Test nicht rot macht — sie soll nur belegen, dass die
+    // Suche quer über die Kategorien greift und nicht nur über Namen.
+    if ((katalogCheck.treffer ?? 0) < 12) {
+      problems.push({ page: 'Overlay', text: `Katalog-Suche „geschenk" findet nur ${katalogCheck.treffer} Widgets` });
+    }
+    if ((katalogCheck.offenDanach ?? 2) !== 1) problems.push({ page: 'Overlay', text: 'Katalog liess sich mit Escape nicht schliessen' });
+    console.log(`  🧩 Katalog: ${katalogCheck.schmalBreite}px → ${katalogCheck.breit}px, ${g.length} Kategorien, ${katalogCheck.kacheln} Kacheln, „geschenk" → ${katalogCheck.treffer} Treffer`);
   }
 
   // Mixer-spezifisch: Regler vorhanden + Live-Event feuerbar (ohne echtes Audio).

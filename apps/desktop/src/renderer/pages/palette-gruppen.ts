@@ -176,9 +176,9 @@ export function gruppiereNachKategorie<T extends PaletteWidget>(
 }
 
 /**
- * Die Gruppen für die AUFGEKLAPPTE Palette („Alle zeigen").
+ * Die Gruppen für den KATALOG (das Fenster „Alle Widgets").
  *
- * Bewusst hier und nicht in der Ansicht: Der springende Punkt dieser Ansicht
+ * Bewusst hier und nicht in der Ansicht: Der springende Punkt des Katalogs
  * ist, dass NICHTS mehr hinter einem Knopf liegt — weder die Varianten noch die
  * Spezialfälle. Stünden die beiden leeren Mengen in der Ansicht, könnte ein
  * Wächter-Test sie nicht prüfen; er würde seine eigene Kopie der Regeln testen

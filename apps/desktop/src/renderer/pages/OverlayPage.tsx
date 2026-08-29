@@ -4,7 +4,6 @@
 // werden als Guides eingeblendet (wo Chat/Buttons der TikTok-UI liegen).
 // Speichern validiert (ajv) und pusht live.
 import {
-  alleGruppen,
   sucheWidgets,
   PALETTE_KATEGORIEN,
   POPULAR_WIDGETS,
@@ -12,15 +11,14 @@ import {
   RELATED_OF,
   RELATED_MEMBERS,
   RARELY_USED,
-  katLabel,
 } from './palette-gruppen';
 import EbenenListe from '../components/EbenenListe';
+import WidgetKatalog from '../components/WidgetKatalog';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   X,
   ChevronDown,
-  PanelLeftOpen,
-  PanelLeftClose,
+  LayoutGrid,
   ChevronUp,
   ChevronRight,
   Clapperboard,
@@ -235,7 +233,10 @@ export default function OverlayPage() {
   // Aufgeklappte Palette: alle Kategorien untereinander statt einer pro Tab.
   // Gemerkt, weil es eine Arbeitsweise ist und keine einmalige Aktion — wer so
   // sucht, sucht beim nächsten Mal wieder so.
-  const [paletteBreit, setPaletteBreit] = useState(() => localStorage.getItem('bx-palette-breit') === '1');
+  // Der Katalog ist ein Fenster über der ganzen App (WidgetKatalog.tsx). Er
+  // löst die frühere „breite Palette" ab: Die nahm der Bühne die halbe Breite
+  // und zeigte trotzdem nur zwei bis drei Kacheln nebeneinander.
+  const [katalogOffen, setKatalogOffen] = useState(false);
   // Vorschau-Sounds: standardmäßig AUS (sonst Demo-Sound-Spam), per Schalter an.
   const [previewSound, setPreviewSound] = useState(() => localStorage.getItem('bx-preview-sound') === '1');
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
@@ -260,11 +261,7 @@ export default function OverlayPage() {
           // die Breite da. Schmal bleibt es wie gehabt: eine Spalte mit
           // Live-Vorschau, zwei ohne.
           <div
-            className={
-              paletteBreit
-                ? 'grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]'
-                : livePalette ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2'
-            }
+            className={livePalette ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2'}
           >
             {items.map((w) => {
               // Varianten nur außerhalb der Suche anbieten — bei einer Suche ist
@@ -272,7 +269,7 @@ export default function OverlayPage() {
               // aufgeklappten Ansicht ebenso: dort steht jede Variante bereits
               // als eigene Kachel, ein Aufklapper waere ein zweiter Weg zum
               // selben Widget.
-              const variants = paletteQuery.trim() || paletteBreit
+              const variants = paletteQuery.trim()
                 ? []
                 : (RELATED_OF[w.type] ?? [])
                     .map((t) => WIDGET_TYPES.find((x) => x.type === t))
@@ -289,7 +286,7 @@ export default function OverlayPage() {
                     <button
                       onClick={() => setOpenGroup(open ? null : w.type)}
                       className={`flex items-center justify-center gap-1 rounded-md border border-dashed px-2 py-1 text-[10px] font-bold transition-colors ${
-                        livePalette && !paletteBreit ? '' : 'col-span-full'
+                        livePalette ? '' : 'col-span-full'
                       } ${
                         open
                           ? 'border-studio-accent/60 text-studio-accent'
@@ -764,26 +761,22 @@ export default function OverlayPage() {
     );
   }, [paletteQuery, activeCat]);
 
-  // Alle Kategorien mit Inhalt — für die aufgeklappte Ansicht. Die Einteilung
-  // steckt in palette-gruppen.ts, damit sie prüfbar ist und nicht in der
-  // Ansicht verstreut liegt.
-  const gruppen = useMemo(() => alleGruppen(WIDGET_TYPES), []);
 
   // Die Spezialfälle der aktiven Kategorie, eingeklappt am Listenende.
   const rareItems = useMemo(() => {
     // Aufgeklappt gibt es keine „aktive Kategorie" mehr — die Spezialfaelle
     // einer nicht sichtbaren Kategorie unter alle Gruppen zu haengen, waere
     // schlicht verwirrend.
-    if (paletteQuery.trim() || paletteBreit || activeCat === 'beliebt') return [];
+    if (paletteQuery.trim() || activeCat === 'beliebt') return [];
     return WIDGET_TYPES.filter(
       (w) => RARELY_USED.has(w.type) && (CATEGORY_OF[w.type] ?? 'deko') === activeCat,
     );
-  }, [paletteQuery, activeCat, paletteBreit]);
+  }, [paletteQuery, activeCat]);
 
   // Eine Palette-Kachel — je nach Live-Schalter mit echter Vorschau oder als
   // schlanke Text-Kachel. Ausgelagert, weil Anführer, Varianten und
   // Spezialfälle dieselbe Darstellung brauchen.
-  const renderPaletteCard = (w: (typeof WIDGET_TYPES)[number]) =>
+  const renderPaletteCard = (w: (typeof WIDGET_TYPES)[number], onAdd?: () => void) =>
     livePalette ? (
       <WidgetPreview
         key={`${w.type}-${w.label}`}
@@ -795,12 +788,12 @@ export default function OverlayPage() {
         desc={w.desc}
         overlayBase={overlayBase}
         soundOn={previewSound}
-        onAdd={() => addWidget(w)}
+        onAdd={onAdd ?? (() => addWidget(w))}
       />
     ) : (
       <button
         key={`${w.type}-${w.label}`}
-        onClick={() => addWidget(w)}
+        onClick={onAdd ?? (() => addWidget(w))}
         className="clip-slant group rounded-lg border border-studio-border bg-studio-raised p-2.5 text-left transition-colors hover:border-studio-accent/60"
       >
         <div className="text-xs font-bold group-hover:text-studio-accent">{w.label}</div>
@@ -825,20 +818,28 @@ export default function OverlayPage() {
       className="grid h-full gap-0"
       // Aufgeklappt nimmt die Palette knapp die halbe Fensterbreite — genug für
       // drei Kacheln nebeneinander, ohne die Bühne ganz zu verlieren.
-      style={{ gridTemplateColumns: paletteBreit ? 'minmax(430px, 44vw) 1fr 260px' : '220px 1fr 260px' }}
+      style={{ gridTemplateColumns: '220px 1fr 260px' }}
     >
+      <WidgetKatalog
+        offen={katalogOffen}
+        onClose={() => setKatalogOffen(false)}
+        icons={KATEGORIE_ICON}
+        // Dieselbe Kachel wie in der schmalen Leiste — der Katalog soll nicht
+        // seine eigene Darstellung mitbringen, sonst laufen die beiden Ansichten
+        // auseinander. Nach dem Anlegen schliesst er sich.
+        renderKarte={(w) => renderPaletteCard(w, () => { addWidget(w); setKatalogOffen(false); })}
+      />
       {/* Widget-Palette — Kategorie-Tabs + Suche (nur eine Kategorie sichtbar) */}
       <aside data-palette-scroll className="overflow-y-auto border-r border-studio-border bg-studio-panel p-3">
         <div className="mb-2 flex items-center justify-between px-1">
           <h2 className="text-[11px] font-bold uppercase tracking-[0.3em] text-studio-gold">Widgets</h2>
           <div className="flex items-center gap-2">
           <button
-            onClick={() => setPaletteBreit((on) => { const next = !on; localStorage.setItem('bx-palette-breit', next ? '1' : '0'); return next; })}
-            className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${paletteBreit ? 'text-studio-accent' : 'text-studio-muted'} hover:text-studio-accent`}
-            title={paletteBreit ? 'Palette wieder schmal machen' : 'Alle Widgets auf einmal zeigen — jede Kategorie untereinander'}
+            onClick={() => setKatalogOffen(true)}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-studio-muted hover:text-studio-accent"
+            title="Alle Widgets auf einem Schirm — mit Vorschau, Kategorien und Suche"
           >
-            {paletteBreit ? <PanelLeftClose size={11} /> : <PanelLeftOpen size={11} />}
-            {paletteBreit ? 'Zuklappen' : 'Alle zeigen'}
+            <LayoutGrid size={11} /> Alle Widgets
           </button>
           <button
             onClick={() => setLivePalette((on) => { const next = !on; localStorage.setItem('bx-palette-live', next ? '1' : '0'); return next; })}
@@ -857,7 +858,7 @@ export default function OverlayPage() {
         />
         {/* Kategorie-Tabs (nur eine Kategorie sichtbar). Bei aktiver Suche
             werden stattdessen Treffer quer über alle Kategorien gezeigt. */}
-        {!paletteQuery.trim() && !paletteBreit ? (
+        {!paletteQuery.trim() ? (
           <div className="mb-3 flex flex-wrap gap-1">
             {PALETTE_CATEGORIES.map((cat) => {
               const Icon = cat.icon;
@@ -882,26 +883,15 @@ export default function OverlayPage() {
             {visibleItems.length} Treffer für „{paletteQuery.trim()}“
           </div>
         ) : null}
-        {/* Die aufgeklappte Ansicht zeigt ALLE Gruppen und haengt nicht an der
-            aktiven Kategorie — sonst stuende dort „Nichts gefunden", nur weil
-            der zuletzt gewaehlte Reiter gerade leer ist. */}
-        {paletteBreit && !paletteQuery.trim() ? (
-          /* Aufgeklappt: ALLE Kategorien untereinander. Das ist der eigentliche
-             Punkt — in der schmalen Spalte ist immer nur eine sichtbar, und wer
-             nicht weiß, in welchem Tab etwas liegt, findet es nicht. */
-          <div className="flex flex-col gap-4">
-            {gruppen.map((g) => (
-              <section key={g.id}>
-                <h3 className="mb-1.5 flex items-baseline gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.2em] text-studio-gold">
-                  {g.label}
-                  <span className="font-mono text-[9px] tracking-normal text-studio-muted">{g.items.length}</span>
-                </h3>
-                {renderListe(g.items)}
-              </section>
-            ))}
+        {/* Alle Kategorien auf einmal gibt es im Katalog (Knopf oben) — hier in
+            der schmalen Spalte bleibt es bei einem Reiter. */}
+        {visibleItems.length === 0 ? (
+          <div className="px-1 py-6 text-center text-[11px] text-studio-muted">
+            Nichts gefunden.
+            <button onClick={() => setKatalogOffen(true)} className="mt-2 block w-full text-[10px] font-bold text-studio-accent hover:underline">
+              Alle Widgets ansehen
+            </button>
           </div>
-        ) : visibleItems.length === 0 ? (
-          <div className="px-1 py-6 text-center text-[11px] text-studio-muted">Nichts gefunden.</div>
         ) : (
           renderListe(visibleItems)
         )}
