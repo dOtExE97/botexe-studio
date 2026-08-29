@@ -31,11 +31,16 @@ genau deshalb fühlten sich viele Stile trotzdem gleich an:
 - **🔢 Zahl im Fokus** — die Zahl *ist* das Bild: riesig in der Mitte, das
   Geschenk sitzt als Marke darauf, der Titel klein darunter.
 - **📰 Plakat** — der Text liegt **auf** dem Geschenk: es füllt die ganze Box,
-  der Titel als Band oben, die Zahl unten, der Fortschritt als Leiste am
-  Bildrand. Kein Platz geht für Textzeilen verloren.
-- **🎯 Davor** — die Zahl steht **vor** dem Geschenk, groß und mittig, mit einem
-  abgedunkelten Fleck darunter, damit Ziffern und Bild nicht um dieselbe Fläche
-  kämpfen. Der Fortschritt rahmt als schmaler Ring.
+  der Titel groß als Band oben, die Zahl klein unten, der Fortschritt als Leiste
+  am Bildrand. Kein Platz geht für Textzeilen verloren.
+- **🎯 Davor** — die Ansage steht **vor** dem Geschenk, groß und mittig, mit
+  einem abgedunkelten Fleck darunter, damit Text und Bild nicht um dieselbe
+  Fläche kämpfen. Die Zahl sitzt klein darunter, der Fortschritt rahmt als
+  schmaler Ring.
+
+Bei diesen beiden ist die Gewichtung umgedreht: **der Titel ist die Ansage**
+(„FN Löschen"), die Zahl nur der Beleg dafür. Wer es andersherum will, nimmt
+„Zahl im Fokus".
 
 **💎 Studio** ist der aufwendigste: das Geschenk als Produktfoto statt als
 Aufkleber. Vier Handgriffe machen aus dem flachen Bild einen Gegenstand —

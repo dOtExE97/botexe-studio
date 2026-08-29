@@ -748,11 +748,15 @@ html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal
 .bx-gco-fokus .bx-gco-title { position: relative; z-index: 1; }
 .bx-gco-plakat .bx-gco-iconwrap { width: 100%; height: 100%; margin: 0; }
 .bx-gco-plakat .bx-gco-icon { width: 94%; height: 94%; }
+/* GEWICHTUNG: Der Titel ist die Ansage („FN Löschen"), die Zahl nur der Beleg.
+   Deshalb steht hier der Titel groß und die Zahl klein — umgekehrt wie in den
+   gestapelten Standard-Stilen. Wer es andersherum will, nimmt „Zahl im Fokus". */
 .bx-gco-plakat .bx-gco-title { align-self: start; justify-self: stretch; text-align: center;
-  padding: 4% 5% 9%; background: linear-gradient(180deg, rgba(0,0,0,.75), rgba(0,0,0,.35) 55%, transparent);
-  font-size: clamp(10px, calc(var(--u) * 18), 70px); }
+  padding: 5% 5% 10%; background: linear-gradient(180deg, rgba(0,0,0,.8), rgba(0,0,0,.4) 58%, transparent);
+  font-size: clamp(13px, calc(var(--u) * 34), 130px); line-height: 1.02; }
 .bx-gco-plakat .bx-gco-prog { align-self: end; justify-self: stretch; text-align: center;
-  padding: 9% 5% 5%; background: linear-gradient(0deg, rgba(0,0,0,.8), rgba(0,0,0,.35) 55%, transparent); }
+  padding: 10% 5% 4.5%; background: linear-gradient(0deg, rgba(0,0,0,.8), rgba(0,0,0,.35) 55%, transparent);
+  font-size: clamp(11px, calc(var(--u) * 19), 74px); opacity: .9; }
 /* Fortschritt als schmale Leiste ganz unten am Bildrand. z-index, weil sie
    sonst unter dem Verlauf der Zahl liegt und ausgegraut wirkt. */
 .bx-gco-plakat .bx-gco-ring { inset: auto 0 0 0; height: calc(var(--u) * 5); border-radius: 0; z-index: 2;
@@ -775,12 +779,18 @@ html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal
   -webkit-mask: radial-gradient(circle, transparent 66%, #000 68%); mask: radial-gradient(circle, transparent 66%, #000 68%); }
 .bx-gco-davor .bx-gco-iconwrap::after { content: ''; position: absolute; inset: 12%;
   background: radial-gradient(closest-side, rgba(0,0,0,.62), rgba(0,0,0,.28) 55%, transparent 78%); }
-.bx-gco-davor .bx-gco-prog { align-self: center; font-size: clamp(24px, calc(var(--u) * 62), 240px);
-  line-height: 1; letter-spacing: -.02em; color: #fff;
+/* Vorn steht der TITEL, nicht die Zahl: Auf dem Geschenk soll die Ansage
+   stehen — die Zahl sitzt klein darunter und belegt sie nur. */
+.bx-gco-davor .bx-gco-title { align-self: center; justify-self: center; text-align: center;
+  transform: translateY(-22%); max-width: 92%;
+  font-size: clamp(14px, calc(var(--u) * 42), 165px); line-height: .98; color: #fff;
   -webkit-text-stroke: calc(var(--u) * 4) var(--bx-ink, #0a0b12); paint-order: stroke fill;
-  text-shadow: 0 0 calc(var(--u) * 22) color-mix(in srgb, var(--bx-accent) 70%, transparent); }
-.bx-gco-davor .bx-gco-title { align-self: start; transform: translateY(48%);
-  font-size: clamp(10px, calc(var(--u) * 17), 66px); }
+  text-shadow: 0 0 calc(var(--u) * 24) color-mix(in srgb, var(--bx-accent) 70%, transparent),
+    0 calc(var(--u) * 3) calc(var(--u) * 8) rgba(0,0,0,.85); }
+.bx-gco-davor .bx-gco-prog { align-self: center; justify-self: center; transform: translateY(76%);
+  font-size: clamp(11px, calc(var(--u) * 24), 92px); line-height: 1; color: #fff;
+  -webkit-text-stroke: calc(var(--u) * 3) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 6) rgba(0,0,0,.9); opacity: .92; }
 
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
