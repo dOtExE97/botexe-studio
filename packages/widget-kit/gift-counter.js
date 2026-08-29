@@ -581,6 +581,54 @@ html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow:
 /* Im Scheinwerfer gibt es keine Bodenspiegelung — der Boden ist matt. */
 .bx-gco-museum .bx-gco-spiegel { opacity:.12; }
 
+/* ── „Rahmen ausblenden" für die aufwendigen Stile ─────────────────────────
+   Der Kasten ist bei Studio, Vitrine und Museum Teil der Inszenierung — aber im
+   Overlay ist oft schlicht kein Platz dafür, und der Streamer will das Geschenk
+   frei auf seinem Videobild stehen haben.
+
+   Der Haken „Rahmen ausblenden" nimmt deshalb NUR die Fläche weg. Alles, was den
+   Gegenstand ausmacht, bleibt: Tiefe, Standlicht, Kontaktschatten, Spiegelung,
+   Fortschritt — beim Museum sogar der Lichtkegel, der über dem Videobild sogar
+   besser wirkt als im schwarzen Kasten.
+
+   FALLE (siehe AGENTS.md): Die Grundregel .bx-frameless * setzt JEDEN Rand
+   auf durchsichtig. Ränder, die hier eine FORM tragen statt einen Rahmen zu
+   ziehen — die Bahnen des Portals, das Gehäuse des Automaten, die Ziellinie der
+   Rakete — müssen sich ihre Farbe zurückholen. */
+html .bx-frameless .bx-gco-studio,
+html .bx-frameless .bx-gco-vitrine,
+html .bx-frameless .bx-gco-museum,
+html .bx-frameless .bx-gco-arcade,
+html .bx-frameless .bx-gco-medaille {
+  background: none !important; box-shadow: none !important;
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* Randabdunklung, Studio-Rundung, Glasscheibe und Sockelwanne gehören zur
+   Fläche und verschwinden mit ihr. */
+html .bx-frameless .bx-gco-studio::before, html .bx-frameless .bx-gco-studio::after,
+html .bx-frameless .bx-gco-vitrine::before, html .bx-frameless .bx-gco-vitrine::after,
+html .bx-frameless .bx-gco-arcade::after { display: none; }
+/* Ohne Fläche steht der Text direkt auf dem Videobild — dort braucht er wieder
+   eine Kontur, sonst verschwindet er auf hellen Szenen. */
+html .bx-frameless .bx-gco-studio .bx-gco-title, html .bx-frameless .bx-gco-vitrine .bx-gco-title,
+html .bx-frameless .bx-gco-museum .bx-gco-title, html .bx-frameless .bx-gco-studio .bx-gco-prog,
+html .bx-frameless .bx-gco-vitrine .bx-gco-prog, html .bx-frameless .bx-gco-museum .bx-gco-prog {
+  -webkit-text-stroke: calc(var(--u) * 2.5) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  text-shadow: 0 calc(var(--u) * 3) calc(var(--u) * 8) rgba(0,0,0,.75); }
+/* Der Museums-Kegel ohne schwarzen Raum: kräftiger, sonst geht er im Videobild
+   unter. Die Sockelplatte der Vitrine bleibt — sie ist der Boden, nicht der Kasten. */
+html .bx-frameless .bx-gco-museum .bx-gco-deko { filter: blur(calc(var(--u) * 4)); opacity: .85; }
+/* Die Sockelplatte der Vitrine bleibt (der Boden gehört zum Gegenstand), wird
+   aber schmaler und durchsichtiger — als volle graue Platte sähe sie aus wie
+   ein vergessener Rest des Kastens. */
+html .bx-frameless .bx-gco-vitrine .bx-gco-iconwrap::after { inset: 68% 16% auto 16%; height: 8%;
+  background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(0,0,0,.35));
+  box-shadow: 0 calc(var(--u) * 5) calc(var(--u) * 14) rgba(0,0,0,.5); }
+/* Formtragende Ränder zurückholen (siehe Falle oben). */
+html .bx-frameless .bx-gco-portal .bx-gco-deko::before,
+html .bx-frameless .bx-gco-portal .bx-gco-deko::after {
+  border-color: color-mix(in srgb, var(--bx-accent) 55%, transparent) !important; }
+html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal) !important; }
+
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }

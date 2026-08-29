@@ -141,7 +141,10 @@ export const FRAME_FIELD: PropField = {
   hint: 'Entfernt Hintergrund-Panel + Schatten — zeigt nur den Inhalt (transparent, wie eine reine Liste). Ideal, wenn das Widget sonst zu viel Fläche deckt.',
 };
 /** Reine Effekt-/Vollbild-Widgets ohne Panel — da bringt „Rahmen ausblenden" nichts. */
-export const NO_FRAME_TOGGLE = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'gift-counter', 'gift-jar', 'goal-bar', 'top-rotator', 'combo']);
+// Der Geschenkzähler stand hier, solange KEINER seiner Stile eine Fläche hatte.
+// Seit den Bühnen-Stilen (Studio, Vitrine, Museum) hat er eine — und gerade dann
+// braucht man den Schalter: im Overlay ist oft kein Platz für einen Kasten.
+export const NO_FRAME_TOGGLE = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'gift-jar', 'goal-bar', 'top-rotator', 'combo']);
 
 /** „Premium-Effekte" — eine zuschaltbare Gestaltungs-Ebene für JEDES Widget.
  *  Die Regeln liegen gebündelt in widget-base.css unter .bx-premium; die

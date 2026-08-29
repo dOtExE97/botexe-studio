@@ -36,6 +36,15 @@ deiner Akzentfarbe. Das ist Absicht: TikTok hat über 5000 verschiedene
 Geschenkbilder, ein vorgerendertes 3D-Modell könnte immer nur eines davon
 zeigen. So funktioniert der Aufbau mit *jedem*.
 
+**Der Kasten ist abschaltbar.** Im Overlay ist oft kein Platz für eine Fläche —
+der Haken „Rahmen ausblenden" (bisher beim Geschenkzähler gar nicht angeboten,
+weil vorher kein Stil eine Fläche hatte) nimmt nur den Hintergrund weg. Tiefe,
+Standlicht, Kontaktschatten, Spiegelung und Fortschritt bleiben; das Geschenk
+steht dann frei auf dem Videobild. Beim Museum bleibt sogar der Lichtkegel —
+über dem Videobild wirkt er besser als im schwarzen Kasten. Titel und Zahl
+bekommen ohne Fläche wieder eine Kontur, sonst verschwinden sie auf hellen
+Szenen.
+
 Dieselbe Bühnentechnik gibt es in zwei weiteren Fassungen:
 
 - **🔮 Vitrine** — das Stück unter Glas. Der Unterschied zum Studio ist keine
@@ -77,6 +86,19 @@ Und drei ruhigere:
 
 Die bestehenden drei Stile sind unverändert. Alle neuen bewegen ausschließlich
 transform/opacity/filter — der Browser in TikTok Live Studio ist schwach.
+
+### Wächter: kein Backtick im CSS eines Widgets
+
+Jedes Widget hält sein CSS in einem Template-Literal. Schreibt jemand im
+Kommentar darin eine Klasse in Backticks — in Markdown und Chat völlig normal —,
+endet die Zeichenkette mitten im CSS und der Rest wird als JavaScript gelesen.
+
+Das Tückische: Das ist oft syntaktisch gültig, und `node --check` bleibt still
+(nachgestellt und bestätigt: Exit-Code 0). Ein Punkt nach der geschlossenen
+Zeichenkette ist ein Eigenschaftszugriff, ein Stern eine Multiplikation. Die
+Datei lädt, das Widget bleibt leer — und man sucht den Fehler im Widget. Beim
+Bau dieser Designs ist das dreimal passiert, zweimal davon lautlos. Ein Test
+prüft das jetzt für alle Widgets.
 
 ### Der Widget-Prüfer prüft jetzt auch die Stile
 
