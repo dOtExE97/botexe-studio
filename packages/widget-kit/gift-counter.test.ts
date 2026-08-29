@@ -78,7 +78,9 @@ test('jeder Stil steht im Auswahlfeld UND hat eigene CSS-Regeln', async () => {
   // Nur der Stil-Block — sonst zaehlt der Test die Optionen von
   // „Bei Zielerreichung" (raise/reset/keep) mit.
   const stilBlock = block.slice(block.indexOf('styleField(['), block.indexOf(']),'));
-  const imFeld = [...stilBlock.matchAll(/\{ value: '([a-z]+)', label:/g)].map((m) => m[1]);
+  // Bindestrich mit erlauben: Stilwerte wie „karte-voll" wären sonst
+  // unsichtbar für den Test — der wäre grün, während der Eintrag fehlt.
+  const imFeld = [...stilBlock.matchAll(/\{ value: '([a-z-]+)', label:/g)].map((m) => m[1]);
 
   assert.deepEqual([...STILE].sort(), [...imFeld].sort(),
     `Auswahlfeld (${imFeld.join(', ')}) und STILE (${STILE.join(', ')}) laufen auseinander`);

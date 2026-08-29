@@ -738,12 +738,13 @@ html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal
   box-shadow: inset 0 1px calc(var(--u) * 4) rgba(0,0,0,.85),
     inset 0 -1px 0 rgba(255,240,200,.16),
     0 0 0 1px color-mix(in srgb, var(--bx-gold) 30%, transparent);
-  color: color-mix(in srgb, var(--bx-gold) 45%, white); letter-spacing: .16em;
-  font-size: clamp(9px, calc(var(--u) * 15), 58px);
+  color: color-mix(in srgb, var(--bx-gold) 45%, white); letter-spacing: .1em;
+  font-size: clamp(12px, calc(var(--u) * 24), 92px);
   text-shadow: 0 calc(var(--u) * 1) 0 rgba(0,0,0,.9); }
 /* Die Zahl sitzt in einem Wappen. */
 .bx-gco-karte .bx-gco-prog { margin: auto 0 6% 0; -webkit-text-stroke: 0;
-  padding: 1.5% calc(var(--u) * 16); border-radius: 999px;
+  font-size: clamp(18px, calc(var(--u) * 38), 145px);
+  padding: 1% calc(var(--u) * 20); border-radius: 999px;
   background: linear-gradient(180deg, rgba(255,236,180,.16), rgba(0,0,0,.5));
   box-shadow: inset 0 1px 0 rgba(255,245,215,.35), inset 0 -1px calc(var(--u) * 3) rgba(0,0,0,.7),
     0 0 0 1px color-mix(in srgb, var(--bx-gold) 40%, transparent);
@@ -870,6 +871,101 @@ html .bx-frameless .bx-gco-rakete .bx-gco-deko { border-top-color: var(--bx-teal
   -webkit-text-stroke: calc(var(--u) * 3) var(--bx-ink, #0a0b12); paint-order: stroke fill;
   text-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 6) rgba(0,0,0,.9); opacity: .92; }
 
+/* ── Stil „Vollbild-Karte" — die Kunst füllt die ganze Karte, die Schrift liegt
+   darauf. Der Unterschied zur Gold-Karte ist nicht die Verzierung, sondern das
+   Verhältnis: Dort ist das Bild ein Fenster IM Rahmen, hier IST das Bild die
+   Karte. Dadurch wird das Geschenk fast doppelt so groß, und die Ansage steht
+   groß auf ihm — wie auf einer Spielkarte aus einem Videospiel.
+   Damit die Schrift auf JEDEM Geschenkbild lesbar bleibt (auch auf einem
+   hellen Diamanten), liegt unter ihr ein Verlauf ins Dunkle. */
+/* Die Rasterspalte MUSS auf die volle Breite gezwungen werden. Ohne
+   grid-template-columns richtet sie sich nach dem breitesten Kind — und dann
+   sitzt die Ansage in einer schmalen Kiste statt über der ganzen Karte. */
+.bx-gco-karte-voll { display: grid; grid-template-areas: 'stapel';
+  grid-template-columns: 100%; grid-template-rows: 100%; gap: 0; padding: 0;
+  background: linear-gradient(180deg, #16131f, #08070c) !important;
+  border-radius: calc(var(--u) * 13); overflow: hidden;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.14),
+    inset 0 0 0 calc(var(--u) * 2.5) color-mix(in srgb, var(--bx-accent) 55%, #2a2233),
+    0 calc(var(--u) * 12) calc(var(--u) * 28) rgba(0,0,0,.6) !important; }
+.bx-gco-karte-voll > * { grid-area: stapel; }
+/* Positionierte Elemente werden über unpositionierten gezeichnet — ohne diese
+   Ebene läge die Schrift HINTER dem Geschenk (siehe Stil „Plakat"). */
+.bx-gco-karte-voll .bx-gco-title, .bx-gco-karte-voll .bx-gco-prog { position: relative; z-index: 1; }
+.bx-gco-karte-voll .bx-gco-iconwrap { width: 100%; height: 100%; margin: 0; }
+.bx-gco-karte-voll .bx-gco-icon { position: absolute; left: 2%; right: 2%; top: 1%; bottom: 22%;
+  width: auto; height: auto; perspective: calc(var(--u) * 560); }
+.bx-gco-karte-voll .bx-gco-spiegel { display: none; }
+/* Folie über allem. */
+.bx-gco-karte-voll::after { content: ''; position: absolute; top: -30%; bottom: -30%; left: -60%; width: 40%;
+  pointer-events: none; transform: rotate(16deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.06) 35%, rgba(255,255,255,.18) 50%, rgba(255,255,255,.06) 65%, transparent);
+  animation: bx-gco-folie 9s cubic-bezier(.5,0,.5,1) infinite; }
+.bx-gco-karte-voll.hit::after { animation: bx-gco-folie 900ms cubic-bezier(.4,0,.25,1); }
+/* Die Ansage: groß, unten, auf dem Bild. */
+.bx-gco-karte-voll .bx-gco-title { align-self: end; justify-self: stretch; text-align: center;
+  padding: 18% 5% 4%; -webkit-text-stroke: calc(var(--u) * 3) var(--bx-ink, #0a0b12); paint-order: stroke fill;
+  color: #fff; letter-spacing: .01em; line-height: .95;
+  font-size: clamp(13px, calc(var(--u) * 30), 116px);
+  background: linear-gradient(0deg, rgba(0,0,0,.9) 30%, rgba(0,0,0,.45) 65%, transparent);
+  text-shadow: 0 0 calc(var(--u) * 20) color-mix(in srgb, var(--bx-accent) 65%, transparent); }
+/* Die Zahl als Marke oben rechts — wie der Wert auf einer Spielkarte. */
+.bx-gco-karte-voll .bx-gco-prog { align-self: start; justify-self: end;
+  margin: 4% 4% 0 0; padding: 1% calc(var(--u) * 14); border-radius: 999px;
+  -webkit-text-stroke: 0; font-size: clamp(11px, calc(var(--u) * 22), 84px);
+  color: #fff; background: linear-gradient(180deg, color-mix(in srgb, var(--bx-accent) 65%, black), rgba(0,0,0,.72));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 calc(var(--u) * 3) calc(var(--u) * 8) rgba(0,0,0,.6); }
+.bx-gco-karte-voll .bx-gco-ring { inset: auto 0 0 0; height: calc(var(--u) * 6); border-radius: 0; z-index: 2;
+  -webkit-mask: none; mask: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent) 95%, white) 0 var(--pct, 0%), rgba(255,255,255,.12) var(--pct, 0%) 100%); }
+.bx-gco-karte-voll.done .bx-gco-ring { background: linear-gradient(90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white)); animation: none; }
+
+/* ── Stil „Schräge Karte" — dieselbe Idee, moderne Sprache: abgeschnittene
+   Ecken, ein schräges Holo-Band hinter dem Geschenk und ein Namensbalken, der
+   nicht rechtwinklig steht. Karten wirken teuer, wenn sie NICHT rechteckig
+   sind — jede abgeschrägte Kante sagt „das ist ein Objekt, kein Kasten". */
+.bx-gco-karte-schraeg { justify-content: flex-start; gap: 0; padding: 5% 5.5% 6.5%;
+  background: linear-gradient(158deg, #241d33 0%, #14111f 40%, #08070c 100%) !important;
+  box-shadow: 0 calc(var(--u) * 12) calc(var(--u) * 30) rgba(0,0,0,.65) !important;
+  clip-path: polygon(0 calc(var(--u) * 22), calc(var(--u) * 22) 0, 100% 0,
+    100% calc(100% - var(--u) * 22), calc(100% - var(--u) * 22) 100%, 0 100%);
+  overflow: hidden; }
+/* Holo-Band: breit, schräg, dauerhaft sichtbar — der Grundton der Karte. */
+.bx-gco-karte-schraeg::before { content: ''; position: absolute; inset: -20% -40%;
+  pointer-events: none; transform: rotate(-22deg);
+  background: linear-gradient(90deg, transparent 20%,
+    color-mix(in srgb, var(--bx-accent) 15%, transparent) 42%,
+    color-mix(in srgb, var(--bx-teal) 11%, transparent) 55%, transparent 74%);
+  filter: blur(calc(var(--u) * 10)); }
+/* Kantenlicht innen, der Schrägschnitt lässt keinen Rahmen zu. */
+.bx-gco-karte-schraeg .bx-gco-deko { inset: calc(var(--u) * 3); pointer-events: none;
+  clip-path: polygon(0 calc(var(--u) * 20), calc(var(--u) * 20) 0, 100% 0,
+    100% calc(100% - var(--u) * 20), calc(100% - var(--u) * 20) 100%, 0 100%);
+  background: linear-gradient(158deg, rgba(255,255,255,.16), transparent 22%, transparent 78%, rgba(255,255,255,.08));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude; padding: 1px; }
+.bx-gco-karte-schraeg .bx-gco-iconwrap { position: static; width: 100%; height: 56%; margin: 3% 0 0 0;
+  overflow: visible; }
+.bx-gco-karte-schraeg .bx-gco-icon { width: 92%; height: 92%; perspective: calc(var(--u) * 560); }
+.bx-gco-karte-schraeg .bx-gco-spiegel { display: none; }
+/* Namensbalken schräg — ein Parallelogramm, das die Bildkante überlappt. */
+.bx-gco-karte-schraeg .bx-gco-title { width: 104%; margin-top: -3%; padding: 2.6% 7%;
+  position: relative; z-index: 1; -webkit-text-stroke: 0;
+  clip-path: polygon(calc(var(--u) * 14) 0, 100% 0, calc(100% - var(--u) * 14) 100%, 0 100%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent) 85%, black), color-mix(in srgb, var(--bx-accent) 45%, black));
+  color: #fff; letter-spacing: .08em; font-size: clamp(12px, calc(var(--u) * 25), 96px);
+  text-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 4) rgba(0,0,0,.8); }
+.bx-gco-karte-schraeg .bx-gco-prog { margin: auto 0 4% 0; -webkit-text-stroke: 0;
+  font-size: clamp(18px, calc(var(--u) * 40), 152px); color: #fff;
+  text-shadow: 0 0 calc(var(--u) * 22) color-mix(in srgb, var(--bx-accent) 75%, transparent), 0 calc(var(--u) * 2) calc(var(--u) * 6) rgba(0,0,0,.9); }
+.bx-gco-karte-schraeg .bx-gco-ring { inset: auto 6% 3% 6%; height: calc(var(--u) * 5);
+  -webkit-mask: none; mask: none; border-radius: 999px;
+  clip-path: polygon(calc(var(--u) * 5) 0, 100% 0, calc(100% - var(--u) * 5) 100%, 0 100%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bx-accent) 95%, white) 0 var(--pct, 0%), rgba(255,255,255,.12) var(--pct, 0%) 100%); }
+.bx-gco-karte-schraeg.done .bx-gco-ring { background: linear-gradient(90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white)); animation: none; }
+
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
@@ -894,7 +990,7 @@ const STUDIO_TIEFE = 12;
 /** Stile, die aus dem flachen Geschenkbild einen Körper bauen (studioSchichten).
  *  Der Aufbau ist bei allen derselbe — es unterscheidet sich nur, WORIN der
  *  Gegenstand steht: freie Studio-Rundung, Glaskasten oder Scheinwerferkegel. */
-const STILE_MIT_KOERPER = new Set(['studio', 'vitrine', 'museum', 'karte']);
+const STILE_MIT_KOERPER = new Set(['studio', 'vitrine', 'museum', 'karte', 'karte-voll', 'karte-schraeg']);
 
 /** Die Stile mit der GEMEINSAMEN BÜHNE (Boden, Ring, Spiegelung, Perspektive).
  *
@@ -911,7 +1007,7 @@ const STILE_MIT_BUEHNE = new Set(['studio', 'vitrine', 'museum']);
  *  und die CSS-Regel schließt sie damit aus. Ein Test in gift-counter.test.ts
  *  vergleicht diese Liste mit den CSS-Regeln, damit kein Stil vergessen wird. */
 export const EIGENES_MASS = new Set([
-  'rakete', 'studio', 'vitrine', 'museum', 'karte', 'zeile', 'fokus', 'plakat', 'davor',
+  'rakete', 'studio', 'vitrine', 'museum', 'karte', 'karte-voll', 'karte-schraeg', 'zeile', 'fokus', 'plakat', 'davor',
 ]);
 
 /**
@@ -950,7 +1046,7 @@ export function sichereBildAdresse(url) {
 /** Die wählbaren Stile. Reihenfolge = die des Auswahlfelds; 'glas' ist der
  *  Rückfall für alles Unbekannte (z.B. ein Overlay von einer neueren Fassung).
  *  Ein Stil wird NIE entfernt — das würde vorhandene Overlays umgestalten. */
-export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm', 'studio', 'vitrine', 'museum', 'karte', 'zeile', 'fokus', 'plakat', 'davor'];
+export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm', 'studio', 'vitrine', 'museum', 'karte', 'karte-voll', 'karte-schraeg', 'zeile', 'fokus', 'plakat', 'davor'];
 
 /** Welche Anzeige-Klassen an der Wurzel hängen (Titel/Zähler/Ring aus).
  *
