@@ -361,6 +361,139 @@ html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow:
   0% { filter: drop-shadow(calc(var(--u) * -9) 0 0 rgba(255,45,110,.8)) drop-shadow(calc(var(--u) * 9) 0 0 rgba(0,225,255,.8)); }
   100% { filter: drop-shadow(calc(var(--u) * -2) 0 0 rgba(255,45,110,.5)) drop-shadow(calc(var(--u) * 2) 0 0 rgba(0,225,255,.5)); } }
 
+/* ── Stil „Studio" — das Geschenk als Ausstellungsstück ────────────────────
+   Der Anspruch: nicht noch ein Rahmen um ein flaches Bild, sondern das
+   Geschenk selbst in Szene gesetzt — wie ein Produktfoto.
+
+   Vier Handgriffe, die aus einem Aufkleber einen Gegenstand machen:
+   1. KÖRPER: dasselbe Bild zwölfmal übereinander, jede Kopie ein Stück weiter
+      hinten (translateZ) und dunkler. Der Stapel wiegt sich langsam; an den
+      Rändern sieht man dabei die Tiefe. (Aufbau: studioSchichten())
+   2. GLANZ: ein Lichtstreif, der über das Bild wandert — aber MASKIERT mit der
+      Form des Bildes, läuft also nur über das Geschenk, nicht über ein
+      Rechteck. Das ist der Unterschied zwischen „glänzt" und „hat ein
+      Glanz-Rechteck drüber".
+   3. BODEN: Kontaktschatten und eine gespiegelte, ausblendende Kopie darunter —
+      erst dadurch STEHT etwas, statt zu schweben.
+   4. LICHT: eine Studio-Rundung im Hintergrund mit Licht von oben links, dazu
+      Randabdunklung. Nichts davon ist ein gerendertes Bild: alles rechnet sich
+      aus der Boxgröße und der Akzentfarbe des Nutzers, skaliert also beliebig
+      und passt sich seiner Farbe an. */
+.bx-gco-studio {
+  background:
+    radial-gradient(120% 78% at 28% 6%, rgba(255,255,255,.13), transparent 55%),
+    radial-gradient(90% 60% at 50% 108%, color-mix(in srgb, var(--bx-accent) 16%, transparent), transparent 70%),
+    linear-gradient(178deg, #1b1e2b 0%, #101220 46%, #07080f 100%) !important;
+  border-radius: calc(var(--u) * 18);
+  box-shadow: inset 0 0 calc(var(--u) * 90) rgba(0,0,0,.6), 0 calc(var(--u) * 10) calc(var(--u) * 30) rgba(0,0,0,.45) !important;
+  overflow: hidden; }
+/* Die Bodenebene: eine Kante, ab der der Hintergrund heller in den Boden
+   übergeht — genau das macht aus einer dunklen Fläche eine Studio-Rundung, in
+   der ein Gegenstand STEHT statt vor einer Wand zu hängen. */
+.bx-gco-studio::before { content:''; position:absolute; inset:0; pointer-events:none;
+  /* WEICH ansetzen: mit einer Farbe direkt an der Oberkante entstand quer über
+     die Karte eine sichtbare Kante — das sah nach Fehler aus, nicht nach Boden. */
+  background:
+    linear-gradient(180deg, transparent 34%, color-mix(in srgb, var(--bx-accent) 10%, transparent) 56%, transparent 88%),
+    radial-gradient(150% 60% at 50% 58%, rgba(255,255,255,.06), transparent 70%); }
+/* Randabdunklung — der Blick bleibt in der Mitte. */
+.bx-gco-studio::after { content:''; position:absolute; inset:0; pointer-events:none;
+  background: radial-gradient(78% 62% at 50% 44%, transparent 55%, rgba(0,0,0,.5) 100%); }
+/* Das Geschenk ist der Hauptdarsteller: die Bühne ist größer als beim Standard
+   und in zwei Zonen geteilt — oben der Gegenstand, unten der Boden mit Ring,
+   Kontaktschatten und Spiegelung. Vorher lagen alle drei ÜBER dem Bild. */
+.bx-gco-studio .bx-gco-iconwrap { margin-bottom: calc(var(--u) * 10);
+  width: clamp(50px, calc(var(--u) * 190), 740px); height: clamp(50px, calc(var(--u) * 190), 740px); }
+.bx-gco-studio .bx-gco-icon { position:absolute; left:9%; right:9%; top:1%; bottom:34%;
+  width:auto; height:auto; }
+
+/* Der Fortschritt liegt als eingelassener Ring IM BODEN, nicht um das Bild —
+   sonst kämpft er mit dem Körper um dieselbe Kontur. */
+.bx-gco-studio .bx-gco-ring {
+  inset: 58% 8% auto 8%; height: 22%; border-radius: 50%;
+  -webkit-mask: radial-gradient(closest-side, transparent 78%, #000 82%, #000 96%, transparent 100%);
+  mask: radial-gradient(closest-side, transparent 78%, #000 82%, #000 96%, transparent 100%);
+  background: conic-gradient(from -90deg,
+    color-mix(in srgb, var(--bx-accent) 90%, white) 0 var(--pct, 0%),
+    rgba(255,255,255,.13) var(--pct, 0%) 100%);
+  filter: drop-shadow(0 0 calc(var(--u) * 7) color-mix(in srgb, var(--bx-accent) 45%, transparent)); }
+.bx-gco-studio.done .bx-gco-ring { background: conic-gradient(from -90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 45%, white), var(--bx-teal));
+  animation: bx-gco-dreh 5s linear infinite; }
+/* Kontaktschatten: schmal und dunkel direkt unter dem Geschenk. Ohne ihn
+   schwebt alles, egal wie gut der Rest ist. */
+.bx-gco-studio .bx-gco-deko { inset: 62% 33% auto 33%; height: 8%; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0,0,0,.75), transparent 78%);
+  filter: blur(calc(var(--u) * 3)); }
+
+.bx-gco-studio .bx-gco-icon { perspective: calc(var(--u) * 620); animation: none; overflow: visible; }
+/* Der Körper wiegt sich — langsam und in beide Richtungen ungleich, damit es
+   nicht wie ein Metronom aussieht. */
+.bx-gco-koerper { position:absolute; inset:0; transform-style: preserve-3d;
+  animation: bx-gco-wiegen 11s cubic-bezier(.45,0,.55,1) infinite; }
+@keyframes bx-gco-wiegen {
+  0%   { transform: rotateY(-17deg) rotateX(5deg)  translateY(calc(var(--u) * 2)); }
+  50%  { transform: rotateY(15deg)  rotateX(-3deg) translateY(calc(var(--u) * -3)); }
+  100% { transform: rotateY(-17deg) rotateX(5deg)  translateY(calc(var(--u) * 2)); } }
+/* GEWICHT: Die Grundregel .bx-gco-icon img setzt Schatten und Akzent-Schein auf
+   JEDES Bild darin — und ist gewichtiger als eine reine Klassen-Regel. Ohne das
+   vorangestellte img bekamen alle zwölf Kopien denselben Schein statt der Abstufung:
+   zwölf Scheine übereinander ergaben einen gelben Nebel, in dem von der Tiefe
+   nichts mehr zu sehen war. */
+.bx-gco-icon img.bx-gco-schicht { position:absolute; inset:0; width:100%; height:100%; object-fit:contain;
+  /* Tiefe UND Versatz. Nur translateZ reichte nicht: nach hinten geschobene
+     Kopien werden durch die Perspektive kleiner und verschwinden dadurch genau
+     hinter der vordersten — man sah nichts. Der schräge Versatz nach unten
+     rechts (weg vom Licht oben links) macht den Körper auch frontal sichtbar,
+     das translateZ sorgt dafür, dass er sich beim Wiegen richtig verschiebt. */
+  transform: translate3d(calc(var(--u) * 0.85 * var(--i)), calc(var(--u) * 0.9 * var(--i)), calc(var(--u) * -2.2 * var(--i)));
+  /* Nach hinten dunkler UND leicht in die Akzentfarbe gezogen: ein reiner
+     Schwarzverlauf sieht aus wie Schmutz, ein farbiger wie Material im Licht. */
+  filter: brightness(calc(1 - 0.115 * var(--i))) saturate(calc(1 - 0.045 * var(--i))); }
+/* Die vorderste Kopie trägt das Licht: heller Kern, farbiger Konturschein. */
+/* Die vorderste Kopie trägt das Licht: eine schmale helle Kante oben links
+   (Lichtquelle) und nur ein KNAPPER farbiger Schein. Ein weicher, großer Schein
+   legte sich vorher über den ganzen Körper und machte die Tiefe zunichte. */
+.bx-gco-icon img.bx-gco-schicht[style*='--i:0'] { filter:
+          drop-shadow(calc(var(--u) * -1) calc(var(--u) * -1) 0 rgba(255,255,255,.45))
+          drop-shadow(0 0 calc(var(--u) * 3) color-mix(in srgb, var(--bx-accent) 45%, transparent)); }
+/* Der wandernde Lichtstreif — in der FORM des Geschenks, nicht als Rechteck. */
+.bx-gco-glanz { position:absolute; inset:0; pointer-events:none; overflow:hidden;
+  -webkit-mask-image: var(--bx-gco-bild); mask-image: var(--bx-gco-bild);
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  transform: translateZ(calc(var(--u) * 1)); }
+.bx-gco-glanz::after { content:''; position:absolute; top:-60%; bottom:-60%; left:-40%; width:32%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent);
+  transform: rotate(18deg) translateX(0); animation: bx-gco-streif 5.5s cubic-bezier(.4,0,.2,1) infinite; }
+@keyframes bx-gco-streif {
+  0%, 62% { transform: rotate(18deg) translateX(0); opacity:0; }
+  66% { opacity:.95; }
+  100% { transform: rotate(18deg) translateX(460%); opacity:0; } }
+/* Spiegelung auf dem Boden: gekippt, ausblendend, weich. */
+.bx-gco-spiegel { position:absolute; left:0; right:0; top:100%; height:58%; pointer-events:none;
+  transform: scaleY(-1); opacity:.3;
+  -webkit-mask: linear-gradient(to top, transparent 8%, #000 92%); mask: linear-gradient(to top, transparent 8%, #000 92%); }
+.bx-gco-icon .bx-gco-spiegel img { width:100%; height:100%; object-fit:contain; object-position: top center;
+  filter: blur(calc(var(--u) * 1.4)) saturate(.8); }
+/* Ein Geschenk: der Gegenstand springt kurz an und der Lichtstreif feuert sofort. */
+.bx-gco-studio.hit .bx-gco-koerper { animation: bx-gco-sprung 780ms cubic-bezier(.2,1.5,.3,1); }
+@keyframes bx-gco-sprung {
+  0% { transform: rotateY(-17deg) rotateX(5deg) scale(1); }
+  30% { transform: rotateY(6deg) rotateX(-8deg) scale(1.14) translateY(calc(var(--u) * -10)); }
+  100% { transform: rotateY(-17deg) rotateX(5deg) scale(1); } }
+.bx-gco-studio.hit .bx-gco-glanz::after { animation: bx-gco-streif 780ms cubic-bezier(.4,0,.2,1); }
+/* Schrift: ruhig und hell, das Licht liegt auf dem Gegenstand — nicht auf dem Text. */
+.bx-gco-studio .bx-gco-title { color: rgba(255,255,255,.72); letter-spacing: .18em;
+  -webkit-text-stroke: 0; text-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 6) rgba(0,0,0,.8);
+  font-size: clamp(9px, calc(var(--u) * 15), 58px); }
+.bx-gco-studio .bx-gco-prog { color: #fff; -webkit-text-stroke: 0;
+  text-shadow: 0 0 calc(var(--u) * 18) color-mix(in srgb, var(--bx-accent) 75%, transparent), 0 calc(var(--u) * 2) calc(var(--u) * 5) rgba(0,0,0,.9); }
+/* Die Basis lässt Bilder in .bx-gco-icon langsam atmen — hier würde das den
+   Körper gegen sein eigenes Wiegen arbeiten lassen. */
+.bx-premium .bx-gco-studio .bx-gco-icon > * { animation-name: bx-gco-wiegen; }
+.bx-premium .bx-gco-studio img.bx-gco-schicht, .bx-premium .bx-gco-studio .bx-gco-spiegel img { animation: none; }
+
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
@@ -377,10 +510,48 @@ export function findGiftIcon(catalog, slug) {
   return '';
 }
 
+/** Wie viele Kopien den Körper im Stil „Studio" bilden. Mehr = glatter, aber
+ *  jede ist ein weiteres Bild im Baum; ab etwa 14 sieht man keinen Unterschied
+ *  mehr. */
+const STUDIO_TIEFE = 12;
+
+/**
+ * Das Gerüst für den Stil „Studio": aus EINEM flachen Bild einen Körper bauen.
+ *
+ * Die Idee: dasselbe Bild mehrfach übereinander, jede Kopie ein Stückchen
+ * weiter hinten (translateZ) und dunkler. Dreht sich der Stapel leicht, sieht
+ * man an den Rändern die Tiefe — aus dem Aufkleber wird ein Gegenstand. Das ist
+ * der Trick, mit dem man ein beliebiges Geschenkbild räumlich bekommt, ohne
+ * ein 3D-Modell davon zu haben. TikTok liefert über 5000 verschiedene
+ * Geschenkbilder; ein vorgerendertes Modell könnte immer nur eines davon zeigen.
+ *
+ * Reihenfolge von HINTEN nach VORNE, damit die vorderste Kopie (i = 0, die
+ * einzige in voller Farbe) auch ohne z-index oben liegt.
+ */
+export function studioSchichten(tiefe) {
+  const n = Math.max(2, Math.min(20, Math.floor(Number(tiefe)) || 12));
+  let html = '<div class="bx-gco-koerper">';
+  for (let i = n - 1; i >= 0; i--) html += `<img class="bx-gco-schicht" alt="" style="--i:${i}">`;
+  // Glanz = wandernder Lichtstreif, Rand = Konturlicht. Beide holen sich die
+  // Form aus derselben Bildadresse.
+  html += '<div class="bx-gco-glanz"></div></div><div class="bx-gco-spiegel"><img alt=""></div>';
+  return html;
+}
+
+/** Bildadresse, die gefahrlos in url("…") stehen kann.
+ *
+ *  Anführungszeichen, Backslashes, Klammern und Zeilenumbrüche würden die
+ *  CSS-Funktion vorzeitig schließen — der Rest der Adresse landete dann als
+ *  CSS im Dokument. Die Adressen kommen zwar aus TikToks Katalog, aber eine
+ *  Zeichenkette aus dem Netz gehört nie ungeprüft in eine Stil-Anweisung. */
+export function sichereBildAdresse(url) {
+  return String(url ?? '').replace(/["'\\()\s]/g, '');
+}
+
 /** Die wählbaren Stile. Reihenfolge = die des Auswahlfelds; 'glas' ist der
  *  Rückfall für alles Unbekannte (z.B. ein Overlay von einer neueren Fassung).
  *  Ein Stil wird NIE entfernt — das würde vorhandene Overlays umgestalten. */
-export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm'];
+export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm', 'studio'];
 
 /** Welche Anzeige-Klassen an der Wurzel hängen (Titel/Zähler/Ring aus).
  *
@@ -493,8 +664,20 @@ export default class GiftCounter {
 
   renderIcon() {
     const slot = this.el.querySelector('.bx-gco-icon');
-    if (this.lastIcon) { slot.innerHTML = '<img alt="" />'; slot.querySelector('img').src = this.lastIcon; }
-    else slot.innerHTML = GIFT_SVG;
+    if (!this.lastIcon) { slot.innerHTML = GIFT_SVG; return; }
+    if (this.style === 'studio') {
+      // Studio: aus dem flachen Bild wird ein Körper (siehe studioSchichten).
+      slot.innerHTML = studioSchichten(STUDIO_TIEFE);
+      for (const img of slot.querySelectorAll('img')) img.src = this.lastIcon;
+      // Glanz und Spiegelung arbeiten mit der SILHOUETTE des Bildes — die Adresse
+      // geht als CSS-Variable rein (nicht ins Markup), dann muss sie nirgends
+      // fürs HTML entschärft werden.
+      slot.style.setProperty('--bx-gco-bild', `url("${sichereBildAdresse(this.lastIcon)}")`);
+      return;
+    }
+    slot.style.removeProperty('--bx-gco-bild');
+    slot.innerHTML = '<img alt="" />';
+    slot.querySelector('img').src = this.lastIcon;
   }
 
   render(animate) {

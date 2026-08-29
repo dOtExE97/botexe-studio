@@ -941,6 +941,7 @@ export const WIDGET_TYPES: {
         { value: 'portal', label: '🌀 Portal (Energiewirbel)' },
         { value: 'rakete', label: '🚀 Rakete (steigt zum Ziel)' },
         { value: 'hologramm', label: '📺 Hologramm (Projektion)' },
+        { value: 'studio', label: '💎 Studio (Produktfoto, 3D)' },
       ]),
       { key: 'giftSlug', label: 'Gift zählen', type: 'gift', hint: 'Welches Gift gezählt wird — durchsuchbar auswählen (leer = ALLE Gifts).' },
       { key: 'target', label: 'Ziel', type: 'number', hint: 'Wie viele bis zum Ziel.' },

@@ -1,7 +1,7 @@
 // gift-counter.test.ts — Ziel-Logik bei Erreichen (DOM-frei).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { onGiftGoalReached, findGiftIcon, anzeigeKlassen, STILE } from './gift-counter.js';
+import { onGiftGoalReached, findGiftIcon, anzeigeKlassen, STILE, studioSchichten, sichereBildAdresse } from './gift-counter.js';
 
 test('findGiftIcon: Icon per lowercase-Slug (Katalog-Key ODER entry.slug), sonst leer', () => {
   const cat = {
@@ -87,4 +87,31 @@ test('jeder Stil steht im Auswahlfeld UND hat eigene CSS-Regeln', async () => {
   // 'glas' ist der Standard und braucht keine eigene Klasse — er IST die Grundregel.
   const ohneCss = STILE.filter((s) => s !== 'glas' && !quelle.includes(`.bx-gco-${s} `));
   assert.deepEqual(ohneCss, [], `Stil wählbar, sieht aber aus wie der Standard: ${ohneCss.join(', ')}`);
+});
+
+// ── Stil „Studio": aus einem flachen Bild einen Körper bauen ───────────────
+test('studioSchichten: Kopien von HINTEN nach VORNE, damit die vorderste oben liegt', () => {
+  const html = studioSchichten(4);
+  const reihenfolge = [...html.matchAll(/--i:(\d+)/g)].map((m) => Number(m[1]));
+  assert.deepEqual(reihenfolge, [3, 2, 1, 0], 'sonst verdeckt eine dunkle Kopie die farbige');
+  assert.ok(html.includes('bx-gco-glanz'), 'der wandernde Lichtstreif fehlt');
+  assert.ok(html.includes('bx-gco-spiegel'), 'die Spiegelung fehlt');
+});
+
+test('studioSchichten: Anzahl bleibt in vernünftigen Grenzen', () => {
+  const zaehle = (h: string) => [...h.matchAll(/--i:/g)].length;
+  assert.equal(zaehle(studioSchichten(0)), 12, 'ungültig → Standardtiefe');
+  assert.equal(zaehle(studioSchichten(1)), 2, 'unter 2 ergibt keinen Körper');
+  assert.equal(zaehle(studioSchichten(500)), 20, 'nach oben gedeckelt, sonst 500 Bilder im Baum');
+});
+
+test('sichereBildAdresse: nichts, was url(…) vorzeitig schließen könnte', () => {
+  // Die Adresse landet in einer CSS-Anweisung. Käme aus dem Netz ein
+  // Anführungszeichen oder eine Klammer, stünde der Rest als CSS im Dokument.
+  assert.equal(sichereBildAdresse('https://x.tiktokcdn.com/a/rose.webp'), 'https://x.tiktokcdn.com/a/rose.webp');
+  assert.equal(sichereBildAdresse('a"); body{display:none} /*'), 'a);body{display:none}/*'.replace(/[")(]/g, ''));
+  assert.equal(sichereBildAdresse(undefined), '');
+  for (const zeichen of ['"', "'", '(', ')', '\\', ' ', '\n']) {
+    assert.ok(!sichereBildAdresse(`a${zeichen}b`).includes(zeichen), `${JSON.stringify(zeichen)} bleibt stehen`);
+  }
 });

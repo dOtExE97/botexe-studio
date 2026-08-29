@@ -16,9 +16,27 @@ Box, statt klein in der Mitte zu schweben.
 Bestehende Overlays ändern sich nicht: Ein fehlender Wert gilt als „an", nur
 ein ausdrückliches Abwählen blendet etwas aus.
 
-### Sechs neue Designs für den Geschenkzähler
+### Sieben neue Designs für den Geschenkzähler
 
-Die drei aufwendigen zuerst:
+**💎 Studio** ist der aufwendigste: das Geschenk als Produktfoto statt als
+Aufkleber. Vier Handgriffe machen aus dem flachen Bild einen Gegenstand —
+
+1. **Körper:** dasselbe Bild zwölfmal übereinander, jede Kopie ein Stück weiter
+   hinten und dunkler. Der Stapel wiegt sich langsam, an den Rändern sieht man
+   dabei die Dicke.
+2. **Glanz:** ein Lichtstreif wandert über das Geschenk — aber in seiner *Form*,
+   nicht als Rechteck darüber.
+3. **Boden:** Kontaktschatten und eine gespiegelte, ausblendende Kopie. Erst
+   dadurch *steht* etwas, statt zu schweben.
+4. **Licht:** eine Studio-Rundung mit Licht von oben links und Randabdunklung.
+   Der Fortschritt ist ein in den Boden eingelassener Ring.
+
+Nichts davon ist ein gerendertes Bild — alles rechnet sich aus der Boxgröße und
+deiner Akzentfarbe. Das ist Absicht: TikTok hat über 5000 verschiedene
+Geschenkbilder, ein vorgerendertes 3D-Modell könnte immer nur eines davon
+zeigen. So funktioniert der Aufbau mit *jedem*.
+
+Dazu drei bewegte:
 
 - **🌀 Portal** — das Geschenk schwebt in einem Energiewirbel: drei Ringe in
   verschiedenen Größen drehen gegeneinander, dahinter ein weicher Sog. Jedes
@@ -32,7 +50,7 @@ Die drei aufwendigen zuerst:
   hochlaufende Scanlinien, ein Hauch Farbversatz an den Kanten und
   unregelmäßiges Flackern. Der Sockel ist der Fortschritt.
 
-Dazu drei ruhigere:
+Und drei ruhigere:
 
 
 - **🔋 Aufladung** — der Ring wird zum Füllstand: die Farbe steigt von unten
