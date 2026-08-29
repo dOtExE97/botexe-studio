@@ -67,14 +67,28 @@ const CSS = `
 /* ── Stil „Neon" — freistehend: Icon + Zahlen mit Glow, kein Panel. */
 .bx-gco-neon { background: none !important; box-shadow: none !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
 .bx-gco-neon::before { display: none; }
-.bx-gco-neon .bx-gco-count, .bx-gco-neon .bx-gco-label { text-shadow: 0 0 16px var(--bx-accent), 0 2px 4px rgba(0,0,0,.9); }
+/* FRÜHER TOT: Diese Regel sprach .bx-gco-count und .bx-gco-label an — Klassen,
+   die es in diesem Widget nie gab (sie heißen .bx-gco-prog und .bx-gco-title).
+   Und weil der Zähler von Haus aus gar kein Panel hat, tat auch das
+   background:none oben nichts. Der Stil „Neon" war damit Pixel für Pixel
+   derselbe wie „Glas" — gefunden, indem beide Stile gerendert und verglichen
+   wurden. Jetzt leuchtet er wirklich. */
+.bx-gco-neon .bx-gco-prog, .bx-gco-neon .bx-gco-title {
+  color: color-mix(in srgb, var(--bx-accent) 25%, white); -webkit-text-stroke: 0;
+  text-shadow: 0 0 .18em var(--bx-accent), 0 0 .5em var(--bx-accent),
+    0 0 1.1em color-mix(in srgb, var(--bx-accent) 70%, transparent), 0 2px 4px rgba(0,0,0,.9); }
+.bx-gco-neon .bx-gco-ring { filter: drop-shadow(0 0 .3em var(--bx-accent)) drop-shadow(0 0 .8em color-mix(in srgb, var(--bx-accent) 75%, transparent)); }
+.bx-gco-neon .bx-gco-icon { filter: drop-shadow(0 0 .35em color-mix(in srgb, var(--bx-accent) 70%, transparent)); }
 
 /* ── Stil „Medaille" — Gold-Auszeichnung: Icon im gravierten Goldring. */
 .bx-gco-medaille { background: linear-gradient(170deg, rgba(30,24,10,.95), rgba(16,12,6,.96)) !important;
   border: 1px solid color-mix(in srgb, var(--bx-gold) 65%, transparent); border-radius: 14px;
   box-shadow: 0 0 30px -8px var(--bx-gold), inset 0 0 40px rgba(0,0,0,.5) !important; }
 .bx-gco-medaille .bx-gco-icon, .bx-gco-medaille img { filter: drop-shadow(0 0 12px var(--bx-gold)); }
-.bx-gco-medaille .bx-gco-count { color: var(--bx-gold); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 60%, transparent); }
+/* Ebenfalls tot gewesen (.bx-gco-count gibt es nicht) — die Medaille war
+   deshalb nur ein goldener Kasten, ihre Zahl blieb wie im Standard. */
+.bx-gco-medaille .bx-gco-prog { color: var(--bx-gold); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-gold) 60%, transparent); }
+.bx-gco-medaille .bx-gco-title { color: color-mix(in srgb, var(--bx-gold) 35%, white); }
 
 /* ══ Drei weitere Stile ══════════════════════════════════════════════════
    Alle drei benutzen dasselbe Gerüst (Rahmen · Ring · Icon · Titel · Zahl)

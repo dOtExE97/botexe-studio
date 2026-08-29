@@ -203,10 +203,10 @@ export const WIDGET_TYPES: {
       { key: 'sizeMode', label: 'Karten-Format', type: 'select', hint: 'Wie groß die Momente-Karte auftritt. (Die Textgröße stellst du weiter unten.)', options: [
         { value: 'compact', label: 'Kompakt' }, { value: 'standard', label: 'Standard' }, { value: 'full', label: 'Groß (kurz)' },
       ] },
-      { key: 'defaultSkin', label: 'Design', type: 'select', options: [
+      { key: 'defaultSkin', label: 'Design', type: 'select', hint: 'Das Aussehen der Momente-Karte: Farben, Rahmen und Schriftgewicht. Ändert nur die Optik, nicht welche Momente kommen.', options: [
         { value: 'premium', label: 'Premium Gold' }, { value: 'arcade', label: 'Arcade XP' }, { value: 'clean', label: 'Clean Stream' }, { value: 'cute', label: 'Cute Pop' }, { value: 'dark-pro', label: 'Dark Pro' },
       ] },
-      { key: 'animation', label: 'Animation', type: 'select', options: [
+      { key: 'animation', label: 'Animation', type: 'select', hint: 'Wie die Karte hereinkommt: Pop springt auf, Slide fährt von der Seite, Flip dreht sich herein, Fade blendet ruhig ein.', options: [
         { value: 'pop', label: 'Pop' }, { value: 'slide', label: 'Slide' }, { value: 'flip', label: 'Flip' }, { value: 'fade', label: 'Fade' },
       ] },
       { key: 'minPriority', label: 'Mindest-Priorität', type: 'number', hint: '0 = alles. Höher = nur wichtige Momente (Boss=100, VIP=70, Game-Win=35).' },
@@ -330,7 +330,7 @@ export const WIDGET_TYPES: {
       ]),
       { key: 'startMinutes', label: 'Startzeit (Min.)', type: 'number', hint: 'Womit der Timer startet (beim Laden).' },
       { key: 'secondsPerCoin', label: 'Sek. pro Coin', type: 'number', hint: 'Jeder Gift-Coin verlängert um so viele Sekunden.' },
-      { key: 'secondsPerFollow', label: 'Sek. pro Follower', type: 'number' },
+      { key: 'secondsPerFollow', label: 'Sek. pro Follower', type: 'number', hint: 'Wie viele Sekunden ein neuer Follower dem Timer hinzufügt. 0 = Follower verlängern nicht.' },
       { key: 'secondsPerLike', label: 'Sek. pro Like', type: 'number', hint: '0 = Likes verlängern nicht (sonst läuft der Timer nie ab).' },
       { key: 'maxMinutes', label: 'Max. Minuten', type: 'number', hint: 'Obergrenze, damit der Timer nicht ins Unendliche wächst.' },
       { key: 'title', label: 'Titel', type: 'text' },
@@ -351,7 +351,7 @@ export const WIDGET_TYPES: {
         { value: 'akku', label: '🔋 Akku (Batterie, blitzt bei 100%)' },
         { value: 'ring', label: '⭕ Ring (kreisförmig, sehr kompakt)' },
       ]),
-      { key: 'metric', label: 'Metrik', type: 'select', options: [
+      { key: 'metric', label: 'Metrik', type: 'select', hint: 'Was gezählt wird. Die Zahlen kommen aus der laufenden Sitzung und werden beim Stream-Ende zurückgesetzt.', options: [
         { value: 'coins', label: 'Coins' }, { value: 'likes', label: 'Likes' },
         { value: 'follows', label: 'Follower' }, { value: 'gifts', label: 'Gifts' },
       ] },
@@ -363,9 +363,9 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'goal-countdown', label: 'Ziel-Countdown (Text)', desc: 'Cooler Text-Countdown wie „Noch 50.000 Likes bis zum Ziel!" — pro Metrik, zählt automatisch das nächste Ziel hoch.',
-    w: 760, h: 130, props: { metric: 'likes', target: 1000, template: 'Noch {n} {label} bis zum Ziel!', doneText: 'Ziel erreicht! 🎉', onReach: 'raise', accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
+    w: 760, h: 130, props: { metric: 'likes', target: 1000, label: '', template: 'Noch {n} {label} bis zum Ziel!', doneText: 'Ziel erreicht! 🎉', onReach: 'raise', accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
-      { key: 'metric', label: 'Metrik', type: 'select', options: [
+      { key: 'metric', label: 'Metrik', type: 'select', hint: 'Was gezählt wird. Die Zahlen kommen aus der laufenden Sitzung und werden beim Stream-Ende zurückgesetzt.', options: [
         { value: 'likes', label: 'Likes' }, { value: 'follows', label: 'Follower' },
         { value: 'shares', label: 'Shares' }, { value: 'gifts', label: 'Geschenke' },
         { value: 'coins', label: 'Coins' }, { value: 'viewers', label: 'Zuschauer (aktuell)' },
@@ -392,7 +392,7 @@ export const WIDGET_TYPES: {
         { value: 'feuerwerk', label: '🎆 Funken steigen auf' },
         { value: 'pow', label: '💥 Comic-POW (Sticker-Explosion)' },
       ]),
-      { key: 'metric', label: 'Metrik', type: 'select', options: [
+      { key: 'metric', label: 'Metrik', type: 'select', hint: 'Was gezählt wird. Die Zahlen kommen aus der laufenden Sitzung und werden beim Stream-Ende zurückgesetzt.', options: [
         { value: 'follows', label: 'Follower' }, { value: 'coins', label: 'Coins' },
         { value: 'likes', label: 'Likes' }, { value: 'gifts', label: 'Gifts' },
       ] },
@@ -407,9 +407,9 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'leaderboard', label: 'Top Gifter', desc: 'Die größten Gift-Supporter — mit Avataren + Kronen oder Box.',
-    w: 760, h: 180, props: { source: 'gifts', limit: 5, title: '', style: 'arcade', fontFamily: '', fontScale: 1, textColor: '' },
+    w: 760, h: 180, props: { source: 'gifts', limit: 5, title: '', style: 'arcade', showPic: true, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
-      { key: 'source', label: 'Quelle', type: 'select', options: [
+      { key: 'source', label: 'Quelle', type: 'select', hint: 'Wonach die Liste sortiert: „Gifts" nach ausgegebenen Coins, „Likes" nach gedrückten Herzen. Zwei verschiedene Bestenlisten — leg dir ruhig beide nebeneinander.', options: [
         { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
       ] },
       styleField([
@@ -432,9 +432,9 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'leaderboard', label: 'Like-Liste', desc: 'Wer am fleißigsten liked — mit Avataren + Kronen oder Box.',
-    w: 760, h: 180, props: { source: 'likes', limit: 5, title: '', style: 'arcade', fontFamily: '', fontScale: 1, textColor: '' },
+    w: 760, h: 180, props: { source: 'likes', limit: 5, title: '', style: 'arcade', showPic: true, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
-      { key: 'source', label: 'Quelle', type: 'select', options: [
+      { key: 'source', label: 'Quelle', type: 'select', hint: 'Wonach die Liste sortiert: „Gifts" nach ausgegebenen Coins, „Likes" nach gedrückten Herzen. Zwei verschiedene Bestenlisten — leg dir ruhig beide nebeneinander.', options: [
         { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
       ] },
       styleField([
@@ -603,7 +603,7 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'slot-machine', label: 'Gambling-Automat', desc: 'Spielautomat: ein Geschenk lässt die Walzen drehen — mit einstellbarer Gewinnchance wird zufällig eins deiner Geschenke gezogen und ausgelöst.',
-    w: 640, h: 480, props: { source: 'trigger', items: '', style: 'neon', accent: '#ff5e8a', spinGift: '', winChance: 60, spinMs: WIDGET_TIMING_DEFAULTS.SLOT_SPIN_MS },
+    w: 640, h: 480, props: { source: 'trigger', items: '', title: 'Gambling-Automat', style: 'neon', accent: '#ff5e8a', spinGift: '', winChance: 60, spinMs: WIDGET_TIMING_DEFAULTS.SLOT_SPIN_MS },
     fields: [
       { key: 'source', label: 'Woher kommen die Symbole', type: 'select', options: [
         { value: 'trigger', label: 'Automatisch aus meinen Geschenk-Triggern' },
@@ -758,7 +758,7 @@ export const WIDGET_TYPES: {
     w: 760, h: 120, props: { text: 'Dein Text hier', animation: 'none', outline: true, accent: '#ff5436', fontFamily: 'lilita', fontScale: 1, textColor: '' },
     fields: [
       { key: 'text', label: 'Text', type: 'text', hint: 'Was angezeigt wird. Zeilenumbruch mit Enter möglich.' },
-      { key: 'animation', label: 'Animation', type: 'select', options: [
+      { key: 'animation', label: 'Animation', type: 'select', hint: 'Dauerbewegung des Textes. „Keine" ist am ruhigsten und kostet am wenigsten Leistung — bei einem Text, der die ganze Sendung steht, meist die bessere Wahl.', options: [
         { value: 'none', label: 'Keine' }, { value: 'pulse', label: 'Pulsieren' },
         { value: 'bounce', label: 'Hüpfen' }, { value: 'float', label: 'Schweben' },
         { value: 'glow', label: 'Leuchten' }, { value: 'rainbow', label: 'Regenbogen' },
@@ -955,7 +955,7 @@ export const WIDGET_TYPES: {
       ]),
       { key: 'giftSlug', label: 'Gift zählen', type: 'gift', hint: 'Welches Gift gezählt wird — durchsuchbar auswählen (leer = ALLE Gifts).' },
       { key: 'target', label: 'Ziel', type: 'number', hint: 'Wie viele bis zum Ziel.' },
-      { key: 'onReach', label: 'Bei Zielerreichung', type: 'select', options: [
+      { key: 'onReach', label: 'Bei Zielerreichung', type: 'select', hint: '„Ziel erhöhen" macht aus 15 dann 30, 45 … — gut für einen Abend, der weiterlaufen soll. „Zurück auf 0" startet dieselbe Runde neu. „Nichts" zählt einfach über das Ziel hinaus.', options: [
         { value: 'raise', label: 'Ziel erhöhen (weiterzählen)' },
         { value: 'reset', label: 'Zähler auf 0 zurück' },
         { value: 'keep', label: 'Nichts (drüber zählen)' },

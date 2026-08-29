@@ -111,6 +111,38 @@ Und drei ruhigere:
 Die bestehenden drei Stile sind unverändert. Alle neuen bewegen ausschließlich
 transform/opacity/filter — der Browser in TikTok Live Studio ist schwach.
 
+### Durchsicht aller Widget-Stile und -Einstellungen
+
+Alle 46 Katalogeinträge, 92 wählbaren Stile und jedes Bedienfeld einmal
+durchgeprüft — teils automatisch, teils am Bild.
+
+**Gefunden und behoben:**
+
+- **Der Stil „Neon" des Geschenkzählers war ein Blindgänger.** Seine Regeln
+  gestalteten `.bx-gco-count` und `.bx-gco-label` — Klassen, die es in dem
+  Widget nie gab (sie heißen `-prog` und `-title`). „Neon" war damit Pixel für
+  Pixel derselbe Stil wie „Glas". Gefunden, indem jeder Stil gerendert und mit
+  seinem Standard verglichen wurde: von 92 Stilen war genau dieser eine
+  identisch. Jetzt leuchtet er wirklich; bei der Medaille war die Regel für die
+  Zahl aus demselben Grund tot.
+- **Drei Felder standen beim ersten Öffnen leer da**, obwohl das Widget im
+  Hintergrund längst mit einem Wert arbeitete (Titel des Gambling-Automaten,
+  Einheit des Ziel-Countdowns, Profilbilder der Bestenlisten).
+- **Zehn Auswahl- und Zahlenfelder hatten keine Erklärung** — „Metrik",
+  „Quelle", „Design", „Animation", „Bei Zielerreichung", „Sek. pro Follower".
+  Wer rät, probiert im Live aus. Jetzt steht überall dran, was es tut.
+- Sechs tote CSS-Regeln entfernt (Geschenk-Menü, Giveaway).
+
+**Damit das so bleibt, vier neue Wächter:**
+
+- Keine CSS-Regel für eine Klasse, die das Widget nie vergibt.
+- Jede Einstellung hat einen Standardwert.
+- Der Standardwert eines Auswahlfelds steht auch in seiner Liste.
+- Auswahl- und Zahlenfelder erklären sich.
+
+Alles andere hielt der Prüfung stand: Jeder der übrigen 91 Stile ändert sichtbar
+etwas, und kein Bedienfeld ist ohne Wirkung.
+
 ### Wächter: kein Backtick im CSS eines Widgets
 
 Jedes Widget hält sein CSS in einem Template-Literal. Schreibt jemand im

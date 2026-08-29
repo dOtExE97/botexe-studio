@@ -347,7 +347,6 @@ const CSS = `
   -webkit-line-clamp:1; line-clamp:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bx-gm-chip .bx-gm-coins { font-size:calc(.46em * var(--bx-gm-coins-fs,1)); padding:.28em .5em; }
 /* Der Pfeil ist im Laufband überflüssig — die zweite Zeile IST die Wirkung. */
-.bx-gm-chip .bx-gm-arr { display:none; }
 
 
 /* ── Animierte Banner-Hintergründe ───────────────────────────────────────
@@ -516,7 +515,6 @@ const CSS = `
 .bx-gm-t-ablage .bx-gm-chip .bx-gm-line { justify-content:center; background:none; padding:0; }
 .bx-gm-t-ablage .bx-gm-chip .bx-gm-coins { font-size:calc(15cqh * var(--bx-gm-coins-fs,1)); padding:1.4cqh 3cqh;
   background:rgba(0,0,0,.55); box-shadow:0 0 0 max(1px,.02em) rgba(255,255,255,.18); }
-.bx-gm-arr { flex:none; opacity:.55; font-size:.85em; }
 
 /* ══ Stil 1: KARTE — Sammelkarte ═══════════════════════════════════════
    Metapher: eine Trading-Card. Dunkles Kartenblatt mit Lichthof hinter dem
@@ -603,7 +601,6 @@ const CSS = `
   box-shadow: inset 0 0 2.2em rgba(0,0,0,.45); }
 .bx-st-tafel .bx-gm-chip { padding:.28em .85em; border-radius:0;
   border-right: max(1px,.03em) dashed rgba(238,245,232,.28); }
-.bx-st-tafel .bx-gm-arr { color:#ffe08a; opacity:.8; }
 
 /* ══ Stil 3: NEON — Leuchtreklame ══════════════════════════════════════
    Metapher: das Schild über der Bar. Dunkle Blende (hält die Schrift auch auf
@@ -747,7 +744,6 @@ const CSS = `
   -webkit-text-stroke: max(2.5px,.07em) #0a0b12; paint-order: stroke fill; }
 .bx-frameless .bx-gm-ic img, .bx-frameless .bx-gm-ic .bx-gm-ph {
   filter: drop-shadow(0 0 .06em rgba(0,0,0,.95)) drop-shadow(0 .12em .22em rgba(0,0,0,.6)); }
-.bx-frameless .bx-gm-arr { opacity:.9; color:#fff; -webkit-text-stroke: max(2px,.06em) #0a0b12; paint-order: stroke fill; }
 /* Die Stil-Handschrift bleibt auch ohne Karte erkennbar. */
 .bx-frameless .bx-st-karte .bx-gm-ic, .bx-frameless.bx-st-karte .bx-gm-ic { background: radial-gradient(circle at 50% 48%,
   color-mix(in srgb, var(--bx-accent,#ff5e8a) 34%, transparent), transparent 62%); }

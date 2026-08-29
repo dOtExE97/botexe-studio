@@ -11,7 +11,6 @@ const CSS = `
    kurze Seite — die Schrift bliebe unnötig klein. */
 .bx-gv-title { font-family: var(--bx-font-display); font-size: calc((clamp(13px,min(2.6cqi,8cqh),42px)) * var(--bx-fs, 1)); letter-spacing:.18em;
   text-transform:uppercase; color: var(--bx-text,#fff); text-shadow: 0 0 14px color-mix(in srgb, var(--bx-accent) 60%, transparent); }
-.bx-gv-sub { font-family: var(--bx-font-display); font-size: calc((clamp(10px,min(1.8cqi,5.5cqh),26px)) * var(--bx-fs, 1)); color: var(--bx-muted); margin-top:-4px; }
 /* — strip: CSGO-Case-Stil, Karten scrollen horizontal, Marker in der Mitte — */
 .bx-gv-strip { position:relative; width:96%; height: clamp(50px,min(11cqi,42cqh),210px); border-radius: var(--bx-radius);
   background: var(--bx-glass); box-shadow: var(--bx-shadow), inset 0 0 40px -10px rgba(0,0,0,.6); overflow:hidden; }
@@ -47,7 +46,6 @@ const CSS = `
    Muster wie .bx-outline in widget-base.css (Kontur + paint-order). Gilt NUR im
    frameless-Fall, das normale Aussehen mit Panel bleibt unverändert. */
 html .bx-frameless .bx-gv-title { -webkit-text-stroke: max(1.5px, .09em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
-html .bx-frameless .bx-gv-sub { color: #fff; -webkit-text-stroke: max(1.5px, .1em) var(--bx-ink, #0a0b12); paint-order: stroke fill; }
 
 /* ── Premium-Ebene (.bx-premium) ───────────────────────────────────────────
    Der Moment ist die Enthüllung des gezogenen Namens. Beide Bühnen bringen dort

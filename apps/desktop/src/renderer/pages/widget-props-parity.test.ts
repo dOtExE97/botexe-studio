@@ -122,3 +122,56 @@ test('jedes registrierte Widget existiert auch als Datei', () => {
 // Der Wächter „jedes Widget hat eine Kategorie“ ist nach palette-gruppen.test.ts
 // umgezogen: seit die Einteilung in palette-gruppen.ts liegt, kann er sie
 // importieren, statt CATEGORY_OF als Text aus der Ansicht zu klauben.
+
+// ── Wächter: Ist jede Einstellung sauber vorbelegt? ────────────────────────
+// Zwei stille Fehler, die ein Nutzer nur als „komisch" wahrnimmt:
+//  • Ein Feld ohne Standardwert steht beim ersten Öffnen leer da, obwohl das
+//    Widget im Hintergrund längst mit einem eigenen Wert arbeitet (der Titel des
+//    Gambling-Automaten hieß „Gambling-Automat", das Feld war leer).
+//  • Ein Standardwert, den die Auswahlliste gar nicht anbietet — dann zeigt das
+//    Feld irgendetwas an, und schon das erste Anfassen ändert das Aussehen.
+
+/** Setzt die Laufzeit als CSS-Variable/Klasse, nicht das Widget aus props. */
+const LAUFZEIT_FELDER = new Set(['theme', 'fontFamily', 'fontScale', 'textColor', 'frameless', 'polish', 'accent']);
+/** Vom Nutzer aus einer Bibliothek gewählt — leer ist hier der richtige Anfang. */
+const OHNE_VORBELEGUNG = new Set(['soundId', 'mediaId']);
+
+test('jede Einstellung hat einen Standardwert', () => {
+  const luecken: string[] = [];
+  for (const def of WIDGET_TYPES) {
+    for (const f of def.fields ?? []) {
+      if (LAUFZEIT_FELDER.has(f.key) || OHNE_VORBELEGUNG.has(f.key)) continue;
+      if (!(f.key in def.props)) luecken.push(`${def.type}.${f.key} („${f.label}")`);
+    }
+  }
+  assert.deepEqual(luecken, [], `Diese Felder stehen beim ersten Öffnen leer da:\n  ${luecken.join('\n  ')}`);
+});
+
+test('der Standardwert eines Auswahlfelds steht auch in seiner Liste', () => {
+  const falsch: string[] = [];
+  for (const def of WIDGET_TYPES) {
+    for (const f of def.fields ?? []) {
+      if (f.type !== 'select' || !f.options) continue;
+      const std = def.props[f.key];
+      if (std === undefined) continue;
+      const werte = f.options.map((o) => o.value);
+      if (!werte.includes(String(std))) {
+        falsch.push(`${def.type}.${f.key}: „${String(std)}" fehlt in [${werte.join(', ')}]`);
+      }
+    }
+  }
+  assert.deepEqual(falsch, [], falsch.join('\n  '));
+});
+
+test('Auswahl- und Zahlenfelder erklären sich', () => {
+  // Die Endnutzer sind Streamer. Ein Auswahlfeld ohne Erklärung heißt raten —
+  // und wer rät, probiert im Live aus.
+  const stumm: string[] = [];
+  for (const def of WIDGET_TYPES) {
+    for (const f of def.fields ?? []) {
+      if (f.hint || LAUFZEIT_FELDER.has(f.key) || f.key === 'style') continue;
+      if (['select', 'number', 'seconds'].includes(String(f.type))) stumm.push(`${def.type}.${f.key} („${f.label}")`);
+    }
+  }
+  assert.deepEqual(stumm, [], `Ohne Erklärung im Panel:\n  ${stumm.join('\n  ')}`);
+});
