@@ -16,7 +16,24 @@ Box, statt klein in der Mitte zu schweben.
 Bestehende Overlays ändern sich nicht: Ein fehlender Wert gilt als „an", nur
 ein ausdrückliches Abwählen blendet etwas aus.
 
-### Drei neue Designs für den Geschenkzähler
+### Sechs neue Designs für den Geschenkzähler
+
+Die drei aufwendigen zuerst:
+
+- **🌀 Portal** — das Geschenk schwebt in einem Energiewirbel: drei Ringe in
+  verschiedenen Größen drehen gegeneinander, dahinter ein weicher Sog. Jedes
+  Geschenk schickt eine Schockwelle nach außen; bei erreichtem Ziel dreht alles
+  schneller.
+- **🚀 Rakete** — statt Ring eine senkrechte Startbahn mit Sternenfeld: das
+  Geschenk steigt mit dem Fortschritt zum Ziel hoch, der Antrieb flackert und
+  zündet bei jedem Eingang kurz durch. Man sieht „wie weit noch", ohne eine Zahl
+  zu lesen.
+- **📺 Hologramm** — das Geschenk als Projektion über einem Sockel: Lichtkegel,
+  hochlaufende Scanlinien, ein Hauch Farbversatz an den Kanten und
+  unregelmäßiges Flackern. Der Sockel ist der Fortschritt.
+
+Dazu drei ruhigere:
+
 
 - **🔋 Aufladung** — der Ring wird zum Füllstand: die Farbe steigt von unten
   hinter dem Geschenk hoch, mit heller Kante an der Oberfläche und ruhigem
@@ -29,7 +46,27 @@ ein ausdrückliches Abwählen blendet etwas aus.
   in einer Pille, alles leicht schief und in ruhiger Bewegung. Ein Eingang löst
   einen kräftigen Hüpfer aus.
 
-Die bestehenden drei Stile sind unverändert.
+Die bestehenden drei Stile sind unverändert. Alle neuen bewegen ausschließlich
+transform/opacity/filter — der Browser in TikTok Live Studio ist schwach.
+
+### Der Widget-Prüfer prüft jetzt auch die Stile
+
+Bisher wurde jedes Widget nur in seinem Standard-Stil vermessen — dabei ist ein
+anderer Stil die häufigste Optik-Änderung überhaupt, und einer kann das Gerüst
+komplett umbauen (die neue Rakete etwa ist eine senkrechte Bahn statt eines
+Rings). Jetzt läuft jeder wählbare Stil einmal durch alle sechs Boxgrößen: 92
+zusätzliche Messungen über 32 Widgets.
+
+Der erste Lauf hat prompt zwei Altlasten gefunden, die vorher niemand sehen
+konnte — der **Gift-Alert im Neon-Stil** ragt etwa 25px über seine Box hinaus
+(noch offen, weil kleinere Schriften das Aussehen bei allen ändern würden, die
+ihn schon nutzen), und der **gekippte Aufkleber beim Counter** stößt mit seinen
+Ecken heraus (Absicht). Beide stehen namentlich im Prüfer und tauchen im
+Bericht als „bekannt" auf; jeder andere Überhang macht weiter rot.
+
+Nebenbei misst der Prüfer jetzt im Ruhezustand: headless folgen CSS-Animationen
+der virtuellen Zeit nicht, weshalb ein Einflug-Alert beim Messen noch auf seinem
+Startbild stand und als Überhang gezählt wurde.
 
 ### Widget-Suche findet jetzt auch, was anders heißt
 

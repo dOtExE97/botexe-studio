@@ -6,6 +6,7 @@
 // raten — und wer den Namen nicht kennt, kann auch nicht suchen. Aufgeklappt
 // stehen alle Kategorien untereinander, und genau dafür braucht es diese
 // Einteilung an EINER Stelle statt verstreut in der Ansicht.
+import { passt, bewerte } from '../../shared/suche';
 
 export const PALETTE_KATEGORIEN: { id: string; label: string }[] = [
   { id: 'beliebt', label: 'Beliebt' },
@@ -98,6 +99,27 @@ export const katLabel = (typ: string): string => KATEGORIE_LABEL[CATEGORY_OF[typ
 export interface PaletteWidget {
   type: string;
   label: string;
+  desc?: string;
+}
+
+/**
+ * Widgets zu einer Sucheingabe finden, nach Relevanz sortiert.
+ *
+ * Gesucht wird über Name, Beschreibung, den internen Typ (wer „gift-jar" aus
+ * einer Anleitung kennt, findet damit das Coin-Glas) UND den Kategorienamen —
+ * so findet „spiel" auch das Glücksmoment-Zeug, das das Wort nicht im Namen
+ * trägt. Der Kategoriename zählt dabei als Beiwerk, nie so viel wie der Name.
+ *
+ * An EINER Stelle, weil beide Ansichten (schmale Leiste und Katalog) dieselbe
+ * Suche brauchen — zwei Kopien wären zwei Suchen, die auseinanderlaufen.
+ */
+export function sucheWidgets<T extends PaletteWidget>(suche: string, widgets: T[]): T[] {
+  const q = suche.trim();
+  if (!q) return widgets;
+  const punkte = (w: T) => bewerte(q, w.label, w.desc, w.type, katLabel(w.type));
+  return widgets
+    .filter((w) => passt(q, w.label, w.desc, w.type, katLabel(w.type)))
+    .sort((a, b) => punkte(b) - punkte(a));
 }
 
 export interface PaletteGruppe<T extends PaletteWidget> {

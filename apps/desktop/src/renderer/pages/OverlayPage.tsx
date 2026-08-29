@@ -3,9 +3,9 @@
 // am Objekt draggen/resizen, Eigenschaften rechts im Panel. TikTok-SafeZones
 // werden als Guides eingeblendet (wo Chat/Buttons der TikTok-UI liegen).
 // Speichern validiert (ajv) und pusht live.
-import { passt, bewerte } from '../../shared/suche';
 import {
   alleGruppen,
+  sucheWidgets,
   PALETTE_KATEGORIEN,
   POPULAR_WIDGETS,
   CATEGORY_OF,
@@ -747,27 +747,10 @@ export default function OverlayPage() {
   // Spezialfälle) — wer einen Namen kennt, muss ihn finden.
   const visibleItems = useMemo(() => {
     const q = paletteQuery.trim();
-    if (q) {
-      // Tolerante Suche (shared/suche.ts): Umlaute in beiden Schreibweisen,
-      // Bindestriche/Leerzeichen egal, Tippfehler verziehen. Vorher stumpfes
-      // `includes` — „Glucksrad" fand nichts, „gift jar" auch nicht.
-      // Der interne Typ zählt mit: wer „gift-jar" aus einer Anleitung kennt,
-      // findet damit das Coin-Glas.
-      // Nach Relevanz sortiert: Ein Treffer im NAMEN schlaegt einen in der
-      // Beschreibung. Vorher listete „geschenk" den Hype-Train vor dem
-      // Geschenk-Menue, weil das Wort in dessen Beschreibung vorkommt — und in
-      // der schmalen Spalte sah man die echten Geschenk-Widgets gar nicht.
-      // Die Kategorie zaehlt als Beiwerk mit: Wer „spiel" tippt, meint die
-      // Spiele — auch die, deren Name das Wort nicht enthaelt (Glücksrad,
-      // Galgenmännchen, 4 Gewinnt). Vorher fand „spiel" drei von zwoelf.
-      return WIDGET_TYPES
-        .filter((w) => passt(q, w.label, w.desc, w.type, katLabel(w.type)))
-        .sort(
-          (a, b) =>
-            bewerte(q, b.label, b.desc, b.type, katLabel(b.type))
-            - bewerte(q, a.label, a.desc, a.type, katLabel(a.type)),
-        );
-    }
+    // Tolerante Suche über Name, Beschreibung, internen Typ und Kategorie —
+    // die Einzelheiten stehen bei sucheWidgets() in palette-gruppen.ts, damit
+    // der Katalog exakt dieselbe Suche benutzt.
+    if (q) return sucheWidgets(q, WIDGET_TYPES);
     if (activeCat === 'beliebt') {
       return POPULAR_WIDGETS
         .map((t) => WIDGET_TYPES.find((w) => w.type === t))

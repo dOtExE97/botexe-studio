@@ -210,6 +210,157 @@ html .bx-frameless .bx-gco-title, html .bx-frameless .bx-gco-prog { text-shadow:
 /* Mehr Tiefe an der Fortschrittszahl. */
 .bx-premium .bx-gco-prog { text-shadow: 0 0 .45em color-mix(in srgb, var(--bx-gold) 55%, transparent), 0 .05em .1em rgba(0,0,0,.7); }
 .bx-premium .bx-gco.done .bx-gco-prog { text-shadow: 0 0 .45em color-mix(in srgb, var(--bx-teal) 60%, transparent), 0 .05em .1em rgba(0,0,0,.7); }
+/* ══ Die großen drei ═════════════════════════════════════════════════════
+   Aufwendigere Stile, die die freie Bühne .bx-gco-deko benutzen. Bewegt wird
+   auch hier nur transform/opacity/filter — nichts, wofür der Browser neu
+   rechnen müsste. Ruhebewegungen sind langsam (4–14s), damit sie im Stream
+   nicht die Aufmerksamkeit vom Spiel ziehen; laut wird es nur im Moment des
+   Geschenks. */
+.bx-gco-deko { position:absolute; inset:0; pointer-events:none; }
+
+/* ── Stil „Portal" — das Geschenk schwebt in einem Energiewirbel. Drei Ringe
+   in verschiedenen Größen drehen GEGENEINANDER; das ergibt Tiefe, die ein
+   einzelner drehender Ring nie hat. Bei jedem Eingang läuft eine Schockwelle
+   nach außen. */
+.bx-gco-portal .bx-gco-ring {
+  background: conic-gradient(from -90deg,
+    transparent 0, color-mix(in srgb, var(--bx-accent) 35%, transparent) calc(var(--pct, 0%) * 0.55),
+    color-mix(in srgb, var(--bx-accent) 100%, white) var(--pct, 0%),
+    rgba(255,255,255,.05) var(--pct, 0%) 100%);
+  -webkit-mask: radial-gradient(circle, transparent 60%, #000 63%); mask: radial-gradient(circle, transparent 60%, #000 63%);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--bx-accent) 85%, transparent)); }
+/* Der Sog hinter dem Geschenk: ein weicher Wirbel, der langsam dreht. */
+.bx-gco-portal .bx-gco-iconwrap::before { content:''; position:absolute; inset:14%; border-radius:50%;
+  background: conic-gradient(from 0deg, transparent 0 18%, color-mix(in srgb, var(--bx-accent) 30%, transparent) 34%,
+    transparent 52%, color-mix(in srgb, var(--bx-accent) 34%, transparent) 74%, transparent 92%);
+  filter: blur(6px); animation: bx-gco-dreh 14s linear infinite; }
+/* Zwei gestrichelte Bahnen, gegenläufig — die äußere langsam, die innere schnell. */
+.bx-gco-portal .bx-gco-deko::before, .bx-gco-portal .bx-gco-deko::after { content:''; position:absolute; border-radius:50%;
+  border: calc(var(--u) * 2) dashed color-mix(in srgb, var(--bx-accent) 55%, transparent); }
+.bx-gco-portal .bx-gco-deko::before { inset: -9%; animation: bx-gco-dreh 22s linear infinite; }
+/* Genau in den freien Streifen zwischen Geschenk (70 % der Fläche) und dem
+   Fortschrittsring — bei 24 % lag sie hinter dem Geschenk und war unsichtbar. */
+.bx-gco-portal .bx-gco-deko::after { inset: 11%; border-style: dotted; opacity:.75;
+  animation: bx-gco-dreh 9s linear infinite reverse; }
+@keyframes bx-gco-dreh { to { transform: rotate(360deg); } }
+/* Die Schockwelle liegt auf dem Rahmen, NICHT auf der Deko-Bühne: eine
+   Deckkraft von 0 dort hätte auch die beiden Bahnen darin unsichtbar gemacht
+   (Deckkraft wirkt auf den ganzen Teilbaum, nicht nur auf das Element). */
+.bx-gco-portal .bx-gco-iconwrap::after { content:''; position:absolute; inset:0; border-radius:50%;
+  border: calc(var(--u) * 3) solid var(--bx-accent); opacity:0; }
+.bx-gco-portal.hit .bx-gco-iconwrap::after { animation: bx-gco-welle 720ms cubic-bezier(.15,.7,.3,1); }
+@keyframes bx-gco-welle {
+  0% { opacity:.9; transform: scale(.82); }
+  100% { opacity:0; transform: scale(1.75); } }
+.bx-gco-portal.done .bx-gco-deko::before { animation-duration: 6s; }
+.bx-gco-portal.done .bx-gco-deko::after { animation-duration: 2.6s; }
+.bx-gco-portal .bx-gco-prog { color: color-mix(in srgb, var(--bx-accent) 25%, white);
+  text-shadow: 0 0 .5em color-mix(in srgb, var(--bx-accent) 70%, transparent); }
+
+/* ── Stil „Rakete" — senkrechte Startbahn statt Ring: das Geschenk steigt mit
+   dem Fortschritt zum Ziel hoch. Damit sieht man „wie weit noch" ohne eine
+   einzige Zahl zu lesen, und ein Geschenk bewegt sichtbar etwas.
+   Der Weg ist in --u gerechnet (nicht in Prozent): Prozente in translate()
+   beziehen sich auf die GRÖSSE DES GESCHENKS, nicht auf die Bahn — damit wäre
+   der Weg von der Bildgröße abhängig statt von der Bahnlänge. */
+.bx-gco-rakete .bx-gco-iconwrap { width: clamp(30px, calc(var(--u) * 96), 380px);
+  height: clamp(60px, calc(var(--u) * 250), 980px); border-radius: 999px;
+  background: linear-gradient(180deg, rgba(6,8,20,.85), rgba(10,12,28,.6));
+  box-shadow: inset 0 0 0 calc(var(--u) * 2) rgba(255,255,255,.09); overflow: hidden; }
+/* Sternenfeld, das nach unten zieht — zwei Kopien untereinander, damit die
+   Schleife ohne Sprung durchläuft. */
+.bx-gco-rakete .bx-gco-iconwrap::before { content:''; position:absolute; left:0; right:0; top:-100%; height:200%;
+  background:
+    radial-gradient(1.5px 1.5px at 20% 8%, rgba(255,255,255,.75), transparent),
+    radial-gradient(1.5px 1.5px at 72% 22%, rgba(255,255,255,.55), transparent),
+    radial-gradient(1.5px 1.5px at 38% 41%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1.5px 1.5px at 84% 63%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1.5px 1.5px at 12% 79%, rgba(255,255,255,.65), transparent);
+  background-size: 100% 50%; animation: bx-gco-sterne 9s linear infinite; }
+@keyframes bx-gco-sterne { to { transform: translateY(50%); } }
+/* Zurückgelegter Weg als schmale Leuchtspur in der Bahnmitte. Als BREITE
+   Füllung sah die Bahn aus wie ein Tank — die Rakete soll aber fliegen, nicht
+   schwimmen. */
+.bx-gco-rakete .bx-gco-ring { -webkit-mask:none; mask:none; border-radius:999px;
+  inset: 0 auto 0 50%; width: calc(var(--u) * 5); transform: translateX(-50%);
+  background: linear-gradient(to top, color-mix(in srgb, var(--bx-accent) 85%, transparent) 0%,
+    color-mix(in srgb, var(--bx-accent) 45%, transparent) calc(var(--pct, 0%) - 8%),
+    color-mix(in srgb, white 60%, var(--bx-accent)) var(--pct, 0%),
+    rgba(255,255,255,.07) var(--pct, 0%), rgba(255,255,255,.07) 100%);
+  animation: none; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--bx-accent) 70%, transparent)); }
+/* Das Ziel oben in der Bahn — blinkt erst, wenn es erreicht ist. */
+.bx-gco-rakete .bx-gco-deko { top: calc(var(--u) * 10); bottom: auto; left: 16%; right: 16%; height: 0;
+  border-top: calc(var(--u) * 3) dashed var(--bx-teal);
+  filter: drop-shadow(0 0 calc(var(--u) * 6) color-mix(in srgb, var(--bx-teal) 80%, transparent)); }
+.bx-gco-rakete.done .bx-gco-deko { animation: bx-gco-blink 900ms steps(1) infinite; }
+/* Die Rakete selbst: sitzt unten und wird um den Fortschritt nach oben
+   geschoben. Die Fahrt ist weich, damit ein Geschenk als Aufstieg zu sehen ist. */
+.bx-gco-rakete .bx-gco-icon { position:absolute; left:50%; bottom: calc(var(--u) * 12);
+  width: clamp(24px, calc(var(--u) * 74), 300px); height: clamp(24px, calc(var(--u) * 74), 300px);
+  transform: translateX(-50%) translateY(calc(var(--u) * -196 * var(--pctn, 0)));
+  transition: transform 900ms cubic-bezier(.2,.9,.25,1); animation: none; }
+/* Antrieb: flackert immer, beim Eingang kurz kräftig. */
+.bx-gco-rakete .bx-gco-icon::after { content:''; position:absolute; left:50%; top:90%;
+  width: 36%; height: 40%; transform: translateX(-50%); transform-origin: 50% 0%;
+  border-radius: 50% 50% 50% 50% / 30% 30% 100% 100%;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bx-accent) 90%, white), color-mix(in srgb, var(--bx-accent) 60%, transparent) 60%, transparent);
+  filter: blur(1.5px); animation: bx-gco-schub 260ms ease-in-out infinite alternate; }
+@keyframes bx-gco-schub { from { transform: translateX(-50%) scaleY(.75); opacity:.75; } to { transform: translateX(-50%) scaleY(1.15); opacity:1; } }
+.bx-gco-rakete.hit .bx-gco-icon::after { animation: bx-gco-zuendung 620ms ease-out; }
+@keyframes bx-gco-zuendung {
+  0% { transform: translateX(-50%) scaleY(1); opacity:1; }
+  30% { transform: translateX(-50%) scaleY(2.4); opacity:1; }
+  100% { transform: translateX(-50%) scaleY(1); opacity:.85; } }
+
+/* ── Stil „Hologramm" — das Geschenk als Projektion über einem Sockel:
+   Lichtkegel, hochlaufende Scanlinien, ein Hauch Farbversatz an den Kanten und
+   ein unregelmäßiges Flackern. Der Sockel IST der Fortschritt (eine flache
+   Scheibe, die sich füllt) — deshalb liegt er hier statt des Rings. */
+.bx-gco-hologramm { background:none !important; box-shadow:none !important; }
+.bx-gco-hologramm .bx-gco-icon {
+  filter: drop-shadow(calc(var(--u) * -2) 0 0 rgba(255,45,110,.5))
+          drop-shadow(calc(var(--u) * 2) 0 0 rgba(0,225,255,.5))
+          drop-shadow(0 0 calc(var(--u) * 12) color-mix(in srgb, var(--bx-accent) 75%, transparent));
+  animation: bx-gco-schweben 6s ease-in-out infinite, bx-gco-flacker 5.5s steps(1) infinite; }
+@keyframes bx-gco-schweben { 0%,100% { transform: translateY(calc(var(--u) * -3)); } 50% { transform: translateY(calc(var(--u) * 3)); } }
+/* Unregelmäßig — ein gleichmäßiges Blinken sieht nach Defekt aus, ein
+   ungleichmäßiges nach Projektion. */
+@keyframes bx-gco-flacker {
+  0%,7%,9%,44%,46%,100% { opacity:1; }
+  8%,45% { opacity:.55; }
+  71% { opacity:.82; } }
+/* Scanlinien laufen nach oben durchs Bild. */
+/* Die Linien laufen zu den Rändern hin aus — ohne die Maske stand da ein
+   sichtbares Rechteck aus Streifen statt einer Projektion. */
+.bx-gco-hologramm .bx-gco-deko::before { content:''; position:absolute; inset:-8%;
+  background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--bx-accent) 26%, transparent) 0 1px, transparent 1px 5px);
+  -webkit-mask: radial-gradient(58% 58% at 50% 46%, #000 35%, transparent 80%);
+  mask: radial-gradient(58% 58% at 50% 46%, #000 35%, transparent 80%);
+  animation: bx-gco-scan 3.2s linear infinite; }
+@keyframes bx-gco-scan { to { transform: translateY(-5px); } }
+/* Lichtkegel vom Sockel nach oben. */
+.bx-gco-hologramm .bx-gco-deko::after { content:''; position:absolute; left:50%; bottom:-2%;
+  width:150%; height:112%; transform: translateX(-50%);
+  clip-path: polygon(34% 0, 66% 0, 100% 100%, 0 100%);
+  background: linear-gradient(to top, color-mix(in srgb, var(--bx-accent) 30%, transparent), transparent 78%);
+  filter: blur(3px); }
+/* Der Sockel: flache Scheibe, füllt sich mit dem Fortschritt. */
+.bx-gco-hologramm .bx-gco-ring { -webkit-mask:none; mask:none;
+  inset: auto 20% -5% 20%; height: 13%; border-radius: 50%;
+  background: conic-gradient(from -90deg, color-mix(in srgb, var(--bx-accent) 95%, white) 0 var(--pct, 0%), rgba(255,255,255,.1) var(--pct, 0%) 100%);
+  box-shadow: 0 0 calc(var(--u) * 26) color-mix(in srgb, var(--bx-accent) 60%, transparent);
+  animation: bx-gco-sockel 4.5s ease-in-out infinite; }
+@keyframes bx-gco-sockel { 0%,100% { transform: scale(1); opacity:.9; } 50% { transform: scale(1.06); opacity:1; } }
+.bx-gco-hologramm.done .bx-gco-ring { background: conic-gradient(from -90deg, var(--bx-teal), color-mix(in srgb, var(--bx-teal) 50%, white), var(--bx-teal)); }
+.bx-gco-hologramm .bx-gco-title, .bx-gco-hologramm .bx-gco-prog {
+  color: color-mix(in srgb, var(--bx-accent) 22%, white);
+  text-shadow: calc(var(--u) * -1) 0 0 rgba(255,45,110,.45), var(--u) 0 0 rgba(0,225,255,.45),
+    0 0 calc(var(--u) * 10) color-mix(in srgb, var(--bx-accent) 60%, transparent); }
+.bx-gco-hologramm.hit .bx-gco-icon { animation: bx-gco-schweben 6s ease-in-out infinite, bx-gco-stoerung 460ms steps(3); }
+@keyframes bx-gco-stoerung {
+  0% { filter: drop-shadow(calc(var(--u) * -9) 0 0 rgba(255,45,110,.8)) drop-shadow(calc(var(--u) * 9) 0 0 rgba(0,225,255,.8)); }
+  100% { filter: drop-shadow(calc(var(--u) * -2) 0 0 rgba(255,45,110,.5)) drop-shadow(calc(var(--u) * 2) 0 0 rgba(0,225,255,.5)); } }
+
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
@@ -229,7 +380,7 @@ export function findGiftIcon(catalog, slug) {
 /** Die wählbaren Stile. Reihenfolge = die des Auswahlfelds; 'glas' ist der
  *  Rückfall für alles Unbekannte (z.B. ein Overlay von einer neueren Fassung).
  *  Ein Stil wird NIE entfernt — das würde vorhandene Overlays umgestalten. */
-export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker'];
+export const STILE = ['glas', 'neon', 'medaille', 'aufladung', 'arcade', 'sticker', 'portal', 'rakete', 'hologramm'];
 
 /** Welche Anzeige-Klassen an der Wurzel hängen (Titel/Zähler/Ring aus).
  *
@@ -282,7 +433,12 @@ export default class GiftCounter {
       ...(this.style !== 'glas' ? [`bx-gco-${this.style}`] : []),
       ...anzeigeKlassen(props),
     ].join(' ');
-    this.el.innerHTML = `<div class="bx-gco-iconwrap"><div class="bx-gco-ring"></div><div class="bx-gco-icon"></div></div>
+    // .bx-gco-deko ist eine leere Bühne für die aufwendigen Stile (Portal,
+    // Rakete, Hologramm): sie und ihre beiden Pseudo-Elemente ergeben drei
+    // freie Ebenen für Ringe, Schockwellen, Lichtkegel. Ohne so einen Stil hat
+    // sie keine Größe und kostet nichts — ein Element im Gerüst ist billiger
+    // als drei Stile, die sich um ::before/::after streiten.
+    this.el.innerHTML = `<div class="bx-gco-iconwrap"><div class="bx-gco-ring"></div><div class="bx-gco-deko"></div><div class="bx-gco-icon"></div></div>
       <div class="bx-gco-title"></div><div class="bx-gco-prog"></div>`;
     this.el.querySelector('.bx-gco-title').textContent = this.label;
     root.appendChild(this.el);
