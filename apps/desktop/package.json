@@ -49,19 +49,19 @@
   "dependencies": {
     "@botexe/overlay-engine": "*",
     "@botexe/trigger-engine": "*",
-    "@sentry/electron": "^7.16.0",
+    "@sentry/electron": "^7.17.0",
     "@types/crypto-js": "^4.2.2",
     "ajv": "^8.17.1",
     "crypto-js": "^4.2.0",
     "electron-squirrel-startup": "^1.0.1",
     "express": "^5.2.1",
-    "lucide-react": "^1.27.0",
+    "lucide-react": "^1.38.0",
     "node-edge-tts": "^1.2.10",
     "obs-websocket-js": "^5.0.8",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "tiktok-live-connector": "^2.4.3",
+    "tiktok-live-connector": "^2.4.4",
     "update-electron-app": "^3.3.0",
-    "ws": "^8.21.1"
+    "ws": "^8.21.3"
   }
 }
