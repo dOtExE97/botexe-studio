@@ -19,6 +19,21 @@ const CSS = `
 /* Profilbild des Likers — runde Scheibe mit Akzent-Ring. Baut auf .bx-av aus
    widget-base.css auf (Initiale + Farbton als Fallback), ergänzt nur den Ring. */
 .bx-hr-pb { box-shadow: 0 0 0 2.5px var(--bx-pbring, #ff5e8a), 0 0 16px -2px var(--bx-pbring, #ff5e8a); }
+/* Name des Likers UNTER der Scheibe. Eigene Hülle, damit Scheibe und Name
+   gemeinsam aufsteigen; der Name selbst bekommt keine eigene Animation.
+   Standard AUS → bestehende Overlays sehen unverändert aus. */
+.bx-hr-wrap { display: flex; flex-direction: column; align-items: center; gap: .18em; }
+.bx-hr-nm {
+  font-family: var(--bx-font-display); font-weight: 800;
+  /* Die Schriftgröße wird in spawn() INLINE gesetzt — aus derselben
+     cqmin-Rechnung wie die Breite der Scheibe, die nachweislich korrekt
+     auflöst. Ein eigener clamp() hier landete auf der Untergrenze (9px) und der
+     Name war praktisch unsichtbar. */
+  line-height: 1;
+  max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: #fff; -webkit-text-stroke: .5px rgba(0,0,0,.55); paint-order: stroke fill;
+  text-shadow: 0 0 8px var(--bx-pbring, #ff5e8a), 0 1px 3px rgba(0,0,0,.7);
+}
 /* Aufstieg in cqh = relativ zur WIDGET-Höhe (nicht zur Herz-Größe!) → die Herzen
    steigen über die ganze Box hinaus, nicht nur 1-2 cm. */
 @keyframes bx-hr-rise {
@@ -109,6 +124,12 @@ export default class HeartRain {
     this.mode = props.mode === 'rain' ? 'rain' : 'fountain';
     // Profilbild der Liker zeigen? (TikFinity-Style: ab und zu das echte Foto)
     this.showAvatars = props.avatars !== false;
+    // Name unter dem Profilbild. Standard AUS, damit bestehende Overlays
+    // unverändert aussehen.
+    this.showName = props.showName === true;
+    // Tempo des Aufstiegs (1 = wie bisher) und Größe der Herzen/Scheiben.
+    this.tempo = Math.min(2.5, Math.max(0.4, Number(props.tempo ?? 1) || 1));
+    this.groesse = Math.min(2.5, Math.max(0.4, Number(props.groesse ?? 1) || 1));
     this.gradBase = `${++GRAD_SEQ}-${Math.random().toString(36).slice(2, 7)}`;
     this.gradN = 0;
 
@@ -168,30 +189,55 @@ export default class HeartRain {
     e.className = 'bx-hr-e';
     // Über die ganze Breite verteilt — DAS ist der TikFinity-Look (nicht aus EINER Quelle).
     e.style.left = `${4 + Math.random() * 92}%`;
-    // Längeres, höheres Aufsteigen + sanftes Schwingen.
-    e.style.setProperty('--dur', `${4.4 + Math.random() * 2.2}s`);
+    // Längeres, höheres Aufsteigen + sanftes Schwingen. Höheres Tempo = kürzere
+    // Dauer (darum geteilt, nicht multipliziert).
+    e.style.setProperty('--dur', `${((4.4 + Math.random() * 2.2) / this.tempo).toFixed(2)}s`);
     e.style.setProperty('--drift', `${(Math.random() - 0.5) * 150}px`);
     e.style.setProperty('--rot', `${(Math.random() - 0.5) * 36}deg`);
 
     if (avatar) {
       // Größen in cqmin statt px → wachsen mit der Widget-Box mit (Referenz:
       // 1000px kurze Seite entspricht den früheren 52–66px).
-      const size = (5.2 + Math.random() * 1.4).toFixed(2);
-      e.classList.add('bx-av', 'bx-hr-pb');
-      e.style.width = `clamp(26px, ${size}cqmin, 150px)`;
-      e.style.height = e.style.width;
-      e.style.setProperty('--bx-av-h', String(bxAvHue(avatar.name)));
-      e.setAttribute('data-initial', bxAvInitial(avatar.name));
-      // Hintergrundbild NUR, wenn es wirklich eine URL gibt — sonst bleibt der
-      // .bx-av-Fallback (Farbton + Initiale) sichtbar statt einer leeren Scheibe.
-      if (avatar.url) {
-        e.classList.add('bx-av-img');
-        e.style.backgroundImage = `url("${cssUrl(avatar.url)}")`;
-      }
+      const size = ((5.2 + Math.random() * 1.4) * this.groesse).toFixed(2);
+      const breite = `clamp(26px, ${size}cqmin, 150px)`;
       const ring = this.accent ? 'var(--bx-accent)' : HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)];
       e.style.setProperty('--bx-pbring', ring);
+
+      // Scheibe aufbauen — einmal als Hilfsfunktion, weil sie in beiden
+      // Varianten (mit/ohne Namen) identisch aussehen soll.
+      const scheibeAufbauen = (ziel) => {
+        ziel.classList.add('bx-av', 'bx-hr-pb');
+        ziel.style.width = breite;
+        ziel.style.height = breite;
+        ziel.style.setProperty('--bx-av-h', String(bxAvHue(avatar.name)));
+        ziel.setAttribute('data-initial', bxAvInitial(avatar.name));
+        // Hintergrundbild NUR, wenn es wirklich eine URL gibt — sonst bleibt der
+        // .bx-av-Fallback (Farbton + Initiale) sichtbar statt einer leeren Scheibe.
+        if (avatar.url) {
+          ziel.classList.add('bx-av-img');
+          ziel.style.backgroundImage = `url("${cssUrl(avatar.url)}")`;
+        }
+      };
+
+      if (this.showName && avatar.name) {
+        // Scheibe + Name steigen gemeinsam auf: das animierte Element wird zur
+        // Hülle, die Scheibe ist ein Kind darin.
+        e.classList.add('bx-hr-wrap');
+        const scheibe = document.createElement('div');
+        scheibeAufbauen(scheibe);
+        e.appendChild(scheibe);
+        const nm = document.createElement('span');
+        nm.className = 'bx-hr-nm';
+        nm.textContent = avatar.name;
+        // Gleiche cqmin-Basis wie die Scheibenbreite (die misst korrekt) —
+        // dazu der --bx-fs-Faktor AUSSEN ums clamp, wie überall im Baukasten.
+        nm.style.fontSize = `calc(clamp(11px, ${(Number(size) * 0.42).toFixed(2)}cqmin, 44px) * var(--bx-fs, 1))`;
+        e.appendChild(nm);
+      } else {
+        scheibeAufbauen(e);
+      }
     } else {
-      const size = (2.4 + Math.random() * 2.4).toFixed(2);
+      const size = ((2.4 + Math.random() * 2.4) * this.groesse).toFixed(2);
       if (this.useEmojis) {
         e.textContent = this.emojis[Math.floor(Math.random() * this.emojis.length)] || '❤️';
         // Bugfix: Inline-Style überschrieb bisher die --bx-fs-skalierte CSS-Regel

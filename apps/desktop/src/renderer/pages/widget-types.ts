@@ -774,16 +774,29 @@ export const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'heart-rain', label: 'Like-Herzen', desc: 'Likes als bunte Herzen + Profilbilder, über die ganze Breite aufsteigend, sanft schwingend .',
-    w: 1080, h: 1100, props: { emojis: '❤️,💖,💕,✨,🔥', maxPerBurst: 16, mode: 'fountain', avatars: true },
+    type: 'heart-rain', label: 'Like-Herzen', desc: 'Likes als bunte Herzen + Profilbilder, über die ganze Breite aufsteigend, sanft schwingend — auf Wunsch mit dem Namen des Likers unter seiner Scheibe.',
+    w: 1080, h: 1100, props: { emojis: '❤️,💖,💕,✨,🔥', maxPerBurst: 16, mode: 'fountain', avatars: true, showName: false, tempo: 1, groesse: 1 },
     fields: [
       { key: 'mode', label: 'Stil', type: 'select', options: [
         { value: 'fountain', label: 'Dicht (viele kleine Herzen)' },
         { value: 'rain', label: 'Locker (größere Herzen)' },
       ], hint: 'Beide steigen über die ganze Breite auf — „Dicht" wirft mehr kleinere Herzen, „Locker" weniger, größere.' },
       { key: 'avatars', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Ab und zu steigt das echte Profilbild des Likers mit auf.' },
+      { key: 'showName', label: 'Name unter dem Profilbild', type: 'boolean', showIf: (p) => p.avatars !== false, hint: 'Schreibt den Namen des Likers klein unter seine Scheibe — so sieht man, wer gerade Likes wirft.' },
       { key: 'emojis', label: 'Emojis', type: 'text', hint: 'Eigene Symbole, kommagetrennt (z.B. ❤️,💖,🔥). Leer/Default = edle bunte SVG-Herzen.' },
       { key: 'maxPerBurst', label: 'Max. pro Like-Schub', type: 'number', hint: 'Begrenzt, wie viele bei einer Like-Welle gleichzeitig kommen.' },
+      { key: 'tempo', label: 'Tempo', type: 'select', options: [
+        { value: '0.7', label: 'Gemütlich' },
+        { value: '1', label: 'Normal' },
+        { value: '1.4', label: 'Flott' },
+        { value: '2', label: 'Sehr schnell' },
+      ], hint: 'Wie schnell die Herzen nach oben steigen.' },
+      { key: 'groesse', label: 'Größe', type: 'select', options: [
+        { value: '0.7', label: 'Klein' },
+        { value: '1', label: 'Normal' },
+        { value: '1.4', label: 'Groß' },
+        { value: '2', label: 'Riesig' },
+      ], hint: 'Skaliert Herzen und Profilbild-Scheiben.' },
       ACCENT_FIELD,
     ],
   },
@@ -1000,9 +1013,18 @@ export const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'gift-fireworks', label: 'Gift-Feuerwerk', desc: 'Jedes Gift steigt als Rakete auf und explodiert — bei Combos (z.B. 10x Rose) fächert es in mehrere Raketen.',
-    w: 900, h: 1200, props: { shape: 'kreis', minCoins: 0, maxRockets: 12, comboMode: 'fan', burstScale: 1.5, showName: true, soundId: 'botexe-boom.wav', whistleSoundId: 'botexe-pfeife.wav', accent: '#ff5436' },
+    type: 'gift-fireworks', label: 'Gift-Feuerwerk', desc: 'Jedes Gift steigt als Rakete auf und explodiert — bei Combos (z.B. 10x Rose) fächert es in mehrere Raketen. Wahlweise als ruhige Boden-Fontäne, mit Name und Profilbild des Schenkenden.',
+    w: 900, h: 1200, props: { stil: 'klassisch', typ: 'rakete', shape: 'kreis', minCoins: 0, maxRockets: 12, comboMode: 'fan', burstScale: 1.5, showName: true, showPb: false, dichte: 1, soundId: 'botexe-boom.wav', whistleSoundId: 'botexe-pfeife.wav', accent: '#ff5436' },
     fields: [
+      { key: 'stil', label: 'Optik', type: 'select', options: [
+        { value: 'klassisch', label: 'Klassisch (wie bisher)' },
+        { value: 'pro', label: '✨ Pro — Druckwelle, Weiden-Bögen, Knistern' },
+      ], hint: '„Pro" legt drei Dinge obendrauf: eine Druckwelle im Knall, lange golden herabfallende Trauerweiden-Bögen und ein Knistern kurz nach der Explosion. „Klassisch" bleibt exakt wie bisher — damit sich dein eingerichtetes Overlay durch ein Update nie von selbst verändert.' },
+      { key: 'typ', label: 'Was aufsteigt', type: 'select', options: [
+        { value: 'rakete', label: '🚀 Rakete (Standard)' },
+        { value: 'fontaene', label: '⛲ Boden-Fontäne (ruhig, ohne Knall)' },
+        { value: 'beides', label: '🎇 Beides zusammen' },
+      ], hint: 'Die Fontäne sprüht vom unteren Rand einen Funkenkegel nach oben, der wieder herabfällt — ruhiger als Raketen und ohne Explosion.' },
       { key: 'shape', label: 'Burst-Form', type: 'select', options: [
         { value: 'kreis', label: '🎆 Kugel (Standard)' },
         { value: 'herz', label: '💜 Herz-Explosion' },
@@ -1012,6 +1034,13 @@ export const WIDGET_TYPES: {
       ], hint: 'In welcher Form die Rakete am Himmel explodiert.' },
       { key: 'minCoins', label: 'Erst ab … Coins', type: 'number', hint: 'Feuerwerk nur für Gifts ab diesem Wert. 0 = jedes.' },
       { key: 'showName', label: 'Name im Burst (freistehend)', type: 'boolean', hint: 'Zeigt den Namen des Schenkenden als leuchtenden Neon-Schriftzug im Explosionszentrum.' },
+      { key: 'showPb', label: 'Profilbild dazu', type: 'boolean', hint: 'Zeigt zusätzlich das Profilbild des Schenkenden als runde Scheibe neben dem Namen. Schickt TikTok kein Bild mit, erscheint die Initiale auf farbigem Grund statt einer leeren Scheibe.' },
+      { key: 'dichte', label: 'Funken-Dichte', type: 'select', options: [
+        { value: '0.6', label: 'Sparsam (schont schwache Rechner)' },
+        { value: '1', label: 'Normal' },
+        { value: '1.5', label: 'Dicht' },
+        { value: '2', label: 'Sehr dicht' },
+      ], hint: 'Wie viele Funken je Explosion fliegen. Auf schwachen Rechnern (oder wenn OBS ruckelt) runterstellen.' },
       ACCENT_FIELD,
       { key: 'comboMode', label: 'Bei Combos (z.B. 10x Rose)', type: 'select', options: [
         { value: 'fan', label: 'Auffächern — eine Rakete pro Gift' },

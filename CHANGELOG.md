@@ -3,6 +3,36 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.59.0] - 2026-09-11
+
+### Feuerwerk und Like-Herzen: neue Optik „Pro", Fontäne, Name + Profilbild
+
+Das Gift-Feuerwerk zeichnete jeden Funken als weiche runde Scheibe — im Stream
+sah das eher nach bunten Punkten aus als nach Feuerwerk. Die neue Optik „Pro"
+zeichnet stattdessen echte Funkenbahnen.
+
+- **Optik „Pro"** (Gift-Feuerwerk): Funken sind Striche in Flugrichtung mit
+  heißem, fast weißem Kopf und ziehen eine **nachglühende Spur** hinter sich.
+  Dazu eine Druckwelle im Knall, lange golden herabfallende Trauerweiden-Bögen
+  und ein Knistern kurz nach der Explosion.
+- **Erzeugte Farben:** Jede Rakete bekommt eine eigene, zufällig erzeugte
+  Farbharmonie (benachbarte Töne oder Komplementärfarben) statt einer von fünf
+  festen Paletten — kein Burst sieht aus wie der vorige.
+- **Boden-Fontäne**: sprüht vom unteren Rand einen Funkenkegel nach oben, der
+  wieder herabfällt. Ruhig und ohne Knall; wahlweise statt der Rakete oder
+  zusätzlich.
+- **Name + Profilbild des Schenkenden** erscheinen im Feuerwerk (einzeln
+  abschaltbar). Schickt TikTok kein Bild mit, steht die Initiale auf farbigem
+  Grund statt einer leeren Scheibe.
+- **Like-Herzen**: der Name des Likers steht jetzt auf Wunsch unter seiner
+  Scheibe; dazu Regler für Tempo und Größe.
+- **Funken-Dichte** in vier Stufen — auf schwachen Rechnern runterstellen, wenn
+  OBS ruckelt.
+
+Alle Neuerungen sind **standardmäßig aus**: Optik bleibt „Klassisch", Profilbild
+und Liker-Name bleiben abgeschaltet. Ein eingerichtetes Overlay verändert sich
+durch das Update also nicht von selbst — du stellst bewusst um.
+
 ## [0.58.0] - 2026-09-11
 
 ### Mehrere TikTok-Keys mit automatischem Wechsel
