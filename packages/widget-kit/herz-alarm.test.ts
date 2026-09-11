@@ -1,7 +1,37 @@
 // herz-alarm.test.ts — reine Logik des Herz-Alarm-Widgets (DOM-frei).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { trifftAusloeser, waehleMotiv, baueUserText, escapeHtml, MOTIVE, GEBUENDELT } from './herz-alarm.js';
+import { trifftAusloeser, waehleMotiv, baueUserText, escapeHtml, baueUrl, MOTIVE, GEBUENDELT } from './herz-alarm.js';
+
+// WÄCHTER gegen den Fehler, der das Widget im Live vom 11.09.2026 komplett
+// lahmlegte: Die Video-URL wurde OHNE Schlüssel gebaut, der Overlay-Server wies
+// jede Anfrage mit 403 ab („Anfrage mit falschem Schlüssel abgewiesen
+// (/herz-anim/royal.webm)") — und sichtbar war davon nichts außer einer
+// Logzeile, die fälschlich einen alten OBS-Link verdächtigte.
+//
+// Ursache: Der Schlüssel wurde aus der Query von baseUrl gefischt. Der Server
+// liefert baseUrl aber OHNE Query und reicht den Schlüssel separat als
+// ctx.token herein — die Suche ging immer leer aus.
+test('Video-URL trägt den Schlüssel — sonst weist der Overlay-Server sie ab (403)', () => {
+  const url = baueUrl('http://127.0.0.1:27415', 'geheim123', '/herz-anim/royal.webm');
+  assert.equal(url, 'http://127.0.0.1:27415/herz-anim/royal.webm?token=geheim123');
+  assert.match(url, /[?&]token=/, 'ohne token= antwortet der Server mit 403 und es bleibt schwarz');
+});
+
+test('baueUrl: Sonderfälle — /overlay-Endung, Query, Schrägstrich, fehlende Angaben', () => {
+  // Der Server liefert die nackte Wurzel; frühere Fassungen hingen /overlay an.
+  assert.equal(baueUrl('http://x:1/overlay', 't', '/a'), 'http://x:1/a?token=t');
+  // Eine mitgegebene Query darf nicht doppelt angehängt werden.
+  assert.equal(baueUrl('http://x:1/overlay?token=alt&profile=p', 'neu', '/a'), 'http://x:1/a?token=neu');
+  assert.equal(baueUrl('http://x:1/', 't', '/a'), 'http://x:1/a?token=t', 'kein doppelter Schrägstrich');
+  // Ohne Server (isolierter Test) gibt es keine URL — und keinen Absturz.
+  assert.equal(baueUrl('', 't', '/a'), '');
+  assert.equal(baueUrl(undefined, undefined, '/a'), '');
+  // Ohne Schlüssel wenigstens eine gültige Adresse, statt „undefined" im Pfad.
+  assert.equal(baueUrl('http://x:1', '', '/a'), 'http://x:1/a');
+  // Sonderzeichen im Schlüssel werden kodiert, sonst bricht die Query.
+  assert.match(baueUrl('http://x:1', 'a b&c', '/a'), /token=a%20b%26c$/);
+});
 
 test('Teamherz kommt auf ZWEI Wegen — beide zählen', () => {
   // Fanclub-Beitritt als sub …

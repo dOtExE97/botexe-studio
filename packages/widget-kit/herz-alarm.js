@@ -102,6 +102,30 @@ export function motivZuId(id) {
   return MOTIVE.find((m) => m.id === id) || MOTIVE[0];
 }
 
+/**
+ * Overlay-Adresse + Schlüssel zu einer abrufbaren URL zusammensetzen.
+ *
+ * HIER STECKTE DER FEHLER, der das ganze Widget lahmlegte: Die erste Fassung
+ * fischte den Schlüssel aus der Query von `baseUrl`. Der Overlay-Server liefert
+ * `baseUrl` aber OHNE Query (nur `http://127.0.0.1:PORT`) und reicht den
+ * Schlüssel SEPARAT als `ctx.token` herein. Die Suche ging deshalb immer leer
+ * aus, jede Video-Anfrage lief ohne Schlüssel — und der Server wies sie mit 403
+ * ab. Sichtbar war davon nichts außer einer Logzeile, die einen alten
+ * OBS-Link verdächtigte. Belegt im Live vom 11.09.2026:
+ *   „Anfrage mit falschem Schlüssel abgewiesen (/herz-anim/royal.webm)"
+ * direkt nach einem echten Teamherz.
+ *
+ * Deshalb jetzt dasselbe Muster wie überall sonst im Baukasten
+ * (`${baseUrl}/route?token=${token}`) — und als reine Funktion, damit ein Test
+ * es festnageln kann.
+ */
+export function baueUrl(baseUrl, token, pfad) {
+  const root = String(baseUrl ?? '').split('?')[0].replace(/\/overlay$/, '').replace(/\/+$/, '');
+  if (!root) return ''; // isolierter Test ohne Server
+  const t = token ? `?token=${encodeURIComponent(token)}` : '';
+  return `${root}${pfad}${t}`;
+}
+
 const STYLE_ID = 'bx-hz-style';
 // --u = „1px bei Standardhöhe" analog zu den anderen Widgets, damit Avatar und
 // Text mitwachsen, wenn die Box größer gezogen wird.
@@ -191,28 +215,18 @@ export default class HerzAlarm {
     if (this.ctx.preview) this.zeigeVorschau();
   }
 
-  basis() {
-    // baseUrl ist die Overlay-Adresse inkl. Token; die Clips liegen unter
-    // /herz-anim/. Fehlt sie (z.B. isolierter Test), bleibt der relative Pfad.
-    const b = this.ctx.baseUrl || '';
-    const ohneQuery = b.split('?')[0].replace(/\/overlay$/, '');
-    const token = b.includes('token=') ? `?${b.split('?')[1]}` : '';
-    return { root: ohneQuery, token };
-  }
-
   quelleFuer(id) {
     const m = motivZuId(id);
-    const { root, token } = this.basis();
-    return `${root}/herz-anim/${m.datei}${token}`;
+    return baueUrl(this.ctx.baseUrl, this.ctx.token, `/herz-anim/${m.datei}`);
   }
 
   /** Die installierten Motive vom Server holen (/herz-anim-index). Ergänzt die
    *  gebündelten um geladene Pack-Motive. Fehlschlag ist unkritisch — dann
    *  bleibt es bei den gebündelten. Katalog-Reihenfolge bleibt erhalten. */
   ladeVerfuegbare() {
-    const { root, token } = this.basis();
-    if (!root) return; // isolierter Test ohne Server
-    fetch(`${root}/herz-anim-index${token}`)
+    const url = baueUrl(this.ctx.baseUrl, this.ctx.token, '/herz-anim-index');
+    if (!url) return; // isolierter Test ohne Server
+    fetch(url)
       .then((r) => (r.ok ? r.json() : []))
       .then((liste) => {
         if (!Array.isArray(liste)) return;

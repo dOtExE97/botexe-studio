@@ -3,6 +3,19 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.59.1] - 2026-09-12
+
+### Behoben: Der Herz-Alarm blieb schwarz
+
+Das Teamherz wurde erkannt, das Widget startete auch — aber das Video kam nie
+an: Die Anfrage ging **ohne Sicherheitsschlüssel** an den Overlay-Server, und
+der wies sie ab. Im Log stand dazu nur „Anfrage mit falschem Schlüssel
+abgewiesen (/herz-anim/royal.webm)" samt dem irreführenden Hinweis auf einen
+alten OBS-Link — daran lag es nicht.
+
+Damit hat der Herz-Alarm seit seiner Einführung (0.57.0) **nie** funktioniert.
+Wer ihn eingerichtet hat, muss nichts ändern: Er läuft ab jetzt einfach.
+
 ## [0.59.0] - 2026-09-11
 
 ### Feuerwerk und Like-Herzen: neue Optik „Pro", Fontäne, Name + Profilbild
