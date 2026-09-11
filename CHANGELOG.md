@@ -3,6 +3,25 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.58.0] - 2026-09-11
+
+### Mehrere TikTok-Keys mit automatischem Wechsel
+
+Wer mehrere gratis eulerstream-Keys (aus getrennten Accounts) hinterlegt, dessen
+Stream steht nicht mehr still, wenn ein Key sein Tageskontingent erreicht oder
+abgelehnt wird — die App wechselt automatisch zum nächsten.
+
+- **Ausweich-Keys** in Einstellungen → TikTok-Verbindung: ein Key je Zeile. Der
+  Wechsel greift ab zwei verschiedenen Keys; mit nur einem Key bleibt alles wie
+  bisher.
+- **Klug beim Wechseln:** Ein abgelehnter Key (4401/4403) löst sofort den
+  Wechsel aus; ein mehrdeutiges „Server-Problem" (Code 1011 — kann auch nur
+  „Streamer gerade offline" heißen) erst, wenn es am selben Key hängen bleibt.
+  So brennt ein „nicht live" nicht sinnlos alle Keys durch. Sind alle Keys
+  erschöpft, sagt die App das klar, statt es endlos zu versuchen.
+- Hinweis: Das Gratis-Kontingent gilt **pro eulerstream-Account** — mehrere Keys
+  helfen nur mit **getrennten** Accounts.
+
 ## [0.57.0] - 2026-09-11
 
 ### Neues Widget: Herz-Alarm

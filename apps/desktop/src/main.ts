@@ -1135,9 +1135,12 @@ function registerIpc(): void {
       typeof safe.tiktokSessionId === 'string' && safe.tiktokSessionId.length > 0 &&
       typeof safe.tiktokTargetIdc === 'string' && safe.tiktokTargetIdc.length > 0;
     safe.tiktokSignKeySet = typeof safe.tiktokSignApiKey === 'string' && safe.tiktokSignApiKey.length > 0;
+    // Ausweich-Keys nie roh — nur die ANZAHL, damit die UI „N hinterlegt" zeigen kann.
+    safe.tiktokSignKeyCount = Array.isArray(safe.tiktokSignApiKeys) ? safe.tiktokSignApiKeys.length : 0;
     delete safe.tiktokSessionId;
     delete safe.tiktokTargetIdc;
     delete safe.tiktokSignApiKey;
+    delete safe.tiktokSignApiKeys;
     // Weitere Geheimnisse nie roh an den Renderer (Screenshots/Crash-Dumps) —
     // stattdessen nur ein „ist gesetzt"-Flag, damit die UI „gesetzt" anzeigen kann.
     safe.sportKeySet = typeof safe.sportApiKey === 'string' && safe.sportApiKey.length > 0;

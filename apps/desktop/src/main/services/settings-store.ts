@@ -146,6 +146,12 @@ export interface StudioSettings {
   /** Euler-API-Key (Community gratis) — fürs Verbinden über den Cloud-WebSocket
    *  UND fürs zuverlässige Senden. */
   tiktokSignApiKey: string;
+  /** WEITERE Euler-API-Keys für den automatischen Wechsel, wenn einer erschöpft
+   *  (Tageskontingent) oder abgelehnt (4401/4403) wird. Reihenfolge = Vorrang;
+   *  der einzelne `tiktokSignApiKey` oben zählt als erster mit dazu. Der Wechsel
+   *  greift erst ab zwei UNTERSCHIEDLICHEN Keys — und hilft nur mit SEPARATEN
+   *  eulerstream-Accounts, weil das Community-Kontingent pro Account gilt. */
+  tiktokSignApiKeys: string[];
   /** Verbindungsweg: 'cloud' = Eulers gehosteter WebSocket (gratis, Standard),
    *  'direct' = selbst signieren via tiktok-live-connector (braucht Business-Key,
    *  kann dafür Chat senden). */
@@ -268,6 +274,7 @@ const DEFAULTS: StudioSettings = {
   tiktokSessionId: '',
   tiktokTargetIdc: '',
   tiktokSignApiKey: '',
+  tiktokSignApiKeys: [],
   tiktokConnectMode: 'cloud',
   autoLiveWatch: true,
   autostart: false,
@@ -436,6 +443,14 @@ export class SettingsStore {
           return ok;
         },
       );
+      // Weitere Sign-Keys defensiv: nur Strings, getrimmt, leere raus, max. 10.
+      merged.tiktokSignApiKeys = Array.isArray(raw.tiktokSignApiKeys)
+        ? raw.tiktokSignApiKeys
+            .filter((k): k is string => typeof k === 'string')
+            .map((k) => k.trim())
+            .filter(Boolean)
+            .slice(0, 10)
+        : [];
       merged.audioOutputId = typeof raw.audioOutputId === 'string' ? raw.audioOutputId : '';
       merged.audioOutputLabel = typeof raw.audioOutputLabel === 'string' ? raw.audioOutputLabel : '';
       // App-Mixer (additiv): fehlend/kaputt → Defaults, Zahlen geklemmt.
@@ -683,6 +698,13 @@ export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): 
     };
   }
   if (typeof p.tiktokSignApiKey === 'string') allowed.tiktokSignApiKey = p.tiktokSignApiKey.trim().slice(0, 200);
+  if (Array.isArray(p.tiktokSignApiKeys)) {
+    allowed.tiktokSignApiKeys = (p.tiktokSignApiKeys as unknown[])
+      .filter((k): k is string => typeof k === 'string')
+      .map((k) => k.trim().slice(0, 200))
+      .filter(Boolean)
+      .slice(0, 10);
+  }
   if (p.tiktokConnectMode === 'cloud' || p.tiktokConnectMode === 'direct') allowed.tiktokConnectMode = p.tiktokConnectMode;
   if (typeof p.autoLiveWatch === 'boolean') allowed.autoLiveWatch = p.autoLiveWatch;
   if (typeof p.autostart === 'boolean') allowed.autostart = p.autostart;
@@ -778,6 +800,7 @@ export const SECRET_TOP_LEVEL_FIELDS = [
   'tiktokSessionId',
   'tiktokTargetIdc',
   'tiktokSignApiKey',
+  'tiktokSignApiKeys',
   'ttsCredentials',
   'controlToken', // bleibt pro Maschine eigen
   'sportApiKey',

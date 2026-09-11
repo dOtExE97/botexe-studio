@@ -14,7 +14,7 @@ import type { EventBus } from '../core/event-bus';
 import { log } from '../core/logger';
 import { kannFortsetzung } from '../services/session-continuity';
 import { Artenbuch } from './tiktok-artenbuch';
-import type { HostInfo } from './tiktok-cloud';
+import type { HostInfo, CloudCloseError, CloudDisconnectInfo } from './tiktok-cloud';
 import { leseRangUpdate, type RangStand } from './tiktok-rank';
 import { lesePkStand, lesePkRahmen, pkText } from './tiktok-pk';
 import { lesePin, pinText } from './tiktok-pin';
@@ -65,6 +65,17 @@ export interface TikTokAuth {
 
 export type ConnectionFactory = (username: string, auth: TikTokAuth) => LiveConnectionLike;
 
+/** Antwort des Key-Rotators auf einen Cloud-Fehler.
+ *  `aktiv === null` heißt: alle hinterlegten Keys sind erschöpft/abgelehnt. */
+export interface KeyWechselErgebnis {
+  /** Wird ab jetzt ein ANDERER Key benutzt? */
+  wechsel: boolean;
+  /** Der ab jetzt aktive Key (null = keiner mehr übrig). */
+  aktiv: string | null;
+  /** Kurzbegründung fürs Log. */
+  grund?: string;
+}
+
 export interface TikTokAdapterOptions {
   factory?: ConnectionFactory;
   onStatus?: (info: AdapterStatusInfo) => void;
@@ -104,6 +115,14 @@ export interface TikTokAdapterOptions {
   checkLive?: (username: string) => Promise<boolean>;
   /** Login-Daten fürs Chat-Senden (sessionid-Cookie + optionaler Sign-Key). */
   getAuth?: () => TikTokAuth;
+  /** Ein Connect mit dem aktiven Key ist gelungen — meldet dem Key-Rotator
+   *  Erfolg (setzt dessen 1011-Zähler zurück). Nur gesetzt, wenn mehrere Keys
+   *  hinterlegt sind; sonst gibt es keinen Rotator und der Aufruf entfällt. */
+  meldeKeyErfolg?: () => void;
+  /** Ein Cloud-Verbindungsfehler mit WS-Close-`code`. Liefert die Entscheidung
+   *  des Key-Rotators — ODER `null`, wenn KEIN Multi-Key-Rotator aktiv ist
+   *  (dann behandelt der Adapter den Fehler exakt wie bisher, ohne Key-Wechsel). */
+  meldeKeyFehler?: (code: number) => KeyWechselErgebnis | null;
 }
 
 /** So lange darf es still bleiben, bevor die App das meldet. Großzügig: Ein
@@ -233,6 +252,8 @@ export class TikTokAdapter {
   private readonly livePollMs: number;
   private readonly checkLive: (username: string) => Promise<boolean>;
   private readonly getAuth: () => TikTokAuth;
+  private readonly meldeKeyErfolg?: () => void;
+  private readonly meldeKeyFehler?: (code: number) => KeyWechselErgebnis | null;
   private liveWatchTimer: ReturnType<typeof setTimeout> | null = null;
   /** Wächter gegen die stille Leitung: Steht die Verbindung, kommt aber nichts
    *  an, sagt das Log heute nur „Verbunden" — und der Streamer sucht den Fehler
@@ -302,6 +323,44 @@ export class TikTokAdapter {
     this.livePollMs = options.livePollMs ?? DEFAULTS.livePollMs;
     this.checkLive = options.checkLive ?? ((u) => this.defaultCheckLive(u));
     this.getAuth = options.getAuth ?? (() => ({}));
+    this.meldeKeyErfolg = options.meldeKeyErfolg;
+    this.meldeKeyFehler = options.meldeKeyFehler;
+  }
+
+  /**
+   * Einen Cloud-Verbindungsfehler dem Key-Rotator vorlegen. Zentral, weil es an
+   * ZWEI Stellen gebraucht wird: beim gescheiterten (Re-)Connect und beim Abriss
+   * mitten im Stream.
+   *
+   * Rückgabe steuert den Aufrufer:
+   *  - 'egal'       kein Multi-Key-Rotator ODER kein Key-Wechsel → weiter wie bisher
+   *  - 'gewechselt' auf den nächsten Key umgestellt UND Reconnect schon geplant → return
+   *  - 'erschoepft' alle Keys erschöpft/abgelehnt, klare Meldung gesetzt → aufgeben
+   */
+  private behandleKeyFehler(code: number | undefined, epoch: number, isReconnect: boolean): 'egal' | 'gewechselt' | 'erschoepft' {
+    if (typeof code !== 'number') return 'egal';
+    const erg = this.meldeKeyFehler?.(code);
+    if (!erg) return 'egal'; // Ein-Key-Fall: kein Rotator → Adapter behandelt wie immer
+    if (erg.aktiv === null) {
+      this.pendingFresh = false;
+      log.error('TikTok', 'Alle hinterlegten eulerstream-Keys sind erschöpft oder abgelehnt — es gibt keinen weiteren '
+        + 'zum Ausweichen. Einen neuen/gültigen Key hinterlegen (Einstellungen → TikTok-Verbindung) oder bis morgen '
+        + 'warten: Das Tageskontingent des Gratis-Plans setzt sich um Mitternacht zurück.');
+      this.emitStatus({
+        status: 'error',
+        isReconnect,
+        detail: 'Alle hinterlegten eulerstream-Keys sind erschöpft oder abgelehnt — neuen Key hinterlegen oder bis morgen warten (Tageskontingent).',
+      });
+      return 'erschoepft';
+    }
+    if (erg.wechsel) {
+      log.warn('TikTok', `eulerstream-Key gewechselt${erg.grund ? ` (${erg.grund})` : ''} — neuer Versuch mit dem nächsten hinterlegten Key.`);
+      this.pendingFresh = false;
+      this.reconnectAttempts = 0; // frischer Key → volles Versuchskontingent, nicht das des alten
+      this.scheduleReconnect(epoch);
+      return 'gewechselt';
+    }
+    return 'egal';
   }
 
   /** Nachricht in den Live-Chat senden — Login explizit übergeben, damit es auch
@@ -635,6 +694,9 @@ export class TikTokAdapter {
         return;
       }
       this.reconnectAttempts = 0;
+      // Connect mit dem aktiven Key stand → dem Rotator Erfolg melden (setzt
+      // dessen 1011-Zähler zurück; ein vorübergehender Aussetzer war es also nicht).
+      this.meldeKeyErfolg?.();
       // Neuer Stream = erster Connect ODER erneutes Live nach Stream-Ende
       // (pendingFresh vom Live-Watch). NICHT bei Reconnect nach kurzem Abriss.
       //
@@ -691,6 +753,15 @@ export class TikTokAdapter {
         log.info('TikTok', `@${this.username} ist gerade nicht live — verbinde automatisch, sobald wieder live.`);
       } else {
         log.error('TikTok', 'Verbindung fehlgeschlagen', msg);
+      }
+      // Key-Rotator ZUERST fragen (nur bei mehreren Keys aktiv): Ein abgelehnter
+      // Key (4401/4403) würde sonst gleich unten als „Sign verweigert" endgültig
+      // aufgeben — mit einem zweiten Key soll die App stattdessen ausweichen.
+      // Bei „nicht live" (4404) ändert der Rotator nichts und wir fallen unten in
+      // die normale Warte-aufs-Live-Behandlung.
+      {
+        const ausgang = this.behandleKeyFehler((err as CloudCloseError).cloudCloseCode, epoch, isReconnect);
+        if (ausgang !== 'egal') return; // gewechselt (Reconnect geplant) oder erschöpft (aufgegeben)
       }
       // Externer Sign-Server (eulerstream) lehnt ab → Retry ist zwecklos und
       // verbrennt nur Kontingent. Sofort aufgeben mit klarer, handlungsfähiger
@@ -941,12 +1012,16 @@ export class TikTokAdapter {
       }
     }));
 
-    on('disconnected', guard(() => {
+    on('disconnected', guard((info?: CloudDisconnectInfo) => {
       log.warn('TikTok', 'Verbindung getrennt');
       this.emitStatus({ status: 'disconnected', isReconnect: false });
-      if (!this.streamEnded) {
-        this.scheduleReconnect(epoch);
-      }
+      if (this.streamEnded) return;
+      // Trägt der Abriss einen Cloud-Close-Code (4401/4403/1011 …), erst den
+      // Key-Rotator fragen: wechselt er den Key, plant er selbst den Reconnect;
+      // sind alle Keys erschöpft, gibt er auf. Ohne Code/Rotator: normal neu.
+      const ausgang = this.behandleKeyFehler(info?.code, epoch, false);
+      if (ausgang !== 'egal') return;
+      this.scheduleReconnect(epoch);
     }));
 
     on('error', guard((err: { message?: string; info?: string } | undefined) => {

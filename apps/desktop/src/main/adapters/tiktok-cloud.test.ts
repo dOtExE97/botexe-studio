@@ -130,6 +130,32 @@ test('connect: Key/Plan abgelehnt (Close 4401) → reject als Sign-Fehler (kein 
   });
 });
 
+// WÄCHTER für den Key-Rotator: Der numerische Close-Code MUSS strukturell
+// durchkommen — sowohl am Reject des Connects als auch am disconnected-Signal
+// eines Abrisses. Ginge er verloren (nur noch Text), könnte der Rotator
+// 4401/4403 (Key abgelehnt) nicht von 1011 (Kontingent/offline) trennen und
+// würde entweder gar nicht oder falsch wechseln — lautlos.
+test('connect-Reject trägt den WS-Close-Code strukturell mit (cloudCloseCode)', async () => {
+  const { conn, getWs } = makeConn();
+  const p = conn.connect();
+  getWs().emit('close', 4401, Buffer.from('invalid auth'));
+  await assert.rejects(p, (e: Error & { cloudCloseCode?: number }) => {
+    assert.equal(e.cloudCloseCode, 4401, 'die Zahl reist neben dem Text mit');
+    return true;
+  });
+});
+
+test('Abriss mitten im Stream meldet „disconnected" MIT Close-Code', async () => {
+  const { conn, getWs } = makeConn();
+  const p = conn.connect();
+  getWs().deliver([{ type: 'tiktok.connect', data: {} }]);
+  await p;
+  let info: { code?: number } | undefined;
+  conn.on('disconnected', (i: { code?: number }) => { info = i; });
+  getWs().emit('close', 1011, Buffer.from('server error'));
+  assert.equal(info?.code, 1011, 'der Adapter/Rotator bekommt den Code, nicht nur ein nacktes disconnected');
+});
+
 test('nach erfolgreichem connect: Close → disconnected-Event, Stream-Ende-Code → vorher streamEnd', async () => {
   const { conn, getWs } = makeConn();
   const events: string[] = [];

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import type { StudioEvent } from '@botexe/trigger-engine';
 import { EventBus } from '../core/event-bus';
-import { TikTokAdapter, isOfflineError, isSignServerError, type LiveConnectionLike, type AdapterStatusInfo } from './tiktok-adapter';
+import { TikTokAdapter, isOfflineError, isSignServerError, type LiveConnectionLike, type AdapterStatusInfo, type KeyWechselErgebnis } from './tiktok-adapter';
+import { KeyRotator } from '../services/key-rotator';
 
 test('isSignServerError: eulerstream-/Sign-Fehler erkannt (→ kein Retry, Sign-Key nötig)', () => {
   assert.equal(isSignServerError('[fetchWebcastSignatureFromEulerRoute] Failed to sign a request: This endpoint requires a Business plan.'), true);
@@ -30,10 +31,17 @@ class FakeConnection extends EventEmitter implements LiveConnectionLike {
   removeAllCalls = 0;
   failConnect = false;
   connectError = 'verbindung fehlgeschlagen';
+  /** WS-Close-Code, den ein gescheiterter connect() strukturell mitträgt
+   *  (wie die echte EulerCloudConnection über CloudCloseError). */
+  connectCloseCode: number | undefined = undefined;
 
   async connect(): Promise<Record<string, unknown>> {
     this.connectCalls++;
-    if (this.failConnect) throw new Error(this.connectError);
+    if (this.failConnect) {
+      const e = new Error(this.connectError) as Error & { cloudCloseCode?: number };
+      if (this.connectCloseCode !== undefined) e.cloudCloseCode = this.connectCloseCode;
+      throw e;
+    }
     return { roomId: '123', viewerCount: 10 };
   }
 
@@ -573,4 +581,128 @@ test('Reconnect-Replay: eine wiederholte Sticker-Nachricht feuert nicht doppelt'
   c?.emit('chat', nachricht);
   c?.emit('chat', nachricht); // Replay nach Reconnect
   assert.equal(events.filter((e) => e.type === 'emote').length, 1, 'sonst spielt der Sound zweimal');
+});
+
+// ── Key-Rotator: mehrere eulerstream-Keys, automatischer Wechsel ────────────
+// WARUM DIE KETTE HIER GEPRÜFT WIRD: Die Rotator-Logik hat eigene Unit-Tests
+// (key-rotator.test.ts). Was DIESE Tests sichern, ist die VERDRAHTUNG — dass
+// der Close-Code aus der Verbindung wirklich beim Rotator ankommt und sein
+// Urteil den (Re-)Connect steuert. Genau die Naht, an der „beide Enden grün,
+// aber nicht verbunden" sonst unbemerkt bliebe. Der Rotator wird deshalb ECHT
+// verdrahtet (kein Fake), so wie studio.ts es tut.
+
+function setupRotator(
+  keys: string[],
+  konfig: (c: FakeConnection, index: number, key: string | undefined) => void,
+) {
+  const bus = new EventBus();
+  const rotator = new KeyRotator(keys);
+  const connections: FakeConnection[] = [];
+  const usedKeys: Array<string | undefined> = [];
+  const statuses: AdapterStatusInfo[] = [];
+  const adapter = new TikTokAdapter(bus, {
+    factory: (_u, auth) => {
+      const c = new FakeConnection();
+      usedKeys.push(auth.signApiKey);
+      konfig(c, connections.length, auth.signApiKey);
+      connections.push(c);
+      return c;
+    },
+    getAuth: () => ({ signApiKey: rotator.aktiv(Date.now()) ?? undefined }),
+    meldeKeyErfolg: () => rotator.meldeErfolg(Date.now()),
+    meldeKeyFehler: (code): KeyWechselErgebnis | null => {
+      const e = rotator.meldeFehler(code, Date.now());
+      return { wechsel: e.wechsel, aktiv: e.aktiv, grund: e.grund };
+    },
+    onStatus: (s) => statuses.push(s),
+    baseReconnectDelayMs: 1,
+    jitterMs: 0,
+    maxReconnect: 10,
+  });
+  return { adapter, connections, usedKeys, statuses, rotator };
+}
+
+test('Key-Rotator: abgelehnter Key (4401) → Wechsel auf den nächsten statt Aufgeben', async () => {
+  const { adapter, connections, usedKeys } = setupRotator(['keyA', 'keyB'], (c, i) => {
+    if (i === 0) {
+      c.failConnect = true;
+      c.connectError = 'eulerstream Cloud-Sign abgelehnt (Code 4401, API-Key/Plan): invalid';
+      c.connectCloseCode = 4401;
+    }
+  });
+  await adapter.connect('testuser');
+  await wait(30);
+  assert.equal(connections.length, 2, 'nach Ablehnung mit dem nächsten Key erneut versucht');
+  assert.equal(usedKeys[0], 'keyA');
+  assert.equal(usedKeys[1], 'keyB', 'der zweite Versuch nutzt den zweiten Key');
+  assert.equal(connections[1]?.connectCalls, 1);
+  await adapter.disconnect();
+});
+
+test('Key-Rotator: sind ALLE Keys abgelehnt, gibt die App klar auf (kein Endlos-Retry)', async () => {
+  const { adapter, connections, statuses } = setupRotator(['keyA', 'keyB'], (c) => {
+    c.failConnect = true;
+    c.connectError = 'eulerstream Cloud-Sign abgelehnt (Code 4401, API-Key/Plan): invalid';
+    c.connectCloseCode = 4401;
+  });
+  await adapter.connect('testuser');
+  await wait(40);
+  assert.equal(connections.length, 2, 'genau beide Keys probiert, dann Schluss');
+  const err = statuses.find((s) => s.status === 'error');
+  assert.ok(err, 'klarer Fehler-Status');
+  assert.match(err?.detail ?? '', /erschöpft|abgelehnt/i, 'Meldung nennt „alle Keys erschöpft/abgelehnt"');
+  await adapter.disconnect();
+});
+
+test('Ein-Key-Fall unverändert: kein Rotator → 4401 gibt wie bisher auf', async () => {
+  const bus = new EventBus();
+  const connections: FakeConnection[] = [];
+  const statuses: AdapterStatusInfo[] = [];
+  const adapter = new TikTokAdapter(bus, {
+    factory: () => {
+      const c = new FakeConnection();
+      c.failConnect = true;
+      c.connectError = 'eulerstream Cloud-Sign abgelehnt (Code 4401, API-Key/Plan): invalid';
+      c.connectCloseCode = 4401;
+      connections.push(c);
+      return c;
+    },
+    getAuth: () => ({ signApiKey: 'keyA' }),
+    meldeKeyErfolg: () => undefined,
+    meldeKeyFehler: () => null, // studio liefert null, wenn nur EIN Key hinterlegt ist
+    onStatus: (s) => statuses.push(s),
+    baseReconnectDelayMs: 1,
+    jitterMs: 0,
+  });
+  await adapter.connect('testuser');
+  await wait(30);
+  assert.equal(connections.length, 1, 'ohne Rotator kein Key-Wechsel und kein Retry beim Sign-Fehler');
+  const err = statuses.find((s) => s.status === 'error');
+  assert.match(err?.detail ?? '', /sign-server|eulerstream/i, 'weiterhin der klassische Sign-Key-Hinweis');
+  await adapter.disconnect();
+});
+
+test('Key-Rotator: Abriss mit 4401 mitten im Stream wechselt den Key', async () => {
+  const { adapter, connections, usedKeys } = setupRotator(['keyA', 'keyB'], () => { /* alle verbinden */ });
+  await adapter.connect('testuser');
+  assert.equal(usedKeys[0], 'keyA');
+  connections[0]?.emit('disconnected', { code: 4401 });
+  await wait(30);
+  assert.equal(connections.length, 2, 'nach Abriss mit abgelehntem Key neu mit dem nächsten Key');
+  assert.equal(usedKeys[1], 'keyB');
+  await adapter.disconnect();
+});
+
+test('Key-Rotator: einmaliges 1011 wechselt NICHT (könnte nur „Streamer offline" sein)', async () => {
+  const { adapter, usedKeys } = setupRotator(['keyA', 'keyB'], (c, i) => {
+    if (i === 0) {
+      c.failConnect = true;
+      c.connectError = 'Cloud-WS geschlossen (Code 1011)';
+      c.connectCloseCode = 1011;
+    }
+  });
+  await adapter.connect('testuser');
+  await wait(30);
+  assert.equal(usedKeys[1], 'keyA', 'nach einem einzelnen 1011 bleibt es beim selben Key (erst der zweite wechselt)');
+  await adapter.disconnect();
 });

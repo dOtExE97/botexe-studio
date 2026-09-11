@@ -88,6 +88,7 @@ test('redactSecretsForExport: entfernt alle Geheimnisse, behält harmlose Felder
   const input = {
     lastUsername: 'alex',
     tiktokSessionId: 'sess', tiktokTargetIdc: 'idc', tiktokSignApiKey: 'sign',
+    tiktokSignApiKeys: ['euler_a', 'euler_b'],
     ttsCredentials: { elevenlabs: { apiKey: 'k' } },
     controlToken: 'tok', sportApiKey: 'sport',
     aiApiKey: 'gemini-key', spotifyTokens: { accessToken: 'at', refreshToken: 'rt' },
@@ -98,6 +99,7 @@ test('redactSecretsForExport: entfernt alle Geheimnisse, behält harmlose Felder
   assert.equal(out.tiktokSessionId, undefined);
   assert.equal(out.tiktokTargetIdc, undefined);
   assert.equal(out.tiktokSignApiKey, undefined);
+  assert.equal(out.tiktokSignApiKeys, undefined); // Ausweich-Keys sind ebenfalls geheim
   assert.equal(out.ttsCredentials, undefined);
   assert.equal(out.controlToken, undefined);
   assert.equal(out.sportApiKey, undefined);
@@ -191,6 +193,26 @@ test('sanitizeSettingsPatch: mixer.master als String wird von normalizeMixer gek
   const patch = sanitizeSettingsPatch({ mixer: { master: 'laut', channels: {} } }, current);
   assert.equal(typeof patch.mixer?.master, 'number');
   assert.ok(patch.mixer && patch.mixer.master >= 0 && patch.mixer.master <= 1);
+});
+
+test('sanitizeSettingsPatch: tiktokSignApiKeys — nur Strings, getrimmt, leere raus, max. 10', () => {
+  const dir = tmpDir();
+  const current = new SettingsStore(dir).get();
+  const patch = sanitizeSettingsPatch(
+    { tiktokSignApiKeys: ['  euler_a  ', '', 'euler_b', 42, null, 'euler_c'] },
+    current,
+  );
+  assert.deepEqual(patch.tiktokSignApiKeys, ['euler_a', 'euler_b', 'euler_c'],
+    'Nicht-Strings und Leere fliegen raus, der Rest wird getrimmt');
+});
+
+test('SettingsStore: tiktokSignApiKeys überleben Speichern/Laden (Runde durch den Tresor)', () => {
+  const dir = tmpDir();
+  const store = new SettingsStore(dir);
+  store.update({ tiktokSignApiKeys: ['euler_x', 'euler_y'] });
+  // Frisch laden (neue Instanz), damit es wirklich von der Platte kommt.
+  const wieder = new SettingsStore(dir).get();
+  assert.deepEqual(wieder.tiktokSignApiKeys, ['euler_x', 'euler_y']);
 });
 
 test('sanitizeSettingsPatch: points.perChat als String (kaputtes Backup) wird ignoriert — aktueller Wert bleibt', () => {

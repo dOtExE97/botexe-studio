@@ -13,8 +13,9 @@ import { SessionStats } from '../core/session-stats';
 import { EventRecorder, parseReplay, playReplay } from '../core/replay';
 import { SessionRoles } from '../core/session-roles';
 import { shouldAnnounceGift } from './tts-announce';
-import { TikTokAdapter, createDirectConnection, type AdapterStatusInfo } from '../adapters/tiktok-adapter';
+import { TikTokAdapter, createDirectConnection, type AdapterStatusInfo, type KeyWechselErgebnis } from '../adapters/tiktok-adapter';
 import { EulerCloudConnection } from '../adapters/tiktok-cloud';
+import { KeyRotator } from './key-rotator';
 import { OverlayServer } from '../adapters/overlay-server';
 import {
   SettingsStore,
@@ -207,6 +208,12 @@ export class Studio {
 
   private readonly engine = new TriggerEngine();
   private readonly adapter: TikTokAdapter;
+  /** Key-Rotator für mehrere eulerstream-Keys. Existiert nur bei ZWEI+ Keys —
+   *  sonst bleibt alles wie beim einzelnen Key. Wird neu gebaut, wenn sich die
+   *  Key-Liste ändert (Signatur-Vergleich), damit der Zustand — welcher Key
+   *  erschöpft ist, 1011-Zähler — über Reconnects hinweg erhalten bleibt. */
+  private keyRotator: KeyRotator | null = null;
+  private keyRotatorSig = '';
   private readonly server: OverlayServer;
   private readonly hooks: StudioHooks;
 
@@ -372,11 +379,28 @@ export class Studio {
         return createDirectConnection(username, auth);
       },
       // Login fürs Chat-Senden (sessionid-Cookie + optionaler Sign-Key).
-      getAuth: () => ({
-        sessionId: this.settings.get().tiktokSessionId || undefined,
-        ttTargetIdc: this.settings.get().tiktokTargetIdc || undefined,
-        signApiKey: this.settings.get().tiktokSignApiKey || undefined,
-      }),
+      // Der Sign-Key kommt bei MEHREREN Keys vom Rotator (aktiver Key), sonst
+      // schlicht der einzelne aus den Einstellungen — Ein-Key-Verhalten unverändert.
+      getAuth: () => {
+        const s = this.settings.get();
+        const rotator = this.holeRotator();
+        const key = rotator ? rotator.aktiv(Date.now()) ?? undefined : (s.tiktokSignApiKey || undefined);
+        return {
+          sessionId: s.tiktokSessionId || undefined,
+          ttTargetIdc: s.tiktokTargetIdc || undefined,
+          signApiKey: key,
+        };
+      },
+      // Key-Rotator-Hooks — nur wirksam, wenn zwei+ Keys hinterlegt sind
+      // (holeRotator() liefert sonst null → meldeKeyFehler gibt null → der
+      // Adapter behandelt den Fehler exakt wie beim einzelnen Key).
+      meldeKeyErfolg: () => { this.holeRotator()?.meldeErfolg(Date.now()); },
+      meldeKeyFehler: (code): KeyWechselErgebnis | null => {
+        const rotator = this.holeRotator();
+        if (!rotator) return null;
+        const erg = rotator.meldeFehler(code, Date.now());
+        return { wechsel: erg.wechsel, aktiv: erg.aktiv, grund: erg.grund };
+      },
       // Komplette Gift-Liste (mit Bildern) nach dem Connect in den Katalog —
       // so kennt z.B. das Bingo ALLE Gift-Bilder, bevor das erste Gift kommt.
       onAvailableGifts: (gifts) => this.importAvailableGifts(gifts),
@@ -1466,6 +1490,32 @@ export class Studio {
    *  Störung. Bewusst optimistisch initialisiert: Beim allerersten Check soll
    *  keine Entwarnung für etwas kommen, das nie gestört war. */
   private tiktokErreichbar = true;
+
+  /** Die effektive Key-Liste: der einzelne `tiktokSignApiKey` UND die weiteren
+   *  aus `tiktokSignApiKeys`, getrimmt, ohne Leere/Doppelte, Reihenfolge =
+   *  Vorrang (der einzelne zuerst). */
+  private effektiveKeys(): string[] {
+    const s = this.settings.peek();
+    const weitere = Array.isArray(s.tiktokSignApiKeys) ? s.tiktokSignApiKeys : [];
+    const alle = [s.tiktokSignApiKey, ...weitere].map((k) => (k ?? '').trim()).filter(Boolean);
+    return [...new Set(alle)];
+  }
+
+  /** Den Key-Rotator holen — ABER nur bei zwei+ verschiedenen Keys. Bei einem
+   *  (oder keinem) Key gibt es keinen Rotator: dann bleibt das Verhalten exakt
+   *  wie bisher (ein fester Key, kein Wechsel). Wird nur NEU gebaut, wenn sich
+   *  die Key-Liste ändert — sonst überlebt der Zustand (erschöpfte Keys,
+   *  1011-Zähler) die Reconnects. */
+  private holeRotator(): KeyRotator | null {
+    const keys = this.effektiveKeys();
+    if (keys.length < 2) { this.keyRotator = null; this.keyRotatorSig = ''; return null; }
+    const sig = keys.join('\n');
+    if (!this.keyRotator || this.keyRotatorSig !== sig) {
+      this.keyRotator = new KeyRotator(keys);
+      this.keyRotatorSig = sig;
+    }
+    return this.keyRotator;
+  }
 
   private async checkLiveCheap(username: string): Promise<boolean> {
     // „nicht live" und „TikTok nicht erreichbar" waren hier bisher dasselbe:

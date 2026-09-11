@@ -63,6 +63,10 @@ export default function SettingsPage() {
   const [tiktokIn, setTiktokIn] = useState(false);
   const [signKey, setSignKey] = useState('');
   const [signKeySet, setSignKeySet] = useState(false);
+  // Ausweich-Keys (mehrere eulerstream-Keys für den automatischen Wechsel).
+  // Write-only wie der Haupt-Key: die Werte kommen nie zurück, nur die Anzahl.
+  const [fallbackKeys, setFallbackKeys] = useState('');
+  const [fallbackKeyCount, setFallbackKeyCount] = useState(0);
   const [connectMode, setConnectMode] = useState<'cloud' | 'direct'>('cloud');
   const [autoLiveWatch, setAutoLiveWatch] = useState(true);
   const [autostart, setAutostart] = useState(false);
@@ -109,6 +113,17 @@ export default function SettingsPage() {
       else toast('info', 'Key gespeichert (Prüfung gerade nicht möglich — wird beim Verbinden getestet).');
     });
   };
+  // Ausweich-Keys speichern: eine Zeile = ein Key, getrimmt, leere raus, max. 10.
+  // Ersetzt die ganze Liste (write-only, kein Vorbefüllen möglich).
+  const commitFallbackKeys = () => {
+    const liste = fallbackKeys.split('\n').map((k) => k.trim()).filter(Boolean).slice(0, 10);
+    void window.studio.updateSettings({ tiktokSignApiKeys: liste });
+    setFallbackKeyCount(liste.length);
+    setFallbackKeys('');
+    toast(liste.length ? 'success' : 'info', liste.length
+      ? `${liste.length} Ausweich-Key${liste.length > 1 ? 's' : ''} gespeichert — der automatische Wechsel greift ab zwei verschiedenen Keys.`
+      : 'Ausweich-Keys geleert.');
+  };
   // KI-Key aus der Zwischenablage einfügen + speichern.
   const pasteAiKey = () => void window.studio.readClipboardText().then((t) => {
     const k = (t ?? '').trim();
@@ -126,6 +141,7 @@ export default function SettingsPage() {
       // Keys/Passwörter kommen nicht mehr roh zurück — nur „gesetzt"-Flags.
       setSportKeySet(!!s.sportKeySet);
       setSignKeySet(!!s.tiktokSignKeySet);
+      setFallbackKeyCount((s as unknown as { tiktokSignKeyCount?: number }).tiktokSignKeyCount ?? 0);
       setConnectMode(s.tiktokConnectMode === 'direct' ? 'direct' : 'cloud');
       setAutoLiveWatch(s.autoLiveWatch !== false);
       setAutostart(s.autostart === true);
@@ -339,6 +355,50 @@ export default function SettingsPage() {
             Key löschen
           </ConfirmButton>
         )}
+
+        {/* Ausweich-Keys: automatischer Wechsel, wenn ein Key erschöpft/abgelehnt wird. */}
+        <div className="mt-4 rounded-lg border border-studio-border/60 p-3">
+          <div className="mb-1 text-[11px] font-bold text-studio-fg">Ausweich-Keys (automatischer Wechsel)</div>
+          <p className="mb-2 text-[11px] leading-snug text-studio-muted">
+            Hinterlegst du <b>mehrere</b> eulerstream-Keys, wechselt die App automatisch zum nächsten, sobald einer sein
+            Tageskontingent erreicht oder abgelehnt wird — der Stream steht dann nicht still. <b>Wichtig:</b> Das
+            Gratis-Kontingent gilt <b>pro Account</b>. Ein zweiter Key vom <i>gleichen</i> Konto läuft ins selbe Limit —
+            es braucht Keys aus <b>getrennten</b> eulerstream-Accounts. Der Wechsel greift ab <b>zwei</b> verschiedenen Keys
+            (der obige zählt als erster mit).
+          </p>
+          <textarea
+            value={fallbackKeys}
+            onChange={(e) => setFallbackKeys(e.target.value)}
+            placeholder={fallbackKeyCount > 0
+              ? `${fallbackKeyCount} hinterlegt — hier neu eintragen (ein Key je Zeile) ersetzt sie`
+              : 'euler_… (ein Key je Zeile, aus getrennten Accounts)'}
+            rows={3}
+            className="bx-input w-full font-mono text-xs"
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              onClick={commitFallbackKeys}
+              disabled={fallbackKeys.trim().length === 0}
+              className="bx-pill text-[11px] hover:text-studio-accent disabled:opacity-40"
+              title="Diese Ausweich-Keys speichern (ersetzt die bisherigen)"
+            >
+              Ausweich-Keys speichern
+            </button>
+            <span className="text-[11px] text-studio-muted">
+              {fallbackKeyCount > 0 ? `${fallbackKeyCount} hinterlegt` : 'keine hinterlegt'}
+            </span>
+            {fallbackKeyCount > 0 && (
+              <ConfirmButton
+                onConfirm={() => { setFallbackKeys(''); void window.studio.updateSettings({ tiktokSignApiKeys: [] }); setFallbackKeyCount(0); toast('info', 'Ausweich-Keys geleert.'); }}
+                confirmLabel="Alle Ausweich-Keys löschen?"
+                className="bx-pill text-[11px] hover:text-studio-accent"
+                title="Alle hinterlegten Ausweich-Keys entfernen"
+              >
+                Leeren
+              </ConfirmButton>
+            )}
+          </div>
+        </div>
 
         <div className="mt-3 rounded-lg border border-studio-teal/30 bg-studio-teal/5 p-2.5 text-[11px] text-studio-muted">
           💡 <b className="text-studio-fg">Gut zu wissen:</b> Nach dem Verbinden wartet die App, bis <b>du live gehst</b> — solange steht oben <span className="font-mono">„warte auf Live"</span>. Das ist <b>kein Fehler</b>: Sobald dein Live startet, verbindet sie sich automatisch. Den Key-Status siehst du oben rechts (<span className="text-emerald-300">Key gesetzt</span> / <span className="text-amber-300">Kein Key</span>).

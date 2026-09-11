@@ -88,6 +88,23 @@ export type CloudEmit =
   | { kind: 'streamEnd' }
   | { kind: 'disconnected' };
 
+/** Ein Cloud-Verbindungsfehler, der den WS-Close-Code STRUKTURELL mitträgt.
+ *
+ *  Der Wortlaut der Meldung bleibt unverändert (die App klassifiziert ihn
+ *  weiterhin per Text — isOfflineError/isSignServerError). Der Code kommt nur
+ *  ZUSÄTZLICH dazu, damit der Key-Rotator 4401/4403 (Key abgelehnt) von 1011
+ *  (Kontingent ODER Streamer offline) unterscheiden kann, ohne im Text zu raten. */
+export interface CloudCloseError extends Error {
+  cloudCloseCode?: number;
+}
+
+/** Nutzlast des 'disconnected'-Signals bei einem Abriss von außen — trägt den
+ *  WS-Close-Code, damit der Adapter/Rotator entscheiden kann. Ein selbst
+ *  ausgelöstes disconnect() sendet nichts (Handler sind dann abgeräumt). */
+export interface CloudDisconnectInfo {
+  code?: number;
+}
+
 /** Direkte Typ→Event-Tabelle (entspricht tiktok-live-connector WebcastEventMap). */
 const TYPE_TO_EVENT: Record<string, CloudEmitEvent> = {
   WebcastChatMessage: 'chat',
@@ -709,7 +726,11 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
         if (!this.settled) {
           this.settled = true;
           clearTimeout(timer);
-          reject(new Error(closeRejectMessage(Number(code), reason)));
+          // Der Text bleibt wie er war (Klassifizierung per Regex im Adapter);
+          // die Zahl reist als Zusatzfeld mit, für den Key-Rotator.
+          const fehler = new Error(closeRejectMessage(Number(code), reason)) as CloudCloseError;
+          fehler.cloudCloseCode = Number(code);
+          reject(fehler);
           return;
         }
         // Selbst ausgelöster Close (disconnect) → keine Geister-Events.
@@ -723,7 +744,9 @@ export class EulerCloudConnection extends EventEmitter implements LiveConnection
         log.warn('TikTok', `Die Cloud-Leitung wurde von außen geschlossen (Code ${code}${reason ? `, Grund: ${reason}` : ', ohne Angabe'}) `
           + '— das war NICHT das reguläre Stream-Ende. Typisch: kurzer Internet-Aussetzer, oder eulerstream hat die Verbindung gekappt. '
           + 'Die App verbindet gleich automatisch neu.');
-        this.emit('disconnected');
+        // Code strukturell mitgeben (CloudDisconnectInfo): Der Adapter reicht ihn
+        // an den Key-Rotator, der bei 4401/4403/1011 den Key wechselt.
+        this.emit('disconnected', { code: Number(code) } satisfies CloudDisconnectInfo);
       });
 
       ws.on('error', (err: { message?: string } | undefined) => {
