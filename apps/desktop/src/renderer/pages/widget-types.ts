@@ -144,7 +144,7 @@ export const FRAME_FIELD: PropField = {
 // Der Geschenkzähler stand hier, solange KEINER seiner Stile eine Fläche hatte.
 // Seit den Bühnen-Stilen (Studio, Vitrine, Museum) hat er eine — und gerade dann
 // braucht man den Schalter: im Overlay ist oft kein Platz für einen Kasten.
-export const NO_FRAME_TOGGLE = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'gift-jar', 'goal-bar', 'top-rotator', 'combo']);
+export const NO_FRAME_TOGGLE = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'gift-jar', 'goal-bar', 'top-rotator', 'combo', 'herz-alarm']);
 
 /** „Premium-Effekte" — eine zuschaltbare Gestaltungs-Ebene für JEDES Widget.
  *  Die Regeln liegen gebündelt in widget-base.css unter .bx-premium; die
@@ -156,7 +156,7 @@ export const POLISH_FIELD: PropField = {
 };
 /** Reine Vollflächen-Effekte: dort gibt es kein Panel und keine Bilder, an
  *  denen die Premium-Ebene ansetzen könnte. */
-export const NO_POLISH = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'combo']);
+export const NO_POLISH = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'combo', 'herz-alarm']);
 
 /** Schriftart/Größe/Farbe werden universell an JEDES Widget angehängt (außer reine
  *  Effekt-Widgets ohne Text) — dedupliziert, damit Widgets, die sie schon haben,
@@ -167,7 +167,7 @@ export const UNIVERSAL_STYLE_FIELDS: PropField[] = [FONT_FIELD, SIZE_FIELD, TEXT
 // Draussen bleiben nur die, bei denen er nichts tun koennte: Feuerwerk und
 // Kanone zeichnen ihren Text auf Canvas, Emojis haben ein eigenes Groessen-
 // Feld, und das Medien-Widget zeigt ausser dem Platzhalter keinen Text.
-export const NO_STYLE_FIELDS = new Set(['gift-fireworks', 'gift-cannon', 'emojify', 'media']);
+export const NO_STYLE_FIELDS = new Set(['gift-fireworks', 'gift-cannon', 'emojify', 'media', 'herz-alarm']);
 
 /** Nur die Textgröße ist sinnvoll, Schriftart + Textfarbe nicht: Herz-Regen
  *  zeigt Emojis und Avatar-Kreise mit Initialen — keinen Fließtext, für den

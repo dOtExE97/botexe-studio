@@ -18,9 +18,10 @@
 // }
 //
 // Die drei Motive sind mit der App gebündelt (assets/herz-anim/*.webm) und
-// werden vom Overlay-Server unter /herz-anim/<datei> ausgeliefert. Weitere
-// Motive (Collection 02) kommen später über die Medien-Bibliothek dazu —
-// deshalb ist MOTIVE eine Liste, keine feste Dreierschaltung.
+// werden vom Overlay-Server unter /herz-anim/<datei> ausgeliefert. Sechs weitere
+// (Collection 02) holt ein Knopf im Panel als Zusatzpaket von einem
+// GitHub-Release (herz-pack.ts) in denselben Ordner — deshalb ist MOTIVE ein
+// Katalog und das Widget fragt per /herz-anim-index, welche wirklich da sind.
 
 // Die Geschenk-Nummer des Teamherzens bei TikTok. KOPIE von TEAMHERZ_GIFT_ID in
 // apps/desktop/src/main/services/intro.ts — reines JS kann die TypeScript-Seite
@@ -251,6 +252,12 @@ export default class HerzAlarm {
   spiele() {
     const id = waehleMotiv(this.motivWunsch, this.letzteId, this.verfuegbar);
     if (!id) return; // kein Motiv verfügbar (sollte nie sein — gebündelte sind da)
+    // Läuft schon eine Animation (zweites Teamherz kurz nach dem ersten), deren
+    // Sicherheits-Aus- und Aufräum-Timer ZUERST löschen. Sonst beendet der alte
+    // 8-Sekunden-Timer die neue Animation mitten drin — fällt nur bei dichten
+    // Auslösern auf, genau im vollen Live.
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
     this.letzteId = id;
     this.merkeId(id);
 
