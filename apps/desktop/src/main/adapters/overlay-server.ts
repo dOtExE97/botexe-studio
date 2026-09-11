@@ -81,6 +81,9 @@ export interface OverlayServerOptions {
   giftImagesDir?: string;
   /** Lokal gespeicherte Sticker-Bilder — gleiche Begründung wie oben. */
   stickerImagesDir?: string;
+  /** Herz-Animationen (.webm mit Alpha): mehrere Ordner — gebündelt (assets,
+   *  read-only) UND nachgeladen (userData). Die Route sucht der Reihe nach. */
+  herzAnimDirs?: string[];
   /** Spotify-OAuth-Redirect-Callback (ohne Token-Auth — Spotify redirectet pur). */
   onSpotifyCallback?: (code: string, state: string) => Promise<{ ok: boolean; error?: string }>;
   /** Letzter Now-Playing-Stand für Late-Joiner (Spotify-Widget startet nicht leer). */
@@ -353,6 +356,49 @@ export class OverlayServer {
     // Sticker sind Bilder aus dem Chat. Sie liegen lokal, weil TikToks Adressen
     // ablaufen — ohne Kopie wären die Kacheln nach ein paar Tagen leer.
     this.expressApp.get('/sticker-img/:filename', auth, bildAusOrdner(this.options.stickerImagesDir, 'Sticker-Bilder'));
+
+    // Herz-Animationen: transparente .webm (VP9+Alpha) für das Herz-Alarm-Widget.
+    // Eigene Route statt bildAusOrdner, weil dort nur Bild-Endungen erlaubt sind
+    // und hier Video ausgeliefert wird. Sonst dieselbe Absicherung: basename +
+    // aufgelösten Pfad prüfen, damit kein Ausbruch aus dem Ordner möglich ist.
+    // Einen .webm-Dateinamen im ersten Ordner finden, der ihn hat. Gibt den
+    // vollen Pfad zurück oder null. Dieselbe Absicherung wie bei den Bildern:
+    // basename + aufgelösten Pfad prüfen (kein Ausbruch).
+    const herzDateiFinden = (rawName: unknown): string | null => {
+      const dirs = this.options.herzAnimDirs ?? [];
+      const filename = path.basename(Array.isArray(rawName) ? (rawName[0] ?? '') : String(rawName ?? ''));
+      if (!/\.webm$/i.test(filename)) return null;
+      for (const dir of dirs) {
+        const basis = path.resolve(dir);
+        const target = path.resolve(basis, filename);
+        const rel = path.relative(basis, target);
+        if (rel === '' || rel.startsWith('..') || rel.includes(path.sep) || path.isAbsolute(rel)) continue;
+        if (fs.existsSync(target)) return target;
+      }
+      return null;
+    };
+
+    this.expressApp.get('/herz-anim/:filename', auth, (req, res) => {
+      const target = herzDateiFinden(req.params.filename);
+      if (!target) { res.status(404).send('Not found'); return; }
+      res.setHeader('Content-Type', 'video/webm');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      fs.createReadStream(target).pipe(res);
+    });
+
+    // Welche Motive sind da? Liste aller .webm über alle Ordner (Dateiname ohne
+    // Endung = Motiv-id). Das Widget fragt das ab, um die Rotation nur über
+    // vorhandene Motive laufen zu lassen und geladene Pack-Motive zu erkennen.
+    this.expressApp.get('/herz-anim-index', auth, (_req, res) => {
+      const gefunden = new Set<string>();
+      for (const dir of this.options.herzAnimDirs ?? []) {
+        try {
+          for (const f of fs.readdirSync(dir)) if (/\.webm$/i.test(f)) gefunden.add(f);
+        } catch { /* Ordner existiert (noch) nicht — ok */ }
+      }
+      res.setHeader('Cache-Control', 'no-store');
+      res.json([...gefunden].map((datei) => ({ id: datei.replace(/\.webm$/i, ''), datei })));
+    });
 
     // Sport-Liveticker: das Widget pollt hier, der Main holt+cacht von der API.
     this.expressApp.get('/sport', auth, (req, res) => {

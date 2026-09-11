@@ -28,7 +28,7 @@ export const POPULAR_WIDGETS = [
 // dann im falschen Tab unauffindbar (genau so verschwand mal die halbe
 // Spiele-Sammlung in „Ambient & Deko").
 export const CATEGORY_OF: Record<string, string> = {
-  'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts', 'gift-cannon': 'alerts', 'action-screen': 'alerts',
+  'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts', 'gift-cannon': 'alerts', 'action-screen': 'alerts', 'herz-alarm': 'alerts',
   bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele', giveaway: 'spiele', 'gift-battle': 'spiele', 'live-poll': 'spiele',
   // Der Automat FEHLTE hier und landete dadurch still in „Ambient & Deko" —
   // genau die Falle, vor der der Kommentar oben warnt. Ein Wächter-Test hält

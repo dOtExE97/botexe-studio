@@ -300,6 +300,40 @@ export const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'herz-alarm', label: 'Herz-Alarm', desc: 'Große 3D-Herz-Animation formatfüllend über dem Bild — bei Teamherz (oder anderem Auslöser). Mehrere Motive, wahlweise abwechselnd, mit Name + Profilbild des Gebers.',
+    w: 1080, h: 1920, props: { motiv: 'rotation', event: 'teamherz', minLevel: 0, sound: 'original', soundId: '', showUser: true, userText: '💜 {name} ist Teil des Teams', accent: '#ff4d8d' },
+    fields: [
+      { key: 'motiv', label: 'Motiv', type: 'select', hint: '„Alle abwechselnd" zeigt bei jedem Auslöser das nächste Motiv der Reihe nach. Oder ein festes wählen. (Weitere Motive lassen sich später als Zusatz-Pack laden.)', options: [
+        { value: 'rotation', label: '🔀 Alle abwechselnd (Standard)' },
+        { value: 'royal', label: '👑 Royal Boss' },
+        { value: 'kiss', label: '💋 Kiss Flight' },
+        { value: 'angel', label: '😇 Angel Crown' },
+        { value: 'neon-dj', label: '🎧 Neon DJ (Zusatzpaket)' },
+        { value: 'cyber-gamer', label: '🎮 Cyber Gamer (Zusatzpaket)' },
+        { value: 'solar-hero', label: '🦸 Solar Hero (Zusatzpaket)' },
+        { value: 'rockstar', label: '🎸 Rockstar (Zusatzpaket)' },
+        { value: 'galaxy-rider', label: '🚀 Galaxy Rider (Zusatzpaket)' },
+        { value: 'golden-jackpot', label: '💰 Golden Jackpot (Zusatzpaket)' },
+      ] },
+      { key: 'event', label: 'Auslöser', type: 'select', hint: 'Worauf die Animation reagiert. Standard ist Teamherz (Fanclub-Beitritt oder Teamherz-Geschenk).', options: [
+        { value: 'teamherz', label: '💜 Teamherz (Standard)' },
+        { value: 'gift', label: '🎁 Jedes Geschenk' },
+        { value: 'follow', label: '➕ Neuer Follower' },
+        { value: 'sub', label: '⭐ Neuer Sub' },
+      ] },
+      { key: 'minLevel', label: 'Erst ab Teamherz-Stufe', type: 'number', hint: '0 = jede Stufe löst aus. Höher = nur ab dieser Teamherz-Stufe. Gilt nur beim Auslöser Teamherz.', showIf: (p) => (p.event ?? 'teamherz') === 'teamherz' },
+      { key: 'sound', label: 'Sound', type: 'select', hint: '„Original" = der Ton, der in der Animation steckt (kommt über die Browserquelle in den Stream). „Eigener" = dein Sound über die App. „Aus" = stumm.', options: [
+        { value: 'original', label: '🔊 Original-Sound' },
+        { value: 'custom', label: '🎵 Eigener Sound' },
+        { value: 'off', label: '🔇 Aus' },
+      ] },
+      { key: 'soundId', label: 'Eigener Sound', type: 'sound', hint: 'Spielt beim Auslösen über die App.', showIf: (p) => p.sound === 'custom' },
+      { key: 'showUser', label: 'Name + Profilbild zeigen', type: 'boolean', hint: 'Blendet unten ein, wer das Teamherz geschickt hat — mit rundem Profilbild.' },
+      { key: 'userText', label: 'Text', type: 'text', hint: 'Der Platzhalter {name} wird durch den Namen ersetzt. Beispiele: „💜 {name} ist Teil des Teams", „{name} lässt ein Teamherz da".', showIf: (p) => p.showUser !== false },
+      ACCENT_FIELD,
+    ],
+  },
+  {
     type: 'hype-train', label: 'Hype-Train', desc: 'Ein Hype-Balken, den Geschenke & Likes füllen: Stufe für Stufe steigt das Level, die Farben werden wilder, beim Aufstieg gibt es einen Sound. Perfekt, um den Chat anzuheizen.',
     w: 560, h: 150, props: { style: 'zug', coinsPerPoint: 1, likesPerPoint: 10, levelStep: 200, maxLevels: 5, windowSec: 30, title: 'Hype-Train', levelSoundId: 'botexe-gewinn.wav', accent: '#ff4d2e' },
     fields: [

@@ -3,6 +3,31 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [Unveröffentlicht]
+
+### Neues Widget: Herz-Alarm
+
+Große 3D-Herz-Animationen, die formatfüllend und transparent über dem Videobild
+laufen — für den Moment, in dem jemand ein Teamherz dalässt.
+
+- **10 Motive**: 3 sind mit der App dabei (Royal Boss, Kiss Flight, Angel
+  Crown), 6 weitere (Neon DJ, Cyber Gamer, Solar Hero, Rockstar, Galaxy Rider,
+  Golden Jackpot) lädt ein Knopf im Widget einmalig von GitHub nach.
+- **Standard „Alle abwechselnd"** — bei jedem Auslöser das nächste Motiv der
+  Reihe nach, nur über die tatsächlich vorhandenen. Oder ein festes wählen.
+- **Auslöser** Teamherz (fängt beide Wege ab: Fanclub-Beitritt und
+  Teamherz-Geschenk), optional erst ab einer Mindeststufe. Umstellbar auf
+  Geschenk, Follower oder Sub.
+- **Sound**: Original (steckt im Video), eigener Sound über die App, oder aus.
+- **Name + Profilbild** des Gebers werden unten eingeblendet, mit frei
+  einstellbarem Text (Platzhalter `{name}`), z. B. „💜 {name} ist Teil des
+  Teams".
+
+Technisch: transparente WebM (VP9 + Alpha) — im Overlay echt transparent, kein
+schwarzer Kasten. Das Zusatzpaket wird wie die Geschenk-Bilder von einem
+GitHub-Release geladen und lokal entpackt (nur github.com-Adressen erlaubt,
+strenge Namensprüfung gegen Ausbruch aus dem Ordner).
+
 ## [0.56.0] — 2026-08-30
 
 Ein Release mit zwei Schwerpunkten: **Widgets finden** und **der

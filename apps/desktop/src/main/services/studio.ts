@@ -43,6 +43,7 @@ import { kannFortsetzung, istFortsetzung } from './session-continuity';
 import { istErsterAuftritt, PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { StickerCatalog } from './sticker-catalog';
+import { ladeHerzPaket } from './herz-pack';
 import { ProfileStore, type ProfileMeta } from './profile-store';
 import { decryptTfc } from './tikfinity-decrypt';
 import { mapTikfinity, collectSoundUrls, mapWidgets } from './tikfinity-map';
@@ -111,6 +112,8 @@ export interface StudioPaths {
   userDataDir: string;
   runtimeDir: string;
   widgetDir: string;
+  /** Gebündelte App-Ressourcen (assets/) — u.a. die Herz-Animationen. */
+  assetsDir: string;
   /** App-Version → an die Overlay-Runtime, die bei Wechsel automatisch neu lädt. */
   appVersion?: string;
 }
@@ -262,7 +265,10 @@ export class Studio {
    *  (Stück 4, Task 3) — verhindert Spam-Überlagerung, s. maybeLuckyDrawByCommand(). */
   private luckyDrawCooldowns = new Map<string, number>();
 
+  private readonly paths: StudioPaths;
+
   constructor(paths: StudioPaths, hooks: StudioHooks) {
+    this.paths = paths;
     this.hooks = hooks;
     // Dritter Parameter: Kommen Einstellungen nicht auf die Platte, sieht der
     // Streamer das jetzt — vorher passierte das vollkommen stumm.
@@ -325,6 +331,9 @@ export class Studio {
       onGameWin: (_winId, user) => this.recordGameWin(user),
       giftImagesDir: this.giftCatalog.getImagesDir(),
       stickerImagesDir: this.stickerCatalog.getImagesDir(),
+      // Zwei Quellen: die 3 gebündelten (read-only in assets/) und die per Pack
+      // geladenen (beschreibbar in userData/). Die Route sucht in beiden.
+      herzAnimDirs: [path.join(paths.assetsDir, 'herz-anim'), path.join(paths.userDataDir, 'herz-anim')],
       getGiftCatalog: () => this.getGiftCatalog(),
       getTriggerRules: () => this.getRulesForOverlay(),
       onSpotifyCallback: (code, state) => this.onSpotifyCallback(code, state),
@@ -1389,6 +1398,14 @@ export class Studio {
   /** Wo wird ein Medium überall benutzt? Vor dem Löschen wissen, was man
    *  kaputtmacht — ein gelöschtes Intro wäre sonst still weg, und der Streamer
    *  merkt es erst, wenn im Stream nichts passiert. */
+  /** Lädt das Herz-Animations-Zusatzpaket in den beschreibbaren Ordner
+   *  (userData/herz-anim). Die 3 gebündelten Motive liegen woanders (assets/)
+   *  und bleiben unberührt. */
+  async downloadHerzPack(aufFortschritt?: (p: { geladen: number; gesamt: number }) => void): Promise<{ ok: boolean; geschrieben?: number; uebersprungen?: number; error?: string }> {
+    const ziel = path.join(this.paths.userDataDir, 'herz-anim');
+    return ladeHerzPaket(ziel, aufFortschritt);
+  }
+
   medienVerwendung(mediaId: string): { widgets: string[]; zuschauer: string[]; regeln: string[] } {
     const widgets: string[] = [];
     for (const layout of this.layouts.list()) {
@@ -3136,6 +3153,7 @@ export class Studio {
         userDataDir,
         runtimeDir: path.join(resourcesPath, 'runtime'),
         widgetDir: path.join(resourcesPath, 'widget-kit'),
+        assetsDir: path.join(resourcesPath, 'assets'),
       };
     }
     // Dev: Monorepo-Pfade relativ zu apps/desktop
@@ -3143,6 +3161,7 @@ export class Studio {
       userDataDir,
       runtimeDir: path.join(appPath, '../../packages/overlay-engine/runtime'),
       widgetDir: path.join(appPath, '../../packages/widget-kit'),
+      assetsDir: path.join(appPath, 'assets'),
     };
   }
 }

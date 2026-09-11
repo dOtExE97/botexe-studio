@@ -1561,6 +1561,7 @@ export default function OverlayPage() {
                   {content.length > 0 && (
                     <PanelSection title="Inhalt & Verhalten" dot="#33e3c6">
                       {content.map(renderField)}
+                      {selectedDef?.type === 'herz-alarm' && <HerzPackKnopf />}
                     </PanelSection>
                   )}
 
@@ -1682,5 +1683,46 @@ function GalleryCell({ type, w, h, props, overlayBase, label, active, onPick }: 
       </div>
       <div className={`px-2 py-1.5 text-[11px] font-bold ${active ? 'text-studio-accent' : 'text-studio-text'}`}>{active ? '✓ ' : ''}{label}</div>
     </button>
+  );
+}
+
+/** Knopf im Herz-Alarm-Panel: lädt das Zusatzpaket mit den 6 weiteren Motiven
+ *  von GitHub (einmalig) und zeigt den Fortschritt. Steht bewusst außerhalb des
+ *  Feld-Systems — es ist kein Widget-Prop, sondern eine einmalige Aktion. */
+function HerzPackKnopf() {
+  const [status, setStatus] = useState<'idle' | 'laden' | 'fertig' | 'fehler'>('idle');
+  const [prozent, setProzent] = useState(0);
+  const [meldung, setMeldung] = useState('');
+  useEffect(() => window.studio.onHerzPackProgress?.((p: { geladen: number; gesamt: number }) => {
+    setProzent(p.gesamt > 0 ? Math.round((p.geladen / p.gesamt) * 100) : 0);
+  }), []);
+
+  const laden = () => {
+    setStatus('laden'); setProzent(0); setMeldung('');
+    void window.studio.downloadHerzPack?.()
+      .then((r: { ok: boolean; geschrieben?: number; error?: string }) => {
+        if (r?.ok) { setStatus('fertig'); setMeldung(`${r.geschrieben ?? 0} weitere Motive geladen — jetzt im Motiv-Menü wählbar.`); }
+        else { setStatus('fehler'); setMeldung(r?.error || 'Download fehlgeschlagen.'); }
+      })
+      .catch((e: unknown) => { setStatus('fehler'); setMeldung(String((e as Error)?.message || e)); });
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-studio-border bg-studio-raised p-2.5">
+      <div className="text-[10px] uppercase tracking-widest text-studio-muted">Weitere Motive</div>
+      <div className="mt-0.5 mb-2 text-[11px] leading-snug text-studio-text">
+        6 zusätzliche Animationen (Neon DJ, Cyber Gamer, Solar Hero, Rockstar, Galaxy Rider, Golden Jackpot). Einmal laden, danach im Motiv-Menü wählbar.
+      </div>
+      <button
+        onClick={laden}
+        disabled={status === 'laden'}
+        className="w-full rounded-md bg-studio-accent/15 px-3 py-1.5 text-[11px] font-bold text-studio-accent transition-colors hover:bg-studio-accent hover:text-black disabled:opacity-50"
+      >
+        {status === 'laden' ? `Lädt… ${prozent}%` : status === 'fertig' ? '✓ Motive geladen' : '6 weitere Motive laden (~50 MB)'}
+      </button>
+      {meldung && (
+        <div className={`mt-1.5 text-[10px] leading-snug ${status === 'fehler' ? 'text-red-400' : 'text-studio-teal'}`}>{meldung}</div>
+      )}
+    </div>
   );
 }

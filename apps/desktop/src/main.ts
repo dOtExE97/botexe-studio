@@ -52,6 +52,7 @@ if (started) {
 // Datei-Logs nachgetragen.
 /** Läuft gerade ein Geschenk-Bilder-Download? (nur einer gleichzeitig) */
 let giftBilderLaufend = false;
+let herzPackLaufend = false;
 
 let telemetrieStatus = 'aus (nicht zugestimmt)';
 // Läuft der Melder in DIESEM Programmlauf wirklich? Nicht dasselbe wie der
@@ -541,6 +542,17 @@ function registerIpc(): void {
       return r;
     } finally {
       giftBilderLaufend = false;
+    }
+  });
+  ipcMain.handle(IPC.HERZ_PACK_DOWNLOAD, async (e) => {
+    if (herzPackLaufend) return { ok: false, error: 'Download läuft bereits.' };
+    herzPackLaufend = true;
+    try {
+      return await isStudio().downloadHerzPack((p) => {
+        if (!e.sender.isDestroyed()) e.sender.send(IPC.HERZ_PACK_PROGRESS, p);
+      });
+    } finally {
+      herzPackLaufend = false;
     }
   });
   ipcMain.handle(IPC.SPOTIFY_BEGIN_AUTH, () => {

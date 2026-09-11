@@ -179,6 +179,9 @@ const api = {
   downloadGiftImages: (): Promise<{ ok: boolean; geschrieben?: number; uebersprungen?: number; error?: string }> =>
     ipcRenderer.invoke(IPC.GIFT_IMAGES_DOWNLOAD),
   onGiftImagesProgress: listen<{ geladen: number; gesamt: number }>(IPC.GIFT_IMAGES_PROGRESS),
+  downloadHerzPack: (): Promise<{ ok: boolean; geschrieben?: number; uebersprungen?: number; error?: string }> =>
+    ipcRenderer.invoke(IPC.HERZ_PACK_DOWNLOAD),
+  onHerzPackProgress: listen<{ geladen: number; gesamt: number }>(IPC.HERZ_PACK_PROGRESS),
   // Warum fehlen Gift-Bilder? (siehe GIFT_LIST_STATUS)
   getGiftListStatus: (): Promise<'unbekannt' | 'ok' | 'plan-noetig' | 'fehler'> =>
     ipcRenderer.invoke(IPC.GIFT_LIST_STATUS),
