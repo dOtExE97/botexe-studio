@@ -35,16 +35,16 @@ test('leseTar: nur .webm, wehrt Ausbruch und Fremd-Dateien ab', () => {
     tarEintrag('.versteckt.webm', Buffer.from('BOESE')),
     tarEintrag('royal.png', Buffer.from('BOESE')),        // falsche Endung
     tarEintrag('ordner/', Buffer.alloc(0), '5'),
-    tarEintrag('neon-dj.webm', Buffer.from('GUT')),
+    tarEintrag('signature-dj.webm', Buffer.from('GUT')),
   );
   const e = leseTar(archiv);
   assert.equal(e.length, 1, 'nur der harmlose .webm-Eintrag überlebt');
-  assert.equal(e[0]?.name, 'neon-dj.webm');
+  assert.equal(e[0]?.name, 'signature-dj.webm');
   assert.equal(e[0]?.daten.toString(), 'GUT');
 });
 
 test('istSichererName: nur schlichte .webm-Namen', () => {
-  for (const gut of ['neon-dj.webm', 'galaxy-rider.webm', 'a.WEBM']) {
+  for (const gut of ['signature-dj.webm', 'galaxy-rider.webm', 'a.WEBM']) {
     assert.equal(istSichererName(gut), true, gut);
   }
   for (const boese of ['', '../x.webm', 'a/b.webm', 'a\\b.webm', '.x.webm', 'x.mp4', 'x.webm.exe', 'x'.repeat(300) + '.webm']) {
@@ -54,7 +54,7 @@ test('istSichererName: nur schlichte .webm-Namen', () => {
 
 test('ladeHerzPaket: lädt, entpackt, überschreibt Vorhandenes NICHT', async (t) => {
   const archiv = tarArchiv(
-    tarEintrag('neon-dj.webm', Buffer.from('NEU-DJ')),
+    tarEintrag('signature-dj.webm', Buffer.from('NEU-DJ')),
     tarEintrag('galaxy-rider.webm', Buffer.from('NEU-GALAXY')),
   );
   const gz = zlib.gzipSync(archiv);
@@ -64,12 +64,12 @@ test('ladeHerzPaket: lädt, entpackt, überschreibt Vorhandenes NICHT', async (t
   t.after(() => server.close());
 
   const ziel = fs.mkdtempSync(path.join(os.tmpdir(), 'herzpack-'));
-  fs.writeFileSync(path.join(ziel, 'neon-dj.webm'), 'MEIN-EIGENES');
+  fs.writeFileSync(path.join(ziel, 'signature-dj.webm'), 'MEIN-EIGENES');
   const r = await ladeHerzPaket(ziel, undefined, `http://127.0.0.1:${port}/heart-pack.tar.gz`);
   assert.equal(r.ok, true, r.error);
   assert.equal(r.geschrieben, 1);
   assert.equal(r.uebersprungen, 1);
-  assert.equal(fs.readFileSync(path.join(ziel, 'neon-dj.webm'), 'utf-8'), 'MEIN-EIGENES');
+  assert.equal(fs.readFileSync(path.join(ziel, 'signature-dj.webm'), 'utf-8'), 'MEIN-EIGENES');
   assert.equal(fs.readFileSync(path.join(ziel, 'galaxy-rider.webm'), 'utf-8'), 'NEU-GALAXY');
 });
 

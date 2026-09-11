@@ -1,10 +1,11 @@
 // herz-pack.ts — Download des Zusatz-Pakets mit weiteren Herz-Animationen.
 //
 // Das Herz-Alarm-Widget bringt drei Motive gebündelt mit (assets/herz-anim,
-// read-only im Programm). Weitere Motive („Collection 02": Neon DJ, Cyber
-// Gamer, Solar Hero, Rockstar, Galaxy Rider, Golden Jackpot) sind mit ~50 MB zu
-// groß fürs Bündeln — sie liegen als Anhang einer GitHub-Version und werden auf
-// Knopfdruck EINMAL geladen. Danach kennt das Widget sie wie die gebündelten.
+// read-only im Programm). Sechs weitere Motive („Collection 07 — Ultimate Pro
+// Polish": Signature DJ, Cyber Gamer, Solar Hero, Rockstar, Galaxy Rider, Golden
+// Jackpot) sind mit ~100 MB zu groß fürs Bündeln — sie liegen als Anhang einer
+// GitHub-Version und werden auf Knopfdruck EINMAL geladen. Danach kennt das
+// Widget sie wie die gebündelten.
 //
 // Baugleich zu gift-image-pack.ts (Download + tar.gz + strenger tar-Leser),
 // nur mit .webm-Dateien und einem beschreibbaren Ziel (userData) statt der
@@ -21,12 +22,14 @@ import { log } from '../core/logger';
 /** Anhang einer GitHub-Version — nicht im Quellcode-Verlauf (die Videos sind
  *  groß und lassen sich als Anhang zurückziehen; ein Commit bleibt für immer). */
 export const HERZ_PACK_URL =
-  'https://github.com/dOtExE97/botexe-studio/releases/download/heart-pack-v1/heart-pack.tar.gz';
+  'https://github.com/dOtExE97/botexe-studio/releases/download/heart-pack-v2/heart-pack.tar.gz';
 
-/** Reißleine gegen ein unerwartet riesiges Paket (erwartet ~50 MB). */
+/** Reißleine gegen ein unerwartet riesiges Paket (erwartet ~100 MB). */
 const MAX_PACK_BYTES = 300 * 1024 * 1024;
-/** Einzeldatei-Grenze — ein Herz-Clip ist gut 10 MB, 25 MB lässt Luft. */
-const MAX_ENTRY_BYTES = 25 * 1024 * 1024;
+/** Einzeldatei-Grenze — ein Pro-Polish-Clip ist bis ~22 MB, 40 MB lässt Luft.
+ *  ZU KNAPP wäre still tödlich: leseTar überspringt ein zu großes Motiv wortlos,
+ *  dann fehlt es im Overlay, ohne dass irgendwo ein Fehler auftaucht. */
+const MAX_ENTRY_BYTES = 40 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 120_000;
 const MAX_REDIRECTS = 3;
 

@@ -308,7 +308,7 @@ export const WIDGET_TYPES: {
         { value: 'royal', label: '👑 Royal Boss' },
         { value: 'kiss', label: '💋 Kiss Flight' },
         { value: 'angel', label: '😇 Angel Crown' },
-        { value: 'neon-dj', label: '🎧 Neon DJ (Zusatzpaket)' },
+        { value: 'signature-dj', label: '🎧 Signature DJ (Zusatzpaket)' },
         { value: 'cyber-gamer', label: '🎮 Cyber Gamer (Zusatzpaket)' },
         { value: 'solar-hero', label: '🦸 Solar Hero (Zusatzpaket)' },
         { value: 'rockstar', label: '🎸 Rockstar (Zusatzpaket)' },

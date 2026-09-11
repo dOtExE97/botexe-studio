@@ -3,16 +3,17 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
-## [Unveröffentlicht]
+## [0.57.0] - 2026-09-11
 
 ### Neues Widget: Herz-Alarm
 
 Große 3D-Herz-Animationen, die formatfüllend und transparent über dem Videobild
 laufen — für den Moment, in dem jemand ein Teamherz dalässt.
 
-- **10 Motive**: 3 sind mit der App dabei (Royal Boss, Kiss Flight, Angel
-  Crown), 6 weitere (Neon DJ, Cyber Gamer, Solar Hero, Rockstar, Galaxy Rider,
-  Golden Jackpot) lädt ein Knopf im Widget einmalig von GitHub nach.
+- **9 Motive**: 3 sind mit der App dabei (Royal Boss, Kiss Flight, Angel
+  Crown), 6 weitere (Signature DJ, Cyber Gamer, Solar Hero, Rockstar, Galaxy
+  Rider, Golden Jackpot) lädt ein Knopf im Widget einmalig von GitHub nach — die
+  „Ultimate Pro Polish"-Fassung mit aufwändigeren Animationen und neuen Sounds.
 - **Standard „Alle abwechselnd"** — bei jedem Auslöser das nächste Motiv der
   Reihe nach, nur über die tatsächlich vorhandenen. Oder ein festes wählen.
 - **Auslöser** Teamherz (fängt beide Wege ab: Fanclub-Beitritt und

@@ -191,8 +191,8 @@ export const IPC = {
   GIFT_IMAGES_DOWNLOAD: 'gift:images-download',
   /** Fortschritt dieses Downloads (Main -> Renderer). */
   GIFT_IMAGES_PROGRESS: 'gift:images-progress',
-  /** Einmaliger Download des Herz-Animations-Zusatzpakets (~50 MB, GitHub-Anhang)
-   *  — die 6 „Collection 02"-Motive fuer das Herz-Alarm-Widget. */
+  /** Einmaliger Download des Herz-Animations-Zusatzpakets (~100 MB, GitHub-Anhang)
+   *  — die 6 „Collection 07"-Motive für das Herz-Alarm-Widget. */
   HERZ_PACK_DOWNLOAD: 'herz:pack-download',
   /** Fortschritt dieses Downloads (Main -> Renderer). */
   HERZ_PACK_PROGRESS: 'herz:pack-progress',

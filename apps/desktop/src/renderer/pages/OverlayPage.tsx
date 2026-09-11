@@ -1711,7 +1711,7 @@ function HerzPackKnopf() {
     <div className="mt-3 rounded-lg border border-studio-border bg-studio-raised p-2.5">
       <div className="text-[10px] uppercase tracking-widest text-studio-muted">Weitere Motive</div>
       <div className="mt-0.5 mb-2 text-[11px] leading-snug text-studio-text">
-        6 zusätzliche Animationen (Neon DJ, Cyber Gamer, Solar Hero, Rockstar, Galaxy Rider, Golden Jackpot). Einmal laden, danach im Motiv-Menü wählbar.
+        6 zusätzliche Animationen (Signature DJ, Cyber Gamer, Solar Hero, Rockstar, Galaxy Rider, Golden Jackpot). Einmal laden, danach im Motiv-Menü wählbar.
       </div>
       <button
         onClick={laden}

@@ -39,8 +39,8 @@ test('waehleMotiv: rotation läuft rund über die VERFÜGBAREN', () => {
 test('waehleMotiv: fester Wunsch gewinnt — aber nur wenn vorhanden', () => {
   const verf = ['royal', 'kiss', 'angel'];
   assert.equal(waehleMotiv('kiss', 'royal', verf), 'kiss');
-  assert.equal(waehleMotiv('neon-dj', 'royal', verf), 'kiss', 'Pack nicht installiert → Rotation');
-  assert.equal(waehleMotiv('neon-dj', 'royal', ['royal', 'kiss', 'angel', 'neon-dj']), 'neon-dj');
+  assert.equal(waehleMotiv('signature-dj', 'royal', verf), 'kiss', 'Pack nicht installiert → Rotation');
+  assert.equal(waehleMotiv('signature-dj', 'royal', ['royal', 'kiss', 'angel', 'signature-dj']), 'signature-dj');
 });
 
 test('waehleMotiv: leere Liste → null (kein Absturz)', () => {

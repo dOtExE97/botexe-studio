@@ -19,9 +19,9 @@
 //
 // Die drei Motive sind mit der App gebündelt (assets/herz-anim/*.webm) und
 // werden vom Overlay-Server unter /herz-anim/<datei> ausgeliefert. Sechs weitere
-// (Collection 02) holt ein Knopf im Panel als Zusatzpaket von einem
-// GitHub-Release (herz-pack.ts) in denselben Ordner — deshalb ist MOTIVE ein
-// Katalog und das Widget fragt per /herz-anim-index, welche wirklich da sind.
+// (Collection 07 — Ultimate Pro Polish) holt ein Knopf im Panel als Zusatzpaket
+// von einem GitHub-Release (herz-pack.ts) in denselben Ordner — deshalb ist
+// MOTIVE ein Katalog und das Widget fragt per /herz-anim-index, welche da sind.
 
 // Die Geschenk-Nummer des Teamherzens bei TikTok. KOPIE von TEAMHERZ_GIFT_ID in
 // apps/desktop/src/main/services/intro.ts — reines JS kann die TypeScript-Seite
@@ -36,7 +36,7 @@ export const MOTIVE = [
   { id: 'royal', datei: 'royal.webm', label: 'Royal Boss', gebuendelt: true },
   { id: 'kiss', datei: 'kiss.webm', label: 'Kiss Flight', gebuendelt: true },
   { id: 'angel', datei: 'angel.webm', label: 'Angel Crown', gebuendelt: true },
-  { id: 'neon-dj', datei: 'neon-dj.webm', label: 'Neon DJ' },
+  { id: 'signature-dj', datei: 'signature-dj.webm', label: 'Signature DJ' },
   { id: 'cyber-gamer', datei: 'cyber-gamer.webm', label: 'Cyber Gamer' },
   { id: 'solar-hero', datei: 'solar-hero.webm', label: 'Solar Hero' },
   { id: 'rockstar', datei: 'rockstar.webm', label: 'Rockstar' },
