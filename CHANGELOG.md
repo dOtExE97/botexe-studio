@@ -73,6 +73,11 @@ die Geschenktüte ist.
   Teamherz-Stufe sichtbar am Abzeichen, meldet die App das Level-Up sofort.
   Schickt TikTok den passenden Banner erst **mehr als 60 Sekunden** später,
   gilt er als neues Ereignis.
+- **„Superfan betritt das Live" zählt nicht mehr als Verlängerung**: Bisher
+  stand jeder Eintritt eines Superfans in der Auswertung als
+  Superfan-Verlängerung, und die Trigger-Bedingung „Nur Verlängerungen
+  (Treue)" feuerte bei jedem Eintritt. Jetzt zählen und feuern nur echte Abos
+  (neu oder verlängert).
 
 ## [0.59.1] - 2026-09-12
 
