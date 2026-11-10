@@ -15,6 +15,7 @@
 //   minLevel?: number                                  (nur bei event='teamherz')
 //   showUser?: boolean                                 (Name + Profilbild zeigen)
 //   userText?: string                                  ({name} = Nickname des Gebers)
+//   modus?: 'klassisch' | 'ereignisse'                 (fehlt = klassisch; ereignisse → ereignis-alarm.js)
 // }
 //
 // Die drei Motive sind mit der App gebündelt (assets/herz-anim/*.webm) und
@@ -22,6 +23,10 @@
 // (Collection 07 — Ultimate Pro Polish) holt ein Knopf im Panel als Zusatzpaket
 // von einem GitHub-Release (herz-pack.ts) in denselben Ordner — deshalb ist
 // MOTIVE ein Katalog und das Widget fragt per /herz-anim-index, welche da sind.
+
+// Modus „Ereignisse" (props.modus === 'ereignisse') lebt in einem eigenen Modul.
+// Ohne das Prop läuft unten exakt der alte Weg — bestehende Overlays bleiben gleich.
+import EreignisAlarm from './ereignis-alarm.js';
 
 // Die Geschenk-Nummer des Teamherzens bei TikTok. KOPIE von TEAMHERZ_GIFT_ID in
 // apps/desktop/src/main/services/intro.ts — reines JS kann die TypeScript-Seite
@@ -159,7 +164,8 @@ const CSS = `
   text-shadow:0 0 calc(var(--u) * 14) color-mix(in srgb, var(--bx-accent) 55%, transparent); }
 `;
 
-function ensureStyle() {
+/** Auch vom Ereignis-Modus benutzt (gleiche Namensleiste/Video-Basis). */
+export function ensureStyle() {
   if (!document.getElementById(STYLE_ID)) {
     const s = document.createElement('style');
     s.id = STYLE_ID;
@@ -170,6 +176,11 @@ function ensureStyle() {
 
 export default class HerzAlarm {
   constructor(root, props, ctx) {
+    // Modus „Ereignisse": alles an EreignisAlarm weiterreichen (this.impl).
+    if (props && props.modus === 'ereignisse') {
+      this.impl = new EreignisAlarm(root, props, ctx);
+      return;
+    }
     ensureStyle();
     this.ctx = ctx || {};
     this.props = props || {};
@@ -247,6 +258,7 @@ export default class HerzAlarm {
   }
 
   onEvent(event) {
+    if (this.impl) { this.impl.onEvent(event); return; }
     if (event.sticky) return; // Reconnect-Replay: keine Effekte nachfeuern
     if (this.ctx.preview) return; // in der Vorschau läuft der Dauer-Loop
     if (!trifftAusloeser(event, this.art, this.minLevel)) return;
@@ -321,9 +333,13 @@ export default class HerzAlarm {
     if (p && p.catch) p.catch(() => {});
   }
 
-  onReset() { this.aus(); }
+  onReset() {
+    if (this.impl) { this.impl.onReset(); return; }
+    this.aus();
+  }
 
   destroy() {
+    if (this.impl) { this.impl.destroy(); return; }
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
     try { this.video.pause(); this.video.removeAttribute('src'); this.video.load(); } catch { /* noop */ }
