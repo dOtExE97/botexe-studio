@@ -37,6 +37,10 @@ export type StudioEventType =
   /** Stufenaufstieg aus einem TikTok-Banner: Teamherz-Level oder
    *  Geschenke-Stufe, je nach `levelUp.art`. */
   | 'level_up'
+  /** TikTok-LIVE-Ziel: Fortschritt-Update (siehe `ziel`). */
+  | 'live_ziel'
+  /** Zuschauer mit hoher Geschenke-Stufe (VIP) betritt das Live (siehe `vip`). */
+  | 'vip_betritt'
   /** Zuschauer schickt ein Emote/Sticker — reines Beteiligungs-Signal. */
   | 'emote'
   /** Coin-Kiste / Schatztruhe (TikTok „envelope"), inkl. Superfan-Truhe.
@@ -228,6 +232,17 @@ export interface StudioEvent {
   superfanArt?: 'abo_neu' | 'abo_verlaengert' | 'betritt';
   /** Nur bei 'level_up': welche Stufe (Teamherz oder Geschenke) auf welchen Wert stieg. */
   levelUp?: { art: 'team' | 'gifter'; neu: number };
+  /** Nur bei 'live_ziel': Stand des TikTok-LIVE-Ziels (Summe über alle Teilziele). */
+  ziel?: {
+    id: string;
+    beschreibung?: string;
+    fortschritt: number;
+    ziel: number;
+    geschenk?: { name: string; id?: string };
+    erreicht: boolean;
+  };
+  /** Nur bei 'vip_betritt': Geschenke-Stufe des Zuschauers. */
+  vip?: { stufe: number };
   /** true = Test-/Replay-Event (Vorschau) — löst Overlay/TTS aus, wird aber NICHT
    *  persistent verbucht (keine echten Punkte/Coins/Likes, kein Gift-Katalog). */
   synthetic?: boolean;

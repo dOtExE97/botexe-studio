@@ -2913,7 +2913,7 @@ export class Studio {
     log.info('TTS', msg);
   }
 
-  /** Lesbare Logzeilen für Banner (Level-Up, Superfan) und Schatztruhen. */
+  /** Lesbare Logzeilen für Banner (Level-Up, Superfan, VIP), LIVE-Ziele und Schatztruhen. */
   private logBannerEreignis(e: StudioEvent): void {
     const name = e.user?.nickname ?? '—';
     if (e.type === 'level_up' && e.levelUp) {
@@ -2926,6 +2926,15 @@ export class Studio {
         log.gedrosselt(`superfan:betritt:${e.user?.id ?? name}`, 10 * 60_000, 'info', 'TikTok',
           `Superfan betritt das Live: ${name}`);
       }
+    } else if (e.type === 'vip_betritt' && e.vip) {
+      log.gedrosselt(`vip:betritt:${e.user?.id ?? name}`, 10 * 60_000, 'info', 'TikTok',
+        `VIP betritt das Live: ${name} (Geschenke-Stufe ${e.vip.stufe})`);
+    } else if (e.type === 'live_ziel' && e.ziel) {
+      const z = e.ziel;
+      const was = z.geschenk?.name ?? z.beschreibung ?? 'Ziel';
+      const text = `${z.fortschritt}/${z.ziel} ${was} — Beitrag von ${name}`;
+      if (z.erreicht) log.info('TikTok', `LIVE-Ziel erreicht: ${text}`);
+      else log.gedrosselt('live-ziel', 30_000, 'info', 'TikTok', `LIVE-Ziel: ${text}`);
     } else if (e.type === 'envelope' && e.envelope) {
       log.info('TikTok', `Schatztruhe von ${name}: ${e.envelope.coins} Coins, ${e.envelope.winners} Leute (Art ${e.envelope.businessType ?? '?'})`);
     }

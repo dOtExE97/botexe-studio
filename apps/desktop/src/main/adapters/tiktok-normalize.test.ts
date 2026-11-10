@@ -13,6 +13,7 @@ import {
   normalizeViewerCount,
   detectRoles,
   normalizeBarrage,
+  normalizeGoalUpdate,
 } from './tiktok-normalize';
 
 // Fixtures entsprechen den v2-Shapes aus tiktok-live-connector@2.1.1-beta1
@@ -778,6 +779,8 @@ test('normalizeBarrage: Echtform aus dem Mitschnitt (fans_upgrade)', () => {
 
 test('normalizeBarrage: Unbekanntes, ohne Nutzer oder ohne Stufe → null', () => {
   assert.equal(normalizeBarrage({ msgType: 9 }, 5), null);
+  assert.equal(normalizeBarrage({ msgType: 9, userGradeParam: { currentGrade: 0, user: { userId: '1', nickname: 'V' } } }, 5), null);
+  assert.equal(normalizeBarrage({ msgType: 9, userGradeParam: { currentGrade: 30 } }, 5), null);
   assert.equal(normalizeBarrage({ msgType: 10, fansLevelParam: { currentGrade: 12 } }, 5), null);
   assert.equal(normalizeBarrage({ msgType: 10, fansLevelParam: { currentGrade: 0, user: { userId: '1', nickname: 'Mia' } } }, 5), null);
   assert.equal(normalizeBarrage({}, 5), null);
@@ -800,4 +803,40 @@ test('normalizeEnvelope: businessType, envelopeId, Absender-Bild', () => {
   assert.equal(e?.envelope?.envelopeId, '77');
   assert.equal(e?.envelope?.coins, 20);
   assert.equal(e?.user?.profilePic, 'https://x/b.webp');
+});
+
+test('normalizeBarrage: VIP betritt (msgType 9, auch als Text) → vip_betritt mit Stufe', () => {
+  for (const msgType of [9, 'GRADE_USER_ENTRANCE_NOTIFICATION']) {
+    const e = normalizeBarrage({ msgType, subType: 'user_level_entrance', userGradeParam: { currentGrade: 32, user: { userId: '2', nickname: 'Steffi' } } }, 5);
+    assert.equal(e?.type, 'vip_betritt');
+    assert.deepEqual(e?.vip, { stufe: 32 });
+    assert.equal(e?.user?.gifterLevel, 32);
+    assert.equal(e?.user?.nickname, 'Steffi');
+  }
+});
+
+const ziel = (progress: string, extra: Record<string, unknown> = {}) => ({
+  goal: { id: 'g1', description: 'Sende Heart Me', subGoals: [{ id: '7934', progress, target: '50', gift: { name: 'Heart Me' } }] },
+  contributorIdStr: '9', contributorDisplayId: 'Alex', ...extra,
+});
+
+test('normalizeGoalUpdate: Mitschnitt-Format → live_ziel', () => {
+  const e = normalizeGoalUpdate(ziel('35'), 7);
+  assert.equal(e?.type, 'live_ziel');
+  assert.deepEqual(e?.ziel, { id: 'g1', beschreibung: 'Sende Heart Me', fortschritt: 35, ziel: 50, erreicht: false, geschenk: { name: 'Heart Me' } });
+  assert.equal(e?.user?.nickname, 'Alex');
+  assert.equal(e?.user?.id, '9');
+});
+
+test('normalizeGoalUpdate: erreicht, Summe über Teilziele, ohne id → null', () => {
+  assert.equal(normalizeGoalUpdate(ziel('50'), 7)?.ziel?.erreicht, true);
+  const zwei = normalizeGoalUpdate({ goal: { id: 'g2', subGoals: [
+    { progress: '10', target: '20' }, { progress: 5, target: 30, gift: { name: 'Rose', id: '5' } },
+  ] } }, 7);
+  assert.equal(zwei?.ziel?.fortschritt, 15);
+  assert.equal(zwei?.ziel?.ziel, 50);
+  assert.deepEqual(zwei?.ziel?.geschenk, { name: 'Rose', id: '5' });
+  assert.equal(zwei?.user, undefined);
+  assert.equal(normalizeGoalUpdate({ goal: { subGoals: [] } }, 7), null);
+  assert.equal(normalizeGoalUpdate({}, 7), null);
 });

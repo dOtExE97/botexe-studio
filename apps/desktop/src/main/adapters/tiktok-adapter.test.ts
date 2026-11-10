@@ -740,3 +740,22 @@ test('Banner: Teamherz-Level-Up wird veröffentlicht, unbekannte Art nicht', asy
   assert.equal(events.filter((e) => e.type === 'level_up').length, 1);
   assert.deepEqual(events.filter((e) => e.type !== 'viewer_count').map((e) => e.type), ['level_up'], 'Art 9 wird nicht veröffentlicht');
 });
+
+test('VIP betritt: derselbe Nutzer zweimal → ein vip_betritt; anderer Nutzer zusätzlich', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  const c = connections[0];
+  const vip = (id: string) => ({ msgType: 9, subType: 'user_level_entrance', userGradeParam: { currentGrade: 30, user: { userId: id, nickname: `V${id}` } } });
+  c?.emit('barrage', vip('1'));
+  c?.emit('barrage', vip('1'));
+  c?.emit('barrage', vip('2'));
+  assert.equal(events.filter((e) => e.type === 'vip_betritt').length, 2);
+});
+
+test('LIVE-Ziel: goalUpdate landet als live_ziel auf dem Bus', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  connections[0]?.emit('goalUpdate', { goal: { id: 'g1', subGoals: [{ progress: '50', target: '50', gift: { name: 'Heart Me' } }] }, contributorIdStr: '9', contributorDisplayId: 'Alex' });
+  const z = events.find((e) => e.type === 'live_ziel');
+  assert.equal(z?.ziel?.erreicht, true);
+});

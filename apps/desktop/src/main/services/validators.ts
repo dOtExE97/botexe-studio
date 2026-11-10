@@ -40,6 +40,8 @@ const EVENT_TYPES: ReadonlySet<string> = new Set<StudioEventType>([
   'timer',
   'superfan',
   'level_up',
+  'live_ziel',
+  'vip_betritt',
   'emote',
 ]);
 

@@ -28,6 +28,10 @@ import {
   normalizeEnvelope,
   normalizeSuperfan,
   normalizeBarrage,
+  normalizeGoalUpdate,
+  barrageTyp,
+  BARRAGE_AUSGEWERTET,
+  type RawGoalUpdate,
   type RawBarrage,
   normalizeEmote,
 } from './tiktok-normalize';
@@ -307,6 +311,8 @@ export class TikTokAdapter {
   private readonly seenMsgIds = new Map<string, number>();
   /** Wann zuletzt ein Superfan-Ereignis je Nutzer und Gruppe (abo/betritt)
    *  veröffentlicht wurde — gegen doppelte Meldungen derselben Sache. */
+  /** VIPs, die in dieser Verbindung schon gemeldet wurden (einmal je Nutzer). */
+  private readonly vipGemeldet = new Set<string>();
   private readonly superfanZuletzt = new Map<string, number>();
   /** Wie viele Replay-Nachrichten seit dem letzten Reconnect verworfen wurden.
    *  Pro Ereignis zu loggen wäre eine Flut — es geht als EINE Sammelzeile raus
@@ -954,13 +960,27 @@ export class TikTokAdapter {
       if (dedup(d)) return;
       const e = normalizeBarrage(d, this.now());
       if (e) {
-        if (e.type === 'superfan') publishSuperfan(e); else publish(e);
+        if (e.type === 'superfan') publishSuperfan(e);
+        else if (e.type === 'vip_betritt') {
+          // Je Nutzer einmal pro Verbindung (Spec: höchstens einmal pro Stream).
+          if (e.user && !this.vipGemeldet.has(e.user.id)) {
+            this.vipGemeldet.add(e.user.id);
+            publish(e);
+          }
+        } else publish(e);
         return;
       }
       const typ = d?.msgType ?? 'unbekannt';
-      log.einmal(`tiktok:barrage:${typ}`, 'info', 'TikTok',
-        `Banner-Art ${typ} (${d?.subType ?? 'ohne Untertyp'}) erkannt — die App wertet sie (noch) nicht aus.`);
+      const art = barrageTyp(d?.msgType);
+      if (BARRAGE_AUSGEWERTET.has(art)) {
+        log.einmal(`tiktok:barrage-leer:${art}`, 'info', 'TikTok',
+          `Banner-Art ${typ} (${d?.subType ?? 'ohne Untertyp'}) erkannt, aber ohne Nutzer/Stufe — übersprungen.`);
+      } else {
+        log.einmal(`tiktok:barrage:${typ}`, 'info', 'TikTok',
+          `Banner-Art ${typ} (${d?.subType ?? 'ohne Untertyp'}) erkannt — die App wertet sie (noch) nicht aus.`);
+      }
     }));
+    on('goalUpdate', guard((d: RawGoalUpdate) => { if (!dedup(d)) publish(normalizeGoalUpdate(d, this.now())); }));
     on('emote', guard((d: Parameters<typeof normalizeEmote>[0]) => { if (!dedup(d)) publish(normalizeEmote(d, this.now())); }));
     // Name und Bild des Streamers selbst (aus dem roomInfo-Rahmen).
     on('hostInfo', guard((d: HostInfo) => {
@@ -1039,6 +1059,7 @@ export class TikTokAdapter {
 
     on('streamEnd', guard(() => {
       log.info('TikTok', 'Stream beendet');
+      this.vipGemeldet.clear(); // nächster Stream: VIPs dürfen wieder gemeldet werden
       this.artenbuch.schreibeBericht();
       this.artenbuch.leeren();
       this.streamEnded = true;

@@ -32,6 +32,8 @@ const BEWUSST_DRAUSSEN = new Map<string, string>([
   ['firstFollow', 'entscheidet das Follow-Gedächtnis der App, nicht der Aufrufer'],
   ['superfanNeu', 'entscheidet die Normalisierung aus TikToks Daten'],
   ['superfanArt', 'entscheidet die Normalisierung aus TikToks Daten (Banner msgType bzw. Meldungsart)'],
+  ['ziel', 'entscheidet die Normalisierung aus TikToks LIVE-Ziel-Nachricht; die Test-Route kann es noch nicht setzen'],
+  ['vip', 'entscheidet die Normalisierung aus dem Banner (msgType 9); die Test-Route kann es noch nicht setzen'],
   ['levelUp', 'entscheidet die Normalisierung aus dem Banner (msgType 8/10); die Test-Route kann es noch nicht setzen'],
 ]);
 

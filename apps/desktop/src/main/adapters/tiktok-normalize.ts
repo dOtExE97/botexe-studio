@@ -639,11 +639,18 @@ export interface RawBarrage {
   commonBarrageContent?: Bausteine;
 }
 
+/** Banner-Arten, die normalizeBarrage kennt. Ein `null` bei einer dieser Arten
+ *  heißt „Nutzer oder Stufe fehlt", bei jeder anderen „Art nicht ausgewertet". */
+export const BARRAGE_AUSGEWERTET: ReadonlySet<number> = new Set([
+  BARRAGE_TYPEN.SUBSCRIBE, BARRAGE_TYPEN.SUBSCRIBE_GIFT, BARRAGE_TYPEN.USER_UPGRADE,
+  BARRAGE_TYPEN.GRADE_USER_ENTRANCE, BARRAGE_TYPEN.FANS_LEVEL_UPGRADE, BARRAGE_TYPEN.FANS_LEVEL_ENTRANCE,
+]);
+
 /** msgType als Zahl: kommt als Zahl (Mitschnitt) oder als Name der Aufzählung. */
 export function barrageTyp(roh: number | string | undefined): number {
   if (typeof roh === 'number') return roh;
   if (typeof roh !== 'string' || !roh) return 0;
-  const named = (BARRAGE_TYPEN as Record<string, number>)[roh.trim().toUpperCase()];
+  const named = (BARRAGE_TYPEN as Record<string, number>)[roh.trim().toUpperCase().replace(/_NOTIFICATION$/, '')];
   if (named) return named;
   const n = parseInt(roh, 10);
   return Number.isFinite(n) ? n : 0;
@@ -679,6 +686,12 @@ export function normalizeBarrage(data: RawBarrage, ts: number): StudioEvent | nu
       const user = toUser(data.user ?? ausBausteinen ?? data.fansLevelParam?.user);
       if (!user) return null;
       return { type: 'superfan', ts, user, superfanNeu: true, superfanArt: 'abo_neu' };
+    }
+    case BARRAGE_TYPEN.GRADE_USER_ENTRANCE: {
+      const stufe = ersteZahl(data.userGradeParam?.currentGrade);
+      const user = toUser(data.userGradeParam?.user);
+      if (!user || stufe <= 0) return null;
+      return { type: 'vip_betritt', ts, user: { ...user, gifterLevel: stufe }, vip: { stufe } };
     }
     case BARRAGE_TYPEN.FANS_LEVEL_ENTRANCE: {
       const user = toUser(data.fansLevelParam?.user);
@@ -797,5 +810,53 @@ export function normalizeViewerCount(
     ...(data.anonymous !== undefined ? { anonymousViewers: zahl(data.anonymous) } : {}),
     ...(beste.length > 0 ? { raumBeste: beste } : {}),
     ...(beliebtheit > 0 ? { beliebtheit } : {}),
+  };
+}
+
+export interface RawGoalUpdate {
+  goal?: {
+    id?: string | number;
+    description?: string;
+    subGoals?: Array<{
+      id?: string | number;
+      progress?: number | string;
+      target?: number | string;
+      gift?: { name?: string; id?: string | number };
+    }>;
+  };
+  contributorId?: string | number;
+  contributorIdStr?: string;
+  contributorDisplayId?: string;
+}
+
+/**
+ * TikTok-LIVE-Ziel (WebcastGoalUpdateMessage). Felder belegt im Mitschnitt vom
+ * 10.11.2026. Fortschritt und Ziel sind die Summen über alle Teilziele; der
+ * Beitragende hat nur Name und ID, kein Profilbild. Ohne `goal.id` → null.
+ */
+export function normalizeGoalUpdate(data: RawGoalUpdate, ts: number): StudioEvent | null {
+  const goal = data?.goal;
+  const id = String(goal?.id ?? '').trim();
+  if (!goal || !id) return null;
+  const teile = goal.subGoals ?? [];
+  const fortschritt = teile.reduce((a, t) => a + zahl(t.progress), 0);
+  const zielwert = teile.reduce((a, t) => a + zahl(t.target), 0);
+  const gift = teile.map((t) => t.gift).find((g) => g?.name);
+  const beschreibung = goal.description?.trim();
+  const uid = String(data.contributorIdStr || data.contributorId || '').trim();
+  const name = String(data.contributorDisplayId ?? '').trim();
+  const user: StudioUser | undefined = uid || name ? { id: uid || name, nickname: name || uid } : undefined;
+  return {
+    type: 'live_ziel',
+    ts,
+    ...(user ? { user } : {}),
+    ziel: {
+      id,
+      ...(beschreibung ? { beschreibung } : {}),
+      fortschritt,
+      ziel: zielwert,
+      ...(gift?.name ? { geschenk: { name: gift.name, ...(gift.id != null && gift.id !== '' ? { id: String(gift.id) } : {}) } } : {}),
+      erreicht: zielwert > 0 && fortschritt >= zielwert,
+    },
   };
 }

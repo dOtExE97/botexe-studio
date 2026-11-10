@@ -39,7 +39,7 @@ export function buildCloudUrl(opts: { uniqueId: string; apiKey: string; baseUrl?
 
 export type CloudEmitEvent = 'chat' | 'gift' | 'like' | 'follow' | 'share' | 'member' | 'roomUser'
   | 'subNotify' | 'envelope' | 'superFan' | 'superFanJoin' | 'emote' | 'rankUpdate'
-  | 'linkMicBattle' | 'linkMicArmies' | 'roomPin' | 'barrage';
+  | 'linkMicBattle' | 'linkMicArmies' | 'roomPin' | 'barrage' | 'goalUpdate';
 
 /** Name, Bild und Livetitel des STREAMERS selbst.
  *
@@ -190,6 +190,9 @@ const TYPE_TO_EVENT: Record<string, CloudEmitEvent> = {
   // Welche Art ein Banner ist, entscheidet normalizeBarrage anhand von msgType.
   WebcastBarrageMessage: 'barrage',
   barrage: 'barrage',
+  // TikTok-LIVE-Ziel (Spec: „Erweiterung: LIVE-Ziel + VIP betritt").
+  WebcastGoalUpdateMessage: 'goalUpdate',
+  goalUpdate: 'goalUpdate',
 };
 
 // Stream-Ende laut ControlAction (3 = ENDED, 4 = SUSPENDED).
@@ -256,6 +259,12 @@ export function mapCloudMessage(type: string, data: any): CloudEmit | null {
       // Objekt untypisiert, und die Verschachtelung hat sich schon geändert.
       // Findet sich nichts, ist das kein Fehler — dann bleibt es eben leer.
       return { kind: 'connected', host: leseHost(data) };
+    case 'WebcastInRoomBannerMessage':
+      // Bewusst nicht ausgewertet — aber die Feldnamen einmal ins Log, auch
+      // ohne Diagnose-Modus, damit sich später beurteilen lässt, ob es lohnt.
+      log.einmal('tiktok:inroombanner', 'info', 'TikTok',
+        `„WebcastInRoomBannerMessage" erkannt — die App wertet sie (noch) nicht aus. Enthaltene Felder: ${felderVon(data)}.`);
+      return null;
     case 'tiktok.disconnect':
       return { kind: 'disconnected' };
     default:

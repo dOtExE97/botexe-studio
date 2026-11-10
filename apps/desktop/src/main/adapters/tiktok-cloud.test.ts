@@ -403,3 +403,10 @@ test('mapCloudMessage: Banner (WebcastBarrageMessage und Kurzname) → barrage',
   assert.deepEqual(mapCloudMessage('WebcastBarrageMessage', d), { kind: 'event', event: 'barrage', data: d });
   assert.deepEqual(mapCloudMessage('barrage', d), { kind: 'event', event: 'barrage', data: d });
 });
+
+test('mapCloudMessage: LIVE-Ziel → goalUpdate; In-Room-Banner bleibt verworfen', () => {
+  const d = { goal: { id: 'g1' } };
+  assert.deepEqual(mapCloudMessage('WebcastGoalUpdateMessage', d), { kind: 'event', event: 'goalUpdate', data: d });
+  assert.deepEqual(mapCloudMessage('goalUpdate', d), { kind: 'event', event: 'goalUpdate', data: d });
+  assert.equal(mapCloudMessage('WebcastInRoomBannerMessage', { json: '{}' }), null);
+});
