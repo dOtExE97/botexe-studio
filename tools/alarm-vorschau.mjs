@@ -12,6 +12,8 @@
 //     --hintergrund RRGGBB  Untergrund (Standard 2a2a2a)
 //     --ohne-ton            Standard-Sound NICHT unterlegen
 //     --aus <ordner>        Zielordner (Standard .tmp/alarm-vorschau)
+//     --daten '{json}'      weitere daten-Felder, z. B. '{"neuAbo":true,"coins":500}'
+//     --datei <name>        Dateiname ohne .mp4 (Standard: <id>[-gifter][-60fps])
 //
 // Braucht google-chrome (oder CHROME=/pfad) und ffmpeg im PATH.
 // Headless-Fallen (AGENTS.md): kein --disable-gpu, kein requestAnimationFrame —
@@ -39,7 +41,10 @@ const bildDatei = opt('bild', '');
 const hintergrund = opt('hintergrund', '2a2a2a');
 const mitTon = !args.includes('--ohne-ton');
 const ausOrdner = path.resolve(opt('aus', path.join(ROOT, '.tmp', 'alarm-vorschau')));
-const daten = { name: opt('name', 'Schwester Mary'), alt: Number(opt('alt', '11')), neu: Number(opt('neu', '12')), art, bild: bildDatei ? '/bild' : '' };
+const daten = {
+  name: opt('name', 'Schwester Mary'), alt: Number(opt('alt', '11')), neu: Number(opt('neu', '12')), art, bild: bildDatei ? '/bild' : '',
+  ...JSON.parse(opt('daten', '{}')),
+};
 
 const { ANIMATIONEN } = await import(path.join(KIT, 'alarm-anim.js'));
 const eintrag = ANIMATIONEN[id];
@@ -106,7 +111,7 @@ const fertig = new Promise((aufloesen) => {
 await fertig;
 if (fehler || anzahl === 0) { console.error(`Abbruch: ${anzahl} Bilder, Fehler in der Seite.`); process.exit(1); }
 
-const ziel = path.join(ausOrdner, `${id}${art === 'gifter' ? '-gifter' : ''}${fps !== 30 ? `-${fps}fps` : ''}.mp4`);
+const ziel = path.join(ausOrdner, `${opt('datei', `${id}${art === 'gifter' ? '-gifter' : ''}${fps !== 30 ? `-${fps}fps` : ''}`)}.mp4`);
 const ton = path.join(KIT, 'sounds', eintrag.sound);
 const ff = ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', `color=c=0x${hintergrund}:s=1080x1920:r=${fps}`,
   '-framerate', String(fps), '-i', path.join(bilder, 'f%04d.png')];

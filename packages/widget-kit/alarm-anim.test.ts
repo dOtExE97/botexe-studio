@@ -12,6 +12,9 @@ import assert from 'node:assert/strict';
 
 type Zaehler = { aufrufe: number; nan: number; log: string[] };
 
+/** Jeder gezeichnete Text (fillText/strokeText), egal in welchem Kontext. */
+const TEXTE: string[] = [];
+
 function fakeGradient(z: Zaehler) {
   return {
     addColorStop(o: number, farbe: string) {
@@ -26,6 +29,7 @@ function fakeGradient(z: Zaehler) {
 function fakeKontext(z: Zaehler, mitLog = false): any {
   const zustand: Record<string, unknown> = {};
   const pruefe = (name: string, args: unknown[]) => {
+    if ((name === 'fillText' || name === 'strokeText') && typeof args[0] === 'string') TEXTE.push(args[0]);
     for (const a of args) {
       if (typeof a === 'number' && !Number.isFinite(a)) z.nan++;
       // „NaN"/„undefined" als sichtbarer Text (fillText) ist derselbe Fehler.
@@ -86,6 +90,21 @@ const offscreenEbenen: Array<{ width: number; height: number }> = [];
 const { ANIMATIONEN, erzeugeRenderer, initiale, ladeSchrift } = await import('./alarm-anim.js');
 
 const LEVEL_UP_IDS = ['lvl-herzschlag', 'lvl-goldherz', 'lvl-neon', 'lvl-tiktok', 'lvl-tiktok-neon'];
+const PREMIUM_IDS = ['superfan-premium', 'vip-gold', 'truhe-premium', 'ziel-erreicht'];
+const ALLE_IDS = [...LEVEL_UP_IDS, ...PREMIUM_IDS];
+
+/** Spielt einen Renderer in Viertelsekunden durch und liefert alle gezeichneten Texte. */
+function texteVon(id: string, daten: Record<string, unknown>): string[] {
+  TEXTE.length = 0;
+  const r = erzeugeRenderer(id, daten);
+  for (let t = 0; t <= r.dauer + 1e-9; t += 0.25) {
+    const z: Zaehler = { aufrufe: 0, nan: 0, log: [] };
+    r.zeichne(fakeKontext(z), t, 1080, 1920);
+    assert.equal(z.nan, 0, `${id} t=${t}: NaN`);
+  }
+  r.destroy();
+  return [...TEXTE];
+}
 
 test('Katalog: alle fünf Level-Up-Stile mit Dauer, Sound und Ereignis-Zuordnung', () => {
   for (const id of LEVEL_UP_IDS) {
@@ -218,6 +237,107 @@ test('destroy() gibt die vorgebackenen Ebenen frei (Größe 0)', () => {
   }
 });
 
+test('Katalog: Superfan, VIP, Schatztruhe und Ziel mit Dauer, Sound und Ereignis', () => {
+  const erwartet: Record<string, [number, string, string[]]> = {
+    'superfan-premium': [7.6, 'botexe-superfan.wav', ['superfan', 'superfan_betritt']],
+    'vip-gold': [7.6, 'botexe-superfan.wav', ['vip']],
+    'truhe-premium': [6.8, 'botexe-truhe.wav', ['truhe']],
+    'ziel-erreicht': [5.8, 'botexe-levelup-tiktok-neon.wav', ['ziel']],
+  };
+  for (const [id, [dauer, sound, fuer]] of Object.entries(erwartet)) {
+    const a = ANIMATIONEN[id];
+    assert.ok(a, `${id} fehlt im Katalog`);
+    assert.equal(a.dauer, dauer, `${id}: Dauer (der Sound ist darauf getaktet)`);
+    assert.equal(a.sound, sound);
+    assert.deepEqual([...a.fuer].sort(), [...fuer].sort());
+    assert.equal(erzeugeRenderer(id, {}).dauer, dauer);
+  }
+});
+
+for (const id of PREMIUM_IDS) {
+  test(`${id}: rendert t ∈ {0, 1.9, 3, dauer} ohne Wurf und ohne NaN — auch mit lückenhaften Daten`, () => {
+    for (const daten of [
+      { name: 'Schwester Mary', alt: 11, neu: 12, coins: 500, neuAbo: true, fortschritt: 12, ziel: 20, unterzeile: 'Rose' },
+      {},
+      { coins: undefined, neu: undefined, fortschritt: 'x', ziel: null },
+      { name: '🖤'.repeat(60), coins: 99999999, unterzeile: 'X'.repeat(200), art: 'gifter' },
+    ]) {
+      const r = erzeugeRenderer(id, daten as any);
+      for (const t of [0, 0.5, 1.2, 1.4, 1.65, 1.9, 2.05, 2.35, 3, 4.6, 5.5, r.dauer]) {
+        const z: Zaehler = { aufrufe: 0, nan: 0, log: [] };
+        r.zeichne(fakeKontext(z), t, 1080, 1920);
+        assert.equal(z.nan, 0, `${id} ${JSON.stringify(daten)} t=${t}`);
+        assert.ok(z.aufrufe > 0);
+      }
+      const z0: Zaehler = { aufrufe: 0, nan: 0, log: [] };
+      r.zeichne(fakeKontext(z0), 3, 0, 0);
+      assert.equal(z0.aufrufe, 0, `${id}: ohne Fläche gezeichnet`);
+      r.destroy();
+    }
+  });
+}
+
+test('Superfan: „NEUER" nur bei Neu-Abo, Unterzeile Standard bzw. vom Alarm', () => {
+  const neu = texteVon('superfan-premium', { name: 'Mia', neuAbo: true });
+  assert.ok(neu.includes('NEUER'));
+  assert.ok(neu.includes('SUPERFAN'));
+  assert.ok(neu.includes('WILLKOMMEN IM SUPERFAN-CLUB'));
+  const verl = texteVon('superfan-premium', { name: 'Mia', unterzeile: 'SUPERFAN VERLÄNGERT' });
+  assert.ok(!verl.includes('NEUER'), 'Verlängerung ist kein neuer Superfan');
+  assert.ok(verl.includes('SUPERFAN VERLÄNGERT'));
+  assert.ok(!verl.includes('WILLKOMMEN IM SUPERFAN-CLUB'));
+  assert.ok(!texteVon('superfan-premium', { name: 'Mia', neuAbo: 'ja' }).includes('NEUER'), 'nur echtes true zählt');
+});
+
+test('VIP: Titel „VIP IST DA", Geschenke-Stufe, kein Superfan-Text', () => {
+  const texte = texteVon('vip-gold', { name: 'Mia', neu: 25 });
+  assert.ok(texte.includes('VIP IST DA'));
+  assert.ok(texte.includes('GESCHENKE-STUFE 25'));
+  assert.ok(!texte.some((t) => /SUPERFAN|NEUER/.test(t)));
+  // Der Herz-Alarm liefert die VIP-Stufe als `stufe` (hat Vorrang vor neu).
+  assert.ok(texteVon('vip-gold', { name: 'Mia', stufe: 31, neu: 2 }).includes('GESCHENKE-STUFE 31'));
+  // Ohne Stufe keine erfundene „GESCHENKE-STUFE 1".
+  assert.ok(!texteVon('vip-gold', { name: 'Mia' }).some((t) => /GESCHENKE-STUFE/.test(t)));
+});
+
+test('Schatztruhe: Zähler zeigt die Coins, ohne Coins kein Zähler; Unterzeile Superfan-Truhe', () => {
+  const mit = texteVon('truhe-premium', { name: 'Mia', coins: 500 });
+  assert.ok(mit.includes('SCHATZTRUHE!'));
+  assert.ok(mit.includes('500'), 'Endstand des Zählers fehlt');
+  assert.ok(mit.includes('COINS ZUM SCHNAPPEN'));
+  const ohne = texteVon('truhe-premium', { name: 'Mia' });
+  assert.ok(!ohne.some((t) => /^\d+$/.test(t)), 'ohne Coins darf kein Zähler erscheinen');
+  assert.ok(texteVon('truhe-premium', { name: 'Mia', coins: 100, unterzeile: 'SUPERFAN-TRUHE' }).includes('SUPERFAN-TRUHE'));
+});
+
+test('Schatztruhe: die Münz-/Edelstein-Fontäne steigt wirklich über die Truhe', () => {
+  // Wächter: Ein Bearbeitungsfehler hatte die Bewegung der Partikel auskommentiert —
+  // alles lief „grün", nur die Fontäne klebte unsichtbar am Truhenrand (y = 670).
+  const r = erzeugeRenderer('truhe-premium', { name: 'Mia', coins: 500 });
+  const z: Zaehler = { aufrufe: 0, nan: 0, log: [] };
+  r.zeichne(fakeKontext(z, true), 2.2, 1080, 1920);
+  const hoch = z.log.filter((l) => { const m = /^translate\(([-\d.]+),([-\d.]+)\)$/.exec(l); return m && Number(m[1]) > 100 && Number(m[1]) < 1000 && Number(m[2]) > 0 && Number(m[2]) < 600; }); // Weltkoordinaten der Fontäne (Truhe startet bei y≈670)
+  assert.ok(hoch.length >= 30, `nur ${hoch.length} Partikel über der Truhe`);
+  r.destroy();
+});
+
+test('titel ersetzt den Titel der vier neuen Alarme (Feld vom Herz-Alarm)', () => {
+  for (const id of PREMIUM_IDS) {
+    const texte = texteVon(id, { name: 'Mia', titel: 'Danke Mia', coins: 5, fortschritt: 1, ziel: 2 });
+    assert.ok(texte.includes('DANKE MIA'), `${id}: titel nicht übernommen`);
+  }
+});
+
+test('Ziel erreicht: Titel, Pille fortschritt/ziel, Unterzeile auf 28 Zeichen + „…" gekürzt', () => {
+  const texte = texteVon('ziel-erreicht', { name: 'Mia', fortschritt: 20, ziel: 20, unterzeile: 'Ein sehr langer Geschenkname der nicht passt' });
+  assert.ok(texte.includes('ZIEL ERREICHT!'));
+  assert.ok(texte.includes('20/20'));
+  assert.ok(texte.includes('EIN SEHR LANGER GESCHENKNAME…'), texte.filter((t) => t.length > 10).join(' | '));
+  assert.ok(!texte.some((t) => /LEVEL|TEAM-LEVEL/.test(t)), 'kein Level-Up-Text im Ziel-Alarm');
+  assert.ok(texteVon('ziel-erreicht', { name: 'Mia', fortschritt: 3, ziel: 5, unterzeile: 'Rose' }).includes('ROSE'));
+});
+
+
 // WÄCHTER: document.fonts.check() meldet für eine NIE registrierte Familie
 // ebenfalls „bereit" (CSS Font Loading). Daran darf die Neu-Back-Logik nicht
 // hängen — sonst bleiben Titel/Name/Zeilen für immer in der Ersatzschrift.
@@ -232,25 +352,34 @@ test('Schrift kommt nach dem ersten Bild → Textebenen werden mit BxInter neu g
     load() { return Promise.resolve(this); }
   };
   try {
-    const r = erzeugeRenderer('lvl-tiktok-neon', { name: 'Mia', alt: 1, neu: 2 });
-    const male = () => r.zeichne(fakeKontext({ aufrufe: 0, nan: 0, log: [] }), 3, 1080, 1920);
-    male();
+    // Alle Animationen — der Neu-Back-Weg muss in JEDEM Stil-Renderer greifen.
+    const daten = { name: 'Mia', alt: 1, neu: 2, coins: 50, neuAbo: true, fortschritt: 1, ziel: 2 };
+    const renderer = ALLE_IDS.map((id) => ({ id, r: erzeugeRenderer(id, daten), ebenen: [] as Array<{ width: number }> }));
+    const male = (r: any) => r.zeichne(fakeKontext({ aufrufe: 0, nan: 0, log: [] }), 4, 1080, 1920);
+    for (const x of renderer) {
+      const vor = offscreenEbenen.length;
+      male(x.r);
+      x.ebenen = offscreenEbenen.slice(vor).filter((c) => c.width > 4);
+      assert.ok(x.ebenen.length > 0, `${x.id}: keine Ebenen gebacken`);
+    }
     const nachErstemBild = offscreenEbenen.length;
-    male();
+    for (const x of renderer) male(x.r);
     assert.equal(offscreenEbenen.length, nachErstemBild, 'ohne geladene Schrift (check() lügt „bereit") darf nichts neu gebacken werden');
-    const alteEbenen = offscreenEbenen.slice(0, nachErstemBild).filter((c) => c.width > 4);
 
     await ladeSchrift('http://127.0.0.1:27415', 'geheim');
     assert.equal(hinzugefuegt, 1, 'Schrift wurde nicht registriert');
     assert.match(geladeneUrls[0], /\/widgets\/inter-black\.woff2\?token=geheim/, 'ohne Schlüssel antwortet der Overlay-Server mit 403');
 
-    male();
-    assert.ok(offscreenEbenen.length > nachErstemBild, 'nach dem Laden der Schrift wurden die Textebenen nicht neu gebacken');
-    assert.ok(alteEbenen.some((c) => c.width === 0), 'die alten Ebenen wurden beim Neu-Backen nicht freigegeben');
+    for (const x of renderer) {
+      const vor = offscreenEbenen.length;
+      male(x.r);
+      assert.ok(offscreenEbenen.length > vor, `${x.id}: nach dem Laden der Schrift nicht neu gebacken`);
+      assert.ok(x.ebenen.some((c) => c.width === 0), `${x.id}: alte Ebenen beim Neu-Backen nicht freigegeben`);
+    }
     const nachNeuBacken = offscreenEbenen.length;
-    male();
+    for (const x of renderer) male(x.r);
     assert.equal(offscreenEbenen.length, nachNeuBacken, 'neu gebacken wird nur einmal, nicht in jedem Bild');
-    r.destroy();
+    for (const x of renderer) x.r.destroy();
     // Zweiter Aufruf lädt nicht erneut.
     await ladeSchrift('http://127.0.0.1:27415', 'geheim');
     assert.equal(geladeneUrls.length, 1);
