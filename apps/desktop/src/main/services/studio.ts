@@ -2970,7 +2970,9 @@ export class Studio {
       const z = e.ziel;
       const was = z.geschenk?.name ?? z.beschreibung ?? 'Ziel';
       const text = `${z.fortschritt}/${z.ziel} ${was} — Beitrag von ${name}`;
-      if (z.erreicht) log.info('TikTok', `LIVE-Ziel erreicht: ${text}`);
+      // Nur die Flanke (vom Adapter bestimmt) ungedrosselt — jedes weitere Update
+      // eines erreichten Ziels ist ein Zwischenstand wie jeder andere.
+      if (z.geradeErreicht) log.info('TikTok', `LIVE-Ziel erreicht: ${text}`);
       else log.gedrosselt('live-ziel', 30_000, 'info', 'TikTok', `LIVE-Ziel: ${text}`);
     } else if (e.type === 'envelope' && e.envelope) {
       log.info('TikTok', `Schatztruhe von ${name}: ${e.envelope.coins} Coins, ${e.envelope.winners} Leute (Art ${e.envelope.businessType ?? '?'})`);

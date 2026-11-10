@@ -240,6 +240,10 @@ export interface StudioEvent {
     ziel: number;
     geschenk?: { name: string; id?: string };
     erreicht: boolean;
+    /** true NUR bei dem Update, mit dem `erreicht` von falsch auf wahr springt
+     *  (je Ziel-id und Stream; bestimmt im TikTok-Adapter). Alle späteren Updates
+     *  eines erreichten Ziels tragen false — darauf hören Alarm, Trigger und Log. */
+    geradeErreicht?: boolean;
   };
   /** Nur bei 'vip_betritt': Geschenke-Stufe des Zuschauers. */
   vip?: { stufe: number };
@@ -280,7 +284,8 @@ export type TriggerCondition =
   | { kind: 'level_art_ist'; value: 'team' | 'gifter' }
   /** Nur bei 'level_up': neue Stufe mindestens so hoch. */
   | { kind: 'level_neu_gte'; value: number }
-  /** Nur bei 'live_ziel': das Ziel ist erreicht (nicht nur ein Zwischenstand). */
+  /** Nur bei 'live_ziel': das Ziel wurde GERADE erreicht — genau einmal je Ziel,
+   *  nicht bei jedem weiteren Update eines schon erreichten Ziels. */
   | { kind: 'ziel_erreicht' }
   /** Nur bei 'vip_betritt': Geschenke-Stufe mindestens so hoch. */
   | { kind: 'vip_stufe_gte'; value: number }
@@ -639,7 +644,7 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
     case 'level_neu_gte':
       return event.levelUp !== undefined && event.levelUp.neu >= condition.value;
     case 'ziel_erreicht':
-      return event.ziel?.erreicht === true;
+      return event.ziel?.geradeErreicht === true;
     case 'vip_stufe_gte':
       return event.vip !== undefined && event.vip.stufe >= condition.value;
     case 'superfan_neu':

@@ -89,7 +89,7 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
     { value: 'level_art_ist', label: 'Nur diese Stufen-Art …', valueType: 'text' },
     { value: 'level_neu_gte', label: 'Neue Stufe mind. …', valueType: 'number' },
   ],
-  live_ziel: [{ value: 'ziel_erreicht', label: 'Nur wenn das Ziel ERREICHT ist' }],
+  live_ziel: [{ value: 'ziel_erreicht', label: 'Nur in dem Moment, in dem das Ziel ERREICHT wird (einmal je Ziel)' }],
   vip_betritt: [{ value: 'vip_stufe_gte', label: 'Geschenke-Stufe mind. …', valueType: 'number' }],
   emote: [
     { value: 'sticker_ist', label: 'Nur dieser Sticker (Nummer)', valueType: 'text' },
@@ -153,7 +153,7 @@ function ruleToSentence(rule: TriggerRule, layerName: (id: string) => string, so
       case 'envelope_superfan': wenn = 'jemand eine SUPERFAN-Truhe reinwirft'; break;
       case 'level_art_ist': wenn = c.value === 'gifter' ? 'jemand in der Geschenke-Stufe aufsteigt' : 'jemand im Teamherz aufsteigt'; break;
       case 'level_neu_gte': wenn = `jemand auf mind. Stufe ${c.value} aufsteigt`; break;
-      case 'ziel_erreicht': wenn = 'das LIVE-Ziel erreicht ist'; break;
+      case 'ziel_erreicht': wenn = 'das LIVE-Ziel gerade erreicht wurde'; break;
       case 'vip_stufe_gte': wenn = `ein VIP ab Geschenke-Stufe ${c.value} reinkommt`; break;
       case 'superfan_neu': wenn = 'jemand NEU Superfan wird'; break;
       case 'superfan_verlaengerung': wenn = 'jemand seinen Superfan VERLÄNGERT'; break;

@@ -79,11 +79,16 @@ test('VIP: ab Mindeststufe, je Nutzer einmal', () => {
   assert.equal(alarmArt({ type: 'vip_betritt', user: { id: 'v' }, vip: { stufe: 25 } }, normalisiereCfg({})), null, 'standardmäßig aus');
 });
 
-test('LIVE-Ziel: nur erreicht, einmal je Ziel-id', () => {
+test('LIVE-Ziel: nur beim Sprung auf erreicht (geradeErreicht), einmal je Ziel-id', () => {
   const cfg = cfgMit(), m = neuerMerker();
-  const z = (erreicht: boolean, id = 'g1') => ({ type: 'live_ziel', ziel: { id, fortschritt: erreicht ? 10 : 3, ziel: 10, erreicht } });
+  const z = (erreicht: boolean, id = 'g1', geradeErreicht = erreicht) => ({ type: 'live_ziel', ziel: { id, fortschritt: erreicht ? 10 : 3, ziel: 10, erreicht, geradeErreicht } });
   assert.equal(alarmArt(z(false), cfg, m), null);
+  // Weiteres Update eines schon erreichten Ziels (z. B. nach Overlay-Neuladen,
+  // frischer Merker) — kein Alarm, weil der Main-Prozess keine Flanke meldet.
+  assert.equal(alarmArt(z(true, 'g1', false), cfg, neuerMerker()), null);
+  assert.equal(alarmArt({ type: 'live_ziel', ziel: { id: 'g0', fortschritt: 10, ziel: 10, erreicht: true } }, cfg, m), null, 'ohne Flanke nie');
   assert.equal(alarmArt(z(true), cfg, m), 'ziel');
+  // Zweites Netz: dieselbe id mit Flanke (doppelt zugestellt) nur einmal.
   assert.equal(alarmArt(z(true), cfg, m), null);
   assert.equal(alarmArt(z(true, 'g2'), cfg, m), 'ziel');
 });

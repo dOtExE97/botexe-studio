@@ -109,7 +109,10 @@ function rohArt(e, cfg) {
     case 'vip_betritt':
       return zahl(e.vip?.stufe) >= cfg.minVip ? 'vip' : null;
     case 'live_ziel':
-      return e.ziel?.erreicht === true ? 'ziel' : null;
+      // Nur beim Sprung auf „erreicht" (Flanke bestimmt der Main-Prozess) — nicht
+      // bei jedem weiteren Update eines schon erreichten Ziels. Die Sperre je
+      // Ziel-id in alarmArt bleibt als zweites Netz.
+      return e.ziel?.erreicht === true && e.ziel?.geradeErreicht === true ? 'ziel' : null;
     case 'gift':
       // Teamherz kommt hier NUR als Geschenk: `sub` ist im Ereignis-Modus das Superfan-Abo.
       return trifftAusloeser(e, 'teamherz', cfg.minLevel) ? 'teamherz' : null;
@@ -251,7 +254,7 @@ function demoEreignis(art) {
     case 'superfan_betritt': return { type: 'superfan', superfanArt: 'betritt', user };
     case 'truhe': return { type: 'envelope', envelope: { coins: 500 }, user };
     case 'vip': return { type: 'vip_betritt', vip: { stufe: 25 }, user };
-    case 'ziel': return { type: 'live_ziel', ziel: { id: 'demo', fortschritt: 12, ziel: 12, geschenk: { name: 'Rose' }, erreicht: true }, user };
+    case 'ziel': return { type: 'live_ziel', ziel: { id: 'demo', fortschritt: 12, ziel: 12, geschenk: { name: 'Rose' }, erreicht: true, geradeErreicht: true }, user };
     default: return { type: 'level_up', levelUp: { art: 'team', neu: 12 }, user };
   }
 }

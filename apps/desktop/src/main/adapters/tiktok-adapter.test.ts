@@ -760,6 +760,29 @@ test('LIVE-Ziel: goalUpdate landet als live_ziel auf dem Bus', async () => {
   assert.equal(z?.ziel?.erreicht, true);
 });
 
+test('LIVE-Ziel: geradeErreicht nur beim Sprung auf erreicht, je Ziel-id', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  const c = connections[0];
+  const goal = (id: string, progress: number, msgId: string) => ({ common: { msgId }, goal: { id, subGoals: [{ progress, target: 50, gift: { name: 'Rose' } }] } });
+  c?.emit('goalUpdate', goal('g1', 30, 'm1'));
+  c?.emit('goalUpdate', goal('g1', 50, 'm2'));
+  c?.emit('goalUpdate', goal('g1', 55, 'm3'));
+  c?.emit('goalUpdate', goal('g2', 50, 'm4'));
+  const z = events.filter((e) => e.type === 'live_ziel').map((e) => [e.ziel?.id, e.ziel?.erreicht, e.ziel?.geradeErreicht]);
+  assert.deepEqual(z, [['g1', false, false], ['g1', true, true], ['g1', true, false], ['g2', true, true]]);
+  // Reconnect mitten im Stream: ein schon erreichtes Ziel springt NICHT erneut.
+  c?.emit('disconnected');
+  await wait(15);
+  connections[1]?.emit('goalUpdate', goal('g1', 60, 'm5'));
+  assert.equal(events.filter((e) => e.type === 'live_ziel').at(-1)?.ziel?.geradeErreicht, false);
+  // streamEnd: nächster Stream darf dasselbe Ziel wieder melden.
+  connections[1]?.emit('streamEnd', { action: 3 });
+  connections[1]?.emit('goalUpdate', goal('g1', 60, 'm6'));
+  assert.equal(events.filter((e) => e.type === 'live_ziel').at(-1)?.ziel?.geradeErreicht, true);
+  await adapter.disconnect();
+});
+
 const vipBanner = { msgType: 9, subType: 'user_level_entrance', userGradeParam: { currentGrade: 30, user: { userId: '1', nickname: 'V1' } } };
 
 test('VIP betritt: nach Reconnect wird derselbe VIP erneut gemeldet (neue Verbindung = neuer Stream)', async () => {

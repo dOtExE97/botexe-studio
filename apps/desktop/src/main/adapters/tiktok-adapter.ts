@@ -316,6 +316,12 @@ export class TikTokAdapter {
    *  jedem Connect und bei streamEnd geleert: Ein VIP-Banner kommt nur bei einem
    *  echten Raum-Eintritt, ein Reconnect kann es also nicht erneut abspielen. */
   private readonly vipGemeldet = new Set<string>();
+  /** Letzter `erreicht`-Stand je LIVE-Ziel-id. Daraus entsteht `ziel.geradeErreicht`
+   *  (genau beim Sprung falsch → wahr) — EINE Stelle für Alarm, Trigger und Log.
+   *  Geleert bei einem neuen Stream und bei streamEnd, NICHT beim Reconnect mitten
+   *  im Stream: sonst spielte das nächste Update eines längst erreichten Ziels
+   *  nach einem kurzen Abriss „Ziel erreicht" erneut. */
+  private readonly zielErreicht = new Map<string, boolean>();
   /** Wie viele Replay-Nachrichten seit dem letzten Reconnect verworfen wurden.
    *  Pro Ereignis zu loggen wäre eine Flut — es geht als EINE Sammelzeile raus
    *  (siehe meldeReplayBilanz). Sonst wirkt es, als schlucke TikTok Nachrichten. */
@@ -736,6 +742,7 @@ export class TikTokAdapter {
       }
       this.pendingFresh = false;
       this.hasConnectedOnce = true;
+      if (freshStream) this.zielErreicht.clear();
       this.emitStatus({ status: 'connected', isReconnect, freshStream, roomId: state.roomId != null ? String(state.roomId) : undefined });
       log.info('TikTok', `Verbunden mit @${this.username}${state.roomId ? ` (Room ${state.roomId})` : ''}`);
       // Frisch verbunden = die alten „einmal"-Meldungen dürfen wieder. Sonst
@@ -983,7 +990,17 @@ export class TikTokAdapter {
           `Banner-Art ${typ} (${d?.subType ?? 'ohne Untertyp'}) erkannt — die App wertet sie (noch) nicht aus.`);
       }
     }));
-    on('goalUpdate', guard((d: RawGoalUpdate) => { if (!dedup(d)) publish(normalizeGoalUpdate(d, this.now())); }));
+    on('goalUpdate', guard((d: RawGoalUpdate) => {
+      if (dedup(d)) return;
+      const e = normalizeGoalUpdate(d, this.now());
+      if (e?.ziel) {
+        const vorher = this.zielErreicht.get(e.ziel.id) === true;
+        e.ziel.geradeErreicht = e.ziel.erreicht && !vorher;
+        this.zielErreicht.set(e.ziel.id, e.ziel.erreicht);
+        if (this.zielErreicht.size > 200) this.zielErreicht.clear();
+      }
+      publish(e);
+    }));
     on('emote', guard((d: Parameters<typeof normalizeEmote>[0]) => { if (!dedup(d)) publish(normalizeEmote(d, this.now())); }));
     // Name und Bild des Streamers selbst (aus dem roomInfo-Rahmen).
     on('hostInfo', guard((d: HostInfo) => {
@@ -1063,6 +1080,7 @@ export class TikTokAdapter {
     on('streamEnd', guard(() => {
       log.info('TikTok', 'Stream beendet');
       this.vipGemeldet.clear(); // nächster Stream: VIPs dürfen wieder gemeldet werden
+      this.zielErreicht.clear(); // …und LIVE-Ziele dürfen wieder „erreicht" melden
       this.artenbuch.schreibeBericht();
       this.artenbuch.leeren();
       this.streamEnded = true;

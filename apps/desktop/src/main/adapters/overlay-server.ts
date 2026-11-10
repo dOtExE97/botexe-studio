@@ -645,7 +645,10 @@ export class OverlayServer {
         // ohne echten Stream ausprobieren lassen (Overlay + Trigger-Regeln).
         ...(e.levelUp ? { levelUp: e.levelUp } : {}),
         ...(e.superfanArt ? { superfanArt: e.superfanArt } : {}),
-        ...(e.ziel ? { ziel: e.ziel } : {}),
+        // geradeErreicht bestimmt sonst der TikTok-Adapter (Sprung falsch → wahr).
+        // Ein Test-Ereignis hat keine Vorgeschichte: fehlt das Feld, gilt ein
+        // erreichtes Ziel als gerade erreicht — sonst ließe sich der Alarm nicht testen.
+        ...(e.ziel ? { ziel: { ...e.ziel, geradeErreicht: typeof e.ziel.geradeErreicht === 'boolean' ? e.ziel.geradeErreicht : e.ziel.erreicht === true } } : {}),
         ...(e.vip ? { vip: e.vip } : {}),
       };
       this.bus.publish(clean);

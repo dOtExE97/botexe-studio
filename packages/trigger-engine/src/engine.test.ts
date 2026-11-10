@@ -580,13 +580,15 @@ test('level_up ohne levelUp-Angabe erfüllt keine Level-Bedingung', () => {
   assert.equal(engine.evaluate({ type: 'level_up', ts: 1 }).length, 0);
 });
 
-test('live_ziel: ziel_erreicht feuert nur beim erreichten Ziel', () => {
+test('live_ziel: ziel_erreicht feuert nur in dem Moment, in dem das Ziel erreicht wird', () => {
   const engine = new TriggerEngine();
   engine.setRules([rule({ event: 'live_ziel', conditions: [{ kind: 'ziel_erreicht' }] })]);
-  const ziel = (erreicht: boolean): StudioEvent => ({
-    type: 'live_ziel', ts: 1, ziel: { id: 'z', fortschritt: 5, ziel: 10, erreicht },
+  const ziel = (erreicht: boolean, geradeErreicht?: boolean): StudioEvent => ({
+    type: 'live_ziel', ts: 1, ziel: { id: 'z', fortschritt: 5, ziel: 10, erreicht, ...(geradeErreicht !== undefined ? { geradeErreicht } : {}) },
   });
-  assert.equal(engine.evaluate(ziel(true)).length, 1);
+  assert.equal(engine.evaluate(ziel(true, true)).length, 1, 'Sprung auf erreicht');
+  assert.equal(engine.evaluate(ziel(true, false)).length, 0, 'weiteres Update eines schon erreichten Ziels');
+  assert.equal(engine.evaluate(ziel(true)).length, 0, 'ohne Flanke kein Feuern');
   assert.equal(engine.evaluate(ziel(false)).length, 0);
 });
 
