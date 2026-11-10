@@ -441,3 +441,22 @@ test('Regel-Validierung behält die Sperre pro Zuschauer', () => {
   assert.equal(r?.cooldownMs, 5000);
   assert.equal(r?.userCooldownMs, 60000, 'die Sperre pro Zuschauer darf nicht verloren gehen');
 });
+
+// ── Level-Up / LIVE-Ziel / VIP ────────────────────────────────────────────────
+
+test('Level-Up-Regel: beide Bedingungen kommen durch, negative Stufe nicht', () => {
+  const basis = { id: 'r', name: 'N', event: 'level_up', actions: [{ kind: 'speak', template: 'x' }], enabled: true };
+  const art = validateTriggerRule({ ...basis, conditions: [{ kind: 'level_art_ist', value: 'team' }, { kind: 'level_neu_gte', value: 10 }] });
+  assert.deepEqual(art?.conditions, [{ kind: 'level_art_ist', value: 'team' }, { kind: 'level_neu_gte', value: 10 }]);
+  const neg = validateTriggerRule({ ...basis, conditions: [{ kind: 'level_neu_gte', value: -1 }] });
+  assert.ok(!neg?.conditions?.length, 'negative Stufe darf nicht als Bedingung bleiben');
+  const unbekannt = validateTriggerRule({ ...basis, conditions: [{ kind: 'level_art_ist', value: 'quatsch' }] });
+  assert.ok(!unbekannt?.conditions?.length, 'unbekannte Art fliegt raus');
+});
+
+test('LIVE-Ziel- und VIP-Bedingungen kommen durch', () => {
+  const z = validateTriggerRule({ id: 'r', name: 'Z', event: 'live_ziel', conditions: [{ kind: 'ziel_erreicht' }], actions: [{ kind: 'speak', template: 'x' }], enabled: true });
+  assert.deepEqual(z?.conditions, [{ kind: 'ziel_erreicht' }]);
+  const v = validateTriggerRule({ id: 'r', name: 'V', event: 'vip_betritt', conditions: [{ kind: 'vip_stufe_gte', value: 20 }], actions: [{ kind: 'speak', template: 'x' }], enabled: true });
+  assert.deepEqual(v?.conditions, [{ kind: 'vip_stufe_gte', value: 20 }]);
+});

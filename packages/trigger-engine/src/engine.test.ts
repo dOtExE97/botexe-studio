@@ -556,3 +556,45 @@ test('fanclub_seit_tagen_gte', () => {
   assert.equal(feuert([{ kind: 'fanclub_seit_tagen_gte', value: 400 }], chatMit({ beziehung: { fanclubSeitTagen: 424 } })), true);
   assert.equal(feuert([{ kind: 'fanclub_seit_tagen_gte', value: 400 }], chatMit({})), false);
 });
+
+// ── Ereignis „Level-Up" und seine Verwandten (live_ziel, vip_betritt) ──────────
+
+const levelUp = (art: 'team' | 'gifter', neu: number): StudioEvent => ({
+  type: 'level_up', ts: 1, user: { id: 'u', nickname: 'U' }, levelUp: { art, neu },
+});
+
+test('level_up: Art und Mindeststufe filtern', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({
+    event: 'level_up',
+    conditions: [{ kind: 'level_art_ist', value: 'team' }, { kind: 'level_neu_gte', value: 10 }],
+  })]);
+  assert.equal(engine.evaluate(levelUp('team', 12)).length, 1, 'Teamherz Stufe 12 feuert');
+  assert.equal(engine.evaluate(levelUp('team', 9)).length, 0, 'Stufe 9 ist zu niedrig');
+  assert.equal(engine.evaluate(levelUp('gifter', 12)).length, 0, 'Geschenke-Stufe ist die falsche Art');
+});
+
+test('level_up ohne levelUp-Angabe erfüllt keine Level-Bedingung', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ event: 'level_up', conditions: [{ kind: 'level_neu_gte', value: 1 }] })]);
+  assert.equal(engine.evaluate({ type: 'level_up', ts: 1 }).length, 0);
+});
+
+test('live_ziel: ziel_erreicht feuert nur beim erreichten Ziel', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ event: 'live_ziel', conditions: [{ kind: 'ziel_erreicht' }] })]);
+  const ziel = (erreicht: boolean): StudioEvent => ({
+    type: 'live_ziel', ts: 1, ziel: { id: 'z', fortschritt: 5, ziel: 10, erreicht },
+  });
+  assert.equal(engine.evaluate(ziel(true)).length, 1);
+  assert.equal(engine.evaluate(ziel(false)).length, 0);
+});
+
+test('vip_betritt: vip_stufe_gte vergleicht die Geschenke-Stufe', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ event: 'vip_betritt', conditions: [{ kind: 'vip_stufe_gte', value: 20 }] })]);
+  const vip = (stufe: number): StudioEvent => ({ type: 'vip_betritt', ts: 1, vip: { stufe } });
+  assert.equal(engine.evaluate(vip(25)).length, 1);
+  assert.equal(engine.evaluate(vip(19)).length, 0);
+  assert.equal(engine.evaluate({ type: 'vip_betritt', ts: 1 }).length, 0, 'ohne Stufe nie');
+});

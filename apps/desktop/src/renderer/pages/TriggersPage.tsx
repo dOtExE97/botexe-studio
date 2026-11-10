@@ -21,6 +21,9 @@ const EVENT_OPTIONS: { value: StudioEventType; label: string }[] = [
   { value: 'viewer_count', label: 'Zuschauerzahl' },
   { value: 'envelope', label: 'Coin-Kiste / Truhe' },
   { value: 'superfan', label: 'Superfan' },
+  { value: 'level_up', label: '⬆️ Level-Up (Teamherz / Geschenke-Stufe)' },
+  { value: 'live_ziel', label: '🎯 TikTok-LIVE-Ziel' },
+  { value: 'vip_betritt', label: '👑 VIP betritt das Live' },
   // Ohne diesen Eintrag landen die von der Sticker-Seite angelegten Regeln in
   // „Sonstige", und schlimmer: Beim Anfassen des Ereignis-Feldes findet das
   // <select> seinen Wert nicht, setzt ihn um und wirft dabei die Bedingung
@@ -82,6 +85,12 @@ const CONDITION_OPTIONS: Record<string, { value: TriggerCondition['kind']; label
   superfan: [
     { value: 'superfan_neu', label: 'Nur wenn jemand NEU beitritt' },
   ],
+  level_up: [
+    { value: 'level_art_ist', label: 'Nur diese Stufen-Art …', valueType: 'text' },
+    { value: 'level_neu_gte', label: 'Neue Stufe mind. …', valueType: 'number' },
+  ],
+  live_ziel: [{ value: 'ziel_erreicht', label: 'Nur wenn das Ziel ERREICHT ist' }],
+  vip_betritt: [{ value: 'vip_stufe_gte', label: 'Geschenke-Stufe mind. …', valueType: 'number' }],
   emote: [
     { value: 'sticker_ist', label: 'Nur dieser Sticker (Nummer)', valueType: 'text' },
   ],
@@ -142,6 +151,10 @@ function ruleToSentence(rule: TriggerRule, layerName: (id: string) => string, so
       case 'viewer_count_gte': wenn = `mind. ${c.value} Zuschauer da sind`; break;
       case 'envelope_coins_gte': wenn = `eine Truhe mit mind. ${c.value} Coins reinkommt`; break;
       case 'envelope_superfan': wenn = 'jemand eine SUPERFAN-Truhe reinwirft'; break;
+      case 'level_art_ist': wenn = c.value === 'gifter' ? 'jemand in der Geschenke-Stufe aufsteigt' : 'jemand im Teamherz aufsteigt'; break;
+      case 'level_neu_gte': wenn = `jemand auf mind. Stufe ${c.value} aufsteigt`; break;
+      case 'ziel_erreicht': wenn = 'das LIVE-Ziel erreicht ist'; break;
+      case 'vip_stufe_gte': wenn = `ein VIP ab Geschenke-Stufe ${c.value} reinkommt`; break;
       case 'superfan_neu': wenn = 'jemand NEU Superfan wird'; break;
       case 'superfan_verlaengerung': wenn = 'jemand seinen Superfan VERLÄNGERT'; break;
       case 'superfan_monate_gte': wenn = `jemand seit mind. ${c.value} Monaten Superfan ist`; break;
@@ -191,9 +204,9 @@ const RULE_TEMPLATES: { icon: string; name: string; desc: string; build: (ctx: {
   { icon: '👻', name: 'Erster Follow', desc: 'Nur beim ERSTEN Follow: Sound + Ansage',
     build: (x) => ({ name: 'Erster Follow', event: 'follow', conditions: [{ kind: 'follow_first_time' }],
       actions: [...(x.firstSound ? [{ kind: 'play_sound', soundId: x.firstSound } as TriggerAction] : []), { kind: 'speak', template: '{user} folgt jetzt — willkommen an Bord! ❤️' }], cooldownMs: 0, enabled: true }) },
-  { icon: '💜', name: 'Neuer Sub (Teamherz)', desc: 'Danke-Ansage bei jedem neuen Teamherz',
+  { icon: '💜', name: 'Neuer Superfan (Abo)', desc: 'Danke-Ansage bei jedem neuen Superfan (Abo)',
     build: () => ({ name: 'Neuer Sub', event: 'sub', conditions: [],
-      actions: [{ kind: 'speak', template: 'WOW — {user} ist jetzt Teamherz! Tausend Dank! 💜' }], cooldownMs: 0, enabled: true }) },
+      actions: [{ kind: 'speak', template: 'WOW — {user} ist jetzt Superfan! Tausend Dank! 💜' }], cooldownMs: 0, enabled: true }) },
   { icon: '🔥', name: '!hype-Befehl', desc: 'Chat schreibt !hype → Sound/Alert',
     build: (x) => ({ name: '!hype', event: 'chat', conditions: [{ kind: 'chat_command', value: '!hype' }],
       actions: x.firstSound ? [{ kind: 'play_sound', soundId: x.firstSound }] : [{ kind: 'speak', template: 'HYPE HYPE HYPE! 🔥' }], cooldownMs: 10000, enabled: true }) },
@@ -823,7 +836,7 @@ export default function TriggersPage() {
                             ? [(def.valueType
                                 // Sinnvoller Zahlen-Default statt 0: „mindestens 0" würde bei
                                 // JEDEM Event feuern — der Streamer glaubt aber, er filtert.
-                                ? { kind: def.value, value: def.valueType === 'number' ? (NUM_DEFAULT[def.value] ?? 10) : '' }
+                                ? { kind: def.value, value: def.valueType === 'number' ? (NUM_DEFAULT[def.value] ?? 10) : def.value === 'level_art_ist' ? 'team' : '' }
                                 : { kind: def.value }) as TriggerCondition]
                             : [],
                         });
@@ -863,6 +876,17 @@ export default function TriggersPage() {
                         value={('value' in cond ? String(cond.value) : '')}
                         onChange={(slug) => patchRule(rule.id, { conditions: [{ ...cond, value: slug } as TriggerCondition] })}
                       />
+                    ) : cond && cond.kind === 'level_art_ist' ? (
+                      // Nur zwei gültige Werte — ein Textfeld ließe Tippfehler zu,
+                      // die der Validator still verwirft.
+                      <select
+                        value={cond.value}
+                        onChange={(e) => patchRule(rule.id, { conditions: [{ kind: 'level_art_ist', value: e.target.value === 'gifter' ? 'gifter' : 'team' }] })}
+                        className="bx-select"
+                      >
+                        <option value="team">Teamherz-Stufe</option>
+                        <option value="gifter">Geschenke-Stufe</option>
+                      </select>
                     ) : cond && condDef && condDef.valueType ? (
                       <input
                         type={condDef.valueType}

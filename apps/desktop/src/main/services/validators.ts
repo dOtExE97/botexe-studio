@@ -66,6 +66,10 @@ const CONDITION_KINDS: ReadonlySet<string> = new Set([
   'user_hat_geschenkt',
   'ehrengast_betritt',
   'superfan_neu',
+  'level_art_ist',
+  'level_neu_gte',
+  'ziel_erreicht',
+  'vip_stufe_gte',
   'superfan_verlaengerung',
   'superfan_monate_gte',
   'sticker_ist',
@@ -403,7 +407,9 @@ function validateCondition(
     case 'folgt_seit_tagen_gte':
     case 'fanclub_seit_tagen_gte':
     case 'follower_count_gte':
-    case 'superfan_monate_gte': {
+    case 'superfan_monate_gte':
+    case 'level_neu_gte':
+    case 'vip_stufe_gte': {
       const value = nonNegInt(input['value']);
       if (value === null) return null;
       return { kind, value };
@@ -412,6 +418,10 @@ function validateCondition(
       const value = nonNegInt(input['value']);
       if (value === null) return null;
       return { kind, value };
+    }
+    case 'level_art_ist': {
+      const value = input['value'];
+      return value === 'team' || value === 'gifter' ? { kind, value } : null;
     }
     case 'ehrengast_betritt': {
       // Der Platz ist OPTIONAL: ohne ihn gilt jeder Ehrengast. Eine 0 wird
@@ -425,6 +435,7 @@ function validateCondition(
     case 'chat_first_time':
     case 'follow_first_time':
     case 'envelope_superfan':
+    case 'ziel_erreicht':
     case 'superfan_neu':
     case 'superfan_verlaengerung':
     case 'folgt_seit_heute':

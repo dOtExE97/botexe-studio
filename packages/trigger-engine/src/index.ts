@@ -276,6 +276,14 @@ export type TriggerCondition =
    *  den TikTok als Top-Supporter markiert. */
   | { kind: 'ehrengast_betritt'; value?: number }
   | { kind: 'superfan_neu' }
+  /** Nur bei 'level_up': Teamherz-Stufe oder Geschenke-Stufe. */
+  | { kind: 'level_art_ist'; value: 'team' | 'gifter' }
+  /** Nur bei 'level_up': neue Stufe mindestens so hoch. */
+  | { kind: 'level_neu_gte'; value: number }
+  /** Nur bei 'live_ziel': das Ziel ist erreicht (nicht nur ein Zwischenstand). */
+  | { kind: 'ziel_erreicht' }
+  /** Nur bei 'vip_betritt': Geschenke-Stufe mindestens so hoch. */
+  | { kind: 'vip_stufe_gte'; value: number }
   /** Nur Verlängerungen (Treue!) — das Gegenstück zu superfan_neu. */
   | { kind: 'superfan_verlaengerung' }
   /** Ab wie vielen Monaten Superfan-Treue. */
@@ -625,6 +633,15 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       const platz = event.ehrengast.platz ?? 0;
       return platz > 0 && platz <= grenze;
     }
+    // Fehlt die Angabe, ist die Bedingung FALSCH (nie „gilt für alle").
+    case 'level_art_ist':
+      return event.levelUp?.art === condition.value;
+    case 'level_neu_gte':
+      return event.levelUp !== undefined && event.levelUp.neu >= condition.value;
+    case 'ziel_erreicht':
+      return event.ziel?.erreicht === true;
+    case 'vip_stufe_gte':
+      return event.vip !== undefined && event.vip.stufe >= condition.value;
     case 'superfan_neu':
       return event.superfanNeu === true;
     case 'superfan_verlaengerung':

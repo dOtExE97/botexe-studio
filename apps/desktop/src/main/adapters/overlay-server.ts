@@ -641,6 +641,12 @@ export class OverlayServer {
         ...(typeof e.herkunft === 'string' ? { herkunft: e.herkunft } : {}),
         ...(typeof e.subMonths === 'number' ? { subMonths: e.subMonths } : {}),
         ...(e.envelope ? { envelope: e.envelope } : {}),
+        // Banner-Ereignisse: damit sich Level-Up, LIVE-Ziel und VIP-Auftritt
+        // ohne echten Stream ausprobieren lassen (Overlay + Trigger-Regeln).
+        ...(e.levelUp ? { levelUp: e.levelUp } : {}),
+        ...(e.superfanArt ? { superfanArt: e.superfanArt } : {}),
+        ...(e.ziel ? { ziel: e.ziel } : {}),
+        ...(e.vip ? { vip: e.vip } : {}),
       };
       this.bus.publish(clean);
       res.json({ ok: true });
