@@ -213,6 +213,11 @@ offenen Datenfragen beantwortet. Feldwerte unten sind Strukturbelege, keine Nutz
 - Gesehene Banner: `msgType 9` (`subType 'user_level_entrance'`, „Zuschauer mit
   Geschenke-Stufe N betritt das Live"), `msgType 11` (`subType 'fans_entrance'`,
   `displayType 'ttlive_superFan_commentNotif_superFanJoined'`, Text „Super Fan {user} joined").
+- **Teamherz-Level-Up live belegt**: Alex stieg während des Mitschnitts auf: `msgType 10`,
+  `subType 'fans_upgrade'`, Text „reached member Lv.{0:string}", `fansLevelParam.currentGrade 12`,
+  Nutzer im `fansLevelParam.user`. Kam genau einmal.
+- „Superfan betritt" (msgType 11) kommt **doppelt**: als `superFan` und als Banner, gleiche
+  Millisekunde → Dedup nötig.
 - **eulerstreams Kurzname `superFan` ist KEIN neuer Superfan**, sondern derselbe
   `msgType 11` = **„ein Superfan betritt das Live"**. Die App wertet ihn heute als
   Superfan-Meldung mit `superfanNeu=false`. Das erklärt den 08.11.: Die drei „Superfan"-Ereignisse
