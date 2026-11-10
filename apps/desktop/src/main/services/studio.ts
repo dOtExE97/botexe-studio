@@ -716,6 +716,9 @@ export class Studio {
       // 3b3. Event-Ansagen per TTS (unabhängig vom Chat-Vorlesen).
       if (e.type === 'follow') this.maybeAnnounceFollow(e, regelLiestVor);
 
+      // 3b4. Lesbare Logzeilen für Banner und Truhen (Test-/Replay-Ereignisse nicht).
+      if (!e.synthetic) this.logBannerEreignis(e);
+
       // 3c. Widget-Sounds: Feuerwerk-Knall / Alert-Sound direkt am Widget
       // konfiguriert — gespielt LOKAL über die App (nie im Overlay).
       if (e.type === 'gift' && e.gift) {
@@ -2908,6 +2911,24 @@ export class Studio {
     if (now - this.lastTtsDecisionLogAt < 2000) return;
     this.lastTtsDecisionLogAt = now;
     log.info('TTS', msg);
+  }
+
+  /** Lesbare Logzeilen für Banner (Level-Up, Superfan) und Schatztruhen. */
+  private logBannerEreignis(e: StudioEvent): void {
+    const name = e.user?.nickname ?? '—';
+    if (e.type === 'level_up' && e.levelUp) {
+      const titel = e.levelUp.art === 'team' ? 'Teamherz-Level-Up' : 'Geschenke-Stufe-Level-Up';
+      log.info('TikTok', `${titel}: ${name} → Stufe ${e.levelUp.neu}`);
+    } else if (e.type === 'superfan') {
+      if (e.superfanArt === 'abo_neu') log.info('TikTok', `Neuer Superfan (Abo): ${name}`);
+      else if (e.superfanArt === 'abo_verlaengert') log.info('TikTok', `Superfan-Abo verlängert: ${name}`);
+      else if (e.superfanArt === 'betritt') {
+        log.gedrosselt(`superfan:betritt:${e.user?.id ?? name}`, 10 * 60_000, 'info', 'TikTok',
+          `Superfan betritt das Live: ${name}`);
+      }
+    } else if (e.type === 'envelope' && e.envelope) {
+      log.info('TikTok', `Schatztruhe von ${name}: ${e.envelope.coins} Coins, ${e.envelope.winners} Leute (Art ${e.envelope.businessType ?? '?'})`);
+    }
   }
 
   /** Ansage „neuer Follower" — eigener Schalter/Text/Stimme, unabhängig vom Chat. */

@@ -706,3 +706,37 @@ test('Key-Rotator: einmaliges 1011 wechselt NICHT (könnte nur „Streamer offli
   assert.equal(usedKeys[1], 'keyA', 'nach einem einzelnen 1011 bleibt es beim selben Key (erst der zweite wechselt)');
   await adapter.disconnect();
 });
+
+test('Superfan-Abo: Banner 4 + subNotify desselben Nutzers → ein superfan, sub bleibt erhalten', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  const c = connections[0];
+  const u = { userId: '3', uniqueId: 'abo', nickname: 'Abo' };
+  c?.emit('barrage', { msgType: 4, commonBarrageContent: { piecesList: [{ userValue: { user: u } }] } });
+  c?.emit('subNotify', { user: u, oldSubscribeStatus: 0 });
+  c?.emit('barrage', { msgType: 7, commonBarrageContent: { piecesList: [{ userValue: { user: u } }] } });
+  assert.equal(events.filter((e) => e.type === 'superfan').length, 1);
+  assert.equal(events.filter((e) => e.type === 'sub').length, 1);
+});
+
+test('Superfan betritt: superFan + Banner 11 in derselben Millisekunde → ein Ereignis', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  const c = connections[0];
+  const u = { userId: '4', uniqueId: 'hay', nickname: 'Hay' };
+  c?.emit('superFan', { fansLevelParam: { currentGrade: 22, user: u } });
+  c?.emit('barrage', { msgType: 11, fansLevelParam: { currentGrade: 22, user: u } });
+  const sf = events.filter((e) => e.type === 'superfan');
+  assert.equal(sf.length, 1);
+  assert.equal(sf[0]?.superfanArt, 'betritt');
+});
+
+test('Banner: Teamherz-Level-Up wird veröffentlicht, unbekannte Art nicht', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  const c = connections[0];
+  c?.emit('barrage', { msgType: 10, subType: 'fans_upgrade', fansLevelParam: { currentGrade: 12, user: { userId: '5', nickname: 'Alex' } } });
+  c?.emit('barrage', { msgType: 9, subType: 'user_level_entrance' });
+  assert.equal(events.filter((e) => e.type === 'level_up').length, 1);
+  assert.deepEqual(events.filter((e) => e.type !== 'viewer_count').map((e) => e.type), ['level_up'], 'Art 9 wird nicht veröffentlicht');
+});

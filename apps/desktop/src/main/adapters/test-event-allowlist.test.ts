@@ -31,6 +31,8 @@ const BEWUSST_DRAUSSEN = new Map<string, string>([
   ['ehrengast', 'hängt an echten Beitritts-Daten'],
   ['firstFollow', 'entscheidet das Follow-Gedächtnis der App, nicht der Aufrufer'],
   ['superfanNeu', 'entscheidet die Normalisierung aus TikToks Daten'],
+  ['superfanArt', 'entscheidet die Normalisierung aus TikToks Daten (Banner msgType bzw. Meldungsart)'],
+  ['levelUp', 'entscheidet die Normalisierung aus dem Banner (msgType 8/10); die Test-Route kann es noch nicht setzen'],
 ]);
 
 test('die Test-Event-Route kennt jedes Feld eines StudioEvent', () => {

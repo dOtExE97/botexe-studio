@@ -27,6 +27,8 @@ import {
   normalizeSub,
   normalizeEnvelope,
   normalizeSuperfan,
+  normalizeBarrage,
+  type RawBarrage,
   normalizeEmote,
 } from './tiktok-normalize';
 
@@ -154,6 +156,12 @@ const LIVE_WATCH_WIEDERHOLUNG_MS = 60 * 60_000;
 /** So viele verworfene Combo-Stufen ohne ein einziges gezähltes Geschenk gelten
  *  als Verdacht — darunter ist es einfach eine normale laufende Combo. */
 const COMBO_VERDACHT_AB = 20;
+
+/** Doppelte Superfan-Meldungen desselben Nutzers: Abo-Meldungen (Banner 4/7,
+ *  superFanJoin) innerhalb 60 s zählen als eine; „betritt" kam im Mitschnitt
+ *  doppelt in derselben Millisekunde, 5 s reichen reichlich. */
+const SUPERFAN_ABO_FENSTER_MS = 60_000;
+const SUPERFAN_BETRITT_FENSTER_MS = 5_000;
 
 /** Wie es um eine stehende Leitung bestellt ist, allein anhand der Stille.
  *
@@ -297,6 +305,9 @@ export class TikTokAdapter {
    *  common.msgId — schon gesehene werden verworfen (sonst liest der TTS eine
    *  Nachricht ein zweites Mal vor). Überlebt Reconnects (Instanz-Feld), TTL-Cleanup. */
   private readonly seenMsgIds = new Map<string, number>();
+  /** Wann zuletzt ein Superfan-Ereignis je Nutzer und Gruppe (abo/betritt)
+   *  veröffentlicht wurde — gegen doppelte Meldungen derselben Sache. */
+  private readonly superfanZuletzt = new Map<string, number>();
   /** Wie viele Replay-Nachrichten seit dem letzten Reconnect verworfen wurden.
    *  Pro Ereignis zu loggen wäre eine Flut — es geht als EINE Sammelzeile raus
    *  (siehe meldeReplayBilanz). Sonst wirkt es, als schlucke TikTok Nachrichten. */
@@ -916,8 +927,40 @@ export class TikTokAdapter {
     // Coin-Kiste / Schatztruhe (auch die Superfan-Truhe).
     on('envelope', guard((d: Parameters<typeof normalizeEnvelope>[0]) => { if (!dedup(d)) publish(normalizeEnvelope(d, this.now())); }));
     // Superfan: TikTok trennt „neu beigetreten" von sonstigen Superfan-Meldungen.
-    on('superFanJoin', guard((d: Parameters<typeof normalizeSuperfan>[0]) => { if (!dedup(d)) publish(normalizeSuperfan(d, true, this.now())); }));
-    on('superFan', guard((d: Parameters<typeof normalizeSuperfan>[0]) => { if (!dedup(d)) publish(normalizeSuperfan(d, false, this.now())); }));
+    // Superfan-Meldungen kommen teils doppelt (Kurzname `superFan` UND Banner,
+    // gleiche Millisekunde — belegt im Mitschnitt vom 10.11.2026). Deshalb laufen
+    // alle Wege durch publishSuperfan. Das `sub`-Ereignis ist davon NICHT
+    // betroffen: es bleibt eine eigene Art und wird immer veröffentlicht.
+    const publishSuperfan = (e: StudioEvent) => {
+      const abo = e.superfanArt === 'abo_neu' || e.superfanArt === 'abo_verlaengert';
+      if (e.user && (abo || e.superfanArt === 'betritt')) {
+        const key = `${abo ? 'abo' : 'betritt'}:${e.user.id}`;
+        const now = this.now();
+        const letzte = this.superfanZuletzt.get(key);
+        if (letzte !== undefined && now - letzte < (abo ? SUPERFAN_ABO_FENSTER_MS : SUPERFAN_BETRITT_FENSTER_MS)) return;
+        this.superfanZuletzt.set(key, now);
+        if (this.superfanZuletzt.size > 500) {
+          for (const [k, t] of this.superfanZuletzt) if (now - t > SUPERFAN_ABO_FENSTER_MS) this.superfanZuletzt.delete(k);
+        }
+      }
+      publish(e);
+    };
+    // Superfan: TikTok trennt „neu beigetreten" von sonstigen Superfan-Meldungen.
+    on('superFanJoin', guard((d: Parameters<typeof normalizeSuperfan>[0]) => { if (!dedup(d)) publishSuperfan(normalizeSuperfan(d, true, this.now())); }));
+    on('superFan', guard((d: Parameters<typeof normalizeSuperfan>[0]) => { if (!dedup(d)) publishSuperfan(normalizeSuperfan(d, false, this.now())); }));
+    // Banner aller Sorten (Level-Up, Abo, Superfan betritt …). Was wir nicht
+    // auswerten, wird einmal je Art im Log benannt statt still verworfen.
+    on('barrage', guard((d: RawBarrage) => {
+      if (dedup(d)) return;
+      const e = normalizeBarrage(d, this.now());
+      if (e) {
+        if (e.type === 'superfan') publishSuperfan(e); else publish(e);
+        return;
+      }
+      const typ = d?.msgType ?? 'unbekannt';
+      log.einmal(`tiktok:barrage:${typ}`, 'info', 'TikTok',
+        `Banner-Art ${typ} (${d?.subType ?? 'ohne Untertyp'}) erkannt — die App wertet sie (noch) nicht aus.`);
+    }));
     on('emote', guard((d: Parameters<typeof normalizeEmote>[0]) => { if (!dedup(d)) publish(normalizeEmote(d, this.now())); }));
     // Name und Bild des Streamers selbst (aus dem roomInfo-Rahmen).
     on('hostInfo', guard((d: HostInfo) => {

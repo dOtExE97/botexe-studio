@@ -34,8 +34,8 @@ export type StudioEventType =
    *  eine andere Superfan-Meldung. Kommt als Banner-Nachricht rein, in der ein
    *  vollständiges Zuschauer-Objekt steckt. */
   | 'superfan'
-  /** Stufenaufstieg aus einem TikTok-Banner: Teamherz-Level (art 'team') oder
-   *  Geschenke-Stufe (art 'gifter'). Siehe `levelUp`. */
+  /** Stufenaufstieg aus einem TikTok-Banner: Teamherz-Level oder
+   *  Geschenke-Stufe, je nach `levelUp.art`. */
   | 'level_up'
   /** Zuschauer schickt ein Emote/Sticker — reines Beteiligungs-Signal. */
   | 'emote'

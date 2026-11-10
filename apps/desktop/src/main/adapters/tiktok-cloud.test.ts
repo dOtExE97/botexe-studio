@@ -397,3 +397,9 @@ test('felderVon nennt weiterhin keine Werte, auch bei den wichtigen Feldern', ()
   const s = felderVon({ user: { fansClub: { data: { level: 42 } }, followInfo: { followerCount: '1932' } } });
   assert.doesNotMatch(s, /42|1932/, 'Werte gehoeren nie ins Log');
 });
+
+test('mapCloudMessage: Banner (WebcastBarrageMessage und Kurzname) → barrage', () => {
+  const d = { msgType: 10 };
+  assert.deepEqual(mapCloudMessage('WebcastBarrageMessage', d), { kind: 'event', event: 'barrage', data: d });
+  assert.deepEqual(mapCloudMessage('barrage', d), { kind: 'event', event: 'barrage', data: d });
+});

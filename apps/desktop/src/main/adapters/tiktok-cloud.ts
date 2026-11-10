@@ -39,7 +39,7 @@ export function buildCloudUrl(opts: { uniqueId: string; apiKey: string; baseUrl?
 
 export type CloudEmitEvent = 'chat' | 'gift' | 'like' | 'follow' | 'share' | 'member' | 'roomUser'
   | 'subNotify' | 'envelope' | 'superFan' | 'superFanJoin' | 'emote' | 'rankUpdate'
-  | 'linkMicBattle' | 'linkMicArmies' | 'roomPin';
+  | 'linkMicBattle' | 'linkMicArmies' | 'roomPin' | 'barrage';
 
 /** Name, Bild und Livetitel des STREAMERS selbst.
  *
@@ -183,17 +183,13 @@ const TYPE_TO_EVENT: Record<string, CloudEmitEvent> = {
   // keiner einzigen emit-Stelle. Dieselbe Tabelle bildet WebcastBarrageMessage
   // stattdessen auf 'barrage' ab: eine Sammelart für BANNER aller Sorten.
   //
-  // Praktisch heißt das: Diese Ereignisse erreichen uns nur über eulerstream,
-  // das offenbar selbst entscheidet, welches Banner ein Superfan-Banner ist.
-  // Ein früherer Kommentar verwies hier auf einen „Sonderfall unten", den es
-  // nie gab.
-  //
-  // WebcastBarrageMessage kam in echten Streams mehrfach an und wird bewusst
-  // NICHT gemappt: Ein Banner trägt zwar oft einen Nutzer, aber welcher Anlass
-  // dahintersteckt, steht in Feldern, die wir noch nie gesehen haben. Es als
-  // Superfan-Beitritt zu werten wäre geraten — und würde die Superfan-Zahl in
-  // der Auswertung verfälschen. Der Diagnose-Modus zeigt die Feldnamen; sobald
-  // ein Log sie hergibt, wird hier entschieden.
+  // Banner aller Sorten (Level-Up, Abo, „Superfan betritt" …) kommen als
+  // WebcastBarrageMessage. Die Felder sind seit dem Live-Mitschnitt vom
+  // 10.11.2026 belegt: siehe Spec „Belege aus dem Live-Mitschnitt" in
+  // docs/superpowers/specs/2026-11-10-ereignis-alarm-einblender-design.md.
+  // Welche Art ein Banner ist, entscheidet normalizeBarrage anhand von msgType.
+  WebcastBarrageMessage: 'barrage',
+  barrage: 'barrage',
 };
 
 // Stream-Ende laut ControlAction (3 = ENDED, 4 = SUSPENDED).

@@ -39,6 +39,7 @@ const EVENT_TYPES: ReadonlySet<string> = new Set<StudioEventType>([
   'envelope',
   'timer',
   'superfan',
+  'level_up',
   'emote',
 ]);
 
