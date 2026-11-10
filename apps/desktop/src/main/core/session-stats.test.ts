@@ -239,3 +239,20 @@ test('uniqueViewers: überlebt Serialisierung (Neustart/Update)', () => {
   const restored = SessionStats.fromJSON(s.toJSON());
   assert.equal(restored?.snapshot().totals.uniqueViewers, 2);
 });
+
+test('Superfan: nur echte Abos zählen — „Superfan betritt" ist weder neu noch Verlängerung', () => {
+  const s = new SessionStats();
+  const u = (id: string) => ({ id, nickname: id.toUpperCase() });
+  s.apply({ type: 'superfan', ts: 1, user: u('a'), superfanNeu: false, superfanArt: 'betritt' });
+  s.apply({ type: 'superfan', ts: 2, user: u('a'), superfanNeu: false, superfanArt: 'betritt' });
+  let t = s.snapshot().totals;
+  assert.equal(t.subs ?? 0, 0, 'Eintritt ist keine Verlängerung');
+  assert.equal(t.superfans ?? 0, 0, 'Eintritt ist kein neuer Superfan');
+  s.apply({ type: 'superfan', ts: 3, user: u('b'), superfanNeu: true, superfanArt: 'abo_neu' });
+  s.apply({ type: 'sub', ts: 4, user: u('b'), superfanNeu: true });
+  s.apply({ type: 'superfan', ts: 5, user: u('c'), superfanNeu: false, superfanArt: 'abo_verlaengert' });
+  s.apply({ type: 'sub', ts: 6, user: u('d'), superfanNeu: false });
+  t = s.snapshot().totals;
+  assert.equal(t.superfans, 1, 'neues Abo je Person einmal');
+  assert.equal(t.subs, 2, 'Verlängerungen (Banner und sub)');
+});

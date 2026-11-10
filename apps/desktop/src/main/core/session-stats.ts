@@ -321,6 +321,10 @@ export class SessionStats {
         return true;
       case 'sub':
       case 'superfan': {
+        // „Superfan betritt das Live" ist kein Abo — weder Zuwachs noch Treue.
+        // Früher landete jeder Eintritt (superfanNeu === false) als Verlängerung
+        // in `subs`; gezählt werden nur echte Abos (neu/verlängert).
+        if (event.type === 'superfan' && event.superfanArt === 'betritt') return false;
         // Verlängerung? Dann ist es Treue, kein Zuwachs — eigene Zahl.
         if (event.superfanNeu === false) {
           this.totals.subs = (this.totals.subs ?? 0) + 1;
