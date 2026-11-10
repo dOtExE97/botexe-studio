@@ -18,7 +18,7 @@ const WURZEL = existsSync(join(process.cwd(), 'src', 'main.ts'))
 const WK = join(WURZEL, 'packages', 'widget-kit');
 
 /** Reine Logik-Bausteine — kein eigenes Widget, keine Bedienfelder. */
-const BAUSTEINE = new Set(['gift-rules', 'combo', 'gift-countdown', 'sticker-text', 'alarm-anim']);
+const BAUSTEINE = new Set(['gift-rules', 'combo', 'gift-countdown', 'sticker-text', 'alarm-anim', 'ereignis-alarm']);
 
 /** Felder, die über CSS-Variablen wirken statt über den Widget-Code: Die
  *  Runtime setzt --bx-fs, --bx-accent & Co. am Container; das Widget liest sie
@@ -41,9 +41,16 @@ const LAUFZEIT = new Set([
   'kind',
 ]);
 
+/** Widgets, deren Einstellungen teils in einem Begleitmodul gelesen werden:
+ *  Der Herz-Alarm reicht im Modus „Ereignisse" an ereignis-alarm.js weiter. */
+const BEGLEITMODULE: Record<string, string[]> = { 'herz-alarm': ['ereignis-alarm'] };
+
 function widgetQuelle(typ: string): string | null {
   const p = join(WK, `${typ}.js`);
-  return existsSync(p) ? readFileSync(p, 'utf-8') : null;
+  if (!existsSync(p)) return null;
+  let quelle = readFileSync(p, 'utf-8');
+  for (const b of BEGLEITMODULE[typ] ?? []) quelle += `\n${readFileSync(join(WK, `${b}.js`), 'utf-8')}`;
+  return quelle;
 }
 
 /** Manche Einstellungen wertet NICHT das Widget aus, sondern der Hauptprozess:

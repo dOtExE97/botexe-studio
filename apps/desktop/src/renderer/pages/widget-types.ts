@@ -45,6 +45,76 @@ export interface PropField {
   showIf?: (props: Record<string, unknown>) => boolean;
 }
 
+// ── Herz-Alarm: Modus „Ereignisse" (packages/widget-kit/ereignis-alarm.js) ──
+// Fehlt `modus` (alle Overlays von vorher), gilt „klassisch" — der Standard
+// MUSS klassisch bleiben, weil der Editor die Standard-Props in die Anzeige
+// bestehender Layer mischt (sonst stünde dort „Ereignisse", der Layer liefe aber klassisch).
+const istKlassisch = (p: Record<string, unknown>) => (p.modus ?? 'klassisch') === 'klassisch';
+const istEreignisse = (p: Record<string, unknown>) => p.modus === 'ereignisse';
+/** Standard-Häkchen — gleiche Liste wie STANDARD_ARTEN in ereignis-alarm.js. */
+const EA_STANDARD_ARTEN = ['teamherz', 'level_team', 'superfan', 'truhe', 'ziel'];
+const eaArtAn = (art: string) => (p: Record<string, unknown>) =>
+  istEreignisse(p) && (Array.isArray(p.ereignisse) ? p.ereignisse : EA_STANDARD_ARTEN).includes(art);
+
+/** Die Herz-Motive (WebM) — Klassisch als Motiv, im Ereignis-Modus als „motiv:<id>". */
+const HERZ_MOTIV_OPTIONEN = [
+  { value: 'royal', label: '👑 Royal Boss' },
+  { value: 'kiss', label: '💋 Kiss Flight' },
+  { value: 'angel', label: '😇 Angel Crown' },
+  { value: 'signature-dj', label: '🎧 Signature DJ (Zusatzpaket)' },
+  { value: 'cyber-gamer', label: '🎮 Cyber Gamer (Zusatzpaket)' },
+  { value: 'solar-hero', label: '🦸 Solar Hero (Zusatzpaket)' },
+  { value: 'rockstar', label: '🎸 Rockstar (Zusatzpaket)' },
+  { value: 'galaxy-rider', label: '🚀 Galaxy Rider (Zusatzpaket)' },
+  { value: 'golden-jackpot', label: '💰 Golden Jackpot (Zusatzpaket)' },
+];
+
+/** Live-Animationen für Level-Ups (ids aus ANIMATIONEN in alarm-anim.js). */
+const EA_LEVEL_ANIM = [
+  { value: 'lvl-tiktok-neon', label: '✨ TikTok-Neon' },
+  { value: 'lvl-tiktok', label: '📱 TikTok-Stil' },
+  { value: 'lvl-neon', label: '💡 Neon' },
+  { value: 'lvl-herzschlag', label: '💓 Herzschlag' },
+  { value: 'lvl-goldherz', label: '💛 Goldherz mit Flügeln' },
+];
+
+/** Standard-Animation je Art — gleiche Werte wie `std` in ARTEN (ereignis-alarm.js). */
+const EA_STANDARD_ANIM: Record<string, string> = {
+  teamherz: 'motiv', level_team: 'lvl-tiktok-neon', level_gifter: 'lvl-tiktok-neon', superfan: 'superfan-premium',
+  superfan_betritt: 'superfan-premium', truhe: 'truhe-premium', vip: 'vip-gold', ziel: 'ziel-erreicht',
+};
+
+function ereignisStandardProps(): Record<string, unknown> {
+  const p: Record<string, unknown> = {};
+  for (const [art, anim] of Object.entries(EA_STANDARD_ANIM)) {
+    p[`anim_${art}`] = anim;
+    p[`media_${art}`] = '';
+    p[`sound_${art}`] = 'standard';
+    p[`soundId_${art}`] = '';
+  }
+  return p;
+}
+
+/** Animation / eigene Datei / Sound je Ereignis-Art (nur sichtbar, wenn angehakt). */
+function ereignisFelder(art: string, name: string, animationen: { value: string; label: string }[]): PropField[] {
+  const an = eaArtAn(art);
+  return [
+    { key: `anim_${art}`, label: `${name} · Animation`, type: 'select', hint: `Was beim Ereignis „${name}" erscheint: eine Live-Animation mit Name, Bild und Zahlen, ein Herz-Motiv (Video) oder deine eigene Datei.`, showIf: an, options: [
+      ...animationen,
+      { value: 'motiv', label: '🔀 Herz-Motive abwechselnd' },
+      ...HERZ_MOTIV_OPTIONEN.map((o) => ({ value: `motiv:${o.value}`, label: `Herz-Motiv: ${o.label}` })),
+      { value: 'eigen', label: '📁 Eigene Datei (Bild/Video)' },
+    ] },
+    { key: `media_${art}`, label: `${name} · Eigene Datei`, type: 'media', hint: 'Bild, GIF oder Video, das formatfüllend gezeigt wird (Bilder 6 Sekunden, Videos so lang wie sie sind).', showIf: (p) => an(p) && p[`anim_${art}`] === 'eigen' },
+    { key: `sound_${art}`, label: `${name} · Sound`, type: 'select', hint: '„Standard" = der passende eingebaute Ton (bei Videos der Ton im Video). „Eigener" = dein Sound über die App. „Aus" = stumm.', showIf: an, options: [
+      { value: 'standard', label: '🔊 Standard' },
+      { value: 'custom', label: '🎵 Eigener Sound' },
+      { value: 'off', label: '🔇 Aus' },
+    ] },
+    { key: `soundId_${art}`, label: `${name} · Eigener Sound`, type: 'sound', hint: 'Spielt beim Ereignis über die App.', showIf: (p) => an(p) && p[`sound_${art}`] === 'custom' },
+  ];
+}
+
 const ACCENT_FIELD: PropField = {
   key: 'accent',
   label: 'Akzentfarbe',
@@ -300,36 +370,62 @@ export const WIDGET_TYPES: {
     ],
   },
   {
-    type: 'herz-alarm', label: 'Herz-Alarm', desc: 'Große 3D-Herz-Animation formatfüllend über dem Bild — bei Teamherz (oder anderem Auslöser). Mehrere Motive, wahlweise abwechselnd, mit Name + Profilbild des Gebers.',
-    w: 1080, h: 1920, props: { motiv: 'rotation', event: 'teamherz', minLevel: 0, sound: 'original', soundId: '', showUser: true, userText: '💜 {name} ist Teil des Teams', accent: '#ff4d8d' },
+    type: 'herz-alarm', label: 'Herz-Alarm', desc: 'Große Vollbild-Animation über dem Bild — klassisch bei Teamherz (oder anderem Auslöser), oder im Modus „Ereignisse" für alle großen Momente: Level-Up, Superfan, Truhe, VIP, LIVE-Ziel. Mit Name + Profilbild, nacheinander statt durcheinander.',
+    w: 1080, h: 1920, props: {
+      modus: 'klassisch',
+      motiv: 'rotation', event: 'teamherz', minLevel: 0, sound: 'original', soundId: '', showUser: true, userText: '💜 {name} ist Teil des Teams', accent: '#ff4d8d',
+      ereignisse: [...EA_STANDARD_ARTEN], minLevelUp: 0, superfanVerlaengert: true, minVip: 20, qualitaet: 'voll',
+      ...ereignisStandardProps(),
+    },
     fields: [
-      { key: 'motiv', label: 'Motiv', type: 'select', hint: '„Alle abwechselnd" zeigt bei jedem Auslöser das nächste Motiv der Reihe nach. Oder ein festes wählen. (Weitere Motive lassen sich später als Zusatz-Pack laden.)', options: [
-        { value: 'rotation', label: '🔀 Alle abwechselnd (Standard)' },
-        { value: 'royal', label: '👑 Royal Boss' },
-        { value: 'kiss', label: '💋 Kiss Flight' },
-        { value: 'angel', label: '😇 Angel Crown' },
-        { value: 'signature-dj', label: '🎧 Signature DJ (Zusatzpaket)' },
-        { value: 'cyber-gamer', label: '🎮 Cyber Gamer (Zusatzpaket)' },
-        { value: 'solar-hero', label: '🦸 Solar Hero (Zusatzpaket)' },
-        { value: 'rockstar', label: '🎸 Rockstar (Zusatzpaket)' },
-        { value: 'galaxy-rider', label: '🚀 Galaxy Rider (Zusatzpaket)' },
-        { value: 'golden-jackpot', label: '💰 Golden Jackpot (Zusatzpaket)' },
+      { key: 'modus', label: 'Modus', type: 'select', hint: '„Klassisch" = eine Animation bei einem Auslöser (wie bisher). „Ereignisse" = ein Screen für alle großen Momente: jedes Ereignis mit eigener Animation und eigenem Ton, sie laufen nacheinander (bis zu 10 warten).', options: [
+        { value: 'klassisch', label: '💜 Klassisch (ein Auslöser)' },
+        { value: 'ereignisse', label: '🎬 Ereignisse (Level-Up, Superfan, Truhe …)' },
       ] },
-      { key: 'event', label: 'Auslöser', type: 'select', hint: 'Worauf die Animation reagiert. Standard ist Teamherz (Fanclub-Beitritt oder Teamherz-Geschenk).', options: [
+      { key: 'motiv', label: 'Motiv', type: 'select', hint: '„Alle abwechselnd" zeigt bei jedem Auslöser das nächste Motiv der Reihe nach. Oder ein festes wählen. (Weitere Motive lassen sich später als Zusatz-Pack laden.)', showIf: istKlassisch, options: [
+        { value: 'rotation', label: '🔀 Alle abwechselnd (Standard)' },
+        ...HERZ_MOTIV_OPTIONEN,
+      ] },
+      { key: 'event', label: 'Auslöser', type: 'select', hint: 'Worauf die Animation reagiert. Standard ist Teamherz (Fanclub-Beitritt oder Teamherz-Geschenk).', showIf: istKlassisch, options: [
         { value: 'teamherz', label: '💜 Teamherz (Standard)' },
         { value: 'gift', label: '🎁 Jedes Geschenk' },
         { value: 'follow', label: '➕ Neuer Follower' },
         { value: 'sub', label: '⭐ Neuer Sub' },
       ] },
-      { key: 'minLevel', label: 'Erst ab Teamherz-Stufe', type: 'number', hint: '0 = jede Stufe löst aus. Höher = nur ab dieser Teamherz-Stufe. Gilt nur beim Auslöser Teamherz.', showIf: (p) => (p.event ?? 'teamherz') === 'teamherz' },
-      { key: 'sound', label: 'Sound', type: 'select', hint: '„Original" = der Ton, der in der Animation steckt (kommt über die Browserquelle in den Stream). „Eigener" = dein Sound über die App. „Aus" = stumm.', options: [
+      { key: 'minLevel', label: 'Erst ab Teamherz-Stufe', type: 'number', hint: '0 = jede Stufe löst aus. Höher = nur ab dieser Teamherz-Stufe. Gilt nur beim Auslöser Teamherz.', showIf: (p) => (istKlassisch(p) ? (p.event ?? 'teamherz') === 'teamherz' : eaArtAn('teamherz')(p)) },
+      { key: 'sound', label: 'Sound', type: 'select', hint: '„Original" = der Ton, der in der Animation steckt (kommt über die Browserquelle in den Stream). „Eigener" = dein Sound über die App. „Aus" = stumm.', showIf: istKlassisch, options: [
         { value: 'original', label: '🔊 Original-Sound' },
         { value: 'custom', label: '🎵 Eigener Sound' },
         { value: 'off', label: '🔇 Aus' },
       ] },
-      { key: 'soundId', label: 'Eigener Sound', type: 'sound', hint: 'Spielt beim Auslösen über die App.', showIf: (p) => p.sound === 'custom' },
-      { key: 'showUser', label: 'Name + Profilbild zeigen', type: 'boolean', hint: 'Blendet unten ein, wer das Teamherz geschickt hat — mit rundem Profilbild.' },
-      { key: 'userText', label: 'Text', type: 'text', hint: 'Der Platzhalter {name} wird durch den Namen ersetzt. Beispiele: „💜 {name} ist Teil des Teams", „{name} lässt ein Teamherz da".', showIf: (p) => p.showUser !== false },
+      { key: 'soundId', label: 'Eigener Sound', type: 'sound', hint: 'Spielt beim Auslösen über die App.', showIf: (p) => istKlassisch(p) && p.sound === 'custom' },
+      { key: 'ereignisse', label: 'Bei welchen Ereignissen', type: 'checkboxes', hint: 'Häkchen = dieses Ereignis bekommt eine große Animation. „Superfan betritt" und „VIP betritt" sind aus, weil sie bei vielen Stammgästen oft kommen.', showIf: istEreignisse, options: [
+        { value: 'teamherz', label: '💜 Teamherz' },
+        { value: 'level_team', label: '⬆️ Teamherz-Level-Up' },
+        { value: 'level_gifter', label: '🏅 Geschenke-Level-Up' },
+        { value: 'superfan', label: '⭐ Superfan-Abo (neu/verlängert)' },
+        { value: 'superfan_betritt', label: '⭐ Superfan betritt das Live' },
+        { value: 'truhe', label: '🎁 Truhe' },
+        { value: 'vip', label: '👑 VIP betritt das Live' },
+        { value: 'ziel', label: '🎯 LIVE-Ziel erreicht' },
+      ] },
+      { key: 'minLevelUp', label: 'Level-Up erst ab Stufe', type: 'number', hint: '0 = jeder Aufstieg bekommt eine Animation. Z.B. 10 = erst ab Stufe 10 — dann feiert der Screen nur die großen Sprünge.', showIf: (p) => eaArtAn('level_team')(p) || eaArtAn('level_gifter')(p) },
+      { key: 'superfanVerlaengert', label: 'Auch Superfan-Verlängerungen', type: 'boolean', hint: 'An: auch wer sein Superfan-Abo verlängert, bekommt die Animation („SUPERFAN VERLÄNGERT"). Aus: nur neue Superfans.', showIf: eaArtAn('superfan') },
+      { key: 'minVip', label: 'VIP ab Geschenke-Stufe', type: 'number', hint: 'Ab welcher Geschenke-Stufe ein Zuschauer beim Betreten als VIP gefeiert wird. Je Zuschauer höchstens einmal pro Stream.', showIf: eaArtAn('vip') },
+      ...ereignisFelder('teamherz', 'Teamherz', []),
+      ...ereignisFelder('level_team', 'Teamherz-Level-Up', EA_LEVEL_ANIM),
+      ...ereignisFelder('level_gifter', 'Geschenke-Level-Up', EA_LEVEL_ANIM),
+      ...ereignisFelder('superfan', 'Superfan-Abo', [{ value: 'superfan-premium', label: '⭐ Superfan Premium' }]),
+      ...ereignisFelder('superfan_betritt', 'Superfan betritt', [{ value: 'superfan-premium', label: '⭐ Superfan Premium' }]),
+      ...ereignisFelder('truhe', 'Truhe', [{ value: 'truhe-premium', label: '🎁 Truhe Premium' }]),
+      ...ereignisFelder('vip', 'VIP betritt', [{ value: 'vip-gold', label: '👑 VIP Gold' }, { value: 'superfan-premium', label: '⭐ Superfan Premium' }]),
+      ...ereignisFelder('ziel', 'LIVE-Ziel', [{ value: 'ziel-erreicht', label: '🎯 Ziel erreicht (Neon)' }]),
+      { key: 'qualitaet', label: 'Qualität', type: 'select', hint: '„Voll" = volle Auflösung, jedes Bild. „Leicht" = halbe Auflösung und höchstens 30 Bilder/s — für schwache Stream-PCs, wenn die Live-Animationen ruckeln.', showIf: istEreignisse, options: [
+        { value: 'voll', label: '✨ Voll (Standard)' },
+        { value: 'leicht', label: '🪶 Leicht (für schwache PCs)' },
+      ] },
+      { key: 'showUser', label: 'Name + Profilbild zeigen', type: 'boolean', hint: 'Blendet unten ein, wer es ausgelöst hat — mit rundem Profilbild. Im Modus „Ereignisse" gilt das für Herz-Motive und eigene Dateien; die Live-Animationen zeigen Name und Bild selbst.' },
+      { key: 'userText', label: 'Text', type: 'text', hint: 'Der Platzhalter {name} wird durch den Namen ersetzt. Beispiele: „💜 {name} ist Teil des Teams", „{name} lässt ein Teamherz da". Im Modus „Ereignisse" für das Teamherz.', showIf: (p) => p.showUser !== false && (istKlassisch(p) || eaArtAn('teamherz')(p)) },
       ACCENT_FIELD,
     ],
   },

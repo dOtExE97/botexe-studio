@@ -111,3 +111,25 @@ test('Teamherz-Geschenknummer deckt sich mit intro.ts', async () => {
   assert.ok(a && b, 'TEAMHERZ_GIFT_ID in beiden Dateien gefunden');
   assert.equal(a[1], b[1]);
 });
+
+// WÄCHTER (Anti-Ziel „bestehende Overlays ändern sich"): Ein Layer ohne `modus`
+// — also jedes Overlay von vor dem Modus „Ereignisse" — und ein Layer mit
+// `modus:'klassisch'` laufen über den ALTEN Weg: keine Delegation, keine
+// Warteschlange, Teamherz blendet sofort ein.
+test('Herz-Alarm ohne modus bzw. klassisch delegiert NICHT an den Ereignis-Alarm', async () => {
+  const { installiereFakeDom } = await import('./fake-dom.test-helfer.ts');
+  const { default: HerzAlarm } = await import('./herz-alarm.js');
+  const root = installiereFakeDom();
+  for (const props of [{ motiv: 'royal', event: 'teamherz' }, { modus: 'klassisch', motiv: 'royal', event: 'teamherz' }]) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w: any = new HerzAlarm(root, props, {});
+    assert.equal(w.impl, undefined, 'kein impl → alter Weg');
+    w.onEvent({ type: 'gift', gift: { giftId: 7934 }, user: { nickname: 'Mia' } });
+    assert.ok(w.el.classList.contains('an'), 'Teamherz blendet sofort ein');
+    assert.equal(w.video.gespielt, 1);
+    // sub zählt im klassischen Modus weiterhin als Teamherz (heutiges Verhalten).
+    w.onEvent({ type: 'sub', user: { nickname: 'Leon' } });
+    assert.equal(w.video.gespielt, 2);
+    w.destroy();
+  }
+});
