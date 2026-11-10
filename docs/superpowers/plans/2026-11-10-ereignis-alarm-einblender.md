@@ -86,6 +86,24 @@
 - [ ] **Step 4:** Tests → PASS; `lint`/`typecheck` → 0.
 - [ ] **Step 5:** Commit `feat(tiktok): Banner und Truhen auswerten und lesbar loggen` (nur die eigenen Hunks: `git add -p`).
 
+### Task 2b: LIVE-Ziel + VIP betritt (Main-Prozess)
+
+**Files:**
+- Modify: `packages/trigger-engine/src/index.ts` (Union um `'live_ziel' | 'vip_betritt'`; `StudioEvent` um `ziel?: { id: string; beschreibung?: string; fortschritt: number; ziel: number; geschenk?: { name: string; id?: string }; erreicht: boolean }`, `vip?: { stufe: number }`)
+- Modify: `apps/desktop/src/main/adapters/tiktok-normalize.ts` (`normalizeBarrage`: msgType 9 → `vip_betritt`; neu `normalizeGoalUpdate`)
+- Modify: `apps/desktop/src/main/adapters/tiktok-cloud.ts` (`WebcastGoalUpdateMessage`/`goalUpdate` → neues CloudEmitEvent `'goalUpdate'`; `WebcastInRoomBannerMessage`: weiter verworfen, aber Feldnamen `log.einmal` je Stream auch OHNE Diagnose-Modus)
+- Modify: `apps/desktop/src/main/adapters/tiktok-adapter.ts` (`on('goalUpdate')`; VIP-Dedup: je `user.id` einmal pro Verbindung)
+- Modify: `apps/desktop/src/main/services/studio.ts` (Logzeilen: `VIP betritt das Live: ${name} (Geschenke-Stufe ${stufe})` gedrosselt je Nutzer; `LIVE-Ziel: ${fortschritt}/${ziel} ${geschenk} — Beitrag von ${name}` gedrosselt 30 s; `LIVE-Ziel erreicht: …` immer)
+- Tests: `tiktok-normalize.test.ts`, `tiktok-cloud.test.ts`, `tiktok-adapter.test.ts`
+
+**Interfaces:**
+- Produces: `normalizeGoalUpdate(data: RawGoalUpdate, ts: number): StudioEvent | null` → `{ type:'live_ziel', ts, user?: {id: contributorIdStr ?? contributorId, nickname: contributorDisplayId}, ziel }`; `fortschritt`/`ziel` = Summe `progress`/`target` aller `goal.subGoals`; `geschenk` = erstes `subGoals[].gift` mit Name; `beschreibung` = `goal.description`; kein `goal.id` → `null`.
+- `normalizeBarrage` msgType 9 / `'GRADE_USER_ENTRANCE_NOTIFICATION'` → `{ type:'vip_betritt', user (gifterLevel=stufe), vip:{stufe} }` (Stufe 0 / kein Nutzer → null).
+
+- [ ] **Step 1: Failing tests:** GoalUpdate-Fixture im Mitschnitt-Format (`goal:{id:'g1', description:'Sende…', subGoals:[{id:'7934', progress:'35', target:'50', gift:{name:'Heart Me'}}]}, contributorIdStr:'9', contributorDisplayId:'Alex'`) → `ziel {id:'g1', fortschritt:35, ziel:50, erreicht:false, geschenk:{name:'Heart Me'}}`, `user.nickname 'Alex'`; progress '50' → `erreicht true`; zwei subGoals summiert; ohne `goal.id` → null. Barrage 9 mit `userGradeParam{currentGrade:32, user}` → `vip_betritt`, `vip.stufe 32`. Adapter: gleicher VIP zweimal → ein Publish.
+- [ ] **Step 2:** FAIL. **Step 3:** Implementieren. **Step 4:** PASS; lint/typecheck/test 0.
+- [ ] **Step 5:** Commit `feat(tiktok): LIVE-Ziel und VIP-Eintritt als Ereignisse`.
+
 ### Task 3: Teamherz-Level-Up über Abzeichen (Ersatzweg) + Dedup
 
 **Files:**
@@ -118,6 +136,7 @@
 **Files:**
 - Modify: `packages/trigger-engine/src/index.ts` (Bedingungen `{ kind:'level_art_ist'; value:'team'|'gifter' }`, `{ kind:'level_neu_gte'; value:number }`, Auswertung ~Z. 583–637)
 - Modify: `apps/desktop/src/main/services/validators.ts` (`EVENT_TYPES` + `CONDITION_KINDS` + Wertprüfung)
+- Zusätzlich (Erweiterung): Ereignistypen `live_ziel` (Bedingung `{ kind:'ziel_erreicht' }` → nur wenn `ziel.erreicht`) und `vip_betritt` (Bedingung `{ kind:'vip_stufe_gte'; value:number }`); `EVENT_OPTIONS`-Labels `'🎯 TikTok-LIVE-Ziel'`, `'👑 VIP betritt das Live'`.
 - Modify: `apps/desktop/src/renderer/pages/TriggersPage.tsx` (`EVENT_OPTIONS`: `{ value:'level_up', label:'⬆️ Level-Up (Teamherz / Geschenke-Stufe)' }`, Bedingungsliste, Beschreibungstexte; „Neuer Sub (Teamherz)"-Texte → „Neuer Superfan (Abo)")
 - Modify: `apps/desktop/src/main/adapters/overlay-server.ts` Test-Event-Route + `test-event-allowlist.test.ts` (Felder `levelUp`, `superfanArt`)
 - Test: `packages/trigger-engine/src/engine.test.ts`
@@ -175,6 +194,8 @@
 
 **Interfaces:**
 - `superfan-premium`: `dauer 7.6`; `daten.unterzeile` Standard `'WILLKOMMEN IM SUPERFAN-CLUB'`, Varianten vom Alarm: `'SUPERFAN VERLÄNGERT'`, `'SUPERFAN IST DA'`; Kopfzeile „NEUER" nur bei Neu-Abo (`daten.neuAbo === true`).
+- `vip-gold`: Superfan-Premium-Renderer im Gold-Schema (Gold/Bernstein statt Violett, Diamant golden-orange), Titel `'VIP IST DA'` statt NEUER/SUPERFAN, Unterzeile `GESCHENKE-STUFE ${neu}`; `dauer 7.6`; Sound `botexe-superfan.wav`.
+- `ziel-erreicht`: TikTok-Neon-Renderer (Task 6) mit Titel `'ZIEL ERREICHT!'`, Pille `${fortschritt}/${ziel}` statt Stufenrolle, Unterzeile Geschenkname bzw. gekürzte Beschreibung (max. 28 Zeichen + „…"), Kachel am Profilbild = Häkchen; `dauer 5.8`; Sound `botexe-levelup-tiktok-neon.wav`.
 - `truhe-premium`: `dauer 6.8`; Titel `'SCHATZTRUHE!'`, Zähler `daten.coins` (fehlt → Zähler ausblenden), Unterzeile Standard `'COINS ZUM SCHNAPPEN'`, bei Superfan-Truhe `'SUPERFAN-TRUHE'`.
 
 - [ ] **Step 1:** Failing tests wie Task 6 für beide ids; `coins: undefined` wirft nicht.
@@ -195,11 +216,11 @@
 - Produces (reine, exportierte Helfer):
   ```js
   /** Ordnet ein Ereignis einer Alarm-Art zu (oder null). cfg = normalisierte Props. */
-  export function alarmArt(event, cfg): 'teamherz'|'level_team'|'level_gifter'|'superfan'|'superfan_betritt'|'truhe'|null;
+  export function alarmArt(event, cfg): 'teamherz'|'level_team'|'level_gifter'|'superfan'|'superfan_betritt'|'truhe'|'vip'|'ziel'|null;
   export class Warteschlange { constructor(max = 10); rein(eintrag): boolean /* false = übergelaufen */; raus(); get laenge(); leeren(); }
   ```
-  `alarmArt`: teamherz = `trifftAusloeser(e,'teamherz',cfg.minLevel)` aber OHNE `type:'sub'` (sub = Superfan-Abo); level_team/gifter = `type:'level_up'` + art + `neu ≥ cfg.minLevelUp`; superfan = `type:'superfan'` mit `superfanArt` abo_neu (oder abo_verlaengert, wenn `cfg.superfanVerlaengert`) ODER `type:'sub'` (Status 0, bzw. 1 bei Verlängerung); superfan_betritt = `superfanArt:'betritt'`; truhe = `type:'envelope'`. Nur Arten in `cfg.ereignisse`. Truhen-Dedup über `envelope.envelopeId` (sonst Name+Coins 30 s).
-- Neue Props (Standardwerte in `widget-types.ts`): `modus:'klassisch'`, `ereignisse:['teamherz','level_team','superfan','truhe']`, `anim_teamherz:'motiv'` (= bisherige Motiv-Logik), `anim_level_team:'lvl-tiktok-neon'`, `anim_level_gifter:'lvl-tiktok-neon'`, `anim_superfan:'superfan-premium'`, `anim_superfan_betritt:'superfan-premium'`, `anim_truhe:'truhe-premium'`, je Art `media_<art>:''` (Feldtyp `media`, sichtbar bei `anim_<art>==='eigen'`), `sound_<art>:'standard'|'custom'|'off'` + `soundId_<art>`, `minLevelUp:0`, `superfanVerlaengert:true`, `qualitaet:'voll'|'leicht'`. Select-Optionen je Art: passende `ANIMATIONEN`-ids + Herz-Motive (`motiv:<id>`) + `'eigen'`.
+  `alarmArt`: teamherz = `trifftAusloeser(e,'teamherz',cfg.minLevel)` aber OHNE `type:'sub'` (sub = Superfan-Abo); level_team/gifter = `type:'level_up'` + art + `neu ≥ cfg.minLevelUp`; superfan = `type:'superfan'` mit `superfanArt` abo_neu (oder abo_verlaengert, wenn `cfg.superfanVerlaengert`) ODER `type:'sub'` (Status 0, bzw. 1 bei Verlängerung); superfan_betritt = `superfanArt:'betritt'`; truhe = `type:'envelope'`. vip = `type:'vip_betritt'` mit `vip.stufe ≥ cfg.minVip` (Standard 20); ziel = `type:'live_ziel'` mit `ziel.erreicht`, einmal je `ziel.id` (Merker wie Truhen-Dedup). Nur Arten in `cfg.ereignisse`. Truhen-Dedup über `envelope.envelopeId` (sonst Name+Coins 30 s).
+- Neue Props (Standardwerte in `widget-types.ts`): `modus:'klassisch'`, `ereignisse:['teamherz','level_team','superfan','truhe','ziel']` (vip, superfan_betritt, level_gifter standardmäßig aus), `anim_vip:'vip-gold'`, `anim_ziel:'ziel-erreicht'`, `minVip:20`, `anim_teamherz:'motiv'` (= bisherige Motiv-Logik), `anim_level_team:'lvl-tiktok-neon'`, `anim_level_gifter:'lvl-tiktok-neon'`, `anim_superfan:'superfan-premium'`, `anim_superfan_betritt:'superfan-premium'`, `anim_truhe:'truhe-premium'`, je Art `media_<art>:''` (Feldtyp `media`, sichtbar bei `anim_<art>==='eigen'`), `sound_<art>:'standard'|'custom'|'off'` + `soundId_<art>`, `minLevelUp:0`, `superfanVerlaengert:true`, `qualitaet:'voll'|'leicht'`. Select-Optionen je Art: passende `ANIMATIONEN`-ids + Herz-Motive (`motiv:<id>`) + `'eigen'`.
 - Abspielen: Canvas-Renderer per rAF (Rumpf in try/catch; im Fehler Sperre lösen, Eintrag verwerfen, `this.ctx` Meldung), WebM-Motive über das vorhandene `<video>`, eigene Datei `/media/<id>` als `<video>` bzw. `<img>` (GIF, Dauer 6 s) mit HTML-Namensleiste. Sound `standard` → `ctx.playSound(ANIMATIONEN[id].sound)`; Motive mit `standard` = Original-Ton im Video.
 - Vorschau: reihum Demo der gewählten Arten mit Demo-Daten (`'Mia'`, Stufe 12, 500 Coins), stumm, Schleife.
 
@@ -236,6 +257,17 @@
 - [ ] **Step 2:** FAIL. **Step 3:** Implementieren (Renderer aus der Probe, Helfer aus `alarm-anim.js` wiederverwenden). **Step 4:** `node --check`; Tests PASS; `npm test` 0; `npm run widget-check` 0.
 - [ ] **Step 5:** Vorschau-MP4 neben `Einblender_V2_neon/gold.mp4` legen → gleiche Optik.
 - [ ] **Step 6:** Commit `feat: Widget Einblender mit Auto-Modus Like-Flaute`.
+
+### Task 9b: Ziel-Leiste folgt dem TikTok-LIVE-Ziel
+
+**Files:**
+- Modify: `packages/widget-kit/goal-bar.js` (neue Metrik `'tiktok-ziel'`: Wert/Ziel aus dem letzten `live_ziel`-Ereignis, Beschriftung = `props.label` oder Geschenkname bzw. „LIVE-Ziel"; bis zum ersten Ereignis „Warte auf TikTok-Ziel…" bzw. in der Vorschau Demo 35/50 „Heart Me")
+- Modify: `apps/desktop/src/renderer/pages/widget-types.ts` (Metrik-Option `{ value:'tiktok-ziel', label:'🎯 TikTok-LIVE-Ziel (automatisch)' }`; `target`-Feld bei dieser Metrik ausblenden)
+- Test: `packages/widget-kit/goal-bar.test.ts` (anlegen, falls nicht vorhanden)
+
+- [ ] **Step 1: Failing test:** Instanz mit `metric:'tiktok-ziel'`, `onEvent({type:'live_ziel', ziel:{id:'g', fortschritt:35, ziel:50, erreicht:false, geschenk:{name:'Heart Me'}}})` → angezeigte Zahlen `35` und `50`, Beschriftung `Heart Me`; andere Metriken ignorieren `live_ziel` (Wächter: bestehendes Verhalten unverändert).
+- [ ] **Step 2–4:** FAIL → implementieren → `node --check` + PASS + widget-check 0.
+- [ ] **Step 5:** Commit `feat(goal-bar): Metrik TikTok-LIVE-Ziel`.
 
 ### Task 10: Gesamtprüfung, Leistung, Doku (kein Release)
 

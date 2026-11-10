@@ -296,3 +296,30 @@ Standard-Sounds, Einzelheiten der Warteschlange.
 3. Ereignis-Alarm (Herz-Alarm-Erweiterung, Renderer, Warteschlange).
 4. Einblender + Like-Flaute.
 5. Doku, CHANGELOG, Release **nur nach Alex' Freigabe**.
+
+## Erweiterung (Alex, 10.11.): LIVE-Ziel + VIP betritt
+
+Aus der Log-Auswertung (verworfene Nachrichten) hat Alex zwei Dinge in dieses Update geholt:
+„Also live Ziel und vip kannste gleich mit einbauen … auch einblendung?"
+
+- **VIP betritt das Live** = Banner `msgType 9` (`subType 'user_level_entrance'`,
+  `userGradeParam{currentGrade, user}`), belegt im Mitschnitt (Stufen 25–32). Wird Ereignis
+  `vip_betritt` mit `vip:{stufe}`. Im Ereignis-Alarm eigene Art „VIP betritt" (Standard **aus**,
+  Mindeststufe Standard **20**), Animation: Superfan-Premium im Gold-Schema mit Titel „VIP IST DA"
+  und Unterzeile „GESCHENKE-STUFE {n}". Je Nutzer höchstens einmal pro Stream.
+- **TikTok-LIVE-Ziel** = `WebcastGoalUpdateMessage`, belegt: `goal{id, description,
+  subGoals[{id, progress, target, gift{name, diamondCount}}], contributors[{userId, displayId,
+  score}]}`, `contributorId`, `contributorDisplayId`, `contributeCount`. Wird Ereignis `live_ziel`
+  mit `ziel:{id, beschreibung, fortschritt, ziel, geschenk?, erreicht}` (Summe über
+  `subGoals`; `erreicht` = fortschritt ≥ ziel > 0) und `user` = Beitragender (nur Name/ID, kein
+  Bild in der Nachricht).
+  - **Einblendung**: Ereignis-Alarm-Art „LIVE-Ziel erreicht" (Standard **an**), feuert genau
+    einmal je Ziel-`id`, wenn `erreicht` von falsch auf wahr springt. Animation: TikTok-Neon-
+    Renderer mit Titel „ZIEL ERREICHT!", Pille „{fortschritt}/{ziel}", Unterzeile = Geschenkname
+    bzw. Beschreibung (gekürzt), Profilbild-Kreis mit Initiale des letzten Beitragenden.
+  - **Ziel-Leiste** (`goal-bar`): neue Metrik-Option „TikTok-LIVE-Ziel" (neuer Wert, bestehende
+    unverändert): Fortschritt/Ziel und Beschriftung (Geschenkname) kommen aus `live_ziel`.
+- Trigger-Engine: Ereignistypen `live_ziel` (Bedingung „Ziel erreicht") und `vip_betritt`
+  (Bedingung „Stufe ≥ N").
+- Nicht in diesem Update: Umfragen, gelöschte Chat-Nachrichten, PK-Punkte, In-Room-Banner (nur:
+  Feldnamen einmal je Stream ins Log, um sie später zu bewerten).
