@@ -29,6 +29,8 @@ export const POPULAR_WIDGETS = [
 // Spiele-Sammlung in „Ambient & Deko").
 export const CATEGORY_OF: Record<string, string> = {
   'gift-alert': 'alerts', 'follow-alert': 'alerts', 'gift-fireworks': 'alerts', 'gift-cannon': 'alerts', 'action-screen': 'alerts', 'herz-alarm': 'alerts',
+  // Der Einblender ist ein Auftritt wie ein Alert — er kommt, wirbt, verschwindet.
+  einblender: 'alerts',
   bingo: 'spiele', 'guess-number': 'spiele', wheel: 'spiele', giveaway: 'spiele', 'gift-battle': 'spiele', 'live-poll': 'spiele',
   // Der Automat FEHLTE hier und landete dadurch still in „Ambient & Deko" —
   // genau die Falle, vor der der Kommentar oben warnt. Ein Wächter-Test hält
