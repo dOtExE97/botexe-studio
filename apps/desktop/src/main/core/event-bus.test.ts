@@ -60,3 +60,16 @@ test('werfender subscriber bringt publish nicht um und andere subscriber laufen 
   assert.doesNotThrow(() => bus.publish(chat('hi')));
   assert.equal(got.length, 1);
 });
+
+test('Vorfilter verwirft ein Ereignis für ALLE Abonnenten und merkt es nicht als Sticky', () => {
+  const bus = new EventBus();
+  const got: StudioEvent[] = [];
+  bus.subscribeAll((e) => got.push(e));
+  bus.setVorfilter((e) => e.text !== 'weg');
+
+  bus.publish(chat('weg'));
+  bus.publish(chat('bleibt'));
+
+  assert.deepEqual(got.map((e) => e.text), ['bleibt']);
+  assert.equal(bus.getLastValue('chat')?.text, 'bleibt');
+});

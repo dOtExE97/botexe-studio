@@ -18,7 +18,17 @@ export class EventBus {
     this.emitter.setMaxListeners(30);
   }
 
+  /** Vorfilter: liefert false → das Ereignis wird verworfen, KEIN Abonnent
+   *  (auch nicht der Overlay-Server) sieht es. Nötig fürs Dedup, weil der
+   *  Overlay-Server unabhängig von Studio direkt am Bus hängt. */
+  private vorfilter: ((e: StudioEvent) => boolean) | null = null;
+
+  setVorfilter(fn: ((e: StudioEvent) => boolean) | null): void {
+    this.vorfilter = fn;
+  }
+
   publish(event: StudioEvent): void {
+    if (this.vorfilter && !this.vorfilter(event)) return;
     this.lastValues.set(event.type, event);
     this.emitter.emit(ALL, event);
     this.emitter.emit(`type:${event.type}`, event);

@@ -8,6 +8,7 @@ import path from 'node:path';
 import { TriggerEngine, giftKey, renderSpeakTemplate, sprechbarerName, matchRedemption, matchChatCommand, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
+import { LevelUpWaechter } from '../core/level-up-waechter';
 import { schreibeAtomar } from '../core/atomar-schreiben';
 import { SessionStats } from '../core/session-stats';
 import { EventRecorder, parseReplay, playReplay } from '../core/replay';
@@ -254,6 +255,8 @@ export class Studio {
   /** Rollen-Gedächtnis (Mod/Teamherz/Follower) pro Stream — einmal erkannt =
    *  für die Session gemerkt, da TikTok Rollen nicht in jeder Nachricht liefert. */
   private sessionRoles = new SessionRoles();
+  /** Teamherz-Level-Up über Abzeichen + Dedup gegen Banner. */
+  private levelUpWaechter = new LevelUpWaechter();
   /** Diagnose-Logging: Rollen-Erkennung 1× pro User/Rolle loggen (kein Spam). */
   private loggedRoleUsers = new Set<string>();
   private loggedFollowerOnce = false;
@@ -528,7 +531,40 @@ export class Studio {
     });
 
     this.engine.setRules(this.settings.get().triggerRules);
+    this.bus.setVorfilter((e) => this.levelUpVorfilter(e));
     this.wireBus();
+  }
+
+  /** Teamherz-Level-Up aus zwei Quellen zu einem Ereignis machen.
+   *  Läuft VOR allen Abonnenten (auch dem Overlay-Server):
+   *  - Banner-Level-Up (Teamherz): merken; kam dasselbe in der letzten Minute
+   *    schon (z.B. über das Abzeichen), wird es verworfen.
+   *  - Jedes andere echte Ereignis mit Teamherz-Stufe: steigt die Stufe
+   *    gegenüber der letzten Sichtung, wird ein Level-Up veröffentlicht —
+   *    unmarkiert (`synthetic` hieße „Test"). Es läuft selbst wieder durch
+   *    diesen Filter; dort wird es nur gemerkt, löst aber nichts Neues aus. */
+  private levelUpVorfilter(e: StudioEvent): boolean {
+    if (e.synthetic || e.sticky) return true;
+    const user = e.user;
+    if (e.type === 'level_up') {
+      if (e.levelUp?.art !== 'team' || !user) return true;
+      if (this.levelUpWaechter.istDoppelt(user.id, e.levelUp.neu, e.ts)) {
+        log.debug('TikTok', `Teamherz-Level-Up von ${user.nickname} (Stufe ${e.levelUp.neu}) war schon gemeldet — übersprungen`);
+        return false;
+      }
+      this.levelUpWaechter.vonBanner(user.id, e.levelUp.neu, e.ts);
+      return true;
+    }
+    const stufe = user?.teamLevel ?? 0;
+    if (user && stufe > 0) {
+      const neu = this.levelUpWaechter.sieheStufe(user.id, stufe, e.ts);
+      if (neu !== null && !this.levelUpWaechter.istDoppelt(user.id, neu, e.ts)) {
+        const levelUp: StudioEvent = { type: 'level_up', ts: e.ts, user, levelUp: { art: 'team', neu } };
+        // Erst das auslösende Ereignis zustellen, dann das Level-Up.
+        queueMicrotask(() => this.bus.publish(levelUp));
+      }
+    }
+    return true;
   }
 
   private wireBus(): void {
@@ -2664,6 +2700,7 @@ export class Studio {
     this.games.stop('neuer Stream');
     if (this.bossActive) this.stopBoss();
     this.sessionRoles.clear();
+    this.levelUpWaechter.reset();
     // Ranglisten gehören zum Stream — im neuen Stream stünde sonst der alte
     // Platz, bis TikTok zufällig einen neuen schickt.
     this.rangListe.clear();
