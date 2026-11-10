@@ -3,6 +3,75 @@
 Alle nennenswerten Änderungen. Format orientiert an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## Unveröffentlicht
+
+### Neu: Herz-Alarm im Modus „Ereignisse" — ein Screen für alle großen Momente
+
+Im Live vom 08.11. wurde jemand Superfan — und **nichts passierte**. Die Ursache
+lag tiefer als eine fehlende Regel: Was die App bisher „Superfan" nannte, war
+eulerstreams Kurzname `superFan`, und der heißt in Wahrheit **„ein Superfan
+betritt das Live"**. Die drei Meldungen vom 08.11. waren also sehr
+wahrscheinlich Eintritte. Der echte Super Fan ist TikToks **bezahltes
+LIVE-Abo** — und das kam als Banner an, den die App bis jetzt ungelesen
+weggeworfen hat. Genauso verloren gingen Teamherz-Level-Ups, Geschenke-Stufen
+und Schatztruhen.
+
+Der Herz-Alarm hat dafür einen zweiten Modus „Ereignisse" (bestehende Overlays
+bleiben unverändert auf „Klassisch"):
+
+- **Teamherz**, **Teamherz-Level-Up**, **Geschenke-Stufe-Level-Up**,
+  **Superfan-Abo** (neu: „NEUER SUPERFAN – Willkommen im Superfan-Club",
+  verlängert: „SUPERFAN VERLÄNGERT"), **Superfan betritt das Live**,
+  **Schatztruhe** (mit Coins und Profilbild des Absenders, auch die
+  Superfan-Truhe), **VIP betritt das Live** (ab einstellbarer Geschenke-Stufe,
+  je Zuschauer einmal pro Stream) und **LIVE-Ziel erreicht**.
+- Jede Art hat ihre **eigene Animation** mit Name, Profilbild und Zahlen
+  (oder ein Herz-Motiv, oder deine eigene Datei) und ihren **eigenen Ton**.
+- Ereignisse laufen **nacheinander** statt sich gegenseitig abzubrechen; bis
+  zu zehn warten. Was darüber hinaus kommt, wird verworfen und gemeldet.
+- „Qualität: Leicht" halbiert die Auflösung für schwache Stream-PCs.
+
+### Neu: Einblender — kurze Werbe-Spots
+
+„Ihr wollt supporten?" → Tippen, Teilen, Folgen: ein kurzer Spot wischt rein
+und ist wieder weg. Läuft nach Zeitplan, per Trigger-Regel — oder von allein,
+wenn im Live gerade **kaum jemand liked** (Like-Flaute, mit Mindest-Zuschauern
+und Pause dazwischen).
+
+### Neu: Ziel-Leiste folgt dem TikTok-LIVE-Ziel
+
+Die Ziel-Leiste hat die Metrik „TikTok-LIVE-Ziel (automatisch)": Sie zeigt
+Fortschritt, Ziel und Geschenk des Ziels, das du in TikTok gesetzt hast — und
+steht nach einem OBS-Neuladen sofort wieder richtig.
+
+### Neu: Trigger-Ereignisse Level-Up, LIVE-Ziel und VIP
+
+Regeln können jetzt auf **Level-Up** (Teamherz oder Geschenke-Stufe, mit
+Mindeststufe), **TikTok-LIVE-Ziel** (auf Wunsch nur in dem Moment, in dem das
+Ziel erreicht wird — einmal je Ziel, nicht bei jedem weiteren Beitrag) und
+**VIP betritt das Live** reagieren.
+
+### Besser lesbares Log für Banner und Truhen
+
+Banner-Ereignisse und Truhen stehen jetzt in Alltagssprache im Log
+(„Teamherz-Level-Up: Mia → Stufe 12", „Schatztruhe von Mia: 500 Coins, 3 Leute
+(Art 1, ID …)"). Für Banner- und Truhen-Arten, die die App noch nicht kennt,
+steht einmal je Verbindung, **welche Felder** TikTok mitschickt (nur die Namen,
+nie die Inhalte) — damit lässt sich nach dem nächsten Live klären, was z. B.
+die Geschenktüte ist.
+
+### Bewusst geändertes Verhalten
+
+- **Superfan-Meldungen werden je Zuschauer zusammengefasst**: TikTok schickt
+  dasselbe teils doppelt (Kurzname und Banner in derselben Millisekunde).
+  „Superfan betritt" zählt innerhalb von 5 Sekunden, ein Superfan-Abo
+  innerhalb von 60 Sekunden nur einmal. Wer bisher auf jede einzelne
+  `superFan`/`superFanJoin`-Meldung reagiert hat, sieht weniger Auslöser.
+- **Teamherz-Level-Up kann in einem Grenzfall doppelt kommen**: Steigt die
+  Teamherz-Stufe sichtbar am Abzeichen, meldet die App das Level-Up sofort.
+  Schickt TikTok den passenden Banner erst **mehr als 60 Sekunden** später,
+  gilt er als neues Ereignis.
+
 ## [0.59.1] - 2026-09-12
 
 ### Behoben: Der Herz-Alarm blieb schwarz
