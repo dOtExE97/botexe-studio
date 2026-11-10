@@ -201,14 +201,56 @@ Screen" für alles will und zwei Vollbild-Alarme sich überlagern würden.
   echten Log bestätigen** (Logs per SSH vom Stream-PC, siehe `runbooks/access.md` in der
   Wissensbasis). Der Ersatzweg über Abzeichen (oben) funktioniert unabhängig davon.
 
+## Belege aus dem Live-Mitschnitt (10.11.2026, @hi_im_billa, ~30 min, nur lokal gespeichert)
+
+Ein lesender Mitschnitt eines fremden Lives (eulerstream, gleiches Format wie die App) hat die
+offenen Datenfragen beantwortet. Feldwerte unten sind Strukturbelege, keine Nutzerdaten.
+
+- **Banner-Format ist belegt**: `msgType` kommt als **Zahl**; `subType` als Text. Felder heißen
+  wie im Proto-Schema: `userGradeParam{currentGrade, userId, user{userId, nickname, uniqueId,
+  profilePicture{url[]}}}` bzw. `fansLevelParam{currentGrade, user{…}}`. Textbausteine stehen
+  in `content.piecesList` / `commonBarrageContent.piecesList` (nicht `pieces`).
+- Gesehene Banner: `msgType 9` (`subType 'user_level_entrance'`, „Zuschauer mit
+  Geschenke-Stufe N betritt das Live"), `msgType 11` (`subType 'fans_entrance'`,
+  `displayType 'ttlive_superFan_commentNotif_superFanJoined'`, Text „Super Fan {user} joined").
+- **eulerstreams Kurzname `superFan` ist KEIN neuer Superfan**, sondern derselbe
+  `msgType 11` = **„ein Superfan betritt das Live"**. Die App wertet ihn heute als
+  Superfan-Meldung mit `superfanNeu=false`. Das erklärt den 08.11.: Die drei „Superfan"-Ereignisse
+  waren sehr wahrscheinlich Eintritte, kein Abo.
+- **Super Fan = TikToks bezahltes LIVE-Abo** (Nachfolger von „LIVE Subscription", Herbst 2025;
+  Quellen: live-success.beehiiv.com „TikTok deletes LIVE subscriptions", mediapost.com 399658).
+  Ein neues/verlängertes Abo kommt also als `WebcastSubNotifyMessage` (App-Typ `sub`,
+  `oldSubscribeStatus` 0 = neu, 1 = Verlängerung) bzw. als Banner `msgType 4`
+  (`SUBSCRIBE`) / `7` (`SUBSCRIBE_GIFT`) — letztere wirft die App heute weg. Nicht im Mitschnitt
+  belegt (in 30 min hat niemand abonniert) → defensiv parsen, mit Logzeile.
+- **Truhe**: `WebcastEnvelopeMessage.envelopeInfo{envelopeId, businessType (1 = normale
+  Truhe), sendUserName, sendUserId, sendUserAvatar{url[]}, diamondCount, peopleCount, unpackAt}`,
+  Anzeigetext „{user} sent a Treasure Box …". **Das Profilbild des Absenders IST dabei** — die
+  Truhen-Animation zeigt also in der Regel das echte Bild.
+
+### Folgen für das Design (ersetzt widersprechende Stellen oben)
+
+- **Superfan-Animation** feuert bei: `sub` mit `oldSubscribeStatus` 0 (neu) bzw. 1
+  (Verlängerung, abschaltbar), Banner `msgType 4`/`7`, und `superFanJoin`. Doppelte Meldungen
+  desselben Nutzers innerhalb 60 s → ein Alarm.
+- **Neues, eigenes Ereignis „Superfan betritt das Live"** (`msgType 11` / `superFan`) — im
+  Ereignis-Alarm abwählbar, Standard **aus** (kann bei vielen Superfans nerven). Animation:
+  Superfan-Premium mit Unterzeile „SUPERFAN IST DA".
+- `level_up` (msgType 8/10) wie oben. `msgType 9` („hohe Geschenke-Stufe betritt") wird nur
+  gezählt/geloggt — mögliches späteres Ereignis.
+- Im **klassischen** Herz-Alarm bleibt `sub` beim Auslöser „Teamherz" (heutiges Verhalten, Anti-Ziel:
+  nichts verändern); die irreführende Bezeichnung „Teamherz-Abo" in Code-Kommentaren/Trigger-Texten
+  wird zu „Superfan-Abo" korrigiert, ohne Verhalten zu ändern.
+
 ## Geklärt nach dem Builder-Check
 
 1. **Modus statt stillem Umkippen** (*meine Entscheidung*): Neues Prop `modus`
    (`klassisch` | `ereignisse`). Fehlt es → `klassisch` = exakt heutiges Verhalten, alle alten
    Felder (`event` inkl. Gift/Follow/Sub, `motiv`, …) gelten unverändert. Erst wer `modus` auf
-   „Ereignisse" stellt, bekommt die Häkchen, die Pro-Ereignis-Felder und die Warteschlange. In
-   `widget-types.ts` ist der Standard für NEU angelegte Herz-Alarme `ereignisse`; bestehende
-   Layer tragen kein `modus` und bleiben klassisch. Gift/Follow/Sub gibt es nur im klassischen
+   „Ereignisse" stellt, bekommt die Häkchen, die Pro-Ereignis-Felder und die Warteschlange. Der
+   Standard in `widget-types.ts` ist **`klassisch`** — der Editor mischt `def.props` in die
+   Anzeige bestehender Layer (`OverlayPage.tsx` ~1636); ein anderer Standard würde dort
+   „Ereignisse" anzeigen, während der Layer klassisch läuft. Alex stellt einmal um. Gift/Follow/Sub gibt es nur im klassischen
    Modus. Wächter-Test: Layer ohne `modus` verhält sich wie vorher.
 2. **Superfan** (*meine Entscheidung*): Neubeitritt (`superfanNeu`) spielt „NEUER SUPERFAN";
    Verlängerung spielt dieselbe Animation mit Unterzeile „SUPERFAN VERLÄNGERT" — abschaltbar
