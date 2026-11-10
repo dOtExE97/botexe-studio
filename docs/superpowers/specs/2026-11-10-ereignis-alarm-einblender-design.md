@@ -1,6 +1,6 @@
 # Ereignis-Alarm + Einblender — Design
 
-Stand: 10.11.2026 · Auftraggeber: Alex (Streamer, Maintainer) · Status: **Entwurf, wartet auf Freigabe**
+Stand: 10.11.2026 · Auftraggeber: Alex (Streamer, Maintainer) · Status: **freigegeben von Alex am 10.11.2026** (großes Update, alles auf einmal)
 
 ## Worum es geht und warum
 
@@ -196,9 +196,9 @@ Screen" für alles will und zwei Vollbild-Alarme sich überlagern würden.
 
 - **Feldform der Banner bei eulerstream ist nicht belegt.** Unbekannt: kommt `msgType` als Zahl
   oder als Text, heißen die Felder `fansLevelParam`/`userGradeParam` so wie im Proto-Schema,
-  steckt der Nutzer drin. Vorgehen: defensiv parsen (beide Formen), im Diagnose-Modus Feldnamen
-  loggen, und **vor dem Release einmal an einem echten Live-Log bestätigen** (Alex macht ein
-  Live mit Diagnose-Modus; Logs per SSH vom Stream-PC, siehe `runbooks/access.md` in der
+  steckt der Nutzer drin. Vorgehen: defensiv parsen (beide Formen), die ersten Banner je msgType mit Feldnamen loggen
+  (auch ohne Diagnose-Modus, einmal je Stream), und **nach dem ersten Live mit dem Update am
+  echten Log bestätigen** (Logs per SSH vom Stream-PC, siehe `runbooks/access.md` in der
   Wissensbasis). Der Ersatzweg über Abzeichen (oben) funktioniert unabhängig davon.
 
 ## Geklärt nach dem Builder-Check
@@ -227,7 +227,11 @@ Screen" für alles will und zwei Vollbild-Alarme sich überlagern würden.
    gerechnet. Reicht das auf dem Stream-PC nicht, gibt es eine Qualitätsstufe „Leicht"
    (weniger Partikel/Glow) als Einstellung — Standard bleibt „Voll". Gemessen wird auf dem
    Stream-PC (per SSH erreichbar) vor dem Release.
-6. **Zwischen-Release**: → Alex' Antwort, siehe unten.
+6. **Kein Zwischen-Release** (Alex, 10.11.: „Großes Update jetzt… will ja alles testen"). Die
+   Banner-Felder werden defensiv geparst (Zahl ODER Text bei `msgType`, beide Feldformen); der
+   Abzeichen-Ersatzweg sichert Teamherz-Level-Ups unabhängig davon ab. Das erste Live mit dem
+   Update ist der Beleg — vorhandene Logs (31.10.–09.11.) und alte Projekte enthalten keine
+   Banner-Inhalte, nur „übersprungen"-Zeilen.
 7. **Gifter-Level-Up** (*meine Entscheidung*): derselbe Renderer wie Teamherz-Level-Up mit
    eigenem Farbschema (Gold/Blau statt Pink/Cyan), Unterzeile „GESCHENKE-STUFE {alt} → {neu}"
    und Stufen-Plakette statt Herz-Kachel am Profilbild. Kein eigener Look-Zweig.
