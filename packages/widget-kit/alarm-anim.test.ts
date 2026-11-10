@@ -307,6 +307,11 @@ test('Schatztruhe: Zähler zeigt die Coins, ohne Coins kein Zähler; Unterzeile 
   assert.ok(mit.includes('COINS ZUM SCHNAPPEN'));
   const ohne = texteVon('truhe-premium', { name: 'Mia' });
   assert.ok(!ohne.some((t) => /^\d+$/.test(t)), 'ohne Coins darf kein Zähler erscheinen');
+  for (const leer of [null, '']) {
+    const t = texteVon('truhe-premium', { name: 'Mia', coins: leer });
+    assert.ok(!t.some((x) => /^\d+$/.test(x)), `coins: ${JSON.stringify(leer)} heißt „fehlt“, kein 0-Zähler`);
+  }
+  assert.ok(texteVon('truhe-premium', { name: 'Mia', coins: 0 }).includes('0'), 'echte 0 bleibt eine Zahl');
   assert.ok(texteVon('truhe-premium', { name: 'Mia', coins: 100, unterzeile: 'SUPERFAN-TRUHE' }).includes('SUPERFAN-TRUHE'));
 });
 

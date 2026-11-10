@@ -47,7 +47,7 @@ const fnt = (px) => `900 ${px}px ${SCHRIFT}, sans-serif`;
  *               „COINS ZUM SCHNAPPEN", Superfan-Truhe „SUPERFAN-TRUHE"), vip-gold (ersetzt die
  *               Stufen-Zeile), ziel-erreicht (Geschenkname bzw. Beschreibung; gekürzt auf
  *               28 Zeichen + „…", Großbuchstaben; fehlt → „LIVE-ZIEL")
- *   coins       truhe-premium: Zähler-Endstand (fehlt → Zähler ausgeblendet)
+ *   coins       truhe-premium: Zähler-Endstand (fehlt, null oder '' → Zähler ausgeblendet)
  *   fortschritt, ziel   ziel-erreicht: Pille „{fortschritt}/{ziel}" (fortschritt fehlt → ziel/ziel;
  *               ziel fehlt → nur fortschritt; beides fehlt → „✓")
  */
@@ -1278,11 +1278,22 @@ function gem(ctx, a, pal, t, ph = 0) {
   gl.forEach((p, j) => glint(ctx, p[0], p[1], a * 0.32, Math.pow(Math.max(0, Math.sin(t * 1.6 + j * 2.3 + ph)), 10)));
   ctx.restore();
 }
+/** Münz-Verlauf in Einheitsgröße (−0,5…0,5), je Kontext und Seite nur EINMAL gebaut —
+ *  der Münzhaufen zeichnet bis zu 95 Münzen je Bild. Skaliert wird beim Füllen. */
+const muenzVerlauf = new WeakMap();
+function muenzGr(ctx, back) {
+  let v = muenzVerlauf.get(ctx);
+  if (!v) {
+    const bau = (mitte) => { const gr = ctx.createLinearGradient(-0.5, -0.5, 0.5, 0.5); gr.addColorStop(0, '#fff6d0'); gr.addColorStop(0.35, mitte); gr.addColorStop(0.7, '#d9952a'); gr.addColorStop(1, '#8a5310'); return gr; };
+    v = { vorn: bau('#ffd56b'), hinten: bau('#e8a93a') };
+    muenzVerlauf.set(ctx, v);
+  }
+  return back ? v.hinten : v.vorn;
+}
 function muenze(ctx, s, ph) {
   const k = Math.cos(ph), back = k < 0; ctx.save(); ctx.scale(Math.max(0.1, Math.abs(k)), 1);
   ctx.fillStyle = '#8a5310'; ctx.beginPath(); ctx.arc(0.05 * s * Math.sign(k || 1), 0, s / 2, 0, 7); ctx.fill();
-  const gr = ctx.createLinearGradient(-s / 2, -s / 2, s / 2, s / 2); gr.addColorStop(0, '#fff6d0'); gr.addColorStop(0.35, back ? '#e8a93a' : '#ffd56b'); gr.addColorStop(0.7, '#d9952a'); gr.addColorStop(1, '#8a5310');
-  ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, s / 2, 0, 7); ctx.fill();
+  ctx.save(); ctx.scale(s, s); ctx.fillStyle = muenzGr(ctx, back); ctx.beginPath(); ctx.arc(0, 0, 0.5, 0, 7); ctx.fill(); ctx.restore();
   ctx.strokeStyle = 'rgba(122,74,8,0.8)'; ctx.lineWidth = s * 0.05; ctx.beginPath(); ctx.arc(0, 0, s * 0.37, 0, 7); ctx.stroke();
   ctx.strokeStyle = 'rgba(255,250,220,0.7)'; ctx.lineWidth = s * 0.025; ctx.beginPath(); ctx.arc(0, 0, s * 0.47, Math.PI * 1.05, Math.PI * 1.6); ctx.stroke();
   ctx.fillStyle = back ? 'rgba(122,74,8,0.55)' : 'rgba(255,250,225,0.9)'; star4(ctx, 0, 0, s * 0.24, 0, 0.22);
@@ -1598,10 +1609,12 @@ function stilPremium(typ, d, bild) {
     g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetY = 0;
     g.strokeStyle = '#4a2803'; g.lineWidth = 4; g.beginPath(); g.arc(0, 0, MR - 2, 0, 7); g.stroke();
     g.strokeStyle = 'rgba(255,250,225,0.8)'; g.lineWidth = 2.5; g.beginPath(); g.arc(0, 0, MR - 7, Math.PI * 1.05, Math.PI * 1.75); g.stroke();
+    // Ein Nieten-Verlauf um den Ursprung statt 28 je Bild; jede Niete wird dorthin verschoben.
+    const rg = g.createRadialGradient(-2, -2, 0, 0, 0, 7); rg.addColorStop(0, '#fffbe8'); rg.addColorStop(1, '#8a5310');
+    g.fillStyle = rg;
     for (let i = 0; i < 28; i++) {
       const a = i / 28 * Math.PI * 2, x = Math.cos(a) * MR * 0.885, y = Math.sin(a) * MR * 0.885;
-      const rg = g.createRadialGradient(x - 2, y - 2, 0, x, y, 7); rg.addColorStop(0, '#fffbe8'); rg.addColorStop(1, '#8a5310');
-      g.fillStyle = rg; g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill();
+      g.translate(x, y); g.beginPath(); g.arc(0, 0, 6, 0, 7); g.fill(); g.translate(-x, -y);
     }
     g.fillStyle = '#3a1d00'; g.beginPath(); g.arc(0, 0, MR * 0.775, 0, 7); g.fill();
     gr = g.createRadialGradient(-MR * 0.15, -MR * 0.2, 0, 0, 0, MR * 0.76); gr.addColorStop(0, C.scheibe[0]); gr.addColorStop(0.6, C.scheibe[1]); gr.addColorStop(1, C.scheibe[2]);
@@ -1937,7 +1950,8 @@ function normalisiere(daten) {
   if (neu === null) neu = alt !== null ? alt + 1 : 1;
   const neuBekannt = ganz(dd.neu) !== null;
   if (alt === null) alt = Math.max(0, neu - 1);
-  const coins = Number(dd.coins);
+  // null und '' heißen „fehlt“: Number(null) wäre 0 und zeigte einen 0-Zähler.
+  const coins = dd.coins === null || dd.coins === undefined || dd.coins === '' ? NaN : Number(dd.coins);
   return {
     name, initiale: initiale(name), alt, neu, neuBekannt,
     gifter: dd.art === 'gifter', bild: typeof dd.bild === 'string' ? dd.bild : '',
@@ -1970,7 +1984,9 @@ function ladeBild(url) {
 /**
  * Renderer für eine Animation.
  * @param {string} id   Schlüssel aus ANIMATIONEN
- * @param {{name?:string,bild?:string,alt?:number,neu?:number,coins?:number,art?:'team'|'gifter',unterzeile?:string}} daten
+ * @param {{name?:string, bild?:string, art?:'team'|'gifter', alt?:number, neu?:number, stufe?:number,
+ *   titel?:string, neuAbo?:boolean, unterzeile?:string, coins?:number|null,
+ *   fortschritt?:number, ziel?:number}} daten   Bedeutung je Feld: Kommentar über ANIMATIONEN
  * @returns {{dauer:number, zeichne(ctx:CanvasRenderingContext2D,t:number,w:number,h:number):void, destroy():void}}
  */
 export function erzeugeRenderer(id, daten) {
