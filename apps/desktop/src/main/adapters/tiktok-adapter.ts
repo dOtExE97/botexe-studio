@@ -311,9 +311,11 @@ export class TikTokAdapter {
   private readonly seenMsgIds = new Map<string, number>();
   /** Wann zuletzt ein Superfan-Ereignis je Nutzer und Gruppe (abo/betritt)
    *  veröffentlicht wurde — gegen doppelte Meldungen derselben Sache. */
-  /** VIPs, die in dieser Verbindung schon gemeldet wurden (einmal je Nutzer). */
-  private readonly vipGemeldet = new Set<string>();
   private readonly superfanZuletzt = new Map<string, number>();
+  /** VIPs, die in diesem Stream schon gemeldet wurden (einmal je Nutzer). Wird bei
+   *  jedem Connect und bei streamEnd geleert: Ein VIP-Banner kommt nur bei einem
+   *  echten Raum-Eintritt, ein Reconnect kann es also nicht erneut abspielen. */
+  private readonly vipGemeldet = new Set<string>();
   /** Wie viele Replay-Nachrichten seit dem letzten Reconnect verworfen wurden.
    *  Pro Ereignis zu loggen wäre eine Flut — es geht als EINE Sammelzeile raus
    *  (siehe meldeReplayBilanz). Sonst wirkt es, als schlucke TikTok Nachrichten. */
@@ -740,6 +742,7 @@ export class TikTokAdapter {
       // bliebe ein Problem, das beim letzten Mal gemeldet wurde, für den Rest
       // des Abends stumm — auch wenn es erneut auftritt.
       log.merkerZuruecksetzen('tiktok:');
+      this.vipGemeldet.clear();
       this.verworfeneComboStufen = 0;
       this.gezaehlteGeschenke = 0;
       this.starteStilleWache(epoch);

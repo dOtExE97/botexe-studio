@@ -759,3 +759,25 @@ test('LIVE-Ziel: goalUpdate landet als live_ziel auf dem Bus', async () => {
   const z = events.find((e) => e.type === 'live_ziel');
   assert.equal(z?.ziel?.erreicht, true);
 });
+
+const vipBanner = { msgType: 9, subType: 'user_level_entrance', userGradeParam: { currentGrade: 30, user: { userId: '1', nickname: 'V1' } } };
+
+test('VIP betritt: nach Reconnect wird derselbe VIP erneut gemeldet (neue Verbindung = neuer Stream)', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  connections[0]?.emit('barrage', vipBanner);
+  connections[0]?.emit('disconnected');
+  await wait(15);
+  assert.equal(connections.length, 2);
+  connections[1]?.emit('barrage', vipBanner);
+  assert.equal(events.filter((e) => e.type === 'vip_betritt').length, 2);
+});
+
+test('VIP betritt: nach streamEnd wird derselbe VIP erneut gemeldet', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  connections[0]?.emit('barrage', vipBanner);
+  connections[0]?.emit('streamEnd', { action: 3 });
+  connections[0]?.emit('barrage', vipBanner);
+  assert.equal(events.filter((e) => e.type === 'vip_betritt').length, 2);
+});
