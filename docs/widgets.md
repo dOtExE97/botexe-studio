@@ -11,8 +11,8 @@ Synthwave …), die das Aussehen komplett verändern. Hier ist jeweils nur die G
 
 Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 
-> Stand: 45 der 46 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
-> Gambling-Automat — in der App ganz normal vorhanden (Overlay → Widget hinzufügen).
+> Stand: 46 der 48 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
+> Herz-Alarm, Gambling-Automat — in der App ganz normal vorhanden (Overlay → Widget hinzufügen).
 
 ## Alerts
 
@@ -20,8 +20,10 @@ Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 | --- | --- | --- |
 | **Action-Screen (Momente)** | **Gift-Alert** | **Follow-Alert** |
 | ![Action-Screen (Momente)](screenshots/action-screen.png) | ![Gift-Alert](screenshots/gift-alert.png) | ![Follow-Alert](screenshots/follow-alert.png) |
-| **Meilenstein-Konfetti** | **Geschenke-Kanone** | **Gift-Feuerwerk** |
-| ![Meilenstein-Konfetti](screenshots/milestone-confetti.png) | ![Geschenke-Kanone](screenshots/gift-cannon.png) | ![Gift-Feuerwerk](screenshots/gift-fireworks.png) |
+| **Einblender** | **Meilenstein-Konfetti** | **Geschenke-Kanone** |
+| ![Einblender](screenshots/einblender.png) | ![Meilenstein-Konfetti](screenshots/milestone-confetti.png) | ![Geschenke-Kanone](screenshots/gift-cannon.png) |
+| **Gift-Feuerwerk** |  |  |
+| ![Gift-Feuerwerk](screenshots/gift-fireworks.png) |  |  |
 
 ## Spiele
 

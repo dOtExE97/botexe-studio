@@ -144,7 +144,7 @@ export const FRAME_FIELD: PropField = {
 // Der Geschenkzähler stand hier, solange KEINER seiner Stile eine Fläche hatte.
 // Seit den Bühnen-Stilen (Studio, Vitrine, Museum) hat er eine — und gerade dann
 // braucht man den Schalter: im Overlay ist oft kein Platz für einen Kasten.
-export const NO_FRAME_TOGGLE = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'gift-jar', 'goal-bar', 'top-rotator', 'combo', 'herz-alarm']);
+export const NO_FRAME_TOGGLE = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'gift-jar', 'goal-bar', 'top-rotator', 'combo', 'herz-alarm', 'einblender']);
 
 /** „Premium-Effekte" — eine zuschaltbare Gestaltungs-Ebene für JEDES Widget.
  *  Die Regeln liegen gebündelt in widget-base.css unter .bx-premium; die
@@ -156,7 +156,7 @@ export const POLISH_FIELD: PropField = {
 };
 /** Reine Vollflächen-Effekte: dort gibt es kein Panel und keine Bilder, an
  *  denen die Premium-Ebene ansetzen könnte. */
-export const NO_POLISH = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'combo', 'herz-alarm']);
+export const NO_POLISH = new Set(['gift-fireworks', 'heart-rain', 'emojify', 'gift-cannon', 'combo', 'herz-alarm', 'einblender']);
 
 /** Schriftart/Größe/Farbe werden universell an JEDES Widget angehängt (außer reine
  *  Effekt-Widgets ohne Text) — dedupliziert, damit Widgets, die sie schon haben,
@@ -167,7 +167,7 @@ export const UNIVERSAL_STYLE_FIELDS: PropField[] = [FONT_FIELD, SIZE_FIELD, TEXT
 // Draussen bleiben nur die, bei denen er nichts tun koennte: Feuerwerk und
 // Kanone zeichnen ihren Text auf Canvas, Emojis haben ein eigenes Groessen-
 // Feld, und das Medien-Widget zeigt ausser dem Platzhalter keinen Text.
-export const NO_STYLE_FIELDS = new Set(['gift-fireworks', 'gift-cannon', 'emojify', 'media', 'herz-alarm']);
+export const NO_STYLE_FIELDS = new Set(['gift-fireworks', 'gift-cannon', 'emojify', 'media', 'herz-alarm', 'einblender']);
 
 /** Nur die Textgröße ist sinnvoll, Schriftart + Textfarbe nicht: Herz-Regen
  *  zeigt Emojis und Avatar-Kreise mit Initialen — keinen Fließtext, für den
@@ -331,6 +331,36 @@ export const WIDGET_TYPES: {
       { key: 'showUser', label: 'Name + Profilbild zeigen', type: 'boolean', hint: 'Blendet unten ein, wer das Teamherz geschickt hat — mit rundem Profilbild.' },
       { key: 'userText', label: 'Text', type: 'text', hint: 'Der Platzhalter {name} wird durch den Namen ersetzt. Beispiele: „💜 {name} ist Teil des Teams", „{name} lässt ein Teamherz da".', showIf: (p) => p.showUser !== false },
       ACCENT_FIELD,
+    ],
+  },
+  {
+    type: 'einblender', label: 'Einblender', desc: 'Ein kurzer Werbe-Spot, der reinwischt und wieder verschwindet: „Ihr wollt supporten?" → Tippen, Teilen, Folgen. Läuft nach Zeitplan, per Regel oder von allein, wenn kaum jemand liked.',
+    w: 1080, h: 560, props: { look: 'neon', szenen: ['tippen', 'teilen', 'folgen'], intro: 'IHR WOLLT SUPPORTEN?', abschluss: 'DANKE', handle: '', intervallMin: 0, auto: false, autoMinZuschauer: 5, autoMinuten: 3, autoLikesUnter: 50, autoPauseMin: 10, sound: 'standard', soundId: '' },
+    fields: [
+      { key: 'look', label: 'Look', type: 'select', hint: 'Die Farbwelt des Spots. Neon leuchtet pink und türkis, Gold glänzt edel auf Violett.', options: [
+        { value: 'neon', label: '💗 Neon (Standard)' },
+        { value: 'gold', label: '✨ Gold' },
+      ] },
+      { key: 'szenen', label: 'Szenen', type: 'checkboxes', hint: 'Welche Bitten der Spot zeigt. Weniger Häkchen = kürzerer Spot (jede Szene gut 1,4 Sekunden). Der Ton läuft dann über das Ende hinaus ein Stück weiter.', options: [
+        { value: 'tippen', label: '💗 Tippen (Herzen aufs Display)' },
+        { value: 'teilen', label: '↗️ Teilen' },
+        { value: 'folgen', label: '➕ Folgen' },
+      ] },
+      { key: 'intro', label: 'Einstiegs-Text', type: 'text', hint: 'Das letzte Wort steht groß und leuchtend, der Rest klein darüber. Beispiel: „IHR WOLLT SUPPORTEN?".' },
+      { key: 'abschluss', label: 'Schluss-Wort', type: 'text', hint: 'Das große Wort am Ende, bevor der Spot rauswischt.' },
+      { key: 'handle', label: 'Dein TikTok-Name', type: 'text', hint: 'Steht unter dem Schluss-Wort, z.B. dotexe_97 (das @ setzt der Spot selbst). Leer = keine Namenszeile.' },
+      { key: 'intervallMin', label: 'Alle … Minuten zeigen', type: 'number', hint: '0 = kein Zeitplan. Sonst läuft der Spot regelmäßig, z.B. alle 15 Minuten. Per Regel („Overlay-Alert" auf dieses Widget) geht es immer zusätzlich.' },
+      { key: 'auto', label: 'Von allein bei Like-Flaute', type: 'boolean', uncheckedDefault: false, hint: 'Schauen genug Leute zu, aber kaum jemand liked, erinnert der Spot von selbst ans Tippen. Die Grenzen stellst du darunter ein.' },
+      { key: 'autoMinZuschauer', label: 'Ab so vielen Zuschauern', type: 'number', hint: 'Unter dieser Zahl bleibt der Spot still — bei drei Leuten im Raum wirkt er eher verzweifelt.', showIf: (p) => p.auto === true },
+      { key: 'autoMinuten', label: 'Likes zählen über … Minuten', type: 'number', hint: 'Das Zeitfenster, in dem die Likes zusammengezählt werden. Nach dem Verbinden wartet der Spot mindestens so lange, bevor er von allein kommt.', showIf: (p) => p.auto === true },
+      { key: 'autoLikesUnter', label: 'Flaute heißt: weniger als … Likes', type: 'number', hint: 'Kommen im Zeitfenster weniger Likes als hier, gilt es als Flaute.', showIf: (p) => p.auto === true },
+      { key: 'autoPauseMin', label: 'Danach mindestens … Minuten Ruhe', type: 'number', hint: 'So lange kommt der Spot nach dem letzten Mal nicht von allein — egal wie ruhig es ist.', showIf: (p) => p.auto === true },
+      { key: 'sound', label: 'Sound', type: 'select', hint: '„Standard" ist der passend zum Spot geschnittene Ton. „Eigener" = dein Sound über die App. „Aus" = stumm.', options: [
+        { value: 'standard', label: '🔊 Standard (passend zum Spot)' },
+        { value: 'custom', label: '🎵 Eigener Sound' },
+        { value: 'off', label: '🔇 Aus' },
+      ] },
+      { key: 'soundId', label: 'Eigener Sound', type: 'sound', hint: 'Spielt beim Start des Spots über die App.', showIf: (p) => p.sound === 'custom' },
     ],
   },
   {
