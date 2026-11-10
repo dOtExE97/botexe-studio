@@ -57,7 +57,7 @@ export const ANIMATIONEN = {
   'lvl-neon': { label: 'Neon', fuer: ['level_team', 'level_gifter'], dauer: 5.6, sound: 'botexe-levelup-neon.wav' },
   'lvl-tiktok': { label: 'TikTok-Stil', fuer: ['level_team', 'level_gifter'], dauer: 5.8, sound: 'botexe-levelup-tiktok.wav' },
   'lvl-tiktok-neon': { label: 'TikTok-Neon', fuer: ['level_team', 'level_gifter'], dauer: 5.8, sound: 'botexe-levelup-tiktok-neon.wav' },
-  'superfan-premium': { label: 'Superfan Premium', fuer: ['superfan', 'superfan_betritt'], dauer: 7.6, sound: 'botexe-superfan.wav' },
+  'superfan-premium': { label: 'Superfan Premium', fuer: ['superfan', 'superfan_betritt', 'vip'], dauer: 7.6, sound: 'botexe-superfan.wav' },
   'vip-gold': { label: 'VIP Gold', fuer: ['vip'], dauer: 7.6, sound: 'botexe-superfan.wav' },
   'truhe-premium': { label: 'Schatztruhe Premium', fuer: ['truhe'], dauer: 6.8, sound: 'botexe-truhe.wav' },
   'ziel-erreicht': { label: 'Ziel erreicht', fuer: ['ziel'], dauer: 5.8, sound: 'botexe-levelup-tiktok-neon.wav' },

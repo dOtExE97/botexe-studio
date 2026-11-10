@@ -239,7 +239,7 @@ test('destroy() gibt die vorgebackenen Ebenen frei (Größe 0)', () => {
 
 test('Katalog: Superfan, VIP, Schatztruhe und Ziel mit Dauer, Sound und Ereignis', () => {
   const erwartet: Record<string, [number, string, string[]]> = {
-    'superfan-premium': [7.6, 'botexe-superfan.wav', ['superfan', 'superfan_betritt']],
+    'superfan-premium': [7.6, 'botexe-superfan.wav', ['superfan', 'superfan_betritt', 'vip']], // VIP: wählbar im Editor (Spec: Superfan-Premium mit „VIP IST DA")
     'vip-gold': [7.6, 'botexe-superfan.wav', ['vip']],
     'truhe-premium': [6.8, 'botexe-truhe.wav', ['truhe']],
     'ziel-erreicht': [5.8, 'botexe-levelup-tiktok-neon.wav', ['ziel']],
