@@ -535,6 +535,7 @@ export function normalizeEnvelope(
     envelopeInfo?: {
       sendUserName?: string; sendUserId?: string | number; sendUserAvatar?: RawImage;
       diamondCount?: number | string; peopleCount?: number | string; businessType?: number | string;
+      envelopeId?: string | number;
     };
     common?: { displayText?: { key?: string } };
   },
@@ -550,6 +551,8 @@ export function normalizeEnvelope(
     : undefined;
   const superFan = Number(info.businessType) === ENVELOPE_SUPER_FAN_BOX
     || String(data.common?.displayText?.key ?? '').toLowerCase().includes('ttlive_superfanbox');
+  const businessType = ersteZahl(info.businessType);
+  const envelopeId = String(info.envelopeId ?? '').trim();
   return {
     type: 'envelope',
     ts,
@@ -558,6 +561,8 @@ export function normalizeEnvelope(
       coins: zahl(info.diamondCount),
       winners: zahl(info.peopleCount),
       superFan,
+      ...(businessType > 0 ? { businessType } : {}),
+      ...(envelopeId ? { envelopeId } : {}),
     },
   };
 }
@@ -609,7 +614,80 @@ export function normalizeSuperfan(
     ts,
     user: user && stufe > 0 && !user.teamLevel ? { ...user, teamLevel: stufe } : user,
     superfanNeu: beigetreten,
+    superfanArt: beigetreten ? 'abo_neu' : 'betritt',
   };
+}
+
+/** msgType-Werte der Banner (WebcastBarrageMessage), laut Proto-Schema. */
+export const BARRAGE_TYPEN = {
+  SUBSCRIBE: 4,
+  SUBSCRIBE_GIFT: 7,
+  USER_UPGRADE: 8,
+  GRADE_USER_ENTRANCE: 9,
+  FANS_LEVEL_UPGRADE: 10,
+  FANS_LEVEL_ENTRANCE: 11,
+} as const;
+
+export interface RawBarrage {
+  msgType?: number | string;
+  subType?: string;
+  /** Nutzer auf oberster Ebene — bei Abo-Bannern der erste Weg zum Absender. */
+  user?: RawUser;
+  userGradeParam?: { currentGrade?: number | string; user?: RawUser };
+  fansLevelParam?: { currentGrade?: number | string; user?: RawUser };
+  content?: Bausteine;
+  commonBarrageContent?: Bausteine;
+}
+
+/** msgType als Zahl: kommt als Zahl (Mitschnitt) oder als Name der Aufzählung. */
+export function barrageTyp(roh: number | string | undefined): number {
+  if (typeof roh === 'number') return roh;
+  if (typeof roh !== 'string' || !roh) return 0;
+  const named = (BARRAGE_TYPEN as Record<string, number>)[roh.trim().toUpperCase()];
+  if (named) return named;
+  const n = parseInt(roh, 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Banner (WebcastBarrageMessage) → App-Ereignis. Belegt im Mitschnitt vom
+ * 10.11.2026 (siehe Spec „Belege aus dem Live-Mitschnitt"): msgType 10 =
+ * Teamherz-Level-Up, 11 = Superfan betritt. 8 (Geschenke-Stufe) und 4/7
+ * (Abo) sind aus dem Proto-Schema abgeleitet, dort aber nicht live gesehen.
+ * Alles andere, ohne Nutzer oder ohne Stufe → null (der Aufrufer loggt es).
+ */
+export function normalizeBarrage(data: RawBarrage, ts: number): StudioEvent | null {
+  const typ = barrageTyp(data?.msgType);
+  switch (typ) {
+    case BARRAGE_TYPEN.FANS_LEVEL_UPGRADE: {
+      const neu = ersteZahl(data.fansLevelParam?.currentGrade);
+      const user = toUser(data.fansLevelParam?.user);
+      if (!user || neu <= 0) return null;
+      return { type: 'level_up', ts, user: { ...user, teamLevel: neu }, levelUp: { art: 'team', neu } };
+    }
+    case BARRAGE_TYPEN.USER_UPGRADE: {
+      const neu = ersteZahl(data.userGradeParam?.currentGrade);
+      const user = toUser(data.userGradeParam?.user);
+      if (!user || neu <= 0) return null;
+      return { type: 'level_up', ts, user: { ...user, gifterLevel: neu }, levelUp: { art: 'gifter', neu } };
+    }
+    case BARRAGE_TYPEN.SUBSCRIBE:
+    case BARRAGE_TYPEN.SUBSCRIBE_GIFT: {
+      const ausBausteinen = [...bausteine(data.content), ...bausteine(data.commonBarrageContent)]
+        .map((p) => p?.userValue?.user)
+        .find((u) => u);
+      const user = toUser(data.user ?? ausBausteinen ?? data.fansLevelParam?.user);
+      if (!user) return null;
+      return { type: 'superfan', ts, user, superfanNeu: true, superfanArt: 'abo_neu' };
+    }
+    case BARRAGE_TYPEN.FANS_LEVEL_ENTRANCE: {
+      const user = toUser(data.fansLevelParam?.user);
+      if (!user) return null;
+      return { type: 'superfan', ts, user, superfanNeu: false, superfanArt: 'betritt' };
+    }
+    default:
+      return null;
+  }
 }
 
 /**

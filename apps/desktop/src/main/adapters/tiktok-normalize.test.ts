@@ -12,6 +12,7 @@ import {
   normalizeSocial,
   normalizeViewerCount,
   detectRoles,
+  normalizeBarrage,
 } from './tiktok-normalize';
 
 // Fixtures entsprechen den v2-Shapes aus tiktok-live-connector@2.1.1-beta1
@@ -722,4 +723,81 @@ test('Teamherz v3 funktioniert unveraendert weiter', () => {
     comment: 'hi',
   }, 1_000);
   assert.equal(e.user?.teamLevel, 6);
+});
+
+// --- Banner (WebcastBarrageMessage) ----------------------------------------
+test('normalizeBarrage: Teamherz-Level-Up (msgType 10) → level_up team', () => {
+  const e = normalizeBarrage({ msgType: 10, fansLevelParam: { currentGrade: 12, user: { userId: '1', nickname: 'Mia' } } }, 5);
+  assert.equal(e?.type, 'level_up');
+  assert.deepEqual(e?.levelUp, { art: 'team', neu: 12 });
+  assert.equal(e?.user?.nickname, 'Mia');
+  assert.equal(e?.user?.teamLevel, 12);
+  assert.equal(e?.ts, 5);
+});
+
+test('normalizeBarrage: Geschenke-Stufe (msgType 8) → level_up gifter mit Profilbild', () => {
+  const e = normalizeBarrage({
+    msgType: 8,
+    userGradeParam: { currentGrade: 32, user: { userId: '2', nickname: 'Steffi', profilePicture: { url: ['https://x/a.webp'] } } },
+  }, 5);
+  assert.deepEqual(e?.levelUp, { art: 'gifter', neu: 32 });
+  assert.equal(e?.user?.profilePic, 'https://x/a.webp');
+  assert.equal(e?.user?.gifterLevel, 32);
+});
+
+test('normalizeBarrage: msgType als Text wie als Zahl', () => {
+  const e = normalizeBarrage({ msgType: 'FANS_LEVEL_UPGRADE', fansLevelParam: { currentGrade: '12', user: { userId: '1', nickname: 'Mia' } } }, 5);
+  assert.deepEqual(e?.levelUp, { art: 'team', neu: 12 });
+});
+
+test('normalizeBarrage: Abo-Banner (msgType 4/7) → superfan abo_neu, Nutzer aus den Textbausteinen', () => {
+  for (const msgType of [4, 7, 'SUBSCRIBE', 'SUBSCRIBE_GIFT']) {
+    const e = normalizeBarrage({
+      msgType,
+      commonBarrageContent: { piecesList: [{ userValue: { user: { userId: '3', nickname: 'Abo' } } }] },
+    }, 5);
+    assert.equal(e?.type, 'superfan');
+    assert.equal(e?.superfanNeu, true);
+    assert.equal(e?.superfanArt, 'abo_neu');
+    assert.equal(e?.user?.nickname, 'Abo');
+  }
+});
+
+test('normalizeBarrage: Superfan betritt (msgType 11) → superfan betritt, nicht neu', () => {
+  const e = normalizeBarrage({ msgType: 11, fansLevelParam: { currentGrade: 22, user: { userId: '4', nickname: 'Hay' } } }, 5);
+  assert.equal(e?.type, 'superfan');
+  assert.equal(e?.superfanArt, 'betritt');
+  assert.equal(e?.superfanNeu, false);
+});
+
+test('normalizeBarrage: Echtform aus dem Mitschnitt (fans_upgrade)', () => {
+  const e = normalizeBarrage({ msgType: 10, subType: 'fans_upgrade', fansLevelParam: { currentGrade: 12, user: { userId: '5', nickname: 'Alex' } } }, 5);
+  assert.equal(e?.type, 'level_up');
+  assert.deepEqual(e?.levelUp, { art: 'team', neu: 12 });
+});
+
+test('normalizeBarrage: Unbekanntes, ohne Nutzer oder ohne Stufe → null', () => {
+  assert.equal(normalizeBarrage({ msgType: 9 }, 5), null);
+  assert.equal(normalizeBarrage({ msgType: 10, fansLevelParam: { currentGrade: 12 } }, 5), null);
+  assert.equal(normalizeBarrage({ msgType: 10, fansLevelParam: { currentGrade: 0, user: { userId: '1', nickname: 'Mia' } } }, 5), null);
+  assert.equal(normalizeBarrage({}, 5), null);
+});
+
+test('normalizeSuperfan setzt superfanArt je nach Beitritt; normalizeSub bleibt sub ohne superfanArt', () => {
+  assert.equal(normalizeSuperfan({ user }, true, 1).superfanArt, 'abo_neu');
+  assert.equal(normalizeSuperfan({ user }, false, 1).superfanArt, 'betritt');
+  const sub = normalizeSub({ user, oldSubscribeStatus: 0 }, 1);
+  assert.equal(sub.type, 'sub');
+  assert.equal(sub.superfanArt, undefined);
+});
+
+test('normalizeEnvelope: businessType, envelopeId, Absender-Bild', () => {
+  const e = normalizeEnvelope({ envelopeInfo: {
+    envelopeId: '77', businessType: 1, sendUserName: 'dotexe97', sendUserId: '9',
+    diamondCount: 20, peopleCount: 16, sendUserAvatar: { url: ['https://x/b.webp'] },
+  } }, 1);
+  assert.equal(e?.envelope?.businessType, 1);
+  assert.equal(e?.envelope?.envelopeId, '77');
+  assert.equal(e?.envelope?.coins, 20);
+  assert.equal(e?.user?.profilePic, 'https://x/b.webp');
 });

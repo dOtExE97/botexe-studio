@@ -34,6 +34,9 @@ export type StudioEventType =
    *  eine andere Superfan-Meldung. Kommt als Banner-Nachricht rein, in der ein
    *  vollständiges Zuschauer-Objekt steckt. */
   | 'superfan'
+  /** Stufenaufstieg aus einem TikTok-Banner: Teamherz-Level (art 'team') oder
+   *  Geschenke-Stufe (art 'gifter'). Siehe `levelUp`. */
+  | 'level_up'
   /** Zuschauer schickt ein Emote/Sticker — reines Beteiligungs-Signal. */
   | 'emote'
   /** Coin-Kiste / Schatztruhe (TikTok „envelope"), inkl. Superfan-Truhe.
@@ -138,6 +141,10 @@ export interface StudioEnvelope {
   winners: number;
   /** true = Superfan-Truhe (nur für Teamherz-Mitglieder). */
   superFan: boolean;
+  /** TikToks businessType der Truhe (1 = normale Truhe, 19 = Superfan-Truhe). */
+  businessType?: number;
+  /** TikToks Truhen-ID (envelopeInfo.envelopeId). */
+  envelopeId?: string;
 }
 
 /** Ein Platz aus TikToks eigener Raum-Bestenliste (WebcastRoomUserSeqMessage). */
@@ -216,6 +223,11 @@ export interface StudioEvent {
   /** Nur bei 'superfan': true = jemand ist NEU beigetreten (TikTok unterscheidet
    *  das selbst), false = sonstige Superfan-Meldung (Verlängerung, Stufe …). */
   superfanNeu?: boolean;
+  /** Nur bei 'superfan': Anlass. abo_neu = neues Abo, abo_verlaengert = Verlängerung,
+   *  betritt = ein Superfan betritt das Live. */
+  superfanArt?: 'abo_neu' | 'abo_verlaengert' | 'betritt';
+  /** Nur bei 'level_up': welche Stufe (Teamherz oder Geschenke) auf welchen Wert stieg. */
+  levelUp?: { art: 'team' | 'gifter'; neu: number };
   /** true = Test-/Replay-Event (Vorschau) — löst Overlay/TTS aus, wird aber NICHT
    *  persistent verbucht (keine echten Punkte/Coins/Likes, kein Gift-Katalog). */
   synthetic?: boolean;
