@@ -1,0 +1,420 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:IB;src:url(Inter-Black.ttf)}
+html,body{margin:0;background:transparent}
+</style></head><body><canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// PROBE (Wegwerf): Teamherz-Level-Up, 3 Varianten (?v=1 Herzschlag, 2 Goldherz+Flügel, 3 Neon).
+const V = +(new URLSearchParams(location.search).get('v') || 1);
+const W = 1080, H = 1920, FPS = 30, DUR = 5.6, N = Math.round(DUR * FPS);
+const c = document.getElementById('c'), g = c.getContext('2d');
+let seed = 4242 + V;
+function rnd() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+const R = (a, b) => a + (b - a) * rnd();
+const pick = a => a[(rnd() * a.length) | 0];
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eOutC = x => 1 - Math.pow(1 - x, 3), eInC = x => x * x * x;
+const eOutBack = (x, k = 1.9) => { const c3 = k + 1; return 1 + c3 * Math.pow(x - 1, 3) + k * Math.pow(x - 1, 2); };
+const eOutExpo = x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+
+const CX = 540, BY = 770;
+const OLD = 11, NEW = 12, NAME = 'Schwester Mary';
+const T_CHARGE = 0.9, T_BURST = 1.8, T_OUT = 4.75;
+const GOLD = ['#fff6d0', '#ffd96a', '#ffb43a', '#ffe9a8', '#ffffff'];
+const PINK = ['#ff7fb0', '#ff4f8b', '#ffc2da', '#ffffff'];
+const NEON = ['#ff3d9a', '#ff8cc6', '#7df9ff', '#ffffff', '#c77dff'];
+const SPARK = V === 3 ? NEON : null;
+
+// Herzform (klassische Parameterkurve), normiert: Breite 1
+const HP = [];
+for (let i = 0; i < 160; i++) {
+  const a = i / 160 * Math.PI * 2;
+  const x = 16 * Math.pow(Math.sin(a), 3);
+  const y = -(13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a));
+  HP.push([x / 32, (y - 2.5) / 32]);
+}
+let HLEN = 0; for (let i = 0; i < HP.length; i++) { const p = HP[i], q = HP[(i + 1) % HP.length]; HLEN += Math.hypot(q[0] - p[0], q[1] - p[1]); }
+function heartPath(ctx, s, ox = 0, oy = 0) {
+  ctx.beginPath(); ctx.moveTo(ox + HP[0][0] * s, oy + HP[0][1] * s);
+  for (let i = 1; i < HP.length; i++) ctx.lineTo(ox + HP[i][0] * s, oy + HP[i][1] * s);
+  ctx.closePath();
+}
+function goldGrad(ctx, y0, y1) {
+  const gr = ctx.createLinearGradient(0, y0, 0, y1);
+  gr.addColorStop(0, '#fffbe8'); gr.addColorStop(0.28, '#ffd76a'); gr.addColorStop(0.5, '#c27a16');
+  gr.addColorStop(0.62, '#ffe49a'); gr.addColorStop(1, '#8a4a0a');
+  return gr;
+}
+// Glänzendes 3D-Herz um (0,0)
+function glossyHeart(ctx, s, base = ['#ffa3c6', '#ff2f6d', '#c3093f', '#5e021e']) {
+  let gr = ctx.createRadialGradient(-0.22 * s, -0.3 * s, 0.02 * s, -0.05 * s, 0, 0.85 * s);
+  gr.addColorStop(0, base[0]); gr.addColorStop(0.35, base[1]); gr.addColorStop(0.72, base[2]); gr.addColorStop(1, base[3]);
+  ctx.fillStyle = gr; heartPath(ctx, s); ctx.fill();
+  ctx.save(); heartPath(ctx, s); ctx.clip();
+  // Unterseite dunkler, Randlicht
+  gr = ctx.createLinearGradient(0, 0.05 * s, 0, 0.5 * s); gr.addColorStop(0, 'rgba(60,0,20,0)'); gr.addColorStop(1, 'rgba(60,0,20,0.55)');
+  ctx.fillStyle = gr; ctx.fillRect(-s, -s, 2 * s, 2 * s);
+  ctx.lineWidth = 0.05 * s; ctx.strokeStyle = 'rgba(255,190,215,0.55)'; heartPath(ctx, s * 0.985); ctx.stroke();
+  // Glanzlichter
+  ctx.save(); ctx.translate(-0.24 * s, -0.27 * s); ctx.rotate(-0.65);
+  gr = ctx.createRadialGradient(0, 0, 0, 0, 0, 0.17 * s); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gr; ctx.scale(1, 0.5); ctx.beginPath(); ctx.arc(0, 0, 0.17 * s, 0, 7); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.translate(0.27 * s, -0.3 * s); ctx.rotate(0.5);
+  gr = ctx.createRadialGradient(0, 0, 0, 0, 0, 0.07 * s); gr.addColorStop(0, 'rgba(255,255,255,0.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gr; ctx.scale(1, 0.6); ctx.beginPath(); ctx.arc(0, 0, 0.07 * s, 0, 7); ctx.fill(); ctx.restore();
+  // Reflexionskante unten rechts
+  gr = ctx.createRadialGradient(0.18 * s, 0.22 * s, 0, 0.18 * s, 0.22 * s, 0.3 * s); gr.addColorStop(0, 'rgba(255,120,170,0.35)'); gr.addColorStop(1, 'rgba(255,120,170,0)');
+  ctx.fillStyle = gr; ctx.fillRect(-s, -s, 2 * s, 2 * s);
+  ctx.restore();
+}
+function bigNumber(ctx, num, size, scale, neon = false) {
+  ctx.save(); ctx.scale(scale, scale);
+  ctx.font = `${size}px IB`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  if (neon) {
+    for (const [w, col] of [[28, 'rgba(125,249,255,0.18)'], [14, 'rgba(125,249,255,0.45)'], [5, '#e9feff']]) {
+      ctx.lineWidth = w; ctx.strokeStyle = col; ctx.shadowColor = '#7df9ff'; ctx.shadowBlur = w > 10 ? 30 : 10; ctx.strokeText(String(num), 0, 6);
+    }
+  } else {
+    ctx.lineWidth = size * 0.08; ctx.strokeStyle = 'rgba(70,0,30,0.8)'; ctx.strokeText(String(num), 0, 6);
+    const gr = ctx.createLinearGradient(0, -size * 0.42, 0, size * 0.45); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.55, '#fff2c4'); gr.addColorStop(1, '#ffc75a');
+    ctx.fillStyle = gr; ctx.shadowColor = 'rgba(255,220,140,0.9)'; ctx.shadowBlur = 22; ctx.fillText(String(num), 0, 6);
+  }
+  ctx.restore();
+}
+
+// Partikel
+const sparks = [], hearts = [], embers = [], rings = [];
+let burstDone = false;
+function spawnBurst() {
+  const pal = SPARK || GOLD;
+  for (let i = 0; i < 280; i++) {
+    const a = R(0, Math.PI * 2), sp = Math.pow(rnd(), 0.6) * 32 + 6;
+    sparks.push({ x: CX + Math.cos(a) * 70, y: BY + Math.sin(a) * 70, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0, max: R(40, 90), col: rnd() < 0.75 ? pick(pal) : pick(PINK), w: R(2, 5.5) });
+  }
+  const nh = V === 3 ? 18 : 38;
+  for (let i = 0; i < nh; i++) {
+    const a = R(0, Math.PI * 2), sp = R(7, 19);
+    hearts.push({ x: CX, y: BY, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 3, rot: R(-0.6, 0.6), vr: R(-0.1, 0.1), s: R(26, 56), life: 0, max: R(65, 110) });
+  }
+  for (const [d, k] of [[0, 1], [0.12, 0.7], [0.24, 0.45]]) rings.push({ t0: T_BURST + d, k, big: true });
+}
+const BEATS = [[0.45, 0.07], [0.62, 0.045], [1.0, 0.08], [1.16, 0.05], [1.4, 0.09], [1.53, 0.06], [1.68, 0.1]];
+function pulse(t) {
+  let p = 0;
+  for (const [b, a] of BEATS) { const d = t - b; if (d >= 0) p += a * (d < 0.06 ? d / 0.06 : Math.pow(Math.max(0, 1 - (d - 0.06) / 0.22), 2)); }
+  return p;
+}
+if (V === 1) for (const [b, a] of BEATS) if (a >= 0.07) rings.push({ t0: b, k: 0.35, big: false });
+
+function step(t) {
+  if (t >= T_BURST && !burstDone) { burstDone = true; spawnBurst(); }
+  if (t >= T_BURST && t < T_OUT) for (let i = 0; i < 3; i++) embers.push({ x: CX + R(-400, 400), y: BY + R(60, 560), vy: R(-1.2, -3.4), ph: R(0, 6.28), r: R(1.6, 4.2), life: 0, max: R(70, 130), col: V === 3 ? pick(['#ff7fc4', '#8af3ff']) : (rnd() < 0.7 ? '#ffd27a' : '#ff8fbd') });
+  for (const p of sparks) { p.vx *= 0.935; p.vy = p.vy * 0.935 + 0.32; p.x += p.vx; p.y += p.vy; p.life++; }
+  for (const p of hearts) { p.vx *= 0.95; p.vy = p.vy * 0.95 + 0.22; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life++; }
+  for (const p of embers) { p.y += p.vy; p.x += Math.sin(p.ph + p.life * 0.06) * 0.8; p.life++; }
+  for (const arr of [sparks, hearts, embers]) for (let i = arr.length - 1; i >= 0; i--) if (arr[i].life > arr[i].max) arr.splice(i, 1);
+}
+
+// ---------- Mittelstücke ----------
+function ecgY(x) { // EKG-Kurve, Periode 440 px
+  const p = ((x % 440) + 440) % 440;
+  if (p > 60 && p < 110) return -14 * Math.sin((p - 60) / 50 * Math.PI);
+  if (p >= 150 && p < 162) return (p - 150) / 12 * 18;
+  if (p >= 162 && p < 178) return 18 - (p - 162) / 16 * 168;
+  if (p >= 178 && p < 196) return -150 + (p - 178) / 18 * 200;
+  if (p >= 196 && p < 206) return 50 - (p - 196) / 10 * 50;
+  if (p > 260 && p < 340) return -26 * Math.sin((p - 260) / 80 * Math.PI);
+  return 0;
+}
+function drawECG(t, F) {
+  const a = clamp(seg(t, 0.1, 0.4) - seg(t, T_BURST + 0.1, T_BURST + 0.7)) * F;
+  if (a <= 0) return;
+  const head = (t * 760) % (W + 600) - 100, len = 650;
+  g.save(); g.globalCompositeOperation = 'lighter'; g.lineJoin = 'round'; g.lineCap = 'round';
+  const gr = g.createLinearGradient(head - len, 0, head, 0); gr.addColorStop(0, 'rgba(255,60,140,0)'); gr.addColorStop(1, 'rgba(255,110,170,1)');
+  for (const [w, al] of [[16, 0.18], [7, 0.45], [3, 1]]) {
+    g.globalAlpha = a * al; g.strokeStyle = w === 3 ? '#ffe0ee' : gr; g.lineWidth = w;
+    if (w === 3) g.strokeStyle = gr;
+    g.beginPath();
+    for (let x = Math.max(0, head - len); x <= Math.min(W, head); x += 3) { const y = BY + ecgY(x); x === Math.max(0, head - len) ? g.moveTo(x, y) : g.lineTo(x, y); }
+    g.stroke();
+  }
+  if (head > 0 && head < W) { const rg = g.createRadialGradient(head, BY + ecgY(head), 0, head, BY + ecgY(head), 26); rg.addColorStop(0, 'rgba(255,255,255,1)'); rg.addColorStop(1, 'rgba(255,90,160,0)'); g.globalAlpha = a; g.fillStyle = rg; g.beginPath(); g.arc(head, BY + ecgY(head), 26, 0, 7); g.fill(); }
+  g.restore();
+}
+function drawHeartbeat(t, F, pb) {
+  drawECG(t, F);
+  let s = 520 * eOutBack(seg(t, 0.05, 0.55)) * (1 + pulse(t));
+  if (t >= T_BURST) s *= 1 + 0.22 * (1 - eOutC(pb));
+  s *= 1 + 0.1 * eInC(seg(t, T_OUT, DUR));
+  if (s < 1) return;
+  g.save(); g.translate(CX, BY); g.globalAlpha = F;
+  const glow = 0.4 + 0.6 * clamp(pulse(t) * 8);
+  g.shadowColor = `rgba(255,60,130,${glow})`; g.shadowBlur = 70;
+  glossyHeart(g, s); g.shadowBlur = 0;
+  const num = t < T_BURST ? OLD : NEW;
+  bigNumber(g, num, 0.36 * s, t >= T_BURST ? 1 + 0.5 * (1 - eOutBack(seg(t, T_BURST, T_BURST + 0.5))) : 1);
+  g.restore();
+}
+function feather(ctx, len, wid) {
+  ctx.beginPath(); ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(wid, -len * 0.25, wid * 0.8, -len * 0.8, 0, -len);
+  ctx.bezierCurveTo(-wid * 0.5, -len * 0.75, -wid * 0.6, -len * 0.25, 0, 0); ctx.closePath();
+}
+function wing(ctx, u, flap) {
+  // rechter Flügel; Wurzel bei (0,0), wächst nach rechts oben
+  const rows = [
+    { n: 11, len: [400, 175], a0: 0.62, a1: 2.1, wid: 46, dark: 0.0 },
+    { n: 8, len: [250, 125], a0: 0.8, a1: 1.95, wid: 42, dark: 0.12 },
+    { n: 6, len: [140, 85], a0: 0.95, a1: 1.8, wid: 36, dark: 0.22 },
+  ];
+  for (const r of rows) {
+    for (let i = r.n - 1; i >= 0; i--) {
+      const f = i / (r.n - 1);
+      const ang = (r.a0 + (r.a1 - r.a0) * f) * u + flap * (0.5 + f);
+      const len = (r.len[0] + (r.len[1] - r.len[0]) * Math.pow(f, 0.8)) * (0.3 + 0.7 * u);
+      ctx.save(); ctx.rotate(ang); ctx.translate(0, -18);
+      const gr = ctx.createLinearGradient(0, 0, 0, -len);
+      gr.addColorStop(0, `rgb(${170 - r.dark * 200},${100 - r.dark * 120},${20})`); gr.addColorStop(0.4, '#ffd76a'); gr.addColorStop(0.75, '#fff3c4'); gr.addColorStop(1, '#ffe08a');
+      ctx.fillStyle = gr; feather(ctx, len, r.wid); ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(110,55,0,0.55)'; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -4); ctx.quadraticCurveTo(r.wid * 0.25, -len * 0.5, 0, -len * 0.92); ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+function drawWinged(t, F, pb) {
+  let s = 390 * eOutBack(seg(t, 0.05, 0.6));
+  s *= 1 + 0.03 * Math.sin(t * 7) * seg(t, 0.6, 1);
+  if (t > T_CHARGE && t < T_BURST) s *= 1 + 0.06 * seg(t, T_CHARGE, T_BURST);
+  if (t >= T_BURST) s *= 1 + 0.18 * (1 - eOutC(pb));
+  s *= 1 + 0.1 * eInC(seg(t, T_OUT, DUR));
+  if (s < 1) return;
+  const u = t < T_BURST ? 0.12 * seg(t, 0.3, 0.8) + 0.08 * seg(t, T_CHARGE, T_BURST) : 0.2 + 0.8 * eOutBack(seg(t, T_BURST, T_BURST + 0.7), 1.4);
+  const flap = t >= T_BURST + 0.7 ? Math.sin((t - T_BURST - 0.7) * 4.2) * 0.07 : 0;
+  g.save(); g.translate(CX, BY); g.globalAlpha = F; const k = s / 390;
+  g.save(); g.shadowColor = 'rgba(255,200,90,0.6)'; g.shadowBlur = 30;
+  g.save(); g.translate(0.3 * s, -0.08 * s); g.scale(k, k); wing(g, u, flap); g.restore();
+  g.save(); g.translate(-0.3 * s, -0.08 * s); g.scale(-k, k); wing(g, u, flap); g.restore();
+  g.restore();
+  // Goldrand
+  g.shadowColor = 'rgba(255,190,90,0.9)'; g.shadowBlur = 60;
+  g.fillStyle = goldGrad(g, -0.5 * s, 0.5 * s); heartPath(g, s * 1.1); g.fill(); g.shadowBlur = 0;
+  g.strokeStyle = 'rgba(90,40,0,0.6)'; g.lineWidth = 3; heartPath(g, s * 1.035); g.stroke();
+  glossyHeart(g, s);
+  // Glanzstreifen über das Herz
+  for (const q of [seg(t, 0.35, 0.95), seg(t, T_BURST + 0.25, T_BURST + 1.05)]) if (q > 0 && q < 1) {
+    g.save(); heartPath(g, s * 1.1); g.clip(); g.rotate(0.35); const x = -0.8 * s + 1.6 * s * q;
+    const gr = g.createLinearGradient(x - 60, 0, x + 60, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(-s, -s, 2 * s, 2 * s); g.restore();
+  }
+  const num = t < T_BURST ? OLD : NEW;
+  bigNumber(g, num, 0.4 * s, t >= T_BURST ? 1 + 0.5 * (1 - eOutBack(seg(t, T_BURST, T_BURST + 0.5))) : 1);
+  g.restore();
+}
+function neonStroke(ctx, pathFn, col, core, alpha, w = 1) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (const [lw, al, blur, cc] of [[38 * w, 0.14, 40, col], [18 * w, 0.35, 24, col], [8 * w, 0.85, 10, col], [3.2 * w, 1, 4, core]]) {
+    ctx.globalAlpha = alpha * al; ctx.strokeStyle = cc; ctx.lineWidth = lw; ctx.shadowColor = col; ctx.shadowBlur = blur; pathFn(); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawNeon(t, F, pb) {
+  let s = 560 * (1 + 0.04 * Math.sin(t * 6) * seg(t, 0.9, 1.2));
+  if (t >= T_BURST) s *= 1 + 0.16 * (1 - eOutC(pb));
+  s *= 1 + 0.08 * eInC(seg(t, T_OUT, DUR));
+  const draw = eOutC(seg(t, 0.08, 0.8));
+  let fl = 1;
+  if (t > 0.8 && t < 1.05) fl = rnd() < 0.35 ? 0.25 : 1;
+  const hot = t >= T_BURST ? 1 + 1.2 * (1 - eOutC(pb)) : 1 + 0.5 * seg(t, T_CHARGE, T_BURST);
+  g.save(); g.translate(CX, BY);
+  // Röhre außen (pink), zeichnet sich selbst
+  g.setLineDash([HLEN * s * draw, HLEN * s * 2]);
+  neonStroke(g, () => heartPath(g, s), '#ff2e93', '#ffe3f1', F * fl * Math.min(1.6, hot), 1);
+  g.setLineDash([HLEN * s * 0.82 * draw, HLEN * s * 2]); g.lineDashOffset = -HLEN * s * 0.82 * 0.5;
+  neonStroke(g, () => heartPath(g, s * 0.82), '#a855ff', '#f1e4ff', F * fl * 0.85 * Math.min(1.6, hot), 0.75);
+  g.setLineDash([]); g.lineDashOffset = 0;
+  // Innenleuchten
+  const ig = g.createRadialGradient(0, 0, 0, 0, 0, s * 0.5); ig.addColorStop(0, `rgba(255,60,160,${0.22 * draw * F * hot})`); ig.addColorStop(1, 'rgba(255,60,160,0)');
+  g.globalCompositeOperation = 'lighter'; g.fillStyle = ig; g.beginPath(); g.arc(0, 0, s * 0.5, 0, 7); g.fill(); g.globalCompositeOperation = 'source-over';
+  // Stromblitze beim Aufladen
+  if (t > T_CHARGE && t < T_BURST + 0.15) {
+    const n = 2 + Math.round(4 * seg(t, T_CHARGE, T_BURST));
+    for (let k = 0; k < n; k++) {
+      const i0 = (rnd() * HP.length) | 0, p0 = HP[i0];
+      const ang = Math.atan2(p0[1], p0[0]), r1 = R(60, 220);
+      const x0 = p0[0] * s, y0 = p0[1] * s, x1 = x0 + Math.cos(ang) * r1, y1 = y0 + Math.sin(ang) * r1;
+      g.save(); g.globalCompositeOperation = 'lighter'; g.lineJoin = 'miter';
+      for (const [lw, col, al] of [[9, '#7df9ff', 0.3], [2.5, '#ffffff', 1]]) {
+        g.strokeStyle = col; g.globalAlpha = al * F; g.lineWidth = lw; g.shadowColor = '#7df9ff'; g.shadowBlur = 18;
+        g.beginPath(); g.moveTo(x0, y0);
+        for (let j = 1; j <= 7; j++) { const f = j / 7; g.lineTo(x0 + (x1 - x0) * f + R(-22, 22), y0 + (y1 - y0) * f + R(-22, 22)); }
+        g.stroke();
+      }
+      g.restore();
+    }
+  }
+  if (draw > 0.6) {
+    const num = t < T_BURST ? OLD : NEW;
+    g.globalAlpha = F * fl * clamp((draw - 0.6) * 3);
+    bigNumber(g, num, 0.36 * s, t >= T_BURST ? 1 + 0.5 * (1 - eOutBack(seg(t, T_BURST, T_BURST + 0.5))) : 1, true);
+    g.globalAlpha = 1;
+  }
+  g.restore();
+}
+
+const off = document.createElement('canvas'); off.width = W; off.height = 400; const o = off.getContext('2d');
+
+function draw(t) {
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
+  const F = 1 - eInC(seg(t, T_OUT, DUR));
+  const appear = eOutC(seg(t, 0, 0.5));
+  const pb = seg(t, T_BURST, T_BURST + 0.45);
+  const shake = t >= T_BURST ? (1 - pb) * 16 : (t > T_CHARGE ? 5 * Math.pow(seg(t, T_CHARGE, T_BURST), 2) : 0);
+  g.translate(Math.sin(t * 97) * shake, Math.cos(t * 83) * shake);
+
+  // Abdunkeln für Kontrast
+  let gr = g.createRadialGradient(CX, BY + 250, 50, CX, BY + 250, 1000);
+  const dk = V === 3 ? 0.78 : 0.62, col = V === 3 ? '8,2,22' : '18,2,14';
+  gr.addColorStop(0, `rgba(${col},${dk * appear * F})`); gr.addColorStop(1, `rgba(${col},0)`);
+  g.fillStyle = gr; g.fillRect(-50, -50, W + 100, H + 100);
+
+  // Lichtstrahlen (nicht bei Neon)
+  if (V !== 3) {
+    g.globalCompositeOperation = 'lighter';
+    const rayI = (t < T_BURST ? 0.2 + 0.35 * seg(t, 0.2, T_BURST) : 0.6 + 0.6 * (1 - eOutC(seg(t, T_BURST, T_BURST + 1.2)))) * appear * F;
+    const rc = V === 1 ? '255,120,170' : '255,205,110';
+    g.save(); g.translate(CX, BY); g.rotate(t * 0.22);
+    for (let i = 0; i < 18; i++) {
+      g.rotate(Math.PI * 2 / 18);
+      const len = 950 + (i % 3) * 120, wdt = 0.07 + (i % 2) * 0.04;
+      gr = g.createRadialGradient(0, 0, 120, 0, 0, len); gr.addColorStop(0, `rgba(${rc},${0.32 * rayI})`); gr.addColorStop(1, `rgba(${rc},0)`);
+      g.fillStyle = gr; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, len, -wdt, wdt); g.closePath(); g.fill();
+    }
+    g.restore(); g.globalCompositeOperation = 'source-over';
+  }
+
+  // Herzförmige Schockwellen
+  for (const r of rings) {
+    const p = seg(t, r.t0, r.t0 + (r.big ? 1.0 : 0.6));
+    if (p <= 0 || p >= 1) continue;
+    const sc = r.big ? 520 + 1500 * eOutExpo(p) : 520 + 260 * eOutC(p);
+    const cl = V === 3 ? (r.k > 0.8 ? '255,46,147' : '125,249,255') : (r.k > 0.8 ? '255,214,120' : '255,110,170');
+    g.save(); g.globalCompositeOperation = 'lighter';
+    g.strokeStyle = `rgba(${cl},${(1 - p) * (r.big ? 0.6 : 0.85) * r.k * F})`; g.lineWidth = (r.big ? 28 : 14) * (1 - p) + 1;
+    heartPath(g, sc, CX, BY); g.stroke(); g.restore();
+  }
+
+  // Funken
+  g.globalCompositeOperation = 'lighter';
+  for (const p of sparks) {
+    const a = (1 - p.life / p.max) * F, sp = Math.hypot(p.vx, p.vy);
+    g.strokeStyle = p.col; g.globalAlpha = a; g.lineWidth = p.w * (0.6 + 0.4 * a); g.lineCap = 'round';
+    g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - p.vx * 2.2, p.y - p.vy * 2.2); g.stroke();
+    if (sp > 4) { g.fillStyle = '#fff'; g.beginPath(); g.arc(p.x, p.y, p.w * 0.55, 0, 7); g.fill(); }
+  }
+  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+
+  // Herzchen-Konfetti
+  for (const p of hearts) {
+    const a = Math.min(1, (1 - p.life / p.max) * 1.6) * F;
+    g.save(); g.translate(p.x, p.y); g.rotate(p.rot); g.globalAlpha = a;
+    if (V === 3) { neonStroke(g, () => heartPath(g, p.s), rnd() < 0.5 ? '#ff2e93' : '#7df9ff', '#ffffff', a, 0.35); }
+    else { g.shadowColor = 'rgba(255,90,150,0.7)'; g.shadowBlur = 12; glossyHeart(g, p.s); }
+    g.restore();
+  }
+  g.globalAlpha = 1;
+
+  // Mittelstück
+  if (V === 1) drawHeartbeat(t, F, pb); else if (V === 2) drawWinged(t, F, pb); else drawNeon(t, F, pb);
+
+  // Blitz
+  if (pb > 0 && pb < 1) {
+    g.globalCompositeOperation = 'lighter';
+    gr = g.createRadialGradient(CX, BY, 0, CX, BY, 780);
+    const fc = V === 3 ? '255,190,235' : '255,250,235';
+    gr.addColorStop(0, `rgba(${fc},${(1 - eOutC(seg(t, T_BURST, T_BURST + 0.35))) * 0.95})`); gr.addColorStop(1, `rgba(${fc},0)`);
+    g.fillStyle = gr; g.fillRect(-50, -50, W + 100, H + 100); g.globalCompositeOperation = 'source-over';
+  }
+
+  // „LEVEL UP!"
+  const pt = seg(t, T_BURST + 0.05, T_BURST + 0.42);
+  const TY = 1130;
+  if (pt > 0) {
+    const ts = (1 + 1.4 * (1 - eOutC(pt))) * (1 + 0.1 * eInC(seg(t, T_OUT, DUR)));
+    const ta = clamp(pt * 3) * F;
+    g.save(); g.globalAlpha = ta; g.translate(CX, TY); g.scale(ts, ts); g.translate(-CX, -TY);
+    g.font = '172px IB'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.letterSpacing = '2px'; g.lineJoin = 'round';
+    if (V === 3) {
+      const fl2 = (t > T_BURST + 0.5 && t < T_BURST + 0.62) ? 0.4 : 1;
+      g.globalCompositeOperation = 'lighter';
+      for (const [dx, cc] of [[-4, 'rgba(125,249,255,0.55)'], [4, 'rgba(255,46,147,0.55)']]) { g.lineWidth = 5; g.strokeStyle = cc; g.strokeText('LEVEL UP!', CX + dx, TY); }
+      for (const [lw, al, blur] of [[26, 0.18, 40], [12, 0.45, 22], [4, 1, 6]]) {
+        g.globalAlpha = ta * al * fl2; g.lineWidth = lw; g.strokeStyle = lw === 4 ? '#fff0f8' : '#ff2e93'; g.shadowColor = '#ff2e93'; g.shadowBlur = blur; g.strokeText('LEVEL UP!', CX, TY);
+      }
+    } else {
+      o.clearRect(0, 0, W, 400); o.font = '172px IB'; o.textAlign = 'center'; o.textBaseline = 'middle'; o.letterSpacing = '2px';
+      o.fillStyle = goldGrad(o, 200 - 82, 200 + 70); o.fillText('LEVEL UP!', W / 2, 200);
+      const q = seg(t, T_BURST + 0.6, T_BURST + 1.5);
+      if (q > 0 && q < 1) {
+        o.globalCompositeOperation = 'source-atop'; const x = -200 + 1480 * q; const lg = o.createLinearGradient(x - 90, 0, x + 90, 0);
+        lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,255,255,0.9)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+        o.fillStyle = lg; o.fillRect(0, 0, W, 400); o.globalCompositeOperation = 'source-over';
+      }
+      g.lineWidth = 22; g.strokeStyle = '#2a0614'; g.shadowColor = V === 1 ? 'rgba(255,70,140,0.8)' : 'rgba(255,150,60,0.75)'; g.shadowBlur = 50; g.strokeText('LEVEL UP!', CX, TY);
+      g.shadowBlur = 0; g.lineWidth = 6; g.strokeStyle = '#ffeaa8'; g.strokeText('LEVEL UP!', CX, TY);
+      g.drawImage(off, 0, TY - 200);
+    }
+    g.restore();
+  }
+
+  // Untertitel
+  const ps = eOutC(seg(t, T_BURST + 0.35, T_BURST + 0.75));
+  if (ps > 0) {
+    g.save(); g.globalAlpha = ps * F; g.font = '50px IB'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.letterSpacing = '9px';
+    g.shadowColor = V === 3 ? '#7df9ff' : 'rgba(255,60,130,0.9)'; g.shadowBlur = 22; g.fillStyle = V === 3 ? '#e6fdff' : '#ffe1ee';
+    g.fillText(`TEAMHERZ · STUFE ${NEW}`, CX, 1240 + 30 * (1 - ps)); g.restore();
+  }
+
+  // Profilbild + Name
+  const pn = eOutBack(seg(t, T_BURST + 0.55, T_BURST + 1.0));
+  if (pn > 0) {
+    g.save(); g.globalAlpha = clamp(pn) * F;
+    g.font = '54px IB'; g.letterSpacing = '0px';
+    const tw = g.measureText(NAME).width, pw = tw + 150 + 60, ph = 124, px = CX - pw / 2, py = 1315 + 40 * (1 - pn);
+    g.translate(CX, py + ph / 2); g.scale(0.9 + 0.1 * pn, 0.9 + 0.1 * pn); g.translate(-CX, -(py + ph / 2));
+    g.beginPath(); g.roundRect(px, py, pw, ph, ph / 2);
+    g.fillStyle = V === 3 ? 'rgba(10,4,26,0.85)' : 'rgba(24,4,16,0.82)'; g.shadowColor = V === 3 ? 'rgba(255,46,147,0.7)' : 'rgba(0,0,0,0.5)'; g.shadowBlur = 30; g.fill(); g.shadowBlur = 0;
+    g.lineWidth = 4; g.strokeStyle = V === 3 ? '#ff5fb0' : goldGrad(g, py, py + ph); g.stroke();
+    const ax = px + 14 + 48, ay = py + ph / 2;
+    gr = g.createLinearGradient(ax - 48, ay - 48, ax + 48, ay + 48); gr.addColorStop(0, '#ff6aa0'); gr.addColorStop(1, '#7b2cbf');
+    g.fillStyle = gr; g.beginPath(); g.arc(ax, ay, 46, 0, 7); g.fill();
+    g.lineWidth = 5; g.strokeStyle = V === 3 ? '#7df9ff' : goldGrad(g, ay - 50, ay + 50); g.beginPath(); g.arc(ax, ay, 48, 0, 7); g.stroke();
+    g.fillStyle = '#fff'; g.font = '48px IB'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(NAME[0], ax, ay + 3);
+    g.font = '54px IB'; g.textAlign = 'left'; g.fillText(NAME, ax + 70, ay + 3);
+    g.restore();
+  }
+
+  // Glut
+  g.globalCompositeOperation = 'lighter';
+  for (const p of embers) {
+    const a = Math.sin(Math.PI * p.life / p.max) * F;
+    gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4); gr.addColorStop(0, p.col); gr.addColorStop(1, 'rgba(255,150,60,0)');
+    g.globalAlpha = a; g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, p.r * 4, 0, 7); g.fill();
+  }
+  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+}
+
+async function run() {
+  await document.fonts.load('172px IB');
+  await fetch('/log?v=' + V + '&font=' + document.fonts.check('172px IB'));
+  for (let i = 0; i < N; i++) {
+    const t = i / FPS; step(t); draw(t);
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    await fetch('/frame?i=' + i, { method: 'POST', body: blob });
+  }
+  await fetch('/done');
+}
+run();
+</script></body></html>

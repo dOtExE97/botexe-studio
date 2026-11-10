@@ -1,0 +1,465 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:IB;src:url(Inter-Black.ttf)}
+html,body{margin:0;background:transparent}
+</style></head><body><canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// PROBE (Wegwerf): Teamherz-Level-Up im TikTok-Stil — eigenes Herz mit Gesicht.
+const W = 1080, H = 1920, FPS = 30, DUR = 5.8, N = Math.round(DUR * FPS);
+const c = document.getElementById('c'), g = c.getContext('2d');
+let seed = 777;
+const MIX = new URLSearchParams(location.search).get('mix') === '1';
+const TYP = new URLSearchParams(location.search).get('typ') || 'herz';
+function rnd() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+const R = (a, b) => a + (b - a) * rnd();
+const pick = a => a[(rnd() * a.length) | 0];
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eOutC = x => 1 - Math.pow(1 - x, 3), eInC = x => x * x * x, eInOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eOutBack = (x, k = 1.9) => { const c3 = k + 1; return 1 + c3 * Math.pow(x - 1, 3) + k * Math.pow(x - 1, 2); };
+const eOutExpo = x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+function eOutBounce(x) { const n1 = 7.5625, d1 = 2.75; if (x < 1 / d1) return n1 * x * x; if (x < 2 / d1) return n1 * (x -= 1.5 / d1) * x + 0.75; if (x < 2.5 / d1) return n1 * (x -= 2.25 / d1) * x + 0.9375; return n1 * (x -= 2.625 / d1) * x + 0.984375; }
+
+const CX = 540, BY = 700, HS = 470;
+const OLD = 11, NEW = 12, NAME = 'Schwester Mary', COINS = 500;
+const TH = {
+  herz: { neon: ['#ff2e93', '#ffe3f1', '#7df9ff', '#effeff'], rings: ['255,46,147', '125,249,255'], ray: '255,70,170', title: 'LEVEL UP!', glow: '#ff2e93', sub: `TEAM-LEVEL ${OLD} → ${NEW}`, subGlow: '#7df9ff', spark: ['#ff3d9a', '#7df9ff', '#ffffff', '#c77dff'] },
+  superfan: { neon: ['#b14dff', '#f3e6ff', '#ffd36e', '#fff6d8'], rings: ['177,77,255', '255,211,110'], ray: '170,80,255', title: 'NEUER SUPERFAN!', glow: '#b14dff', sub: 'WILLKOMMEN IM SUPERFAN-CLUB', subGlow: '#ffd36e', spark: ['#c77dff', '#ffd36e', '#ffffff', '#ff7fd0'] },
+  kiste: { neon: ['#ffb627', '#fff1cf', '#ff2e93', '#ffe3f1'], rings: ['255,182,39', '255,46,147'], ray: '255,170,60', title: 'SCHATZKISTE!', glow: '#ff9d00', sub: `${COINS} COINS ZUM SCHNAPPEN`, subGlow: '#ffd36e', spark: ['#ffd36e', '#ffb627', '#ffffff', '#ff7fb0'] },
+}[TYP];
+const T_LAND = 0.75, T_CHARGE = 1.1, T_BURST = 1.9, T_JUMP = 0.62, T_OUT = 4.95;
+const CORAL = ['#ff6b5e', '#ff8a7a', '#ff4b4b', '#ffb3a7'];
+const GOLDS = ['#ffe8a3', '#ffd26a', '#ffffff', '#ffc14d'];
+
+const HP = [];
+for (let i = 0; i < 160; i++) {
+  const a = i / 160 * Math.PI * 2;
+  const x = 16 * Math.pow(Math.sin(a), 3), y = -(13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a));
+  HP.push([x / 32, (y - 2.5) / 32]);
+}
+// etwas „pummeliger" als die Lehrbuchform — wirkt niedlicher
+for (const p of HP) { p[0] *= 1.04; p[1] = p[1] * 0.96 + (p[1] > 0 ? -0.02 * p[1] : 0); }
+const SP = [];
+for (let i = 0; i < 200; i++) {
+  const th = i / 200 * Math.PI * 2 - Math.PI / 2, ph = th + Math.PI / 2;
+  const v = Math.pow((1 - Math.cos(5 * ph)) / 2, 0.75), r = 0.52 * (1 - 0.42 * v);
+  SP.push([Math.cos(th) * r, Math.sin(th) * r + 0.03]);
+}
+const CP = []; for (let i = 0; i < 160; i++) { const a = i / 160 * Math.PI * 2; CP.push([Math.cos(a) * 0.5, Math.sin(a) * 0.5]); }
+function polyPath(P, ctx, s, ox = 0, oy = 0) { ctx.beginPath(); ctx.moveTo(ox + P[0][0] * s, oy + P[0][1] * s); for (let i = 1; i < P.length; i++) ctx.lineTo(ox + P[i][0] * s, oy + P[i][1] * s); ctx.closePath(); }
+const FP = TYP === 'superfan' ? SP : TYP === 'kiste' ? CP : null;
+function BODY(ctx, s, ox = 0, oy = 0) { if (TYP === 'superfan') polyPath(SP, ctx, s, ox, oy); else heartPath(ctx, s, ox, oy); }
+function framePath(ctx, s, ox = 0, oy = 0) { if (FP) polyPath(FP, ctx, s, ox, oy); else heartPath(ctx, s, ox, oy); }
+function heartPath(ctx, s, ox = 0, oy = 0) { ctx.beginPath(); ctx.moveTo(ox + HP[0][0] * s, oy + HP[0][1] * s); for (let i = 1; i < HP.length; i++) ctx.lineTo(ox + HP[i][0] * s, oy + HP[i][1] * s); ctx.closePath(); }
+
+function shinyHeart(ctx, s, cols) {
+  let gr = ctx.createRadialGradient(-0.2 * s, -0.28 * s, 0.02 * s, -0.04 * s, 0, 0.82 * s);
+  gr.addColorStop(0, cols[0]); gr.addColorStop(0.38, cols[1]); gr.addColorStop(0.78, cols[2]); gr.addColorStop(1, cols[3]);
+  ctx.fillStyle = gr; BODY(ctx, s); ctx.fill();
+  ctx.save(); BODY(ctx, s); ctx.clip();
+  gr = ctx.createLinearGradient(0, 0.05 * s, 0, 0.5 * s); gr.addColorStop(0, 'rgba(120,10,20,0)'); gr.addColorStop(1, 'rgba(120,10,20,0.35)');
+  ctx.fillStyle = gr; ctx.fillRect(-s, -s, 2 * s, 2 * s);
+  ctx.save(); ctx.translate(-0.25 * s, -0.27 * s); ctx.rotate(-0.6);
+  gr = ctx.createRadialGradient(0, 0, 0, 0, 0, 0.15 * s); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gr; ctx.scale(1, 0.48); ctx.beginPath(); ctx.arc(0, 0, 0.15 * s, 0, 7); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.translate(0.28 * s, -0.29 * s); ctx.rotate(0.5);
+  gr = ctx.createRadialGradient(0, 0, 0, 0, 0, 0.06 * s); gr.addColorStop(0, 'rgba(255,255,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gr; ctx.scale(1, 0.6); ctx.beginPath(); ctx.arc(0, 0, 0.06 * s, 0, 7); ctx.fill(); ctx.restore();
+  ctx.restore();
+}
+const CORAL_COLS = ['#ffb8a8', '#ff6a5c', '#e8343f', '#a3172a'];
+const VIOLET_COLS = ['#ecd2ff', '#b65cff', '#7a28c9', '#3a0c6a'];
+const BODY_COLS = TYP === 'superfan' ? VIOLET_COLS : CORAL_COLS;
+const GOLD_COLS = ['#fff5cf', '#ffd46e', '#d9952a', '#8a5310'];
+
+function face(ctx, k, mood, blink) {
+    // Bäckchen
+    ctx.fillStyle = 'rgba(255,170,180,0.65)';
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.ellipse(sx * 0.25 * k, 0.07 * k, 0.07 * k, 0.04 * k, 0, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = '#4a1012'; ctx.fillStyle = '#4a1012'; ctx.lineCap = 'round'; ctx.lineWidth = 0.028 * k;
+    for (const sx of [-1, 1]) {
+      const ex = sx * 0.15 * k, ey = -0.04 * k;
+      if (mood === 2) { ctx.beginPath(); ctx.arc(ex, ey + 0.02 * k, 0.05 * k, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); }
+      else if (mood === 1) { // zusammengekniffen: > <
+        const d = -sx; ctx.beginPath(); ctx.moveTo(ex - d * 0.045 * k, ey - 0.04 * k); ctx.lineTo(ex + d * 0.04 * k, ey); ctx.lineTo(ex - d * 0.045 * k, ey + 0.04 * k); ctx.stroke(); }
+      else {
+        const ry = 0.065 * k * (1 - 0.92 * blink);
+        ctx.beginPath(); ctx.ellipse(ex, ey, 0.045 * k, Math.max(0.006 * k, ry), 0, 0, 7); ctx.fill();
+        if (blink < 0.5) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex + 0.014 * k, ey - 0.025 * k, 0.016 * k, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(ex - 0.015 * k, ey + 0.02 * k, 0.008 * k, 0, 7); ctx.fill(); ctx.fillStyle = '#4a1012'; }
+      }
+    }
+    if (mood === 2) {
+      ctx.beginPath(); ctx.moveTo(-0.085 * k, 0.07 * k); ctx.quadraticCurveTo(0, 0.07 * k, 0.085 * k, 0.07 * k); ctx.quadraticCurveTo(0, 0.23 * k, -0.085 * k, 0.07 * k); ctx.closePath(); ctx.fillStyle = '#5a0f14'; ctx.fill();
+      ctx.save(); ctx.clip(); ctx.fillStyle = '#ff8a95'; ctx.beginPath(); ctx.ellipse(0, 0.17 * k, 0.05 * k, 0.035 * k, 0, 0, 7); ctx.fill(); ctx.restore();
+    } else if (mood === 1) {
+      ctx.beginPath(); ctx.moveTo(-0.05 * k, 0.1 * k); ctx.lineTo(0.05 * k, 0.1 * k); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(0, 0.06 * k, 0.055 * k, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+    }
+}
+function crown(ctx, s) {
+  ctx.save(); ctx.translate(0.02 * s, -0.5 * s); ctx.rotate(0.12);
+  const w = 0.3 * s, h = 0.17 * s;
+  const gr = ctx.createLinearGradient(0, -h, 0, h * 0.3); gr.addColorStop(0, '#fff6c8'); gr.addColorStop(0.5, '#ffcf55'); gr.addColorStop(1, '#c47f12');
+  ctx.fillStyle = gr; ctx.strokeStyle = '#8a4f08'; ctx.lineWidth = 0.012 * s; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(-w / 2, h * 0.3); ctx.lineTo(-w / 2, -h * 0.55); ctx.lineTo(-w / 4, -h * 0.05); ctx.lineTo(0, -h); ctx.lineTo(w / 4, -h * 0.05); ctx.lineTo(w / 2, -h * 0.55); ctx.lineTo(w / 2, h * 0.3); ctx.closePath(); ctx.fill(); ctx.stroke();
+  for (const [x, y, c] of [[-w / 2, -h * 0.6, '#ff4f8b'], [0, -h * 1.05, '#7df9ff'], [w / 2, -h * 0.6, '#ff4f8b']]) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, 0.025 * s, 0, 7); ctx.fill(); }
+  ctx.fillStyle = '#ff4f8b'; ctx.beginPath(); ctx.arc(0, h * 0.05, 0.03 * s, 0, 7); ctx.fill();
+  ctx.restore();
+}
+// Herz-Figur mit Goldrand und Gesicht; flip in [-1,1] (horizontale Drehung), mood: 0 normal, 1 angestrengt, 2 glücklich
+function heartBuddy(ctx, s, flip, mood, blink, t) {
+  const back = flip < 0;
+  ctx.save(); ctx.scale(Math.max(0.04, Math.abs(flip)), 1);
+  // 3D-Tiefe: Goldrand dahinter, leicht versetzt
+  ctx.save(); ctx.translate((back ? -1 : 1) * 0.035 * s, 0.03 * s); ctx.fillStyle = '#b8731c'; BODY(ctx, s * 1.05); ctx.fill(); ctx.restore();
+  let gr = ctx.createLinearGradient(0, -0.45 * s, 0, 0.5 * s);
+  gr.addColorStop(0, '#fff3c4'); gr.addColorStop(0.35, '#ffd877'); gr.addColorStop(0.7, '#e6a23a'); gr.addColorStop(1, '#b8731c');
+  ctx.fillStyle = gr; BODY(ctx, s * 1.05); ctx.fill();
+  shinyHeart(ctx, s * 0.93, back ? GOLD_COLS : BODY_COLS);
+  if (!back) {
+    face(ctx, s * 0.93, mood, blink);
+    if (TYP === 'superfan') crown(ctx, s);
+  } else {
+    // Rückseite: kleines Herz-Emblem
+    ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#fff6d8'; BODY(ctx, s * 0.32); ctx.fill(); ctx.restore();
+  }
+  ctx.restore();
+}
+
+const FPP = FP || HP; let HLEN = 0; for (let i = 0; i < FPP.length; i++) { const p = FPP[i], q = FPP[(i + 1) % FPP.length]; HLEN += Math.hypot(q[0] - p[0], q[1] - p[1]); }
+function neonStroke(ctx, pathFn, col, core, alpha, w = 1) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (const [lw, al, blur, cc] of [[38 * w, 0.14, 40, col], [18 * w, 0.35, 24, col], [8 * w, 0.85, 10, col], [3.2 * w, 1, 4, core]]) {
+    ctx.globalAlpha = alpha * al; ctx.strokeStyle = cc; ctx.lineWidth = lw; ctx.shadowColor = col; ctx.shadowBlur = blur; pathFn(); ctx.stroke();
+  }
+  ctx.restore();
+}
+function neonFrame(t, F, pb) {
+  const s = HS * (TYP === 'kiste' ? 1.45 : TYP === 'superfan' ? 1.5 : 1.42), cy = BY - 10;
+  const draw = eOutC(seg(t, 0.35, 1.05));
+  let fl = 1; if (t > 1.05 && t < 1.3) fl = rnd() < 0.35 ? 0.25 : 1;
+  const hot = t >= T_BURST ? 1 + 1.2 * (1 - eOutC(pb)) : 1 + 0.6 * seg(t, T_CHARGE, T_BURST);
+  g.save(); g.translate(CX, cy);
+  g.setLineDash([HLEN * s * draw, HLEN * s * 2]);
+  neonStroke(g, () => framePath(g, s), TH.neon[0], TH.neon[1], F * fl * Math.min(1.7, hot), 1);
+  g.setLineDash([HLEN * s * 1.1 * draw, HLEN * s * 3]); g.lineDashOffset = -HLEN * s * 1.1 * 0.5;
+  neonStroke(g, () => framePath(g, s * 1.1), TH.neon[2], TH.neon[3], F * fl * 0.7 * Math.min(1.7, hot), 0.6);
+  g.setLineDash([]); g.lineDashOffset = 0;
+  if (t > T_CHARGE && t < T_BURST + 0.15) {
+    const n = 2 + Math.round(5 * seg(t, T_CHARGE, T_BURST));
+    for (let k = 0; k < n; k++) {
+      const p0 = FPP[(rnd() * FPP.length) | 0], ang = Math.atan2(p0[1], p0[0]), r1 = R(60, 200);
+      const x0 = p0[0] * s, y0 = p0[1] * s, x1 = x0 + Math.cos(ang) * r1, y1 = y0 + Math.sin(ang) * r1;
+      g.save(); g.globalCompositeOperation = 'lighter';
+      for (const [lw, col, al] of [[9, '#7df9ff', 0.3], [2.5, '#ffffff', 1]]) {
+        g.strokeStyle = col; g.globalAlpha = al * F; g.lineWidth = lw; g.shadowColor = '#7df9ff'; g.shadowBlur = 18;
+        g.beginPath(); g.moveTo(x0, y0);
+        for (let j = 1; j <= 7; j++) { const f = j / 7; g.lineTo(x0 + (x1 - x0) * f + R(-22, 22), y0 + (y1 - y0) * f + R(-22, 22)); }
+        g.stroke();
+      }
+      g.restore();
+    }
+  }
+  g.restore();
+}
+function coin(ctx, s, ph) {
+  const k = Math.cos(ph), back = k < 0; ctx.scale(Math.max(0.08, Math.abs(k)), 1);
+  ctx.fillStyle = '#b8731c'; ctx.beginPath(); ctx.arc(0.04 * s, 0.03 * s, s / 2, 0, 7); ctx.fill();
+  const gr = ctx.createLinearGradient(0, -s / 2, 0, s / 2); gr.addColorStop(0, '#fff3c4'); gr.addColorStop(0.45, back ? '#e8a93a' : '#ffd25a'); gr.addColorStop(1, '#c47f12');
+  ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, s / 2, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(140,80,10,0.7)'; ctx.lineWidth = s * 0.06; ctx.beginPath(); ctx.arc(0, 0, s * 0.36, 0, 7); ctx.stroke();
+  ctx.fillStyle = back ? 'rgba(140,80,10,0.5)' : 'rgba(255,255,255,0.85)'; star4(ctx, 0, 0, s * 0.22, 0);
+}
+function chestBuddy(ctx, s, open, mood, blink, t) {
+  const w = 0.96 * s;
+  const plank = (y0, y1) => { const gr = ctx.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, '#ff8a62'); gr.addColorStop(0.5, '#d9482e'); gr.addColorStop(1, '#8f2616'); return gr; };
+  const goldV = (y0, y1) => { const gr = ctx.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, '#fff3c4'); gr.addColorStop(0.4, '#ffd26a'); gr.addColorStop(1, '#b8731c'); return gr; };
+  const rattle = mood === 1 ? Math.sin(t * 60) * 0.03 * seg(t, T_CHARGE, T_BURST) : 0;
+  ctx.fillStyle = '#6e1c10'; ctx.beginPath(); ctx.roundRect(-w / 2 + 8, -0.02 * s + 10, w, 0.46 * s, 0.07 * s); ctx.fill();
+  ctx.fillStyle = plank(-0.02 * s, 0.44 * s); ctx.beginPath(); ctx.roundRect(-w / 2, -0.02 * s, w, 0.46 * s, 0.07 * s); ctx.fill();
+  ctx.strokeStyle = 'rgba(90,20,10,0.35)'; ctx.lineWidth = 4;
+  for (const y of [0.14, 0.29]) { ctx.beginPath(); ctx.moveTo(-w / 2 + 10, y * s); ctx.lineTo(w / 2 - 10, y * s); ctx.stroke(); }
+  for (const x of [-0.3, 0.3]) { ctx.fillStyle = goldV(-0.02 * s, 0.44 * s); ctx.fillRect(x * s - 0.045 * s, -0.02 * s, 0.09 * s, 0.46 * s); }
+  ctx.fillStyle = goldV(-0.04 * s, 0.05 * s); ctx.beginPath(); ctx.roundRect(-w / 2 - 6, -0.04 * s, w + 12, 0.08 * s, 0.03 * s); ctx.fill();
+  ctx.save(); ctx.translate(0, 0.25 * s); face(ctx, s * 0.85, mood, blink); ctx.restore();
+  if (open > 0) {
+    ctx.save(); ctx.beginPath(); ctx.rect(-s, -1.2 * s, 2 * s, 1.17 * s); ctx.clip(); ctx.globalCompositeOperation = 'lighter';
+    const gg = ctx.createRadialGradient(0, -0.04 * s, 0, 0, -0.04 * s, 0.5 * s); gg.addColorStop(0, `rgba(255,240,180,${0.95 * clamp(open)})`); gg.addColorStop(1, 'rgba(255,190,60,0)');
+    ctx.fillStyle = gg; ctx.beginPath(); ctx.ellipse(0, -0.04 * s, 0.5 * s, 0.3 * s, 0, 0, 7); ctx.fill(); ctx.restore();
+  }
+  ctx.save(); ctx.translate(0, -0.03 * s - 0.3 * s * open); ctx.rotate(rattle - 0.18 * open); ctx.scale(1, 1 - 0.45 * clamp(open));
+  ctx.fillStyle = plank(-0.36 * s, 0); ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(-w / 2, -0.16 * s);
+  ctx.bezierCurveTo(-w / 2, -0.42 * s, w / 2, -0.42 * s, w / 2, -0.16 * s); ctx.lineTo(w / 2, 0); ctx.closePath(); ctx.fill();
+  ctx.save(); ctx.clip(); for (const x of [-0.3, 0.3]) { ctx.fillStyle = goldV(-0.36 * s, 0); ctx.fillRect(x * s - 0.045 * s, -0.4 * s, 0.09 * s, 0.4 * s); }
+  ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.beginPath(); ctx.ellipse(-0.18 * s, -0.24 * s, 0.2 * s, 0.05 * s, -0.15, 0, 7); ctx.fill(); ctx.restore();
+  ctx.fillStyle = goldV(-0.03 * s, 0.03 * s); ctx.beginPath(); ctx.roundRect(-w / 2 - 6, -0.035 * s, w + 12, 0.06 * s, 0.03 * s); ctx.fill();
+  ctx.fillStyle = goldV(-0.03 * s, 0.1 * s); ctx.beginPath(); ctx.roundRect(-0.07 * s, -0.03 * s, 0.14 * s, 0.13 * s, 0.03 * s); ctx.fill();
+  ctx.fillStyle = '#5a2a06'; ctx.beginPath(); ctx.arc(0, 0.02 * s, 0.018 * s, 0, 7); ctx.fill(); ctx.fillRect(-0.008 * s, 0.02 * s, 0.016 * s, 0.04 * s);
+  ctx.restore();
+}
+function star4(ctx, x, y, r, rot) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.beginPath();
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, rr = i % 2 ? r * 0.28 : r; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+const sparks = [], hearts = [], stars = [], rings = [], coins = [];
+let burst = false;
+function spawnBurst() {
+  for (let i = 0; i < 200; i++) {
+    const a = R(0, Math.PI * 2), sp = Math.pow(rnd(), 0.6) * 28 + 6;
+    sparks.push({ x: CX + Math.cos(a) * 60, y: BY + Math.sin(a) * 60, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0, max: R(40, 80), col: MIX ? (rnd() < 0.5 ? pick(TH.spark) : pick(CORAL)) : (rnd() < 0.55 ? pick(GOLDS) : pick(CORAL)), w: R(2, 5) });
+  }
+  if (TYP === 'kiste') for (let i = 0; i < 70; i++) coins.push({ x: CX + R(-120, 120), y: BY - 20, vx: R(-13, 13), vy: R(-38, -16), ph: R(0, 6.28), vph: R(0.15, 0.4), s: R(34, 58), life: 0, max: R(80, 120) });
+  else for (let i = 0; i < 46; i++) {
+    const a = R(0, Math.PI * 2), sp = R(8, 21);
+    hearts.push({ x: CX, y: BY, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 4, rot: R(-0.6, 0.6), vr: R(-0.1, 0.1), s: R(24, 60), life: 0, max: R(70, 115), gold: rnd() < 0.25 });
+  }
+  for (const [d, k] of [[0, 1], [0.12, 0.65]]) rings.push({ t0: T_BURST + d, k });
+}
+function step(t) {
+  if (t >= T_BURST && !burst) { burst = true; spawnBurst(); }
+  if (t >= T_BURST && t < T_OUT && rnd() < 0.7) stars.push({ x: CX + R(-420, 420), y: BY + R(-300, 650), r: R(8, 22), life: 0, max: R(25, 45), rot: R(0, 1), col: pick(['#fff', '#ffe08a', '#ffc2b8']) });
+  for (const p of sparks) { p.vx *= 0.935; p.vy = p.vy * 0.935 + 0.32; p.x += p.vx; p.y += p.vy; p.life++; }
+  for (const p of hearts) { p.vx *= 0.955; p.vy = p.vy * 0.955 + 0.24; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life++; }
+  for (const p of stars) p.life++;
+  for (const p of coins) { p.vx *= 0.99; p.vy += 0.85; p.x += p.vx; p.y += p.vy; p.ph += p.vph; p.life++; }
+  for (let i = coins.length - 1; i >= 0; i--) if (coins[i].life > coins[i].max) coins.splice(i, 1);
+  for (const arr of [sparks, hearts, stars]) for (let i = arr.length - 1; i >= 0; i--) if (arr[i].life > arr[i].max) arr.splice(i, 1);
+}
+
+function heartPose(t) {
+  // y-Versatz, Stauchung (sx, sy), Drehung (flip), Stimmung
+  let y = 0, sx = 1, sy = 1, flip = 1, mood = 0;
+  if (t < T_LAND) { const p = seg(t, 0, T_LAND); y = -1100 * (1 - eOutBounce(p)); }
+  // Landestauchung
+  const imp = Math.exp(-Math.max(0, t - T_LAND * 0.36) * 9) * (t > T_LAND * 0.36 ? 1 : 0) * 0.18;
+  sx += imp; sy -= imp;
+  if (t > T_LAND && t < T_CHARGE) y += -8 * Math.sin((t - T_LAND) * 9);
+  if (t >= T_CHARGE && t < T_BURST) { const p = eInOut(seg(t, T_CHARGE, T_BURST)); sx += 0.14 * p; sy -= 0.2 * p; y += 0.2 * p * HS * 0.4; mood = 1; }
+  if (t >= T_BURST) {
+    mood = 2;
+    const p = seg(t, T_BURST, T_BURST + T_JUMP);
+    if (p < 1) { y = -330 * Math.sin(Math.PI * p); sx = 1 - 0.08 * Math.sin(Math.PI * p); sy = 1 + 0.14 * Math.sin(Math.PI * Math.min(1, p * 2)); flip = Math.cos(Math.PI * 2 * eInOut(p)); }
+    const l = t - (T_BURST + T_JUMP);
+    if (l > 0) { const im = Math.exp(-l * 8) * 0.16 * Math.cos(l * 22); sx += im; sy -= im; y = 0; }
+    if (t > T_BURST + T_JUMP + 0.4) y = -10 * Math.sin((t - T_BURST) * 5);
+  }
+  if (TYP === 'kiste') { flip = 1; if (t >= T_BURST && t < T_BURST + T_JUMP) y *= 0.35; }
+  return { y, sx, sy, flip, mood };
+}
+function blinkAt(t) { for (const b of [0.95, 2.9, 4.1]) { const d = Math.abs(t - b); if (d < 0.08) return 1 - d / 0.08; } return 0; }
+
+function pill(ctx, x, y, num, t) {
+  // weiße Pille mit rotem Herz und Zahl, rollt beim Aufstieg
+  const h = 132, w = TYP === 'superfan' ? 470 : TYP === 'kiste' ? 360 : 330, r = h / 2;
+  ctx.save(); ctx.translate(x, y);
+  const pop = t >= T_BURST + 0.15 ? 1 + 0.25 * Math.exp(-(t - T_BURST - 0.15) * 7) * Math.cos((t - T_BURST - 0.15) * 18) : 1;
+  ctx.scale(pop, pop);
+  ctx.shadowColor = 'rgba(80,0,10,0.35)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 8;
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, r); ctx.fill();
+  ctx.shadowColor = 'transparent';
+  if (TYP === 'herz') {
+  ctx.save(); ctx.translate(-w / 2 + 78, 2); shinyHeart(ctx, 92, CORAL_COLS); ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.rect(-w / 2 + 125, -h / 2 + 6, w - 140, h - 12); ctx.clip();
+  ctx.font = '96px IB'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ff3b4a';
+  const roll = eOutBack(seg(t, T_BURST + 0.15, T_BURST + 0.55), 1.6), tx = 52;
+  if (roll <= 0) ctx.fillText(String(OLD), tx, 6);
+  else { ctx.globalAlpha = 1 - clamp(roll); ctx.fillText(String(OLD), tx, 6 - 120 * roll); ctx.globalAlpha = 1; ctx.fillText(String(NEW), tx, 6 + 120 * (1 - roll)); }
+  ctx.restore();
+  } else if (TYP === 'superfan') {
+    ctx.save(); ctx.translate(-w / 2 + 78, 4); shinyHeart(ctx, 96, VIOLET_COLS); ctx.restore();
+    ctx.font = '62px IB'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#8a2be2'; ctx.fillText('SUPERFAN', -w / 2 + 130, 4);
+  } else {
+    ctx.save(); ctx.translate(-w / 2 + 76, 2); coin(ctx, 88, 0); ctx.restore();
+    const n = Math.round(COINS * eOutC(seg(t, T_BURST + 0.15, T_BURST + 1.3)));
+    ctx.font = '90px IB'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#e07a00'; ctx.fillText(String(n), 62, 6);
+  }
+  ctx.restore();
+}
+
+function draw(t) {
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
+  const F = 1 - eInC(seg(t, T_OUT, DUR));
+  const appear = eOutC(seg(t, 0, 0.5));
+  const pb = seg(t, T_BURST, T_BURST + 0.45);
+
+  // weiches Abdunkeln
+  let gr = g.createRadialGradient(CX, BY + 300, 50, CX, BY + 300, 1000);
+  const dcol = MIX ? '14,3,24' : '40,6,12'; gr.addColorStop(0, `rgba(${dcol},${(MIX ? 0.75 : 0.55) * appear * F})`); gr.addColorStop(1, `rgba(${dcol},0)`);
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+
+  // warme Strahlen
+  g.globalCompositeOperation = 'lighter';
+  const rayI = (t < T_BURST ? 0.15 + 0.3 * seg(t, T_LAND, T_BURST) : 0.55 + 0.6 * (1 - eOutC(seg(t, T_BURST, T_BURST + 1.3)))) * appear * F;
+  g.save(); g.translate(CX, BY); g.rotate(t * 0.2);
+  for (let i = 0; i < 16; i++) {
+    g.rotate(Math.PI * 2 / 16); const len = 1000 + (i % 3) * 120, wd = 0.08 + (i % 2) * 0.05;
+    gr = g.createRadialGradient(0, 0, 100, 0, 0, len); gr.addColorStop(0, MIX ? `rgba(${TH.ray},${0.22 * rayI})` : `rgba(255,170,130,${0.3 * rayI})`); gr.addColorStop(1, 'rgba(255,120,100,0)');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, len, -wd, wd); g.closePath(); g.fill();
+  }
+  g.restore();
+  for (const r of rings) {
+    const p = seg(t, r.t0, r.t0 + 1.0); if (p <= 0 || p >= 1) continue;
+    g.strokeStyle = `rgba(${MIX ? (r.k > 0.8 ? TH.rings[0] : TH.rings[1]) : (r.k > 0.8 ? '255,215,130' : '255,120,110')},${(1 - p) * 0.7 * r.k * F})`; g.lineWidth = 26 * (1 - p) + 1;
+    framePath(g, HS + 1400 * eOutExpo(p), CX, BY); g.stroke();
+  }
+  for (const p of sparks) {
+    const a = (1 - p.life / p.max) * F;
+    g.strokeStyle = p.col; g.globalAlpha = a; g.lineWidth = p.w; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - p.vx * 2, p.y - p.vy * 2); g.stroke();
+  }
+  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+
+  if (MIX) neonFrame(t, F, pb);
+  // Schatten am Boden
+  const pose = heartPose(t);
+  const groundY = BY + HS * 0.46;
+  const hgt = clamp(-pose.y / 600);
+  g.save(); g.globalAlpha = 0.45 * appear * F * (1 - 0.6 * hgt);
+  gr = g.createRadialGradient(CX, groundY, 0, CX, groundY, HS * 0.42 * (1 - 0.4 * hgt));
+  gr.addColorStop(0, 'rgba(30,0,5,0.9)'); gr.addColorStop(1, 'rgba(30,0,5,0)');
+  g.fillStyle = gr; g.translate(CX, groundY); g.scale(1, 0.18); g.translate(-CX, -groundY); g.beginPath(); g.arc(CX, groundY, HS * 0.45, 0, 7); g.fill(); g.restore();
+
+  // Herzchen-Konfetti hinter der Figur
+  for (const p of hearts) {
+    const a = Math.min(1, (1 - p.life / p.max) * 1.6) * F;
+    g.save(); g.translate(p.x, p.y); g.rotate(p.rot); g.globalAlpha = a; shinyHeart(g, p.s, p.gold ? GOLD_COLS : CORAL_COLS); g.restore();
+  }
+  g.globalAlpha = 1;
+
+  // Figur (Füße = Boden, damit die Stauchung „auf dem Boden" passiert)
+  const sc = (t < T_OUT ? 1 : 1 - 0.85 * eInC(seg(t, T_OUT, DUR)));
+  g.save(); g.translate(CX, groundY + pose.y); g.scale(pose.sx * sc, pose.sy * sc); g.translate(0, -HS * 0.46);
+  g.globalAlpha = F;
+  g.shadowColor = TYP === 'superfan' ? 'rgba(180,90,255,0.6)' : 'rgba(255,120,100,0.6)'; g.shadowBlur = 50 + 40 * (t >= T_BURST ? 1 - pb : seg(t, T_CHARGE, T_BURST));
+  if (TYP === 'kiste') chestBuddy(g, HS, eOutBack(seg(t, T_BURST, T_BURST + 0.4), 2.4), pose.mood, blinkAt(t), t); else heartBuddy(g, HS, pose.flip, pose.mood, blinkAt(t), t);
+  g.restore();
+  // Angestrengt: Schweißtropfen / Zittern-Linien
+  if (pose.mood === 1) {
+    const p = seg(t, T_CHARGE, T_BURST);
+    g.save(); g.globalAlpha = F * clamp(p * 3); g.strokeStyle = '#fff'; g.lineWidth = 7; g.lineCap = 'round';
+    for (const sxn of [-1, 1]) for (let i = 0; i < 3; i++) {
+      const a = (-0.5 + i * 0.5) * 0.6, r0 = HS * 0.62, r1 = r0 + 30 + 20 * Math.sin(t * 40 + i);
+      const bx = CX + sxn * Math.cos(a) * r0, by = BY + Math.sin(a) * r0;
+      g.beginPath(); g.moveTo(bx, by); g.lineTo(CX + sxn * Math.cos(a) * r1, BY + Math.sin(a) * r1); g.stroke();
+    }
+    g.restore();
+  }
+  if (TYP === 'kiste') {
+    const op = seg(t, T_BURST, T_BURST + 0.3), fade = 1 - seg(t, T_BURST + 0.8, T_BURST + 2.2);
+    if (op > 0 && fade > 0) {
+      g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = op * fade * F;
+      const top = BY - 30, bg = g.createLinearGradient(0, top, 0, top - 1100); bg.addColorStop(0, 'rgba(255,230,150,0.9)'); bg.addColorStop(1, 'rgba(255,200,80,0)');
+      g.fillStyle = bg; g.beginPath(); g.moveTo(CX - 190, top); g.lineTo(CX + 190, top); g.lineTo(CX + 420, top - 1100); g.lineTo(CX - 420, top - 1100); g.closePath(); g.fill(); g.restore();
+    }
+    for (const p of coins) { g.save(); g.globalAlpha = Math.min(1, (1 - p.life / p.max) * 2) * F; g.translate(p.x, p.y); coin(g, p.s, p.ph); g.restore(); }
+    g.globalAlpha = 1;
+  }
+  // Funkelsterne
+  for (const p of stars) { g.globalAlpha = Math.sin(Math.PI * p.life / p.max) * F; g.fillStyle = p.col; star4(g, p.x, p.y, p.r, p.rot); }
+  g.globalAlpha = 1;
+
+  // Blitz
+  if (pb > 0 && pb < 1) {
+    g.globalCompositeOperation = 'lighter';
+    gr = g.createRadialGradient(CX, BY, 0, CX, BY, 700); gr.addColorStop(0, `rgba(255,240,225,${(1 - eOutC(seg(t, T_BURST, T_BURST + 0.3))) * 0.9})`); gr.addColorStop(1, 'rgba(255,200,170,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
+  }
+
+  // Stufen-Pille (TikTok-Stil)
+  const pa = eOutBack(seg(t, 0.55, 0.95));
+  if (pa > 0) { g.save(); g.globalAlpha = clamp(pa) * F; g.translate(CX, 1050); g.scale(pa, pa); pill(g, 0, 0, OLD, t); g.restore(); }
+
+  // „LEVEL UP!" — weiß mit Koralle-Kontur
+  const pt = seg(t, T_BURST + 0.1, T_BURST + 0.45);
+  if (pt > 0) {
+    const TY = 1210, ts = (1 + 1.2 * (1 - eOutC(pt))) * (1 + 0.08 * eInC(seg(t, T_OUT, DUR)));
+    g.save(); g.globalAlpha = clamp(pt * 3) * F; g.translate(CX, TY); g.scale(ts, ts); g.rotate(-0.04 * (1 - eOutC(pt)));
+    g.font = '150px IB'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.letterSpacing = '1px';
+    if (MIX) {
+      const fl2 = (t > T_BURST + 0.55 && t < T_BURST + 0.66) ? 0.4 : 1;
+      g.globalCompositeOperation = 'lighter';
+      { const tw0 = g.measureText(TH.title).width; if (tw0 > 960) g.font = `${Math.floor(150 * 960 / tw0)}px IB`; }
+      for (const [dx, cc] of [[-4, 'rgba(125,249,255,0.6)'], [4, 'rgba(255,46,147,0.6)']]) { g.lineWidth = 5; g.strokeStyle = cc; g.strokeText(TH.title, dx, 0); }
+      const a0 = g.globalAlpha;
+      for (const [lw, al, blur] of [[26, 0.2, 40], [12, 0.5, 22], [4, 1, 6]]) { g.globalAlpha = a0 * al * fl2; g.lineWidth = lw; g.strokeStyle = lw === 4 ? '#fffaf0' : TH.glow; g.shadowColor = TH.glow; g.shadowBlur = blur; g.strokeText(TH.title, 0, 0); }
+    } else {
+    g.shadowColor = 'rgba(90,0,15,0.45)'; g.shadowOffsetY = 10; g.shadowBlur = 20;
+    g.lineWidth = 30; g.strokeStyle = '#e8343f'; g.strokeText('LEVEL UP!', 0, 0);
+    g.shadowColor = 'transparent'; g.lineWidth = 12; g.strokeStyle = '#ff7a6b'; g.strokeText('LEVEL UP!', 0, 0);
+    gr = g.createLinearGradient(0, -60, 0, 60); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#ffe3dc');
+    g.fillStyle = gr; g.fillText('LEVEL UP!', 0, 0);
+    }
+    g.restore();
+  }
+
+  // TEAM-LEVEL-Zeile
+  const pl = eOutC(seg(t, T_BURST + 0.35, T_BURST + 0.75));
+  if (pl > 0) {
+    g.save(); g.globalAlpha = pl * F; g.translate(CX, 1318 + 30 * (1 - pl));
+    g.font = '58px IB'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.letterSpacing = '6px';
+    g.shadowColor = MIX ? TH.subGlow : 'rgba(255,90,80,0.9)'; g.shadowBlur = 22; { const tw1 = g.measureText(TH.sub).width; if (tw1 > 980) g.font = `${Math.floor(58 * 980 / tw1)}px IB`; }
+    g.fillStyle = MIX ? '#e6fdff' : '#fff1ec'; g.fillText(TH.sub, 0, 0);
+    g.restore();
+  }
+
+  // Großes Profilbild
+  const pa2 = eOutBack(seg(t, T_BURST + 0.5, T_BURST + 0.95), 2.2);
+  if (pa2 > 0) {
+    const ax = CX, ay = 1500, r = 112;
+    g.save(); g.globalAlpha = clamp(pa2) * F; g.translate(ax, ay); g.scale(pa2, pa2);
+    // Leuchtring
+    if (MIX) { neonStroke(g, () => { g.beginPath(); g.arc(0, 0, r + 10, 0, 7); }, TH.neon[0], TH.neon[1], 1, 0.55); }
+    else { g.shadowColor = 'rgba(255,190,90,0.9)'; g.shadowBlur = 40; g.lineWidth = 12; g.strokeStyle = '#ffd877'; g.beginPath(); g.arc(0, 0, r + 8, 0, 7); g.stroke(); g.shadowBlur = 0; }
+    // drehender Glanz um den Ring
+    g.save(); g.rotate(t * 2.2); g.globalCompositeOperation = 'lighter';
+    const cg = g.createConicGradient(0, 0, 0); cg.addColorStop(0, 'rgba(255,255,255,0.9)'); cg.addColorStop(0.12, 'rgba(255,255,255,0)'); cg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.strokeStyle = cg; g.lineWidth = 6; g.beginPath(); g.arc(0, 0, r + 9, 0, 7); g.stroke(); g.restore();
+    // Bild (Probe: Farbverlauf + Initiale; im Widget das echte Profilbild)
+    g.save(); g.beginPath(); g.arc(0, 0, r, 0, 7); g.clip();
+    const ag = g.createLinearGradient(-r, -r, r, r); ag.addColorStop(0, '#ff8a7a'); ag.addColorStop(1, '#7b2cbf');
+    g.fillStyle = ag; g.fillRect(-r, -r, 2 * r, 2 * r);
+    g.fillStyle = 'rgba(255,255,255,0.18)'; g.beginPath(); g.ellipse(-r * 0.3, -r * 0.45, r * 0.6, r * 0.3, -0.4, 0, 7); g.fill();
+    g.fillStyle = '#fff'; g.font = '120px IB'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(NAME[0], 0, 8);
+    g.restore();
+    if (TYP === 'herz') {
+    g.save(); g.translate(r * 0.62, r * 0.7);
+    const kg = g.createLinearGradient(0, -36, 0, 36); kg.addColorStop(0, '#ff9a5c'); kg.addColorStop(1, '#ff5a3c');
+    g.fillStyle = kg; g.lineWidth = 6; g.strokeStyle = '#fff'; g.beginPath(); g.roundRect(-58, -36, 116, 72, 22); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; g.save(); g.translate(-24, 2); heartPath(g, 44); g.fill(); g.restore();
+    g.font = '42px IB'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(String(NEW), 2, 3);
+    g.restore();
+    } else if (TYP === 'superfan') {
+      g.save(); g.translate(r * 0.72, r * 0.72); g.fillStyle = '#fff'; g.beginPath(); g.arc(0, 0, 42, 0, 7); g.fill(); shinyHeart(g, 70, VIOLET_COLS); g.restore();
+    } else {
+      g.save(); g.translate(r * 0.72, r * 0.72); coin(g, 76, 0); g.restore();
+    }
+    g.restore();
+  }
+
+  // Name darunter
+  const pn = eOutC(seg(t, T_BURST + 0.75, T_BURST + 1.1));
+  if (pn > 0) {
+    g.save(); g.globalAlpha = pn * F;
+    g.font = '64px IB'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.letterSpacing = '0px';
+    const tw = g.measureText(NAME).width, ny = 1690 + 25 * (1 - pn);
+    g.fillStyle = 'rgba(20,6,12,0.6)'; g.beginPath(); g.roundRect(CX - tw / 2 - 40, ny - 50, tw + 80, 100, 50); g.fill();
+    g.shadowColor = MIX ? TH.glow : 'rgba(0,0,0,0.6)'; g.shadowBlur = 16; g.fillStyle = '#fff'; g.fillText(NAME, CX, ny + 3);
+    g.restore();
+  }
+}
+
+async function run() {
+  await document.fonts.load('150px IB');
+  await fetch('/log?typ=' + TYP + '&font=' + document.fonts.check('150px IB'));
+  for (let i = 0; i < N; i++) {
+    const t = i / FPS; step(t); draw(t);
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    await fetch('/frame?i=' + i, { method: 'POST', body: blob });
+  }
+  await fetch('/done');
+}
+run();
+</script></body></html>
