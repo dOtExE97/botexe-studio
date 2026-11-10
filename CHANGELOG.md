@@ -12,9 +12,11 @@ lag tiefer als eine fehlende Regel: Was die App bisher „Superfan" nannte, war
 eulerstreams Kurzname `superFan`, und der heißt in Wahrheit **„ein Superfan
 betritt das Live"**. Die drei Meldungen vom 08.11. waren also sehr
 wahrscheinlich Eintritte. Der echte Super Fan ist TikToks **bezahltes
-LIVE-Abo** — und das kam als Banner an, den die App bis jetzt ungelesen
-weggeworfen hat. Genauso verloren gingen Teamherz-Level-Ups, Geschenke-Stufen
-und Schatztruhen.
+LIVE-Abo** — und das kam sehr wahrscheinlich als Banner an, den die App bis
+jetzt ungelesen weggeworfen hat — das erste Live mit diesem Update zeigt es
+sicher. Genauso verloren gingen Teamherz-Level-Ups und Geschenke-Stufen.
+Schatztruhen kamen zwar an, hatten aber keinen Alarm — jetzt bekommen sie ihre
+eigene Animation.
 
 Der Herz-Alarm hat dafür einen zweiten Modus „Ereignisse" (bestehende Overlays
 bleiben unverändert auf „Klassisch"):
