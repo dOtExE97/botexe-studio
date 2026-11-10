@@ -647,10 +647,12 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return event.ziel?.geradeErreicht === true;
     case 'vip_stufe_gte':
       return event.vip !== undefined && event.vip.stufe >= condition.value;
+    // „Superfan betritt das Live" (superfanArt 'betritt') ist kein Abo —
+    // weder neu noch Verlängerung, auch wenn superfanNeu dort false ist.
     case 'superfan_neu':
-      return event.superfanNeu === true;
+      return event.superfanNeu === true && event.superfanArt !== 'betritt' && event.superfanArt !== 'abo_verlaengert';
     case 'superfan_verlaengerung':
-      return event.superfanNeu === false;
+      return event.superfanNeu === false && event.superfanArt !== 'betritt';
     case 'superfan_monate_gte':
       return (event.subMonths ?? 0) >= condition.value;
     // Alle Beziehungs-Bedingungen: fehlt die Angabe, ist die Bedingung FALSCH.

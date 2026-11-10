@@ -600,3 +600,18 @@ test('vip_betritt: vip_stufe_gte vergleicht die Geschenke-Stufe', () => {
   assert.equal(engine.evaluate(vip(19)).length, 0);
   assert.equal(engine.evaluate({ type: 'vip_betritt', ts: 1 }).length, 0, 'ohne Stufe nie');
 });
+
+test('superfan_neu / superfan_verlaengerung: nur echte Abos, nie „Superfan betritt"', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([
+    rule({ id: 'neu', event: 'superfan', conditions: [{ kind: 'superfan_neu' }] }),
+    rule({ id: 'verl', event: 'superfan', conditions: [{ kind: 'superfan_verlaengerung' }] }),
+  ]);
+  const ids = (e: Partial<StudioEvent>) => engine.evaluate({ type: 'superfan', ts: 1, user: { id: 'u', nickname: 'U' }, ...e } as StudioEvent).map((r) => r.ruleId);
+  assert.deepEqual(ids({ superfanNeu: false, superfanArt: 'betritt' }), [], 'Eintritt ist keine Verlängerung');
+  assert.deepEqual(ids({ superfanNeu: true, superfanArt: 'betritt' }), [], 'Eintritt ist auch kein neues Abo');
+  assert.deepEqual(ids({ superfanNeu: true, superfanArt: 'abo_neu' }), ['neu']);
+  assert.deepEqual(ids({ superfanNeu: false, superfanArt: 'abo_verlaengert' }), ['verl']);
+  assert.deepEqual(ids({ superfanNeu: true }), ['neu'], 'ältere Meldung ohne superfanArt');
+  assert.deepEqual(ids({ superfanNeu: false }), ['verl']);
+});
