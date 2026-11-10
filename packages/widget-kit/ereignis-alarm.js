@@ -180,6 +180,11 @@ export function waehleAnimation(id, katalog) {
 
 const kuerze = (s, n) => { const t = String(s ?? '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
 
+/** Superfan-Abo-Ereignis eine Verlängerung? (sub: superfanNeu === false; superfan: abo_verlaengert) */
+function superfanVerlaengert(e) {
+  return e?.type === 'sub' ? e.superfanNeu === false : e?.superfanArt === 'abo_verlaengert';
+}
+
 /** Daten für den Renderer aus Art + Ereignis (TikTok lässt Felder weg). */
 export function alarmDaten(art, e) {
   const u = (e && e.user) || {};
@@ -192,10 +197,10 @@ export function alarmDaten(art, e) {
       const neu = zahl(e?.levelUp?.neu, 1);
       return { ...d, art: art === 'level_gifter' ? 'gifter' : 'team', neu, alt: Math.max(0, neu - 1) };
     }
-    case 'superfan': {
-      const verlaengert = e?.type === 'sub' ? e.superfanNeu === false : e?.superfanArt === 'abo_verlaengert';
-      return { ...d, unterzeile: verlaengert ? 'SUPERFAN VERLÄNGERT' : 'NEUER SUPERFAN' };
-    }
+    case 'superfan':
+      // Neu-Abo: Kopfzeile „NEUER" über „SUPERFAN", Unterzeile bleibt der
+      // Renderer-Standard „WILLKOMMEN IM SUPERFAN-CLUB" (wie in der Probe).
+      return superfanVerlaengert(e) ? { ...d, unterzeile: 'SUPERFAN VERLÄNGERT' } : { ...d, neuAbo: true };
     case 'superfan_betritt':
       return { ...d, unterzeile: 'SUPERFAN IST DA' };
     case 'truhe': {
@@ -226,7 +231,7 @@ function leistenText(art, e, cfg) {
     case 'teamherz': return baueUserText(cfg.userText, d.name);
     case 'level_team': return `💜 ${n} · Teamherz-Stufe ${d.neu}`;
     case 'level_gifter': return `🏅 ${n} · Geschenke-Stufe ${d.neu}`;
-    case 'superfan': return d.unterzeile === 'SUPERFAN VERLÄNGERT' ? `⭐ ${n} verlängert Superfan` : `⭐ ${n} ist neuer Superfan`;
+    case 'superfan': return superfanVerlaengert(e) ? `⭐ ${n} verlängert Superfan` : `⭐ ${n} ist neuer Superfan`;
     case 'superfan_betritt': return `⭐ Superfan ${n} ist da`;
     case 'truhe': return `🎁 ${n} schickt eine Truhe${d.coins ? ` (${d.coins} Coins)` : ''}`;
     case 'vip': return `👑 VIP ${n} ist da`;

@@ -2,7 +2,7 @@
 // Doppelt-Sperren, Warteschlange und Ablauf (mit Ersatz-DOM).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alarmArt, Warteschlange, normalisiereCfg, neuerMerker, waehleAnimation } from './ereignis-alarm.js';
+import { alarmArt, alarmDaten, Warteschlange, normalisiereCfg, neuerMerker, waehleAnimation } from './ereignis-alarm.js';
 import EreignisAlarm from './ereignis-alarm.js';
 import HerzAlarm from './herz-alarm.js';
 import { ANIMATIONEN } from './alarm-anim.js';
@@ -86,6 +86,30 @@ test('LIVE-Ziel: nur erreicht, einmal je Ziel-id', () => {
   assert.equal(alarmArt(z(true), cfg, m), 'ziel');
   assert.equal(alarmArt(z(true), cfg, m), null);
   assert.equal(alarmArt(z(true, 'g2'), cfg, m), 'ziel');
+});
+
+test('Superfan-Daten: Neu-Abo zeigt „NEUER"-Kopfzeile, Verlängerung und Betreten ihre Unterzeile', () => {
+  const u = { id: 'u', nickname: 'Mia' };
+  for (const e of [
+    { type: 'sub', superfanNeu: true, user: u },
+    { type: 'sub', user: u },
+    { type: 'superfan', superfanArt: 'abo_neu', superfanNeu: true, user: u },
+  ]) {
+    const d: any = alarmDaten('superfan', e);
+    assert.equal(d.neuAbo, true, JSON.stringify(e));
+    assert.equal(d.unterzeile, undefined, 'Renderer-Standard „WILLKOMMEN IM SUPERFAN-CLUB" bleibt');
+  }
+  for (const e of [
+    { type: 'sub', superfanNeu: false, user: u },
+    { type: 'superfan', superfanArt: 'abo_verlaengert', superfanNeu: false, user: u },
+  ]) {
+    const d: any = alarmDaten('superfan', e);
+    assert.equal(d.neuAbo, undefined);
+    assert.equal(d.unterzeile, 'SUPERFAN VERLÄNGERT');
+  }
+  const b: any = alarmDaten('superfan_betritt', { type: 'superfan', superfanArt: 'betritt', user: u });
+  assert.equal(b.unterzeile, 'SUPERFAN IST DA');
+  assert.equal(b.neuAbo, undefined);
 });
 
 test('sticky und leere Ereignisse lösen nie aus', () => {
