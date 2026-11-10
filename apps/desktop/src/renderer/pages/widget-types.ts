@@ -388,8 +388,9 @@ export const WIDGET_TYPES: {
       { key: 'metric', label: 'Metrik', type: 'select', hint: 'Was gezählt wird. Die Zahlen kommen aus der laufenden Sitzung und werden beim Stream-Ende zurückgesetzt.', options: [
         { value: 'coins', label: 'Coins' }, { value: 'likes', label: 'Likes' },
         { value: 'follows', label: 'Follower' }, { value: 'gifts', label: 'Gifts' },
+        { value: 'tiktok-ziel', label: '🎯 TikTok-LIVE-Ziel (automatisch)' },
       ] },
-      { key: 'target', label: 'Ziel', type: 'number', hint: 'Bei diesem Wert ist der Balken voll.' },
+      { key: 'target', label: 'Ziel', type: 'number', hint: 'Bei diesem Wert ist der Balken voll.', showIf: (p) => p.metric !== 'tiktok-ziel' },
       { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Leer = automatisch (z.B. „Coin-Ziel").' },
       ACCENT_FIELD,
       ...STYLE_FIELDS,

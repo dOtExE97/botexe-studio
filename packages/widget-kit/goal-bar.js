@@ -1,5 +1,7 @@
 // goal-bar.js — Premium Session-Goal-Balken. Glas, Glow-Kante, Stripes,
 // Milestone-Ticks, Done-Puls. props: { metric, target, label?, accent? }
+// Metrik 'tiktok-ziel': folgt dem LIVE-Ziel von TikTok (live_ziel-Ereignisse),
+// Wert und Ziel kommen vom Ereignis, nicht aus den Session-Stats.
 const STYLE_ID = 'bx-gb-style';
 /* --u = „1px bei Standardgröße" (560×80). cqmin (kurze Seite) war hier falsch:
    in einem 560×80-Balken sind 8cqmin ~6px, die Beschriftung klebte am Minimum.
@@ -143,6 +145,7 @@ html .bx-frameless .bx-gb-pct { -webkit-text-stroke: max(1.5px, .1em) var(--bx-i
 .bx-premium .bx-gb-nums { text-shadow: 0 0 .5em color-mix(in srgb, var(--bx-gold) 60%, transparent), 0 .06em .12em rgba(0,0,0,.85); }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
+const TIKTOK_ZIEL = 'tiktok-ziel';
 const LABELS = { coins: 'Coin-Ziel', likes: 'Like-Ziel', follows: 'Follower-Ziel', gifts: 'Geschenk-Ziel' };
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
 
@@ -150,9 +153,10 @@ export default class GoalBar {
   constructor(root, props, ctx) {
     ensureStyle();
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
-    this.metric = ['coins', 'likes', 'follows', 'gifts'].includes(props.metric) ? props.metric : 'coins';
+    this.metric = ['coins', 'likes', 'follows', 'gifts', TIKTOK_ZIEL].includes(props.metric) ? props.metric : 'coins';
     this.target = Math.max(1, Number(props.target ?? 1000));
-    this.label = props.label || LABELS[this.metric];
+    this.props = props;
+    this.label = props.label || (this.metric === TIKTOK_ZIEL ? 'Warte auf TikTok-Ziel…' : LABELS[this.metric]);
     this.timers = new Set();
     // Letzter gemalter Stand — der Auslöser gehört nur zum ECHTEN Anstieg,
     // nicht zum ersten Zeichnen.
@@ -161,7 +165,7 @@ export default class GoalBar {
     const style = ['glas', 'arcade', 'slim', 'thermo', 'akku', 'ring'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-gb${style !== 'glas' ? ` bx-gb-${style}` : ''}`;
     this.el.innerHTML = `
-      <div class="bx-gb-head"><div class="bx-gb-label"></div><div class="bx-gb-nums">0 / ${fmt(this.target)}</div></div>
+      <div class="bx-gb-head"><div class="bx-gb-label"></div><div class="bx-gb-nums">${this.metric === TIKTOK_ZIEL ? '– / –' : `0 / ${fmt(this.target)}`}</div></div>
       <div class="bx-gb-track">
         <div class="bx-gb-fill"></div>
         <div class="bx-gb-tick" style="left:25%"></div><div class="bx-gb-tick" style="left:50%"></div><div class="bx-gb-tick" style="left:75%"></div>
@@ -172,17 +176,20 @@ export default class GoalBar {
     // Editor-Vorschau: ohne Live-Stats stünde der Balken auf 0 % und man könnte
     // Farbe/Füllung nicht beurteilen. Reine Anzeige — die ersten echten Stats
     // überschreiben sie.
-    if (ctx && ctx.preview) this.paint(Math.round(this.target * 0.62));
+    if (ctx && ctx.preview) {
+      if (this.metric === TIKTOK_ZIEL) this.showZiel({ fortschritt: 35, ziel: 50, erreicht: false, geschenk: { name: 'Heart Me' } });
+      else this.paint(Math.round(this.target * 0.62));
+    }
   }
   /** Balken + Beschriftung auf einen Stand setzen. */
-  paint(cur) {
-    const pct = Math.min(100, (cur / this.target) * 100);
+  paint(cur, target = this.target, erreicht = false) {
+    const pct = Math.min(100, (cur / target) * 100);
     this.el.querySelector('.bx-gb-fill').style.width = `${pct}%`;
     this.el.style.setProperty('--pct', `${pct}%`); // Thermometer-Stil füllt über die Höhe
     this.el.querySelector('.bx-gb-pct').textContent = `${Math.floor(pct)}%`;
-    this.el.querySelector('.bx-gb-nums').textContent = `${fmt(cur)} / ${fmt(this.target)}`;
+    this.el.querySelector('.bx-gb-nums').textContent = `${fmt(cur)} / ${fmt(target)}`;
     const wasDone = this.el.classList.contains('done');
-    const done = cur >= this.target;
+    const done = erreicht || cur >= target;
     this.el.classList.toggle('done', done);
     // Premium-Auslöser: der Stand ist gestiegen → Zahlen-Zeile. Ist damit das
     // Ziel erreicht → zusätzlich die ganze Bahn, deutlich lauter.
@@ -214,7 +221,19 @@ export default class GoalBar {
     const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
     this.timers.add(t);
   }
+  /** TikTok-LIVE-Ziel anzeigen (nur Metrik 'tiktok-ziel'). */
+  showZiel(z) {
+    const label = this.props.label || z.geschenk?.name || 'LIVE-Ziel';
+    this.el.querySelector('.bx-gb-label').textContent = label;
+    const cur = Math.max(0, Number(z.fortschritt) || 0);
+    this.paint(cur, Math.max(1, Number(z.ziel) || 1), z.erreicht === true);
+  }
+  onEvent(e) {
+    if (this.metric !== TIKTOK_ZIEL || e?.type !== 'live_ziel' || !e.ziel) return;
+    this.showZiel(e.ziel);
+  }
   onStats(stats) {
+    if (this.metric === TIKTOK_ZIEL) return;
     this.paint(Number(stats?.totals?.[this.metric] ?? 0));
   }
   destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
