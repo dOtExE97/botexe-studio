@@ -8,7 +8,8 @@ import path from 'node:path';
 import { TriggerEngine, giftKey, renderSpeakTemplate, sprechbarerName, matchRedemption, matchChatCommand, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
-import { LevelUpWaechter } from '../core/level-up-waechter';
+import { LevelUpWaechter, erzeugeLevelUpVorfilter } from '../core/level-up-waechter';
+import { logBannerEreignis } from './banner-log';
 import { schreibeAtomar } from '../core/atomar-schreiben';
 import { SessionStats } from '../core/session-stats';
 import { EventRecorder, parseReplay, playReplay } from '../core/replay';
@@ -531,40 +532,8 @@ export class Studio {
     });
 
     this.engine.setRules(this.settings.get().triggerRules);
-    this.bus.setVorfilter((e) => this.levelUpVorfilter(e));
+    this.bus.setVorfilter(erzeugeLevelUpVorfilter(this.levelUpWaechter, (e) => this.bus.publish(e)));
     this.wireBus();
-  }
-
-  /** Teamherz-Level-Up aus zwei Quellen zu einem Ereignis machen.
-   *  Läuft VOR allen Abonnenten (auch dem Overlay-Server):
-   *  - Banner-Level-Up (Teamherz): merken; kam dasselbe in der letzten Minute
-   *    schon (z.B. über das Abzeichen), wird es verworfen.
-   *  - Jedes andere echte Ereignis mit Teamherz-Stufe: steigt die Stufe
-   *    gegenüber der letzten Sichtung, wird ein Level-Up veröffentlicht —
-   *    unmarkiert (`synthetic` hieße „Test"). Es läuft selbst wieder durch
-   *    diesen Filter; dort wird es nur gemerkt, löst aber nichts Neues aus. */
-  private levelUpVorfilter(e: StudioEvent): boolean {
-    if (e.synthetic || e.sticky) return true;
-    const user = e.user;
-    if (e.type === 'level_up') {
-      if (e.levelUp?.art !== 'team' || !user) return true;
-      if (this.levelUpWaechter.istDoppelt(user.id, e.levelUp.neu, e.ts)) {
-        log.debug('TikTok', `Teamherz-Level-Up von ${user.nickname} (Stufe ${e.levelUp.neu}) war schon gemeldet — übersprungen`);
-        return false;
-      }
-      this.levelUpWaechter.vonBanner(user.id, e.levelUp.neu, e.ts);
-      return true;
-    }
-    const stufe = user?.teamLevel ?? 0;
-    if (user && stufe > 0) {
-      const neu = this.levelUpWaechter.sieheStufe(user.id, stufe, e.ts);
-      if (neu !== null && !this.levelUpWaechter.istDoppelt(user.id, neu, e.ts)) {
-        const levelUp: StudioEvent = { type: 'level_up', ts: e.ts, user, levelUp: { art: 'team', neu } };
-        // Erst das auslösende Ereignis zustellen, dann das Level-Up.
-        queueMicrotask(() => this.bus.publish(levelUp));
-      }
-    }
-    return true;
   }
 
   private wireBus(): void {
@@ -753,7 +722,7 @@ export class Studio {
       if (e.type === 'follow') this.maybeAnnounceFollow(e, regelLiestVor);
 
       // 3b4. Lesbare Logzeilen für Banner und Truhen (Test-/Replay-Ereignisse nicht).
-      if (!e.synthetic) this.logBannerEreignis(e);
+      if (!e.synthetic) logBannerEreignis(e);
 
       // 3c. Widget-Sounds: Feuerwerk-Knall / Alert-Sound direkt am Widget
       // konfiguriert — gespielt LOKAL über die App (nie im Overlay).
@@ -2948,35 +2917,6 @@ export class Studio {
     if (now - this.lastTtsDecisionLogAt < 2000) return;
     this.lastTtsDecisionLogAt = now;
     log.info('TTS', msg);
-  }
-
-  /** Lesbare Logzeilen für Banner (Level-Up, Superfan, VIP), LIVE-Ziele und Schatztruhen. */
-  private logBannerEreignis(e: StudioEvent): void {
-    const name = e.user?.nickname ?? '—';
-    if (e.type === 'level_up' && e.levelUp) {
-      const titel = e.levelUp.art === 'team' ? 'Teamherz-Level-Up' : 'Geschenke-Stufe-Level-Up';
-      log.info('TikTok', `${titel}: ${name} → Stufe ${e.levelUp.neu}`);
-    } else if (e.type === 'superfan') {
-      if (e.superfanArt === 'abo_neu') log.info('TikTok', `Neuer Superfan (Abo): ${name}`);
-      else if (e.superfanArt === 'abo_verlaengert') log.info('TikTok', `Superfan-Abo verlängert: ${name}`);
-      else if (e.superfanArt === 'betritt') {
-        log.gedrosselt(`superfan:betritt:${e.user?.id ?? name}`, 10 * 60_000, 'info', 'TikTok',
-          `Superfan betritt das Live: ${name}`);
-      }
-    } else if (e.type === 'vip_betritt' && e.vip) {
-      log.gedrosselt(`vip:betritt:${e.user?.id ?? name}`, 10 * 60_000, 'info', 'TikTok',
-        `VIP betritt das Live: ${name} (Geschenke-Stufe ${e.vip.stufe})`);
-    } else if (e.type === 'live_ziel' && e.ziel) {
-      const z = e.ziel;
-      const was = z.geschenk?.name ?? z.beschreibung ?? 'Ziel';
-      const text = `${z.fortschritt}/${z.ziel} ${was} — Beitrag von ${name}`;
-      // Nur die Flanke (vom Adapter bestimmt) ungedrosselt — jedes weitere Update
-      // eines erreichten Ziels ist ein Zwischenstand wie jeder andere.
-      if (z.geradeErreicht) log.info('TikTok', `LIVE-Ziel erreicht: ${text}`);
-      else log.gedrosselt('live-ziel', 30_000, 'info', 'TikTok', `LIVE-Ziel: ${text}`);
-    } else if (e.type === 'envelope' && e.envelope) {
-      log.info('TikTok', `Schatztruhe von ${name}: ${e.envelope.coins} Coins, ${e.envelope.winners} Leute (Art ${e.envelope.businessType ?? '?'})`);
-    }
   }
 
   /** Ansage „neuer Follower" — eigener Schalter/Text/Stimme, unabhängig vom Chat. */

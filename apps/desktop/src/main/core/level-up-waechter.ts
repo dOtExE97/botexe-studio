@@ -6,6 +6,9 @@
 // nicht beide auslösen, merkt sich der Wächter, welche Stufe er zuletzt sah und
 // welche Banner er in der letzten Minute schon gemeldet bekam.
 
+import type { StudioEvent } from '@botexe/trigger-engine';
+import { log } from './logger';
+
 /** So lange gilt ein gemeldetes Level-Up als „läuft schon" (Banner und
  *  Abzeichen kommen oft Sekunden nacheinander, aber nie Minuten). */
 const DEDUP_MS = 60_000;
@@ -50,4 +53,45 @@ export class LevelUpWaechter {
     this.letzte.clear();
     this.gemeldet.clear();
   }
+}
+
+/** Bus-Vorfilter: Teamherz-Level-Up aus zwei Quellen zu einem Ereignis machen.
+ *  Läuft VOR allen Abonnenten (auch dem Overlay-Server), Rückgabe false = verwerfen.
+ *  - Banner-Level-Up (Teamherz): merken; kam dasselbe in der letzten Minute
+ *    schon (z.B. über das Abzeichen), wird es verworfen.
+ *  - Jedes andere echte Ereignis mit Teamherz-Stufe: steigt die Stufe
+ *    gegenüber der letzten Sichtung, wird ein Level-Up veröffentlicht —
+ *    unmarkiert (`synthetic` hieße „Test"). Es läuft selbst wieder durch
+ *    diesen Filter; dort wird es nur gemerkt, löst aber nichts Neues aus.
+ *  - Test- (synthetic) und Replay-Ereignisse (sticky) füttern den Wächter nie.
+ *  Das Fenster ist einseitig: Kommt der Banner MEHR als 60 s nach dem aus dem
+ *  Abzeichen abgeleiteten Level-Up, gilt er als neues Ereignis.
+ *  Es gibt nur EINEN Vorfilter-Platz am Bus (EventBus.setVorfilter). */
+export function erzeugeLevelUpVorfilter(
+  waechter: LevelUpWaechter,
+  veroeffentliche: (e: StudioEvent) => void,
+): (e: StudioEvent) => boolean {
+  return (e) => {
+    if (e.synthetic || e.sticky) return true;
+    const user = e.user;
+    if (e.type === 'level_up') {
+      if (e.levelUp?.art !== 'team' || !user) return true;
+      if (waechter.istDoppelt(user.id, e.levelUp.neu, e.ts)) {
+        log.debug('TikTok', `Teamherz-Level-Up von ${user.nickname} (Stufe ${e.levelUp.neu}) war schon gemeldet — übersprungen`);
+        return false;
+      }
+      waechter.vonBanner(user.id, e.levelUp.neu, e.ts);
+      return true;
+    }
+    const stufe = user?.teamLevel ?? 0;
+    if (user && stufe > 0) {
+      const neu = waechter.sieheStufe(user.id, stufe, e.ts);
+      if (neu !== null && !waechter.istDoppelt(user.id, neu, e.ts)) {
+        const levelUp: StudioEvent = { type: 'level_up', ts: e.ts, user, levelUp: { art: 'team', neu } };
+        // Erst das auslösende Ereignis zustellen, dann das Level-Up.
+        queueMicrotask(() => veroeffentliche(levelUp));
+      }
+    }
+    return true;
+  };
 }

@@ -1,10 +1,11 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import type { StudioEvent } from '@botexe/trigger-engine';
 import { EventBus } from '../core/event-bus';
 import { TikTokAdapter, isOfflineError, isSignServerError, type LiveConnectionLike, type AdapterStatusInfo, type KeyWechselErgebnis } from './tiktok-adapter';
 import { KeyRotator } from '../services/key-rotator';
+import { log } from '../core/logger';
 
 test('isSignServerError: eulerstream-/Sign-Fehler erkannt (→ kein Retry, Sign-Key nötig)', () => {
   assert.equal(isSignServerError('[fetchWebcastSignatureFromEulerRoute] Failed to sign a request: This endpoint requires a Business plan.'), true);
@@ -803,4 +804,46 @@ test('VIP betritt: nach streamEnd wird derselbe VIP erneut gemeldet', async () =
   connections[0]?.emit('streamEnd', { action: 3 });
   connections[0]?.emit('barrage', vipBanner);
   assert.equal(events.filter((e) => e.type === 'vip_betritt').length, 2);
+});
+
+/** log.einmal mitschreiben (Schlüssel + Text), ohne in die Datei zu schreiben. */
+function einmalMitschreiben() {
+  const m = mock.method(log, 'einmal', () => undefined);
+  return {
+    zeilen: () => m.mock.calls.map((c) => ({ key: String(c.arguments[0]), text: String(c.arguments[3]) })),
+    weg: () => m.mock.restore(),
+  };
+}
+
+test('Truhe mit unbekannter businessType: Feldnamen (nie Werte) einmal je Art und Verbindung', async () => {
+  const { adapter, connections, events } = setup();
+  const m = einmalMitschreiben();
+  try {
+    await adapter.connect('testuser');
+    const truhe = (bt: number | undefined, msgId: string) => ({ common: { msgId }, envelopeInfo: { envelopeId: 'E1', businessType: bt, diamondCount: 99, sendUserName: 'GeheimName' } });
+    connections[0]?.emit('envelope', truhe(1, 'a'));
+    connections[0]?.emit('envelope', truhe(19, 'b'));
+    connections[0]?.emit('envelope', truhe(7, 'c'));
+    connections[0]?.emit('envelope', truhe(undefined, 'd'));
+    assert.equal(events.filter((e) => e.type === 'envelope').length, 4, 'jede Truhe wird trotzdem gemeldet');
+    const z = m.zeilen().filter((l) => l.key.startsWith('tiktok:envelope-art:'));
+    assert.deepEqual(z.map((l) => l.key), ['tiktok:envelope-art:7', 'tiktok:envelope-art:ohne']);
+    assert.match(z[0]?.text ?? '', /envelopeInfo\{[^}]*envelopeId[^}]*businessType/);
+    assert.doesNotMatch(z[0]?.text ?? '', /GeheimName|E1|99/, 'nur Feldnamen, keine Werte');
+  } finally { m.weg(); await adapter.disconnect(); }
+});
+
+test('Banner ohne Nutzer/Stufe und unbekannte Banner-Art nennen ihre Feldnamen', async () => {
+  const { adapter, connections } = setup();
+  const m = einmalMitschreiben();
+  try {
+    await adapter.connect('testuser');
+    connections[0]?.emit('barrage', { msgType: 10, subType: 'fans_upgrade', fansLevelParam: { currentGrade: 0 } });
+    connections[0]?.emit('barrage', { msgType: 99, subType: 'neu', irgendwas: { tiefer: 'Wert123' } });
+    const leer = m.zeilen().find((l) => l.key.startsWith('tiktok:barrage-leer:'));
+    const fremd = m.zeilen().find((l) => l.key === 'tiktok:barrage:99');
+    assert.match(leer?.text ?? '', /ohne Nutzer\/Stufe.*Enthaltene Felder: .*fansLevelParam\{currentGrade\}/);
+    assert.match(fremd?.text ?? '', /nicht aus\. Enthaltene Felder: .*irgendwas\{tiefer\}/);
+    assert.doesNotMatch(fremd?.text ?? '', /Wert123/);
+  } finally { m.weg(); await adapter.disconnect(); }
 });

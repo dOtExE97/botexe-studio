@@ -15,6 +15,7 @@ import { log } from '../core/logger';
 import { kannFortsetzung } from '../services/session-continuity';
 import { Artenbuch } from './tiktok-artenbuch';
 import type { HostInfo, CloudCloseError, CloudDisconnectInfo } from './tiktok-cloud';
+import { felderVon } from './tiktok-cloud';
 import { leseRangUpdate, type RangStand } from './tiktok-rank';
 import { lesePkStand, lesePkRahmen, pkText } from './tiktok-pk';
 import { lesePin, pinText } from './tiktok-pin';
@@ -941,7 +942,19 @@ export class TikTokAdapter {
     // Trigger-Vorlage) — nur hat ihn nie etwas ausgelöst. Jetzt schon.
     on('subNotify', guard((d: Parameters<typeof normalizeSub>[0]) => { if (!dedup(d)) publish(normalizeSub(d, this.now())); }));
     // Coin-Kiste / Schatztruhe (auch die Superfan-Truhe).
-    on('envelope', guard((d: Parameters<typeof normalizeEnvelope>[0]) => { if (!dedup(d)) publish(normalizeEnvelope(d, this.now())); }));
+    on('envelope', guard((d: Parameters<typeof normalizeEnvelope>[0]) => {
+      if (dedup(d)) return;
+      // Bekannt sind 1 (Coin-Truhe) und 19 (Superfan-Truhe). Für jede andere Art
+      // einmal je Verbindung die Feldnamen (nie Werte) — Grundlage, um z. B. die
+      // Geschenktüte später zuzuordnen.
+      const bt = Number(d?.envelopeInfo?.businessType);
+      if (bt !== 1 && bt !== 19) {
+        const art = Number.isFinite(bt) ? String(bt) : 'ohne';
+        log.einmal(`tiktok:envelope-art:${art}`, 'info', 'TikTok',
+          `Truhen-Art ${art} ist (noch) unbekannt — Truhe wird trotzdem gemeldet. Enthaltene Felder: ${felderVon(d)}`);
+      }
+      publish(normalizeEnvelope(d, this.now()));
+    }));
     // Superfan: TikTok trennt „neu beigetreten" von sonstigen Superfan-Meldungen.
     // Superfan-Meldungen kommen teils doppelt (Kurzname `superFan` UND Banner,
     // gleiche Millisekunde — belegt im Mitschnitt vom 10.11.2026). Deshalb laufen
@@ -984,10 +997,12 @@ export class TikTokAdapter {
       const art = barrageTyp(d?.msgType);
       if (BARRAGE_AUSGEWERTET.has(art)) {
         log.einmal(`tiktok:barrage-leer:${art}`, 'info', 'TikTok',
-          `Banner-Art ${typ} (${d?.subType ?? 'ohne Untertyp'}) erkannt, aber ohne Nutzer/Stufe — übersprungen.`);
+          `Banner-Art ${typ} (${d?.subType ?? 'ohne Untertyp'}) erkannt, aber ohne Nutzer/Stufe — übersprungen. `
+          + `Enthaltene Felder: ${felderVon(d)}`);
       } else {
         log.einmal(`tiktok:barrage:${typ}`, 'info', 'TikTok',
-          `Banner-Art ${typ} (${d?.subType ?? 'ohne Untertyp'}) erkannt — die App wertet sie (noch) nicht aus.`);
+          `Banner-Art ${typ} (${d?.subType ?? 'ohne Untertyp'}) erkannt — die App wertet sie (noch) nicht aus. `
+          + `Enthaltene Felder: ${felderVon(d)}`);
       }
     }));
     on('goalUpdate', guard((d: RawGoalUpdate) => {

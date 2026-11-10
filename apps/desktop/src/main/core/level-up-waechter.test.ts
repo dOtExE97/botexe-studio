@@ -1,7 +1,9 @@
 // level-up-waechter.test.ts — Teamherz-Stufe über Abzeichen + Dedup mit Bannern.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LevelUpWaechter } from './level-up-waechter';
+import type { StudioEvent } from '@botexe/trigger-engine';
+import { LevelUpWaechter, erzeugeLevelUpVorfilter } from './level-up-waechter';
+import { EventBus } from './event-bus';
 
 test('Erstsichtung liefert null, ein Anstieg die neue Stufe', () => {
   const w = new LevelUpWaechter();
@@ -47,4 +49,67 @@ test('reset() macht die nächste Sichtung zur Erstsichtung und leert das Dedup',
   w.reset();
   assert.equal(w.sieheStufe('a', 6, 2), null);
   assert.equal(w.istDoppelt('a', 7, 2000), false);
+});
+
+/** Echter Bus mit dem Vorfilter, wie studio.ts ihn einsetzt. */
+function busMitVorfilter() {
+  const bus = new EventBus();
+  bus.setVorfilter(erzeugeLevelUpVorfilter(new LevelUpWaechter(), (e) => bus.publish(e)));
+  const gesehen: StudioEvent[] = [];
+  bus.subscribeAll((e) => gesehen.push(e));
+  const levelUps = () => gesehen.filter((e) => e.type === 'level_up');
+  return { bus, gesehen, levelUps };
+}
+const chat = (stufe: number, ts: number, extra: Partial<StudioEvent> = {}): StudioEvent => ({
+  type: 'chat', ts, text: 'hi', user: { id: 'u1', nickname: 'Mia', teamLevel: stufe }, ...extra,
+});
+const banner = (stufe: number, ts: number, art: 'team' | 'gifter' = 'team'): StudioEvent => ({
+  type: 'level_up', ts, user: { id: 'u1', nickname: 'Mia' }, levelUp: { art, neu: stufe },
+});
+const tick = () => new Promise((r) => setImmediate(r));
+
+test('Vorfilter: Chat 6 → Chat 7 → Banner 7 binnen 60 s ergibt EIN Level-Up, nach dem Chat', async () => {
+  const { bus, gesehen, levelUps } = busMitVorfilter();
+  bus.publish(chat(6, 1000));
+  bus.publish(chat(7, 2000));
+  await tick();
+  bus.publish(banner(7, 30_000));
+  await tick();
+  assert.equal(levelUps().length, 1);
+  assert.equal(levelUps()[0]?.levelUp?.neu, 7);
+  assert.notEqual(levelUps()[0]?.synthetic, true, 'abgeleitet, aber nicht als Test markiert');
+  assert.deepEqual(gesehen.map((e) => e.type), ['chat', 'chat', 'level_up'], 'Auslöser zuerst, Level-Up danach, Banner verworfen');
+});
+
+test('Vorfilter: Banner zuerst, danach das Abzeichen derselben Stufe → kein zweites Level-Up', async () => {
+  const { bus, levelUps } = busMitVorfilter();
+  bus.publish(chat(6, 1000));
+  bus.publish(banner(7, 2000));
+  bus.publish(chat(7, 3000));
+  await tick();
+  assert.equal(levelUps().length, 1);
+});
+
+test('Vorfilter: synthetic- und sticky-Ereignisse füttern den Wächter nicht', async () => {
+  const { bus, levelUps } = busMitVorfilter();
+  bus.publish(chat(6, 1000, { synthetic: true }));
+  bus.publish(chat(7, 2000, { sticky: true }));
+  await tick();
+  assert.equal(levelUps().length, 0, 'kein abgeleitetes Level-Up aus Test/Replay');
+  // Erste ECHTE Sichtung ist Erstsichtung → kein Level-Up, obwohl Test-Ereignisse 6/7 meldeten.
+  bus.publish(chat(8, 3000));
+  await tick();
+  assert.equal(levelUps().length, 0);
+  // Test-Banner läuft durch, wird aber nicht gemerkt: der echte danach auch.
+  bus.publish({ ...banner(9, 4000), synthetic: true });
+  bus.publish(banner(9, 5000));
+  assert.equal(levelUps().length, 2);
+});
+
+test('Vorfilter: Geschenke-Stufe-Banner läuft immer durch', async () => {
+  const { bus, levelUps } = busMitVorfilter();
+  bus.publish(banner(20, 1000, 'gifter'));
+  bus.publish(banner(20, 2000, 'gifter'));
+  await tick();
+  assert.equal(levelUps().length, 2);
 });
