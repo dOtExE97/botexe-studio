@@ -72,16 +72,18 @@ function fakeKontext(z: Zaehler, mitLog = false): any {
 // Offscreen-Ebenen (vorgebackene Glows) laufen im Browser über OffscreenCanvas.
 // Für den Test liefert die Attrappe denselben Fake-Kontext.
 const offscreenZaehler: Zaehler = { aufrufe: 0, nan: 0, log: [] };
+const offscreenEbenen: Array<{ width: number; height: number }> = [];
 (globalThis as any).OffscreenCanvas = class {
   width: number; height: number;
   constructor(w: number, h: number) {
     if (!(w > 0) || !(h > 0)) throw new RangeError('OffscreenCanvas: Größe muss > 0 sein');
     this.width = w; this.height = h;
+    offscreenEbenen.push(this);
   }
   getContext() { return fakeKontext(offscreenZaehler); }
 };
 
-const { ANIMATIONEN, erzeugeRenderer, initiale } = await import('./alarm-anim.js');
+const { ANIMATIONEN, erzeugeRenderer, initiale, ladeSchrift } = await import('./alarm-anim.js');
 
 const LEVEL_UP_IDS = ['lvl-herzschlag', 'lvl-goldherz', 'lvl-neon', 'lvl-tiktok', 'lvl-tiktok-neon'];
 
@@ -200,5 +202,60 @@ test('Ohne OffscreenCanvas/document (vorgebackene Ebenen fehlen) zeichnet er tro
     }
   } finally {
     (globalThis as any).OffscreenCanvas = gesichert;
+  }
+});
+
+test('destroy() gibt die vorgebackenen Ebenen frei (Größe 0)', () => {
+  for (const id of LEVEL_UP_IDS) {
+    const vorher = offscreenEbenen.length;
+    const r = erzeugeRenderer(id, { name: 'Mia', alt: 1, neu: 2 });
+    for (const t of [1.0, 3.0]) r.zeichne(fakeKontext({ aufrufe: 0, nan: 0, log: [] }), t, 1080, 1920);
+    const eigene = offscreenEbenen.slice(vorher).filter((c) => c.width > 4); // ohne Mess-Leinwände 4×4
+    assert.ok(eigene.length > 0, `${id}: keine Ebenen gebacken`);
+    r.destroy();
+    const uebrig = eigene.filter((c) => c.width !== 0 || c.height !== 0);
+    assert.equal(uebrig.length, 0, `${id}: ${uebrig.length} Ebenen nach destroy() nicht freigegeben`);
+  }
+});
+
+// WÄCHTER: document.fonts.check() meldet für eine NIE registrierte Familie
+// ebenfalls „bereit" (CSS Font Loading). Daran darf die Neu-Back-Logik nicht
+// hängen — sonst bleiben Titel/Name/Zeilen für immer in der Ersatzschrift.
+// Dieser Test läuft als letzter: Er schaltet den Modul-Merker „Schrift geladen" um.
+test('Schrift kommt nach dem ersten Bild → Textebenen werden mit BxInter neu gebacken', async () => {
+  const g = globalThis as any;
+  const geladeneUrls: string[] = [];
+  let hinzugefuegt = 0;
+  g.document = { fonts: { check: () => true, add: () => { hinzugefuegt++; } } };
+  g.FontFace = class {
+    constructor(_familie: string, quelle: string) { geladeneUrls.push(quelle); }
+    load() { return Promise.resolve(this); }
+  };
+  try {
+    const r = erzeugeRenderer('lvl-tiktok-neon', { name: 'Mia', alt: 1, neu: 2 });
+    const male = () => r.zeichne(fakeKontext({ aufrufe: 0, nan: 0, log: [] }), 3, 1080, 1920);
+    male();
+    const nachErstemBild = offscreenEbenen.length;
+    male();
+    assert.equal(offscreenEbenen.length, nachErstemBild, 'ohne geladene Schrift (check() lügt „bereit") darf nichts neu gebacken werden');
+    const alteEbenen = offscreenEbenen.slice(0, nachErstemBild).filter((c) => c.width > 4);
+
+    await ladeSchrift('http://127.0.0.1:27415', 'geheim');
+    assert.equal(hinzugefuegt, 1, 'Schrift wurde nicht registriert');
+    assert.match(geladeneUrls[0], /\/widgets\/inter-black\.woff2\?token=geheim/, 'ohne Schlüssel antwortet der Overlay-Server mit 403');
+
+    male();
+    assert.ok(offscreenEbenen.length > nachErstemBild, 'nach dem Laden der Schrift wurden die Textebenen nicht neu gebacken');
+    assert.ok(alteEbenen.some((c) => c.width === 0), 'die alten Ebenen wurden beim Neu-Backen nicht freigegeben');
+    const nachNeuBacken = offscreenEbenen.length;
+    male();
+    assert.equal(offscreenEbenen.length, nachNeuBacken, 'neu gebacken wird nur einmal, nicht in jedem Bild');
+    r.destroy();
+    // Zweiter Aufruf lädt nicht erneut.
+    await ladeSchrift('http://127.0.0.1:27415', 'geheim');
+    assert.equal(geladeneUrls.length, 1);
+  } finally {
+    delete g.document;
+    delete g.FontFace;
   }
 });

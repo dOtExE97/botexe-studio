@@ -131,6 +131,11 @@ export function initiale(name) {
 }
 
 let schriftVersprechen = null;
+// Erst wahr, wenn BxInter wirklich geladen und registriert ist. NICHT über
+// document.fonts.check() prüfen: das meldet für eine nie registrierte Familie
+// ebenfalls „bereit" (CSS Font Loading: nichts zu laden = fertig) — die
+// vorgebackenen Textebenen blieben dann für immer in der Ersatzschrift.
+let schriftGeladen = false;
 /**
  * Registriert Inter Black als 'BxInter' (900) aus inter-black.woff2 — einmalig.
  * Der Overlay-Server verlangt den Schlüssel auch für Schriften (`token`).
@@ -144,12 +149,12 @@ export function ladeSchrift(baseUrl, token) {
   if (!url) return Promise.resolve();
   const ff = new FontFace(SCHRIFT, `url("${url}") format("woff2")`, { weight: '900' });
   schriftVersprechen = ff.load()
-    .then((f) => { document.fonts.add(f); })
+    .then((f) => { document.fonts.add(f); schriftGeladen = true; })
     .catch(() => { schriftVersprechen = null; });
   return schriftVersprechen;
 }
 function schriftBereit() {
-  try { return typeof document !== 'undefined' && !!document.fonts && document.fonts.check(fnt(50)); } catch { return false; }
+  return schriftGeladen;
 }
 
 /** Offscreen-Leinwand (OffscreenCanvas, sonst <canvas>), oder null. */
@@ -177,6 +182,16 @@ function backe(w, h, fn) {
   lw.x.translate(lw.w / 2, lw.h / 2);
   fn(lw.x);
   return lw;
+}
+/** Vorgebackene Ebenen freigeben: Größe 0 gibt den Pixelspeicher sofort zurück. */
+function freigeben(ebenen) {
+  if (!ebenen) return;
+  for (const v of Object.values(ebenen)) {
+    const liste = v instanceof Map ? [...v.values()] : Array.isArray(v) ? v : [v];
+    for (const sp of liste) {
+      if (sp && sp.c) { try { sp.c.width = 0; sp.c.height = 0; } catch { /* egal */ } }
+    }
+  }
 }
 /** Sprite mittig bei (x, y) mit Maßstab sc. */
 function setze(g, sp, x, y, sc = 1) {
@@ -780,7 +795,7 @@ function stilKlassik(V, d, S, bild) {
     g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
   }
 
-  return { dauer: DUR, zuruecksetzen, schritt, zeichne, vergissText: () => { ebenen = null; zahlCache.clear(); } };
+  return { dauer: DUR, zuruecksetzen, schritt, zeichne, vergissText: () => { freigeben(ebenen); freigeben({ zahlCache }); ebenen = null; zahlCache.clear(); } };
 }
 
 // ------------------------------------------ Level-Up V4/V5 (TikTok-Stil) ---
@@ -1166,7 +1181,7 @@ function stilTikTok(MIX, d, S, bild) {
     }
   }
 
-  return { dauer: DUR, zuruecksetzen, schritt, zeichne, vergissText: () => { ebenen = null; } };
+  return { dauer: DUR, zuruecksetzen, schritt, zeichne, vergissText: () => { freigeben(ebenen); ebenen = null; } };
 }
 
 // -------------------------------------------------------------- Renderer ---
