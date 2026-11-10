@@ -22,6 +22,16 @@ Diese Datei listet die Bibliotheken, die in bOtExE Studio genutzt und mit ausgel
 | [update-electron-app](https://github.com/electron/update-electron-app) | MIT | — |
 | [ws](https://github.com/websockets/ws) | MIT | Einar Otto Stangvik |
 
+## Gebündelte Schriften
+
+| Datei | Lizenz | Autor/Projekt |
+|---|---|---|
+| `packages/widget-kit/inter-black.woff2` (Subset von Inter Black) | SIL Open Font License 1.1 | Rasmus Andersson / Inter-Projekt, [rsms/inter](https://github.com/rsms/inter) |
+
+Die Schrift ist unter der SIL OFL 1.1 lizenziert. Sie darf frei verwendet, gebündelt und weitergegeben werden; das Subset darf nicht unter dem Reserved Font Name „Inter“ als eigenständige Schrift verkauft werden. Lizenztext: siehe „SIL Open Font License 1.1“ unten.
+
+Die Standard-Sounds `packages/widget-kit/sounds/botexe-levelup-*.wav`, `botexe-superfan.wav`, `botexe-truhe.wav` und `botexe-einblender.wav` stammen aus dem Projekt selbst (eigene Proben, Konvertierung aus OGG nach WAV).
+
 ## Alle Abhängigkeiten (inkl. transitiver)
 
 Insgesamt **809 Pakete** im Abhängigkeitsbaum (Laufzeit + Build). Lizenz-Verteilung:
