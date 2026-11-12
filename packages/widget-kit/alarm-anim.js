@@ -61,6 +61,9 @@ export const ANIMATIONEN = {
   'vip-gold': { label: 'VIP Gold', fuer: ['vip'], dauer: 7.6, sound: 'botexe-superfan.wav' },
   'truhe-premium': { label: 'Schatztruhe Premium', fuer: ['truhe'], dauer: 6.8, sound: 'botexe-truhe.wav' },
   'ziel-erreicht': { label: 'Ziel erreicht', fuer: ['ziel'], dauer: 5.8, sound: 'botexe-levelup-tiktok-neon.wav' },
+  // Piraten-Orakel (Follow): Truhe springt auf, das Token steigt heraus, die Kistennummer
+  // läuft über Walzen ein. daten: kiste, chance, glueckBis, tokenBild (eigenes Bild, lokal).
+  'piraten-orakel': { label: 'Piraten-Orakel', fuer: ['follow'], dauer: 8.6, sound: 'botexe-truhe.wav' },
 };
 
 // ---------------------------------------------------------------- Helfer ---
@@ -1372,13 +1375,14 @@ function farbenPremium(typ) {
 }
 
 function stilPremium(typ, d, bild) {
-  const SF = typ !== 'truhe', VIP = typ === 'vip';
-  const DUR = SF ? 7.6 : 6.8;
+  const ORAKEL = typ === 'orakel';
+  const SF = typ !== 'truhe' && !ORAKEL, VIP = typ === 'vip';
+  const DUR = SF ? 7.6 : ORAKEL ? 8.6 : 6.8;
   const C = farbenPremium(typ);
   const CX = 540;
   const NAME = d.name;
   const KOPF = typ === 'superfan' && d.neuAbo ? 'NEUER' : '';
-  const TITEL = d.titel || (VIP ? 'VIP IST DA' : SF ? 'SUPERFAN' : 'SCHATZTRUHE!');
+  const TITEL = d.titel || (ORAKEL ? 'PIRATEN-TOKEN' : VIP ? 'VIP IST DA' : SF ? 'SUPERFAN' : 'SCHATZTRUHE!');
   const vipStufe = d.stufe ?? (d.neuBekannt ? d.neu : null);
   const UNTER = d.unterzeile ? kuerze(d.unterzeile, 40)
     : VIP ? (vipStufe !== null ? `GESCHENKE-STUFE ${vipStufe}` : 'WILLKOMMEN, VIP')
@@ -1390,7 +1394,29 @@ function stilPremium(typ, d, bild) {
   const SF_B = 1.4, SF_CROWN = 2.05, SF_TITLE = 2.35, SF_OUT = 6.7;
   // Truhen-Zeitachse und Maße
   const GY = 1000, TW = 640, HB = 300, TD = 300, TR = TD / 2, PZ = 0.0007, KY = 0.35;
-  const TB = 1.65, T_LAND = 0.55, TT_TITLE = TB + 0.3, T_OUTT = 5.95;
+  const TB = 1.65, T_LAND = 0.55, TT_TITLE = TB + 0.3, T_OUTT = ORAKEL ? 7.75 : 5.95;
+  // Orakel: Token, Walzen (je Ziffer eine Walze, Stopps nacheinander), Glückspilz
+  const KISTE = d.kiste, KTEXT = formatDe(KISTE), GLUECK = ORAKEL && KISTE <= d.glueckBis;
+  const TOK_Y = 300, TOK_R = 190, RS = TB + 0.85, R_STOP0 = RS + 0.75, R_SCHRITT = 0.3;
+  const ZIFFERN = [...KTEXT].filter((c) => c !== '.').length;
+  const R_ENDE = R_STOP0 + (ZIFFERN - 1) * R_SCHRITT;
+  const tokenBild = ORAKEL ? ladeBild(d.tokenBild) : null;
+  // Eigenes Kistenbild (lokal hochgeladen): ersetzt die gezeichnete Truhe. Kein Deckel
+  // zum Aufklappen — die Kiste lädt sich glühend auf und platzt dann auf.
+  const kisteBild = ORAKEL ? ladeBild(d.kisteBild) : null;
+  function bildKiste(g, t, charge, img) {
+    const iw = img.naturalWidth || img.width || 512, S = 620 / iw, w = iw * S, h = (img.naturalHeight || img.height || 512) * S;
+    const pop = t > TB ? 1 + 0.16 * Math.exp(-(t - TB) * 6) * Math.cos((t - TB) * 16) : 1;
+    const wackel = t > T_LAND + 0.25 && t < TB ? Math.sin(t * 41) * 0.045 * charge : 0;
+    const hell = t < TB ? 0.6 * charge : 0.95 * Math.exp(-(t - TB) * 4.5);
+    g.save(); g.globalCompositeOperation = 'lighter';
+    const sg = g.createRadialGradient(0, -h * 0.5, 0, 0, -h * 0.5, w * 0.85); sg.addColorStop(0, `rgba(255,200,90,${0.15 + 0.5 * hell})`); sg.addColorStop(1, 'rgba(255,160,40,0)');
+    g.fillStyle = sg; g.beginPath(); g.arc(0, -h * 0.5, w * 0.85, 0, 7); g.fill(); g.restore();
+    g.save(); g.rotate(wackel); g.scale(pop, pop);
+    g.drawImage(img, -w / 2, -h * 0.905, w, h);
+    if (hell > 0.01) { g.globalCompositeOperation = 'lighter'; g.globalAlpha *= hell; g.drawImage(img, -w / 2, -h * 0.905, w, h); }
+    g.restore();
+  }
   const PY = (y, z) => -y + KY * (z - TD / 2);
   const WOOD_LO = [40, 15, 4], WOOD_HI = [156, 80, 36], GOLD_LO = [96, 54, 6], GOLD_HI = [255, 222, 130], IN_LO = [22, 8, 2];
   const rgbS = (a, b, k) => `rgb(${Math.round(lerp(a[0], b[0], k))},${Math.round(lerp(a[1], b[1], k))},${Math.round(lerp(a[2], b[2], k))})`;
@@ -1431,8 +1457,22 @@ function stilPremium(typ, d, bild) {
     }
     if (t > T_LAND + 0.3 && t < TB && rnd() < 0.5) neu({ kind: 'spark', x: CX + R(-300, 300), y: GY - HB, vx: R(-2, 2), vy: R(-5, -2), drag: 0.97, grav: 0, life: 0, max: R(15, 30), col: '#ffd56b', w: R(1.5, 3), layer: 1 });
   }
+  function stepOrakel(t, fi) {
+    const neu = (p) => { p.n = fi; P.push(p); };
+    for (let z = 0; z < ZIFFERN; z++) {
+      if (fi !== Math.round((R_STOP0 + z * R_SCHRITT) * FPS)) continue;
+      const x = walzenX(z);
+      for (let i = 0; i < 18; i++) { const a = R(0, 6.283), sp = R(4, 14); neu({ kind: 'spark', x, y: WALZE_Y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.9, grav: 0.2, life: 0, max: R(14, 26), col: pick(['#ffd56b', '#fff6d0', '#ffffff']), w: R(2, 4), layer: 2 }); }
+    }
+    if (fi === Math.round(R_ENDE * FPS)) {
+      const n = GLUECK ? 260 : 70;
+      for (let i = 0; i < n; i++) { const a = R(0, 6.283), sp = Math.pow(rnd(), 0.6) * (GLUECK ? 34 : 20) + 6; neu({ kind: 'spark', x: CX + R(-200, 200), y: WALZE_Y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.93, grav: 0.3, life: 0, max: R(30, 60), col: pick(['#ffd56b', '#fff6d0', '#ffffff', '#ffb627']), w: R(2, 6), layer: 2 }); }
+      if (GLUECK) for (let i = 0; i < 120; i++) neu({ kind: 'coin', x: R(40, W - 40), y: R(-500, -40), vx: R(-2, 2), vy: R(4, 12), drag: 1, grav: 0.55, ph: R(0, 6.28), vph: R(0.15, 0.4), rot: R(-0.3, 0.3), s: R(40, 70), life: 0, max: 150, layer: 2 });
+    }
+  }
   function schritt(t, i) {
     if (SF) stepSuperfan(t, i); else stepTruhe(t, i);
+    if (ORAKEL) stepOrakel(t, i);
     for (const p of P) {
       p.ox = p.x; p.oy = p.y; p.ovx = p.vx; p.ovy = p.vy; p.orot = p.rot; p.oph = p.ph;
       p.life++;
@@ -1831,7 +1871,7 @@ function stilPremium(typ, d, bild) {
     const [shx, shy] = shakeAt(t, [[T_LAND, 22], [TB, 24], [TT_TITLE, 9]]);
     g.translate(shx, shy);
     let gr = g.createRadialGradient(CX, 1000, 100, CX, 1000, 1300); gr.addColorStop(0, `rgba(24,10,2,${0.8 * appear * F})`); gr.addColorStop(1, `rgba(24,10,2,${0.3 * appear * F})`);
-    g.fillStyle = gr; g.fillRect(-50, -50, W + 100, H + 100);
+    g.fillStyle = gr; g.fillRect(-1500, -1500, W + 3000, H + 3000);
     const opened = seg(t, TB, TB + 0.3) * (1 - 0.35 * seg(t, TB + 1.5, TB + 3.5));
     const charge = t < TB ? eInC(seg(t, T_LAND + 0.25, TB)) : Math.max(0, 1 - (t - TB) * 4);
     const rI = t < TB ? 0.25 * charge : (0.5 + 0.9 * (1 - eOutC(seg(t, TB, TB + 1.6)))) * F;
@@ -1853,6 +1893,9 @@ function stilPremium(typ, d, bild) {
     drawP(g, F, 0, a, ziel);
     const th = lidAngle(t);
     g.save(); g.globalAlpha = F; g.translate(CX + jit, GY + dropY); g.scale((1 + imp) * sc, (1 - imp) * sc);
+    const kImg = kisteBild && kisteBild.bereit();
+    if (kImg) bildKiste(g, t, charge, kImg);
+    else {
     if (th > Math.PI / 2) lidStrips(g, th, opened);
     if (th > 0.02) chestOpening(g, t, opened);
     chestFront(g, t, charge, opened);
@@ -1872,12 +1915,13 @@ function stilPremium(typ, d, bild) {
       for (let i = 0; i < 6; i++) { const x = (i - 2.5) * 110 + Math.sin(t * 9 + i) * 20, l = 80 + 120 * charge; const lg = g.createLinearGradient(0, ly, 0, ly - l); lg.addColorStop(0, `rgba(255,220,140,${0.5 * charge})`); lg.addColorStop(1, 'rgba(255,200,100,0)'); g.fillStyle = lg; g.beginPath(); g.moveTo(x - 10, ly); g.lineTo(x + 10, ly); g.lineTo(x + 30, ly - l); g.lineTo(x - 30, ly - l); g.closePath(); g.fill(); }
       g.restore();
     }
+    }
     g.restore();
     // Lichtsäule aus der Truhe
     const bo = seg(t, TB, TB + 0.25), bf = 1 - seg(t, TB + 1.0, TB + 2.6);
     if (bo > 0 && bf > 0) {
       g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = bo * bf * F;
-      const top = GY - HB - 40, bg = g.createLinearGradient(0, top, 0, top - 1100); bg.addColorStop(0, 'rgba(255,235,170,0.95)'); bg.addColorStop(0.4, 'rgba(255,200,90,0.45)'); bg.addColorStop(1, 'rgba(255,180,60,0)');
+      const top = kisteBild && kisteBild.bereit() ? GY - 440 : GY - HB - 40, bg = g.createLinearGradient(0, top, 0, top - 1100); bg.addColorStop(0, 'rgba(255,235,170,0.95)'); bg.addColorStop(0.4, 'rgba(255,200,90,0.45)'); bg.addColorStop(1, 'rgba(255,180,60,0)');
       g.fillStyle = bg; g.beginPath(); g.moveTo(CX - 260, top); g.lineTo(CX + 260, top); g.lineTo(CX + 480, top - 1100); g.lineTo(CX - 480, top - 1100); g.closePath(); g.fill();
       const cg = g.createLinearGradient(0, top, 0, top - 1000); cg.addColorStop(0, 'rgba(255,255,240,0.9)'); cg.addColorStop(1, 'rgba(255,255,220,0)');
       g.fillStyle = cg; g.beginPath(); g.moveTo(CX - 90, top); g.lineTo(CX + 90, top); g.lineTo(CX + 160, top - 1000); g.lineTo(CX - 160, top - 1000); g.closePath(); g.fill();
@@ -1886,7 +1930,8 @@ function stilPremium(typ, d, bild) {
     drawP(g, F, 1, a, ziel);
     // Blitz
     const pb = seg(t, TB, TB + 0.4);
-    if (pb > 0 && pb < 1) { g.save(); g.globalCompositeOperation = 'lighter'; gr = g.createRadialGradient(CX, GY - HB, 0, CX, GY - HB, 1000); gr.addColorStop(0, `rgba(255,240,200,${(1 - eOutC(pb)) * 0.95})`); gr.addColorStop(1, 'rgba(255,190,80,0)'); g.fillStyle = gr; g.fillRect(-50, -50, W + 100, H + 100); g.restore(); }
+    if (pb > 0 && pb < 1) { g.save(); g.globalCompositeOperation = 'lighter'; gr = g.createRadialGradient(CX, GY - HB, 0, CX, GY - HB, 1000); gr.addColorStop(0, `rgba(255,240,200,${(1 - eOutC(pb)) * 0.95})`); gr.addColorStop(1, 'rgba(255,190,80,0)'); g.fillStyle = gr; g.fillRect(-1500, -1500, W + 3000, H + 3000); g.restore(); }
+    if (ORAKEL) { zeichneOrakel(g, t, a, F, ziel); return; }
     // Texte
     const pt = seg(t, TT_TITLE, TT_TITLE + 0.28);
     if (pt > 0) {
@@ -1919,8 +1964,133 @@ function stilPremium(typ, d, bild) {
     namePlate(g, 1775 + 25 * (1 - pm), pm * F);
   }
 
+  // ---- Piraten-Orakel ----
+  const WALZE_Y = 1440, ZELL_W = 92, PUNKT_W = 34, ZELL_H = 150;
+  function walzenBreite() { let w = 0; for (const c of KTEXT) w += c === '.' ? PUNKT_W : ZELL_W; return w; }
+  /** Mitte der z-ten Ziffernwalze (Punkte zählen nicht als Walze). */
+  function walzenX(z) {
+    let x = CX - walzenBreite() / 2, k = 0;
+    for (const c of KTEXT) { const b = c === '.' ? PUNKT_W : ZELL_W; if (c !== '.') { if (k === z) return x + b / 2; k++; } x += b; }
+    return CX;
+  }
+  /** Walzenstand (in Ziffern) zur Zeit t: rast, bremst, steht mit kleinem Nachfedern. */
+  function walzenStand(ziffer, ts, t) {
+    if (t < ts) { const r = ts - t; return ziffer + r * 16 + r * r * 14; }
+    const dd = t - ts; return ziffer - 0.32 * Math.exp(-dd * 9) * Math.sin(dd * 26);
+  }
+  function zeichneToken(g, t, F) {
+    const p = seg(t, TB + 0.05, TB + 1.0); if (p <= 0) return;
+    const aus = eInC(seg(t, T_OUTT, DUR));
+    const rise = eOutBack(p, 1.3);
+    const y = lerp(kisteBild && kisteBild.bereit() ? GY - 360 : GY - HB - 40, TOK_Y, rise) + Math.sin(t * 2.2) * 10 * seg(t, TB + 1.0, TB + 1.6) - 260 * aus;
+    const sc = lerp(0.25, 1, eOutC(p)) * (1 - 0.5 * aus);
+    const winkel = Math.PI * 8 * eOutC(seg(t, TB + 0.05, TB + 2.1));
+    const k = Math.cos(winkel);
+    // Strahlenkranz + Schein hinter dem Token
+    strahlen(g, CX, y, 18, 620 * sc, t * 0.35, '255,215,120', 0.85 * F * clamp(p * 2) * (1 - aus), 0.07);
+    g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = F * clamp(p * 2) * (1 - aus);
+    const hg = g.createRadialGradient(CX, y, 0, CX, y, TOK_R * 1.9 * sc); hg.addColorStop(0, 'rgba(255,225,140,0.75)'); hg.addColorStop(1, 'rgba(255,170,40,0)');
+    g.fillStyle = hg; g.beginPath(); g.arc(CX, y, TOK_R * 1.9 * sc, 0, 7); g.fill(); g.restore();
+    g.save(); g.globalAlpha = F * clamp(p * 3) * (1 - aus); g.translate(CX, y); g.scale(sc, sc);
+    const img = tokenBild && tokenBild.bereit();
+    if (img) {
+      const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, f = (2 * TOK_R) / Math.max(iw, ih);
+      g.save(); g.scale(Math.max(0.06, Math.abs(k)), 1);
+      g.shadowColor = 'rgba(0,0,0,0.55)'; g.shadowBlur = 40; g.shadowOffsetY = 18;
+      if (k < 0) g.filter = 'brightness(0.62) sepia(0.4)';
+      g.drawImage(img, (-iw * f) / 2, (-ih * f) / 2, iw * f, ih * f);
+      g.restore();
+    } else {
+      g.shadowColor = 'rgba(0,0,0,0.55)'; g.shadowBlur = 40; g.shadowOffsetY = 18; muenze(g, 2 * TOK_R, winkel);
+    }
+    g.restore();
+    // Glitzer auf dem Token, sobald es steht
+    const gl = Math.pow(Math.max(0, Math.sin(t * 2.6 - 1)), 14) * seg(t, TB + 2.1, TB + 2.3) * F * (1 - aus);
+    glint(g, CX - TOK_R * 0.42 * sc, y - TOK_R * 0.45 * sc, 70, gl);
+  }
+  function zeichneWalzen(g, t, F) {
+    const pc = eOutBack(seg(t, RS, RS + 0.4), 2); if (pc <= 0) return;
+    const bw = walzenBreite(), w = Math.max(620, bw + 120), h = 250, cy = WALZE_Y - 18;
+    const pop = t > R_ENDE ? 1 + (GLUECK ? 0.16 : 0.08) * Math.exp(-(t - R_ENDE) * 7) : 1;
+    const al = clamp(pc) * F;
+    g.save(); g.globalAlpha = al; g.translate(CX, cy); g.scale(pc * pop, pc * pop); g.translate(-CX, -cy);
+    // Plakette
+    const puls = GLUECK && t > R_ENDE ? 0.5 + 0.5 * Math.sin((t - R_ENDE) * 7) : 0;
+    g.shadowColor = GLUECK && t > R_ENDE ? 'rgba(255,214,90,0.95)' : 'rgba(255,150,30,0.7)'; g.shadowBlur = 40 + 40 * puls;
+    g.fillStyle = 'rgba(30,12,2,0.9)'; g.beginPath(); g.roundRect(CX - w / 2, cy - h / 2, w, h, 40); g.fill(); g.shadowBlur = 0;
+    g.strokeStyle = goldLin(g, CX - w / 2, cy - h / 2, CX + w / 2, cy + h / 2); g.lineWidth = 7; g.stroke();
+    g.strokeStyle = 'rgba(255,240,200,0.25)'; g.lineWidth = 2; g.beginPath(); g.roundRect(CX - w / 2 + 12, cy - h / 2 + 12, w - 24, h - 24, 30); g.stroke();
+    // Kopfzeile
+    g.font = fnt(40); g.letterSpacing = '10px'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#ffe9a8'; g.shadowColor = '#ff8a00'; g.shadowBlur = 14; g.fillText('KISTE NR.', CX, cy - h / 2 + 46); g.shadowBlur = 0;
+    // Walzen
+    let x = CX - bw / 2, z = 0;
+    const top = WALZE_Y - ZELL_H / 2 + 14;
+    for (const c of KTEXT) {
+      if (c === '.') {
+        g.fillStyle = '#ffd56b'; g.beginPath(); g.arc(x + PUNKT_W / 2, top + ZELL_H - 34, 7, 0, 7); g.fill();
+        x += PUNKT_W; continue;
+      }
+      const ts = R_STOP0 + z * R_SCHRITT, s = walzenStand(Number(c), ts, t);
+      g.save(); g.beginPath(); g.roundRect(x + 5, top, ZELL_W - 10, ZELL_H, 14); g.clip();
+      const wg = g.createLinearGradient(0, top, 0, top + ZELL_H); wg.addColorStop(0, '#0d0500'); wg.addColorStop(0.5, '#2a1405'); wg.addColorStop(1, '#0d0500');
+      g.fillStyle = wg; g.fillRect(x, top, ZELL_W, ZELL_H);
+      g.font = fnt(112); g.letterSpacing = '0px'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      const zg = g.createLinearGradient(0, top + 20, 0, top + ZELL_H - 20); zg.addColorStop(0, '#fffbe8'); zg.addColorStop(0.5, '#ffd56b'); zg.addColorStop(1, '#d9952a');
+      const blur = t < ts && 16 + 28 * (ts - t) > 6;
+      const basis = Math.floor(s);
+      g.fillStyle = zg;
+      for (let n = basis - 1; n <= basis + 2; n++) {
+        const yy = top + ZELL_H / 2 + (s - n) * ZELL_H * 0.82;
+        const dz = String(((n % 10) + 10) % 10);
+        if (blur) { for (const [o, a2] of [[-22, 0.25], [0, 0.6], [22, 0.25]]) { g.globalAlpha = al * a2; g.fillText(dz, x + ZELL_W / 2, yy + o + 6); } g.globalAlpha = al; }
+        else { g.shadowColor = '#ff9d00'; g.shadowBlur = 16; g.fillText(dz, x + ZELL_W / 2, yy + 6); g.shadowBlur = 0; }
+      }
+      // Walzen-Wölbung
+      const sg = g.createLinearGradient(0, top, 0, top + ZELL_H); sg.addColorStop(0, 'rgba(0,0,0,0.85)'); sg.addColorStop(0.28, 'rgba(0,0,0,0)'); sg.addColorStop(0.72, 'rgba(0,0,0,0)'); sg.addColorStop(1, 'rgba(0,0,0,0.85)');
+      g.fillStyle = sg; g.fillRect(x, top, ZELL_W, ZELL_H);
+      // Stopp-Blitz
+      const fl = seg(t, ts, ts + 0.35);
+      if (fl > 0 && fl < 1) { g.globalCompositeOperation = 'lighter'; g.fillStyle = `rgba(255,240,190,${0.7 * (1 - fl)})`; g.fillRect(x, top, ZELL_W, ZELL_H); g.globalCompositeOperation = 'source-over'; }
+      g.restore();
+      g.strokeStyle = 'rgba(255,214,110,0.55)'; g.lineWidth = 2.5; g.beginPath(); g.roundRect(x + 5, top, ZELL_W - 10, ZELL_H, 14); g.stroke();
+      x += ZELL_W; z++;
+    }
+    g.restore();
+  }
+  function zeichneOrakel(g, t, a, F, ziel) {
+    zeichneToken(g, t, F);
+    drawP(g, F, 1, a, ziel);
+    // Blitz beim Öffnen
+    const pb = seg(t, TB, TB + 0.4);
+    if (pb > 0 && pb < 1) { g.save(); g.globalCompositeOperation = 'lighter'; const gr = g.createRadialGradient(CX, GY - HB, 0, CX, GY - HB, 1000); gr.addColorStop(0, `rgba(255,240,200,${(1 - eOutC(pb)) * 0.95})`); gr.addColorStop(1, 'rgba(255,190,80,0)'); g.fillStyle = gr; g.fillRect(-1500, -1500, W + 3000, H + 3000); g.restore(); }
+    // Titel
+    const pt = seg(t, TT_TITLE, TT_TITLE + 0.28);
+    if (pt > 0) {
+      const ts = (1 + 1.5 * (1 - eOutExpo(pt))) * (1 + 0.06 * eInC(seg(t, T_OUTT, DUR)));
+      const sh = t < TT_TITLE + 0.9 ? seg(t, TT_TITLE + 0.35, TT_TITLE + 0.9) : seg(t, R_ENDE + 0.2, R_ENDE + 0.75);
+      drawChrome(g, 150, CX, 1170, ts * 0.92, clamp(pt * 3) * F, sh, 3);
+    }
+    const pu = eOutC(seg(t, TT_TITLE + 0.35, TT_TITLE + 0.75));
+    spaced(g, 'LIEGT FÜR DICH IN', 46, CX, 1272 + 20 * (1 - pu), pu * F, '#ffe9a8', '#ff8a00', 8);
+    zeichneWalzen(g, t, F);
+    drawP(g, F, 2, a, ziel);
+    // Chance bzw. Glückspilz
+    const pz = eOutC(seg(t, R_ENDE + 0.15, R_ENDE + 0.55));
+    if (GLUECK) {
+      const pg = eOutBack(seg(t, R_ENDE + 0.1, R_ENDE + 0.5), 2.2);
+      if (pg > 0) { g.save(); g.translate(CX, 1610); g.scale(pg, pg); g.rotate(-0.04); spaced(g, 'GLÜCKSPILZ!', 84, 0, 0, clamp(pg) * F, '#fff6d0', '#ffb627', 6); g.restore(); }
+    } else spaced(g, `CHANCE 1 : ${formatDe(d.chance)} PRO KISTE`, 34, CX, 1606 + 14 * (1 - pz), pz * F * 0.9, '#e9c77a', '#000000', 5);
+    const pa = eOutBack(seg(t, R_ENDE + 0.3, R_ENDE + 0.7), 2);
+    avatar(g, CX, 1740, 78, pa, clamp(pa) * F, t, null);
+    const pm = eOutC(seg(t, R_ENDE + 0.5, R_ENDE + 0.85));
+    namePlate(g, 1856 + 20 * (1 - pm), pm * F);
+  }
+
   function zeichne(g, t, a, rf, ziel) {
     if (!ebenen) ebenen = baueEbenen();
+    // Orakel: ganze Szene um ihre Mitte verkleinern (Größe in %, Standard 75)
+    if (ORAKEL && d.groesse < 100) { const k = d.groesse / 100; g.translate(CX, 1000); g.scale(k, k); g.translate(-CX, -1000); }
     if (SF) zeichneSuperfan(g, t, a, rf, ziel); else zeichneTruhe(g, t, a, rf, ziel);
   }
   return { dauer: DUR, zuruecksetzen, schritt, zeichne, vergissText: () => { freigeben(ebenen); ebenen = null; } };
@@ -1937,9 +2107,12 @@ const STILE = {
   'superfan-premium': (d, _S, b) => stilPremium('superfan', d, b),
   'vip-gold': (d, _S, b) => stilPremium('vip', d, b),
   'truhe-premium': (d, _S, b) => stilPremium('truhe', d, b),
+  'piraten-orakel': (d, _S, b) => stilPremium('orakel', d, b),
   'ziel-erreicht': (d, S, b) => stilTikTok(true, d, S, b, 'ziel'),
 };
 
+/** 84213 → „84.213". */
+export function formatDe(n) { return String(Math.max(0, Math.round(Number(n) || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
 const ganz = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.max(0, Math.min(9999, Math.round(n))) : null; };
 
 /** Ereignis-Daten auf sichere Werte bringen (TikTok lässt Felder weg). */
@@ -1961,6 +2134,12 @@ function normalisiere(daten) {
     titel: typeof dd.titel === 'string' ? dd.titel.replace(/\s+/g, ' ').trim().toLocaleUpperCase('de-DE') : '',
     stufe: ganz(dd.stufe),
     fortschritt: ganz(dd.fortschritt), ziel: ganz(dd.ziel),
+    kiste: Math.max(1, Math.min(99999999, Math.round(Number(dd.kiste)) || 1)),
+    chance: Math.max(2, Math.min(100000000, Math.round(Number(dd.chance)) || 137500)),
+    glueckBis: Math.max(0, Math.round(Number(dd.glueckBis ?? 1000)) || 0),
+    tokenBild: typeof dd.tokenBild === 'string' ? dd.tokenBild : '',
+    kisteBild: typeof dd.kisteBild === 'string' ? dd.kisteBild : '',
+    groesse: Math.max(40, Math.min(100, Math.round(Number(dd.groesse ?? 75)) || 75)),
   };
 }
 

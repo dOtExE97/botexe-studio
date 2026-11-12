@@ -8,6 +8,8 @@
 //     --name "Text"         Anzeigename (Standard „Schwester Mary")
 //     --alt N --neu N       Stufen (Standard 11 → 12)
 //     --bild <datei>        Profilbild (PNG/JPG); ohne → Initiale
+//     --token <datei>       piraten-orakel: Token-Bild (PNG); ohne → gezeichnete Münze
+//     --kiste <datei>       piraten-orakel: Kistenbild (PNG); ohne → gezeichnete Truhe
 //     --fps N               Bildrate (Standard 30; 60 prüft die Interpolation)
 //     --hintergrund RRGGBB  Untergrund (Standard 2a2a2a)
 //     --ohne-ton            Standard-Sound NICHT unterlegen
@@ -38,11 +40,13 @@ const opt = (name, std) => { const i = args.indexOf(`--${name}`); return i > 0 &
 const art = opt('art', 'team');
 const fps = Number(opt('fps', '30'));
 const bildDatei = opt('bild', '');
+const tokenDatei = opt('token', '');
+const kisteDatei = opt('kiste', ''); // piraten-orakel: eigenes Kistenbild (nur lokal) // piraten-orakel: eigenes Token-Bild (nur lokal, nie ins Repo)
 const hintergrund = opt('hintergrund', '2a2a2a');
 const mitTon = !args.includes('--ohne-ton');
 const ausOrdner = path.resolve(opt('aus', path.join(ROOT, '.tmp', 'alarm-vorschau')));
 const daten = {
-  name: opt('name', 'Schwester Mary'), alt: Number(opt('alt', '11')), neu: Number(opt('neu', '12')), art, bild: bildDatei ? '/bild' : '',
+  name: opt('name', 'Schwester Mary'), alt: Number(opt('alt', '11')), neu: Number(opt('neu', '12')), art, bild: bildDatei ? '/bild' : '', tokenBild: tokenDatei ? '/token' : '', kisteBild: kisteDatei ? '/kiste' : '',
   ...JSON.parse(opt('daten', '{}')),
 };
 
@@ -94,6 +98,8 @@ const fertig = new Promise((aufloesen) => {
     if (u.pathname === '/fertig') { res.end('ok'); chrome.kill(); srv.close(); return aufloesen(); }
     let datei = '';
     if (u.pathname === '/bild' && bildDatei) datei = path.resolve(bildDatei);
+    else if (u.pathname === '/token' && tokenDatei) datei = path.resolve(tokenDatei);
+    else if (u.pathname === '/kiste' && kisteDatei) datei = path.resolve(kisteDatei);
     else if (u.pathname.startsWith('/widgets/')) datei = path.join(KIT, path.basename(u.pathname));
     if (!datei || !fs.existsSync(datei)) { res.statusCode = 404; return res.end(); }
     res.setHeader('Content-Type', TYPEN[path.extname(datei)] || 'application/octet-stream');

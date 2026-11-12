@@ -31,6 +31,8 @@ const ARTEN = {
   truhe: { anim: 'anim_truhe', media: 'media_truhe', sound: 'sound_truhe', soundId: 'soundId_truhe', std: 'truhe-premium' },
   vip: { anim: 'anim_vip', media: 'media_vip', sound: 'sound_vip', soundId: 'soundId_vip', std: 'vip-gold' },
   ziel: { anim: 'anim_ziel', media: 'media_ziel', sound: 'sound_ziel', soundId: 'soundId_ziel', std: 'ziel-erreicht' },
+  // Follow = Piraten-Orakel: jeder neue Follower bekommt „seine" Kistennummer.
+  follow: { anim: 'anim_follow', media: 'media_follow', sound: 'sound_follow', soundId: 'soundId_follow', std: 'piraten-orakel' },
 };
 
 /** Standard-Häkchen: VIP, Superfan betritt und Geschenke-Level-Up sind aus. */
@@ -45,6 +47,22 @@ const TRUHE_FENSTER_MS = 30_000;
 const SCHRIFT_WARTEN_MS = 1500;
 const BILD_DAUER_MS = 6000;
 const AUSBLENDEN_MS = 300;
+
+const ORAKEL_CHANCE = 137500;
+const ORAKEL_MAX = 99_999_999;
+
+/**
+ * Kistennummer, in der „dein" Piraten-Token liegt: Wie viele Kisten öffnest du,
+ * bis bei Chance 1 : `chance` pro Kiste der erste Treffer kommt? Das ist
+ * geometrisch verteilt — Mittel ≈ chance, meist ein paar Tausend bis ein paar
+ * Hunderttausend, ganz selten zweistellig (Glückspilz).
+ */
+export function wuerfleKiste(chance = ORAKEL_CHANCE, zufall = Math.random) {
+  const c = Math.max(2, Math.round(Number(chance)) || ORAKEL_CHANCE);
+  const u = Math.min(1 - 1e-12, Math.max(0, Number(zufall()) || 0));
+  const n = Math.ceil(Math.log(1 - u) / Math.log(1 - 1 / c));
+  return Math.max(1, Math.min(ORAKEL_MAX, Number.isFinite(n) ? n : 1));
+}
 
 const zahl = (v, std = 0) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : std; };
 
@@ -69,12 +87,17 @@ export function normalisiereCfg(props) {
     qualitaet: p.qualitaet === 'leicht' ? 'leicht' : 'voll',
     zeigeUser: p.showUser !== false,
     userText: p.userText != null ? p.userText : '💜 {name} ist Teil des Teams',
+    orakelChance: Math.max(2, Math.min(ORAKEL_MAX, zahl(p.orakelChance, ORAKEL_CHANCE) || ORAKEL_CHANCE)),
+    orakelGlueck: p.orakelGlueck === undefined || p.orakelGlueck === null || p.orakelGlueck === '' ? 1000 : Math.max(0, zahl(p.orakelGlueck, 1000)),
+    orakelGroesse: Math.max(40, Math.min(100, zahl(p.orakelGroesse, 75) || 75)),
+    orakelToken: typeof p.orakelToken === 'string' ? p.orakelToken : '',
+    orakelKiste: typeof p.orakelKiste === 'string' ? p.orakelKiste : '',
   };
 }
 
 /** Doppelt-Sperren einer Widget-Instanz (Truhe, Superfan, VIP, LIVE-Ziel). */
 export function neuerMerker() {
-  return { truhen: new Map(), superfan: new Map(), vip: new Set(), ziele: new Set() };
+  return { truhen: new Map(), superfan: new Map(), vip: new Set(), ziele: new Set(), follower: new Set() };
 }
 
 function nutzerSchluessel(u) {
@@ -113,6 +136,8 @@ function rohArt(e, cfg) {
       // bei jedem weiteren Update eines schon erreichten Ziels. Die Sperre je
       // Ziel-id in alarmArt bleibt als zweites Netz.
       return e.ziel?.erreicht === true && e.ziel?.geradeErreicht === true ? 'ziel' : null;
+    case 'follow':
+      return 'follow';
     case 'gift':
       // Teamherz kommt hier NUR als Geschenk: `sub` ist im Ereignis-Modus das Superfan-Abo.
       return trifftAusloeser(e, 'teamherz', cfg.minLevel) ? 'teamherz' : null;
@@ -154,6 +179,14 @@ export function alarmArt(event, cfg, merker, jetzt = Date.now()) {
       if (merker.vip.has(key)) return null;
       merker.vip.add(key);
     }
+  } else if (art === 'follow') {
+    // Je Zuschauer einmal pro Stream — Entfolgen und neu Folgen würfelt nicht neu.
+    const key = nutzerSchluessel(event.user);
+    if (key) {
+      if (merker.follower.has(key)) return null;
+      merker.follower.add(key);
+      if (merker.follower.size > 20000) merker.follower.clear();
+    }
   } else if (art === 'ziel') {
     const key = String(event.ziel?.id ?? '');
     if (merker.ziele.has(key)) return null;
@@ -188,8 +221,9 @@ function superfanVerlaengert(e) {
   return e?.type === 'sub' ? e.superfanNeu === false : e?.superfanArt === 'abo_verlaengert';
 }
 
-/** Daten für den Renderer aus Art + Ereignis (TikTok lässt Felder weg). */
-export function alarmDaten(art, e) {
+/** Daten für den Renderer aus Art + Ereignis (TikTok lässt Felder weg).
+ *  `extra` trägt beim Follow die gewürfelte Kiste und die Orakel-Einstellungen. */
+export function alarmDaten(art, e, extra = {}) {
   const u = (e && e.user) || {};
   const d = { name: String(u.nickname || u.uniqueId || ''), bild: typeof u.profilePic === 'string' ? u.profilePic : '' };
   switch (art) {
@@ -221,14 +255,22 @@ export function alarmDaten(art, e) {
         unterzeile: kuerze(z.geschenk?.name || z.beschreibung || '', 32).toUpperCase(),
       };
     }
+    case 'follow':
+      return {
+        ...d, kiste: extra.kiste ?? 1, chance: extra.chance ?? ORAKEL_CHANCE, glueckBis: extra.glueckBis ?? 1000,
+        groesse: extra.groesse ?? 75, tokenBild: extra.tokenBild || '', kisteBild: extra.kisteBild || '',
+      };
     default:
       return d;
   }
 }
 
+/** 84213 → „84.213". */
+const tausender = (n) => String(Math.max(0, Math.round(Number(n) || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
 /** Text der HTML-Namensleiste (bei Motiv-Video oder eigener Datei). Escaped. */
-function leistenText(art, e, cfg) {
-  const d = alarmDaten(art, e);
+function leistenText(art, e, cfg, extra) {
+  const d = alarmDaten(art, e, extra);
   const n = escapeHtml(d.name || 'Jemand');
   switch (art) {
     case 'teamherz': return baueUserText(cfg.userText, d.name);
@@ -239,6 +281,7 @@ function leistenText(art, e, cfg) {
     case 'truhe': return `🎁 ${n} schickt eine Truhe${d.coins ? ` (${d.coins} Coins)` : ''}`;
     case 'vip': return `👑 VIP ${n} ist da`;
     case 'ziel': return `🎯 LIVE-Ziel erreicht${d.ziel ? ` (${d.fortschritt}/${d.ziel})` : ''}`;
+    case 'follow': return `🏴‍☠️ ${n} · Token in Kiste Nr. ${tausender(d.kiste)}`;
     default: return n;
   }
 }
@@ -254,6 +297,7 @@ function demoEreignis(art) {
     case 'superfan_betritt': return { type: 'superfan', superfanArt: 'betritt', user };
     case 'truhe': return { type: 'envelope', envelope: { coins: 500 }, user };
     case 'vip': return { type: 'vip_betritt', vip: { stufe: 25 }, user };
+    case 'follow': return { type: 'follow', user };
     case 'ziel': return { type: 'live_ziel', ziel: { id: 'demo', fortschritt: 12, ziel: 12, geschenk: { name: 'Rose' }, erreicht: true, geradeErreicht: true }, user };
     default: return { type: 'level_up', levelUp: { art: 'team', neu: 12 }, user };
   }
@@ -306,6 +350,15 @@ export default class EreignisAlarm {
     this.demoNr = 0;
     this.verfuegbar = [...GEBUENDELT];
     this.ladeVerfuegbare();
+    // Token-/Kistenbild vorladen: sonst zeigt der erste Follow ein paar Bilder
+    // lang die gezeichnete Truhe, bis das Bild da ist.
+    this.vorgeladen = [];
+    if (this.cfg.ereignisse.has('follow') && typeof Image !== 'undefined') {
+      for (const id of [this.cfg.orakelToken, this.cfg.orakelKiste]) {
+        if (!id) continue;
+        try { const i = new Image(); i.src = baueUrl(this.ctx.baseUrl, this.ctx.token, `/media/${encodeURIComponent(id)}`); this.vorgeladen.push(i); } catch { /* egal */ }
+      }
+    }
 
     this.el = document.createElement('div');
     this.el.className = `bx-hz bx-ea${this.cfg.zeigeUser ? '' : ' ohne-user'}`;
@@ -429,11 +482,24 @@ export default class EreignisAlarm {
   }
 
   einreihen(eintrag) {
+    // Die Kiste wird beim Eintreffen gewürfelt, nicht erst beim Abspielen —
+    // so steht die Zahl fest, auch wenn der Alarm in der Warteschlange wartet.
+    if (eintrag.art === 'follow' && !eintrag.extra) eintrag.extra = this.orakelExtra();
     if (!this.aktuell) { this.starte(eintrag); return; }
     if (!this.schlange.rein(eintrag)) {
       const name = eintrag.event?.user?.nickname || 'Jemand';
       this.melde('ueberlauf', `Ereignis-Alarm: ${MAX_WARTEND} Alarme warten schon — „${eintrag.art}" von ${name} verworfen.`);
     }
+  }
+
+  /** Gewürfelte Kiste + Orakel-Einstellungen (Bilder aus der Medien-Bibliothek). */
+  orakelExtra() {
+    const c = this.cfg;
+    const url = (id) => (id ? baueUrl(this.ctx.baseUrl, this.ctx.token, `/media/${encodeURIComponent(id)}`) : '');
+    return {
+      kiste: wuerfleKiste(c.orakelChance), chance: c.orakelChance, glueckBis: c.orakelGlueck,
+      groesse: c.orakelGroesse, tokenBild: url(c.orakelToken), kisteBild: url(c.orakelKiste),
+    };
   }
 
   /** Was wird gespielt? → { typ:'canvas', id } | { typ:'motiv', url } | { typ:'datei'|'bild', url } */
@@ -461,6 +527,7 @@ export default class EreignisAlarm {
 
   starte(eintrag) {
     this.aktuell = eintrag;
+    if (eintrag.art === 'follow' && !eintrag.extra) eintrag.extra = this.orakelExtra();
     try {
       eintrag.plan = this.plane(eintrag.art);
       const plan = eintrag.plan;
@@ -507,7 +574,7 @@ export default class EreignisAlarm {
 
   setzeLeiste(eintrag) {
     if (!this.cfg.zeigeUser) return;
-    this.textEl.innerHTML = leistenText(eintrag.art, eintrag.event, this.cfg);
+    this.textEl.innerHTML = leistenText(eintrag.art, eintrag.event, this.cfg, eintrag.extra);
     const pic = eintrag.event?.user?.profilePic;
     if (pic) { this.picEl.src = pic; this.picEl.classList.remove('leer'); }
     else { this.picEl.removeAttribute('src'); this.picEl.classList.add('leer'); }
@@ -516,7 +583,7 @@ export default class EreignisAlarm {
   starteCanvas(eintrag, stumm) {
     try {
       const id = eintrag.plan.id;
-      this.renderer = erzeugeRenderer(id, alarmDaten(eintrag.art, eintrag.event));
+      this.renderer = erzeugeRenderer(id, alarmDaten(eintrag.art, eintrag.event, eintrag.extra));
       const dauer = Number(this.renderer.dauer) > 0 ? Number(this.renderer.dauer) : 6;
       const g = this.canvas.getContext('2d');
       if (!g) throw new Error('kein 2D-Kontext');

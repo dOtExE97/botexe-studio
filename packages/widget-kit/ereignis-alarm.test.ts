@@ -2,7 +2,7 @@
 // Doppelt-Sperren, Warteschlange und Ablauf (mit Ersatz-DOM).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alarmArt, alarmDaten, Warteschlange, normalisiereCfg, neuerMerker, waehleAnimation } from './ereignis-alarm.js';
+import { alarmArt, alarmDaten, Warteschlange, normalisiereCfg, neuerMerker, waehleAnimation, wuerfleKiste } from './ereignis-alarm.js';
 import EreignisAlarm from './ereignis-alarm.js';
 import HerzAlarm from './herz-alarm.js';
 import { ANIMATIONEN } from './alarm-anim.js';
@@ -192,4 +192,69 @@ test('Ereignis nach destroy() tut nichts', () => {
   w.destroy();
   w.onEvent({ type: 'level_up', levelUp: { art: 'team', neu: 2 } });
   assert.equal(w.aktuell, null);
+});
+
+test('Follow ist standardmäßig aus — bestehende Overlays bleiben unverändert', () => {
+  const cfg = normalisiereCfg({ modus: 'ereignisse' });
+  assert.equal(cfg.ereignisse.has('follow'), false);
+  assert.equal(alarmArt({ type: 'follow', user: { id: 'a' } }, cfg, neuerMerker()), null);
+});
+
+test('Follow: je Zuschauer einmal pro Stream, ohne Merker immer', () => {
+  const cfg = normalisiereCfg({ modus: 'ereignisse', ereignisse: ['follow'] });
+  const m = neuerMerker();
+  assert.equal(alarmArt({ type: 'follow', user: { id: 'a' } }, cfg, m), 'follow');
+  assert.equal(alarmArt({ type: 'follow', user: { id: 'a' } }, cfg, m), null);
+  assert.equal(alarmArt({ type: 'follow', user: { id: 'b' } }, cfg, m), 'follow');
+  assert.equal(alarmArt({ type: 'follow', user: { id: 'a' } }, cfg, neuerMerker()), 'follow');
+  assert.equal(cfg.anim.follow, 'piraten-orakel');
+});
+
+test('wuerfleKiste: Randwerte und geometrische Verteilung', () => {
+  assert.equal(wuerfleKiste(137500, () => 0), 1);
+  assert.ok(wuerfleKiste(137500, () => 0.999999999999) <= 99_999_999);
+  assert.equal(wuerfleKiste(2, () => 0.4), 1);
+  assert.equal(wuerfleKiste(2, () => 0.6), 2);
+  assert.equal(wuerfleKiste('quatsch' as any, () => 0), 1);
+  // Median der Geometrischen ≈ chance · ln 2
+  const med = wuerfleKiste(137500, () => 0.5);
+  assert.ok(Math.abs(med - 137500 * Math.LN2) < 5, `Median ${med}`);
+});
+
+test('Follow-Daten: Kiste und Orakel-Einstellungen gehen an den Renderer', () => {
+  const d: any = alarmDaten('follow', { type: 'follow', user: { nickname: 'Lisa' } }, { kiste: 84213, chance: 1000, glueckBis: 5, groesse: 60, tokenBild: 't', kisteBild: 'k' });
+  assert.equal(d.name, 'Lisa');
+  assert.equal(d.kiste, 84213);
+  assert.equal(d.chance, 1000);
+  assert.equal(d.glueckBis, 5);
+  assert.equal(d.groesse, 60);
+  assert.equal(d.tokenBild, 't');
+  assert.equal(d.kisteBild, 'k');
+});
+
+test('Orakel-Einstellungen: Standard und Grenzen', () => {
+  const c = normalisiereCfg({});
+  assert.equal(c.orakelChance, 137500);
+  assert.equal(c.orakelGlueck, 1000);
+  assert.equal(c.orakelGroesse, 75);
+  const k = normalisiereCfg({ orakelChance: 1, orakelGlueck: -5, orakelGroesse: 500 });
+  assert.equal(k.orakelChance, 2);
+  assert.equal(k.orakelGlueck, 0);
+  assert.equal(k.orakelGroesse, 100);
+});
+
+test('Follow-Ablauf: Kiste wird beim Eintreffen gewürfelt, auch in der Warteschlange', () => {
+  const root = installiereFakeDom();
+  const w: any = new EreignisAlarm(root, { modus: 'ereignisse', ereignisse: ['follow'], orakelChance: 500, orakelToken: 'tok.png' }, { baseUrl: 'http://x/overlay', token: 'k', notify: () => {} });
+  w.onEvent({ type: 'follow', user: { id: 'a', nickname: 'Anna' } });
+  w.onEvent({ type: 'follow', user: { id: 'b', nickname: 'Ben' } });
+  w.onEvent({ type: 'follow', user: { id: 'a', nickname: 'Anna' } }); // doppelt → nichts
+  assert.equal(w.aktuell.art, 'follow');
+  assert.ok(Number.isInteger(w.aktuell.extra.kiste) && w.aktuell.extra.kiste >= 1);
+  assert.equal(w.aktuell.extra.chance, 500);
+  assert.equal(w.aktuell.extra.tokenBild, 'http://x/media/tok.png?token=k');
+  assert.equal(w.aktuell.extra.kisteBild, '');
+  assert.equal(w.schlange.laenge, 1);
+  assert.ok(Number.isInteger(w.schlange.liste[0].extra.kiste));
+  w.destroy();
 });

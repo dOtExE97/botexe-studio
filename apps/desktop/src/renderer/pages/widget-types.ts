@@ -82,6 +82,7 @@ const EA_LEVEL_ANIM = [
 const EA_STANDARD_ANIM: Record<string, string> = {
   teamherz: 'motiv', level_team: 'lvl-tiktok-neon', level_gifter: 'lvl-tiktok-neon', superfan: 'superfan-premium',
   superfan_betritt: 'superfan-premium', truhe: 'truhe-premium', vip: 'vip-gold', ziel: 'ziel-erreicht',
+  follow: 'piraten-orakel',
 };
 
 function ereignisStandardProps(): Record<string, unknown> {
@@ -375,6 +376,7 @@ export const WIDGET_TYPES: {
       modus: 'klassisch',
       motiv: 'rotation', event: 'teamherz', minLevel: 0, sound: 'original', soundId: '', showUser: true, userText: '💜 {name} ist Teil des Teams', accent: '#ff4d8d',
       ereignisse: [...EA_STANDARD_ARTEN], minLevelUp: 0, superfanVerlaengert: true, minVip: 20, qualitaet: 'voll',
+      orakelChance: 137500, orakelGlueck: 1000, orakelGroesse: 75, orakelToken: '', orakelKiste: '',
       ...ereignisStandardProps(),
     },
     fields: [
@@ -408,6 +410,7 @@ export const WIDGET_TYPES: {
         { value: 'truhe', label: '🎁 Truhe' },
         { value: 'vip', label: '👑 VIP betritt das Live' },
         { value: 'ziel', label: '🎯 LIVE-Ziel erreicht' },
+        { value: 'follow', label: '🏴‍☠️ Neuer Follower (Piraten-Orakel)' },
       ] },
       { key: 'minLevelUp', label: 'Level-Up erst ab Stufe', type: 'number', hint: '0 = jeder Aufstieg bekommt eine Animation. Z.B. 10 = erst ab Stufe 10 — dann feiert der Screen nur die großen Sprünge.', showIf: (p) => eaArtAn('level_team')(p) || eaArtAn('level_gifter')(p) },
       { key: 'superfanVerlaengert', label: 'Auch Superfan-Verlängerungen', type: 'boolean', hint: 'An: auch wer sein Superfan-Abo verlängert, bekommt die Animation („SUPERFAN VERLÄNGERT"). Aus: nur neue Superfans.', showIf: eaArtAn('superfan') },
@@ -420,6 +423,12 @@ export const WIDGET_TYPES: {
       ...ereignisFelder('truhe', 'Truhe', [{ value: 'truhe-premium', label: '🎁 Truhe Premium' }]),
       ...ereignisFelder('vip', 'VIP betritt', [{ value: 'vip-gold', label: '👑 VIP Gold' }, { value: 'superfan-premium', label: '⭐ Superfan Premium' }]),
       ...ereignisFelder('ziel', 'LIVE-Ziel', [{ value: 'ziel-erreicht', label: '🎯 Ziel erreicht (Neon)' }]),
+      ...ereignisFelder('follow', 'Follow', [{ value: 'piraten-orakel', label: '🏴‍☠️ Piraten-Orakel' }]),
+      { key: 'orakelToken', label: 'Orakel · Token-Bild', type: 'media', hint: 'Das Token, das aus der Kiste steigt (PNG mit transparentem Hintergrund). Ohne Bild erscheint eine gezeichnete Goldmünze.', showIf: (p) => eaArtAn('follow')(p) && (p.anim_follow ?? 'piraten-orakel') === 'piraten-orakel' },
+      { key: 'orakelKiste', label: 'Orakel · Kisten-Bild', type: 'media', hint: 'Die Kiste, die herunterfällt und aufplatzt (PNG mit transparentem Hintergrund). Ohne Bild erscheint eine gezeichnete Truhe.', showIf: (p) => eaArtAn('follow')(p) && (p.anim_follow ?? 'piraten-orakel') === 'piraten-orakel' },
+      { key: 'orakelChance', label: 'Orakel · Chance 1 zu …', type: 'number', hint: 'Wie selten das Token pro Kiste ist. 137.500 ist der Wert aus dem Spiel. Danach wird jedem Follower „seine" Kistennummer ausgewürfelt — im Schnitt etwa so hoch wie diese Zahl.', showIf: eaArtAn('follow') },
+      { key: 'orakelGlueck', label: 'Orakel · Glückspilz bis Kiste', type: 'number', hint: 'Liegt die gewürfelte Kiste bei oder unter dieser Zahl, gibt es „GLÜCKSPILZ!" mit Münzregen. Bei 1.000 passiert das etwa bei jedem 140. Follower.', showIf: eaArtAn('follow') },
+      { key: 'orakelGroesse', label: 'Orakel · Größe (%)', type: 'number', hint: 'Wie groß die Animation im Bild ist. 100 = ganzer Screen, 75 = Standard, kleiner = mehr Platz drumherum. Erlaubt: 40 bis 100.', showIf: eaArtAn('follow') },
       { key: 'qualitaet', label: 'Qualität', type: 'select', hint: '„Voll" = volle Auflösung, jedes Bild. „Leicht" = halbe Auflösung und höchstens 30 Bilder/s — für schwache Stream-PCs, wenn die Live-Animationen ruckeln.', showIf: istEreignisse, options: [
         { value: 'voll', label: '✨ Voll (Standard)' },
         { value: 'leicht', label: '🪶 Leicht (für schwache PCs)' },
@@ -940,6 +949,18 @@ export const WIDGET_TYPES: {
       ] },
       { key: 'outline', label: 'Dicke Kontur', type: 'boolean', hint: 'Schwarze Outline . Aus = clean.' },
       ACCENT_FIELD,
+    ],
+  },
+  {
+    type: 'piraten-banner', label: 'Piraten-Banner', desc: 'Goldene Plakette für deinen Follow-Gag: „FOLLOW = KISTEN BIS ZUM TOKEN". Das Token dreht sich, ein Glanz läuft drüber, und bei jedem Follow blitzt das Banner auf. Token- und Kistenbild lädst du selbst hoch.',
+    w: 900, h: 170, props: { titel: 'FOLLOW = KISTEN BIS ZUM TOKEN', unterzeile: 'Folge und erfahre, in welcher Kiste dein Piraten-Token liegt', chance: 137500, zeigeChance: true, tokenId: '', kisteId: '', fontFamily: 'lilita', fontScale: 1 },
+    fields: [
+      { key: 'titel', label: 'Überschrift', type: 'text', hint: 'Der große Text. Alles vor dem „=" erscheint als pinke Pille, der Rest in Gold.' },
+      { key: 'unterzeile', label: 'Unterzeile', type: 'text', hint: 'Kleine Zeile darunter. Leer lassen, wenn du sie nicht willst.' },
+      { key: 'zeigeChance', label: 'Chance anzeigen', type: 'boolean', hint: 'Zeigt „CHANCE 1 : 137.500 PRO KISTE" unter dem Text.' },
+      { key: 'chance', label: 'Chance 1 zu …', type: 'number', hint: 'Wie selten das Token ist. 137.500 ist der Wert aus dem Spiel.' },
+      { key: 'tokenId', label: 'Token-Bild', type: 'media', hint: 'Dein Token-Bild (PNG mit transparentem Hintergrund). Ohne Bild zeigt das Banner eine Goldmünze.' },
+      { key: 'kisteId', label: 'Kisten-Bild', type: 'media', hint: 'Optional: eine Kiste rechts im Banner, die leicht hin und her wippt.' },
     ],
   },
   {

@@ -50,7 +50,7 @@ export const CATEGORY_OF: Record<string, string> = {
   // Das Befehl-Karussell zeigt Geschenke — es gehört zu „Gifts & Ziele", nicht
   // zur Deko, und liegt dort als Variante unter dem Geschenk-Menü.
   'command-carousel': 'gifts',
-  'heart-rain': 'deko', 'text-ticker': 'deko', 'social-rotator': 'deko', emojify: 'deko', 'text-label': 'deko',
+  'heart-rain': 'deko', 'text-ticker': 'deko', 'social-rotator': 'deko', emojify: 'deko', 'text-label': 'deko', 'piraten-banner': 'deko',
   media: 'media', 'spotify-now-playing': 'media',
 };
 

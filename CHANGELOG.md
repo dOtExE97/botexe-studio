@@ -5,6 +5,27 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## Unveröffentlicht
 
+### Neu: Piraten-Orakel und Piraten-Banner (Follow-Gag)
+
+Für den Gag „Follow = Kisten bis zum Token" (Fortnite-Piraten-Token, Chance
+etwa 1 : 137.500 pro Kiste):
+
+- **Piraten-Banner** (neues Widget, Deko): goldene Plakette mit
+  „FOLLOW = KISTEN BIS ZUM TOKEN", drehendem Token, Glanz-Sweep und optionaler
+  wippender Kiste. Bei jedem Follow blitzt das Banner auf und das Token wirbelt.
+  Überschrift, Unterzeile und Chance sind einstellbar. Token- und Kistenbild
+  lädt man selbst hoch; ohne Bild erscheint eine eigene Goldmünze. Im
+  Hochkant-Format stellt sich das Banner automatisch untereinander.
+- **Piraten-Orakel** im Herz-Alarm (Modus „Ereignisse", neues Häkchen
+  „Neuer Follower", standardmäßig aus): Kiste fällt, glüht auf, platzt, das
+  Token steigt heraus, und die Kistennummer läuft über Walzen ein. Die Nummer
+  wird mit der echten Chance gewürfelt (geometrisch verteilt, im Schnitt so hoch
+  wie die Chance), je Zuschauer einmal pro Stream, und steht schon beim
+  Eintreffen fest — auch wenn der Alarm in der Warteschlange wartet. Niedrige
+  Nummern feiern einen „Glückspilz" mit Münzregen. Einstellbar: Token- und
+  Kistenbild (Upload), Chance, Glückspilz-Grenze und Größe (40–100 %,
+  Standard 75 %).
+
 ### Neu: Herz-Alarm im Modus „Ereignisse" — ein Screen für alle großen Momente
 
 Im Live vom 08.11. wurde jemand Superfan — und **nichts passierte**. Die Ursache

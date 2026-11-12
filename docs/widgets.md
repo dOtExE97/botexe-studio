@@ -11,8 +11,8 @@ Synthwave …), die das Aussehen komplett verändern. Hier ist jeweils nur die G
 
 Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 
-> Stand: 46 der 48 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
-> Herz-Alarm, Gambling-Automat — in der App ganz normal vorhanden (Overlay → Widget hinzufügen).
+> Stand: 46 der 49 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
+> Herz-Alarm, Gambling-Automat, Piraten-Banner — in der App ganz normal vorhanden (Overlay → Widget hinzufügen).
 
 ## Alerts
 
