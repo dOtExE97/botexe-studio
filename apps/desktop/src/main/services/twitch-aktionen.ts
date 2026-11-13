@@ -1,9 +1,9 @@
 // twitch-aktionen.ts — Knöpfe für den Streamer: Clip, Stream-Marker, Werbung,
-// Shoutout und Chat-Modi umschalten. Ausgelöst über die lokale, token-
+// Shoutout, Chat-Modi umschalten und Raid (starten/abbrechen). Ausgelöst über die lokale, token-
 // geschützte HTTP-API des Overlay-Servers (Stream Deck & Co.).
 //
 // Endpunkte, Scopes, Statuscodes und Abklingzeiten stammen aus
-// docs/twitch-api-belege.md, Abschnitt 10. Was dort „unbelegt" ist, steht hier
+// docs/twitch-api-belege.md, Abschnitte 10 und 11.5. Was dort „unbelegt" ist, steht hier
 // ausdrücklich dabei.
 //
 // Jede Aktion liefert `{ ok: true, info }` oder `{ ok: false, fehler }` — der
@@ -26,6 +26,7 @@ export const TWITCH_MARKER_URL = 'https://api.twitch.tv/helix/streams/markers';
 export const TWITCH_WERBUNG_URL = 'https://api.twitch.tv/helix/channels/commercial';
 export const TWITCH_SHOUTOUT_URL = 'https://api.twitch.tv/helix/chat/shoutouts';
 export const TWITCH_CHAT_SETTINGS_URL = 'https://api.twitch.tv/helix/chat/settings';
+export const TWITCH_RAIDS_URL = 'https://api.twitch.tv/helix/raids';
 const TWITCH_USERS_URL = 'https://api.twitch.tv/helix/users';
 
 /** Werbe-Längen, die die App anbietet. Belegt ist nur „max. meist 180 s"
@@ -63,7 +64,9 @@ export type TwitchAktionAnfrage =
   | { art: 'marker'; beschreibung?: string }
   | { art: 'werbung'; sekunden: WerbeLaenge }
   | { art: 'shoutout'; login?: string }
-  | { art: 'chat-modus'; modus: ChatModus };
+  | { art: 'chat-modus'; modus: ChatModus }
+  | { art: 'raid'; login: string }
+  | { art: 'raid-abbrechen' };
 
 export const NEU_VERBINDEN = 'Bitte Twitch neu verbinden (Einstellungen → Twitch → „Mit Twitch verbinden").';
 
@@ -154,6 +157,8 @@ export class TwitchAktionen {
       case 'werbung': return this.werbung(a.sekunden);
       case 'shoutout': return this.shoutout(a.login);
       case 'chat-modus': return this.chatModus(a.modus);
+      case 'raid': return this.raid(a.login);
+      case 'raid-abbrechen': return this.raidAbbrechen();
     }
   }
 
@@ -318,6 +323,51 @@ export class TwitchAktionen {
     });
   }
 
+  /** Belege 11.5: POST /helix/raids?from_broadcaster_id=…&to_broadcaster_id=…
+   *  → 200. Der Raid läuft danach 90 s herunter (oder „Jetzt raiden"). */
+  async raid(login: string): Promise<TwitchAktionErgebnis> {
+    return this.melde('Raid', async () => {
+      const name = (login ?? '').trim().replace(/^@/, '');
+      if (!name) return { ok: false, fehler: 'Kein Kanal angegeben — hänge „&login=<name>" an die Adresse.' };
+      if (!LOGIN_MUSTER.test(name)) return { ok: false, fehler: `„${name.slice(0, 40)}" ist kein gültiger Twitch-Name.` };
+      const ziel = await this.sucheKanal(name);
+      if ('fehler' in ziel) return { ok: false, fehler: ziel.fehler };
+      const r = await this.helix('POST', (t) => `${TWITCH_RAIDS_URL}?from_broadcaster_id=${encodeURIComponent(t.userId)}`
+        + `&to_broadcaster_id=${encodeURIComponent(ziel.id)}`,
+      undefined, TWITCH_AKTIONS_SCOPES.raid, (t) => (t.userId === ziel.id ? 'Du kannst nicht dich selbst raiden.' : undefined));
+      if (!r.ok) return r;
+      if (r.status >= 200 && r.status < 300) {
+        return { ok: true, info: `Raid zu ${ziel.name} gestartet — Twitch zählt 90 Sekunden herunter (oder in Twitch „Jetzt raiden" klicken). Abbrechen geht bis dahin.` };
+      }
+      if (r.status === 404) return { ok: false, fehler: `Den Twitch-Kanal „${ziel.name}" gibt es nicht.${grund(r.json)}` };
+      if (r.status === 409) return { ok: false, fehler: `Du raidest gerade schon einen anderen Kanal — erst abbrechen, dann neu starten.${grund(r.json)}` };
+      if (r.status === 429) return { ok: false, fehler: `Zu viele Raid-Anfragen — Twitch erlaubt 10 in 10 Minuten. Kurz warten.${grund(r.json)}` };
+      if (r.status === 400) {
+        // Belege 11.5: 400 = blockiert / nimmt keine Raids an / zu groß. „Nicht
+        // live" nennen die Docs nicht — als mögliche Ursache trotzdem dabei.
+        return {
+          ok: false,
+          fehler: `Twitch lässt den Raid zu ${ziel.name} nicht zu — der Kanal nimmt (von dir) keine Raids an oder hat dich blockiert, `
+            + `oder du bist gerade nicht live.${grund(r.json)}`,
+        };
+      }
+      return this.sonstiger('Raid', r.status, r.json);
+    });
+  }
+
+  /** Belege 11.5: DELETE /helix/raids?broadcaster_id=… → 204. */
+  async raidAbbrechen(): Promise<TwitchAktionErgebnis> {
+    return this.melde('Raid abbrechen', async () => {
+      const r = await this.helix('DELETE', (t) => `${TWITCH_RAIDS_URL}?broadcaster_id=${encodeURIComponent(t.userId)}`,
+        undefined, TWITCH_AKTIONS_SCOPES.raid);
+      if (!r.ok) return r;
+      if (r.status >= 200 && r.status < 300) return { ok: true, info: 'Raid abgebrochen.' };
+      if (r.status === 404) return { ok: false, fehler: `Gerade läuft kein Raid, den man abbrechen könnte.${grund(r.json)}` };
+      if (r.status === 429) return { ok: false, fehler: `Zu viele Raid-Anfragen — Twitch erlaubt 10 in 10 Minuten. Kurz warten.${grund(r.json)}` };
+      return this.sonstiger('Raid abbrechen', r.status, r.json);
+    });
+  }
+
   // ── Helfer ────────────────────────────────────────────────────────────────
 
   private shoutoutSperre(zielId: string): string | undefined {
@@ -368,7 +418,7 @@ export class TwitchAktionen {
    *  Erneuern (abgelehntesToken) und eine Wiederholung; danach „neu verbinden".
    *  `scope`: fehlt er im Token, gar nicht erst fragen. */
   private async helix(
-    method: 'GET' | 'POST' | 'PATCH',
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     url: string | ((t: TwitchTokens) => string),
     body?: (t: TwitchTokens) => Record<string, unknown>,
     scope?: string,

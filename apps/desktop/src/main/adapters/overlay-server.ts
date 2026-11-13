@@ -622,7 +622,8 @@ export class OverlayServer {
 
   /** Twitch-Streamer-Aktionen für Stream Deck & Co. (POST, token-geschützt):
    *  /api/twitch/clip, /marker[?beschreibung=], /werbung?sekunden=30…180,
-   *  /shoutout[?login=], /chat-modus?modus=emote|langsam|follower.
+   *  /shoutout[?login=], /chat-modus?modus=emote|langsam|follower,
+   *  /raid?login=<name>, /raid-abbrechen.
    *  Werte kommen aus der Query (Stream-Deck-tauglich) oder dem JSON-Body.
    *  Antwort: das Ergebnis als JSON — 200 bei Erfolg, 409 wenn Twitch/der
    *  Zustand nicht mitspielt (nicht live, Abklingzeit, Rechte fehlen), 400 bei
@@ -678,6 +679,11 @@ export class OverlayServer {
         ? { art: 'chat-modus', modus }
         : { fehler: `Parameter „modus" fehlt oder ist ungültig — erlaubt: ${CHAT_MODI.join(', ')}.` };
     });
+    route('raid', (req) => {
+      const login = wert(req, 'login')?.trim();
+      return login ? { art: 'raid', login } : { fehler: 'Parameter „login" fehlt — an welchen Kanal soll der Raid gehen?' };
+    });
+    route('raid-abbrechen', () => ({ art: 'raid-abbrechen' }));
   }
 
   /** Test-Event von außen einspeisen (curl/Tools) — gleiche Token-Auth,

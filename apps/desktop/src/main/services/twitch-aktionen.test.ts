@@ -349,3 +349,65 @@ test('ausfuehren verteilt nach Art', async () => {
   const e = await w.aktionen.ausfuehren({ art: 'marker', beschreibung: 'Hi' });
   assert.ok(e.ok && /Marker gesetzt bei 0:05/.test(e.info));
 });
+
+// ── Raid (Belege 11.5) ──────────────────────────────────────────────────────
+
+const KUMPEL = { status: 200, body: { data: [{ id: '555', login: 'kumpel', display_name: 'Kumpel' }] } };
+
+test('raid: Login → Get Users → POST /helix/raids mit from/to, ok mit 90-Sekunden-Hinweis', async () => {
+  const w = aufbau({ antworter: (a) => (a.url.includes('/helix/users') ? KUMPEL : { status: 200, body: { data: [{ created_at: 'x', is_mature: false }] } }) });
+  const e = await w.aktionen.ausfuehren({ art: 'raid', login: '@Kumpel' });
+  assert.equal(e.ok, true);
+  assert.match((e as { info: string }).info, /Raid zu Kumpel gestartet.*90 Sekunden/);
+  assert.equal(w.aufrufe[0]!.url, 'https://api.twitch.tv/helix/users?login=kumpel');
+  assert.equal(w.aufrufe[1]!.method, 'POST');
+  assert.equal(w.aufrufe[1]!.url, 'https://api.twitch.tv/helix/raids?from_broadcaster_id=1000&to_broadcaster_id=555');
+  assert.equal(w.aufrufe[1]!.body, undefined, 'kein Body');
+  w.keineGeheimnisse();
+});
+
+test('raid: deutsche Fehler — unbekanntes Ziel, nicht zugelassen/nicht live, läuft schon, Limit, sich selbst', async () => {
+  const fall = async (status: number, body?: unknown) => {
+    const w = aufbau({ antworter: (a) => (a.url.includes('/helix/users') ? KUMPEL : { status, body }) });
+    return w.aktionen.raid('kumpel');
+  };
+  assert.match((await fall(400, { message: 'cannot raid' }) as { fehler: string }).fehler, /nicht zu.*nicht live.*Twitch: cannot raid/);
+  assert.match((await fall(404) as { fehler: string }).fehler, /gibt es nicht/);
+  assert.match((await fall(409) as { fehler: string }).fehler, /schon einen anderen Kanal/);
+  assert.match((await fall(429) as { fehler: string }).fehler, /10 in 10 Minuten/);
+
+  const leer = aufbau({ antworter: () => ({ status: 200, body: { data: [] } }) });
+  const nichtDa = await leer.aktionen.raid('gibtsnicht');
+  assert.match((nichtDa as { fehler: string }).fehler, /gibt es nicht/);
+  assert.equal(leer.aufrufe.length, 1, 'ohne Ziel kein Raid-Aufruf');
+
+  const selbst = aufbau({ antworter: () => ({ status: 200, body: { data: [{ id: '1000', display_name: 'Ich' }] } }) });
+  assert.match(((await selbst.aktionen.raid('alexstreamt')) as { fehler: string }).fehler, /nicht dich selbst/);
+  assert.equal(selbst.aufrufe.length, 1);
+
+  const kaputt = aufbau({ antworter: () => KUMPEL });
+  assert.match(((await kaputt.aktionen.raid('nicht gültig!')) as { fehler: string }).fehler, /kein gültiger Twitch-Name/);
+  assert.equal(kaputt.aufrufe.length, 0);
+});
+
+test('raid: ohne channel:manage:raids (alte Anmeldung) → neu verbinden, kein Raid-Aufruf', async () => {
+  const w = aufbau({
+    tokens: tokens({ scopes: TWITCH_SCOPES.filter((s) => s !== 'channel:manage:raids') }),
+    antworter: () => KUMPEL,
+  });
+  const e = await w.aktionen.raid('kumpel');
+  assert.equal(e.ok, false);
+  assert.match((e as { fehler: string }).fehler, /channel:manage:raids/);
+  assert.ok((e as { fehler: string }).fehler.includes(NEU_VERBINDEN));
+  assert.ok(!w.aufrufe.some((a) => a.url.includes('/helix/raids')));
+});
+
+test('raid-abbrechen: DELETE /helix/raids?broadcaster_id → 204 ok; 404 = kein Raid läuft', async () => {
+  const w = aufbau({ antworter: () => ({ status: 204 }) });
+  const e = await w.aktionen.ausfuehren({ art: 'raid-abbrechen' });
+  assert.deepEqual(e, { ok: true, info: 'Raid abgebrochen.' });
+  assert.equal(w.aufrufe[0]!.method, 'DELETE');
+  assert.equal(w.aufrufe[0]!.url, 'https://api.twitch.tv/helix/raids?broadcaster_id=1000');
+  const n = aufbau({ antworter: () => ({ status: 404 }) });
+  assert.match(((await n.aktionen.raidAbbrechen()) as { fehler: string }).fehler, /kein Raid/);
+});

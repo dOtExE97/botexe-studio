@@ -157,7 +157,7 @@ test('http: /api/twitch/* — Token Pflicht (falsch → 403, nichts ausgeführt)
       ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
     });
 
-    for (const pfad of ['clip', 'marker', 'werbung?sekunden=60', 'shoutout', 'chat-modus?modus=emote']) {
+    for (const pfad of ['clip', 'marker', 'werbung?sekunden=60', 'shoutout', 'chat-modus?modus=emote', 'raid?login=kumpel', 'raid-abbrechen']) {
       const ohne = await post(`/api/twitch/${pfad}`);
       assert.equal(ohne.status, 403, `${pfad} ohne Token`);
       const sep = pfad.includes('?') ? '&' : '?';
@@ -184,6 +184,12 @@ test('http: /api/twitch/* — Token Pflicht (falsch → 403, nichts ausgeführt)
     assert.equal((await post(`/api/twitch/chat-modus?modus=langsam&token=${token}`)).status, 200);
     assert.equal((await post(`/api/twitch/marker?token=${token}`, { beschreibung: 'Highlight' })).status, 200);
     assert.equal((await post(`/api/twitch/werbung?token=${token}`, { sekunden: 180 })).status, 409);
+    const ohneZiel = await post(`/api/twitch/raid?token=${token}`);
+    assert.equal(ohneZiel.status, 400);
+    assert.match(((await ohneZiel.json()) as { fehler: string }).fehler, /login/);
+    assert.equal((await post(`/api/twitch/raid?login=kumpel&token=${token}`)).status, 200);
+    assert.equal((await post(`/api/twitch/raid?token=${token}`, { login: 'freundin' })).status, 200);
+    assert.equal((await post(`/api/twitch/raid-abbrechen?token=${token}`)).status, 200);
 
     assert.deepEqual(anfragen, [
       { art: 'clip' },
@@ -193,6 +199,9 @@ test('http: /api/twitch/* — Token Pflicht (falsch → 403, nichts ausgeführt)
       { art: 'chat-modus', modus: 'langsam' },
       { art: 'marker', beschreibung: 'Highlight' },
       { art: 'werbung', sekunden: 180 },
+      { art: 'raid', login: 'kumpel' },
+      { art: 'raid', login: 'freundin' },
+      { art: 'raid-abbrechen' },
     ]);
   } finally {
     await server.stop();

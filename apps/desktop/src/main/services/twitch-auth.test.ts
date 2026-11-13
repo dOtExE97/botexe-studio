@@ -122,7 +122,7 @@ function gueltigeTokens(extra: Partial<TwitchTokens> = {}): TwitchTokens {
 
 test('TWITCH_SCOPES: die fünf Lese-Scopes + genau die Aktions-Scopes aus den Belegen (10.7, 11.6)', () => {
   assert.deepEqual([...TWITCH_SCOPES].sort(), [
-    'bits:read', 'channel:edit:commercial', 'channel:manage:broadcast', 'channel:read:redemptions',
+    'bits:read', 'channel:edit:commercial', 'channel:manage:broadcast', 'channel:manage:raids', 'channel:read:redemptions',
     'channel:read:subscriptions', 'clips:edit', 'moderator:manage:chat_settings', 'moderator:manage:shoutouts',
     'moderator:read:followers', 'user:read:chat', 'user:write:chat',
   ]);
