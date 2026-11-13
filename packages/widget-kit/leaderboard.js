@@ -177,44 +177,164 @@ const CSS = `
 .bx-st-nummern .bx-lb-name { font-weight: 800; }
 .bx-st-nummern .bx-lb-val { font-family: var(--bx-font-num, var(--bx-font-display)); font-weight: 800; }
 
-/* ── Stil „Schatz" (Gold & Lila, Piraten) — Samtpanel mit Goldrahmen, oben eine
-   Goldplakette als Titel, Platz 1 trägt die Krone, 2 und 3 eine Silber- bzw.
-   Bronzemünze, ab 4 lila Münzen. Profilbilder im Goldring. Rahmen nur als
-   inset-Schatten (bleibt in der Box), Konturen nie über border. */
-.bx-st-schatz { background: radial-gradient(120% 90% at 18% 0%, #2c1658, #1a0c36 55%, #0d0620); border-radius: clamp(10px,3.2cqmin,22px);
-  box-shadow: inset 0 0 0 2px #1d0c03, inset 0 0 0 4px #d49a2e, inset 0 0 0 5.5px #1d0c03, inset 0 2px 18px rgba(0,0,0,.6); }
-.bx-st-schatz::before { display: none; }
-.bx-st-schatz .bx-lb-title { align-self: center; max-width: 88%; box-sizing: border-box; white-space: nowrap; text-overflow: ellipsis;
-  border: none; margin: 0 0 clamp(4px,4cqh,14px); padding: .26em 1.1em .3em; border-radius: .5em;
-  letter-spacing: .1em; color: #5a2f03; text-shadow: 0 .07em 0 rgba(255,246,214,.85), 0 -.04em 0 rgba(60,28,0,.4);
+/* ── Stil „Schatz" (Piraten-Podest) — kompakt: Samtpanel im Holzrahmen mit
+   Messing-Eckkappen, oben ein kurzer Holzbalken mit gravierter Goldplakette,
+   darunter das Podest: Platz 1 groß in der Mitte (Krone, Goldrand), links 2
+   (Silber), rechts 3 (Bronze); Profilbild IM Medaillon, Name darunter, Wert
+   als Pille. Platz 4–5 als kleine Chips in einer Zeile — nur, wenn die Box
+   hoch genug ist. Licht von oben links, dicke dunkle Konturen. Rahmen nur
+   als inset-Schatten/Hintergrund, nie border (frameless).
+   Bewegung: Glanz über die Medaillons, Krone blinkt, ein Platzwechsel lässt
+   das Medaillon aufploppen (Klasse bx-lb-sz-pop). Reduzierte Bewegung und
+   Sparmodus: alles still. */
+.bx-st-schatz { --r: clamp(1px, .75cqmin, 2.2px); --sz-tinte: #1d0c03;
+  padding: clamp(4px,3cqh,14px) calc(var(--r) * 8.4 + clamp(3px,2cqi,12px)) calc(var(--r) * 8.4 + clamp(2px,1.6cqh,8px));
+  border-radius: clamp(8px,4cqmin,18px);
+  background:
+    radial-gradient(70% 60% at 50% 55%, rgba(255,214,110,.16), transparent 70%),
+    url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E %3Cfilter id='s' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='3' stitchTiles='stitch'/%3E %3CfeColorMatrix values='0 0 0 0 0.75 0 0 0 0 0.6 0 0 0 0 1 0 0 0 0.55 -0.2'/%3E%3C/filter%3E %3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E") 0 0 / 46cqmin 46cqmin,
+    radial-gradient(120% 100% at 22% 0%, #2c1658, #1a0c36 55%, #0d0620);
+  box-shadow: inset 0 0 0 calc(var(--r) * 1.4) var(--sz-tinte),
+    inset 0 0 0 calc(var(--r) * 3.2) #b06a2c, inset 0 0 0 calc(var(--r) * 6) #6e3a14, inset 0 0 0 calc(var(--r) * 7.2) #d49a2e, inset 0 0 0 calc(var(--r) * 8.4) var(--sz-tinte),
+    inset 0 calc(var(--r) * 9) calc(var(--r) * 10) rgba(0,0,0,.55); }
+/* Messing-Eckkappen mit Niete (vier Hintergrundschichten). */
+.bx-st-schatz::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 3;
+  --e: clamp(14px, 15cqmin, 34px);
+  background:
+    radial-gradient(circle at 46% 46%, #fff 0 5%, #fff4c8 11%, #e0a93c 20%, #8a5310 27%, #1d0c03 30% 34%, transparent 36%) 0 0 / var(--e) var(--e) no-repeat,
+    radial-gradient(circle at 54% 46%, #fff 0 5%, #fff4c8 11%, #e0a93c 20%, #8a5310 27%, #1d0c03 30% 34%, transparent 36%) 100% 0 / var(--e) var(--e) no-repeat,
+    radial-gradient(circle at 46% 54%, #fff 0 5%, #fff4c8 11%, #e0a93c 20%, #8a5310 27%, #1d0c03 30% 34%, transparent 36%) 0 100% / var(--e) var(--e) no-repeat,
+    radial-gradient(circle at 54% 54%, #fff 0 5%, #fff4c8 11%, #e0a93c 20%, #8a5310 27%, #1d0c03 30% 34%, transparent 36%) 100% 100% / var(--e) var(--e) no-repeat;
+  filter: drop-shadow(0 0 var(--r) var(--sz-tinte)); }
+/* Holzbalken hinter der Plakette, Messingkappen an den Enden. */
+.bx-st-schatz::before { content: ''; display: block; position: absolute; z-index: 0; pointer-events: none;
+  left: 9%; right: 9%; top: calc(clamp(4px,3cqh,14px) + .28 * clamp(9px, min(8.2cqh, 4.6cqi), 19px)); height: calc(1.1 * clamp(9px, min(8.2cqh, 4.6cqi), 19px));
+  border-radius: calc(var(--r) * 2.4); mask: none; -webkit-mask: none; padding: 0;
+  background:
+    linear-gradient(90deg, #6b3f08, #fff4c8 25%, #f5c451 50%, #a8701a) 0 0 / 6% 100% no-repeat,
+    linear-gradient(90deg, #6b3f08, #fff4c8 25%, #f5c451 50%, #a8701a) 100% 0 / 6% 100% no-repeat,
+    linear-gradient(180deg, rgba(255,226,180,.35), transparent 40%, rgba(0,0,0,.35)),
+    url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='90'%3E %3Cfilter id='m' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.008 0.32' numOctaves='3' seed='11' stitchTiles='stitch'/%3E %3CfeColorMatrix values='0 0 0 0 0.14 0 0 0 0 0.06 0 0 0 0 0.01 0 0 0 2.2 -1.0'/%3E%3C/filter%3E %3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E") 0 0 / 60cqmin 16cqmin,
+    linear-gradient(180deg, #d9924a, #a65d27 55%, #5e2f10);
+  box-shadow: 0 0 0 calc(var(--r) * 1.2) var(--sz-tinte), 0 calc(var(--r) * 1.5) 0 calc(var(--r) * .4) rgba(0,0,0,.45); }
+/* Plakette: kleine gravierte Goldplatte auf dem Balken. */
+.bx-st-schatz .bx-lb-title { align-self: center; position: relative; z-index: 2; max-width: 64%; box-sizing: border-box; white-space: nowrap; text-overflow: ellipsis;
+  border: none; margin: 0 0 clamp(2px,2.2cqh,10px); padding: .2em .9em .24em; border-radius: .45em;
+  font-size: calc((clamp(9px, min(8.2cqh, 4.6cqi), 19px)) * var(--bx-fs, 1)); letter-spacing: .12em; line-height: 1.15;
+  color: #5a2f03; text-shadow: 0 .07em 0 rgba(255,246,214,.85), 0 -.05em 0 rgba(60,28,0,.45);
   background: linear-gradient(180deg, rgba(255,255,255,.55) 0 8%, rgba(255,255,255,.15) 46%, transparent 50%),
     linear-gradient(180deg, #fff4c8, #f5c451 35%, #d49a2e 62%, #a8701a 92%);
-  box-shadow: 0 0 0 2px #1d0c03, inset 0 2px 0 rgba(255,255,255,.7), inset 0 -3px 0 rgba(107,63,8,.55), 0 3px 0 #1d0c03, 0 0 18px rgba(255,214,110,.35); }
-.bx-st-schatz .bx-lb-title::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent); }
-.bx-st-schatz .bx-lb-row::after { display: none; }
-.bx-st-schatz .bx-lb-row::before { content: ''; position: absolute; inset: 7% 0; z-index: 0; border-radius: clamp(6px,24cqh,14px);
-  background: linear-gradient(90deg, rgba(145,70,255,.24), rgba(31,17,64,.6) 70%);
-  box-shadow: inset 0 1px 0 rgba(255,222,140,.3), inset 0 0 0 1px rgba(184,129,31,.28), 0 4px 10px -6px rgba(0,0,0,.8); }
-.bx-st-schatz .bx-lb-row[data-rank="1"]::before { background: linear-gradient(90deg, rgba(245,196,81,.38), rgba(122,74,12,.25) 40%, rgba(31,17,64,.6) 80%);
-  box-shadow: inset 0 1px 0 rgba(255,236,170,.6), inset 0 0 0 1px rgba(245,196,81,.6), 0 0 14px -4px rgba(245,196,81,.6); }
+  box-shadow: 0 0 0 calc(var(--r) * 1.3) var(--sz-tinte), inset 0 calc(var(--r) * .9) 0 rgba(255,255,255,.75), inset 0 calc(var(--r) * -1.3) 0 rgba(107,63,8,.55),
+    0 calc(var(--r) * 1.8) 0 calc(var(--r) * .3) var(--sz-tinte), 0 0 calc(var(--r) * 8) rgba(255,214,110,.4); }
+.bx-st-schatz .bx-lb-title::after { width: 30%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent); animation-duration: 5.2s; }
+/* Podest: Raster aus sechs Spalten — 2 | 1 | 3 oben, 4 und 5 als Chips darunter. */
+.bx-st-schatz .bx-lb-list { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr) auto; align-items: end; column-gap: clamp(3px,2cqi,14px); row-gap: clamp(2px,2cqh,8px); min-height: 0; }
+.bx-st-schatz .bx-lb-row { position: relative; height: auto; container-type: normal; transform: none !important; min-width: 0;
+  flex-direction: column; align-items: center; justify-content: flex-end; gap: clamp(1px,1.2cqh,5px); padding: 0; border-radius: 0; background: none; }
+.bx-st-schatz .bx-lb-row[data-rank="1"] { grid-column: 3 / 5; grid-row: 1; padding-bottom: clamp(2px,4cqh,14px); }
+.bx-st-schatz .bx-lb-row[data-rank="2"] { grid-column: 1 / 3; grid-row: 1; }
+.bx-st-schatz .bx-lb-row[data-rank="3"] { grid-column: 5 / 7; grid-row: 1; }
+.bx-st-schatz .bx-lb-row[data-rank="4"] { grid-column: 1 / 4; grid-row: 2; }
+.bx-st-schatz .bx-lb-row[data-rank="5"] { grid-column: 4 / 7; grid-row: 2; }
+.bx-st-schatz .bx-lb-row[data-rank="6"], .bx-st-schatz .bx-lb-row[data-rank="7"], .bx-st-schatz .bx-lb-row[data-rank="8"],
+.bx-st-schatz .bx-lb-row[data-rank="9"], .bx-st-schatz .bx-lb-row[data-rank="10"] { display: none; }
+/* Lichtausbruch hinter dem Medaillon (bei Platzwechsel). */
+.bx-st-schatz .bx-lb-row::before { content: ''; position: absolute; left: 50%; top: 0; width: 120%; aspect-ratio: 1; translate: -50% -12%; z-index: 0; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,240,190,.95), rgba(255,214,110,.55) 30%, transparent 62%),
+    repeating-conic-gradient(rgba(255,236,170,.5) 0 6deg, transparent 6deg 20deg);
+  -webkit-mask-image: radial-gradient(circle, #000 25%, transparent 66%); mask-image: radial-gradient(circle, #000 25%, transparent 66%);
+  opacity: 0; scale: .4; }
 .bx-st-schatz .bx-lb-row > * { position: relative; z-index: 1; }
-.bx-st-schatz .bx-lb-rank { height: 66%; border-radius: 50%; color: #fff; font-size: calc((clamp(9px,32cqh,26px)) * var(--bx-fs, 1));
-  text-shadow: 0 1px 0 rgba(0,0,0,.5);
+/* Medaillon: Profilbild mit Metallrand (Licht oben links, Schatten unten rechts). */
+.bx-st-schatz .bx-lb-pic { order: 1; height: auto; width: clamp(20px, min(28cqh, 16cqi), 78px); flex: none;
+  --m: #f5c451; --m-h: #fff4c8; --m-d: #a8701a;
+  box-shadow: inset 0 0 0 calc(var(--r) * 1.1) var(--sz-tinte), 0 0 0 calc(var(--r) * 2.4) var(--m),
+    calc(var(--r) * -.8) calc(var(--r) * -.8) 0 calc(var(--r) * 2.6) var(--m-h), calc(var(--r) * .9) calc(var(--r) * 1.1) 0 calc(var(--r) * 2.8) var(--m-d),
+    0 0 0 calc(var(--r) * 4.4) var(--sz-tinte), 0 calc(var(--r) * 3) calc(var(--r) * 6) rgba(0,0,0,.6); }
+.bx-st-schatz .bx-lb-row[data-rank="1"] .bx-lb-pic { width: clamp(24px, min(36cqh, 20cqi), 104px);
+  box-shadow: inset 0 0 0 calc(var(--r) * 1.1) var(--sz-tinte), 0 0 0 calc(var(--r) * 2.8) var(--m),
+    calc(var(--r) * -.8) calc(var(--r) * -.8) 0 calc(var(--r) * 3) var(--m-h), calc(var(--r) * .9) calc(var(--r) * 1.1) 0 calc(var(--r) * 3.2) var(--m-d),
+    0 0 0 calc(var(--r) * 5) var(--sz-tinte), 0 0 calc(var(--r) * 10) calc(var(--r) * 4) rgba(255,214,110,.45); }
+.bx-st-schatz .bx-lb-row[data-rank="2"] .bx-lb-pic { --m: #dfe5f1; --m-h: #ffffff; --m-d: #7d879d; }
+.bx-st-schatz .bx-lb-row[data-rank="3"] .bx-lb-pic { --m: #d08440; --m-h: #ffd2a8; --m-d: #6e3410; }
+/* Glanz, der über die Medaillons wischt. */
+.bx-st-schatz .bx-lb-pic::before { content: ''; position: absolute; inset: -10%; z-index: 2; pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.6) 50%, transparent 62%);
+  transform: translateX(-110%); animation: bx-lb-sz-glanz 5.6s ease-in-out infinite; }
+.bx-st-schatz .bx-lb-row[data-rank="2"] .bx-lb-pic::before { animation-delay: .35s; }
+.bx-st-schatz .bx-lb-row[data-rank="3"] .bx-lb-pic::before { animation-delay: .7s; }
+/* Rangmünze: sitzt unten auf dem Medaillon. */
+.bx-st-schatz .bx-lb-rank { order: 2; height: auto; width: clamp(11px, min(9cqh, 5cqi), 24px); aspect-ratio: 1; margin-top: calc(clamp(11px, min(9cqh, 5cqi), 24px) * -.62);
+  border-radius: 50%; z-index: 2; color: #fff; font-size: calc(clamp(7px, min(5.6cqh, 3.1cqi), 14px) * var(--bx-fs, 1)); line-height: 1;
+  text-shadow: 0 1px 0 rgba(0,0,0,.55);
   background: radial-gradient(circle at 35% 30%, #e2d2ff, #9a6ae6 45%, #4b2391);
-  box-shadow: 0 0 0 2px #1d0c03, inset 0 0 0 2px rgba(255,255,255,.28), inset 0 -2px 0 rgba(0,0,0,.35); }
-.bx-st-schatz .bx-lb-row[data-rank="1"] .bx-lb-rank { height: 84%; aspect-ratio: 40 / 34; border-radius: 0; color: transparent; text-shadow: none;
-  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 34'%3E %3Cdefs%3E%3ClinearGradient id='k' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff4c8'/%3E%3Cstop offset='.4' stop-color='%23f5c451'/%3E%3Cstop offset='1' stop-color='%23a8701a'/%3E%3C/linearGradient%3E%3C/defs%3E %3Cpath d='M4 11 L12 18 L20 5 L28 18 L36 11 L33 27 L7 27 Z' fill='url(%23k)' stroke='%231d0c03' stroke-width='2.6' stroke-linejoin='round'/%3E %3Crect x='6.5' y='26' width='27' height='5.5' rx='1.6' fill='url(%23k)' stroke='%231d0c03' stroke-width='2.4'/%3E %3Ccircle cx='4' cy='10' r='2.6' fill='%23fff4c8' stroke='%231d0c03' stroke-width='1.8'/%3E%3Ccircle cx='20' cy='4' r='2.8' fill='%23fff4c8' stroke='%231d0c03' stroke-width='1.8'/%3E%3Ccircle cx='36' cy='10' r='2.6' fill='%23fff4c8' stroke='%231d0c03' stroke-width='1.8'/%3E %3Cpath d='M20 15 l3 4 -3 4 -3 -4z' fill='%23e2304a' stroke='%231d0c03' stroke-width='1.2'/%3E%3Ccircle cx='12' cy='22' r='1.6' fill='%2321c7b4'/%3E%3Ccircle cx='28' cy='22' r='1.6' fill='%2321c7b4'/%3E %3Cpath d='M9 13.5 L12.5 16.6' stroke='%23fffbe6' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; box-shadow: none; filter: drop-shadow(0 0 6px rgba(255,214,110,.75)); }
-.bx-st-schatz .bx-lb-row[data-rank="2"] .bx-lb-rank { color: #2a2f3d; text-shadow: 0 1px 0 rgba(255,255,255,.6);
-  background: radial-gradient(circle at 35% 30%, #ffffff, #dfe5f1 40%, #8d97ad); }
+  box-shadow: 0 0 0 calc(var(--r) * 1.1) var(--sz-tinte), inset 0 0 0 calc(var(--r) * .8) rgba(255,255,255,.3); }
+.bx-st-schatz .bx-lb-row[data-rank="1"] .bx-lb-rank { color: #5a2f03; text-shadow: 0 1px 0 rgba(255,246,214,.8);
+  background: radial-gradient(circle at 35% 30%, #fff4c8, #f5c451 45%, #a8701a); box-shadow: 0 0 0 calc(var(--r) * 1.1) var(--sz-tinte), inset 0 0 0 calc(var(--r) * .8) rgba(255,255,255,.5); }
+.bx-st-schatz .bx-lb-row[data-rank="2"] .bx-lb-rank { color: #2a2f3d; text-shadow: 0 1px 0 rgba(255,255,255,.7);
+  background: radial-gradient(circle at 35% 30%, #fff, #dfe5f1 40%, #7d879d); }
 .bx-st-schatz .bx-lb-row[data-rank="3"] .bx-lb-rank { color: #3a1a04; text-shadow: 0 1px 0 rgba(255,220,180,.6);
-  background: radial-gradient(circle at 35% 30%, #ffd9b0, #d08440 48%, #7a3e12); }
-.bx-st-schatz .bx-lb-pic { height: 70%; box-shadow: 0 0 0 2px #f5c451, 0 0 0 3.5px #1d0c03, 0 0 10px rgba(245,196,81,.4); }
-.bx-st-schatz .bx-lb-name { text-transform: none; color: #f7f2ff; letter-spacing: .01em; text-shadow: 0 2px 0 rgba(10,4,24,.75); }
-.bx-st-schatz .bx-lb-row[data-rank="1"] .bx-lb-name { color: #ffd968; }
-.bx-st-schatz .bx-lb-val { font-family: var(--bx-font-display); font-weight: 400; color: #f5c451; white-space: nowrap;
-  text-shadow: 0 2px 0 rgba(10,4,24,.8), 0 0 .5em rgba(245,196,81,.35); padding-right: .2em; }
-.bx-st-schatz.bx-lb-likes .bx-lb-val { color: #ff9fd8; }
+  background: radial-gradient(circle at 35% 30%, #ffd9b0, #d08440 48%, #6e3410); }
+/* Krone über Platz 1 — glänzt ab und zu auf. */
+.bx-st-schatz .bx-lb-row[data-rank="1"]::after { content: ''; position: relative; left: auto; top: auto; order: 0; z-index: 3; transform: rotate(-6deg);
+  width: clamp(14px, min(14cqh, 8cqi), 44px); height: auto; aspect-ratio: 40 / 34; margin-bottom: calc(clamp(14px, min(14cqh, 8cqi), 44px) * -.42);
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 34'%3E %3Cdefs%3E%3ClinearGradient id='k' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff4c8'/%3E%3Cstop offset='.4' stop-color='%23f5c451'/%3E%3Cstop offset='1' stop-color='%23a8701a'/%3E%3C/linearGradient%3E%3C/defs%3E %3Cpath d='M4 11 L12 18 L20 5 L28 18 L36 11 L33 27 L7 27 Z' fill='url(%23k)' stroke='%231d0c03' stroke-width='2.6' stroke-linejoin='round'/%3E %3Crect x='6.5' y='26' width='27' height='5.5' rx='1.6' fill='url(%23k)' stroke='%231d0c03' stroke-width='2.4'/%3E %3Ccircle cx='4' cy='10' r='2.6' fill='%23fff4c8' stroke='%231d0c03' stroke-width='1.8'/%3E%3Ccircle cx='20' cy='4' r='2.8' fill='%23fff4c8' stroke='%231d0c03' stroke-width='1.8'/%3E%3Ccircle cx='36' cy='10' r='2.6' fill='%23fff4c8' stroke='%231d0c03' stroke-width='1.8'/%3E %3Cpath d='M20 15 l3 4 -3 4 -3 -4z' fill='%23e2304a' stroke='%231d0c03' stroke-width='1.2'/%3E%3Ccircle cx='12' cy='22' r='1.6' fill='%2321c7b4'/%3E%3Ccircle cx='28' cy='22' r='1.6' fill='%2321c7b4'/%3E %3Cpath d='M9 13.5 L12.5 16.6' stroke='%23fffbe6' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,.45)); animation: bx-lb-sz-krone 3.8s ease-in-out infinite; }
+.bx-st-schatz .bx-lb-name { order: 3; flex: none; max-width: 100%; box-sizing: border-box; text-align: center; text-transform: none;
+  font-size: calc((clamp(8px, min(7.6cqh, 4cqi), 18px)) * var(--bx-fs, 1)); line-height: 1.1; letter-spacing: .01em; color: #f7f2ff;
+  -webkit-text-stroke: max(2px, .16em) var(--sz-tinte); paint-order: stroke fill; text-shadow: 0 .1em 0 var(--sz-tinte); }
+.bx-st-schatz .bx-lb-row[data-rank="1"] .bx-lb-name { color: #ffd968; font-size: calc((clamp(9px, min(8.6cqh, 4.6cqi), 21px)) * var(--bx-fs, 1)); }
+.bx-st-schatz .bx-lb-val { order: 4; max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--bx-font-display); font-weight: 400; font-size: calc((clamp(7px, min(6cqh, 3.2cqi), 15px)) * var(--bx-fs, 1)); line-height: 1.2;
+  padding: .12em .7em .14em; border-radius: 99px; color: #ffd968; text-shadow: 0 1px 0 rgba(0,0,0,.6);
+  background: linear-gradient(180deg, #3a1d70, #1a0c36);
+  box-shadow: 0 0 0 calc(var(--r) * 1) var(--sz-tinte), inset 0 0 0 calc(var(--r) * .6) rgba(212,154,46,.75), inset 0 calc(var(--r) * .8) 0 rgba(255,255,255,.12); }
+.bx-st-schatz .bx-lb-row[data-rank="1"] .bx-lb-val { color: #5a2f03; text-shadow: 0 1px 0 rgba(255,246,214,.75);
+  background: linear-gradient(180deg, rgba(255,255,255,.5) 0 10%, transparent 50%), linear-gradient(180deg, #fff4c8, #f5c451 40%, #c48a24);
+  box-shadow: 0 0 0 calc(var(--r) * 1) var(--sz-tinte), inset 0 calc(var(--r) * -.8) 0 rgba(107,63,8,.5); }
+/* Plätze 4 und 5: kleine Chips in einer Zeile, ohne großes Medaillon. */
+.bx-st-schatz .bx-lb-row[data-rank="4"], .bx-st-schatz .bx-lb-row[data-rank="5"] { flex-direction: row; justify-content: center; gap: .35em;
+  padding: .12em .5em; border-radius: 99px; font-size: calc((clamp(7px, 5.4cqh, 13px)) * var(--bx-fs, 1));
+  background: rgba(13,6,32,.6); box-shadow: 0 0 0 calc(var(--r) * .8) var(--sz-tinte), inset 0 0 0 calc(var(--r) * .6) rgba(212,154,46,.45); }
+.bx-st-schatz .bx-lb-row[data-rank="4"] .bx-lb-pic, .bx-st-schatz .bx-lb-row[data-rank="5"] .bx-lb-pic { display: none; }
+.bx-st-schatz .bx-lb-row[data-rank="4"] .bx-lb-rank, .bx-st-schatz .bx-lb-row[data-rank="5"] .bx-lb-rank { order: 0; margin: 0; width: 1.5em; font-size: 1em; }
+.bx-st-schatz .bx-lb-row[data-rank="4"] .bx-lb-name, .bx-st-schatz .bx-lb-row[data-rank="5"] .bx-lb-name { font-size: 1em; min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bx-st-schatz .bx-lb-row[data-rank="4"] .bx-lb-val, .bx-st-schatz .bx-lb-row[data-rank="5"] .bx-lb-val { font-size: .9em; padding: 0; background: none; box-shadow: none; flex: none; }
+/* Zu flach für eine zweite Zeile: dann nur das Podest. */
+@container (max-height: 200px) {
+  .bx-st-schatz .bx-lb-row[data-rank="4"], .bx-st-schatz .bx-lb-row[data-rank="5"] { display: none; }
+  .bx-st-schatz .bx-lb-list { grid-template-rows: minmax(0, 1fr); } }
+/* Mit Chip-Zeile: Medaillons etwas kleiner, damit beides Platz hat. */
+@container (min-height: 201px) {
+  .bx-st-schatz .bx-lb-pic { width: clamp(20px, min(19cqh, 13cqi), 78px); }
+  .bx-st-schatz .bx-lb-row[data-rank="1"] .bx-lb-pic { width: clamp(24px, min(25cqh, 17cqi), 104px); }
+  .bx-st-schatz .bx-lb-row[data-rank="1"] { padding-bottom: clamp(2px,2.5cqh,10px); } }
+/* Ohne Profilbilder wird die Rangmünze selbst zum Medaillon. */
+.bx-st-schatz.bx-lb-ohnebild .bx-lb-row:not([data-rank="4"]):not([data-rank="5"]) .bx-lb-rank { width: clamp(18px, 20cqh, 56px); margin-top: 0; font-size: calc(clamp(10px, 11cqh, 30px) * var(--bx-fs, 1)); }
+/* Leer: elegant mitten aufs Podest. */
+.bx-st-schatz .bx-lb-empty { grid-column: 1 / -1; grid-row: 1 / -1; align-self: center; height: auto; flex-direction: column; gap: .35em;
+  text-transform: none; letter-spacing: .02em; font-family: var(--bx-font-display); color: #ffd968; text-align: center;
+  font-size: calc((clamp(9px, min(8cqh, 4.4cqi), 19px)) * var(--bx-fs, 1));
+  -webkit-text-stroke: max(2px, .14em) var(--sz-tinte); paint-order: stroke fill; }
+.bx-st-schatz .bx-lb-empty::before { content: ''; width: 2.2em; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #fff4c8 15%, #f5c451 45%, #a8701a 80%);
+  box-shadow: 0 0 0 calc(var(--r) * 1.2) var(--sz-tinte), inset 0 0 0 calc(var(--r) * 1.6) rgba(168,112,26,.8), 0 0 1em rgba(255,214,110,.5);
+  animation: bx-lb-sz-muenze 3.2s ease-in-out infinite; }
+/* Platzwechsel: Medaillon ploppt, Licht bricht dahinter auf. */
+.bx-st-schatz .bx-lb-row.bx-lb-sz-pop .bx-lb-pic, .bx-st-schatz .bx-lb-row.bx-lb-sz-pop .bx-lb-rank { animation: bx-lb-sz-pop 700ms cubic-bezier(.2,1.6,.4,1); }
+.bx-st-schatz .bx-lb-row.bx-lb-sz-pop::before { animation: bx-lb-sz-burst 900ms ease-out; }
+@keyframes bx-lb-sz-glanz { 0%, 72% { transform: translateX(-110%); } 100% { transform: translateX(110%); } }
+@keyframes bx-lb-sz-krone { 0%, 80%, 100% { filter: drop-shadow(0 2px 0 rgba(0,0,0,.45)) brightness(1); } 88% { filter: drop-shadow(0 2px 0 rgba(0,0,0,.45)) drop-shadow(0 0 6px #fff4c8) brightness(1.35); } }
+@keyframes bx-lb-sz-pop { 0% { scale: 1; } 30% { scale: 1.22; } 100% { scale: 1; } }
+@keyframes bx-lb-sz-burst { 0% { opacity: 0; scale: .4; } 25% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: 1.3; } }
+@keyframes bx-lb-sz-muenze { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(180deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .bx-st-schatz *, .bx-st-schatz *::before, .bx-st-schatz *::after { animation: none !important; } }
+html.bx-perf .bx-st-schatz *, html.bx-perf .bx-st-schatz *::before, html.bx-perf .bx-st-schatz *::after { animation: none !important; }
 html .bx-frameless .bx-st-schatz { background: none; box-shadow: none; }
+html .bx-frameless .bx-st-schatz .bx-lb-val { -webkit-text-stroke: 0; }
+html .bx-frameless .bx-st-schatz::before, html .bx-frameless .bx-st-schatz::after { display: none; }
 /* Twitch-Quelle: Werte in Twitch-Lila (Standard-Stile), außer beim Schatz-Gold. */
 .bx-lb-twitch:not(.bx-st-schatz):not(.bx-st-pills):not(.bx-st-treppe) .bx-lb-val { color: #bf94ff; text-shadow: 0 0 10px rgba(145,70,255,.45); }
 .bx-lb-twitch:not(.bx-st-schatz) .bx-lb-title { color: #bf94ff; border-bottom-color: rgba(145,70,255,.45); }
@@ -246,7 +366,7 @@ html .bx-frameless .bx-lb:not(.bx-st-pills):not(.bx-st-treppe) .bx-lb-val { -web
    Schein über „filter", der die tatsächliche Silhouette aus Profilbild, Name
    und Wert umfasst — plus das Anheben, das hier ohne Ortswechsel funktioniert,
    weil die Spalten per Flexbox und nicht per transform sitzen. */
-.bx-premium .bx-st-arcade .bx-lb-row.bx-hit, .bx-premium .bx-st-podium .bx-lb-row.bx-hit {
+.bx-premium .bx-st-arcade .bx-lb-row.bx-hit, .bx-premium .bx-st-podium .bx-lb-row.bx-hit, .bx-premium .bx-st-schatz .bx-lb-row.bx-hit {
   animation: bx-premium-lift 900ms cubic-bezier(0.2, 1.5, 0.35, 1),
     bx-lb-hit-schein 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
 @keyframes bx-lb-hit-schein {
@@ -332,11 +452,14 @@ export default class Leaderboard {
     this.limit = Math.min(10, Math.max(1, Number(props.limit ?? 5)));
     this.showPic = props.showPic !== false;
     this.el = document.createElement('div');
-    this.el.className = `bx-lb bx-st-${this.style}${this.q.klasse}`;
-    this.el.innerHTML = `<div class="bx-lb-title"></div><div class="bx-lb-list"><div class="bx-lb-empty">${this.q.leer}</div></div>`;
+    const schatz = this.style === 'schatz';
+    this.el.className = `bx-lb bx-st-${this.style}${this.q.klasse}${schatz && !this.showPic ? ' bx-lb-ohnebild' : ''}`;
+    // Schatz-Podest: eigener, freundlicher Leertext für alle Quellen.
+    this.leer = schatz ? 'Noch keine Schätze – sei der Erste!' : this.q.leer;
+    this.el.innerHTML = `<div class="bx-lb-title"></div><div class="bx-lb-list"><div class="bx-lb-empty"></div></div>`;
+    this.el.querySelector('.bx-lb-empty').textContent = this.leer;
     // Schatz-Stil: eigener Titel auf der Plakette und eigene Schriften — beides
     // nur, solange der Nutzer nichts Eigenes gesetzt hat.
-    const schatz = this.style === 'schatz';
     this.el.querySelector('.bx-lb-title').textContent = props.title || (schatz ? 'Top Piraten' : this.q.titel);
     if (schatz && !props.fontFamily) {
       this.el.style.setProperty('--bx-font-display', "'Lilita One', 'Arial Black'");
@@ -372,6 +495,14 @@ export default class Leaderboard {
     const t = setTimeout(() => { this.timers.delete(t); el.classList.remove('bx-hit'); }, 900);
     this.timers.add(t);
   }
+  /** Schatz-Podest: Klasse kurz setzen (neu anstoßen bei schneller Folge). */
+  ploppe(row) {
+    row.classList.remove('bx-lb-sz-pop');
+    void row.offsetWidth;
+    row.classList.add('bx-lb-sz-pop');
+    const t = setTimeout(() => { this.timers.delete(t); row.classList.remove('bx-lb-sz-pop'); }, 950);
+    this.timers.add(t);
+  }
   onStats(stats) {
     const src = this.q.liste(stats);
     const items = (Array.isArray(src) ? src : []).slice(0, this.limit);
@@ -383,7 +514,7 @@ export default class Leaderboard {
     // Verkleinern werden die Zeilen enger statt unten abgeschnitten.
     // arcade + podium layouten per Flexbox (height:auto) — Fixhöhe würde die
     // Podest-Spalten abschneiden.
-    const flexStyle = this.style === 'arcade' || this.style === 'podium';
+    const flexStyle = this.style === 'arcade' || this.style === 'podium' || this.style === 'schatz';
     const rowH = !flexStyle
       ? Math.max(22, (list.clientHeight || this.limit * 48) / this.limit)
       : 0;
@@ -402,7 +533,13 @@ export default class Leaderboard {
       const val = Number(this.q.wert(g)) || 0;
       // Bemerkenswerter Moment: neu in der Liste oder nach oben geklettert.
       const prevRank = this.ranks.get(g.id);
-      if (fresh || (prevRank != null && i + 1 < prevRank)) this.hit(row);
+      if (fresh || (prevRank != null && i + 1 < prevRank)) {
+        this.hit(row);
+        // Schatz-Podest: der Aufsteiger ploppt mit Lichtausbruch — unabhängig
+        // von der Premium-Ebene, aber nicht beim allerersten Stand (Overlay
+        // geladen, Vorschau befüllt), sonst ploppt beim Start alles auf einmal.
+        if (this.style === 'schatz' && this.hatStand) this.ploppe(row);
+      }
       this.ranks.set(g.id, i + 1);
       // NUR schreiben, wenn sich wirklich etwas geaendert hat.
       //
@@ -448,9 +585,10 @@ export default class Leaderboard {
     if (items.length === 0 && !list.querySelector('.bx-lb-empty')) {
       const ph = document.createElement('div');
       ph.className = 'bx-lb-empty';
-      ph.textContent = this.q.leer;
+      ph.textContent = this.leer;
       list.appendChild(ph);
     }
+    if (items.length > 0) this.hatStand = true;
     if (this.style === 'arcade') {
       // DOM-reihenfolge = rang-reihenfolge (flexbox legt nebeneinander)
       items.forEach((g) => { const r = this.rows.get(g.id); if (r) list.appendChild(r); });

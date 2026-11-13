@@ -637,6 +637,32 @@ export const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'leaderboard', label: 'Top Piraten (Twitch)', desc: 'Deine größten Twitch-Supporter als goldenes Piraten-Podest: Platz 1 mit Krone in der Mitte, Silber und Bronze daneben — Bits und Subs zählen.',
+    w: 420, h: 190, props: { source: 'twitch', limit: 5, title: '', style: 'schatz', showPic: true, fontFamily: '', fontScale: 1, textColor: '' },
+    fields: [
+      { key: 'source', label: 'Quelle', type: 'select', hint: 'Wonach die Liste sortiert: „Gifts" nach ausgegebenen Coins, „Likes" nach gedrückten Herzen, „Twitch-Supporter" nach Bits und Subs auf Twitch (1 Bit = 1 Punkt, 1 Sub = 500 Punkte, verschenkte Subs zählen beim Schenkenden). Verschiedene Bestenlisten — leg dir ruhig mehrere nebeneinander.', options: [
+        { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' }, { value: 'twitch', label: 'Twitch-Supporter (Bits + Subs)' },
+      ] },
+      styleField([
+        { value: 'arcade', label: 'Arcade (Avatare + Kronen)' },
+        { value: 'glas', label: 'Glas (Panel)' },
+        { value: 'neon', label: 'Neon (durchscheinend)' },
+        { value: 'bars', label: 'Balken (minimal)' },
+        { value: 'podium', label: 'Podium (Siegertreppchen Top 3)' },
+        { value: 'pills', label: 'Bunte Pillen' },
+        { value: 'royal', label: 'Royal (Gold & Samt, edel)' },
+        { value: 'treppe', label: 'Treppe (Staffelung nach Rang)' },
+        { value: 'nummern', label: 'Nummern (groß, typografisch)' },
+        { value: 'schatz', label: 'Schatz (Gold & Lila, Piraten)' },
+      ]),
+      { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Zuschauer angezeigt werden (1–10).' },
+      { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Likes", „Top Gifter", „Top Supporter"; beim Stil Schatz „Top Piraten").' },
+      { key: 'showPic', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Avatare der Zuschauer anzeigen.' },
+      ACCENT_FIELD,
+      ...STYLE_FIELDS,
+    ],
+  },
+  {
     type: 'top-rotator', label: 'Bestenliste (Wechsel)', desc: 'Zeigt abwechselnd Top Gifter, Top Likes, Top Punkte — smooth übergeblendet, untereinander. Ideal fürs Hochformat.',
     w: 460, h: 360, props: { sources: 'gifts,likes', interval: 5, limit: 5, style: 'glas', accent: '', showPic: true, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [

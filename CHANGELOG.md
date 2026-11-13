@@ -74,9 +74,16 @@ eigenem Overlay und eigenem Chat:
   was jemand gegeben hat („1.500 Bits“, „3 Subs“, „2 Subs + 300 Bits“). Die
   Liste übersteht wie die übrige Statistik einen Neustart der App; TikTok-
   Zahlen und die Stream-Historie bleiben davon unberührt.
-- **Bestenliste: neuer Stil „Schatz“** — lila Samtpanel mit Goldrahmen,
-  Goldplakette „TOP PIRATEN“, Platz 1 mit Krone, 2 und 3 mit Silber- und
-  Bronzemünze, Profilbilder im Goldring. Passt zu jeder Quelle.
+- **Bestenliste: neuer Stil „Schatz“ (Piraten-Podest)** — kompakt: Samtpanel im
+  Holzrahmen mit Messingnieten, oben ein Holzbalken mit gravierter Goldplakette
+  „TOP PIRATEN“. Darunter das Podest: Platz 1 groß in der Mitte mit Krone und
+  Goldrand, links Platz 2 (Silber), rechts Platz 3 (Bronze) — Profilbild im
+  Medaillon, Name darunter, Wert als Pille. Platz 4 und 5 erscheinen als kleine
+  Chips, wenn die Box hoch genug ist. Glanz wischt über die Medaillons, die
+  Krone blitzt, wer aufsteigt, ploppt mit Lichtausbruch auf. Leer steht dort
+  „Noch keine Schätze – sei der Erste!“. Mit „Rahmen ausblenden“ bleibt nur
+  das Podest. Neu in der Palette: **„Top Piraten (Twitch)“** — fertig
+  eingestellt (Twitch-Supporter, Stil Schatz, 420×190).
 
 Einrichten in drei Zeilen: Client-ID auf dev.twitch.tv/console holen (Kategorie
 Application Integration, Client-Typ Öffentlich) → in der App verbinden →
