@@ -14,6 +14,11 @@ eigenem Overlay und eigenem Chat:
   „Mit Twitch verbinden", Code im Browser bestätigen. Danach verbindet die App
   beim Start von allein. Follows, Chat (mit Emotes), Subs, Bits und Raids
   kommen als ganz normale Ereignisse an — deine Regeln greifen auch für Twitch.
+- **Streamer-Aktionen für Twitch** über die lokale Steuer-Schnittstelle (z. B.
+  per Stream Deck): Clip erstellen, Marker setzen, Werbung starten, Shoutout
+  (ohne Namen an den letzten Raider) und Chat-Modi umschalten (Emote-Only,
+  Langsam, Nur Follower). Dafür braucht die App mehr Twitch-Rechte — wer schon
+  verbunden war, muss sich **einmal neu mit Twitch verbinden**.
 - **Plattform je Overlay**: Im Overlay-Editor steht neben dem Profilnamen jetzt
   „Alle Plattformen / Nur TikTok / Nur Twitch". Ein Overlay „Nur TikTok" zeigt
   keine Twitch-Nachrichten und keine Twitch-Alarme, und umgekehrt. Bestehende
