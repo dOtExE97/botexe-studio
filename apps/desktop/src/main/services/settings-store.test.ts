@@ -408,3 +408,31 @@ test('einstellungenFuerRenderer (SETTINGS_GET): die übrigen Geheimnisse bleiben
   assert.equal(r.obsPasswordSet, true);
   assert.equal((r.obs as Record<string, unknown>).url, 'ws://x');
 });
+
+test('Twitch: andere Client-ID (Hand, Profilwechsel, Import) → alte Tokens werden verworfen', () => {
+  const dir = tmpDir();
+  const store = new SettingsStore(dir, xorKrypto);
+  store.update({ twitchClientId: 'abc123', twitchTokens });
+  store.update({ twitchClientId: 'abc123' }); // gleiche ID → bleibt
+  assert.deepEqual(store.get().twitchTokens, twitchTokens);
+  // Profilwechsel/Import laufen über sanitizeSettingsPatch → update()
+  store.update(sanitizeSettingsPatch({ twitchClientId: 'andereid' }, store.get()));
+  assert.equal(store.get().twitchTokens, undefined);
+  assert.equal(new SettingsStore(dir, xorKrypto).get().twitchTokens, undefined, 'auch auf der Platte weg');
+});
+
+test('Twitch: Client-ID leeren → Tokens weg; ID + neue Tokens im selben Patch → neue Tokens bleiben', () => {
+  const store = new SettingsStore(tmpDir(), xorKrypto);
+  store.update({ twitchClientId: 'abc123', twitchTokens });
+  store.update({ twitchClientId: '' });
+  assert.equal(store.get().twitchTokens, undefined);
+  store.update({ twitchClientId: 'neu1', twitchTokens });
+  assert.deepEqual(store.get().twitchTokens, twitchTokens);
+});
+
+test('einstellungenFuerRenderer: kaputte Twitch-Tokens gelten als nicht verbunden', () => {
+  const basis = new SettingsStore(tmpDir()).get();
+  const r = einstellungenFuerRenderer({ ...basis, twitchTokens: { accessToken: 5 } as unknown as TwitchTokens });
+  assert.equal(r.twitchConnected, false);
+  assert.equal(r.twitchTokens, undefined);
+});

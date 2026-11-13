@@ -11,7 +11,7 @@ import { DEFAULT_MIXER, normalizeMixer, type MixerSettings } from '../../shared/
 import { log } from '../core/logger';
 import { schreibeAtomar } from '../core/atomar-schreiben';
 import { packe, entpacke, type Krypto } from './secret-box';
-import { istGueltigeTwitchClientId } from './twitch-auth';
+import { istGueltigeTwitchClientId, sindTwitchTokens } from './twitch-auth';
 
 export const SETTINGS_SCHEMA_VERSION = 7;
 
@@ -577,6 +577,17 @@ export class SettingsStore {
     // beim Erneuern ein NEUES Refresh-Token, kann es nicht speichern, arbeitet
     // weiter mit dem alten, und das lehnt Spotify beim nächsten Versuch zu
     // Recht ab. Ergebnis wäre eine Zwangs-Abmeldung mitten im Stream.
+    // Twitch-Tokens gehören zu genau EINER Client-ID (Refresh/Revoke laufen
+    // mit ihr). Ändert sich die ID — von Hand, per Profilwechsel oder
+    // Backup-Import —, sind die alten Tokens wertlos und werden verworfen.
+    // Hier und nicht im Renderer-Pfad, weil ALLE Wege durch update() gehen.
+    // (Widerrufen geht nicht mehr — dafür bräuchte es die alte ID.)
+    if (typeof patch.twitchClientId === 'string' && patch.twitchClientId !== this.cache.twitchClientId
+      && this.cache.twitchTokens && !('twitchTokens' in patch)) {
+      patch = { ...patch, twitchTokens: undefined };
+      log.info('Settings', 'Die Twitch-Client-ID hat sich geändert — die bisherige Twitch-Anmeldung gilt dafür nicht '
+        + 'und wurde entfernt. Bitte in den Einstellungen neu mit Twitch verbinden.');
+    }
     this.cache = { ...this.cache, ...patch, schemaVersion: SETTINGS_SCHEMA_VERSION };
     // Geheimnisse wandern in den verschlüsselten Block, statt im Klartext auf
     // der Platte zu liegen (s. secret-box.ts).
@@ -863,7 +874,7 @@ export function einstellungenFuerRenderer(settings: StudioSettings): Record<stri
   delete safe.controlToken;      // Steuer-/Overlay-Token (Renderer braucht ihn nie)
   safe.spotifyConnected = !!(safe.spotifyTokens && typeof safe.spotifyTokens === 'object');
   delete safe.spotifyTokens;     // OAuth-Tokens nie an den Renderer
-  safe.twitchConnected = !!(safe.twitchTokens && typeof safe.twitchTokens === 'object');
+  safe.twitchConnected = sindTwitchTokens(safe.twitchTokens); // kaputte Tokens = nicht verbunden
   delete safe.twitchTokens;      // OAuth-Tokens nie an den Renderer
   if (safe.obs && typeof safe.obs === 'object') {
     const obs = safe.obs as Record<string, unknown>;

@@ -41,6 +41,18 @@ const STANDARD_INTERVALL_S = 5;
 /** Unbelegt: Twitch dokumentiert kein `slow_down`. Kommt es doch, wird nach
  *  RFC 8628 die Pause um 5 Sekunden verlängert. */
 const SLOW_DOWN_PLUS_MS = 5_000;
+/** Fehlt `expires_in` in der Token-Antwort (sollte laut Belege 1.4/1.7 nie
+ *  passieren): Access-Tokens leben laut Belege 1.6 4 Stunden. Wir nehmen
+ *  vorsichtig 1 Stunde an — zu früh erneuern schadet nicht, „jeder Aufruf
+ *  erneuert" (expiresAt = jetzt) wäre ein Refresh-Sturm. */
+const ERSATZ_LEBENSDAUER_S = 3600;
+/** Zeitlimit je Anfrage an Twitch. Ohne bliebe ein hängender Refresh bis zu
+ *  ~5 Minuten offen — und alle getValidToken()-Aufrufer warten daran mit. */
+export const TWITCH_ANFRAGE_TIMEOUT_MS = 15_000;
+/** Kurze Wiederholungen, wenn /validate direkt nach dem Login nicht erreichbar
+ *  ist — der Gerätecode ist dann schon verbraucht, Aufgeben hieße „nochmal". */
+const LOGIN_PRUEF_VERSUCHE = 3;
+const LOGIN_PRUEF_PAUSE_MS = 2_000;
 
 export interface TwitchTokens {
   accessToken: string;
@@ -89,7 +101,7 @@ interface Ausstehend {
 }
 
 type Pruefung =
-  | { ergebnis: 'ok'; userId: string; login: string; scopes: string[] }
+  | { ergebnis: 'ok'; userId: string; login: string; scopes: string[]; clientId?: string }
   | { ergebnis: 'ungueltig' }
   | { ergebnis: 'unklar' };
 
@@ -112,6 +124,16 @@ function standardSleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 /** `scope` ist laut Tabelle ein String, im JSON-Beispiel ein Array (Belege
  *  1.4) — beides verstehen. Fehlt es, `undefined`. */
+/** Lebensdauer aus der Antwort (Sekunden) — mit Ersatzwert, falls sie fehlt. */
+function lebensdauerS(roh: unknown): number {
+  return typeof roh === 'number' && Number.isFinite(roh) && roh > 0 ? roh : ERSATZ_LEBENSDAUER_S;
+}
+
+/** Gehören die gespeicherten Tokens noch zu demselben Stand wie `t`? */
+function gleicheTokens(a: TwitchTokens | undefined, b: TwitchTokens): boolean {
+  return !!a && a.accessToken === b.accessToken && a.refreshToken === b.refreshToken;
+}
+
 function leseScopes(roh: unknown): string[] | undefined {
   if (Array.isArray(roh)) return roh.filter((s): s is string => typeof s === 'string');
   if (typeof roh === 'string') return roh.split(/\s+/).filter(Boolean);
@@ -131,7 +153,9 @@ async function leseJson(res: Response): Promise<Record<string, unknown>> {
   }
 }
 
-function istTokens(t: unknown): t is TwitchTokens {
+/** Vollständige, brauchbare Tokens? (Handbearbeitete settings.json o. Ä.
+ *  → nein.) Auch für das `twitchConnected`-Flag im Renderer. */
+export function sindTwitchTokens(t: unknown): t is TwitchTokens {
   if (typeof t !== 'object' || t === null) return false;
   const o = t as Record<string, unknown>;
   return typeof o.accessToken === 'string' && o.accessToken.length > 0
@@ -163,18 +187,34 @@ export class TwitchAuth {
     this.deps.log?.(stufe, text);
   }
 
-  private clientId(): string {
+  /** Eingetragene Client-ID. `relogin`: fehlt sie bei bestehender Anmeldung,
+   *  ist das kein vorübergehender Fehler, sondern „neu verbinden". */
+  private clientId(relogin = false): string {
     const id = this.deps.getClientId().trim();
     if (!istGueltigeTwitchClientId(id)) {
-      throw new Error('Keine gültige Twitch-Client-ID eingetragen (Einstellungen → Twitch). '
-        + 'Sie besteht nur aus Buchstaben und Ziffern.');
+      const text = 'Keine gültige Twitch-Client-ID eingetragen (Einstellungen → Twitch). '
+        + 'Sie besteht nur aus Buchstaben und Ziffern.';
+      throw relogin ? new TwitchReloginNoetig(text) : new Error(text);
     }
     return id;
   }
 
   private tokens(): TwitchTokens | undefined {
     const t = this.deps.loadTokens();
-    return istTokens(t) ? t : undefined;
+    return sindTwitchTokens(t) ? t : undefined;
+  }
+
+  /** Tokens löschen — aber NUR, wenn noch genau der Stand gespeichert ist,
+   *  mit dem die Prüfung begann. Sonst würde eine langsame alte Antwort einen
+   *  frischen Neu-Login wegwerfen. */
+  private loescheWennNoch(t: TwitchTokens): void {
+    if (gleicheTokens(this.deps.loadTokens(), t)) this.deps.saveTokens(undefined);
+  }
+
+  /** fetch mit Zeitlimit (und optionalem Abbruch durch den Aufrufer). */
+  private anfrage(url: string, init: RequestInit, signal?: AbortSignal): Promise<Response> {
+    const zeit = AbortSignal.timeout(TWITCH_ANFRAGE_TIMEOUT_MS);
+    return this.deps.fetch(url, { ...init, signal: signal ? AbortSignal.any([signal, zeit]) : zeit });
   }
 
   // ── Login per Gerätecode ──────────────────────────────────────────────────
@@ -184,12 +224,11 @@ export class TwitchAuth {
   async beginDeviceLogin(): Promise<{ userCode: string; verificationUri: string; expiresIn: number }> {
     const clientId = this.clientId();
     this.ausstehend = null; // ein älterer, noch wartender Login gilt nicht mehr
-    // Content-Type: Die Docs zeigen für /device und das Polling nur
-    // `curl --form`; x-www-form-urlencoded ist dort unbelegt (Offene Punkte 4),
-    // für /token (Refresh) und /revoke aber ausdrücklich belegt. Die Docs
-    // verlangen außerdem, die Scope-Liste „URL zu kodieren" — das passt zu
-    // diesem Format. Live gegen Twitch prüfen.
-    const res = await this.deps.fetch(TWITCH_DEVICE_URL, {
+    // Content-Type x-www-form-urlencoded: Die Docs zeigen hier nur
+    // `curl --form`; die Live-Gegenprobe vom 13.11.2026 (Ende von
+    // docs/twitch-api-belege.md) hat urlencoded für /device und das Polling
+    // bestätigt. Für Refresh und Revoke ist es ohnehin belegt.
+    const res = await this.anfrage(TWITCH_DEVICE_URL, {
       method: 'POST',
       headers: FORM,
       body: new URLSearchParams({ client_id: clientId, scopes: TWITCH_SCOPES.join(' ') }).toString(),
@@ -227,17 +266,22 @@ export class TwitchAuth {
     if (!a) throw new Error('Es läuft keine Twitch-Anmeldung — zuerst „Mit Twitch verbinden" drücken.');
     const clientId = this.clientId();
     const nochAktuell = () => this.ausstehend === a;
+    /** Wirft, wenn abgebrochen oder durch Abmelden/Neustart ersetzt. */
+    const pruefeWeiter = () => {
+      if (signal?.aborted) throw abbruchFehler(signal);
+      if (!nochAktuell()) throw new Error('Diese Twitch-Anmeldung wurde abgebrochen oder durch eine neue ersetzt.');
+    };
     try {
       for (;;) {
-        if (signal?.aborted) throw abbruchFehler(signal);
+        pruefeWeiter();
         await this.sleep(a.intervallMs, signal);
-        if (!nochAktuell()) throw new Error('Diese Twitch-Anmeldung wurde durch eine neue ersetzt.');
+        pruefeWeiter();
         if (this.deps.now() >= a.bis) {
           throw new Error('Der Twitch-Code ist abgelaufen, ohne dass er bestätigt wurde — bitte noch einmal verbinden.');
         }
         let res: Response;
         try {
-          res = await this.deps.fetch(TWITCH_TOKEN_URL, {
+          res = await this.anfrage(TWITCH_TOKEN_URL, {
             method: 'POST',
             headers: FORM,
             body: new URLSearchParams({
@@ -246,17 +290,15 @@ export class TwitchAuth {
               device_code: a.deviceCode,
               grant_type: DEVICE_GRANT_TYPE,
             }).toString(),
-            ...(signal ? { signal } : {}),
-          });
+          }, signal);
         } catch (err) {
           if (signal?.aborted) throw abbruchFehler(signal);
-          // Netzaussetzer: weiterfragen — die Frist (expires_in) begrenzt das.
+          // Netzaussetzer/Zeitlimit: weiterfragen — die Frist (expires_in) begrenzt das.
           this.log('warn', `Twitch-Anmeldung: Abfrage fehlgeschlagen (${(err as Error).message}) — versuche es weiter.`);
           continue;
         }
         if (res.ok) {
-          const tokens = await this.uebernimmLogin(await leseJson(res));
-          return tokens;
+          return await this.uebernimmLogin(await leseJson(res), pruefeWeiter, signal);
         }
         const j = await leseJson(res);
         const message = typeof j.message === 'string' ? j.message : '';
@@ -271,8 +313,15 @@ export class TwitchAuth {
           this.log('warn', `Twitch hat die Anmeldung beendet (${message.slice(0, 120) || 'ohne Begründung'}).`);
           throw new Error(`Twitch hat die Anmeldung nicht bestätigt (${message.slice(0, 120) || `HTTP ${res.status}`}).`);
         }
-        // 429/5xx (unbelegt): vorübergehend — weiter im Takt, die Frist begrenzt es.
-        this.log('warn', `Twitch-Anmeldung: Twitch antwortet gerade mit HTTP ${res.status} — versuche es weiter.`);
+        if (res.status === 429 || res.status >= 500) {
+          // Unbelegt: vorübergehend — weiter im Takt, die Frist begrenzt es.
+          this.log('warn', `Twitch-Anmeldung: Twitch antwortet gerade mit HTTP ${res.status} — versuche es weiter.`);
+          continue;
+        }
+        // 401/403/404 & Co. werden nicht von selbst besser (z. B. falsche
+        // Client-ID) — 30 Minuten weiterfragen hilft niemandem.
+        this.log('warn', `Twitch hat die Anmeldung mit HTTP ${res.status} abgelehnt.`);
+        throw new Error(`Twitch hat die Anmeldung abgelehnt (HTTP ${res.status}) — stimmt die Client-ID?`);
       }
     } finally {
       // Der Code ist einmalig verwendbar (Belege 1.6) — ob Erfolg oder Ende,
@@ -281,14 +330,25 @@ export class TwitchAuth {
     }
   }
 
-  private async uebernimmLogin(j: Record<string, unknown>): Promise<TwitchTokens> {
+  private async uebernimmLogin(
+    j: Record<string, unknown>,
+    pruefeWeiter: () => void,
+    signal?: AbortSignal,
+  ): Promise<TwitchTokens> {
     const accessToken = j.access_token;
     const refreshToken = j.refresh_token;
-    const expiresIn = typeof j.expires_in === 'number' && j.expires_in > 0 ? j.expires_in : 0;
     if (typeof accessToken !== 'string' || !accessToken || typeof refreshToken !== 'string' || !refreshToken) {
       throw new Error('Twitch hat bei der Anmeldung keine vollständigen Tokens geschickt.');
     }
-    const pruefung = await this.pruefe(accessToken);
+    const expiresAt = this.deps.now() + lebensdauerS(j.expires_in) * 1000;
+    let pruefung: Pruefung = { ergebnis: 'unklar' };
+    for (let versuch = 1; versuch <= LOGIN_PRUEF_VERSUCHE; versuch++) {
+      pruefeWeiter();
+      pruefung = await this.pruefe(accessToken, signal);
+      if (pruefung.ergebnis !== 'unklar') break;
+      if (versuch < LOGIN_PRUEF_VERSUCHE) await this.sleep(LOGIN_PRUEF_PAUSE_MS, signal);
+    }
+    pruefeWeiter(); // abgebrochen/abgemeldet, während geprüft wurde → nichts speichern
     if (pruefung.ergebnis !== 'ok') {
       throw new Error('Twitch hat das frische Token nicht bestätigt — bitte noch einmal verbinden.');
     }
@@ -300,7 +360,7 @@ export class TwitchAuth {
     const tokens: TwitchTokens = {
       accessToken,
       refreshToken,
-      expiresAt: this.deps.now() + expiresIn * 1000,
+      expiresAt,
       scopes: pruefung.scopes,
       userId: pruefung.userId,
       login: pruefung.login,
@@ -319,7 +379,8 @@ export class TwitchAuth {
    *  das Ablaufdatum noch in der Zukunft liegt — aber nur, wenn genau dieses
    *  Token noch das aktuelle ist. Sonst hat ein anderer schon erneuert.
    *
-   *  Wirft `TwitchReloginNoetig`, wenn nicht (mehr) angemeldet. */
+   *  Wirft `TwitchReloginNoetig`, wenn nicht (mehr) angemeldet; einen normalen
+   *  Error bei vorübergehenden Problemen (Netz, 5xx, Zeitlimit). */
   async getValidToken(opts: { abgelehntesToken?: string } = {}): Promise<TwitchTokens> {
     if (this.refreshLaeuft) return this.refreshLaeuft;
     const t = this.tokens();
@@ -330,12 +391,22 @@ export class TwitchAuth {
     return this.refreshLaeuft;
   }
 
+  /** Was gilt, wenn während eines Refreshs jemand anderes die Tokens
+   *  geändert hat (Abmelden, Neu-Login, Client-ID gewechselt)? Dann zählt der
+   *  neue Stand, nicht die alte Antwort. */
+  private aktuellerStandStatt(t: TwitchTokens): TwitchTokens | undefined {
+    const jetzt = this.tokens();
+    if (gleicheTokens(jetzt, t)) return undefined; // nichts geändert
+    if (!jetzt) throw new TwitchReloginNoetig('Nicht mit Twitch verbunden.');
+    return jetzt;
+  }
+
   /** Belege 1.7: Refresh ohne client_secret (öffentlicher Client). */
   private async erneuere(t: TwitchTokens): Promise<TwitchTokens> {
-    const clientId = this.clientId();
+    const clientId = this.clientId(true);
     // URLSearchParams kodiert das Refresh-Token — die Docs verlangen das
     // ausdrücklich, sonst droht „Invalid refresh token".
-    const res = await this.deps.fetch(TWITCH_TOKEN_URL, {
+    const res = await this.anfrage(TWITCH_TOKEN_URL, {
       method: 'POST',
       headers: FORM,
       body: new URLSearchParams({
@@ -350,7 +421,9 @@ export class TwitchAuth {
         // 401 (nicht mehr gültig) → nur neu anmelden hilft. Tokens wegwerfen,
         // sonst stünde für immer „verbunden" da und jeder Start klopft
         // erfolglos an. Nur wenn das abgelehnte Token noch das aktuelle ist.
-        if (this.deps.loadTokens()?.refreshToken === t.refreshToken) this.deps.saveTokens(undefined);
+        const anders = this.aktuellerStandStatt(t);
+        if (anders) return anders;
+        this.loescheWennNoch(t);
         this.log('warn', `Twitch hat die gespeicherte Anmeldung abgelehnt (HTTP ${res.status}) — bitte in den Einstellungen neu verbinden.`);
         throw new TwitchReloginNoetig();
       }
@@ -359,7 +432,6 @@ export class TwitchAuth {
     }
     const j = await leseJson(res);
     const accessToken = j.access_token;
-    const expiresIn = typeof j.expires_in === 'number' && j.expires_in > 0 ? j.expires_in : 0;
     if (typeof accessToken !== 'string' || !accessToken) {
       throw new Error('Twitch hat beim Erneuern kein Access-Token geschickt.');
     }
@@ -367,30 +439,38 @@ export class TwitchAuth {
     const next: TwitchTokens = {
       accessToken,
       refreshToken: neuesRefresh,
-      expiresAt: this.deps.now() + expiresIn * 1000,
+      expiresAt: this.deps.now() + lebensdauerS(j.expires_in) * 1000,
       scopes: leseScopes(j.scope) ?? t.scopes,
       userId: t.userId,
       login: t.login,
     };
+    // Während der Anfrage abgemeldet oder neu angemeldet? Dann darf die alte
+    // Antwort den neuen Stand NICHT überschreiben (sonst lebt eine
+    // abgemeldete Verbindung wieder auf).
+    const anders = this.aktuellerStandStatt(t);
+    if (anders) return anders;
+    const fehlen = fehlendeScopes(next.scopes);
+    if (fehlen.length > 0) {
+      this.loescheWennNoch(t);
+      this.log('warn', `Der Twitch-Anmeldung fehlen Rechte (${fehlen.join(', ')}) — bitte neu verbinden.`);
+      throw new TwitchReloginNoetig(`Der Twitch-Anmeldung fehlen Rechte (${fehlen.join(', ')}) — bitte neu verbinden.`);
+    }
     // ZUERST speichern, dann benutzen: Das alte Refresh-Token ist ab jetzt
     // ungültig (Einmal-Token). Ginge das neue verloren, müsste sich der
     // Streamer neu anmelden.
     this.deps.saveTokens(next);
-    const fehlen = fehlendeScopes(next.scopes);
-    if (fehlen.length > 0) {
-      this.deps.saveTokens(undefined);
-      this.log('warn', `Der Twitch-Anmeldung fehlen Rechte (${fehlen.join(', ')}) — bitte neu verbinden.`);
-      throw new TwitchReloginNoetig(`Der Twitch-Anmeldung fehlen Rechte (${fehlen.join(', ')}) — bitte neu verbinden.`);
-    }
     return next;
   }
 
   /** Belege 1.8: Pflicht beim Start und danach stündlich.
    *
-   *  `true` = Twitch hat die Anmeldung bestätigt. `false` = nicht angemeldet
-   *  oder Twitch gerade nicht erreichbar (Anmeldung bleibt bestehen).
+   *  `true`  = Anmeldung steht — bestätigt ODER Twitch gerade nicht
+   *            erreichbar (Netz, 5xx, Zeitlimit). Ein Schluckauf bei Twitch
+   *            soll den Streamer nicht abmelden; die nächste Prüfung holt es nach.
+   *  `false` = nicht angemeldet (keine Tokens).
    *  Wirft `TwitchReloginNoetig`, wenn die Anmeldung tot ist (App in Twitch
-   *  getrennt, Rechte fehlen) — die Tokens sind dann gelöscht. */
+   *  getrennt, Rechte fehlen, Token gehört zu einer anderen Client-ID) — die
+   *  Tokens sind dann gelöscht. */
   async validate(): Promise<boolean> {
     const t = this.tokens();
     if (!t) return false;
@@ -399,37 +479,49 @@ export class TwitchAuth {
     if (p.ergebnis === 'ungueltig') {
       // Access-Token tot — einmal erneuern (wirft TwitchReloginNoetig, wenn
       // auch das Refresh-Token nicht mehr gilt), dann das neue prüfen.
-      aktuell = await this.getValidToken({ abgelehntesToken: t.accessToken });
+      try {
+        aktuell = await this.getValidToken({ abgelehntesToken: t.accessToken });
+      } catch (err) {
+        if (err instanceof TwitchReloginNoetig) throw err;
+        return true; // vorübergehend (Netz/5xx) — Anmeldung bleibt
+      }
       p = await this.pruefe(aktuell.accessToken);
       if (p.ergebnis === 'ungueltig') {
-        this.deps.saveTokens(undefined);
+        this.loescheWennNoch(aktuell);
         this.log('warn', 'Twitch erkennt die Anmeldung nicht mehr an — bitte in den Einstellungen neu verbinden.');
         throw new TwitchReloginNoetig();
       }
     }
-    if (p.ergebnis === 'unklar') return false;
+    if (p.ergebnis === 'unklar') return true;
+    // Zwischendurch abgemeldet/neu angemeldet? Dann gilt diese Prüfung nicht mehr.
+    if (!gleicheTokens(this.deps.loadTokens(), aktuell)) return this.tokens() !== undefined;
+    const eingetragen = this.deps.getClientId().trim().toLowerCase();
+    if (p.clientId && eingetragen && p.clientId.toLowerCase() !== eingetragen) {
+      this.loescheWennNoch(aktuell);
+      this.log('warn', 'Die Twitch-Anmeldung gehört zu einer anderen Client-ID — bitte neu verbinden.');
+      throw new TwitchReloginNoetig('Die Twitch-Anmeldung gehört zu einer anderen Client-ID — bitte neu verbinden.');
+    }
     const fehlen = fehlendeScopes(p.scopes);
     if (fehlen.length > 0) {
-      this.deps.saveTokens(undefined);
+      this.loescheWennNoch(aktuell);
       this.log('warn', `Der Twitch-Anmeldung fehlen Rechte (${fehlen.join(', ')}) — bitte neu verbinden.`);
       throw new TwitchReloginNoetig(`Der Twitch-Anmeldung fehlen Rechte (${fehlen.join(', ')}) — bitte neu verbinden.`);
     }
     if (p.userId !== aktuell.userId || p.login !== aktuell.login
       || p.scopes.length !== aktuell.scopes.length || p.scopes.some((s) => !aktuell.scopes.includes(s))) {
-      // z. B. Kanal umbenannt — nur übernehmen, wenn niemand zwischendurch die Tokens getauscht hat.
-      if (this.deps.loadTokens()?.accessToken === aktuell.accessToken) {
-        this.deps.saveTokens({ ...aktuell, userId: p.userId, login: p.login, scopes: p.scopes });
-      }
+      // z. B. Kanal umbenannt.
+      this.deps.saveTokens({ ...aktuell, userId: p.userId, login: p.login, scopes: p.scopes });
     }
     return true;
   }
 
   /** GET /oauth2/validate — 200 = gültig, 401 = ungültig, sonst unklar. */
-  private async pruefe(accessToken: string): Promise<Pruefung> {
+  private async pruefe(accessToken: string, signal?: AbortSignal): Promise<Pruefung> {
     let res: Response;
     try {
-      res = await this.deps.fetch(TWITCH_VALIDATE_URL, { method: 'GET', headers: { Authorization: `OAuth ${accessToken}` } });
+      res = await this.anfrage(TWITCH_VALIDATE_URL, { method: 'GET', headers: { Authorization: `OAuth ${accessToken}` } }, signal);
     } catch (err) {
+      if (signal?.aborted) throw abbruchFehler(signal);
       this.log('warn', `Twitch-Anmeldung konnte nicht geprüft werden (${(err as Error).message}).`);
       return { ergebnis: 'unklar' };
     }
@@ -445,18 +537,26 @@ export class TwitchAuth {
       // login/user_id sind bei App-Tokens null (Belege 1.8) — hier unbrauchbar.
       return { ergebnis: 'ungueltig' };
     }
-    return { ergebnis: 'ok', userId, login, scopes: leseScopes(j.scopes) ?? [] };
+    return {
+      ergebnis: 'ok',
+      userId,
+      login,
+      scopes: leseScopes(j.scopes) ?? [],
+      ...(typeof j.client_id === 'string' && j.client_id ? { clientId: j.client_id } : {}),
+    };
   }
 
   /** Abmelden: Access-Token bei Twitch widerrufen (Belege 1.9) und lokal
-   *  löschen. Das Löschen passiert auch, wenn der Widerruf scheitert.
-   *  (Refresh-Token-Widerruf ist unbelegt, Offene Punkte 7.) */
+   *  löschen. Das Löschen passiert SOFORT (vor dem Widerruf) und auch, wenn
+   *  der Widerruf scheitert. (Refresh-Token-Widerruf ist unbelegt, Offene
+   *  Punkte 7.) */
   async logout(): Promise<void> {
     this.ausstehend = null;
     const t = this.tokens();
+    this.deps.saveTokens(undefined);
     try {
       if (t) {
-        const res = await this.deps.fetch(TWITCH_REVOKE_URL, {
+        const res = await this.anfrage(TWITCH_REVOKE_URL, {
           method: 'POST',
           headers: FORM,
           body: new URLSearchParams({ client_id: this.clientId(), token: t.accessToken }).toString(),
@@ -465,8 +565,6 @@ export class TwitchAuth {
       }
     } catch (err) {
       this.log('warn', `Twitch-Abmeldung: Widerruf nicht möglich (${(err as Error).message}) — lokal trotzdem abgemeldet.`);
-    } finally {
-      this.deps.saveTokens(undefined);
     }
     this.log('info', 'Von Twitch abgemeldet.');
   }

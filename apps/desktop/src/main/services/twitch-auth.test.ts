@@ -11,7 +11,7 @@ import {
   type TwitchTokens,
 } from './twitch-auth';
 
-interface Aufruf { url: string; method: string; body: URLSearchParams; headers: Record<string, string> }
+interface Aufruf { url: string; method: string; body: URLSearchParams; headers: Record<string, string>; signal?: AbortSignal | null }
 type Antwort = { status: number; body?: unknown };
 type Antworter = (a: Aufruf, nr: number) => Antwort | Promise<Antwort>;
 
@@ -28,7 +28,15 @@ function antwort(status: number, body?: unknown): Response {
   } as unknown as Response;
 }
 
-function aufbau(opts: { tokens?: TwitchTokens; clientId?: string; antworter: Antworter; t?: number }) {
+const GEHEIMNISSE = ['access-1', 'refresh-1', 'access-2', 'refresh-2', 'access-alt', 'refresh-alt', 'geheimer-device-code', 'ABCDEFGH'];
+
+function aufbau(opts: {
+  tokens?: TwitchTokens;
+  clientId?: string | (() => string);
+  antworter: Antworter;
+  t?: number;
+  beimSpeichern?: (t: TwitchTokens | undefined) => void;
+}) {
   let tokens = opts.tokens;
   let t = opts.t ?? 1_000_000;
   const aufrufe: Aufruf[] = [];
@@ -37,7 +45,9 @@ function aufbau(opts: { tokens?: TwitchTokens; clientId?: string; antworter: Ant
   const pausen: number[] = [];
   const fetchFn = (async (url: string, init?: RequestInit) => {
     const body = new URLSearchParams(typeof init?.body === 'string' ? init.body : '');
-    const a: Aufruf = { url, method: init?.method ?? 'GET', body, headers: (init?.headers ?? {}) as Record<string, string> };
+    const a: Aufruf = {
+      url, method: init?.method ?? 'GET', body, headers: (init?.headers ?? {}) as Record<string, string>, signal: init?.signal,
+    };
     aufrufe.push(a);
     const r = await opts.antworter(a, aufrufe.length);
     return antwort(r.status, r.body);
@@ -45,9 +55,9 @@ function aufbau(opts: { tokens?: TwitchTokens; clientId?: string; antworter: Ant
   const auth = new TwitchAuth({
     fetch: fetchFn,
     now: () => t,
-    getClientId: () => opts.clientId ?? 'abc123def',
+    getClientId: () => (typeof opts.clientId === 'function' ? opts.clientId() : opts.clientId ?? 'abc123def'),
     loadTokens: () => tokens,
-    saveTokens: (n) => { tokens = n; gespeichert.push(n); },
+    saveTokens: (n) => { tokens = n; gespeichert.push(n); opts.beimSpeichern?.(n); },
     log: (_stufe, text) => { logs.push(text); },
     // Warten = Uhr vorstellen, sofort weiter.
     sleep: async (ms, signal) => {
@@ -64,6 +74,13 @@ function aufbau(opts: { tokens?: TwitchTokens; clientId?: string; antworter: Ant
     pausen,
     tokens: () => tokens,
     setT: (n: number) => { t = n; },
+    setTokens: (n: TwitchTokens | undefined) => { tokens = n; },
+    /** Keine Logzeile darf ein Token, den device_code oder den Nutzer-Code enthalten. */
+    keineGeheimnisseImLog: () => {
+      for (const zeile of logs) {
+        for (const g of GEHEIMNISSE) assert.ok(!zeile.includes(g), `Log verrät ein Geheimnis: ${zeile}`);
+      }
+    },
   };
 }
 
@@ -263,7 +280,10 @@ test('getValidToken: noch lange gültig → kein Netzaufruf', async () => {
 });
 
 test('getValidToken: läuft in < 60 s ab → Refresh ohne Secret; neues Refresh-Token wird gespeichert, BEVOR es zurückkommt', async () => {
+  let zurueckgegeben = false;
+  let gespeichertVorRueckgabe = false;
   const w = aufbau({
+    beimSpeichern: (n) => { if (n?.refreshToken === 'refresh-2' && !zurueckgegeben) gespeichertVorRueckgabe = true; },
     tokens: gueltigeTokens({ expiresAt: 1_000_000 + 30_000 }),
     antworter: (a) => {
       assert.equal(a.url, 'https://id.twitch.tv/oauth2/token');
@@ -271,7 +291,7 @@ test('getValidToken: läuft in < 60 s ab → Refresh ohne Secret; neues Refresh-
     },
   });
   const t = await w.auth.getValidToken();
-  const gespeichertVorRueckgabe = w.tokens()?.refreshToken === 'refresh-2';
+  zurueckgegeben = true;
   const a = w.aufrufe[0]!;
   assert.equal(a.method, 'POST');
   assert.equal(a.headers['Content-Type'], 'application/x-www-form-urlencoded');
@@ -407,9 +427,9 @@ test('validate: 401 und Refresh ungültig (App getrennt) → TwitchReloginNoetig
   assert.ok(w.aufrufe.length <= 3);
 });
 
-test('validate: Netzaussetzer → false, Anmeldung bleibt', async () => {
+test('validate: Twitch-Schluckauf (502) → true („unklar, Anmeldung bleibt"), nichts gelöscht', async () => {
   const w = aufbau({ tokens: gueltigeTokens(), antworter: () => ({ status: 502 }) });
-  assert.equal(await w.auth.validate(), false);
+  assert.equal(await w.auth.validate(), true);
   assert.equal(w.tokens()?.accessToken, 'access-alt');
 });
 
@@ -438,4 +458,250 @@ test('kaputte gespeicherte Tokens (Handbearbeitung) gelten als „nicht verbunde
   });
   await assert.rejects(() => w.auth.getValidToken(), TwitchReloginNoetig);
   assert.equal(await w.auth.validate(), false);
+});
+
+// ── Fix-Runde 1 ─────────────────────────────────────────────────────────────
+
+/** Ein Tor, das eine Antwort zurückhält, bis der Test es öffnet. */
+function tor() {
+  let auf!: () => void;
+  const p = new Promise<void>((r) => { auf = r; });
+  return { p, auf };
+}
+
+test('Wettlauf: Abmelden während eines Refreshs → die alte Antwort belebt die Anmeldung NICHT wieder', async () => {
+  const g = tor();
+  const w = aufbau({
+    tokens: gueltigeTokens({ expiresAt: 0 }),
+    antworter: async (a) => {
+      if (a.url.endsWith('/revoke')) return { status: 200 };
+      await g.p;
+      return { status: 200, body: { ...TOKEN_OK, access_token: 'access-2', refresh_token: 'refresh-2' } };
+    },
+  });
+  const refresh = w.auth.getValidToken();
+  await w.auth.logout();
+  g.auf();
+  await assert.rejects(refresh, TwitchReloginNoetig);
+  assert.equal(w.tokens(), undefined, 'nach dem Abmelden darf nichts mehr gespeichert sein');
+});
+
+test('Wettlauf: Neu-Login während eines Refreshs → die frischen Tokens bleiben, die alte Antwort wird verworfen', async () => {
+  const g = tor();
+  const neu = gueltigeTokens({ accessToken: 'neu-at', refreshToken: 'neu-rt', userId: '7', login: 'anderer' });
+  const w = aufbau({
+    tokens: gueltigeTokens({ expiresAt: 0 }),
+    antworter: async () => {
+      await g.p;
+      return { status: 200, body: { ...TOKEN_OK, access_token: 'access-2', refresh_token: 'refresh-2' } };
+    },
+  });
+  const refresh = w.auth.getValidToken();
+  w.setTokens(neu);
+  g.auf();
+  assert.deepEqual(await refresh, neu);
+  assert.deepEqual(w.tokens(), neu);
+});
+
+test('Wettlauf: Neu-Login während ein Refresh abgelehnt wird → der neue Login wird nicht gelöscht', async () => {
+  const g = tor();
+  const neu = gueltigeTokens({ accessToken: 'neu-at', refreshToken: 'neu-rt' });
+  const w = aufbau({
+    tokens: gueltigeTokens({ expiresAt: 0 }),
+    antworter: async () => { await g.p; return { status: 400, body: { status: 400, message: 'Invalid refresh token' } }; },
+  });
+  const refresh = w.auth.getValidToken();
+  w.setTokens(neu);
+  g.auf();
+  assert.deepEqual(await refresh, neu);
+  assert.deepEqual(w.tokens(), neu);
+});
+
+test('Wettlauf: validate meldet fehlende Rechte, aber zwischendurch neu angemeldet → neuer Login bleibt', async () => {
+  const g = tor();
+  const neu = gueltigeTokens({ accessToken: 'neu-at', refreshToken: 'neu-rt' });
+  const w = aufbau({
+    tokens: gueltigeTokens(),
+    antworter: async () => { await g.p; return { status: 200, body: { ...VALIDATE_OK, scopes: ['user:read:chat'] } }; },
+  });
+  const v = w.auth.validate();
+  w.setTokens(neu);
+  g.auf();
+  assert.equal(await v, true);
+  assert.deepEqual(w.tokens(), neu);
+});
+
+test('Wettlauf: validate 401 zweimal, zwischendurch neu angemeldet → neuer Login bleibt', async () => {
+  const neu = gueltigeTokens({ accessToken: 'neu-at', refreshToken: 'neu-rt' });
+  let validates = 0;
+  const w: ReturnType<typeof aufbau> = aufbau({
+    tokens: gueltigeTokens(),
+    antworter: (a) => {
+      if (a.url.endsWith('/validate')) {
+        validates++;
+        if (validates === 2) w.setTokens(neu); // neuer Login genau während der zweiten Prüfung
+        return { status: 401 };
+      }
+      return { status: 200, body: { ...TOKEN_OK, access_token: 'access-2', refresh_token: 'refresh-2' } };
+    },
+  });
+  await assert.rejects(() => w.auth.validate(), TwitchReloginNoetig);
+  assert.deepEqual(w.tokens(), neu);
+});
+
+test('fehlendes expires_in → vorsichtige Ersatz-Lebensdauer (1 h) statt Refresh bei jedem Aufruf', async () => {
+  const { expires_in: _weg, ...ohne } = TOKEN_OK;
+  const w = aufbau({ tokens: gueltigeTokens({ expiresAt: 0 }), antworter: () => ({ status: 200, body: ohne }) });
+  const t = await w.auth.getValidToken();
+  assert.equal(t.expiresAt, 1_000_000 + 3600 * 1000);
+  await w.auth.getValidToken();
+  assert.equal(w.aufrufe.length, 1, 'kein zweiter Refresh');
+});
+
+for (const status of [401, 403, 404]) {
+  test(`waitForLogin: dauerhafter Fehler HTTP ${status} beim Polling → sofort Schluss`, async () => {
+    const w = aufbau({
+      antworter: (a) => (a.url.endsWith('/device') ? { status: 200, body: DEVICE_OK } : { status }),
+    });
+    await w.auth.beginDeviceLogin();
+    await assert.rejects(() => w.auth.waitForLogin(), new RegExp(`HTTP ${status}`));
+    assert.equal(w.aufrufe.filter((a) => a.url.endsWith('/token')).length, 1);
+  });
+}
+
+test('waitForLogin: 503 beim Polling → weiterfragen', async () => {
+  let n = 0;
+  const w = aufbau({
+    antworter: (a) => {
+      if (a.url.endsWith('/device')) return { status: 200, body: DEVICE_OK };
+      if (a.url.endsWith('/token')) return ++n === 1 ? { status: 503 } : { status: 200, body: TOKEN_OK };
+      return { status: 200, body: VALIDATE_OK };
+    },
+  });
+  await w.auth.beginDeviceLogin();
+  await w.auth.waitForLogin();
+  assert.equal(n, 2);
+});
+
+test('waitForLogin: Abbruch NACH erfolgreichem Polling → nichts gespeichert', async () => {
+  const ctl = new AbortController();
+  const w = aufbau({
+    antworter: (a) => {
+      if (a.url.endsWith('/device')) return { status: 200, body: DEVICE_OK };
+      if (a.url.endsWith('/token')) { ctl.abort(); return { status: 200, body: TOKEN_OK }; }
+      return { status: 200, body: VALIDATE_OK };
+    },
+  });
+  await w.auth.beginDeviceLogin();
+  await assert.rejects(() => w.auth.waitForLogin(ctl.signal));
+  assert.equal(w.tokens(), undefined);
+});
+
+test('waitForLogin: Abmelden während der Prüfung nach dem Login → nichts gespeichert', async () => {
+  const g = tor();
+  const w = aufbau({
+    antworter: async (a) => {
+      if (a.url.endsWith('/device')) return { status: 200, body: DEVICE_OK };
+      if (a.url.endsWith('/token')) return { status: 200, body: TOKEN_OK };
+      await g.p;
+      return { status: 200, body: VALIDATE_OK };
+    },
+  });
+  await w.auth.beginDeviceLogin();
+  const warten = w.auth.waitForLogin();
+  await new Promise((r) => setImmediate(r));
+  await w.auth.logout();
+  g.auf();
+  await assert.rejects(warten);
+  assert.equal(w.tokens(), undefined);
+});
+
+test('waitForLogin: /validate kurz nicht erreichbar → erneuter Versuch statt verbrauchtem Code', async () => {
+  let v = 0;
+  const w = aufbau({
+    antworter: (a) => {
+      if (a.url.endsWith('/device')) return { status: 200, body: DEVICE_OK };
+      if (a.url.endsWith('/token')) return { status: 200, body: TOKEN_OK };
+      return ++v === 1 ? { status: 503 } : { status: 200, body: VALIDATE_OK };
+    },
+  });
+  await w.auth.beginDeviceLogin();
+  const t = await w.auth.waitForLogin();
+  assert.equal(t.login, 'alexstreamt');
+  assert.equal(v, 2);
+});
+
+test('validate: 401, Refresh scheitert vorübergehend (503) → true, Anmeldung bleibt', async () => {
+  const w = aufbau({
+    tokens: gueltigeTokens(),
+    antworter: (a) => (a.url.endsWith('/validate') ? { status: 401 } : { status: 503 }),
+  });
+  assert.equal(await w.auth.validate(), true);
+  assert.equal(w.tokens()?.refreshToken, 'refresh-alt');
+  w.keineGeheimnisseImLog();
+});
+
+test('validate: Token gehört zu einer anderen Client-ID → TwitchReloginNoetig + gelöscht', async () => {
+  const w = aufbau({
+    tokens: gueltigeTokens(),
+    antworter: () => ({ status: 200, body: { ...VALIDATE_OK, client_id: 'fremdeid' } }),
+  });
+  await assert.rejects(() => w.auth.validate(), TwitchReloginNoetig);
+  assert.equal(w.tokens(), undefined);
+});
+
+test('Refresh ohne eingetragene Client-ID → TwitchReloginNoetig (kein endloses Wiederholen)', async () => {
+  const w = aufbau({ clientId: '', tokens: gueltigeTokens({ expiresAt: 0 }), antworter: () => ({ status: 500 }) });
+  await assert.rejects(() => w.auth.getValidToken(), TwitchReloginNoetig);
+  assert.equal(w.aufrufe.length, 0);
+});
+
+test('jede Anfrage an Twitch hat ein Zeitlimit (AbortSignal)', async () => {
+  const w = aufbau({
+    tokens: gueltigeTokens({ expiresAt: 0 }),
+    antworter: (a) => {
+      if (a.url.endsWith('/device')) return { status: 200, body: DEVICE_OK };
+      if (a.url.endsWith('/validate')) return { status: 200, body: VALIDATE_OK };
+      if (a.url.endsWith('/revoke')) return { status: 200 };
+      return { status: 200, body: TOKEN_OK };
+    },
+  });
+  await w.auth.getValidToken();
+  await w.auth.validate();
+  await w.auth.beginDeviceLogin();
+  await w.auth.waitForLogin();
+  await w.auth.logout();
+  const urls = new Set(w.aufrufe.map((a) => a.url.split('/').pop()));
+  assert.deepEqual([...urls].sort(), ['device', 'revoke', 'token', 'validate']);
+  for (const a of w.aufrufe) assert.ok(a.signal instanceof AbortSignal, `${a.url} ohne Zeitlimit`);
+});
+
+test('Fehlerpfade loggen keine Geheimnisse', async () => {
+  const w = aufbau({
+    tokens: gueltigeTokens({ expiresAt: 0 }),
+    antworter: (a) => (a.url.endsWith('/revoke')
+      ? { status: 400, body: { status: 400, message: 'Invalid token' } }
+      : { status: 400, body: { status: 400, message: 'Invalid refresh token' } }),
+  });
+  await assert.rejects(() => w.auth.getValidToken(), TwitchReloginNoetig);
+  w.setTokens(gueltigeTokens());
+  await w.auth.logout();
+  w.keineGeheimnisseImLog();
+});
+
+test('echtes Warten (ohne Test-sleep): Abbruch MITTEN im Warten beendet sofort', async () => {
+  const auth = new TwitchAuth({
+    fetch: (async (url: string) => antwort(200, url.endsWith('/device') ? DEVICE_OK : TOKEN_OK)) as unknown as typeof fetch,
+    now: () => 0,
+    getClientId: () => 'abc123def',
+    loadTokens: () => undefined,
+    saveTokens: () => undefined,
+  });
+  await auth.beginDeviceLogin();
+  const ctl = new AbortController();
+  const start = Date.now();
+  const warten = auth.waitForLogin(ctl.signal);
+  setTimeout(() => ctl.abort(), 20);
+  await assert.rejects(warten);
+  assert.ok(Date.now() - start < 2000, 'hätte 5 s gewartet');
 });
