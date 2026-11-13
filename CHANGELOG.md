@@ -47,6 +47,14 @@ eigenem Overlay und eigenem Chat:
 - **Chat-Box**: neuer Schalter „Plattform-Zeichen vor dem Namen" (Standard aus)
   zeigt ein kleines TikTok- oder Twitch-Zeichen vor jedem Namen — für Overlays,
   die beide Chats gemischt zeigen.
+- **Chat-Box: Emojis als Bilder** — OBS unter Windows zeigte die Piratenflagge
+  🏴‍☠️ trotz Emoji-Schrift nur als einzelnes Kreuz (die Flagge ist aus drei
+  Zeichen zusammengesetzt, und die Browserquelle setzt sie nicht zusammen).
+  Jetzt kommen Emojis in Text und Namen als scharfe Twemoji-Bildchen; lädt
+  eins nicht, steht wieder das Zeichen da. Neue Einstellung „Emojis als Bilder"
+  (Automatisch / An / Aus): „Automatisch" schaltet sie beim Piraten- und
+  Schatzkisten-Stil ein — bestehende Chat-Boxen in den alten Stilen sehen
+  genau aus wie vorher.
 
 Einrichten in drei Zeilen: Client-ID auf dev.twitch.tv/console holen (Kategorie
 Application Integration, Client-Typ Öffentlich) → in der App verbinden →

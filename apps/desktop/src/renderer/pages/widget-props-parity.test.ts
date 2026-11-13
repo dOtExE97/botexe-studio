@@ -18,7 +18,7 @@ const WURZEL = existsSync(join(process.cwd(), 'src', 'main.ts'))
 const WK = join(WURZEL, 'packages', 'widget-kit');
 
 /** Reine Logik-Bausteine — kein eigenes Widget, keine Bedienfelder. */
-const BAUSTEINE = new Set(['gift-rules', 'combo', 'gift-countdown', 'sticker-text', 'alarm-anim', 'ereignis-alarm']);
+const BAUSTEINE = new Set(['gift-rules', 'combo', 'gift-countdown', 'sticker-text', 'emoji-bild', 'alarm-anim', 'ereignis-alarm']);
 
 /** Felder, die über CSS-Variablen wirken statt über den Widget-Code: Die
  *  Runtime setzt --bx-fs, --bx-accent & Co. am Container; das Widget liest sie

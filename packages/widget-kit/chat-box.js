@@ -1,11 +1,12 @@
 // chat-box.js — Premium Live-Chat im Overlay (NEU ggü. Alt-App).
 // Glas-Bubbles, Avatar-Glow, hash-stabile Nickname-Farben, Mask-Fade.
-// textContent-only (kein HTML-Inject). props: { max?, hideAfterMs?, plattformZeichen? }
+// textContent-only (kein HTML-Inject). props: { style?, max?, hideAfterMs?, plattformZeichen?, emojiBilder?: 'auto'|'an'|'aus' }
 //
 // ACHTUNG Namen: Der Optik-Stil 'sticker' (Klasse .bx-cb-sticker) ist der helle
 // Bubble-Look und hat NICHTS mit TikTok-Stickern zu tun. Die Bilder aus dem
 // Chat heissen deshalb durchgaengig „emote" (.bx-cb-emote).
 import { textMitStickern, hatInhalt } from './sticker-text.js';
+import { haengeTextAn, setzeTextMitEmojis } from './emoji-bild.js';
 
 const STYLE_ID = 'bx-cb-style';
 const CSS = `
@@ -134,6 +135,12 @@ html.bx-perf .bx-cb-piraten .bx-cb-msg::after { display: none; }
 html .bx-frameless .bx-cb-piraten .bx-cb-msg { background: none; }
 html .bx-frameless .bx-cb-piraten .bx-cb-msg::before, html .bx-frameless .bx-cb-piraten .bx-cb-msg::after { display: none; }
 
+/* ── Emoji als Bild (emojiBilder): Twemoji statt Schrift-Emoji. Die Regel
+   greift nur, wenn das JS überhaupt <img class="emoji"> baut — ohne den
+   Schalter bleibt jede Chat-Box exakt wie vorher. */
+.bx-cb img.emoji { display: inline-block; width: 1.15em; height: 1.15em; margin: 0 .04em; vertical-align: -0.22em; border: 0; }
+.bx-cb .bx-cb-name img.emoji { vertical-align: -0.18em; }
+
 /* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
    dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
    darum Kontur. Der Bubble-Schatten war ohne Panel ein grauer Klecks.
@@ -245,6 +252,17 @@ function abzeichen(user) {
   return box;
 }
 
+/** Stile, die Emojis von sich aus als Bild zeigen. Die alten Stile bleiben
+ *  bei Schrift-Emojis, damit vorhandene Overlays pixelgleich bleiben. */
+const EMOJI_BILD_STILE = new Set(['piraten', 'schatzkiste']);
+/** Prop `emojiBilder`: 'an'/true und 'aus'/false gelten immer; alles andere
+ *  ('auto', fehlt — also jedes vorhandene Overlay) folgt dem Stil. */
+export function emojiBilderAn(wert, stil) {
+  if (wert === true || wert === 'an') return true;
+  if (wert === false || wert === 'aus') return false;
+  return EMOJI_BILD_STILE.has(stil);
+}
+
 /** Demo-Nachrichten für die Editor-Vorschau — sonst bleibt die Box dort leer. */
 const DEMO = [
   ['Mia', 'Das Overlay ist mega 🔥'],
@@ -272,11 +290,13 @@ const DEMO_PIRATEN = [
  *  Bewusst Element fuer Element gebaut: Diese Datei ist textContent-only (siehe
  *  Kopf), damit nie fremder Text als HTML ausgefuehrt wird. Eine Bild-Adresse
  *  von TikTok gehoert genauso wenig in ein innerHTML wie ein Kommentar. */
-function fuelleText(el, text, sticker) {
+function fuelleText(el, text, sticker, emojiBilder) {
   if (!el) return;
   for (const teil of textMitStickern(text || '', sticker)) {
     if (teil.art === 'text') {
-      if (teil.wert) el.appendChild(document.createTextNode(teil.wert));
+      if (!teil.wert) continue;
+      if (emojiBilder) haengeTextAn(el, teil.wert);
+      else el.appendChild(document.createTextNode(teil.wert));
       continue;
     }
     const img = document.createElement('img');
@@ -301,6 +321,7 @@ export default class ChatBox {
     this.style = ['glas', 'clean', 'sticker', 'piraten'].includes(props.style) ? props.style : 'glas';
     // Standard AUS: bestehende Chat-Boxen sehen exakt aus wie vorher.
     this.plattformZeichen = props.plattformZeichen === true;
+    this.emojiBilder = emojiBilderAn(props.emojiBilder, this.style);
     this.el = document.createElement('div');
     this.el.className = `bx-cb${this.style !== 'glas' ? ` bx-cb-${this.style}` : ''}`;
     // Piraten bringt eigene Schriften mit — aber nur, solange der Nutzer keine
@@ -367,10 +388,12 @@ export default class ChatBox {
       // Abzeichen aus der Zeile zu schieben.
       const nm = document.createElement('span');
       nm.className = 'bx-cb-nm';
-      nm.textContent = name;
+      if (this.emojiBilder) setzeTextMitEmojis(nm, name); else nm.textContent = name;
       const bdg = abzeichen(event.user);
       if (bdg) nameEl.appendChild(bdg);
       nameEl.appendChild(nm);
+    } else if (this.emojiBilder) {
+      setzeTextMitEmojis(nameEl, name);
     } else {
       nameEl.textContent = name;
     }
@@ -381,7 +404,7 @@ export default class ChatBox {
     // Sticker-Stil hat helle Bubbles → dunklere Namensfarbe, sonst unlesbar.
     nameEl.style.color = this.style === 'piraten' ? piratenFarbe(name)
       : this.style === 'sticker' ? nameColor(name).replace('88% 70%', '80% 34%') : nameColor(name);
-    fuelleText(msg.querySelector('.bx-cb-text'), event.text, stickerListe);
+    fuelleText(msg.querySelector('.bx-cb-text'), event.text, stickerListe, this.emojiBilder);
     avSet(msg.querySelector('.bx-cb-pic'), name, event.user?.profilePic);
     this.el.appendChild(msg);
     while (this.el.children.length > this.max) this.el.firstElementChild.remove();

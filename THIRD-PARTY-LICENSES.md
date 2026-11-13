@@ -130,6 +130,14 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 ```
 
+## Emoji-Grafiken (nicht gebündelt)
+
+Die Chat-Box kann Emojis als Bilder zeigen („Emojis als Bilder"). Die Grafiken
+stammen aus **Twemoji** ([jdecked/twemoji](https://github.com/jdecked/twemoji),
+Version 15.1.0), Copyright 2019 Twitter, Inc. und weitere Mitwirkende, lizenziert
+unter [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). Sie liegen nicht
+im Repo, sondern werden im Overlay direkt von jsDelivr geladen.
+
 ## Alle Abhängigkeiten (inkl. transitiver)
 
 Insgesamt **809 Pakete** im Abhängigkeitsbaum (Laufzeit + Build). Lizenz-Verteilung:

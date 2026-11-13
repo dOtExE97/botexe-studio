@@ -94,6 +94,15 @@ export class FakeElement {
     return null;
   }
   remove() { if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this); this.parent = null; }
+  get parentNode() { return this.parent; }
+  replaceWith(k: FakeElement) {
+    const p = this.parent;
+    if (!p) return;
+    const i = p.children.indexOf(this);
+    k.parent = p;
+    p.children.splice(i, 1, k);
+    this.parent = null;
+  }
   querySelector(sel: string): FakeElement | null {
     const klasse = sel.startsWith('.') ? sel.slice(1) : null;
     for (const c of this.children) {

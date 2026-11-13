@@ -100,7 +100,8 @@ test('Chat-Box Stil „piraten“: Karten mit Name, Text, Abzeichen und eigenen 
   w.onEvent({ type: 'chat', ts: 3, plattform: 'twitch', user: { id: 't:3', nickname: 'dOtExE_97', isMod: true, isBroadcaster: true }, text: 'Moin' });
   assert.equal(mitKlasse(root, 'bx-cb-msg').length, 3);
   assert.deepEqual(mitKlasse(root, 'bx-cb-nm').map((n) => n.textContent), ['Seemann42', 'KäptnBlaubär', 'dOtExE_97']);
-  assert.deepEqual(mitKlasse(root, 'bx-cb-text').map((t) => t.children.map((k) => k.textContent).join('')), ['Ahoi 🏴‍☠️', 'Segel setzen!', 'Moin']);
+  // Emojis kommen im Piraten-Stil als Bild (alt = das Zeichen).
+  assert.deepEqual(mitKlasse(root, 'bx-cb-text').map((t) => t.children.map((k: any) => (k.tagName === 'IMG' ? `[${k.alt}]` : k.textContent)).join('')), ['Ahoi [🏴‍☠️]', 'Segel setzen!', 'Moin']);
   // Abzeichen: keins für normale Zuschauer, Säbel + Stern für Mod-Abo,
   // nur die Krone für den Streamer (nicht zusätzlich die Säbel).
   const namen = mitKlasse(root, 'bx-cb-name');
@@ -133,6 +134,29 @@ test('Chat-Box Standard-Stil bleibt unverändert: gleiche Klassen, nackter Name,
   assert.match(name.style.color, /^hsl\(\d+ 88% 70%\)$/);
   assert.equal(mitKlasse(root, 'bx-cb-b').length, 0);
   w.destroy();
+});
+
+test('Emoji-Bilder: Piraten von sich aus an, alte Stile aus — Schalter überstimmt beides', () => {
+  const zaehle = (props: Record<string, unknown>) => {
+    const root = installiereFakeDom();
+    const w: any = new ChatBox(root, props, {});
+    w.onEvent({ type: 'chat', ts: 1, plattform: 'twitch', user: { id: 't:1', nickname: 'Seemann🏴‍☠️' }, text: 'Ahoi 🏴‍☠️ 💰' });
+    const text = mitKlasse(root, 'bx-cb-text')[0]!;
+    const bilder = alle(root).filter((k) => k.tagName === 'IMG' && k.className === 'emoji');
+    const ergebnis = { bilder: bilder.length, textKnoten: text.children.length };
+    w.destroy();
+    return ergebnis;
+  };
+  // Alte Stile ohne Einstellung (= jedes vorhandene Overlay): ein Textknoten, kein Bild.
+  for (const style of [undefined, 'glas', 'clean', 'sticker']) {
+    assert.deepEqual(zaehle(style ? { style } : {}), { bilder: 0, textKnoten: 1 }, `Stil ${style ?? '(Standard)'}`);
+  }
+  assert.deepEqual(zaehle({ style: 'glas', emojiBilder: 'auto' }), { bilder: 0, textKnoten: 1 });
+  // Piraten: 2 im Text + 1 im Namen.
+  assert.equal(zaehle({ style: 'piraten' }).bilder, 3);
+  assert.equal(zaehle({ style: 'piraten', emojiBilder: 'aus' }).bilder, 0);
+  assert.equal(zaehle({ style: 'glas', emojiBilder: 'an' }).bilder, 3);
+  assert.equal(zaehle({ style: 'clean', emojiBilder: true }).bilder, 3);
 });
 
 test('Follow-Alert zeigt einen Twitch-Follow (Twitch-ID, ohne Profilbild)', () => {
