@@ -44,7 +44,7 @@ import { sollIntroLaufen, INTRO_AUSLOESER_TEXT, TEAMHERZ_GIFT_ID } from './intro
 import { besterRang, type RangStand } from '../adapters/tiktok-rank';
 import { matchingLuckyLayers, matchLuckyCommand, planLuckyDraws, luckyDrawDauerMs, type LuckyLayer } from './lucky-draw';
 import { kannFortsetzung, istFortsetzung } from './session-continuity';
-import { istErsterAuftritt, PointsStore } from './points-store';
+import { istErsterAuftritt, istPlatzhalterNutzer, PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { StickerCatalog } from './sticker-catalog';
 import { ladeHerzPaket } from './herz-pack';
@@ -68,6 +68,10 @@ import { TTSService } from './tts-service';
 import { edgeLeitungSchliessen } from './tts-providers';
 import { resolveTuning } from './tts-tuning';
 import { log } from '../core/logger';
+import { WebSocket } from 'ws';
+import { TwitchAuth } from './twitch-auth';
+import { TwitchAdapter, type WebSocketLike } from '../adapters/twitch-adapter';
+import { TwitchSteuerung, type TwitchUiStatus } from './twitch-steuerung';
 
 export interface SoundCommand {
   soundId: string;
@@ -110,6 +114,11 @@ export interface StudioHooks {
   onRankListe?: (staende: RangStand[]) => void;
   /** Spotify Now-Playing → an den Renderer (Steuerleiste/Status). */
   onSpotifyState?: (np: NowPlaying | null) => void;
+  /** Twitch-Verbindungsstand → Einstellungen + Ampel (nie mit Tokens). */
+  onTwitchStatus?: (info: TwitchUiStatus) => void;
+  /** Adresse im Standardbrowser öffnen. Wird NUR mit bereits geprüften
+   *  Adressen aufgerufen (Twitch-Bestätigung: https auf twitch.tv). */
+  openExternal?: (url: string) => void;
 }
 
 export interface StudioPaths {
@@ -171,6 +180,9 @@ export class Studio {
   readonly stickerCatalog: StickerCatalog;
   readonly profiles: ProfileStore;
   readonly spotify: SpotifyService;
+  /** Twitch: Login (Gerätecode) + EventSub-Leitung, zusammengehalten von der
+   *  Steuerung (twitch-steuerung.ts). Ereignisse landen auf demselben Bus. */
+  private readonly twitch: TwitchSteuerung;
   /** Letzter Now-Playing-Stand (für Late-Joiner + Renderer). */
   private lastSpotify: NowPlaying | null = null;
   readonly statsHistory: StatsHistory;
@@ -532,6 +544,36 @@ export class Studio {
       },
     });
 
+    const twitchAuth = new TwitchAuth({
+      fetch: (input, init) => fetch(input, init),
+      now: () => Date.now(),
+      getClientId: () => this.settings.peek().twitchClientId ?? '',
+      loadTokens: () => this.settings.get().twitchTokens,
+      saveTokens: (t) => { this.settings.update({ twitchTokens: t }); },
+      log: (stufe, text) => log[stufe]('Twitch', text),
+    });
+    const twitchAdapter = new TwitchAdapter({
+      auth: twitchAuth,
+      bus: this.bus,
+      fetch: (input, init) => fetch(input, init),
+      // `ws` mit Standardoptionen: beantwortet Pings von Twitch selbst
+      // (autoPong ist Standard, ws 8.x lib/websocket.js receiverOnPing) —
+      // sonst schlösse Twitch mit 4002 (Belege 3.5).
+      openSocket: (url): WebSocketLike => new WebSocket(url),
+      getClientId: () => this.settings.peek().twitchClientId ?? '',
+      now: () => Date.now(),
+      log,
+      onStatus: (info) => this.twitch.adapterStatus(info),
+    });
+    this.twitch = new TwitchSteuerung({
+      auth: twitchAuth,
+      adapter: twitchAdapter,
+      getEinstellungen: () => this.settings.peek(),
+      openExternal: (url) => this.hooks.openExternal?.(url),
+      onStatus: (info) => this.hooks.onTwitchStatus?.(info),
+      log,
+    });
+
     this.engine.setRules(this.settings.get().triggerRules);
     this.bus.setVorfilter(erzeugeLevelUpVorfilter(this.levelUpWaechter, (e) => this.bus.publish(e)));
     this.wireBus();
@@ -546,7 +588,9 @@ export class Studio {
       // Beitritt in der Statistik landet (nötig für die Herkunft), existiert
       // der Eintrag beim ersten Kommentar nämlich längst, und die Begrüßung
       // „Neue begrüßen" hätte nie wieder ausgelöst.
-      if (e.user && istErsterAuftritt(this.points.get(e.user.id), e.type)) e.firstOfUser = true;
+      // Der anonyme Twitch-Stellvertreter hat nie einen Eintrag (sammelt nichts)
+      // und wäre sonst bei JEDEM anonymen Geschenk „zum ersten Mal da".
+      if (e.user && !istPlatzhalterNutzer(e.user.id) && istErsterAuftritt(this.points.get(e.user.id), e.type)) e.firstOfUser = true;
 
       // 0a. Fehlendes Geschenk-Bild ergänzen — MUSS hier ganz oben stehen, vor
       // jedem Verbraucher (Katalog, Widgets, Overlay-Broadcast).
@@ -1211,6 +1255,10 @@ export class Studio {
     // Spotify: Polling nur, wenn es auch jemand sieht (Client + Widget).
     this.refreshSpotifyPolling();
 
+    // Twitch: verbinden, wenn angemeldet und „automatisch verbinden" an ist.
+    // Nicht abwarten — Twitch darf den App-Start nicht aufhalten.
+    void this.twitch.autoStart();
+
     // Stream-Eckdaten alle 5 Min ins Log (nur während verbunden) — Überblick ohne Spam.
     // Verlaufs-Messpunkt jede Minute — nur während einer laufenden Verbindung.
     // Eigener, langsamer Timer statt einer Messung bei jedem Ereignis: Bei
@@ -1291,6 +1339,7 @@ export class Studio {
     this.spotify.dispose();
     // Die offene Sprach-Leitung mit schließen — sonst hält sie den Prozess auf.
     edgeLeitungSchliessen();
+    this.twitch.beenden();
     await this.adapter.disconnect();
     await this.server.stop();
   }
@@ -1640,6 +1689,37 @@ export class Studio {
 
   async disconnect(): Promise<void> {
     await this.adapter.disconnect();
+  }
+
+  // ── Twitch ────────────────────────────────────────────────────────────
+
+  /** „Mit Twitch verbinden": öffnet die Bestätigungsseite (nur twitch.tv)
+   *  und wartet im Hintergrund. Der Code geht an die Oberfläche, nie ins Log. */
+  twitchBeginLogin(): Promise<{ userCode: string; verificationUri: string; expiresIn: number }> {
+    return this.twitch.beginLogin();
+  }
+
+  twitchLogout(): Promise<void> {
+    return this.twitch.logout();
+  }
+
+  twitchGetStatus(): TwitchUiStatus {
+    return this.twitch.status();
+  }
+
+  twitchConnect(): Promise<void> {
+    return this.twitch.connect();
+  }
+
+  twitchDisconnect(): void {
+    this.twitch.disconnect();
+  }
+
+  /** Nach einer Einstellungs-Änderung aufrufen (IPC, Backup-Import,
+   *  Profilwechsel): Hat sich die Client-ID geändert, gehören Leitung und
+   *  laufende Anmeldung zur alten ID und werden beendet. */
+  twitchNachEinstellungen(vorherClientId: string): void {
+    if ((this.settings.peek().twitchClientId ?? '') !== vorherClientId) this.twitch.clientIdGeaendert();
   }
 
   // ── Trigger-Regeln ────────────────────────────────────────────────────
@@ -2204,7 +2284,9 @@ export class Studio {
         // ungeprüft. Dieselbe Allowlist-Härtung wie IPC.SETTINGS_UPDATE nutzen
         // (sanitizeSettingsPatch), damit es nur EINE Härtung für den Store gibt.
         const sanitized = sanitizeSettingsPatch(rest, this.settings.get());
+        const twitchIdVorher = this.settings.peek().twitchClientId ?? '';
         this.settings.update(sanitized);
+        this.twitchNachEinstellungen(twitchIdVorher);
         this.engine.setRules(this.settings.get().triggerRules);
         this.refreshTimerTicker(); // Backup könnte Timer-Regeln mitbringen/entfernen
         this.obs.applyConfig(this.settings.get().obs); // OBS-Verbindung aus Backup übernehmen

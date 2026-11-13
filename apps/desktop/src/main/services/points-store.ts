@@ -9,6 +9,18 @@ import { log } from '../core/logger';
 import { schreibeAtomar } from '../core/atomar-schreiben';
 import { giftStueckzahl } from '../core/session-stats';
 import { passt } from '../../shared/suche';
+import { TWITCH_ID_PRAEFIX } from '../adapters/twitch-normalize';
+
+/** Stellvertreter für anonyme Twitch-Geschenk-Abos und -Cheers (so setzt ihn
+ *  twitch-normalize.ts; ein Wächter-Test hält beide Stellen zusammen). */
+export const TWITCH_ANONYM_ID = `${TWITCH_ID_PRAEFIX}anonym`;
+
+/** Steht hinter dieser ID gar keine Person? Dann sammelt sie nichts — keine
+ *  Punkte, keine Besuche, keinen Erst-Follow, keine Spiel-Siege. Sonst stünde
+ *  „Anonym" nach ein paar Geschenk-Abos oben in der Bestenliste. */
+export function istPlatzhalterNutzer(userId: string): boolean {
+  return userId === TWITCH_ANONYM_ID;
+}
 
 export const POINTS_SCHEMA_VERSION = 2;
 
@@ -181,7 +193,7 @@ export class PointsStore {
   }
 
   award(userId: string, nickname: string, points: number, profilePic?: string): void {
-    if (!userId || points === 0) return;
+    if (!userId || points === 0 || istPlatzhalterNutzer(userId)) return;
     const entry = this.viewers.get(userId) ?? { id: userId, nickname, points: 0 };
     entry.points = Math.max(0, entry.points + points);
     entry.nickname = nickname || entry.nickname;
@@ -193,6 +205,12 @@ export class PointsStore {
   /** Punkte für ein Event gemäß Config vergeben; liefert die vergebene Menge. */
   recordEvent(event: StudioEvent, cfg: PointsConfig): number {
     if (!event.user) return 0;
+    if (istPlatzhalterNutzer(event.user.id)) {
+      log.einmal('punkte:platzhalter', 'info', 'Punkte',
+        'Ein anonymes Twitch-Geschenk bzw. ein anonymer Cheer bekommt keine Punkte — dahinter steht kein Zuschauer, '
+        + 'dem man sie gutschreiben könnte.');
+      return 0;
+    }
     let pts = 0;
     switch (event.type) {
       case 'chat':
@@ -335,6 +353,7 @@ export class PointsStore {
   /** Merkt „hat gefolgt" und meldet, ob es das ERSTE Mal war (kein Re-Follow).
    *  Legt den Eintrag bei Bedarf an. Idempotent: nur der erste Aufruf gibt true. */
   markFollowed(userId: string, nickname?: string): boolean {
+    if (istPlatzhalterNutzer(userId)) return false;
     const e = this.viewers.get(userId) ?? { id: userId, nickname: nickname ?? userId, points: 0 };
     const wasFirst = e.everFollowed !== true;
     if (wasFirst) {
@@ -444,7 +463,7 @@ export class PointsStore {
 
   /** Einen Spiel-Sieg für diesen Zuschauer verbuchen (Zahlen-Raten etc.). */
   recordWin(user: { id: string; nickname: string; profilePic?: string }): void {
-    if (!user?.id) return;
+    if (!user?.id || istPlatzhalterNutzer(user.id)) return;
     const e = this.viewers.get(user.id) ?? { id: user.id, nickname: user.nickname, points: 0 };
     e.gameWins = (e.gameWins ?? 0) + 1;
     e.nickname = user.nickname || e.nickname;

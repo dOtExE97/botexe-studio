@@ -112,6 +112,15 @@ export const IPC = {
   SPOTIFY_STATUS: 'spotify:status',
   SPOTIFY_CONTROL: 'spotify:control',
   SPOTIFY_LOGOUT: 'spotify:logout',
+  // Twitch (Gerätecode-Login + EventSub). TWITCH_STATUS wird GEPUSHT
+  // (Main → Renderer); TWITCH_GET_STATUS ist der Pull beim Mounten — gleiches
+  // Muster wie PLATFORM_STATUS/PLATFORM_GET_STATUS.
+  TWITCH_BEGIN_LOGIN: 'twitch:begin-login',
+  TWITCH_LOGOUT: 'twitch:logout',
+  TWITCH_GET_STATUS: 'twitch:get-status',
+  TWITCH_STATUS: 'twitch:status',
+  TWITCH_CONNECT: 'twitch:connect',
+  TWITCH_DISCONNECT: 'twitch:disconnect',
   /** Externen Link im Standardbrowser öffnen (nur http/https). */
   APP_OPEN_EXTERNAL: 'app:open-external',
   /** Text in die Zwischenablage kopieren (Electron-nativ — navigator.clipboard

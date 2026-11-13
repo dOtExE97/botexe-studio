@@ -5,6 +5,7 @@ import { Coins, Info, FolderOpen, RotateCcw, MessageSquare, UserPlus, Heart, Gif
 import ConfirmButton from '../components/ConfirmButton';
 import GreetReturningCard from '../components/GreetReturningCard';
 import ThirdPartyLicenses from '../components/ThirdPartyLicenses';
+import TwitchVerbindungCard from '../components/TwitchVerbindungCard';
 import { toast } from '../components/ToastHost';
 import { DEFAULT_BLOCKLIST } from '../../shared/moderation';
 
@@ -780,6 +781,9 @@ export default function SettingsPage() {
           </>
         )}
       </section>
+
+      {/* Twitch */}
+      <TwitchVerbindungCard />
 
       {/* Sport-Liveticker */}
       <section className="mb-5 break-inside-avoid bx-card p-5">

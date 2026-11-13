@@ -456,6 +456,9 @@ function setupStudio(): Studio {
     onStreamerbotStatus: (status) => sendToRenderer(IPC.SB_STATUS, status),
     onRankChange: (stand) => sendToRenderer(IPC.RANK_STATUS, stand),
     onRankListe: (staende) => sendToRenderer(IPC.RANK_LISTE, staende),
+    onTwitchStatus: (info) => sendToRenderer(IPC.TWITCH_STATUS, info),
+    // Nur bereits geprüfte Adressen (twitch-steuerung.ts: https auf twitch.tv).
+    openExternal: (url) => void shell.openExternal(url),
   });
 }
 
@@ -566,6 +569,33 @@ function registerIpc(): void {
     return { ok: await isStudio().spotifyControl(action) };
   });
   ipcMain.handle(IPC.SPOTIFY_LOGOUT, () => { isStudio().spotifyLogout(); return { ok: true }; });
+  // Twitch — keine Eingaben vom Renderer; die Client-ID kommt aus den
+  // Einstellungen (dort geprüft). Fehlertexte sind deutsch und ohne Tokens.
+  ipcMain.handle(IPC.TWITCH_BEGIN_LOGIN, async () => {
+    try {
+      return { ok: true as const, ...(await isStudio().twitchBeginLogin()) };
+    } catch (err) {
+      return { ok: false as const, error: (err as Error).message };
+    }
+  });
+  ipcMain.handle(IPC.TWITCH_LOGOUT, async () => {
+    try {
+      await isStudio().twitchLogout();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
+  ipcMain.handle(IPC.TWITCH_GET_STATUS, () => isStudio().twitchGetStatus());
+  ipcMain.handle(IPC.TWITCH_CONNECT, async () => {
+    try {
+      await isStudio().twitchConnect();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
+  ipcMain.handle(IPC.TWITCH_DISCONNECT, () => { isStudio().twitchDisconnect(); return { ok: true }; });
   ipcMain.handle(IPC.APP_COPY, (_e, text: unknown) => {
     // navigator.clipboard ist im Electron-Renderer geblockt → nativ kopieren.
     clipboard.writeText(typeof text === 'string' ? text : String(text ?? ''));
@@ -1136,12 +1166,18 @@ function registerIpc(): void {
     // unvollständigen Kopie (P3a-Audit: Import ließ mixer/tts/points/… roh
     // durch, hier war schon immer alles geprüft).
     const allowed = sanitizeSettingsPatch(patch, isStudio().settings.get());
+    const twitchIdVorher = isStudio().settings.peek().twitchClientId ?? '';
     const saved = isStudio().settings.update(allowed);
+    // Neue Twitch-Client-ID → alte Leitung/Anmeldung beenden (Tokens hat
+    // settings.update() schon verworfen) und den Stand an die Oberfläche melden.
+    isStudio().twitchNachEinstellungen(twitchIdVorher);
     // Auto-Live-Watch sofort anwenden (nicht erst beim Neustart).
     if (typeof allowed.autoLiveWatch === 'boolean') isStudio().setAutoLiveWatch(allowed.autoLiveWatch);
     // Autostart sofort ins Betriebssystem eintragen/austragen.
     if (typeof allowed.autostart === 'boolean') applyAutostart(allowed.autostart);
-    return { ok: true, settings: saved };
+    // Wie SETTINGS_GET: Geheimnisse (Twitch-/Spotify-Tokens, Keys) nie an den
+    // Renderer — vorher ging hier der volle Stand zurück.
+    return { ok: true, settings: einstellungenFuerRenderer(saved) };
   });
 
   // Replay / Test-Events

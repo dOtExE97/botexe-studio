@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { PointsStore, DEFAULT_POINTS_CONFIG, isNewVisit, istErsterAuftritt } from './points-store';
+import { PointsStore, DEFAULT_POINTS_CONFIG, isNewVisit, istErsterAuftritt, istPlatzhalterNutzer, TWITCH_ANONYM_ID } from './points-store';
+import { normalizeTwitch } from '../adapters/twitch-normalize';
 import type { StudioEvent } from '@botexe/trigger-engine';
 
 function tmpDir(): string {
@@ -423,4 +424,39 @@ test('search: auch die Namens-Sortierung schneidet nicht mehr nach Punkten ab', 
   s.grant('z', 10_000);
   s.recordEvent(chat({ user: { id: 'a', nickname: 'Anna' } }), DEFAULT_POINTS_CONFIG);
   assert.equal(s.search('', 1, 'name')[0]?.nickname, 'Anna');
+});
+
+// ── Twitch-Platzhalter „Anonym" ─────────────────────────────────────────────
+// Anonyme Geschenk-Abos und Cheers kommen mit dem Stellvertreter
+// `twitch:anonym` (twitch-normalize.ts). Dahinter steht keine Person — sammelte
+// er Punkte, stünde „Anonym" bald oben in der Bestenliste, und ein Erst-Follow
+// oder Spiel-Sieg würde einer erfundenen Figur gutgeschrieben.
+
+test('Platzhalter: twitch:anonym sammelt keine Punkte, keine Statistik, keinen Erst-Follow, keine Siege', () => {
+  const s = new PointsStore(tmpDir());
+  const cfg = { ...DEFAULT_POINTS_CONFIG, enabled: true, perFollow: 5, perChat: 1 };
+  const anonym = { id: TWITCH_ANONYM_ID, nickname: 'Anonym' };
+  assert.equal(s.recordEvent({ type: 'sub', ts: 1, user: anonym } as StudioEvent, cfg), 0);
+  assert.equal(s.recordEvent({ type: 'chat', ts: 2, user: anonym, text: 'x' } as StudioEvent, cfg), 0);
+  s.award(TWITCH_ANONYM_ID, 'Anonym', 50);
+  s.recordWin(anonym);
+  assert.equal(s.markFollowed(TWITCH_ANONYM_ID, 'Anonym'), false, 'kein „erstes Mal Folgen" für niemanden');
+  assert.equal(s.get(TWITCH_ANONYM_ID), undefined, 'es entsteht gar kein Eintrag');
+  assert.equal(s.top(10).length, 0);
+  // Gegenprobe: ein echter Twitch-Nutzer sammelt ganz normal.
+  assert.ok(s.recordEvent({ type: 'sub', ts: 3, user: { id: 'twitch:42', nickname: 'Mia' } } as StudioEvent, cfg) > 0);
+  assert.equal(s.markFollowed('twitch:42', 'Mia'), true);
+});
+
+test('Platzhalter: der Normalizer liefert genau die ID, die der Punkte-Speicher überspringt', () => {
+  // Wächter gegen Auseinanderlaufen: Ändert jemand die Anonym-ID im
+  // Normalizer, wird dieser Test rot statt „Anonym" heimlich Punkte zu geben.
+  const gift = normalizeTwitch('channel.subscription.gift', { is_anonymous: true, total: 3, tier: '1000', user_id: null }, 1);
+  const cheer = normalizeTwitch('channel.cheer', { is_anonymous: true, bits: 100, user_id: null }, 1);
+  for (const e of [...gift, ...cheer]) {
+    assert.ok(e.user, 'anonymes Ereignis trägt einen Stellvertreter');
+    assert.equal(istPlatzhalterNutzer(e.user.id), true, `ID ${e.user.id} muss als Platzhalter gelten`);
+  }
+  assert.equal(istPlatzhalterNutzer('twitch:12345'), false);
+  assert.equal(istPlatzhalterNutzer('anonym'), false, 'TikTok-Nutzer namens „anonym" bleiben echte Nutzer');
 });

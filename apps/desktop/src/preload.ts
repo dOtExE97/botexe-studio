@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from './shared/constants';
+import type { TwitchUiStatus } from './main/services/twitch-steuerung';
 
 // Schmale, explizit benannte API-Oberfläche — KEIN generisches invoke()
 // (Audit H2 der Alt-App: generischer Kanal = voller Main-Zugriff bei Renderer-XSS).
@@ -101,6 +102,16 @@ const api = {
   spotifyStatus: () => ipcRenderer.invoke(IPC.SPOTIFY_STATUS),
   spotifyControl: (action: string) => ipcRenderer.invoke(IPC.SPOTIFY_CONTROL, action),
   spotifyLogout: () => ipcRenderer.invoke(IPC.SPOTIFY_LOGOUT),
+  // Twitch
+  /** Gerätecode holen + Bestätigungsseite öffnen; wartet im Hintergrund weiter. */
+  twitchBeginLogin: (): Promise<{ ok: true; userCode: string; verificationUri: string; expiresIn: number } | { ok: false; error: string }> =>
+    ipcRenderer.invoke(IPC.TWITCH_BEGIN_LOGIN),
+  twitchLogout: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke(IPC.TWITCH_LOGOUT),
+  twitchGetStatus: (): Promise<TwitchUiStatus> => ipcRenderer.invoke(IPC.TWITCH_GET_STATUS),
+  twitchConnect: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke(IPC.TWITCH_CONNECT),
+  twitchDisconnect: (): Promise<{ ok: boolean }> => ipcRenderer.invoke(IPC.TWITCH_DISCONNECT),
+  /** Push bei jeder Änderung (Ergänzung zu twitchGetStatus). */
+  onTwitchStatus: listen<TwitchUiStatus>(IPC.TWITCH_STATUS),
   openExternal: (url: string) => ipcRenderer.invoke(IPC.APP_OPEN_EXTERNAL, url),
   copyText: (text: string) => ipcRenderer.invoke(IPC.APP_COPY, text),
   /** Key-Assistent: kopierten euler_-Key aus der Zwischenablage lesen ('' wenn keiner). */
