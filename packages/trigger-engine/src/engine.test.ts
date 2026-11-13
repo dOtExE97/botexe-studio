@@ -615,3 +615,32 @@ test('superfan_neu / superfan_verlaengerung: nur echte Abos, nie „Superfan bet
   assert.deepEqual(ids({ superfanNeu: true }), ['neu'], 'ältere Meldung ohne superfanArt');
   assert.deepEqual(ids({ superfanNeu: false }), ['verl']);
 });
+
+
+test('kanalpunkte_titel_ist: feuert nur bei der passenden Belohnung (Groß/klein und Rand-Leerzeichen egal)', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({
+    event: 'kanalpunkte',
+    conditions: [{ kind: 'kanalpunkte_titel_ist', value: 'Kanone' }],
+    actions: [{ kind: 'play_sound', soundId: 'boom' }, { kind: 'fire_alert', targetId: 'alarm' }],
+  })]);
+  const ev = (titel: string): StudioEvent => ({ type: 'kanalpunkte', ts: 1_000, plattform: 'twitch',
+    user: { id: 'twitch:1', nickname: 'A' }, kanalpunkte: { titel, kosten: 500 } });
+  assert.equal(engine.evaluate(ev('Kanone')).length, 2);
+  assert.equal(engine.evaluate(ev('  kanone ')).length, 2);
+  assert.equal(engine.evaluate(ev('Kanonenkugel')).length, 0);
+  assert.equal(engine.evaluate({ type: 'kanalpunkte', ts: 1_000 }).length, 0, 'ohne Angabe nie erfüllt');
+  // Ein Chat mit dem Wort „Kanone" ist keine Einlösung.
+  assert.equal(engine.evaluate({ type: 'chat', ts: 1_000, text: 'Kanone' }).length, 0);
+});
+
+test('kanalpunkte_titel_ist: leerer Titel in der Regel passt auf nichts', () => {
+  const engine = new TriggerEngine();
+  engine.setRules([rule({ event: 'kanalpunkte', conditions: [{ kind: 'kanalpunkte_titel_ist', value: ' ' }] })]);
+  assert.equal(engine.evaluate({ type: 'kanalpunkte', ts: 1, kanalpunkte: { titel: '', kosten: 0 } }).length, 0);
+});
+
+test('renderSpeakTemplate: {text} bei Kanalpunkten = Eingabe des Zuschauers', () => {
+  assert.equal(renderSpeakTemplate('{user}: {text}', { type: 'kanalpunkte', ts: 1, user: { id: 'x', nickname: 'Pia' },
+    text: 'Hallo', kanalpunkte: { titel: 'Gruß', kosten: 1, eingabe: 'Hallo' } }), 'Pia: Hallo');
+});

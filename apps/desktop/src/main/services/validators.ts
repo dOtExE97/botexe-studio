@@ -46,6 +46,7 @@ const EVENT_TYPES: ReadonlySet<string> = new Set<StudioEventType>([
   'raid',
   'cheer',
   'follower_stand',
+  'kanalpunkte',
 ]);
 
 const WHO_VALUES: ReadonlySet<string> = new Set(['all', 'followers', 'subs', 'mods']);
@@ -76,6 +77,7 @@ const CONDITION_KINDS: ReadonlySet<string> = new Set([
   'superfan_verlaengerung',
   'superfan_monate_gte',
   'sticker_ist',
+  'kanalpunkte_titel_ist',
   'folgt_seit_tagen_gte',
   'fanclub_seit_tagen_gte',
   'folgt_seit_heute',
@@ -400,6 +402,7 @@ function validateCondition(
     // 'sticker_ist' traegt TikToks emoteId — eine lange Zahl als Text.
     case 'gift_slug_is':
     case 'sticker_ist':
+    case 'kanalpunkte_titel_ist':
     case 'chat_keyword':
     case 'chat_command': {
       const value = str(input['value'], CAP_SHORT);

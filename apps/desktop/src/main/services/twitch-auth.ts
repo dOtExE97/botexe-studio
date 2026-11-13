@@ -23,14 +23,15 @@ export const TWITCH_REVOKE_URL = 'https://id.twitch.tv/oauth2/revoke';
 /** Belegt (1.4): grant_type beim Abholen der Tokens per Gerätecode. */
 const DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code';
 
-/** Lese-Rechte für die Ereignisse (Belege 5.10): Chat lesen, Follows,
- *  Subs/Resubs/Geschenke, Cheers. Raid und stream.online/offline brauchen
- *  keinen Scope. */
+/** Lese-Rechte für die Ereignisse (Belege 5.10, 11.6): Chat lesen, Follows,
+ *  Subs/Resubs/Geschenke, Cheers, Kanalpunkte-Einlösungen. Raid und
+ *  stream.online/offline brauchen keinen Scope. */
 export const TWITCH_LESE_SCOPES: readonly string[] = Object.freeze([
   'user:read:chat',
   'moderator:read:followers',
   'channel:read:subscriptions',
   'bits:read',
+  'channel:read:redemptions',
 ]);
 
 /** Schreib-Rechte für die Streamer-Aktionen (Belege 10.7) — je Aktion genau

@@ -120,12 +120,22 @@ function gueltigeTokens(extra: Partial<TwitchTokens> = {}): TwitchTokens {
   };
 }
 
-test('TWITCH_SCOPES: die vier Lese-Scopes + genau die fünf Aktions-Scopes aus den Belegen (10.7)', () => {
+test('TWITCH_SCOPES: die fünf Lese-Scopes + genau die Aktions-Scopes aus den Belegen (10.7, 11.6)', () => {
   assert.deepEqual([...TWITCH_SCOPES].sort(), [
-    'bits:read', 'channel:edit:commercial', 'channel:manage:broadcast', 'channel:read:subscriptions',
-    'clips:edit', 'moderator:manage:chat_settings', 'moderator:manage:shoutouts',
+    'bits:read', 'channel:edit:commercial', 'channel:manage:broadcast', 'channel:read:redemptions',
+    'channel:read:subscriptions', 'clips:edit', 'moderator:manage:chat_settings', 'moderator:manage:shoutouts',
     'moderator:read:followers', 'user:read:chat',
   ]);
+});
+
+test('validate: Anmeldung von vor den Kanalpunkten (ohne channel:read:redemptions) → TwitchReloginNoetig', async () => {
+  const alt = ALLE_SCOPES.filter((s) => s !== 'channel:read:redemptions');
+  const w = aufbau({
+    tokens: gueltigeTokens({ scopes: alt }),
+    antworter: () => ({ status: 200, body: { ...VALIDATE_OK, scopes: alt } }),
+  });
+  await assert.rejects(() => w.auth.validate(), (err: unknown) =>
+    err instanceof TwitchReloginNoetig && /channel:read:redemptions/.test(err.message) && /neu verbinden/.test(err.message));
 });
 
 test('validate: alte Anmeldung (nur die vier Lese-Scopes von vor den Streamer-Aktionen) → TwitchReloginNoetig', async () => {

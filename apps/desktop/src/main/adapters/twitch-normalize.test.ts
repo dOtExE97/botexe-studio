@@ -219,3 +219,29 @@ test('stream.online/offline → keine Ereignisse (Belege 5.8)', () => {
   }, NOW), []);
   assert.deepEqual(normalizeTwitch('stream.offline', { id: '9001', broadcaster_user_id: '1337' }, NOW), []);
 });
+
+
+test('Kanalpunkte-Einlösung (Doc-Beispiel, Belege 5.9) → kanalpunkte mit Titel, Kosten, Eingabe (+ text)', () => {
+  const ev = normalizeTwitch('channel.channel_points_custom_reward_redemption.add', {
+    id: '17fa2df1-ad76-4804-bfa5-a40ef63efe63', user_id: '9001', user_login: 'cooler_user',
+    user_name: 'Cooler_User', user_input: 'pogchamp', status: 'unfulfilled',
+    reward: { id: '92af127c-7326-4483-a52b-b0da0be61c01', title: 'title', cost: 100, prompt: 'reward prompt' },
+    redeemed_at: '2020-07-15T17:16:03.17106713Z',
+  }, NOW);
+  assert.deepEqual(ev, [{
+    type: 'kanalpunkte', ts: NOW, plattform: 'twitch',
+    user: { id: 'twitch:9001', userId: 'cooler_user', nickname: 'Cooler_User' },
+    kanalpunkte: { titel: 'title', kosten: 100, eingabe: 'pogchamp' },
+    text: 'pogchamp',
+  }]);
+});
+
+test('Kanalpunkte: leere Eingabe fehlt; ohne Titel kein Ereignis; kaputte Kosten → 0', () => {
+  const ohne = normalizeTwitch('channel.channel_points_custom_reward_redemption.add', {
+    user_id: '1', user_login: 'a', user_name: 'A', user_input: '   ', reward: { title: 'Kanone', cost: 'x' },
+  }, NOW)[0];
+  assert.deepEqual(ohne?.kanalpunkte, { titel: 'Kanone', kosten: 0 });
+  assert.equal(ohne?.text, undefined);
+  assert.deepEqual(normalizeTwitch('channel.channel_points_custom_reward_redemption.add', { user_id: '1', reward: {} }, NOW), []);
+  assert.deepEqual(normalizeTwitch('channel.channel_points_custom_reward_redemption.add', { user_id: '1', reward: null }, NOW), []);
+});

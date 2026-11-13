@@ -460,3 +460,16 @@ test('LIVE-Ziel- und VIP-Bedingungen kommen durch', () => {
   const v = validateTriggerRule({ id: 'r', name: 'V', event: 'vip_betritt', conditions: [{ kind: 'vip_stufe_gte', value: 20 }], actions: [{ kind: 'speak', template: 'x' }], enabled: true });
   assert.deepEqual(v?.conditions, [{ kind: 'vip_stufe_gte', value: 20 }]);
 });
+
+test('Rule: Kanalpunkte-Regel („Kanone" → Sound + Alarm) übersteht Speichern/Import unverändert', () => {
+  const regel = {
+    id: 'kp', name: 'Kanone', event: 'kanalpunkte', enabled: true,
+    conditions: [{ kind: 'kanalpunkte_titel_ist', value: 'Kanone' }],
+    actions: [{ kind: 'play_sound', soundId: 'boom' }, { kind: 'fire_alert', targetId: 'alarm' }],
+  };
+  const r = validateTriggerRule(regel);
+  assert.ok(r);
+  assert.equal(r.event, 'kanalpunkte');
+  assert.deepEqual(r.conditions, [{ kind: 'kanalpunkte_titel_ist', value: 'Kanone' }]);
+  assert.equal(r.actions.length, 2);
+});

@@ -59,6 +59,8 @@ const BILD_SAMMEL_MS = 250;
 const BILD_PAUSE_MS = 60_000;
 const BILD_CACHE_MAX = 5_000;
 
+export const KANALPUNKTE_ABO = 'channel.channel_points_custom_reward_redemption.add';
+
 /** Die Abos für den eigenen Kanal — Typ, Version und Condition exakt nach
  *  Belege 5.1–5.8. `id` ist die Twitch-Nutzer-ID des angemeldeten Kanals. */
 export function twitchAbos(id: string): Array<{ type: string; version: string; condition: Record<string, string> }> {
@@ -72,6 +74,8 @@ export function twitchAbos(id: string): Array<{ type: string; version: string; c
     { type: 'channel.raid', version: '1', condition: { to_broadcaster_user_id: id } },
     { type: 'stream.online', version: '1', condition: { broadcaster_user_id: id } },
     { type: 'stream.offline', version: '1', condition: { broadcaster_user_id: id } },
+    // Belege 5.9/11.2 — ohne reward_id: alle Belohnungen des Kanals.
+    { type: KANALPUNKTE_ABO, version: '1', condition: { broadcaster_user_id: id } },
   ];
 }
 
@@ -558,6 +562,13 @@ export class TwitchAdapter {
     // 409: gibt es auf dieser Sitzung schon — zählt als angelegt.
     if (res.status === 409) return 'ok';
     if (res.status === 401) return 'abgelehnt-401';
+    if (res.status === 403 && abo.type === KANALPUNKTE_ABO) {
+      // Belege 11.2: Kanalpunkte-Endpunkte antworten Nicht-Affiliates mit 403.
+      // Für das EventSub-Abo ist der Code unbelegt — 403 ist der plausible.
+      this.deps.log.einmal('twitch:abo-403:kanalpunkte', 'info', 'Twitch',
+        'Kanalpunkte gibt es erst ab Twitch-Affiliate — sobald du Affiliate bist, kommen sie von selbst an. Alles andere läuft normal.');
+      return 'aus';
+    }
     if (res.status === 403) {
       this.deps.log.einmal(`twitch:abo-403:${abo.type}`, 'warn', 'Twitch',
         `Twitch erlaubt das Abo „${abo.type}" für diesen Kanal nicht (fehlendes Recht) — diese Ereignisart kommt nicht an, alle anderen laufen weiter.`);

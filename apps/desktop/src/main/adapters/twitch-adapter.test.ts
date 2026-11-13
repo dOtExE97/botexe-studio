@@ -148,14 +148,14 @@ const FOLLOW = { user_id: '42', user_login: 'fan', user_name: 'Fan', broadcaster
 
 // ── Tests ───────────────────────────────────────────────────────────────────
 
-test('Start: validiert, öffnet die EventSub-Adresse; Welcome → genau 9 Abo-POSTs mit session_id', async () => {
+test('Start: validiert, öffnet die EventSub-Adresse; Welcome → genau 10 Abo-POSTs mit session_id', async () => {
   const a = aufbau();
   await verbunden(a);
   assert.equal(a.validateAufrufe(), 1);
   assert.equal(a.sockets.length, 1);
   assert.equal(a.sockets[0]!.url, TWITCH_EVENTSUB_URL);
   const posts = aboPosts(a);
-  assert.equal(posts.length, 9);
+  assert.equal(posts.length, 10);
   const bodies = posts.map((p) => JSON.parse(String(p.init.body)) as { type: string; version: string; condition: Record<string, string>; transport: Record<string, string> });
   for (const p of posts) {
     const h = p.init.headers as Record<string, string>;
@@ -170,7 +170,7 @@ test('Start: validiert, öffnet die EventSub-Adresse; Welcome → genau 9 Abo-PO
     condition: { broadcaster_user_id: '1337', moderator_user_id: '1337' }, transport: { method: 'websocket', session_id: 'S1' } });
   assert.deepEqual(nachTyp['channel.chat.message']?.condition, { broadcaster_user_id: '1337', user_id: '1337' });
   assert.deepEqual(nachTyp['channel.raid']?.condition, { to_broadcaster_user_id: '1337' });
-  for (const t of ['channel.subscribe', 'channel.subscription.message', 'channel.subscription.gift', 'channel.cheer', 'stream.online', 'stream.offline']) {
+  for (const t of ['channel.subscribe', 'channel.subscription.message', 'channel.subscription.gift', 'channel.cheer', 'stream.online', 'stream.offline', 'channel.channel_points_custom_reward_redemption.add']) {
     assert.deepEqual(nachTyp[t]?.condition, { broadcaster_user_id: '1337' }, t);
     assert.equal(nachTyp[t]?.version, '1', t);
   }
@@ -222,7 +222,7 @@ test('Keepalive-Ausfall → alte Leitung zu, neue Verbindung, Abos neu angelegt'
   assert.equal(a.sockets[1]!.url, TWITCH_EVENTSUB_URL);
   a.sockets[1]!.welcome('S2');
   await warte();
-  assert.equal(aboPosts(a).length, 18);
+  assert.equal(aboPosts(a).length, 20);
   assert.equal(a.adapter.getStatus().status, 'verbunden');
   a.adapter.stop();
 });
@@ -247,7 +247,7 @@ test('session_reconnect → neue Leitung an reconnect_url, alte erst nach Welcom
   s2.welcome('S2');
   await warte();
   assert.equal(s1.closed, true);
-  assert.equal(aboPosts(a).length, 9, 'keine neuen Abos');
+  assert.equal(aboPosts(a).length, 10, 'keine neuen Abos');
   // Dieselbe Nachricht über die neue Leitung → verworfen.
   s2.notify('m1', 'channel.follow', FOLLOW);
   s2.notify('m2', 'channel.follow', FOLLOW);
@@ -284,7 +284,7 @@ test('401 beim Abo → Token genau einmal erneuern, mit neuem Token wiederholen'
   const erneuert = a.tokenAufrufe.filter((o) => o?.abgelehntesToken);
   assert.equal(erneuert.length, 1);
   assert.equal(erneuert[0]!.abgelehntesToken, 'tok-1');
-  assert.equal(aboPosts(a).length, 18);
+  assert.equal(aboPosts(a).length, 20);
   assert.equal(a.adapter.getStatus().status, 'verbunden');
   a.adapter.stop();
 });
@@ -647,4 +647,33 @@ test('followerStandErneutMelden: meldet den bekannten Stand nach einem Session-R
   a.adapter.stop();
   a.adapter.followerStandErneutMelden();
   assert.deepEqual(stand(a), [7, 7], 'gestoppt → nichts');
+});
+
+
+// ── Kanalpunkte (Belege 5.9 / 11.2) ─────────────────────────────────────────
+
+test('Kanalpunkte: 403 beim Abo → genau eine freundliche Zeile, die anderen Abos laufen, Status verbunden', async () => {
+  const a = aufbau({ abo: (b) => (b.type === 'channel.channel_points_custom_reward_redemption.add' ? 403 : 202) });
+  const s = await verbunden(a);
+  assert.ok(a.einmal.includes('twitch:abo-403:kanalpunkte'));
+  assert.equal(a.einmal.filter((k) => k.startsWith('twitch:abo-403:')).length, 1, 'nur die Kanalpunkte-Zeile');
+  assert.equal(a.adapter.getStatus().status, 'verbunden');
+  s.notify('f1', 'channel.follow', FOLLOW);
+  assert.equal(a.events.filter((e) => e.type === 'follow').length, 1);
+  a.adapter.stop();
+});
+
+test('Kanalpunkte: Einlösung kommt als kanalpunkte-Ereignis auf den Bus', async () => {
+  const a = aufbau();
+  const s = await verbunden(a);
+  s.notify('k1', 'channel.channel_points_custom_reward_redemption.add', {
+    id: 'r1', broadcaster_user_id: '1337', user_id: '9001', user_login: 'cooler_user', user_name: 'Cooler_User',
+    user_input: '', status: 'unfulfilled', reward: { id: 'w', title: 'Kanone', cost: 500, prompt: '' },
+    redeemed_at: '2020-07-15T17:16:03.17106713Z',
+  });
+  const e = a.events.find((x) => x.type === 'kanalpunkte');
+  assert.equal(e?.plattform, 'twitch');
+  assert.deepEqual(e?.kanalpunkte, { titel: 'Kanone', kosten: 500 });
+  assert.equal(e?.user?.id, 'twitch:9001');
+  a.adapter.stop();
 });

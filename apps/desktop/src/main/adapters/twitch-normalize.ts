@@ -212,6 +212,20 @@ export function normalizeTwitch(
       }];
     }
 
+    case 'channel.channel_points_custom_reward_redemption.add': {
+      // Belege 5.9/11.2: reward.title/cost, user_input (leer = keine Eingabe).
+      const reward = obj(e.reward);
+      const titel = str(reward?.title);
+      if (!titel) return []; // ohne Titel kann keine Regel darauf hören
+      const kosten = zahl(reward?.cost);
+      const eingabe = str(typeof e.user_input === 'string' ? e.user_input.trim() : undefined);
+      return [{
+        ...basis('kanalpunkte', now, nutzer(e.user_id, e.user_login, e.user_name, bild)),
+        kanalpunkte: { titel, kosten: kosten !== undefined && kosten >= 0 ? kosten : 0, ...(eingabe ? { eingabe } : {}) },
+        ...(eingabe ? { text: eingabe } : {}),
+      }];
+    }
+
     default:
       // stream.online/offline und alles Unbekannte: kein Ereignis.
       return [];

@@ -743,6 +743,14 @@ export class OverlayServer {
         // Follower-Ziel ohne echten Stream ausprobieren (nur mit Zahl).
         ...(typeof e.followerStand?.anzahl === 'number' && Number.isFinite(e.followerStand.anzahl)
           ? { followerStand: { anzahl: e.followerStand.anzahl } } : {}),
+        // Kanalpunkte-Regeln ohne Affiliate-Kanal ausprobieren.
+        ...(typeof e.kanalpunkte?.titel === 'string' && e.kanalpunkte.titel.trim()
+          ? { kanalpunkte: {
+            titel: e.kanalpunkte.titel.trim().slice(0, 100),
+            kosten: typeof e.kanalpunkte.kosten === 'number' && Number.isFinite(e.kanalpunkte.kosten) ? e.kanalpunkte.kosten : 0,
+            ...(typeof e.kanalpunkte.eingabe === 'string' && e.kanalpunkte.eingabe ? { eingabe: e.kanalpunkte.eingabe.slice(0, 500) } : {}),
+          } }
+          : {}),
       };
       this.bus.publish(clean);
       res.json({ ok: true });

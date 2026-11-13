@@ -56,6 +56,9 @@ export type StudioEventType =
    *  Ereignis, sondern ein Zahlen-Stand für Ziel-Balken. Sticky: ein neu
    *  geladenes Overlay bekommt sofort den letzten Wert. */
   | 'follower_stand'
+  /** Twitch-Kanalpunkte: ein Zuschauer löst eine eigene Belohnung ein (siehe
+   *  `kanalpunkte`). Gibt es bei Twitch erst ab Affiliate. */
+  | 'kanalpunkte'
   /** Periodischer Tick — Timer-Regeln (z.B. alle 10 Min. Socials einblenden). */
   | 'timer';
 
@@ -285,6 +288,10 @@ export interface StudioEvent {
    *  „Get Channel Followers" → `total`, zwischen zwei Abfragen je echtem
    *  Follow +1). */
   followerStand?: { anzahl: number };
+  /** Nur bei 'kanalpunkte': Titel und Preis der eingelösten Belohnung, dazu
+   *  der Text des Zuschauers, falls die Belohnung eine Eingabe verlangt (steht
+   *  zusätzlich in `text`, damit {text} in Vorlagen greift). */
+  kanalpunkte?: { titel: string; kosten: number; eingabe?: string };
 }
 
 export type TriggerCondition =
@@ -343,6 +350,9 @@ export type TriggerCondition =
    *  KEINEN Namen — die Nummer ist der einzige stabile Anker. Die Sticker-Seite
    *  zeigt dazu das Bild, damit niemand Nummern vergleichen muss. */
   | { kind: 'sticker_ist'; value: string }
+  /** Nur bei 'kanalpunkte': Titel der Belohnung (Groß-/Kleinschreibung und
+   *  Leerzeichen am Rand egal) — z. B. „Kanone". */
+  | { kind: 'kanalpunkte_titel_ist'; value: string }
   | { kind: 'chat_keyword'; value: string }
   /** Nachricht beginnt mit dem Befehl (z.B. '!hype'), optional mit Argumenten. */
   | { kind: 'chat_command'; value: string }
@@ -699,6 +709,10 @@ function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolea
       return (event.user?.followerCount ?? 0) >= condition.value;
     case 'sticker_ist':
       return (event.sticker ?? []).some((s) => s.id === condition.value);
+    case 'kanalpunkte_titel_ist': {
+      const soll = condition.value.trim().toLowerCase();
+      return soll !== '' && (event.kanalpunkte?.titel ?? '').trim().toLowerCase() === soll;
+    }
     case 'chat_keyword':
       return (event.text ?? '').toLowerCase().includes(condition.value.toLowerCase()) && condition.value !== '';
     case 'chat_command':
