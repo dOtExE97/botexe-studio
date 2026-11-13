@@ -1,6 +1,7 @@
 // CommandsPage — Chat-Befehle („Bot"): !befehl → Antwort. Die App liest den
 // Chat mit; passt ein Befehl, antwortet sie per Overlay-Vorlesen (TTS) und/oder
-// schreibt direkt in den TikTok-Chat (wenn eingeloggt). Mit Cooldown + Rechten.
+// schreibt direkt in den Chat, aus dem der Befehl kam (TikTok oder Twitch, wenn
+// eingeloggt bzw. verbunden). Mit Cooldown + Rechten.
 import { useEffect, useState } from 'react';
 import { Terminal, Plus, Trash2, Power, Play, Mic, MessageSquare, Copy } from 'lucide-react';
 import type { ChatCommand } from '@botexe/trigger-engine';
@@ -73,7 +74,7 @@ export default function CommandsPage() {
               <label className="flex items-center gap-1.5 text-[11px] text-studio-muted">
                 <input type="checkbox" checked={c.speak} onChange={(e) => patch(c.id, { speak: e.target.checked })} className="accent-[#21e6c1]" /> <Mic size={12} /> Vorlesen
               </label>
-              <label className="flex items-center gap-1.5 text-[11px] text-studio-muted" title="Schreibt direkt in den TikTok-Chat (braucht Login in den Einstellungen)">
+              <label className="flex items-center gap-1.5 text-[11px] text-studio-muted" title="Schreibt direkt in den Chat, aus dem der Befehl kam: TikTok-Befehl → TikTok-Chat (braucht TikTok-Login), Twitch-Befehl → Twitch-Chat (braucht Twitch-Verbindung)">
                 <input type="checkbox" checked={c.sendToChat} onChange={(e) => patch(c.id, { sendToChat: e.target.checked })} className="accent-[#21e6c1]" /> <MessageSquare size={12} /> In Chat senden
               </label>
               <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-studio-muted">

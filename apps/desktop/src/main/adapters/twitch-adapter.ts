@@ -126,6 +126,10 @@ export interface TwitchAdapterDeps {
   onStatus(info: TwitchStatusInfo): void;
   setTimeout?: (fn: () => void, ms: number) => TimerHandle;
   clearTimeout?: (h: TimerHandle) => void;
+  /** Hat die App diese Nachricht des eigenen Kanals selbst gesendet (Bot-
+   *  Antwort)? Dann wird sie verworfen — sonst könnte eine Antwort, die mit
+   *  „!" beginnt, ihren eigenen Befehl erneut auslösen (Endlosschleife). */
+  istEigeneNachricht?: (messageId: string | undefined, text: string) => boolean;
 }
 
 interface Leitung {
@@ -615,6 +619,11 @@ export class TwitchAdapter {
         'Einzelne verschenkte Abos werden nicht extra gemeldet — das Geschenk zählt einmal als Ganzes (mit Anzahl).');
       return;
     }
+    if (typ === 'channel.chat.message' && this.istEcho(event)) {
+      this.deps.log.einmal('twitch:echo', 'info', 'Twitch',
+        'Die eigenen Chat-Antworten der App kommen von Twitch zurück — sie lösen keine Befehle oder Regeln aus (und erscheinen nicht im Overlay-Chat).');
+      return;
+    }
     const ereignisse = normalizeTwitch(typ, event, this.deps.now(), (id) => this.bilder.get(id) ?? undefined);
     if (ereignisse.length === 0) {
       this.deps.log.einmal(`twitch:leer:${typ}`, 'info', 'Twitch', `Twitch-Ereignis „${typ.slice(0, 60)}" wird (noch) nicht ausgewertet.`);
@@ -629,6 +638,19 @@ export class TwitchAdapter {
       this.followerStand++;
       this.meldeFollowerStand();
     }
+  }
+
+  /** Nur Nachrichten des eigenen Kanals können Bot-Antworten sein (Absender
+   *  der App ist immer der Kanal selbst, Belege 11.3). */
+  private istEcho(event: unknown): boolean {
+    const pruefe = this.deps.istEigeneNachricht;
+    const e = obj(event);
+    if (!pruefe || !e) return false;
+    const absender = e.chatter_user_id;
+    if (typeof absender !== 'string' || !absender || absender !== e.broadcaster_user_id) return false;
+    const text = obj(e.message)?.text;
+    const id = typeof e.message_id === 'string' ? e.message_id : undefined;
+    return pruefe(id, typeof text === 'string' ? text : '');
   }
 
   private wechsel(epoch: number, l: Leitung, session: Record<string, unknown> | undefined): void {

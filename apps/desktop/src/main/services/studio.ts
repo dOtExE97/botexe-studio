@@ -19,7 +19,7 @@ import { TikTokAdapter, createDirectConnection, type AdapterStatusInfo, type Key
 import { EulerCloudConnection } from '../adapters/tiktok-cloud';
 import { KeyRotator } from './key-rotator';
 import { OverlayServer } from '../adapters/overlay-server';
-import { aktionsNachricht, momentNachricht, darfInTikTokChatAntworten } from './aktion-nachricht';
+import { aktionsNachricht, momentNachricht, chatZiel } from './aktion-nachricht';
 import {
   SettingsStore,
   redactSecretsForExport,
@@ -73,6 +73,7 @@ import { TwitchAuth } from './twitch-auth';
 import { TwitchAdapter, type WebSocketLike } from '../adapters/twitch-adapter';
 import { TwitchSteuerung, type TwitchUiStatus } from './twitch-steuerung';
 import { TwitchAktionen } from './twitch-aktionen';
+import { TwitchChat } from './twitch-chat';
 
 export interface SoundCommand {
   soundId: string;
@@ -187,6 +188,8 @@ export class Studio {
   /** Streamer-Aktionen (Clip, Marker, Werbung, Shoutout, Chat-Modi) über die
    *  lokale API (/api/twitch/…, Stream Deck). Merkt sich den letzten Raider. */
   private readonly twitchAktionen: TwitchAktionen;
+  /** Antworten auf Twitch-Ereignisse in den Twitch-Chat (Warteschlange, kein Echo). */
+  private readonly twitchChat: TwitchChat;
   /** Für „Follower-Stand nach Session-Reset erneut melden". */
   private readonly twitchAdapter: TwitchAdapter;
   /** Letzter Now-Playing-Stand (für Late-Joiner + Renderer). */
@@ -559,6 +562,13 @@ export class Studio {
       saveTokens: (t) => { this.settings.update({ twitchTokens: t }); },
       log: (stufe, text) => log[stufe]('Twitch', text),
     });
+    this.twitchChat = new TwitchChat({
+      auth: twitchAuth,
+      fetch: (input, init) => fetch(input, init),
+      now: () => Date.now(),
+      getClientId: () => this.settings.peek().twitchClientId ?? '',
+      log: (stufe, text) => log[stufe]('Chat-Senden', text),
+    });
     const twitchAdapter = this.twitchAdapter = new TwitchAdapter({
       auth: twitchAuth,
       bus: this.bus,
@@ -571,6 +581,7 @@ export class Studio {
       now: () => Date.now(),
       log,
       onStatus: (info) => this.twitch.adapterStatus(info),
+      istEigeneNachricht: (id, text) => this.twitchChat.istEcho(id, text),
     });
     this.twitchAktionen = new TwitchAktionen({
       auth: twitchAuth,
@@ -1156,8 +1167,7 @@ export class Studio {
     } else if (action.kind === 'obs_visibility') {
       void this.obs.setSourceVisible(action.scene, action.source, action.visible);
     } else if (action.kind === 'send_chat') {
-      if (darfInTikTokChatAntworten(event)) void this.sendChat(renderSpeakTemplate(action.template, event));
-      else this.meldeKeinChatNachTwitch();
+      this.chatAntwort(event, renderSpeakTemplate(action.template, event));
     } else if (action.kind === 'streamerbot_action') {
       void this.streamerbot.doAction(action.action);
     } else if (action.kind === 'giveaway_draw') {
@@ -1357,6 +1367,7 @@ export class Studio {
     // Die offene Sprach-Leitung mit schließen — sonst hält sie den Prozess auf.
     edgeLeitungSchliessen();
     this.twitch.beenden();
+    this.twitchChat.stop();
     await this.adapter.disconnect();
     await this.server.stop();
   }
@@ -2511,10 +2522,7 @@ export class Studio {
 
     const text = renderSpeakTemplate(cmd.response, event);
     if (cmd.speak) this.speakForEvent(cmd.response, event);
-    if (cmd.sendToChat) {
-      if (darfInTikTokChatAntworten(event)) void this.sendChat(text);
-      else this.meldeKeinChatNachTwitch();
-    }
+    if (cmd.sendToChat) this.chatAntwort(event, text);
     log.info('Befehl', `${cmd.command} von ${event.user?.nickname ?? '?'}`);
   }
 
@@ -2600,12 +2608,12 @@ export class Studio {
     this.dispatchAction('manual', action, { type: 'timer', ts: Date.now() });
   }
 
-  /** Antwort auf ein Twitch-Ereignis: geht NICHT in den TikTok-Chat (dort wäre
-   *  sie Spam), und nach Twitch senden kann die App noch nicht. Einmal sagen. */
-  private meldeKeinChatNachTwitch(): void {
-    log.einmal('chat-senden:twitch', 'info', 'Chat-Senden',
-      'Eine Chat-Antwort auf ein Twitch-Ereignis wurde nicht gesendet — sie ginge sonst in den TikTok-Chat, '
-      + 'und in den Twitch-Chat schreiben kann die App noch nicht. Sound, Alarm und Vorlesen laufen normal.');
+  /** Antwort aus Regel oder Chat-Befehl — in den Chat der Plattform, von der
+   *  das auslösende Ereignis kam (chatZiel). Twitch: Warteschlange mit 1,5 s
+   *  Abstand, Doppelte fliegen raus, Echos werden im Adapter verworfen. */
+  private chatAntwort(event: Pick<StudioEvent, 'plattform'>, text: string): void {
+    if (chatZiel(event) === 'twitch') this.twitchChat.senden(text);
+    else void this.sendChat(text);
   }
 
   /** Nachricht in den TikTok-Live-Chat senden (rate-limited gegen TikTok-Drossel). */

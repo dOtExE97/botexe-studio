@@ -43,6 +43,8 @@ export const TWITCH_AKTIONS_SCOPES = Object.freeze({
   werbung: 'channel:edit:commercial',
   shoutout: 'moderator:manage:shoutouts',
   chatModus: 'moderator:manage:chat_settings',
+  /** Belege 8/11.3: Antworten der App in den Twitch-Chat. */
+  chat: 'user:write:chat',
 } as const);
 
 /** Alle Rechte, um die die App bittet. Kommt ein Scope dazu, müssen sich alle

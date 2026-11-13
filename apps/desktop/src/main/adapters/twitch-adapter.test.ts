@@ -83,6 +83,7 @@ function aufbau(opts: {
   abo?: (body: { type: string }, auth: string) => number;
   users?: (url: string) => Response | Promise<Response>;
   followers?: (url: string) => Response | Promise<Response>;
+  istEigeneNachricht?: (id: string | undefined, text: string) => boolean;
   getValidToken?: (o?: { abgelehntesToken?: string }) => Promise<TwitchTokens>;
   validate?: () => Promise<boolean>;
 } = {}): Aufbau {
@@ -129,6 +130,7 @@ function aufbau(opts: {
     onStatus: (i) => { status.push(i); },
     setTimeout: uhr.setTimeout,
     clearTimeout: uhr.clearTimeout,
+    ...(opts.istEigeneNachricht ? { istEigeneNachricht: opts.istEigeneNachricht } : {}),
   });
   return { adapter, sockets, events, status, fetches, tokenAufrufe, validateAufrufe: () => validates, einmal, uhr };
 }
@@ -675,5 +677,30 @@ test('Kanalpunkte: Einlösung kommt als kanalpunkte-Ereignis auf den Bus', async
   assert.equal(e?.plattform, 'twitch');
   assert.deepEqual(e?.kanalpunkte, { titel: 'Kanone', kosten: 500 });
   assert.equal(e?.user?.id, 'twitch:9001');
+  a.adapter.stop();
+});
+
+// ── Echo der eigenen Chat-Antworten (Belege 11.3) ───────────────────────────
+
+test('Echo: eigene Bot-Antwort des Kanals wird verworfen; fremde Nachricht mit gleichem Text nicht', async () => {
+  const geprueft: Array<{ id: string | undefined; text: string }> = [];
+  const a = aufbau({
+    istEigeneNachricht: (id, text) => { geprueft.push({ id, text }); return text === '!discord → discord.gg/x'; },
+  });
+  const s = await verbunden(a);
+  const nachricht = (chatter: string, text: string, id: string) => ({
+    broadcaster_user_id: '1337', chatter_user_id: chatter, chatter_user_login: 'x', chatter_user_name: 'X',
+    message_id: id, message: { text, fragments: [{ type: 'text', text }] }, badges: [],
+  });
+  s.notify('e1', 'channel.chat.message', nachricht('1337', '!discord → discord.gg/x', 'mid-1'));
+  s.notify('e2', 'channel.chat.message', nachricht('42', '!discord → discord.gg/x', 'mid-2'));
+  s.notify('e3', 'channel.chat.message', nachricht('1337', 'selbst getippt', 'mid-3'));
+  const chats = a.events.filter((e) => e.type === 'chat');
+  assert.deepEqual(chats.map((e) => [e.user?.id, e.text]), [
+    ['twitch:42', '!discord → discord.gg/x'],
+    ['twitch:1337', 'selbst getippt'],
+  ]);
+  assert.deepEqual(geprueft.map((g) => g.id), ['mid-1', 'mid-3'], 'nur Nachrichten des Kanals selbst werden geprüft');
+  assert.ok(a.einmal.includes('twitch:echo'));
   a.adapter.stop();
 });

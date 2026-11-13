@@ -30,10 +30,11 @@ export function momentNachricht(
   return { kind: 'moment', moment, ...(plattform ? { plattform } : {}) };
 }
 
-/** Darf eine Antwort auf dieses Ereignis in den TikTok-Live-Chat? Nicht, wenn
- *  es von Twitch kommt: Senden nach Twitch gibt es (noch) nicht, und eine
- *  Antwort im TikTok-Chat auf einen Twitch-Follow wäre dort Spam — und
- *  verbrauchte die TikTok-Drossel für echte TikTok-Antworten. */
-export function darfInTikTokChatAntworten(event: Pick<StudioEvent, 'plattform'>): boolean {
-  return event.plattform !== 'twitch';
+/** In welchen Chat geht eine Antwort (Regel „In den Chat schreiben",
+ *  Chat-Befehl) auf dieses Ereignis? In den der auslösenden Plattform: Twitch
+ *  → Twitch-Chat. Alles andere (TikTok, Timer, Test-Knopf, manuell) → TikTok-
+ *  Chat wie bisher. Eine Antwort im TikTok-Chat auf einen Twitch-Follow wäre
+ *  dort Spam — und verbrauchte die TikTok-Drossel für echte TikTok-Antworten. */
+export function chatZiel(event: Pick<StudioEvent, 'plattform'>): Plattform {
+  return event.plattform === 'twitch' ? 'twitch' : 'tiktok';
 }

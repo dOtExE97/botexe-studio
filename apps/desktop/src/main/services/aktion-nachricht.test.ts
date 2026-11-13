@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { aktionsNachricht, momentNachricht, darfInTikTokChatAntworten } from './aktion-nachricht';
+import { aktionsNachricht, momentNachricht, chatZiel } from './aktion-nachricht';
 import type { MomentPayload } from '@botexe/overlay-engine';
 
 const ALARM = { kind: 'fire_alert', targetId: 'l1' } as const;
@@ -60,10 +60,10 @@ test('Moment ohne Ereignis (Spiel-Sieg): Plattform aus der Zuschauer-ID', () => 
 
 // ── Chat-Antworten (Abschluss-Review I1) ────────────────────────────────────
 
-test('Antworten auf Twitch-Ereignisse gehen NICHT in den TikTok-Chat', () => {
-  assert.equal(darfInTikTokChatAntworten({ plattform: 'twitch' }), false);
-  assert.equal(darfInTikTokChatAntworten({ plattform: 'tiktok' }), true);
-  assert.equal(darfInTikTokChatAntworten({}), true, 'Timer/Test/manuell wie bisher');
+test('Antworten gehen in den Chat der auslösenden Plattform (Twitch → Twitch, sonst TikTok)', () => {
+  assert.equal(chatZiel({ plattform: 'twitch' }), 'twitch');
+  assert.equal(chatZiel({ plattform: 'tiktok' }), 'tiktok');
+  assert.equal(chatZiel({}), 'tiktok', 'Timer/Test/manuell wie bisher');
 });
 
 function studioQuelle(): string {
@@ -73,11 +73,17 @@ function studioQuelle(): string {
   return readFileSync(join(SRC, 'main', 'services', 'studio.ts'), 'utf8');
 }
 
-test('studio.ts: jeder sendChat-Aufruf aus Regel/Befehl ist durch darfInTikTokChatAntworten geschützt', () => {
-  const zeilen = studioQuelle().split('\n');
-  const aufrufe = zeilen.filter((z) => /void this\.sendChat\(/.test(z));
-  assert.ok(aufrufe.length >= 2, 'send_chat-Regel und Chat-Befehl gefunden');
-  for (const z of aufrufe) assert.match(z, /darfInTikTokChatAntworten\(event\)/, `ungeschützt: ${z.trim()}`);
+test('studio.ts: Regel und Chat-Befehl antworten nur über chatAntwort(), und die wählt per chatZiel()', () => {
+  const q = studioQuelle();
+  // Regel-Aktion und Befehl gehen über chatAntwort(event, …) …
+  assert.match(q, /action\.kind === 'send_chat'\) \{\s*this\.chatAntwort\(event, renderSpeakTemplate\(action\.template, event\)\);/);
+  assert.match(q, /if \(cmd\.sendToChat\) this\.chatAntwort\(event, text\);/);
+  // … und NUR chatAntwort ruft den TikTok-Versand direkt (sonst ginge eine
+  // Twitch-Antwort an der Weiche vorbei in den TikTok-Chat).
+  const direkt = q.split('\n').filter((z) => /void this\.sendChat\(/.test(z));
+  assert.equal(direkt.length, 1, `direkte sendChat-Aufrufe: ${direkt.map((z) => z.trim()).join(' | ')}`);
+  const weiche = q.slice(q.indexOf('private chatAntwort('), q.indexOf('private chatAntwort(') + 400);
+  assert.match(weiche, /chatZiel\(event\) === 'twitch'\) this\.twitchChat\.senden\(text\);\s*else void this\.sendChat\(text\);/);
 });
 
 test('studio.ts: Momente nur über momentNachricht(); Zuschauer-Moment gibt sein Ereignis mit', () => {

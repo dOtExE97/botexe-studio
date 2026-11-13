@@ -124,7 +124,7 @@ test('TWITCH_SCOPES: die fünf Lese-Scopes + genau die Aktions-Scopes aus den Be
   assert.deepEqual([...TWITCH_SCOPES].sort(), [
     'bits:read', 'channel:edit:commercial', 'channel:manage:broadcast', 'channel:read:redemptions',
     'channel:read:subscriptions', 'clips:edit', 'moderator:manage:chat_settings', 'moderator:manage:shoutouts',
-    'moderator:read:followers', 'user:read:chat',
+    'moderator:read:followers', 'user:read:chat', 'user:write:chat',
   ]);
 });
 
