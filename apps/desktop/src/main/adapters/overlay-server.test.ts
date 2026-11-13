@@ -5,7 +5,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import WebSocket from 'ws';
-import { createDefaultLayout } from '@botexe/overlay-engine';
+import { createDefaultLayout, type OverlayLayout } from '@botexe/overlay-engine';
 import { EventBus } from '../core/event-bus';
 import { OverlayServer, isAllowedWsOrigin } from './overlay-server';
 
@@ -585,4 +585,132 @@ test('belegter Port: weicht aus statt abzustürzen', async () => {
 
   await server.stop();
   blocker.close();
+});
+
+// ── Plattform-Filter (Twitch-Anbindung) ─────────────────────────────────────
+// Ein Overlay mit plattform 'twitch' bekommt keine TikTok-Ereignisse/-Aktionen,
+// eins ohne Feld (alte Overlays) bekommt alles wie bisher.
+
+async function setupPlattform() {
+  const bus = new EventBus();
+  const standard = createDefaultLayout('Standard', 'std'); // ohne plattform = alle
+  const twitch = { ...createDefaultLayout('Twitch', 'tw'), plattform: 'twitch' as const };
+  const tiktok = { ...createDefaultLayout('TikTok', 'tt'), plattform: 'tiktok' as const };
+  const layouts = new Map<string, OverlayLayout>([['std', standard], ['tw', twitch], ['tt', tiktok]]);
+  const server = new OverlayServer(bus, {
+    port: 0,
+    ...makeDirs(),
+    heartbeatMs: 0,
+    getLayout: (id) => layouts.get(id ?? 'std') ?? null,
+    getDefaultLayoutId: () => 'std',
+  });
+  await server.start();
+  return { bus, server, layouts };
+}
+
+/** Nachrichten bis zum Marker-Ereignis (Text 'ENDE') einsammeln — so lässt sich
+ *  „kam NICHT an" prüfen, ohne auf eine Zeitgrenze zu warten. */
+async function bisMarker(client: WsClient): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = [];
+  for (;;) {
+    const m = await client.next();
+    if (m.kind === 'event' && (m.event as { text?: string }).text === 'ENDE') return out;
+    out.push(m);
+  }
+}
+
+const texteVon = (msgs: Record<string, unknown>[]) =>
+  msgs.filter((m) => m.kind === 'event').map((m) => (m.event as { text?: string }).text);
+
+test('Plattform: Twitch-Overlay bekommt TikTok-Ereignis NICHT, Ereignis ohne Plattform JA', async () => {
+  const { bus, server } = await setupPlattform();
+  try {
+    const tw = await wsConnect(`${server.getWsUrl()}&profile=tw`);
+    const std = await wsConnect(server.getWsUrl());
+    const tt = await wsConnect(`${server.getWsUrl()}&profile=tt`);
+    await tw.next(); await std.next(); await tt.next(); // layout
+    bus.publish({ type: 'chat', ts: 1, text: 'von-tiktok', plattform: 'tiktok' });
+    bus.publish({ type: 'chat', ts: 2, text: 'von-twitch', plattform: 'twitch' });
+    bus.publish({ type: 'chat', ts: 3, text: 'ohne' });
+    bus.publish({ type: 'chat', ts: 4, text: 'ENDE' });
+    assert.deepEqual(texteVon(await bisMarker(tw)), ['von-twitch', 'ohne']);
+    assert.deepEqual(texteVon(await bisMarker(std)), ['von-tiktok', 'von-twitch', 'ohne'], 'altes Overlay bekommt alles');
+    assert.deepEqual(texteVon(await bisMarker(tt)), ['von-tiktok', 'ohne']);
+    tw.close(); std.close(); tt.close();
+  } finally {
+    await server.stop();
+  }
+});
+
+test('Plattform: Aktionen werden genauso gefiltert', async () => {
+  const { bus, server } = await setupPlattform();
+  try {
+    const tw = await wsConnect(`${server.getWsUrl()}&profile=tw`);
+    const std = await wsConnect(server.getWsUrl());
+    await tw.next(); await std.next();
+    server.broadcast({ kind: 'action', ruleId: 'r-tt', action: { kind: 'fire_alert', targetId: 'l1' }, plattform: 'tiktok' });
+    server.broadcast({ kind: 'action', ruleId: 'r-tw', action: { kind: 'fire_alert', targetId: 'l1' }, plattform: 'twitch' });
+    server.broadcast({ kind: 'action', ruleId: 'r-ohne', action: { kind: 'fire_alert', targetId: 'l1' } });
+    bus.publish({ type: 'chat', ts: 4, text: 'ENDE' });
+    const ids = (msgs: Record<string, unknown>[]) => msgs.filter((m) => m.kind === 'action').map((m) => m.ruleId);
+    assert.deepEqual(ids(await bisMarker(tw)), ['r-tw', 'r-ohne']);
+    assert.deepEqual(ids(await bisMarker(std)), ['r-tt', 'r-tw', 'r-ohne']);
+    tw.close(); std.close();
+  } finally {
+    await server.stop();
+  }
+});
+
+test('Plattform: andere Nachrichten (stats, reset) gehen weiter an alle', async () => {
+  const { bus, server } = await setupPlattform();
+  try {
+    const tw = await wsConnect(`${server.getWsUrl()}&profile=tw`);
+    await tw.next();
+    server.broadcast({ kind: 'stats', stats: { x: 1 } });
+    server.broadcastReset();
+    bus.publish({ type: 'chat', ts: 4, text: 'ENDE' });
+    assert.deepEqual((await bisMarker(tw)).map((m) => m.kind), ['stats', 'reset']);
+    tw.close();
+  } finally {
+    await server.stop();
+  }
+});
+
+test('Plattform: Sticky-Nachlieferung beim Verbinden wird gefiltert', async () => {
+  const { bus, server } = await setupPlattform();
+  try {
+    bus.publish({ type: 'chat', ts: 1, text: 'sticky-tt', plattform: 'tiktok' });
+    bus.publish({ type: 'chat', ts: 2, text: 'sticky-tw', plattform: 'twitch' });
+    bus.publish({ type: 'follow', ts: 3, text: 'sticky-ohne' });
+    const tw = await wsConnect(`${server.getWsUrl()}&profile=tw`);
+    const std = await wsConnect(server.getWsUrl());
+    await tw.next(); await std.next(); // layout
+    // Kurz warten, damit die Nachlieferung sicher VOR dem Marker liegt (Server
+    // schickt sie synchron im connection-Handler, der Marker kommt danach).
+    await wait(50);
+    bus.publish({ type: 'chat', ts: 4, text: 'ENDE' });
+    const twMsgs = await bisMarker(tw);
+    assert.deepEqual(texteVon(twMsgs), ['sticky-tw', 'sticky-ohne']);
+    assert.ok(twMsgs.every((m) => (m.event as { sticky?: boolean }).sticky === true));
+    assert.deepEqual(texteVon(await bisMarker(std)), ['sticky-tt', 'sticky-tw', 'sticky-ohne']);
+    tw.close(); std.close();
+  } finally {
+    await server.stop();
+  }
+});
+
+test('Plattform: Layout-Änderung im Editor greift sofort (kein Zwischenspeicher beim Verbinden)', async () => {
+  const { bus, server, layouts } = await setupPlattform();
+  try {
+    const std = await wsConnect(server.getWsUrl());
+    await std.next();
+    bus.publish({ type: 'chat', ts: 1, text: 'vorher', plattform: 'tiktok' });
+    layouts.set('std', { ...layouts.get('std')!, plattform: 'twitch' });
+    bus.publish({ type: 'chat', ts: 2, text: 'nachher', plattform: 'tiktok' });
+    bus.publish({ type: 'chat', ts: 3, text: 'ENDE' });
+    assert.deepEqual(texteVon(await bisMarker(std)), ['vorher']);
+    std.close();
+  } finally {
+    await server.stop();
+  }
 });

@@ -58,10 +58,30 @@ export interface OverlayLayer {
   props?: Record<string, unknown>;
 }
 
+/** Für welche Plattform ein Overlay gedacht ist. 'alle' (= Feld fehlt, alte
+ *  Overlays) bekommt jedes Ereignis wie bisher; 'tiktok'/'twitch' nur die
+ *  eigenen und die ohne Plattform (Timer, Test, Replay). */
+export type OverlayPlattform = 'alle' | 'tiktok' | 'twitch';
+
+/** Darf ein Ereignis/eine Aktion dieser Plattform in dieses Overlay?
+ *  Der Ereignis-Typ ist bewusst als `Exclude<…, 'alle'>` geschrieben statt aus
+ *  @botexe/trigger-engine importiert: dieses Paket hängt nicht von der
+ *  Trigger-Engine ab. Er ist deckungsgleich mit deren `Plattform`. */
+export function passtZuPlattform(
+  layoutPlattform: OverlayPlattform | undefined,
+  eventPlattform: Exclude<OverlayPlattform, 'alle'> | undefined,
+): boolean {
+  if (layoutPlattform === undefined || layoutPlattform === 'alle') return true;
+  if (eventPlattform === undefined) return true;
+  return layoutPlattform === eventPlattform;
+}
+
 export interface OverlayLayout {
   schemaVersion: typeof LAYOUT_SCHEMA_VERSION;
   id: string;
   name: string;
+  /** Fehlt = 'alle' (Verhalten wie vor der Twitch-Anbindung). */
+  plattform?: OverlayPlattform;
   canvas: OverlayCanvas;
   layers: OverlayLayer[];
   createdAt: string;
@@ -76,6 +96,7 @@ const layoutJsonSchema = {
     schemaVersion: { const: LAYOUT_SCHEMA_VERSION },
     id: { type: 'string', minLength: 1 },
     name: { type: 'string', minLength: 1 },
+    plattform: { enum: ['alle', 'tiktok', 'twitch'] },
     canvas: {
       type: 'object',
       additionalProperties: false,

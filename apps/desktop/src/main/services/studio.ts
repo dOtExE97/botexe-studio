@@ -1122,7 +1122,7 @@ export class Studio {
       }
       // roll zentral würfeln: alle Overlay-Quellen (OBS + TTLS) zeigen denselben
       // Gewinner — sonst würfelt jede Quelle lokal ein eigenes Ergebnis.
-      this.server.broadcast({ kind: 'action', ruleId, action: { ...action, roll: Math.random() } });
+      this.server.broadcast({ kind: 'action', ruleId, action: { ...action, roll: Math.random() }, plattform: event.plattform });
       // Stats anstoßen (gedeckelt) — auch beim Gratis-Spin, damit Overlay-Listen
       // konsistent bleiben statt einzufrieren.
       this.scheduleStatsBroadcast();
@@ -1147,7 +1147,9 @@ export class Studio {
         }
       }
     } else {
-      this.server.broadcast({ kind: 'action', ruleId, action });
+      // Plattform des auslösenden Ereignisses mitgeben: ein Twitch-Follow-Alarm
+      // gehört nicht ins TikTok-Overlay (fehlt sie, geht die Aktion an alle).
+      this.server.broadcast({ kind: 'action', ruleId, action, plattform: event.plattform });
     }
   }
 

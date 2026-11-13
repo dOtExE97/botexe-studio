@@ -847,3 +847,13 @@ test('Banner ohne Nutzer/Stufe und unbekannte Banner-Art nennen ihre Feldnamen',
     assert.doesNotMatch(fremd?.text ?? '', /Wert123/);
   } finally { m.weg(); await adapter.disconnect(); }
 });
+
+test('Plattform: JEDES Ereignis des TikTok-Adapters trägt plattform „tiktok" (auch die Zuschauerzahl beim Verbinden)', async () => {
+  const { adapter, connections, events } = setup();
+  await adapter.connect('testuser');
+  connections[0]?.emit('chat', { user: { uniqueId: 'anna' }, comment: 'hi' });
+  connections[0]?.emit('follow', { user: { uniqueId: 'ben' } });
+  assert.ok(events.some((e) => e.type === 'viewer_count'), 'Zuschauerzahl beim Verbinden fehlt');
+  assert.ok(events.length >= 3);
+  assert.deepEqual(events.filter((e) => e.plattform !== 'tiktok').map((e) => e.type), []);
+});

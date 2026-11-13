@@ -16,8 +16,8 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import type { OverlayLayout, MomentPayload } from '@botexe/overlay-engine';
-import type { StudioEvent, TriggerAction } from '@botexe/trigger-engine';
+import { passtZuPlattform, type OverlayLayout, type MomentPayload } from '@botexe/overlay-engine';
+import type { Plattform, StudioEvent, TriggerAction } from '@botexe/trigger-engine';
 import type { EventBus } from '../core/event-bus';
 import { log, darfMelden } from '../core/logger';
 import { TTLS_HOST } from '../services/ttls-link';
@@ -27,7 +27,8 @@ export type OverlayMessage =
   | { kind: 'hello'; version: string; seed: string } // App-Version (Reload-Handshake) + Session-Seed für deterministische Spiele
   | { kind: 'layout'; layout: OverlayLayout }
   | { kind: 'event'; event: StudioEvent }
-  | { kind: 'action'; ruleId: string; action: TriggerAction }
+  // plattform = die des auslösenden Ereignisses; fehlt = an alle Overlays.
+  | { kind: 'action'; ruleId: string; action: TriggerAction; plattform?: Plattform }
   | { kind: 'stats'; stats: unknown }
   | { kind: 'spotify'; state: unknown } // Now-Playing fürs Spotify-Widget
   | { kind: 'reset'; seed: string } // neuer Stream → Overlay-Zähler/Top-Listen zurücksetzen + neuer Session-Seed
@@ -650,6 +651,12 @@ export class OverlayServer {
         // erreichtes Ziel als gerade erreicht — sonst ließe sich der Alarm nicht testen.
         ...(e.ziel ? { ziel: { ...e.ziel, geradeErreicht: typeof e.ziel.geradeErreicht === 'boolean' ? e.ziel.geradeErreicht : e.ziel.erreicht === true } } : {}),
         ...(e.vip ? { vip: e.vip } : {}),
+        // Twitch-Anbindung: Plattform nur mit bekanntem Wert (sonst gilt das
+        // Test-Ereignis für alle Overlays), dazu Raid/Bits/Geschenk-Abos.
+        ...(e.plattform === 'tiktok' || e.plattform === 'twitch' ? { plattform: e.plattform } : {}),
+        ...(e.raid ? { raid: e.raid } : {}),
+        ...(e.cheer ? { cheer: e.cheer } : {}),
+        ...(e.subGeschenk ? { subGeschenk: e.subGeschenk } : {}),
       };
       this.bus.publish(clean);
       res.json({ ok: true });
@@ -891,6 +898,9 @@ export class OverlayServer {
       const boss = this.options.getBossState?.();
       if (boss) this.sendTo(client, { kind: 'game-state', gameKind: 'boss', state: boss }, true);
       for (const e of this.bus.getAllLastValues()) {
+        // Nur Passendes nachliefern: ein Twitch-Overlay bekommt keinen
+        // TikTok-Stand (und umgekehrt); alte Overlays ohne Plattform alles.
+        if (!this.passtZuClient(client, e.plattform)) continue;
         // sticky markieren: Rehydrierungs-Replay, KEIN neues Live-Event.
         // Effekt-/Zähler-Widgets überspringen sticky (sonst Geister-Alerts /
         // Doppelzählung bei jedem Reconnect); Top-Gift & Co. rehydrieren damit.
@@ -1045,9 +1055,24 @@ export class OverlayServer {
     // Einmal serialisieren statt pro Client: bei mehreren offenen Overlays
     // (OBS + TTLS + Editor-Vorschau) wäre dasselbe Event sonst N-mal stringified.
     const payload = JSON.stringify(message);
+    // Nur Ereignisse und Aktionen tragen eine Plattform; alles andere (stats,
+    // layout, reset, spotify …) geht wie bisher an jede Quelle.
+    const plattform = message.kind === 'event' ? message.event.plattform
+      : message.kind === 'action' ? message.plattform
+        : undefined;
     for (const client of this.clients) {
+      if (plattform !== undefined && !this.passtZuClient(client, plattform)) continue;
       this.sendTo(client, message, false, payload);
     }
+  }
+
+  /** Gehört ein Ereignis dieser Plattform in die Browser-Quelle? Das Layout
+   *  wird bei JEDEM Senden frisch nachgeschlagen (nicht beim Verbinden
+   *  gemerkt) — der Streamer kann die Plattform im Editor live umstellen. */
+  private passtZuClient(client: TrackedClient, plattform: Plattform | undefined): boolean {
+    if (plattform === undefined) return true;
+    const layout = this.options.getLayout(client.profileId || undefined);
+    return passtZuPlattform(layout?.plattform, plattform);
   }
 
   /** Aktuelles Layout eines Profils an genau dessen Clients pushen (nach Save

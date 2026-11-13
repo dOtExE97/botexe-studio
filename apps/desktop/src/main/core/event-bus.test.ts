@@ -73,3 +73,43 @@ test('Vorfilter verwirft ein Ereignis für ALLE Abonnenten und merkt es nicht al
   assert.deepEqual(got.map((e) => e.text), ['bleibt']);
   assert.equal(bus.getLastValue('chat')?.text, 'bleibt');
 });
+
+// ── Sticky-Werte je Art UND Plattform (Twitch-Anbindung) ─────────────────────
+
+test('Sticky: chat von TikTok und chat von Twitch überschreiben sich nicht', () => {
+  const bus = new EventBus();
+  bus.publish({ type: 'chat', ts: 1, text: 'tt', plattform: 'tiktok' });
+  bus.publish({ type: 'chat', ts: 2, text: 'tw', plattform: 'twitch' });
+  const chats = bus.getAllLastValues().filter((e) => e.type === 'chat');
+  assert.deepEqual(chats.map((e) => e.text), ['tt', 'tw']);
+  // Neuer TikTok-Chat ersetzt nur den TikTok-Wert und rückt ans Ende (jüngster zuletzt).
+  bus.publish({ type: 'chat', ts: 3, text: 'tt2', plattform: 'tiktok' });
+  assert.deepEqual(bus.getAllLastValues().filter((e) => e.type === 'chat').map((e) => e.text), ['tw', 'tt2']);
+  assert.equal(bus.getLastValue('chat')?.text, 'tt2', 'getLastValue = jüngster über alle Plattformen');
+});
+
+test('Sticky: Ereignis ohne Plattform verhält sich wie bisher (ein Wert je Art, Reihenfolge der Arten bleibt)', () => {
+  const bus = new EventBus();
+  bus.publish(chat('eins', 1));
+  bus.publish({ type: 'follow', ts: 2 });
+  bus.publish(chat('zwei', 3));
+  const alle = bus.getAllLastValues();
+  assert.deepEqual(alle.map((e) => `${e.type}:${e.text ?? ''}`), ['chat:zwei', 'follow:']);
+});
+
+test('Sticky: Ereignis ohne Plattform gilt für alle und ersetzt die Plattform-Werte seiner Art', () => {
+  const bus = new EventBus();
+  bus.publish({ type: 'chat', ts: 1, text: 'tt', plattform: 'tiktok' });
+  bus.publish({ type: 'chat', ts: 2, text: 'tw', plattform: 'twitch' });
+  bus.publish(chat('test', 3));
+  assert.deepEqual(bus.getAllLastValues().map((e) => e.text), ['test']);
+});
+
+test('Sticky: clearLastValues leert auch die Plattform-Werte', () => {
+  const bus = new EventBus();
+  bus.publish({ type: 'chat', ts: 1, text: 'tt', plattform: 'tiktok' });
+  bus.publish({ type: 'chat', ts: 2, text: 'tw', plattform: 'twitch' });
+  bus.clearLastValues();
+  assert.deepEqual(bus.getAllLastValues(), []);
+  assert.equal(bus.getLastValue('chat'), undefined);
+});

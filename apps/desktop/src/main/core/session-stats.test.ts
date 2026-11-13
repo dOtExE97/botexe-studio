@@ -256,3 +256,15 @@ test('Superfan: nur echte Abos zählen — „Superfan betritt" ist weder neu no
   assert.equal(t.superfans, 1, 'neues Abo je Person einmal');
   assert.equal(t.subs, 2, 'Verlängerungen (Banner und sub)');
 });
+
+// ── Plattform (Twitch-Anbindung): TikTok-Zahlen bleiben sauber ──────────────
+
+test('Statistik zählt nur Ereignisse ohne Plattform oder von TikTok', () => {
+  const s = new SessionStats();
+  assert.equal(s.apply({ ...gift('anna', 10), plattform: 'twitch' }), false, 'Twitch ändert nichts');
+  assert.equal(s.apply({ type: 'follow', ts: 1, user: { id: 'twitch:1', nickname: 'X' }, plattform: 'twitch' }), false);
+  assert.equal(s.snapshot().totals.coins, 0);
+  assert.equal(s.apply({ ...gift('ben', 20), plattform: 'tiktok' }), true);
+  assert.equal(s.apply(gift('cara', 5)), true);
+  assert.equal(s.snapshot().totals.coins, 25);
+});

@@ -43,6 +43,8 @@ const EVENT_TYPES: ReadonlySet<string> = new Set<StudioEventType>([
   'live_ziel',
   'vip_betritt',
   'emote',
+  'raid',
+  'cheer',
 ]);
 
 const WHO_VALUES: ReadonlySet<string> = new Set(['all', 'followers', 'subs', 'mods']);

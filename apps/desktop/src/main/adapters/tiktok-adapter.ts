@@ -224,6 +224,13 @@ export function ereignisNameFuer(typ: string): string | undefined {
   return eventMapCache?.[typ];
 }
 
+/** Herkunft stempeln, bevor ein Ereignis auf den Bus geht — damit ein reines
+ *  Twitch-Overlay keine TikTok-Ereignisse bekommt. Ein schon gesetztes Feld
+ *  bleibt unangetastet. */
+function alsTikTok(e: StudioEvent): StudioEvent {
+  return e.plattform ? e : { ...e, plattform: 'tiktok' };
+}
+
 function defaultFactory(username: string, auth: TikTokAuth): LiveConnectionLike {
   // Lazy import: hält Tests und Startpfad frei von der schweren Lib.
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -763,7 +770,7 @@ export class TikTokAdapter {
 
       const viewers = typeof state.viewerCount === 'number' ? state.viewerCount : 0;
       if (viewers > 0) {
-        this.bus.publish(normalizeViewerCount({ viewerCount: viewers }, this.now()));
+        this.bus.publish(alsTikTok(normalizeViewerCount({ viewerCount: viewers }, this.now())));
       }
     } catch (err) {
       if (epoch !== this.epoch) return;
@@ -868,7 +875,7 @@ export class TikTokAdapter {
             + 'keine Animation, kein Sound. Das passiert, wenn TikTok die Geschenk-Felder umbenennt. '
             + 'In Einstellungen → TikTok-Verbindung den anderen Verbindungsmodus probieren.');
         }
-        this.bus.publish(e);
+        this.bus.publish(alsTikTok(e));
       }
     };
     // Reconnect-Replay verwerfen: dieselbe common.msgId nicht zweimal

@@ -256,6 +256,10 @@ export class SessionStats {
 
   /** Verarbeitet ein Event; liefert true, wenn sich der Zustand geändert hat. */
   apply(event: StudioEvent): boolean {
+    // Die Statistik ist die TikTok-Statistik: Twitch-Ereignisse (Chat, Subs,
+    // Bits …) würden Zuschauer- und Geschenkzahlen verfälschen. Ereignisse
+    // ohne Plattform (Test-Knopf, Replay, Timer) zählen weiter wie bisher.
+    if (event.plattform !== undefined && event.plattform !== 'tiktok') return false;
     const userNew = this.trackViewer(event.user?.id);
     // Herkunft nur bei NEUEN Zuschauern: `seenUsers` ist dafür schon da und
     // wird mitgespeichert — ein eigenes Merk-Set müsste die Schema-Version

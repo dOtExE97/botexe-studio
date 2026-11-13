@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateLayout, createDefaultLayout, getSafeZoneProfile, type OverlayLayout } from './index';
+import { validateLayout, createDefaultLayout, getSafeZoneProfile, passtZuPlattform, type OverlayLayout } from './index';
 
 function validLayout(): OverlayLayout {
   return {
@@ -99,4 +99,39 @@ test('safezone-profile: für beide canvas-formate vorhanden und konsistent', () 
   for (const z of portrait.zones) {
     assert.ok(z.x >= 0 && z.y >= 0 && z.x + z.w <= 1080 && z.y + z.h <= 1920, z.id);
   }
+});
+
+// ── Plattform je Overlay (Twitch-Anbindung) ─────────────────────────────────
+
+test('plattform: Layout mit plattform „twitch" ist gültig', () => {
+  const l = { ...validLayout(), plattform: 'twitch' };
+  assert.equal(validateLayout(l).ok, true);
+  assert.equal(validateLayout({ ...validLayout(), plattform: 'tiktok' }).ok, true);
+  assert.equal(validateLayout({ ...validLayout(), plattform: 'alle' }).ok, true);
+});
+
+test('plattform: unbekannte Plattform wird abgelehnt', () => {
+  assert.equal(validateLayout({ ...validLayout(), plattform: 'youtube' }).ok, false);
+});
+
+test('plattform: Layout OHNE Feld bleibt gültig (alte Overlays)', () => {
+  const l = validLayout();
+  assert.equal('plattform' in l, false);
+  assert.equal(validateLayout(l).ok, true);
+});
+
+test('passtZuPlattform: vollständige Wahrheitstabelle', () => {
+  const layoutWerte = [undefined, 'alle', 'tiktok', 'twitch'] as const;
+  const eventWerte = [undefined, 'tiktok', 'twitch'] as const;
+  for (const lp of layoutWerte) {
+    for (const ep of eventWerte) {
+      const erwartet = lp === undefined || lp === 'alle' || ep === undefined || lp === ep;
+      assert.equal(passtZuPlattform(lp, ep), erwartet, `Layout ${lp} / Ereignis ${ep}`);
+    }
+  }
+  // Stichproben ausdrücklich, damit die Tabelle oben nicht nur sich selbst prüft.
+  assert.equal(passtZuPlattform('twitch', 'tiktok'), false);
+  assert.equal(passtZuPlattform('tiktok', 'twitch'), false);
+  assert.equal(passtZuPlattform('twitch', undefined), true);
+  assert.equal(passtZuPlattform(undefined, 'twitch'), true);
 });

@@ -48,8 +48,17 @@ export type StudioEventType =
    *  Gewinner stehen in einer eigenen Nachricht, und es hängt kein
    *  vollständiges Zuschauer-Objekt daran (siehe normalizeEnvelope). */
   | 'envelope'
+  /** Twitch-Raid: ein anderer Kanal schickt seine Zuschauer herüber (siehe `raid`). */
+  | 'raid'
+  /** Twitch-Bits („Cheer"): Zuschauer jubelt mit Bits (siehe `cheer`). */
+  | 'cheer'
   /** Periodischer Tick — Timer-Regeln (z.B. alle 10 Min. Socials einblenden). */
   | 'timer';
+
+/** Woher ein Ereignis stammt. Fehlt das Feld am Ereignis, gilt es für ALLE
+ *  Plattformen (Timer, Test-Knopf, Replay) — so verhalten sich alte Daten wie
+ *  bisher. */
+export type Plattform = 'tiktok' | 'twitch';
 
 export interface StudioUser {
   id: string;
@@ -255,6 +264,16 @@ export interface StudioEvent {
    *  MÜSSEN das überspringen (sonst Geister-Alerts + Doppelzählung); nur
    *  idempotente Anzeigen (Top-Gift/Top-Streak) dürfen es verarbeiten. */
   sticky?: boolean;
+  /** Herkunft des Ereignisses. Fehlt = gilt für alle Overlays (Timer, Test,
+   *  Replay). Overlays mit eigener Plattform bekommen nur Passendes. */
+  plattform?: Plattform;
+  /** Nur bei 'raid': wie viele Zuschauer der Raid mitbringt. */
+  raid?: { viewers: number };
+  /** Nur bei 'cheer': wie viele Bits gejubelt wurden. */
+  cheer?: { bits: number };
+  /** Nur bei 'sub' (Twitch): verschenkte Abos — Anzahl, Stufe und ob der
+   *  Schenkende anonym bleiben will. */
+  subGeschenk?: { anzahl: number; tier?: string; anonym?: boolean };
 }
 
 export type TriggerCondition =
