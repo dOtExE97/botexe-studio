@@ -554,6 +554,7 @@ export function validateChatCommand(input: unknown): ChatCommand | null {
 
   // Unbekannte Sonderaufgabe → weglassen (der Befehl antwortet dann nur).
   if (input['aktion'] === 'song_request') cmd.aktion = 'song_request';
+  if (typeof input['ohneExplicit'] === 'boolean') cmd.ohneExplicit = input['ohneExplicit'];
 
   return cmd;
 }

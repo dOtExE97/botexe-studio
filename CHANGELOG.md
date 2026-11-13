@@ -78,7 +78,17 @@ eigenem Overlay und eigenem Chat:
   `{befehle}`. Damit `!kiste` funktioniert, würfelt bei **Twitch-Follows** jetzt
   die App die Orakel-Kiste (einmal je Zuschauer und Stream, alle Overlays
   zeigen dieselbe Zahl; Chance/Glück unter Einstellungen → „Piraten-Orakel &
-  Befehls-Links“). TikTok-Follows würfelt der Herz-Alarm wie bisher selbst.
+  Befehls-Links“ — die Felder „Chance“/„Glückspilz“ im Herz-Alarm gelten dann
+  nur noch für TikTok, beide Stellen sagen das jetzt dazu). TikTok-Follows
+  würfelt der Herz-Alarm wie bisher selbst. Ein neuer Twitch-Stream wird an
+  seiner Stream-ID erkannt — auch wenn das „Stream beendet“ davor nie ankam
+  (Leitung tot, PC im Ruhezustand): Kisten werden neu gewürfelt, `{uptime}`
+  zählt ab Twitchs Startzeit. `!sr` überspringt Explicit-Songs (Schalter
+  „Keine Explicit-Songs“ am Befehl, Standard an) und sagt im Chat Bescheid,
+  wenn es nur Explicit-Treffer gab. Bot-Antworten nach Twitch beginnen nie
+  mit `/` oder `.`, sind einzeilig und höchstens 500 Zeichen lang;
+  Platzhalter werden genau einmal aufgelöst (ein Zuschauer, der `{text}`
+  schreibt, vervielfacht nichts).
 - **Bestenliste „Twitch-Supporter“** — das Widget „Top Gifter“ hat eine neue
   Quelle: wer auf Twitch am meisten unterstützt. 1 Bit = 1 Punkt, jeder Sub
   (auch Resub) = 500 Punkte, verschenkte Subs zählen beim Schenkenden

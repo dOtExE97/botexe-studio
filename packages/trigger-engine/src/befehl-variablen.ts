@@ -86,5 +86,9 @@ export function fuelleBefehlsVariablen(template: string, eventText: string | und
     befehle: () => ((w.befehle ?? []).length ? (w.befehle ?? []).join(' · ') : 'noch keine'),
   };
   // Funktions-Ersetzung: ein Songtitel mit „$&" o.ä. bleibt wörtlich stehen.
-  return template.replace(/\{(song|uptime|kiste|follower|ziel_user|ziel|top|discord|tiktok|insta|befehle)\}/g, (_, k: string) => werte[k]?.() ?? '');
+  // Geschweifte Klammern in den Werten fliegen raus: Danach füllt
+  // renderSpeakTemplate {user} {text} … — ein Zuschauer-Ziel „{text}{text}"
+  // oder ein Songtitel mit „{args}" würde sonst ein zweites Mal aufgelöst.
+  return template.replace(/\{(song|uptime|kiste|follower|ziel_user|ziel|top|discord|tiktok|insta|befehle)\}/g,
+    (_, k: string) => (werte[k]?.() ?? '').replace(/[{}]/g, ''));
 }

@@ -97,6 +97,12 @@ export interface TwitchStatusInfo {
   status: TwitchStatus;
   login?: string;
   live?: boolean;
+  /** Belege 5.8: `id` des Streams aus dem letzten `stream.online`. Jede neue
+   *  ID ist ein NEUER Stream — auch wenn das `stream.offline` davor nie ankam
+   *  (Leitung tot, PC im Ruhezustand, von Hand getrennt). */
+  streamId?: string;
+  /** Belege 5.8: `started_at` des letzten `stream.online` (ms seit Epoche). */
+  startedAt?: number;
   detail?: string;
 }
 
@@ -228,6 +234,8 @@ export class TwitchAdapter {
       status,
       ...(this.status.login ? { login: this.status.login } : {}),
       ...(this.status.live !== undefined ? { live: this.status.live } : {}),
+      ...(this.status.streamId ? { streamId: this.status.streamId } : {}),
+      ...(this.status.startedAt ? { startedAt: this.status.startedAt } : {}),
       ...(detail ? { detail } : {}),
     });
   }
@@ -610,7 +618,12 @@ export class TwitchAdapter {
     if (typ === 'stream.online' || typ === 'stream.offline') {
       const live = typ === 'stream.online';
       this.deps.log.info('Twitch', live ? 'Twitch meldet: Du bist live.' : 'Twitch meldet: Stream beendet.');
-      this.status = { ...this.status, live };
+      const ev = obj(event);
+      const id = typeof ev?.id === 'string' && ev.id ? ev.id : undefined;
+      const start = typeof ev?.started_at === 'string' ? Date.parse(ev.started_at) : NaN;
+      this.status = live
+        ? { ...this.status, live, streamId: id ?? `online-${meta?.message_id ?? this.deps.now()}`, startedAt: Number.isFinite(start) && start > 0 ? start : undefined }
+        : { ...this.status, live };
       this.statusMit(this.status.status);
       return;
     }

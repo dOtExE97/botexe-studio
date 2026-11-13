@@ -10,11 +10,13 @@ export type ZaehlerName = 'siege' | 'kills';
 /** Was das Widget bekommt (landet als `params` in der fire_alert-Aktion). */
 export type ZaehlerParams = { zaehler: ZaehlerName; delta: number } | { zaehler: ZaehlerName; wert: number };
 
-/** Gleiche Schreibweisen wie im Widget (ALIAS in piraten-zaehler.js). */
-const ALIAS: Record<string, ZaehlerName> = {
-  siege: 'siege', sieg: 'siege', vr: 'siege', victory: 'siege', wins: 'siege', win: 'siege',
-  kills: 'kills', kill: 'kills',
-};
+/** Gleiche Schreibweisen wie im Widget (ALIAS in piraten-zaehler.js). Eine
+ *  Map, kein Objekt-Literal: sonst gälten geerbte Schlüssel wie „constructor",
+ *  „__proto__" oder „toString" als Zähler (Review Runde 3, M1). */
+const ALIAS: ReadonlyMap<string, ZaehlerName> = new Map<string, ZaehlerName>([
+  ['siege', 'siege'], ['sieg', 'siege'], ['vr', 'siege'], ['victory', 'siege'], ['wins', 'siege'], ['win', 'siege'],
+  ['kills', 'kills'], ['kill', 'kills'],
+]);
 
 export const ZAEHLER_MAX = 99999;
 const MAX_SCHRITT = 100;
@@ -28,7 +30,7 @@ const MAX_SCHRITT = 100;
  */
 export function zaehlerAnfrage(lies: (name: string) => string | undefined): ZaehlerParams | { fehler: string } {
   const name = (lies('zaehler') ?? lies('wert') ?? '').trim().toLowerCase();
-  const zaehler = ALIAS[name];
+  const zaehler = ALIAS.get(name);
   if (!zaehler) return { fehler: 'Parameter „zaehler" fehlt oder ist unbekannt — erlaubt: siege (auch vr, wins) oder kills.' };
   const aktion = (lies('aktion') ?? 'plus').trim().toLowerCase();
   if (aktion === 'reset') return { zaehler, wert: 0 };

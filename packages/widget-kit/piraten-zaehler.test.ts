@@ -101,3 +101,9 @@ test('Widget: eigene Beschriftung, Vorschau mit Demo, nach destroy wirft nichts'
   w.onAction({ kind: 'fire_alert' });
   w.onReset();
 });
+
+test('zaehlerName: Prototyp-Schlüssel sind KEIN Zähler (Review M1)', () => {
+  for (const n of ['constructor', '__proto__', 'toString', 'hasOwnProperty', 'valueOf']) {
+    assert.equal(zaehlerName(n), null, n);
+  }
+});

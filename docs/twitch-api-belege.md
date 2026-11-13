@@ -878,6 +878,10 @@ Quelle: [API-CHAT] (https://dev.twitch.tv/docs/api/reference/chat#send-chat-mess
   `banned_email_alias`, `banned_phone_alias`, `verified_phone_number`, `channel_suspended`.
 - Fehler: `400`, `401`, `403`, `422` (Nachricht zu gross), `429`.
 - `msg_duplicate`: identisch zur vorherigen Nachricht des Senders in den letzten 30 s.
+- Unbelegt: ob Helix eine `message`, die mit `/` oder `.` beginnt, als Chat-Befehl ausfuehrt
+  (`/ban`, `.timeout` …). Die App entschaerft das vorsorglich: `twitchBotText()` in
+  `twitch-chat.ts` entfernt fuehrende `/` und `.`, macht eine Zeile daraus und kuerzt auf 500
+  Zeichen (nach Codepunkten).
 
 ---
 

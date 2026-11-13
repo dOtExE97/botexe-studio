@@ -265,9 +265,22 @@ export default class NeuerPirat {
     }
   }
 
-  /** Ein Schild bauen und hereinschwingen lassen; nach `dauer` wieder hoch. */
+  /** Ein Schild zeigen. Wirft der Aufbau, fällt die Sperre und der Nächste
+   *  ist dran — sonst stünde die Schlange bis zum Neuladen (AGENTS: „Sperre
+   *  muss fallen"). */
   zeige(pirat) {
     if (this.zerstoert) return;
+    try {
+      this.baueSchild(pirat);
+    } catch {
+      this.aktuell = null;
+      for (const alt of [...(this.buehne?.children ?? [])]) alt.remove();
+      this.weiter();
+    }
+  }
+
+  /** Ein Schild bauen und hereinschwingen lassen; nach `dauer` wieder hoch. */
+  baueSchild(pirat) {
     this.aktuell = pirat;
     for (const alt of [...this.buehne.children]) alt.remove();
     const schild = document.createElement('div');
@@ -352,7 +365,7 @@ export default class NeuerPirat {
     const id = setTimeout(() => {
       this.timers.delete(id);
       if (this.zerstoert) return;
-      try { f(); } catch { this.aktuell = null; } // Sperre fällt auch im Fehlerfall
+      try { f(); } catch { this.aktuell = null; this.weiter(); } // Sperre fällt auch im Fehlerfall, der Nächste ist dran
     }, ms);
     this.timers.add(id);
     return id;

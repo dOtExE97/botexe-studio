@@ -87,3 +87,14 @@ test('Widget: Vorschau zeigt sofort ein Schild, eigener Titel, echter Gast beend
   assert.equal(w.demoTimer, null);
   w.destroy();
 });
+
+test('Review M8: wirft der Schild-Aufbau, fällt die Sperre und der Nächste ist dran', () => {
+  const { w } = baue();
+  const echt = w.setzeBild.bind(w);
+  w.setzeBild = (box: unknown, p: { name: string }) => { if (p.name === 'Kaputt') throw new Error('kaputt'); echt(box, p); };
+  w.onEvent(chat('Kaputt'));
+  assert.equal(w.aktuell, null, 'Sperre gefallen');
+  w.onEvent(chat('Mia'));
+  assert.equal(w.aktuell?.name, 'Mia', 'Schlange läuft weiter');
+  w.destroy();
+});

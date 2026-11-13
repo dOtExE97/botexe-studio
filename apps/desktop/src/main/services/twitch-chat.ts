@@ -63,9 +63,21 @@ function kurz(t: string): string {
   return t.length > 40 ? `${t.slice(0, 40)}…` : t;
 }
 
-/** Vergleichsform: Rand-Leerzeichen und mehrfache Leerzeichen zählen nicht. */
+/** Vergleichsform: Rand-Leerzeichen und mehrfache Leerzeichen (auch
+ *  Zeilenumbrüche) zählen nicht. */
 function norm(t: string): string {
   return t.trim().replace(/\s+/g, ' ');
+}
+
+/** Was wirklich gesendet wird: eine Zeile, ohne führendes „/" oder „." (in
+ *  Twitch-Chats die Befehls-Zeichen — eine Antwort wie `{args}` könnte sonst
+ *  „/ban x" als Broadcaster posten; ob Helix sie ausführt, ist unbelegt, darum
+ *  vorsorglich), höchstens 500 Zeichen (Belege 8), nach Zeichen gezählt —
+ *  ein Emoji wird nicht mittendurch geschnitten. */
+export function twitchBotText(roh: string): string {
+  const text = norm(roh).replace(/^[\s/.]+/, '');
+  const zeichen = Array.from(text);
+  return zeichen.length > MAX_ZEICHEN ? zeichen.slice(0, MAX_ZEICHEN).join('').trimEnd() : text;
 }
 
 export class TwitchChat {
@@ -91,7 +103,7 @@ export class TwitchChat {
 
   /** Nachricht einreihen. Gesendet wird asynchron; das Ergebnis steht im Log. */
   senden(roh: string): TwitchChatEinreihung {
-    const text = norm(roh).slice(0, MAX_ZEICHEN);
+    const text = twitchBotText(roh);
     if (!text) return 'leer';
     const jetzt = this.deps.now();
     this.aufraeumen(jetzt);
@@ -176,18 +188,8 @@ export class TwitchChat {
 
   private async sende(text: string): Promise<void> {
     const clientId = this.deps.getClientId().trim();
-    let tokens: TwitchTokens;
-    try {
-      tokens = await this.deps.auth.getValidToken();
-    } catch (err) {
-      this.verwerfeAlles();
-      if (err instanceof TwitchReloginNoetig) {
-        this.hinweis('anmeldung', 'warn', 'Chat-Antwort nach Twitch nicht gesendet — nicht (mehr) mit Twitch angemeldet. Einstellungen → Twitch → „Mit Twitch verbinden".');
-      } else {
-        this.hinweis('anmeldung-netz', 'warn', `Chat-Antwort nach Twitch nicht gesendet — Anmeldung gerade nicht prüfbar (${(err as Error).message}).`);
-      }
-      return;
-    }
+    let tokens = await this.token();
+    if (!tokens) return;
     if (!tokens.scopes.includes(TWITCH_AKTIONS_SCOPES.chat)) {
       this.verwerfeAlles();
       this.hinweis('scope', 'warn', 'Chat-Antwort nach Twitch nicht gesendet — der Anmeldung fehlt das Recht zum Schreiben (user:write:chat). '
@@ -203,7 +205,11 @@ export class TwitchChat {
       });
       const json = obj(await res.json().catch(() => undefined)) ?? {};
       if (res.status === 401 && versuch === 1) {
-        tokens = await this.deps.auth.getValidToken({ abgelehntesToken: tokens.accessToken });
+        // Auch das erzwungene Erneuern kann scheitern (Anmeldung widerrufen) —
+        // dann wie oben: Schlange leeren, EIN Hinweis statt einer Warnung je Nachricht.
+        const neu = await this.token({ abgelehntesToken: tokens.accessToken });
+        if (!neu) return;
+        tokens = neu;
         continue;
       }
       if (res.status === 200) {
@@ -243,6 +249,21 @@ export class TwitchChat {
 
   /** Ohne Anmeldung wird keine wartende Nachricht mehr etwas — sonst stünde
    *  dieselbe Zeile zehnmal im Log. */
+  /** Token holen; scheitert das, Schlange leeren + ein Hinweis → null. */
+  private async token(o?: { abgelehntesToken: string }): Promise<TwitchTokens | null> {
+    try {
+      return o ? await this.deps.auth.getValidToken(o) : await this.deps.auth.getValidToken();
+    } catch (err) {
+      this.verwerfeAlles();
+      if (err instanceof TwitchReloginNoetig) {
+        this.hinweis('anmeldung', 'warn', 'Chat-Antwort nach Twitch nicht gesendet — nicht (mehr) mit Twitch angemeldet. Einstellungen → Twitch → „Mit Twitch verbinden".');
+      } else {
+        this.hinweis('anmeldung-netz', 'warn', `Chat-Antwort nach Twitch nicht gesendet — Anmeldung gerade nicht prüfbar (${(err as Error).message}).`);
+      }
+      return null;
+    }
+  }
+
   private verwerfeAlles(): void {
     this.schlange.length = 0;
   }

@@ -35,7 +35,7 @@ export default function PiratenBefehleCard() {
       </h2>
       <p className="mb-3 text-[11px] text-studio-muted">
         Folgt dir jemand auf Twitch, würfelt die App seine Orakel-Kiste — einmal pro Stream, für alle Overlays gleich.
-        Mit <span className="font-mono">!kiste</span> kann er sie im Chat nachfragen. (TikTok-Follows würfelt weiter der Herz-Alarm selbst.)
+        Mit <span className="font-mono">!kiste</span> kann er sie im Chat nachfragen. Für Twitch-Follows gelten <strong>diese</strong> Werte — die Felder „Orakel · Chance“ und „Glückspilz bis Kiste“ im Herz-Alarm gelten dann nicht. (TikTok-Follows würfelt weiter der Herz-Alarm selbst, mit seinen eigenen Werten.)
       </p>
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1">

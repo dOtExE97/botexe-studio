@@ -638,6 +638,9 @@ export interface ChatCommand {
   /** Sonderaufgabe statt nur Antwort: 'song_request' legt {args} per Spotify in
    *  die Warteschlange; {song} in der Antwort ist dann der gefundene Titel. */
   aktion?: 'song_request';
+  /** Song-Wunsch: Explicit-Titel überspringen (Spotify `explicit`). Fehlt
+   *  das Feld, gilt AN — „Keine Explicit-Songs" ist der Standard. */
+  ohneExplicit?: boolean;
   enabled: boolean;
 }
 
@@ -651,19 +654,25 @@ export function matchChatCommand(commands: ChatCommand[], message: string): Chat
 
 /** Füllt ein speak-Template mit Werten aus dem Event ({user} → Nickname usw.). */
 export function renderSpeakTemplate(template: string, event: StudioEvent): string {
-  return template
-    // BEWUSST der Originalname. Diese Vorlage füllt nicht nur Ansagen, sondern
-    // auch Chat-Antworten und Spotify-Suchen — dort muss der Name so
-    // dastehen, wie der Zuschauer heißt. Für das VORLESEN wird er in
-    // fuerAnsageAufbereiten() sprechbar gemacht; das gehört in den Sprechweg,
-    // nicht in die Vorlage.
-    .replace(/\{user\}/g, event.user?.nickname ?? 'Jemand')
-    .replace(/\{text\}/g, event.text ?? '')
+  // BEWUSST der Originalname. Diese Vorlage füllt nicht nur Ansagen, sondern
+  // auch Chat-Antworten und Spotify-Suchen — dort muss der Name so
+  // dastehen, wie der Zuschauer heißt. Für das VORLESEN wird er in
+  // fuerAnsageAufbereiten() sprechbar gemacht; das gehört in den Sprechweg,
+  // nicht in die Vorlage.
+  //
+  // EIN Durchgang (Funktions-Ersetzung): Ein eingesetzter Wert wird nicht
+  // noch einmal durchsucht — schreibt ein Zuschauer „{args}" oder heißt er
+  // „{text}", bleibt das wörtlich stehen statt sich zu vervielfachen.
+  const werte: Record<string, () => string> = {
+    user: () => event.user?.nickname ?? 'Jemand',
+    text: () => event.text ?? '',
     // {args} = Chat-Text NACH dem ersten Wort (dem Befehl) — z.B. "!sr Song" → "Song".
-    .replace(/\{args\}/g, (event.text ?? '').replace(/^\s*\S+\s*/, ''))
-    .replace(/\{gift\}/g, event.gift?.slug ?? '')
-    .replace(/\{count\}/g, String(event.gift?.count ?? ''))
-    .replace(/\{coins\}/g, String(event.gift?.totalCoins ?? ''));
+    args: () => (event.text ?? '').replace(/^\s*\S+\s*/, ''),
+    gift: () => event.gift?.slug ?? '',
+    count: () => String(event.gift?.count ?? ''),
+    coins: () => String(event.gift?.totalCoins ?? ''),
+  };
+  return template.replace(/\{(user|text|args|gift|count|coins)\}/g, (_, k: string) => werte[k]?.() ?? '');
 }
 
 function conditionHolds(condition: TriggerCondition, event: StudioEvent): boolean {

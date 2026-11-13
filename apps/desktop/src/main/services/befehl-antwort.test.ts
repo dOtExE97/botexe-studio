@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { piratenVorlagen, type StudioEvent } from '@botexe/trigger-engine';
-import { planeBefehlsAntwort, songWunsch, srOhneWunsch } from './befehl-antwort';
+import { planeBefehlsAntwort, songWunsch, srOhneWunsch, waehleSongTreffer, SR_NUR_EXPLICIT } from './befehl-antwort';
 import { validateChatCommand } from './validators';
 
 const SRC = existsSync(join(process.cwd(), 'src', 'main.ts'))
@@ -74,4 +74,38 @@ test('studio.ts: Befehle laufen über Pause, Plan und chatAntwort (Plattform des
   assert.match(studio, /planeBefehlsAntwort\(cmd, antwort, event, this\.befehlsWerte\(event, song\)\)/);
   assert.match(studio, /if \(plan\.chat\) this\.chatAntwort\(event, plan\.chatText\)/);
   assert.match(studio, /this\.commandUserCooldowns\.clear\(\)/, 'Session-Reset leert auch die Pausen je Zuschauer.');
+});
+
+test('Review M2: Platzhalter werden EINMAL aufgelöst — Zuschauertext mit {..} vervielfacht sich nicht', () => {
+  const cmd = { speak: true, sendToChat: true };
+  const ev = chat('!hug {text}{text}{text} {args}', 'twitch');
+  const p = planeBefehlsAntwort(cmd, '{user} umarmt {ziel_user}', ev, {});
+  assert.equal(p.chatText, 'Mia umarmt texttexttext');
+  assert.ok(!p.vorlage.includes('{text}'), 'auch der Sprechweg bekommt keinen Platzhalter aus Zuschauertext');
+  // {args}/{text} selbst: der eingesetzte Text wird nicht noch einmal durchsucht.
+  assert.equal(planeBefehlsAntwort(cmd, '>{args}<', chat('!x {user} {text}'), {}).chatText, '>{user} {text}<');
+  // Songtitel mit Klammern
+  assert.equal(planeBefehlsAntwort(cmd, '{song}', ev, { song: { title: '{user}', artist: '' } }).chatText, 'user');
+  // Nickname mit „$&" bleibt wörtlich
+  const dollar: StudioEvent = { type: 'chat', ts: 1, user: { id: 'u', nickname: 'a$&b' }, text: '!x' };
+  assert.equal(planeBefehlsAntwort(cmd, 'hi {user}', dollar, {}).chatText, 'hi a$&b');
+});
+
+test('Review M6: !sr nimmt den ersten Treffer ohne Explicit; nur Explicit → eigene Antwort', () => {
+  const hits = [{ uri: 'a', explicit: true }, { uri: 'b', explicit: false }];
+  assert.equal(waehleSongTreffer(hits, true), hits[1]);
+  assert.equal(waehleSongTreffer(hits, false), hits[0]);
+  assert.equal(waehleSongTreffer([{ uri: 'a', explicit: true }], true), 'nur-explicit');
+  assert.equal(waehleSongTreffer([], true), null);
+  assert.match(SR_NUR_EXPLICIT, /Explicit/);
+});
+
+test('Review M6: studio.ts — !sr ist ohne Angabe explicit-frei, Spotify liefert `explicit` mit', () => {
+  const studio = readFileSync(join(SRC, 'main', 'services', 'studio.ts'), 'utf8');
+  assert.match(studio, /this\.spotifyRequest\(wunsch, \{ ohneExplicit: cmd\.ohneExplicit !== false \}\)/);
+  assert.match(studio, /waehleSongTreffer\(hits, opts\.ohneExplicit === true\)/);
+  assert.match(studio, /r\.nurExplicit\) antwort = SR_NUR_EXPLICIT/);
+  const spotify = readFileSync(join(SRC, 'main', 'services', 'spotify-service.ts'), 'utf8');
+  assert.match(spotify, /explicit: t\.explicit === true/);
+  assert.equal(validateChatCommand({ id: 'x', command: '!sr', response: '', speak: false, sendToChat: true, enabled: true, aktion: 'song_request', ohneExplicit: false })?.ohneExplicit, false);
 });

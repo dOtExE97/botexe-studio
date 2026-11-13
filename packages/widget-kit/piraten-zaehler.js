@@ -195,14 +195,16 @@ const SYMBOLE = {
 };
 
 const ZAEHLER = ['siege', 'kills'];
-const ALIAS = { siege: 'siege', sieg: 'siege', vr: 'siege', victory: 'siege', wins: 'siege', win: 'siege', kills: 'kills', kill: 'kills' };
+// Map statt Objekt-Literal: „constructor", „__proto__", „toString" … sind
+// sonst geerbte Treffer (Review Runde 3, M1).
+const ALIAS = new Map([['siege', 'siege'], ['sieg', 'siege'], ['vr', 'siege'], ['victory', 'siege'], ['wins', 'siege'], ['win', 'siege'], ['kills', 'kills'], ['kill', 'kills']]);
 const MAX = 99999;
 const KONFETTI = ['#ffd23e', '#ff5436', '#28e0c4', '#fff4dc', '#f0a521', '#8a5cff'];
 
 /** 'VR', 'Kill', 'siege' … → 'siege' | 'kills' | null */
 export function zaehlerName(wert) {
   if (typeof wert !== 'string') return null;
-  return ALIAS[wert.trim().toLowerCase()] ?? null;
+  return ALIAS.get(wert.trim().toLowerCase()) ?? null;
 }
 
 function ganz(v) {

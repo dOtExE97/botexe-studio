@@ -379,6 +379,19 @@ test('Gift-Abo und stream.online: kein Bus-Ereignis; online setzt live', async (
   a.adapter.stop();
 });
 
+test('stream.online meldet Stream-ID und Startzeit (Review I1: neuer Stream auch ohne stream.offline)', async () => {
+  const a = aufbau();
+  const s = await verbunden(a);
+  s.notify('o1', 'stream.online', { id: '9001', broadcaster_user_id: '1337', type: 'live', started_at: '2020-10-11T10:11:12.123Z' });
+  assert.equal(a.adapter.getStatus().streamId, '9001');
+  assert.equal(a.adapter.getStatus().startedAt, Date.parse('2020-10-11T10:11:12.123Z'));
+  // Kein offline dazwischen — der nächste Stream bringt eine neue ID.
+  s.notify('o2', 'stream.online', { id: '9002', broadcaster_user_id: '1337', type: 'live', started_at: 'kaputt' });
+  assert.equal(a.adapter.getStatus().streamId, '9002');
+  assert.equal(a.adapter.getStatus().startedAt, undefined);
+  a.adapter.stop();
+});
+
 test('revocation authorization_revoked → neu-anmelden', async () => {
   const a = aufbau();
   const s = await verbunden(a);

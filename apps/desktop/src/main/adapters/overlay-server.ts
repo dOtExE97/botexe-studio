@@ -622,14 +622,6 @@ export class OverlayServer {
     });
   }
 
-  /** Twitch-Streamer-Aktionen für Stream Deck & Co. (POST, token-geschützt):
-   *  /api/twitch/clip, /marker[?beschreibung=], /werbung?sekunden=30…180,
-   *  /shoutout[?login=], /chat-modus?modus=emote|langsam|follower,
-   *  /raid?login=<name>, /raid-abbrechen.
-   *  Werte kommen aus der Query (Stream-Deck-tauglich) oder dem JSON-Body.
-   *  Antwort: das Ergebnis als JSON — 200 bei Erfolg, 409 wenn Twitch/der
-   *  Zustand nicht mitspielt (nicht live, Abklingzeit, Rechte fehlen), 400 bei
-   *  falschen Parametern. Geloggt wird das Ergebnis im Dienst (einmal). */
   /** POST /api/zaehler — Piraten-Zähler (Victory Royales / Kills) fernsteuern,
    *  z.B. per Stream Deck: ?zaehler=siege|kills&aktion=plus|minus|reset|setzen
    *  [&anzahl=1][&auf=N]. Jede verbundene Quelle bekommt je Widget
@@ -674,6 +666,14 @@ export class OverlayServer {
     });
   }
 
+  /** Twitch-Streamer-Aktionen für Stream Deck & Co. (POST, token-geschützt):
+   *  /api/twitch/clip, /marker[?beschreibung=], /werbung?sekunden=30…180,
+   *  /shoutout[?login=], /chat-modus?modus=emote|langsam|follower,
+   *  /raid?login=<name>, /raid-abbrechen.
+   *  Werte kommen aus der Query (Stream-Deck-tauglich) oder dem JSON-Body.
+   *  Antwort: das Ergebnis als JSON — 200 bei Erfolg, 409 wenn Twitch/der
+   *  Zustand nicht mitspielt (nicht live, Abklingzeit, Rechte fehlen), 400 bei
+   *  falschen Parametern. Geloggt wird das Ergebnis im Dienst (einmal). */
   private setupTwitchAktionRoutes(auth: (req: Request, res: Response, next: NextFunction) => void): void {
     const wert = (req: Request, name: string): string | undefined => {
       const q = req.query[name];

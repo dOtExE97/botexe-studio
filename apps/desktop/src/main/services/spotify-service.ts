@@ -88,6 +88,9 @@ export interface SpotifyDeps {
   now?: () => number;
 }
 
+/** Ein Suchtreffer (GET /search?type=track). */
+export interface SpotifyTreffer { uri: string; title: string; artist: string; explicit: boolean }
+
 export class SpotifyService {
   private readonly deps: SpotifyDeps;
   private readonly fetchFn: typeof fetch;
@@ -289,14 +292,15 @@ export class SpotifyService {
   async previous(): Promise<boolean> { return (await this.api('/me/player/previous', 'POST'))?.ok ?? false; }
 
   /** Track suchen → erste Treffer (für Song-Requests). */
-  async search(query: string): Promise<Array<{ uri: string; title: string; artist: string }>> {
+  async search(query: string): Promise<SpotifyTreffer[]> {
     const res = await this.api(`/search?type=track&limit=5&q=${encodeURIComponent(query)}`);
     if (!res?.ok) return [];
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const items = (await res.json())?.tracks?.items ?? [];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return items.map((t: any) => ({ uri: t.uri, title: t.name, artist: (t.artists ?? []).map((a: any) => a.name).join(', ') }));
+      // `explicit` laut Spotify-Doku (TrackObject): true = explicit; false = nein ODER unbekannt.
+      return items.map((t: any) => ({ uri: t.uri, title: t.name, artist: (t.artists ?? []).map((a: any) => a.name).join(', '), explicit: t.explicit === true }));
     } catch { return []; }
   }
 

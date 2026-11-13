@@ -117,6 +117,12 @@ export default function CommandsPage() {
                   <Music size={12} /> Song-Wunsch per Spotify
                 </span>
               )}
+              {c.aktion === 'song_request' && (
+                <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-studio-muted" title="Spotify markiert Songs mit Explicit-Texten. Ist das an, nimmt der Song-Wunsch den ersten Treffer OHNE Explicit — gibt es nur Explicit-Treffer, sagt der Bot das im Chat.">
+                  <input type="checkbox" checked={c.ohneExplicit !== false} onChange={(e) => patch(c.id, { ohneExplicit: e.target.checked })} className="accent-[#21e6c1]" />
+                  Keine Explicit-Songs
+                </label>
+              )}
             </div>
           </div>
         ))}

@@ -7,7 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { TriggerEngine, giftKey, renderSpeakTemplate, sprechbarerName, matchRedemption, matchChatCommand, braucheSong, pruefeBefehlsPause, type BefehlsWerte, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
 import { OrakelKisten } from './orakel-kisten';
-import { planeBefehlsAntwort, songWunsch, srOhneWunsch, SR_FEHLGESCHLAGEN } from './befehl-antwort';
+import { TwitchStreamUhr } from './twitch-stream-uhr';
+import { planeBefehlsAntwort, songWunsch, srOhneWunsch, waehleSongTreffer, SR_FEHLGESCHLAGEN, SR_NUR_EXPLICIT } from './befehl-antwort';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { LevelUpWaechter, erzeugeLevelUpVorfilter } from '../core/level-up-waechter';
@@ -252,6 +253,7 @@ export class Studio {
   private actionTimers = new Set<ReturnType<typeof setTimeout>>();
   private lastChatSendAt = 0;
   private lastSpotifyRequestAt = 0;
+  private lastSpotifyGetrenntToastAt = 0;
   /** Giveaway-Teilnehmer (userId → Anzeige) — dedupliziert, neuer Stream leert. */
   private giveawayParticipants = new Map<string, { nickname: string; avatar?: string }>();
   private lastGiveawayWinner = '';
@@ -300,9 +302,9 @@ export class Studio {
   private commandUserCooldowns = new Map<string, number>();
   /** Piraten-Orakel: Kiste je Twitch-Follower und Stream (für Overlays + !kiste). */
   private orakelKisten = new OrakelKisten();
-  /** Twitch-Uhr für {uptime}: seit wann live (stream.online) bzw. verbunden. */
-  private twitchLiveSeit = 0;
-  private twitchVerbundenSeit = 0;
+  /** Twitch-Uhr für {uptime}: seit wann live (stream.online) bzw. verbunden;
+   *  erkennt einen neuen Stream an der Stream-ID (twitch-stream-uhr.ts). */
+  private twitchStream = new TwitchStreamUhr();
   /** layerId → event.ts der letzten per Chat-Befehl ausgelösten Lucky-Ziehung
    *  (Stück 4, Task 3) — verhindert Spam-Überlagerung, s. maybeLuckyDrawByCommand(). */
   private luckyDrawCooldowns = new Map<string, number>();
@@ -1715,13 +1717,21 @@ export class Studio {
 
   /** Song-Request: suchen + ersten Treffer in die Queue (für Chat-/Gift-Trigger).
    *  Eigene Drossel (gegen API-Rate-Limit, falls jede Chat-Nachricht triggert). */
-  async spotifyRequest(query: string): Promise<{ ok: boolean; title?: string; artist?: string }> {
+  async spotifyRequest(query: string, opts: { ohneExplicit?: boolean } = {}): Promise<{ ok: boolean; title?: string; artist?: string; nurExplicit?: boolean }> {
     const now = Date.now();
     if (now - this.lastSpotifyRequestAt < 2500) return { ok: false };
     this.lastSpotifyRequestAt = now;
-    if (!this.spotify.isConnected()) { this.hooks.onToast?.({ type: 'warn', message: 'Song-Request: Spotify nicht verbunden (Einstellungen → Spotify).' }); return { ok: false }; }
+    if (!this.spotify.isConnected()) {
+      // Ein Toast je Minute reicht — sonst blinkt bei jedem !sr einer auf.
+      if (now - this.lastSpotifyGetrenntToastAt >= 60_000) {
+        this.lastSpotifyGetrenntToastAt = now;
+        this.hooks.onToast?.({ type: 'warn', message: 'Song-Request: Spotify nicht verbunden (Einstellungen → Spotify).' });
+      }
+      return { ok: false };
+    }
     const hits = await this.spotify.search(query);
-    const first = hits[0];
+    const first = waehleSongTreffer(hits, opts.ohneExplicit === true);
+    if (first === 'nur-explicit') { log.info('Spotify', `Song-Request „${query.slice(0, 40)}" — nur Explicit-Treffer, übersprungen`); return { ok: false, nurExplicit: true }; }
     if (!first) { log.info('Spotify', `Song-Request „${query.slice(0, 40)}" — kein Treffer`); return { ok: false }; }
     const ok = await this.spotify.addToQueue(first.uri);
     if (!ok) this.hooks.onToast?.({ type: 'warn', message: 'Song-Request fehlgeschlagen (Spotify Premium + aktives Gerät nötig).' });
@@ -2550,8 +2560,9 @@ export class Studio {
       if (!wunsch) {
         antwort = srOhneWunsch(cmd.command);
       } else {
-        const r = await this.spotifyRequest(wunsch);
+        const r = await this.spotifyRequest(wunsch, { ohneExplicit: cmd.ohneExplicit !== false });
         if (r.ok) song = { title: r.title ?? wunsch, artist: r.artist ?? '' };
+        else if (r.nurExplicit) antwort = SR_NUR_EXPLICIT;
         else {
           log.info('Befehl', `${cmd.command} „${wunsch.slice(0, 40)}" — nicht in die Warteschlange gelegt `
             + '(Spotify nicht verbunden, kein Treffer, kein Premium/aktives Gerät oder zu schnell hintereinander).');
@@ -2576,8 +2587,8 @@ export class Studio {
     const einst = this.settings.peek();
     const twitch = event.plattform === 'twitch';
     const start = twitch
-      ? (this.twitchLiveSeit || this.twitchVerbundenSeit || this.verbundenSeit)
-      : (this.verbundenSeit || this.twitchLiveSeit || this.twitchVerbundenSeit);
+      ? (this.twitchStream.liveSeit || this.twitchStream.verbundenSeit || this.verbundenSeit)
+      : (this.verbundenSeit || this.twitchStream.liveSeit || this.twitchStream.verbundenSeit);
     const snap = this.stats.snapshot();
     const top = twitch ? (snap.topTwitch ?? []).map((t) => t.nickname) : snap.topGifters.map((g) => g.nickname);
     const befehle = [...new Set((einst.chatCommands ?? []).filter((c) => c.enabled)
@@ -2594,20 +2605,14 @@ export class Studio {
   }
 
   /** Twitch-Status mitschreiben: Uhr für {uptime}; ein NEUER Twitch-Stream
-   *  (stream.online nach „nicht live") würfelt die Orakel-Kisten neu. */
+   *  (neue Stream-ID aus stream.online — auch ohne stream.offline davor)
+   *  würfelt die Orakel-Kisten neu. */
   private twitchUhr(info: TwitchStatusInfo): void {
-    const jetzt = Date.now();
-    if (info.status === 'verbunden' && !this.twitchVerbundenSeit) this.twitchVerbundenSeit = jetzt;
-    if (info.status === 'aus') this.twitchVerbundenSeit = 0;
-    if (info.live === true && !this.twitchLiveSeit) {
-      this.twitchLiveSeit = jetzt;
-      if (this.orakelKisten.anzahl() > 0) {
-        log.info('Orakel', `Neuer Twitch-Stream — ${this.orakelKisten.anzahl()} Orakel-Kiste(n) vom letzten Stream verfallen, jeder Follower würfelt neu.`);
-      }
-      this.orakelKisten.reset();
-    } else if (info.live === false) {
-      this.twitchLiveSeit = 0;
+    if (!this.twitchStream.melde(info, Date.now())) return;
+    if (this.orakelKisten.anzahl() > 0) {
+      log.info('Orakel', `Neuer Twitch-Stream — ${this.orakelKisten.anzahl()} Orakel-Kiste(n) vom letzten Stream verfallen, jeder Follower würfelt neu.`);
     }
+    this.orakelKisten.reset();
   }
 
   /**

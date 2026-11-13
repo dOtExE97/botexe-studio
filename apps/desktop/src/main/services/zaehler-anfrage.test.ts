@@ -31,3 +31,10 @@ test('zaehlerAnfrage: Unsinn wird mit klarer Meldung abgelehnt', () => {
     assert.ok('fehler' in r, JSON.stringify(p));
   }
 });
+
+test('zaehlerAnfrage: Prototyp-Schlüssel sind KEIN Zähler (Review M1)', () => {
+  for (const n of ['constructor', '__proto__', 'toString', 'hasOwnProperty', 'valueOf']) {
+    const r = mit({ zaehler: n });
+    assert.ok('fehler' in r, `${n} muss abgelehnt werden`);
+  }
+});

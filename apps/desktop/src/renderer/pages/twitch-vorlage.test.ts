@@ -96,3 +96,11 @@ test('Twitch-Vorlage: Herz-Alarm spielt Orakel bei Follow und Piraten bei Sub, B
   assert.equal(banner.props!.tokenId, '');
   assert.equal(banner.props!.kisteId, '');
 });
+
+test('Review I2: Orakel-Felder im Herz-Alarm sagen, dass für Twitch die App-Einstellungen gelten', () => {
+  const felder = WIDGET_TYPES.find((w) => w.type === 'herz-alarm')!.fields!;
+  for (const key of ['orakelChance', 'orakelGlueck']) {
+    const f = felder.find((x) => x.key === key)!;
+    assert.match(f.hint ?? '', /Twitch-Follows.*Einstellungen → Piraten-Orakel/, `${key}: Hinweis auf die App-Einstellung fehlt`);
+  }
+});

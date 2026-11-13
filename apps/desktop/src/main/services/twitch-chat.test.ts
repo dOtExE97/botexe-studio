@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TwitchChat, TWITCH_CHAT_URL, TWITCH_CHAT_ABSTAND_MS, TWITCH_CHAT_SCHLANGE_MAX } from './twitch-chat';
+import { TwitchChat, twitchBotText, TWITCH_CHAT_URL, TWITCH_CHAT_ABSTAND_MS, TWITCH_CHAT_SCHLANGE_MAX } from './twitch-chat';
 import { TwitchReloginNoetig, TWITCH_SCOPES, type TwitchTokens } from './twitch-auth';
 
 class FakeUhr {
@@ -204,4 +204,42 @@ test('stop() leert die Schlange', async () => {
   a.uhr.vor(10_000);
   await warte();
   assert.equal(a.posts.length, 1);
+});
+
+test('Review M3: Antwort beginnt nie mit „/" oder „." (Twitch-Befehlszeichen), eine Zeile', async () => {
+  const a = aufbau();
+  a.chat.senden('/ban opfer');
+  a.uhr.vor(TWITCH_CHAT_ABSTAND_MS);
+  a.chat.senden('  . /timeout x 600');
+  a.uhr.vor(TWITCH_CHAT_ABSTAND_MS);
+  a.chat.senden('Zeile 1\nZeile 2\r\n/ban y');
+  await warte();
+  a.uhr.vor(10_000);
+  await warte();
+  assert.deepEqual(a.posts.map((p) => p.body.message), ['ban opfer', 'timeout x 600', 'Zeile 1 Zeile 2 /ban y']);
+  assert.equal(a.chat.senden('/// ...'), 'leer');
+});
+
+test('Review M3: 500 Zeichen nach Zeichen gezählt — kein halbes Emoji am Ende', () => {
+  const t = twitchBotText('🏴'.repeat(600));
+  assert.equal(Array.from(t).length, 500);
+  assert.ok(!/[\uD800-\uDBFF]$/.test(t), 'kein einzelnes Surrogat am Ende');
+});
+
+test('Review M8: 401 und das Erneuern scheitert (abgemeldet) → Schlange geleert, EIN Hinweis', async () => {
+  let n = 0;
+  const a = aufbau({
+    tokens: async (o) => { n++; if (o?.abgelehntesToken) throw new TwitchReloginNoetig('widerrufen'); return TOKENS; },
+    antwort: () => new Response('{}', { status: 401 }),
+  });
+  a.chat.senden('a');
+  a.chat.senden('b');
+  a.chat.senden('c');
+  await warte();
+  a.uhr.vor(10_000);
+  await warte();
+  assert.equal(a.posts.length, 1, 'nach dem gescheiterten Erneuern nichts mehr versucht');
+  assert.equal(a.logs.filter((l) => l.stufe === 'warn').length, 1, 'ein Hinweis, nicht je Nachricht');
+  assert.ok(a.logs.some((l) => /nicht \(mehr\) mit Twitch angemeldet/.test(l.text)));
+  assert.equal(n, 2);
 });

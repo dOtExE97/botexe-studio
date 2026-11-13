@@ -46,4 +46,15 @@ export function srOhneWunsch(befehl: string): string {
   const b = `!${befehl.trim().replace(/^!*/, '') || 'sr'}`;
   return `@{user} Welchen Song? Zum Beispiel: ${b} Seemannslied 🏴‍☠️`;
 }
+export const SR_NUR_EXPLICIT = '@{user} Dazu finde ich nur Explicit-Songs — die laufen hier nicht. Versuch einen anderen 🏴‍☠️';
+
+/** Welchen Suchtreffer der Song-Wunsch nimmt: den ersten — bei
+ *  `ohneExplicit` den ersten NICHT-expliziten. 'nur-explicit': es gab
+ *  Treffer, aber alle explicit. null: gar kein Treffer. */
+export function waehleSongTreffer<T extends { explicit?: boolean }>(hits: T[], ohneExplicit: boolean): T | 'nur-explicit' | null {
+  if (!hits.length) return null;
+  if (!ohneExplicit) return hits[0] ?? null;
+  return hits.find((h) => h.explicit !== true) ?? 'nur-explicit';
+}
+
 export const SR_FEHLGESCHLAGEN = '@{user} Den Song konnte ich gerade nicht in die Warteschlange legen 🏴‍☠️';
