@@ -15,7 +15,10 @@ export const TWITCH_EMOTE_VORLAGE = 'https://static-cdn.jtvnw.net/emoticons/v2/{
 export const TWITCH_ID_PRAEFIX = 'twitch:';
 
 /** Stellvertreter für anonyme Geschenk-Abos und anonyme Cheers. */
-const ANONYM: StudioUser = { id: `${TWITCH_ID_PRAEFIX}anonym`, nickname: 'Anonym' };
+/** Stellvertreter-ID für anonyme Geschenk-Abos und Cheers. Einzige Quelle —
+ *  points-store.ts importiert sie (dort sammelt dieser „Nutzer" nichts). */
+export const TWITCH_ANONYM_ID = `${TWITCH_ID_PRAEFIX}anonym`;
+const ANONYM: StudioUser = { id: TWITCH_ANONYM_ID, nickname: 'Anonym' };
 
 type Roh = Record<string, unknown>;
 

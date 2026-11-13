@@ -16,12 +16,6 @@ const TWITCH_LILA = '#9146ff';
 /** Dieselbe Regel wie im Hauptprozess (istGueltigeTwitchClientId). */
 const CLIENT_ID_MUSTER = /^[a-z0-9]{1,64}$/i;
 
-interface Code {
-  userCode: string;
-  verificationUri: string;
-  expiresIn: number;
-}
-
 function statusZeile(t: TwitchUiStatus): { text: string; gut: boolean } {
   if (t.anmeldungLaeuft) return { text: 'Warte auf deine Bestätigung im Browser …', gut: false };
   const live = t.live === true ? ' · Live: ja' : t.live === false ? ' · Live: nein' : '';
@@ -42,7 +36,6 @@ export default function TwitchVerbindungCard() {
   const twitch = useTwitchStatus();
   const [clientId, setClientId] = useState('');
   const [autoConnect, setAutoConnect] = useState(true);
-  const [code, setCode] = useState<Code | null>(null);
   const [beschaeftigt, setBeschaeftigt] = useState(false);
 
   useEffect(() => {
@@ -52,10 +45,9 @@ export default function TwitchVerbindungCard() {
     });
   }, []);
 
-  // Anmeldung vorbei (geklappt, abgelaufen, abgebrochen) → Code ausblenden.
-  useEffect(() => {
-    if (!twitch.anmeldungLaeuft) setCode(null);
-  }, [twitch.anmeldungLaeuft]);
+  // Der Code der laufenden Anmeldung kommt aus dem Hauptprozess (Status) —
+  // so ist er nach einem Seitenwechsel noch da. Anmeldung vorbei → fehlt er.
+  const code = twitch.anmeldungLaeuft ? twitch.anmeldeCode : undefined;
 
   const idGueltig = CLIENT_ID_MUSTER.test(clientId.trim());
 
@@ -71,9 +63,9 @@ export default function TwitchVerbindungCard() {
   const verbinden = async () => {
     setBeschaeftigt(true);
     try {
+      // Den Code zeigt der Status-Push (anmeldeCode), nicht der Rückgabewert.
       const r = await window.studio.twitchBeginLogin();
-      if (r.ok) setCode({ userCode: r.userCode, verificationUri: r.verificationUri, expiresIn: r.expiresIn });
-      else toast('error', r.error);
+      if (!r.ok) toast('error', r.error);
     } finally {
       setBeschaeftigt(false);
     }
@@ -148,7 +140,7 @@ export default function TwitchVerbindungCard() {
       )}
 
       {/* Code anzeigen, solange auf die Bestätigung gewartet wird */}
-      {code && twitch.anmeldungLaeuft && (
+      {code && (
         <div className="mt-3 rounded-lg border p-3" style={{ borderColor: TWITCH_LILA }}>
           <p className="text-[11px] text-studio-muted">Dein Code — im Browser eingeben bzw. bestätigen:</p>
           <div className="mt-1 flex items-center gap-3">
@@ -162,7 +154,7 @@ export default function TwitchVerbindungCard() {
           </div>
           <p className="mt-2 flex items-center gap-1 text-[11px] text-studio-muted">
             <ExternalLink size={12} /> Im Browser bestätigen (öffnet sich automatisch).
-            Der Code gilt {Math.max(1, Math.round(code.expiresIn / 60))} Minuten.
+            Der Code gilt bis {new Date(code.gueltigBis).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr.
           </p>
         </div>
       )}

@@ -60,6 +60,17 @@ test('Twitch-Vorlage: Props sind die Standardwerte des Katalogs (nichts erfunden
   assert.notEqual(fa.props!.events, WIDGET_TYPES.find((w) => w.type === 'follow-alert')!.props.events);
 });
 
+test('Twitch-Vorlage: Follow-Alert feuert NICHT beim Follow (das macht das Orakel), aber bei Subs', () => {
+  const fa = erzeugeTwitchVorlage('x').layers.find((e) => e.widgetType === 'follow-alert')!;
+  // follow-alert.js blendet genau die Arten aus props.events ein (onEvent: events.includes(type)).
+  const events = fa.props!.events as string[];
+  assert.equal(events.includes('follow'), false, 'sonst zwei Einblendungen je Follow (Alert + Orakel)');
+  assert.ok(events.includes('sub'), 'Subs blendet der Alert weiter ein');
+  // Nur Werte, die das Feld im Editor auch anbietet.
+  const feld = WIDGET_TYPES.find((w) => w.type === 'follow-alert')!.fields!.find((f) => f.key === 'events') as { options?: { value: string }[] };
+  for (const e of events) assert.ok(feld.options?.some((o) => o.value === e), e);
+});
+
 test('Twitch-Vorlage: Herz-Alarm spielt beim Twitch-Follow das Piraten-Orakel, sonst nichts', async () => {
   const { normalisiereCfg, alarmArt, neuerMerker } = await ladeEreignisAlarm();
   const alarm = erzeugeTwitchVorlage('x').layers.find((e) => e.widgetType === 'herz-alarm')!;

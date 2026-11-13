@@ -9,11 +9,11 @@ import { log } from '../core/logger';
 import { schreibeAtomar } from '../core/atomar-schreiben';
 import { giftStueckzahl } from '../core/session-stats';
 import { passt } from '../../shared/suche';
-import { TWITCH_ID_PRAEFIX } from '../adapters/twitch-normalize';
+import { TWITCH_ANONYM_ID } from '../adapters/twitch-normalize';
 
-/** Stellvertreter für anonyme Twitch-Geschenk-Abos und -Cheers (so setzt ihn
- *  twitch-normalize.ts; ein Wächter-Test hält beide Stellen zusammen). */
-export const TWITCH_ANONYM_ID = `${TWITCH_ID_PRAEFIX}anonym`;
+/** Stellvertreter für anonyme Twitch-Geschenk-Abos und -Cheers — definiert in
+ *  twitch-normalize.ts, hier nur weitergereicht (bestehende Importe). */
+export { TWITCH_ANONYM_ID };
 
 /** Steht hinter dieser ID gar keine Person? Dann sammelt sie nichts — keine
  *  Punkte, keine Besuche, keinen Erst-Follow, keine Spiel-Siege. Sonst stünde
@@ -131,6 +131,19 @@ export function istErsterAuftritt(
   // unterscheidbar.
   if (bekannt.totalChats === undefined) return false;
   return eventTyp === 'chat' && bekannt.totalChats === 0;
+}
+
+/** `firstOfUser` für ein Ereignis dieses Zuschauers setzen? Wie
+ *  istErsterAuftritt — aber nie für den anonymen Twitch-Stellvertreter: Der hat
+ *  nie einen Eintrag (sammelt nichts) und wäre sonst bei JEDEM anonymen
+ *  Geschenk-Abo „zum ersten Mal da". */
+export function istErsterAuftrittVon(
+  userId: string,
+  bekannt: { totalChats?: number } | undefined,
+  eventTyp: string,
+): boolean {
+  if (istPlatzhalterNutzer(userId)) return false;
+  return istErsterAuftritt(bekannt, eventTyp);
 }
 
 /** Erster Kontakt ODER nach längerer Pause = neuer Besuch (für Stammgast-Zähler). */

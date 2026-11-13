@@ -36,6 +36,11 @@ export interface TwitchUiStatus extends TwitchStatusInfo {
   anmeldungLaeuft: boolean;
   /** Warum die letzte Anmeldung scheiterte (deutsch, für die Oberfläche). */
   loginFehler?: string;
+  /** Der Code der LAUFENDEN Anmeldung — liegt hier im Hauptprozess, damit er
+   *  nach einem Seitenwechsel wieder angezeigt werden kann. Kein Geheimnis
+   *  (der Streamer tippt ihn ab; der geheime device_code bleibt in TwitchAuth),
+   *  aber trotzdem nie im Log. `gueltigBis` = ms seit Epoche. */
+  anmeldeCode?: { userCode: string; verificationUri: string; gueltigBis: number };
 }
 
 export interface TwitchSteuerungDeps {
@@ -45,6 +50,8 @@ export interface TwitchSteuerungDeps {
   openExternal(url: string): void;
   onStatus(info: TwitchUiStatus): void;
   log: { info(scope: string, text: string): void; warn(scope: string, text: string): void };
+  /** Uhr (Tests); Standard Date.now. */
+  now?: () => number;
 }
 
 /** Darf diese Adresse im Browser geöffnet werden? Nur https auf twitch.tv
@@ -71,6 +78,17 @@ function istAbbruch(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortError';
 }
 
+/** Warum eine laufende Anmeldung abgebrochen wurde — bestimmt die Meldung,
+ *  die beginLogin() dann wirft (die Oberfläche zeigt sie als Hinweis). */
+type AbbruchGrund = 'ersetzt' | 'abgebrochen';
+const ABBRUCH_TEXT: Record<AbbruchGrund, string> = {
+  ersetzt: 'Diese Twitch-Anmeldung wurde durch eine neue ersetzt.',
+  abgebrochen: 'Twitch-Anmeldung abgebrochen (getrennt bzw. Client-ID geändert).',
+};
+function abbruchText(ac: AbortController): string {
+  return ABBRUCH_TEXT[ac.signal.reason === 'ersetzt' ? 'ersetzt' : 'abgebrochen'];
+}
+
 export class TwitchSteuerung {
   private readonly deps: TwitchSteuerungDeps;
   /** Abbruch für die laufende Anmeldung; null = keine läuft. */
@@ -79,9 +97,13 @@ export class TwitchSteuerung {
    *  ältere Antwort den Code der neueren in TwitchAuth überschreiben. */
   private beginKette: Promise<void> = Promise.resolve();
   private loginFehler: string | undefined;
+  /** Code der laufenden Anmeldung (gehört zu genau diesem AbortController). */
+  private offenerCode: { ac: AbortController; userCode: string; verificationUri: string; gueltigBis: number } | null = null;
+  private readonly jetzt: () => number;
 
   constructor(deps: TwitchSteuerungDeps) {
     this.deps = deps;
+    this.jetzt = deps.now ?? (() => Date.now());
   }
 
   /** Aktueller Stand für den Renderer. */
@@ -100,6 +122,7 @@ export class TwitchSteuerung {
     const s = this.deps.getEinstellungen();
     const tokens = sindTwitchTokens(s.twitchTokens) ? s.twitchTokens : undefined;
     const login = info.login ?? tokens?.login;
+    const code = this.offenerCode && this.offenerCode.ac === this.loginAbbruch ? this.offenerCode : null;
     return {
       status: info.status,
       ...(login ? { login } : {}),
@@ -109,6 +132,7 @@ export class TwitchSteuerung {
       angemeldet: !!tokens,
       anmeldungLaeuft: this.loginAbbruch !== null,
       ...(this.loginFehler ? { loginFehler: this.loginFehler } : {}),
+      ...(code ? { anmeldeCode: { userCode: code.userCode, verificationUri: code.verificationUri, gueltigBis: code.gueltigBis } } : {}),
     };
   }
 
@@ -141,7 +165,7 @@ export class TwitchSteuerung {
       throw new Error('Bitte zuerst eine gültige Twitch-Client-ID eintragen (nur Buchstaben und Ziffern).');
     }
     // Ein laufender Versuch gilt ab jetzt nicht mehr.
-    this.loginAbbruch?.abort();
+    this.loginAbbruch?.abort('ersetzt' satisfies AbbruchGrund);
     const ac = new AbortController();
     this.loginAbbruch = ac;
     this.loginFehler = undefined;
@@ -152,7 +176,7 @@ export class TwitchSteuerung {
     let start: { userCode: string; verificationUri: string; expiresIn: number };
     try {
       await vorher;
-      if (ac.signal.aborted) throw new Error('Diese Twitch-Anmeldung wurde durch eine neue ersetzt.');
+      if (ac.signal.aborted) throw new Error(abbruchText(ac));
       start = await this.deps.auth.beginDeviceLogin();
     } catch (err) {
       if (this.loginAbbruch === ac) this.loginAbbruch = null;
@@ -161,7 +185,7 @@ export class TwitchSteuerung {
     } finally {
       fertig();
     }
-    if (ac.signal.aborted) throw new Error('Diese Twitch-Anmeldung wurde durch eine neue ersetzt.');
+    if (ac.signal.aborted) throw new Error(abbruchText(ac));
 
     if (!istTwitchBestaetigungsUrl(start.verificationUri)) {
       ac.abort();
@@ -177,6 +201,10 @@ export class TwitchSteuerung {
       this.deps.log.warn('Twitch', `Browser ließ sich nicht öffnen (${(err as Error).message}) — `
         + 'bitte die Adresse aus den Einstellungen von Hand öffnen.');
     }
+    this.offenerCode = {
+      ac, userCode: start.userCode, verificationUri: start.verificationUri,
+      gueltigBis: this.jetzt() + Math.max(0, start.expiresIn) * 1000,
+    };
     this.melde();
     void this.warteAufLogin(ac);
     return { userCode: start.userCode, verificationUri: start.verificationUri, expiresIn: start.expiresIn };
@@ -203,8 +231,9 @@ export class TwitchSteuerung {
   }
 
   private brichLoginAb(): void {
-    this.loginAbbruch?.abort();
+    this.loginAbbruch?.abort('abgebrochen' satisfies AbbruchGrund);
     this.loginAbbruch = null;
+    this.offenerCode = null;
   }
 
   /** „Trennen" in den Einstellungen: abmelden (Token widerrufen) und Leitung zu. */

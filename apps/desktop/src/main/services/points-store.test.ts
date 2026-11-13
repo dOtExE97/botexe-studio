@@ -3,9 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { PointsStore, DEFAULT_POINTS_CONFIG, isNewVisit, istErsterAuftritt, istPlatzhalterNutzer, TWITCH_ANONYM_ID } from './points-store';
+import { PointsStore, DEFAULT_POINTS_CONFIG, isNewVisit, istErsterAuftritt, istErsterAuftrittVon, istPlatzhalterNutzer, TWITCH_ANONYM_ID } from './points-store';
 import { normalizeTwitch } from '../adapters/twitch-normalize';
 import type { StudioEvent } from '@botexe/trigger-engine';
+
+/** Quellordner main/services — egal ob aus apps/desktop oder der Wurzel gestartet. */
+const SRC_PS = fs.existsSync(path.join(process.cwd(), 'src', 'main.ts'))
+  ? path.join(process.cwd(), 'src', 'main', 'services')
+  : path.join(process.cwd(), 'apps', 'desktop', 'src', 'main', 'services');
 
 function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'points-'));
@@ -459,4 +464,28 @@ test('Platzhalter: der Normalizer liefert genau die ID, die der Punkte-Speicher 
   }
   assert.equal(istPlatzhalterNutzer('twitch:12345'), false);
   assert.equal(istPlatzhalterNutzer('anonym'), false, 'TikTok-Nutzer namens „anonym" bleiben echte Nutzer');
+});
+
+test('istErsterAuftrittVon: der anonyme Twitch-Stellvertreter ist nie „zum ersten Mal da" (studio.ts firstOfUser)', () => {
+  // Ohne Eintrag gilt jeder als neu — der Platzhalter hat aber NIE einen.
+  assert.equal(istErsterAuftrittVon(TWITCH_ANONYM_ID, undefined, 'sub'), false);
+  assert.equal(istErsterAuftrittVon(TWITCH_ANONYM_ID, undefined, 'cheer'), false);
+  // Echte Zuschauer wie bisher.
+  assert.equal(istErsterAuftrittVon('twitch:42', undefined, 'sub'), true);
+  assert.equal(istErsterAuftrittVon('u1', { totalChats: 0 }, 'chat'), true);
+  assert.equal(istErsterAuftrittVon('u1', { totalChats: 3 }, 'chat'), false);
+});
+
+test('Anonym-ID gibt es nur einmal: points-store reicht die aus twitch-normalize weiter', async () => {
+  const normalize = await import('../adapters/twitch-normalize');
+  assert.equal(TWITCH_ANONYM_ID, normalize.TWITCH_ANONYM_ID);
+  const quelle = fs.readFileSync(path.join(SRC_PS, 'points-store.ts'), 'utf8');
+  assert.equal(/`\$\{TWITCH_ID_PRAEFIX\}anonym`/.test(quelle), false, 'Anonym-ID in points-store nachgebaut statt importiert');
+});
+
+test('studio.ts setzt firstOfUser über istErsterAuftrittVon (mit Anonym-Wächter)', () => {
+  const quelle = fs.readFileSync(path.join(SRC_PS, 'studio.ts'), 'utf8');
+  assert.match(quelle, /e\.firstOfUser = true/);
+  const zeile = quelle.split('\n').find((z) => z.includes('e.firstOfUser = true')) ?? '';
+  assert.match(zeile, /istErsterAuftrittVon\(e\.user\.id,/, 'firstOfUser ohne Anonym-Wächter');
 });

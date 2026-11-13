@@ -19,7 +19,7 @@ import { TikTokAdapter, createDirectConnection, type AdapterStatusInfo, type Key
 import { EulerCloudConnection } from '../adapters/tiktok-cloud';
 import { KeyRotator } from './key-rotator';
 import { OverlayServer } from '../adapters/overlay-server';
-import { aktionsNachricht } from './aktion-nachricht';
+import { aktionsNachricht, momentNachricht, darfInTikTokChatAntworten } from './aktion-nachricht';
 import {
   SettingsStore,
   redactSecretsForExport,
@@ -44,7 +44,7 @@ import { sollIntroLaufen, INTRO_AUSLOESER_TEXT, TEAMHERZ_GIFT_ID } from './intro
 import { besterRang, type RangStand } from '../adapters/tiktok-rank';
 import { matchingLuckyLayers, matchLuckyCommand, planLuckyDraws, luckyDrawDauerMs, type LuckyLayer } from './lucky-draw';
 import { kannFortsetzung, istFortsetzung } from './session-continuity';
-import { istErsterAuftritt, istPlatzhalterNutzer, PointsStore } from './points-store';
+import { istErsterAuftrittVon, PointsStore } from './points-store';
 import { GiftCatalog } from './gift-catalog';
 import { StickerCatalog } from './sticker-catalog';
 import { ladeHerzPaket } from './herz-pack';
@@ -588,9 +588,8 @@ export class Studio {
       // Beitritt in der Statistik landet (nötig für die Herkunft), existiert
       // der Eintrag beim ersten Kommentar nämlich längst, und die Begrüßung
       // „Neue begrüßen" hätte nie wieder ausgelöst.
-      // Der anonyme Twitch-Stellvertreter hat nie einen Eintrag (sammelt nichts)
-      // und wäre sonst bei JEDEM anonymen Geschenk „zum ersten Mal da".
-      if (e.user && !istPlatzhalterNutzer(e.user.id) && istErsterAuftritt(this.points.get(e.user.id), e.type)) e.firstOfUser = true;
+      // Der anonyme Twitch-Stellvertreter zählt nie als neu (istErsterAuftrittVon).
+      if (e.user && istErsterAuftrittVon(e.user.id, this.points.get(e.user.id), e.type)) e.firstOfUser = true;
 
       // 0a. Fehlendes Geschenk-Bild ergänzen — MUSS hier ganz oben stehen, vor
       // jedem Verbraucher (Katalog, Widgets, Overlay-Broadcast).
@@ -749,7 +748,7 @@ export class Studio {
         schonGezeigt: this.introGezeigt.has(e.user.id),
         wann: introWann,
       })) {
-        this.maybePlayWelcomeMedia(e.user);
+        this.maybePlayWelcomeMedia(e.user, e);
       } else if (e.user && !e.synthetic
         && (e.type === 'join' || e.type === 'sub' || e.gift?.giftId === TEAMHERZ_GIFT_ID)
         && !this.introGezeigt.has(e.user.id) && this.points.welcomeMediaFor(e.user.id)) {
@@ -1140,7 +1139,8 @@ export class Studio {
     } else if (action.kind === 'obs_visibility') {
       void this.obs.setSourceVisible(action.scene, action.source, action.visible);
     } else if (action.kind === 'send_chat') {
-      void this.sendChat(renderSpeakTemplate(action.template, event));
+      if (darfInTikTokChatAntworten(event)) void this.sendChat(renderSpeakTemplate(action.template, event));
+      else this.meldeKeinChatNachTwitch();
     } else if (action.kind === 'streamerbot_action') {
       void this.streamerbot.doAction(action.action);
     } else if (action.kind === 'giveaway_draw') {
@@ -2034,9 +2034,11 @@ export class Studio {
     return { ok: true };
   }
 
-  /** Einen „Moment" (Premium-Einblender) an alle action-screen-Widgets senden. */
-  emitMoment(moment: import('@botexe/overlay-engine').MomentPayload): void {
-    this.server.broadcast({ kind: 'moment', moment });
+  /** Einen „Moment" (Premium-Einblender) an die action-screen-Widgets senden.
+   *  `quelle` = auslösendes Ereignis: dessen Plattform entscheidet, welche
+   *  Overlays ihn zeigen (ohne Ereignis zählt die Zuschauer-ID, sonst an alle). */
+  emitMoment(moment: import('@botexe/overlay-engine').MomentPayload, quelle?: Pick<StudioEvent, 'plattform'>): void {
+    this.server.broadcast(momentNachricht(moment, quelle));
   }
 
   /** Diagnose-Schnappschuss („Warum sehe ich mein Overlay nicht?"). */
@@ -2171,6 +2173,7 @@ export class Studio {
     if (r.killed) {
       const st = this.boss.getState();
       log.info('Boss', `BESIEGT (Level ${st.level})! Top-Schaden: ${st.topDamagers.slice(0, 3).map((d) => `${d.nickname} (${d.damage})`).join(', ') || '—'}`);
+      // Bewusst ohne Plattform: der Boss ist EIN gemeinsames Spiel (siehe broadcast()).
       this.emitMoment(bossKillMoment(st, st.topDamagers));
       this.boss.onKill();
       this.boss.spawn();
@@ -2342,7 +2345,7 @@ export class Studio {
       totalChats: e?.totalChats, gifts: e?.gifts, gameWins: e?.gameWins,
     };
     const moment = this.viewerCard.buildMoment(kind, info, Date.now());
-    if (moment) this.emitMoment(moment);
+    if (moment) this.emitMoment(moment, event);
   }
 
   // ── Stammgast-Begrüßung ───────────────────────────────────────────────
@@ -2491,7 +2494,10 @@ export class Studio {
 
     const text = renderSpeakTemplate(cmd.response, event);
     if (cmd.speak) this.speakForEvent(cmd.response, event);
-    if (cmd.sendToChat) void this.sendChat(text);
+    if (cmd.sendToChat) {
+      if (darfInTikTokChatAntworten(event)) void this.sendChat(text);
+      else this.meldeKeinChatNachTwitch();
+    }
     log.info('Befehl', `${cmd.command} von ${event.user?.nickname ?? '?'}`);
   }
 
@@ -2575,6 +2581,14 @@ export class Studio {
   /** Aktion manuell auslösen (Panel-Klick oder Hotkey) — ohne Zuschauer-Kontext. */
   fireManual(action: TriggerAction): void {
     this.dispatchAction('manual', action, { type: 'timer', ts: Date.now() });
+  }
+
+  /** Antwort auf ein Twitch-Ereignis: geht NICHT in den TikTok-Chat (dort wäre
+   *  sie Spam), und nach Twitch senden kann die App noch nicht. Einmal sagen. */
+  private meldeKeinChatNachTwitch(): void {
+    log.einmal('chat-senden:twitch', 'info', 'Chat-Senden',
+      'Eine Chat-Antwort auf ein Twitch-Ereignis wurde nicht gesendet — sie ginge sonst in den TikTok-Chat, '
+      + 'und in den Twitch-Chat schreiben kann die App noch nicht. Sound, Alarm und Vorlesen laufen normal.');
   }
 
   /** Nachricht in den TikTok-Live-Chat senden (rate-limited gegen TikTok-Drossel). */
@@ -3131,7 +3145,7 @@ export class Studio {
       : { ok: false, error: 'Kein Medien-Widget im Overlay (Modus „Auslöser") — dort wird das Intro abgespielt.' };
   }
 
-  private maybePlayWelcomeMedia(user: { id: string; nickname?: string }): void {
+  private maybePlayWelcomeMedia(user: { id: string; nickname?: string }, quelle: Pick<StudioEvent, 'plattform'> = {}): void {
     const mediaId = this.points.welcomeMediaFor(user.id);
     if (!mediaId) return;
     if (this.introGezeigt.has(user.id)) return;   // einmal pro Stream reicht
@@ -3160,7 +3174,9 @@ export class Studio {
       targetId: layer.id,
       params: { mediaUrl: this.mediaUrl(mediaId), kind: entry.kind },
     };
-    this.server.broadcast({ kind: 'action', ruleId: 'welcome-media', action });
+    // Plattform des auslösenden Ereignisses: das Intro eines Twitch-Subs gehört
+    // nicht ins TikTok-Overlay (Vorschau-Knopf: ohne = überall).
+    this.server.broadcast(aktionsNachricht('welcome-media', action, quelle));
     log.info('Intro', `Intro für ${user.nickname ?? user.id} abgespielt`);
   }
 

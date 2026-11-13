@@ -32,7 +32,9 @@ export type OverlayMessage =
   | { kind: 'stats'; stats: unknown }
   | { kind: 'spotify'; state: unknown } // Now-Playing fürs Spotify-Widget
   | { kind: 'reset'; seed: string } // neuer Stream → Overlay-Zähler/Top-Listen zurücksetzen + neuer Session-Seed
-  | { kind: 'moment'; moment: MomentPayload } // Premium-Einblender fürs action-screen
+  // Premium-Einblender fürs action-screen. plattform wie bei `action`: die des
+  // auslösenden Ereignisses/Zuschauers; fehlt = an alle Overlays.
+  | { kind: 'moment'; moment: MomentPayload; plattform?: Plattform }
   | { kind: 'game-state'; gameKind: string; state: unknown } // Spielzustand fürs Spiel-Widget
   | { kind: 'game-event'; gameKind: string; event: string; payload?: unknown }; // Spiel-Effekt (win/reveal …)
 
@@ -1070,10 +1072,15 @@ export class OverlayServer {
     // Einmal serialisieren statt pro Client: bei mehreren offenen Overlays
     // (OBS + TTLS + Editor-Vorschau) wäre dasselbe Event sonst N-mal stringified.
     const payload = JSON.stringify(message);
-    // Nur Ereignisse und Aktionen tragen eine Plattform; alles andere (stats,
-    // layout, reset, spotify …) geht wie bisher an jede Quelle.
+    // Nur Ereignisse, Aktionen und Momente tragen eine Plattform; alles andere
+    // (stats, layout, reset, spotify …) geht wie bisher an jede Quelle.
+    // `game-state`/`game-event` bleiben BEWUSST global: ein Spiel (Quiz, Boss,
+    // Zahlenraten) ist EIN gemeinsamer Zustand für beide Chats — bekäme ein
+    // Overlay nur die Züge seiner Plattform, zeigte es ein halbes Spiel mit
+    // falschem Stand. Dass dort auch Namen von der anderen Plattform stehen,
+    // ist der Preis eines gemeinsamen Spiels.
     const plattform = message.kind === 'event' ? message.event.plattform
-      : message.kind === 'action' ? message.plattform
+      : message.kind === 'action' || message.kind === 'moment' ? message.plattform
         : undefined;
     for (const client of this.clients) {
       if (plattform !== undefined && !this.passtZuClient(client, plattform)) continue;

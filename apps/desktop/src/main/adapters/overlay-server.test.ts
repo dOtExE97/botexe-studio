@@ -5,7 +5,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import WebSocket from 'ws';
-import { createDefaultLayout, type OverlayLayout } from '@botexe/overlay-engine';
+import { createDefaultLayout, type OverlayLayout, type MomentPayload } from '@botexe/overlay-engine';
 import { EventBus } from '../core/event-bus';
 import { OverlayServer, isAllowedWsOrigin } from './overlay-server';
 
@@ -660,6 +660,26 @@ test('Plattform: Aktionen werden genauso gefiltert', async () => {
     assert.deepEqual(ids(await bisMarker(tw)), ['r-tw', 'r-ohne']);
     assert.deepEqual(ids(await bisMarker(std)), ['r-tt', 'r-tw', 'r-ohne']);
     tw.close(); std.close();
+  } finally {
+    await server.stop();
+  }
+});
+
+test('Plattform: Momente werden wie Aktionen gefiltert (Twitch-Gast nicht im TikTok-Overlay)', async () => {
+  const { bus, server } = await setupPlattform();
+  try {
+    const tt = await wsConnect(`${server.getWsUrl()}&profile=tt`);
+    const std = await wsConnect(server.getWsUrl());
+    await tt.next(); await std.next();
+    const m = (id: string) => ({ id, channel: 'viewer', type: 'vip-welcome', priority: 1, durationMs: 1000, title: id }) as unknown as MomentPayload;
+    server.broadcast({ kind: 'moment', moment: m('m-tw'), plattform: 'twitch' });
+    server.broadcast({ kind: 'moment', moment: m('m-tt'), plattform: 'tiktok' });
+    server.broadcast({ kind: 'moment', moment: m('m-ohne') });
+    bus.publish({ type: 'chat', ts: 4, text: 'ENDE' });
+    const ids = (msgs: Record<string, unknown>[]) => msgs.filter((x) => x.kind === 'moment').map((x) => (x.moment as { id: string }).id);
+    assert.deepEqual(ids(await bisMarker(tt)), ['m-tt', 'm-ohne']);
+    assert.deepEqual(ids(await bisMarker(std)), ['m-tw', 'm-tt', 'm-ohne'], 'altes Overlay bekommt alles');
+    tt.close(); std.close();
   } finally {
     await server.stop();
   }

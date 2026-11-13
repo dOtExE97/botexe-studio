@@ -26,8 +26,13 @@ const PLAETZE: Platz[] = [
   // Banner oben links: „FOLLOW = KISTEN BIS ZUM TOKEN". Token-/Kistenbild
   // bleiben leer — das Banner zeichnet dann selbst eine Goldmünze.
   { id: 'twitch-piraten-banner', type: 'piraten-banner', x: 24, y: 24, w: 640, h: 120 },
-  // Kleine Follow-Einblendung direkt unter dem Banner.
-  { id: 'twitch-follow-alert', type: 'follow-alert', x: 24, y: 160, w: 460, h: 90 },
+  // Kleine Einblendung direkt unter dem Banner — NUR für Subs: einen Follow
+  // feiert schon das Piraten-Orakel (sonst zwei Einblendungen je Follow).
+  // „Geteilt" gibt es auf Twitch nicht.
+  {
+    id: 'twitch-follow-alert', type: 'follow-alert', x: 24, y: 160, w: 460, h: 90,
+    props: { events: ['sub'] },
+  },
   // Chat rechts, unter der Minikarte und über der Waffenleiste.
   { id: 'twitch-chat', type: 'chat-box', x: 1500, y: 330, w: 400, h: 580 },
   // Piraten-Orakel bei jedem Follow. Die Animation ist hochkant gezeichnet

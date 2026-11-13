@@ -217,3 +217,60 @@ test('Status: clientIdGesetzt und Login aus den Tokens, auch wenn der Adapter au
   assert.equal(aufbau({ twitchClientId: '' }).st.status().clientIdGesetzt, false);
   assert.ok(!JSON.stringify(s).includes('geheim'), 'keine Tokens im Status');
 });
+
+// ── Abschluss-Review ────────────────────────────────────────────────────────
+
+test('Trennen während der Gerätecode-Anfrage: Meldung sagt „abgebrochen", nicht „durch eine neue ersetzt"', async () => {
+  const t = aufbau();
+  let freigeben!: () => void;
+  t.setBegin(() => new Promise((r) => { freigeben = () => r({ ...CODE }); }));
+  const laeuft = t.st.beginLogin();
+  await warte();
+  await t.st.logout();
+  freigeben();
+  await assert.rejects(laeuft, (err: Error) => !/ersetzt/.test(err.message) && /abgebrochen/.test(err.message));
+});
+
+test('Client-ID-Wechsel während der Gerätecode-Anfrage: ebenfalls „abgebrochen"', async () => {
+  const t = aufbau();
+  let freigeben!: () => void;
+  t.setBegin(() => new Promise((r) => { freigeben = () => r({ ...CODE }); }));
+  const laeuft = t.st.beginLogin();
+  await warte();
+  t.st.clientIdGeaendert();
+  freigeben();
+  await assert.rejects(laeuft, (err: Error) => !/ersetzt/.test(err.message) && /abgebrochen/.test(err.message));
+});
+
+test('Neuer Versuch während der Gerätecode-Anfrage: der alte meldet weiterhin „ersetzt"', async () => {
+  const t = aufbau();
+  let freigeben!: () => void;
+  t.setBegin(() => new Promise((r) => { freigeben = () => r({ ...CODE }); }));
+  const erster = t.st.beginLogin();
+  await warte();
+  t.setBegin(() => Promise.resolve({ ...CODE, userCode: 'NEU-CODE' }));
+  const zweiter = t.st.beginLogin();
+  freigeben();
+  await assert.rejects(erster, /ersetzt/);
+  assert.equal((await zweiter).userCode, 'NEU-CODE');
+});
+
+test('Laufende Anmeldung: der Code steht im Status (Seitenwechsel), danach nicht mehr — und nie im Log', async () => {
+  const t = aufbau({ twitchTokens: undefined });
+  await t.st.beginLogin();
+  const s = t.st.status();
+  assert.equal(s.anmeldeCode?.userCode, CODE.userCode, 'nach Seitenwechsel holt der Renderer den Code per Pull');
+  assert.equal(s.anmeldeCode?.verificationUri, CODE.verificationUri);
+  assert.ok((s.anmeldeCode?.gueltigBis ?? 0) > Date.now(), 'Ablauf liegt in der Zukunft');
+  assert.equal(t.pushes[t.pushes.length - 1]?.anmeldeCode?.userCode, CODE.userCode, 'auch im Push');
+  t.s.twitchTokens = TOKENS;
+  t.warter[0]?.ok(TOKENS);
+  await warte();
+  assert.equal(t.st.status().anmeldeCode, undefined, 'nach dem Login weg');
+  assert.ok(!t.logs.some((l) => l.includes(CODE.userCode)));
+
+  const t2 = aufbau({ twitchTokens: undefined });
+  await t2.st.beginLogin();
+  await t2.st.logout();
+  assert.equal(t2.st.status().anmeldeCode, undefined, 'nach Trennen weg');
+});
