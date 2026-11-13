@@ -399,9 +399,9 @@ const PIRATEN_IDS = ['piraten-sub', 'piraten-bits', 'piraten-raid'];
 
 test('Katalog: Twitch-Piraten mit Dauer, Sound und Ereignis', () => {
   const erwartet: Record<string, [number, string, string]> = {
-    'piraten-sub': [6.2, 'botexe-superfan.wav', 'twitch_sub'],
-    'piraten-bits': [6.4, 'botexe-truhe.wav', 'cheer'],
-    'piraten-raid': [7.2, 'botexe-boom.wav', 'raid'],
+    'piraten-sub': [6.2, 'botexe-piraten-sub.wav', 'twitch_sub'],
+    'piraten-bits': [6.4, 'botexe-piraten-bits.wav', 'cheer'],
+    'piraten-raid': [7.2, 'botexe-piraten-raid.wav', 'raid'],
   };
   for (const [id, [dauer, sound, art]] of Object.entries(erwartet)) {
     const a = ANIMATIONEN[id];
