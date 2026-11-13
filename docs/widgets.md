@@ -11,7 +11,7 @@ Synthwave …), die das Aussehen komplett verändern. Hier ist jeweils nur die G
 
 Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 
-> Stand: 50 der 53 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
+> Stand: 51 der 54 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
 > Herz-Alarm, Gambling-Automat, Piraten-Banner — in der App ganz normal vorhanden (Overlay → Widget hinzufügen).
 
 ## Alerts
@@ -20,10 +20,10 @@ Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 | --- | --- | --- |
 | **Action-Screen (Momente)** | **Gift-Alert** | **Follow-Alert** |
 | ![Action-Screen (Momente)](screenshots/action-screen.png) | ![Gift-Alert](screenshots/gift-alert.png) | ![Follow-Alert](screenshots/follow-alert.png) |
-| **Einblender** | **Meilenstein-Konfetti** | **Geschenke-Kanone** |
-| ![Einblender](screenshots/einblender.png) | ![Meilenstein-Konfetti](screenshots/milestone-confetti.png) | ![Geschenke-Kanone](screenshots/gift-cannon.png) |
-| **Gift-Feuerwerk** |  |  |
-| ![Gift-Feuerwerk](screenshots/gift-fireworks.png) |  |  |
+| **Einblender** | **Meilenstein-Konfetti** | **Neuer Pirat an Bord! (Erst-Chatter)** |
+| ![Einblender](screenshots/einblender.png) | ![Meilenstein-Konfetti](screenshots/milestone-confetti.png) | ![Neuer Pirat an Bord! (Erst-Chatter)](screenshots/neuer-pirat.png) |
+| **Geschenke-Kanone** | **Gift-Feuerwerk** |  |
+| ![Geschenke-Kanone](screenshots/gift-cannon.png) | ![Gift-Feuerwerk](screenshots/gift-fireworks.png) |  |
 
 ## Spiele
 

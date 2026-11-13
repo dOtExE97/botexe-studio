@@ -126,6 +126,13 @@ Fehlermeldungen: [api.md](api.md).
   „Schatzkarte" mit der Metrik „Twitch-Follower". Sie zeigt den echten
   Follower-Stand des Kanals (Ereignis `follower_stand`, beim Laden sofort da)
   und zählt dazwischen jeden Twitch-Follow mit.
+- Wer **zum allerersten Mal** in deinen Twitch-Chat schreibt, bekommt mit dem
+  Widget **„Neuer Pirat an Bord! (Erst-Chatter)"** (Reiter Alerts, 520×130) ein
+  eigenes Schild. Bots (Standard: StreamElements, Nightbot, Moobot), anonyme
+  Geschenke und du selbst sind ausgenommen; mehrere Neue kommen nacheinander.
+- Für Fortnite: **„Piraten-Zähler (Fortnite)"** (Stats & Zähler, 360×110) zählt
+  Victory Royales und Kills — per Stream Deck über `POST /api/zaehler`
+  (`docs/api.md`).
 - Twitch-Zuschauer haben eigene IDs (`twitch:<nummer>`); Punkte und Spiele
   vermischen sich nicht mit TikTok-Zuschauern gleichen Namens.
 - Das Piraten-Orakel und die Twitch-Piraten (Sub, Bits, Raid) sind im

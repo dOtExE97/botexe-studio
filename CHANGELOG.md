@@ -125,6 +125,16 @@ eigenem Overlay und eigenem Chat:
   „Overlay-Alert“ einen Victory Royale (z.B. Chat-Befehl „!vr“ für Mods). Der
   Stand übersteht ein Neuladen der Browserquelle und startet bei einem neuen
   Stream wieder bei 0 (abschaltbar).
+- **Neues Widget „Neuer Pirat an Bord! (Erst-Chatter)“** (Alerts, 520×130) —
+  schreibt jemand zum allerersten Mal in den Chat, schwingt ein Holzschild an
+  zwei Tauen herein: Goldplakette „NEUER PIRAT AN BORD!“ (Text frei wählbar),
+  Profilbild im Goldring mit Dreispitz (ohne Bild der Anfangsbuchstabe), groß
+  der Name; eine Möwe segelt vorbei, Münzen springen, Goldfunken glitzern.
+  Nach 5 Sekunden (einstellbar) wird es wieder hochgezogen, mehrere Neue
+  kommen nacheinander, dieselbe Person nie doppelt. Standard: nur Twitch;
+  Bots aus einer Liste (StreamElements, Nightbot, Moobot), der anonyme
+  Twitch-Stellvertreter, der Streamer selbst und Wiederholungen nach dem
+  Neuladen bekommen kein Schild.
 
 Einrichten in drei Zeilen: Client-ID auf dev.twitch.tv/console holen (Kategorie
 Application Integration, Client-Typ Öffentlich) → in der App verbinden →

@@ -792,6 +792,19 @@ export const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'neuer-pirat', label: 'Neuer Pirat an Bord! (Erst-Chatter)', desc: 'Begrüßt jeden, der zum allerersten Mal in deinen Chat schreibt: Ein Holzschild schwingt an zwei Tauen herein — Goldplakette „NEUER PIRAT AN BORD!", das Profilbild im Goldring mit Dreispitz und groß der Name, dazu eine Möwe und Goldfunken. Nach ein paar Sekunden wird es wieder hochgezogen; kommen mehrere Neue, sind sie nacheinander dran. Bots wie Nightbot bleiben draußen.',
+    w: 520, h: 130, props: { plattform: 'twitch', ignorieren: 'StreamElements,Nightbot,Moobot', dauerMs: 5000, titel: 'NEUER PIRAT AN BORD!', fontFamily: '', fontScale: 1, textColor: '' },
+    fields: [
+      { key: 'plattform', label: 'Plattform', type: 'select', hint: 'Wessen Erst-Nachrichten begrüßt werden. Test-Knöpfe zählen immer.', options: [
+        { value: 'twitch', label: 'Nur Twitch' }, { value: 'tiktok', label: 'Nur TikTok' }, { value: 'alle', label: 'Alle Plattformen' },
+      ] },
+      { key: 'ignorieren', label: 'Nicht begrüßen', type: 'list', separator: ',', textPlaceholder: 'Name, z.B. Nightbot', addLabel: 'Name hinzufügen', hint: 'Bots und Namen, die nie ein Schild bekommen (Anzeigename oder Login, Groß-/Kleinschreibung egal). Der Streamer selbst und anonyme Twitch-Geschenke sind immer ausgenommen.' },
+      { key: 'dauerMs', label: 'Anzeigedauer', type: 'seconds', hint: 'So lange hängt das Schild im Bild, bevor es wieder hochgezogen wird.' },
+      { key: 'titel', label: 'Text auf der Plakette', type: 'text', hint: 'Steht auf der Goldplakette über dem Namen.' },
+      ...STYLE_FIELDS,
+    ],
+  },
+  {
     type: 'activity-feed', label: 'Activity-Feed', desc: 'Alle Events gemischt (Follow, Sub, Share, Gift) als Live-Ticker.',
     w: 420, h: 320, props: { style: 'glas', max: 6, ttlMs: 60000, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
