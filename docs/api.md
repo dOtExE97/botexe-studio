@@ -84,13 +84,29 @@ Query-Parameter (oder gleichnamig im JSON-Body):
 | `POST /api/twitch/werbung?sekunden=60&token=…` | Werbung starten (`30`, `60`, `90`, `120`, `150`, `180`) |
 | `POST /api/twitch/shoutout?token=…[&login=name]` | Shoutout — ohne `login` an den letzten Raider dieser Sitzung |
 | `POST /api/twitch/chat-modus?modus=emote&token=…` | Chat-Modus umschalten: `emote`, `langsam` (30 s), `follower` |
+| `POST /api/twitch/raid?login=name&token=…` | Raid zu diesem Kanal starten — Twitch zählt 90 s herunter („Jetzt raiden" in Twitch geht sofort) |
+| `POST /api/twitch/raid-abbrechen?token=…` | laufenden Raid abbrechen (bis der Countdown durch ist) |
 
 Antwort: `{ "ok": true, "info": "…" }` (HTTP 200) oder `{ "ok": false, "fehler": "…" }`
 (HTTP 409, z. B. nicht live, Abklingzeit mit Sekunden, „Bitte Twitch neu verbinden";
 HTTP 400 bei falschen Parametern). Jedes Ergebnis steht auch im Log unter `[Twitch]`.
-Twitch-Regeln (Belege: `docs/twitch-api-belege.md`, Abschnitt 10): Clip/Marker/Werbung/Shoutout
+Twitch-Regeln (Belege: `docs/twitch-api-belege.md`, Abschnitte 10 und 11.5): Clip/Marker/Werbung/Shoutout
 nur live; Werbung nur als Partner/Affiliate; Shoutout höchstens alle 2 Minuten, an denselben
-Kanal alle 60 Minuten.
+Kanal alle 60 Minuten. Raid: höchstens 10 Anfragen in 10 Minuten (starten und abbrechen
+zusammen); Fehler auf Deutsch für unbekanntes Ziel, „nimmt keine Raids an / blockiert / nicht
+live", „Raid läuft schon" und das Limit. Ob man für einen Raid live sein muss, sagen die Docs
+nicht — Twitchs eigene Begründung hängt dann am Fehlertext. Ohne `login` → HTTP 400.
+
+Ereignisse von Twitch für eigene Widgets (über den Overlay-WebSocket, `plattform: "twitch"`):
+
+| `type` | Felder | Hinweis |
+|---|---|---|
+| `follower_stand` | `followerStand: { anzahl }` | Follower-Zahl des Kanals: beim Verbinden, alle 10 Min., +1 je Follow; sticky (neu geladene Overlays bekommen sofort den letzten Wert) |
+| `kanalpunkte` | `kanalpunkte: { titel, kosten, eingabe? }`, `user`, `text` (= Eingabe) | Kanalpunkte-Belohnung eingelöst (nur Affiliate/Partner) |
+
+Beide lassen sich über `POST /api/test-event` ausprobieren, z. B.
+`{"type":"follower_stand","plattform":"twitch","followerStand":{"anzahl":42}}` oder
+`{"type":"kanalpunkte","plattform":"twitch","user":{"id":"twitch:1","nickname":"Pia"},"kanalpunkte":{"titel":"Kanone","kosten":500}}`.
 
 ---
 

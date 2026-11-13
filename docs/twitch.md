@@ -1,7 +1,8 @@
 # Twitch mit bOtExE Studio
 
-bOtExE Studio holt Follows, Chat (mit Emotes), Subs, Bits und Raids von deinem
-Twitch-Kanal in die App. TikTok und Twitch laufen dabei **getrennt**: Jedes
+bOtExE Studio holt Follows, Chat (mit Emotes), Subs, Bits, Raids, Kanalpunkte
+und die Follower-Zahl von deinem Twitch-Kanal in die App und antwortet auf Wunsch
+im Twitch-Chat. TikTok und Twitch laufen dabei **getrennt**: Jedes
 Overlay weiß, für welche Plattform es da ist, und zeigt nur deren Chat und Alarme.
 
 ## Einrichtung in 5 Schritten
@@ -55,6 +56,55 @@ Plattform passen.
 Für ein gemischtes Overlay („Alle Plattformen"): In der Chat-Box den Schalter
 **„Plattform-Zeichen vor dem Namen"** einschalten, dann steht vor jedem Namen
 ein kleines TikTok- oder Twitch-Zeichen.
+
+## Kanalpunkte, Chat-Bot und Raid
+
+> **Nach dem Update einmal neu verbinden.** Für Kanalpunkte, Chat-Antworten und
+> Raid braucht die App drei zusätzliche Rechte (`channel:read:redemptions`,
+> `user:write:chat`, `channel:manage:raids`). Twitch fragt danach nur einmal:
+> Die App meldet „Bitte neu verbinden" — Schritt 2 wiederholen, fertig.
+
+**Nur mit Affiliate (oder Partner):** Kanalpunkte, Bits, Subs und Werbung gibt
+es bei Twitch erst ab Affiliate. Bist du noch keiner, verbindet die App trotzdem
+ganz normal; bei den Kanalpunkten steht dann einmal im Log „Kanalpunkte gibt es
+erst ab Twitch-Affiliate". Sobald du Affiliate bist, kommen sie von selbst an.
+
+### Kanalpunkte als Auslöser
+
+Reiter **Trigger** → neue Regel → Ereignis **„🟣 Twitch-Kanalpunkte eingelöst"**.
+Als Bedingung **„Belohnung heißt genau …"** und den Titel so eintragen, wie er
+bei Twitch heißt (Groß-/Kleinschreibung egal). Beispiel: Belohnung „Kanone" →
+Sound abspielen + Alarm zeigen. Ohne Bedingung feuert die Regel bei **jeder**
+Belohnung. Verlangt die Belohnung eine Eingabe, steht sie in der Vorlage als
+`{text}` bereit (z. B. Ansage „{user} sagt: {text}").
+
+### Chat-Antworten (Bot)
+
+Die Aktion **„In den Chat schreiben"** einer Regel und Chat-Befehle mit
+**„In Chat senden"** antworten jetzt in den Chat, **aus dem das Ereignis kam**:
+Twitch-Ereignis → Twitch-Chat, TikTok-Ereignis → TikTok-Chat. Die Antwort
+schreibt dein eigener Kanal. Höchstens eine Nachricht alle 1,5 Sekunden; dieselbe
+Nachricht innerhalb von 30 Sekunden geht nur einmal raus. Die eigenen Antworten
+lösen nie selbst wieder Befehle aus (und erscheinen nicht im Overlay-Chat).
+
+Eine fertige Befehlsliste bringt die App nicht mit — Befehle legst du im Reiter
+**Befehle** an (gilt für TikTok und Twitch gleichzeitig):
+
+| Befehl | Antwort (Beispiel) | Einstellung |
+|---|---|---|
+| `!discord` | `Komm auf meinen Discord: discord.gg/…` | „In Chat senden" an, Vorlesen aus |
+| `!tiktok` | `Mich gibt's auch auf TikTok: tiktok.com/@…` | „In Chat senden" an |
+
+`!kiste` („in welcher Kiste liegt mein Token?") geht noch nicht: Die
+Kistennummer würfelt das Piraten-Orakel im Overlay, die App selbst kennt sie
+nicht.
+
+### Raid starten (Stream Deck)
+
+`POST /api/twitch/raid?login=<kanal>&token=…` startet einen Raid, Twitch zählt
+dann 90 Sekunden herunter (oder in Twitch „Jetzt raiden" klicken).
+`POST /api/twitch/raid-abbrechen?token=…` bricht ihn bis dahin ab. Details und
+Fehlermeldungen: [api.md](api.md).
 
 ## Gut zu wissen
 
