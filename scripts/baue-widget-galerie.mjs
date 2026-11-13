@@ -39,7 +39,10 @@ for (const kat of PALETTE_KATEGORIEN) {
   const eintraege = [];
   for (const w of WIDGET_TYPES) {
     if ((CATEGORY_OF[w.type] ?? 'deko') !== kat.id) continue;
-    const datei = `${w.type}.png`;
+    // Varianten desselben Typs (z.B. Goal-Bar und Affiliate-Schatzkarte) zeigen
+    // ihr eigenes Bild, wenn es eins gibt: `<typ>--<stil>.png`.
+    const eigenes = w.props?.style ? `${w.type}--${w.props.style}.png` : '';
+    const datei = eigenes && SHOTS.has(eigenes) ? eigenes : `${w.type}.png`;
     if (!SHOTS.has(datei)) { ohneBild.push(w.label); continue; }
     eintraege.push({ label: w.label, datei });
   }

@@ -11,7 +11,7 @@ Synthwave …), die das Aussehen komplett verändern. Hier ist jeweils nur die G
 
 Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 
-> Stand: 48 der 51 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
+> Stand: 49 der 52 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
 > Herz-Alarm, Gambling-Automat, Piraten-Banner — in der App ganz normal vorhanden (Overlay → Widget hinzufügen).
 
 ## Alerts
@@ -42,12 +42,14 @@ Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 
 |   |   |   |
 | --- | --- | --- |
-| **Hype-Train** | **Goal-Bar** | **Ziel-Countdown (Text)** |
-| ![Hype-Train](screenshots/hype-train.png) | ![Goal-Bar](screenshots/goal-bar.png) | ![Ziel-Countdown (Text)](screenshots/goal-countdown.png) |
-| **Top-Gift** | **Top-Streak** | **Geschenk-Menü** |
-| ![Top-Gift](screenshots/top-gift.png) | ![Top-Streak](screenshots/top-streak.png) | ![Geschenk-Menü](screenshots/gift-menu.png) |
-| **Befehl-Karussell** | **Coin-Glas** | **Geschenkzähler** |
-| ![Befehl-Karussell](screenshots/command-carousel.png) | ![Coin-Glas](screenshots/gift-jar.png) | ![Geschenkzähler](screenshots/gift-counter.png) |
+| **Hype-Train** | **Goal-Bar** | **Affiliate-Schatzkarte (Twitch)** |
+| ![Hype-Train](screenshots/hype-train.png) | ![Goal-Bar](screenshots/goal-bar.png) | ![Affiliate-Schatzkarte (Twitch)](screenshots/goal-bar--schatzkarte.png) |
+| **Ziel-Countdown (Text)** | **Top-Gift** | **Top-Streak** |
+| ![Ziel-Countdown (Text)](screenshots/goal-countdown.png) | ![Top-Gift](screenshots/top-gift.png) | ![Top-Streak](screenshots/top-streak.png) |
+| **Geschenk-Menü** | **Befehl-Karussell** | **Coin-Glas** |
+| ![Geschenk-Menü](screenshots/gift-menu.png) | ![Befehl-Karussell](screenshots/command-carousel.png) | ![Coin-Glas](screenshots/gift-jar.png) |
+| **Geschenkzähler** |  |  |
+| ![Geschenkzähler](screenshots/gift-counter.png) |  |  |
 
 ## Listen & Chat
 

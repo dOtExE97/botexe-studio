@@ -71,6 +71,11 @@ ein kleines TikTok- oder Twitch-Zeichen.
   es das Widget **„Piraten-Infoleiste (Letzter …)"** (Reiter Stats & Zähler,
   1600×84). Abos zählen dort nur von Twitch; nach einem Neuladen der
   Browserquelle stehen die letzten Namen sofort wieder da.
+- Fürs **Affiliate-Ziel** (50 Follower) gibt es die **„Affiliate-Schatzkarte
+  (Twitch)"** (Reiter Gifts & Ziele, 640×110 oder 900×120): Goal-Bar im Stil
+  „Schatzkarte" mit der Metrik „Twitch-Follower". Sie zeigt den echten
+  Follower-Stand des Kanals (Ereignis `follower_stand`, beim Laden sofort da)
+  und zählt dazwischen jeden Twitch-Follow mit.
 - Twitch-Zuschauer haben eigene IDs (`twitch:<nummer>`); Punkte und Spiele
   vermischen sich nicht mit TikTok-Zuschauern gleichen Namens.
 - Das Piraten-Orakel und die Twitch-Piraten (Sub, Bits, Raid) sind im

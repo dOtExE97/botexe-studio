@@ -100,6 +100,20 @@ eigenem Overlay und eigenem Chat:
   Plattform (Alle / Nur Twitch / Nur TikTok), Reihe oder Stapel, Einschweben
   beim Laden. Standardgröße 1600×84; „Bewegung reduzieren“ und Sparmodus
   stellen alles still.
+- **Goal-Bar: Stil „Schatzkarte“ und Metrik „Twitch-Follower“** — neu in der
+  Palette als **„Affiliate-Schatzkarte (Twitch)“** (640×110, auch schön in
+  900×120): ein Pergament-Streifen mit Seekarte im Holzrahmen mit
+  Messingkappen, groß der Stand „23 / 50 Follower“ unter „Auf dem Weg zum
+  Affiliate“. Ein kleines Piratenschiff segelt mit dem Fortschritt die
+  gepunktete Route entlang (der gefahrene Weg wird rot), am Ende steht die
+  Truhe auf dem roten X. Jeder neue Twitch-Follower: das Schiff macht einen
+  Satz, Gischt und Gold spritzen, die Zahl hüpft. Ziel erreicht: die Truhe
+  springt auf, Münzen und Konfetti fliegen, „ZIEL ERREICHT!“ schlägt als Band
+  ein; danach bleibt sie offen und leuchtet. Der Stand ist der echte
+  Follower-Stand des Kanals und steht nach einem Neuladen der Browserquelle
+  sofort wieder da (ohne Feier). Ziel, Titel und Einheit sind frei; der Stil
+  geht auch mit Coins, Likes oder dem TikTok-LIVE-Ziel. Bestehende Goal-Bars
+  bleiben unverändert.
 
 Einrichten in drei Zeilen: Client-ID auf dev.twitch.tv/console holen (Kategorie
 Application Integration, Client-Typ Öffentlich) → in der App verbinden →

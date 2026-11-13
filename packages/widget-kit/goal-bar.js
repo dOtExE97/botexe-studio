@@ -2,6 +2,11 @@
 // Milestone-Ticks, Done-Puls. props: { metric, target, label?, accent? }
 // Metrik 'tiktok-ziel': folgt dem LIVE-Ziel von TikTok (live_ziel-Ereignisse),
 // Wert und Ziel kommen vom Ereignis, nicht aus den Session-Stats.
+// Metrik 'twitch_follower': Follower-Stand des Twitch-Kanals (Ereignis
+// follower_stand, kommt beim Laden per Sticky-Replay), dazwischen +1 je Twitch-Follow.
+// Stil 'schatzkarte': eigene Szene in goal-schatzkarte.js (Pergament, Schiff, Truhe).
+import Schatzkarte from './goal-schatzkarte.js';
+
 const STYLE_ID = 'bx-gb-style';
 /* --u = „1px bei Standardgröße" (560×80). cqmin (kurze Seite) war hier falsch:
    in einem 560×80-Balken sind 8cqmin ~6px, die Beschriftung klebte am Minimum.
@@ -146,14 +151,34 @@ html .bx-frameless .bx-gb-pct { -webkit-text-stroke: max(1.5px, .1em) var(--bx-i
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
 const TIKTOK_ZIEL = 'tiktok-ziel';
-const LABELS = { coins: 'Coin-Ziel', likes: 'Like-Ziel', follows: 'Follower-Ziel', gifts: 'Geschenk-Ziel' };
+const TWITCH_FOLLOWER = 'twitch_follower';
+const LABELS = { coins: 'Coin-Ziel', likes: 'Like-Ziel', follows: 'Follower-Ziel', gifts: 'Geschenk-Ziel', [TWITCH_FOLLOWER]: 'Auf dem Weg zum Affiliate' };
+/** Ereignis-Metriken: Wert kommt aus Ereignissen, nicht aus den Session-Stats. */
+const AUS_EREIGNISSEN = new Set([TIKTOK_ZIEL, TWITCH_FOLLOWER]);
+
+/**
+ * Follower-Stand nach einem Ereignis (Metrik 'twitch_follower'). DOM-frei.
+ * `follower_stand` setzt den Stand absolut (auch als Sticky-Replay — genau dafür
+ * ist er da). Ein Twitch-Follow zählt +1, aber nur, wenn schon ein Stand bekannt
+ * ist und das Ereignis kein Replay ist; der nächste Stand korrigiert ohnehin.
+ * @returns {number | null | undefined} neuer Stand, oder undefined = unverändert
+ */
+export function followerNach(stand, e) {
+  if (!e || typeof e !== 'object') return undefined;
+  if (e.type === 'follower_stand') {
+    const n = Number(e.followerStand && e.followerStand.anzahl);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined;
+  }
+  if (e.type === 'follow' && e.plattform === 'twitch' && !e.sticky && stand != null) return stand + 1;
+  return undefined;
+}
 const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : String(n));
 
 export default class GoalBar {
   constructor(root, props, ctx) {
     ensureStyle();
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
-    this.metric = ['coins', 'likes', 'follows', 'gifts', TIKTOK_ZIEL].includes(props.metric) ? props.metric : 'coins';
+    this.metric = ['coins', 'likes', 'follows', 'gifts', TIKTOK_ZIEL, TWITCH_FOLLOWER].includes(props.metric) ? props.metric : 'coins';
     this.target = Math.max(1, Number(props.target ?? 1000));
     this.props = props;
     this.label = props.label || (this.metric === TIKTOK_ZIEL ? 'Warte auf TikTok-Ziel…' : LABELS[this.metric]);
@@ -161,11 +186,26 @@ export default class GoalBar {
     // Letzter gemalter Stand — der Auslöser gehört nur zum ECHTEN Anstieg,
     // nicht zum ersten Zeichnen.
     this.last = null;
+    /** Twitch-Follower-Stand (null = noch keiner bekannt). */
+    this.folStand = null;
+    const style = ['glas', 'arcade', 'slim', 'thermo', 'akku', 'ring', 'schatzkarte'].includes(props.style) ? props.style : 'glas';
+    if (style === 'schatzkarte') {
+      const einheit = typeof props.einheit === 'string' ? props.einheit.trim() : '';
+      this.karte = new Schatzkarte(root, { titel: this.label, einheit, eigeneSchrift: !!props.fontFamily });
+      if (ctx && ctx.preview) {
+        if (this.metric === TIKTOK_ZIEL) this.showZiel({ fortschritt: 35, ziel: 50, erreicht: false, geschenk: { name: 'Heart Me' } });
+        else this.paint(this.metric === TWITCH_FOLLOWER ? Math.min(23, this.target) : Math.round(this.target * 0.46));
+        this.startDemo();
+      } else {
+        // Bis der erste Wert kommt: „– / 50" (beim TikTok-Ziel ist auch das Ziel noch offen).
+        this.karte.setze(null, this.metric === TIKTOK_ZIEL ? null : this.target, false, false);
+      }
+      return;
+    }
     this.el = document.createElement('div');
-    const style = ['glas', 'arcade', 'slim', 'thermo', 'akku', 'ring'].includes(props.style) ? props.style : 'glas';
     this.el.className = `bx-gb${style !== 'glas' ? ` bx-gb-${style}` : ''}`;
     this.el.innerHTML = `
-      <div class="bx-gb-head"><div class="bx-gb-label"></div><div class="bx-gb-nums">${this.metric === TIKTOK_ZIEL ? '– / –' : `0 / ${fmt(this.target)}`}</div></div>
+      <div class="bx-gb-head"><div class="bx-gb-label"></div><div class="bx-gb-nums">${this.metric === TIKTOK_ZIEL ? '– / –' : `${this.metric === TWITCH_FOLLOWER ? '–' : '0'} / ${fmt(this.target)}`}</div></div>
       <div class="bx-gb-track">
         <div class="bx-gb-fill"></div>
         <div class="bx-gb-tick" style="left:25%"></div><div class="bx-gb-tick" style="left:50%"></div><div class="bx-gb-tick" style="left:75%"></div>
@@ -178,11 +218,38 @@ export default class GoalBar {
     // überschreiben sie.
     if (ctx && ctx.preview) {
       if (this.metric === TIKTOK_ZIEL) this.showZiel({ fortschritt: 35, ziel: 50, erreicht: false, geschenk: { name: 'Heart Me' } });
-      else this.paint(Math.round(this.target * 0.62));
+      else this.paint(this.metric === TWITCH_FOLLOWER ? Math.min(23, this.target) : Math.round(this.target * 0.62));
     }
   }
+  /** Editor-Vorschau der Schatzkarte: alle paar Sekunden ein Schritt nach vorn,
+   *  kurz vor dem Ziel ein Sprung ins Ziel, dann von vorn — damit man Satz,
+   *  Gischt und die aufspringende Truhe sieht. Endet mit dem ersten echten Wert. */
+  startDemo() {
+    const ziel = this.metric === TIKTOK_ZIEL ? 50 : this.target;
+    const start = this.last ?? 0;
+    let cur = start;
+    this.demoTimer = setInterval(() => {
+      if (!this.karte) return;
+      if (cur >= ziel) { cur = start; this.last = null; this.paint(cur, ziel); return; }
+      const schritt = Math.max(1, Math.round(ziel * 0.06));
+      cur = cur + schritt >= ziel * 0.8 ? ziel : cur + schritt;
+      this.paint(cur, ziel);
+    }, 2800);
+  }
+  stopDemo() { if (this.demoTimer) { clearInterval(this.demoTimer); this.demoTimer = null; } }
   /** Balken + Beschriftung auf einen Stand setzen. */
   paint(cur, target = this.target, erreicht = false) {
+    if (this.karte) {
+      // Feiern nur beim echten Anstieg — nicht beim ersten Zeichnen.
+      const feiern = cur != null && this.last != null && cur > this.last;
+      this.karte.setze(cur, target, erreicht, feiern);
+      if (cur != null) this.last = cur;
+      return;
+    }
+    if (cur == null) {
+      this.el.querySelector('.bx-gb-nums').textContent = `– / ${fmt(target)}`;
+      return;
+    }
     const pct = Math.min(100, (cur / target) * 100);
     this.el.querySelector('.bx-gb-fill').style.width = `${pct}%`;
     this.el.style.setProperty('--pct', `${pct}%`); // Thermometer-Stil füllt über die Höhe
@@ -224,17 +291,38 @@ export default class GoalBar {
   /** TikTok-LIVE-Ziel anzeigen (nur Metrik 'tiktok-ziel'). */
   showZiel(z) {
     const label = this.props.label || z.geschenk?.name || 'LIVE-Ziel';
-    this.el.querySelector('.bx-gb-label').textContent = label;
+    if (this.karte) this.karte.setTitel(label);
+    else this.el.querySelector('.bx-gb-label').textContent = label;
     const cur = Math.max(0, Number(z.fortschritt) || 0);
     this.paint(cur, Math.max(1, Number(z.ziel) || 1), z.erreicht === true);
   }
   onEvent(e) {
-    if (this.metric !== TIKTOK_ZIEL || e?.type !== 'live_ziel' || !e.ziel) return;
+    if (this.zerstoert || !e) return;
+    if (this.metric === TWITCH_FOLLOWER) {
+      const neu = followerNach(this.folStand, e);
+      if (neu === undefined) return;
+      this.stopDemo();
+      // Replay nach dem Laden: Stand übernehmen, ohne zu feiern.
+      if (e.sticky) this.last = null;
+      this.folStand = neu;
+      this.paint(neu);
+      return;
+    }
+    if (this.metric !== TIKTOK_ZIEL || e.type !== 'live_ziel' || !e.ziel) return;
+    this.stopDemo();
     this.showZiel(e.ziel);
   }
   onStats(stats) {
-    if (this.metric === TIKTOK_ZIEL) return;
+    if (this.zerstoert || AUS_EREIGNISSEN.has(this.metric)) return;
+    this.stopDemo();
     this.paint(Number(stats?.totals?.[this.metric] ?? 0));
   }
-  destroy() { for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.el.remove(); }
+  destroy() {
+    this.zerstoert = true;
+    this.stopDemo();
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
+    if (this.karte) this.karte.destroy();
+    else this.el.remove();
+  }
 }

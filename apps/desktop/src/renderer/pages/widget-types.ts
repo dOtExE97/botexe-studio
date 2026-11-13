@@ -258,6 +258,32 @@ export const NO_TEXTCOLOR = new Set([
   'gift-jar', 'gift-counter',
 ]);
 
+/** Felder der Goal-Bar — EINE Liste für beide Einträge (Goal-Bar und
+ *  Affiliate-Schatzkarte): Der Editor nimmt für einen bestehenden Layer immer
+ *  die Felder des ERSTEN Eintrags seines Typs. */
+const GOAL_BAR_FIELDS: PropField[] = [
+  styleField([
+    { value: 'glas', label: 'Glas (Standard)' },
+    { value: 'arcade', label: 'Arcade (LED-Segmente)' },
+    { value: 'slim', label: 'Slim (dünne Linie, minimal)' },
+    { value: 'thermo', label: '🌡️ Thermometer (senkrecht, spart Breite)' },
+    { value: 'akku', label: '🔋 Akku (Batterie, blitzt bei 100%)' },
+    { value: 'ring', label: '⭕ Ring (kreisförmig, sehr kompakt)' },
+    { value: 'schatzkarte', label: '🗺️ Schatzkarte (Piratenschiff segelt zur Truhe)' },
+  ]),
+  { key: 'metric', label: 'Metrik', type: 'select', hint: 'Was gezählt wird. Coins, Likes, Follower und Gifts kommen aus der laufenden Sitzung und werden beim Stream-Ende zurückgesetzt. „Twitch-Follower" ist der Gesamtstand deines Kanals — für das Affiliate-Ziel (50 Follower).', options: [
+    { value: 'coins', label: 'Coins' }, { value: 'likes', label: 'Likes' },
+    { value: 'follows', label: 'Follower' }, { value: 'gifts', label: 'Gifts' },
+    { value: 'tiktok-ziel', label: '🎯 TikTok-LIVE-Ziel (automatisch)' },
+    { value: 'twitch_follower', label: '💜 Twitch-Follower (Kanal gesamt, automatisch)' },
+  ] },
+  { key: 'target', label: 'Ziel', type: 'number', hint: 'Bei diesem Wert ist der Balken voll.', showIf: (p) => p.metric !== 'tiktok-ziel' },
+  { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Leer = automatisch (z.B. „Coin-Ziel").' },
+  { key: 'einheit', label: 'Einheit', type: 'text', hint: 'Kleines Wort hinter der Zahl, z.B. „Follower" oder „Coins". Leer = keins.', showIf: (p) => p.style === 'schatzkarte' },
+  ACCENT_FIELD,
+  ...STYLE_FIELDS,
+];
+
 export const WIDGET_TYPES: {
   type: string;
   label: string;
@@ -519,26 +545,13 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'goal-bar', label: 'Goal-Bar', desc: 'Fortschrittsbalken Richtung Session-Ziel.',
-    w: 560, h: 80, props: { style: 'glas', metric: 'coins', target: 1000, label: '', fontFamily: '', fontScale: 1, textColor: '' },
-    fields: [
-      styleField([
-        { value: 'glas', label: 'Glas (Standard)' },
-        { value: 'arcade', label: 'Arcade (LED-Segmente)' },
-        { value: 'slim', label: 'Slim (dünne Linie, minimal)' },
-        { value: 'thermo', label: '🌡️ Thermometer (senkrecht, spart Breite)' },
-        { value: 'akku', label: '🔋 Akku (Batterie, blitzt bei 100%)' },
-        { value: 'ring', label: '⭕ Ring (kreisförmig, sehr kompakt)' },
-      ]),
-      { key: 'metric', label: 'Metrik', type: 'select', hint: 'Was gezählt wird. Die Zahlen kommen aus der laufenden Sitzung und werden beim Stream-Ende zurückgesetzt.', options: [
-        { value: 'coins', label: 'Coins' }, { value: 'likes', label: 'Likes' },
-        { value: 'follows', label: 'Follower' }, { value: 'gifts', label: 'Gifts' },
-        { value: 'tiktok-ziel', label: '🎯 TikTok-LIVE-Ziel (automatisch)' },
-      ] },
-      { key: 'target', label: 'Ziel', type: 'number', hint: 'Bei diesem Wert ist der Balken voll.', showIf: (p) => p.metric !== 'tiktok-ziel' },
-      { key: 'label', label: 'Eigener Titel', type: 'text', hint: 'Leer = automatisch (z.B. „Coin-Ziel").' },
-      ACCENT_FIELD,
-      ...STYLE_FIELDS,
-    ],
+    w: 560, h: 80, props: { style: 'glas', metric: 'coins', target: 1000, label: '', einheit: '', fontFamily: '', fontScale: 1, textColor: '' },
+    fields: GOAL_BAR_FIELDS,
+  },
+  {
+    type: 'goal-bar', label: 'Affiliate-Schatzkarte (Twitch)', desc: 'Dein Weg zum Twitch-Affiliate als Seekarte: Ein Piratenschiff segelt mit jedem neuen Follower die gepunktete Route entlang, am Ende wartet die Truhe auf dem X. Groß daneben der Stand „23 / 50". Jeder Follow lässt das Schiff einen Satz machen, beim Ziel springt die Truhe auf — Münzen, Konfetti, „ZIEL ERREICHT!". Der Stand kommt direkt von Twitch und steht nach einem Neuladen sofort wieder da.',
+    w: 640, h: 110, props: { style: 'schatzkarte', metric: 'twitch_follower', target: 50, label: 'Auf dem Weg zum Affiliate', einheit: 'Follower', fontFamily: '', fontScale: 1, textColor: '' },
+    fields: GOAL_BAR_FIELDS,
   },
   {
     type: 'goal-countdown', label: 'Ziel-Countdown (Text)', desc: 'Cooler Text-Countdown wie „Noch 50.000 Likes bis zum Ziel!" — pro Metrik, zählt automatisch das nächste Ziel hoch.',
