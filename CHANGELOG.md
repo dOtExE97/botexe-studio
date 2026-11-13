@@ -14,6 +14,12 @@ eigenem Overlay und eigenem Chat:
   „Mit Twitch verbinden", Code im Browser bestätigen. Danach verbindet die App
   beim Start von allein. Follows, Chat (mit Emotes), Subs, Bits und Raids
   kommen als ganz normale Ereignisse an — deine Regeln greifen auch für Twitch.
+- **7TV-, BTTV- und FFZ-Emotes** erscheinen im Overlay-Chat als Bild (globale
+  Sets und die deines Kanals, alle 30 Minuten aktualisiert). Bisher stand dort
+  nur das Wort, z. B. „catJAM".
+- **GIFs aus dem Twitch-Chat** stehen in der Chat-Box in eigener Zeile und gut
+  sichtbar, statt auf Emote-Größe geschrumpft.
+- Jeder eingehende Twitch-Follow wird im Log vermerkt („Follow erhalten: …").
 - **Streamer-Aktionen für Twitch** über die lokale Steuer-Schnittstelle (z. B.
   per Stream Deck): Clip erstellen, Marker setzen, Werbung starten, Shoutout
   (ohne Namen an den letzten Raider) und Chat-Modi umschalten (Emote-Only,
