@@ -19,6 +19,10 @@ eigenem Overlay und eigenem Chat:
   (ohne Namen an den letzten Raider) und Chat-Modi umschalten (Emote-Only,
   Langsam, Nur Follower). Dafür braucht die App mehr Twitch-Rechte — wer schon
   verbunden war, muss sich **einmal neu mit Twitch verbinden**.
+- **Chat-Box: neuer Stil „Piraten“** — Nachrichten als lila Glaskarten mit Goldkante,
+  Namen in eigener Farbe je Zuschauer, Abzeichen für Streamer (Krone), Mods (Säbel)
+  und Subs (Stern), Twitch-Emotes in der Zeile. Alle Chat-Stile zeigen Emoji wie 🏴‍☠️
+  jetzt vollständig an.
 - **Plattform je Overlay**: Im Overlay-Editor steht neben dem Profilnamen jetzt
   „Alle Plattformen / Nur TikTok / Nur Twitch". Ein Overlay „Nur TikTok" zeigt
   keine Twitch-Nachrichten und keine Twitch-Alarme, und umgekehrt. Bestehende
