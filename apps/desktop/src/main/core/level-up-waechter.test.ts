@@ -113,3 +113,21 @@ test('Vorfilter: Geschenke-Stufe-Banner läuft immer durch', async () => {
   await tick();
   assert.equal(levelUps().length, 2);
 });
+
+test('Vorfilter: abgeleitetes Level-Up erbt die Plattform des Auslösers', async () => {
+  const { bus, levelUps } = busMitVorfilter();
+  bus.publish(chat(6, 1000, { plattform: 'tiktok' }));
+  bus.publish(chat(7, 2000, { plattform: 'tiktok' }));
+  await tick();
+  assert.equal(levelUps().length, 1);
+  assert.equal(levelUps()[0]?.plattform, 'tiktok', 'sonst ginge der TikTok-Alarm auch ins Twitch-Overlay');
+});
+
+test('Vorfilter: Auslöser ohne Plattform → Level-Up ohne Plattform (wie bisher)', async () => {
+  const { bus, levelUps } = busMitVorfilter();
+  bus.publish(chat(6, 1000));
+  bus.publish(chat(7, 2000));
+  await tick();
+  assert.equal(levelUps().length, 1);
+  assert.equal('plattform' in (levelUps()[0] ?? {}), false);
+});

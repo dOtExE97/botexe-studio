@@ -87,7 +87,12 @@ export function erzeugeLevelUpVorfilter(
     if (user && stufe > 0) {
       const neu = waechter.sieheStufe(user.id, stufe, e.ts);
       if (neu !== null && !waechter.istDoppelt(user.id, neu, e.ts)) {
-        const levelUp: StudioEvent = { type: 'level_up', ts: e.ts, user, levelUp: { art: 'team', neu } };
+        // Plattform des Auslösers erben — sonst ginge ein TikTok-Level-Up als
+        // „gilt für alle" auch ins Twitch-Overlay.
+        const levelUp: StudioEvent = {
+          type: 'level_up', ts: e.ts, user, levelUp: { art: 'team', neu },
+          ...(e.plattform ? { plattform: e.plattform } : {}),
+        };
         // Erst das auslösende Ereignis zustellen, dann das Level-Up.
         queueMicrotask(() => veroeffentliche(levelUp));
       }

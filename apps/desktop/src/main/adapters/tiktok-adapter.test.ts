@@ -853,7 +853,10 @@ test('Plattform: JEDES Ereignis des TikTok-Adapters trägt plattform „tiktok" 
   await adapter.connect('testuser');
   connections[0]?.emit('chat', { user: { uniqueId: 'anna' }, comment: 'hi' });
   connections[0]?.emit('follow', { user: { uniqueId: 'ben' } });
+  // Abgeleitete Ereignisse (je Sticker ein 'emote') laufen über denselben Stempel.
+  connections[0]?.emit('chat', { common: { msgId: 'm-st' }, user: { uniqueId: 'cara' }, comment: ' ', emotes: [EIN_STICKER('7')] });
   assert.ok(events.some((e) => e.type === 'viewer_count'), 'Zuschauerzahl beim Verbinden fehlt');
-  assert.ok(events.length >= 3);
+  assert.ok(events.some((e) => e.type === 'emote'), 'Sticker-Ereignis fehlt');
+  assert.ok(events.length >= 5);
   assert.deepEqual(events.filter((e) => e.plattform !== 'tiktok').map((e) => e.type), []);
 });

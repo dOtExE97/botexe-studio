@@ -597,15 +597,19 @@ async function setupPlattform() {
   const twitch = { ...createDefaultLayout('Twitch', 'tw'), plattform: 'twitch' as const };
   const tiktok = { ...createDefaultLayout('TikTok', 'tt'), plattform: 'tiktok' as const };
   const layouts = new Map<string, OverlayLayout>([['std', standard], ['tw', twitch], ['tt', tiktok]]);
+  // getLayout liest in der App die Datei von der Platte — Aufrufe mitzählen,
+  // damit der heiße Pfad (je Ereignis × Quelle) nachweislich ohne auskommt.
+  const zaehler = { getLayout: 0 };
+  let defaultId = 'std';
   const server = new OverlayServer(bus, {
     port: 0,
     ...makeDirs(),
     heartbeatMs: 0,
-    getLayout: (id) => layouts.get(id ?? 'std') ?? null,
-    getDefaultLayoutId: () => 'std',
+    getLayout: (id) => { zaehler.getLayout++; return layouts.get(id ?? defaultId) ?? null; },
+    getDefaultLayoutId: () => defaultId,
   });
   await server.start();
-  return { bus, server, layouts };
+  return { bus, server, layouts, zaehler, setDefault: (id: string) => { defaultId = id; } };
 }
 
 /** Nachrichten bis zum Marker-Ereignis (Text 'ENDE') einsammeln — so lässt sich
@@ -684,10 +688,9 @@ test('Plattform: Sticky-Nachlieferung beim Verbinden wird gefiltert', async () =
     bus.publish({ type: 'follow', ts: 3, text: 'sticky-ohne' });
     const tw = await wsConnect(`${server.getWsUrl()}&profile=tw`);
     const std = await wsConnect(server.getWsUrl());
+    // Die Nachlieferung läuft synchron im connection-Handler zusammen mit dem
+    // layout — ist das layout da, liegt sie sicher VOR dem Marker.
     await tw.next(); await std.next(); // layout
-    // Kurz warten, damit die Nachlieferung sicher VOR dem Marker liegt (Server
-    // schickt sie synchron im connection-Handler, der Marker kommt danach).
-    await wait(50);
     bus.publish({ type: 'chat', ts: 4, text: 'ENDE' });
     const twMsgs = await bisMarker(tw);
     assert.deepEqual(texteVon(twMsgs), ['sticky-tw', 'sticky-ohne']);
@@ -699,17 +702,60 @@ test('Plattform: Sticky-Nachlieferung beim Verbinden wird gefiltert', async () =
   }
 });
 
-test('Plattform: Layout-Änderung im Editor greift sofort (kein Zwischenspeicher beim Verbinden)', async () => {
+test('Plattform: Layout-Änderung im Editor greift über broadcastLayout sofort', async () => {
   const { bus, server, layouts } = await setupPlattform();
   try {
     const std = await wsConnect(server.getWsUrl());
     await std.next();
     bus.publish({ type: 'chat', ts: 1, text: 'vorher', plattform: 'tiktok' });
-    layouts.set('std', { ...layouts.get('std')!, plattform: 'twitch' });
-    bus.publish({ type: 'chat', ts: 2, text: 'nachher', plattform: 'tiktok' });
-    bus.publish({ type: 'chat', ts: 3, text: 'ENDE' });
-    assert.deepEqual(texteVon(await bisMarker(std)), ['vorher']);
+    // So läuft es in der App: Save im Editor → notifyLayoutSaved → broadcastLayout.
+    layouts.set('std', { ...(layouts.get('std') as OverlayLayout), plattform: 'twitch' });
+    server.broadcastLayout('std');
+    bus.publish({ type: 'chat', ts: 2, text: 'nachher-tt', plattform: 'tiktok' });
+    bus.publish({ type: 'chat', ts: 3, text: 'nachher-tw', plattform: 'twitch' });
+    bus.publish({ type: 'chat', ts: 4, text: 'ENDE' });
+    const msgs = await bisMarker(std);
+    assert.deepEqual(msgs.map((m) => m.kind), ['event', 'layout', 'event']);
+    assert.deepEqual(texteVon(msgs), ['vorher', 'nachher-tw']);
     std.close();
+  } finally {
+    await server.stop();
+  }
+});
+
+test('Plattform: Default-Wechsel und rebroadcastLayouts aktualisieren die Plattform ebenfalls', async () => {
+  const { bus, server, setDefault } = await setupPlattform();
+  try {
+    const std = await wsConnect(server.getWsUrl()); // folgt dem Default
+    await std.next();
+    setDefault('tw');
+    server.broadcastLayout('tw'); // wie setActiveLayout()
+    bus.publish({ type: 'chat', ts: 1, text: 'tt-weg', plattform: 'tiktok' });
+    setDefault('std');
+    server.rebroadcastLayouts(); // wie Session-Reset / Import
+    bus.publish({ type: 'chat', ts: 2, text: 'tt-wieder', plattform: 'tiktok' });
+    bus.publish({ type: 'chat', ts: 3, text: 'ENDE' });
+    assert.deepEqual(texteVon(await bisMarker(std)), ['tt-wieder']);
+    std.close();
+  } finally {
+    await server.stop();
+  }
+});
+
+test('Plattform: Filter liest das Layout NICHT je Ereignis nach (kein Plattenzugriff im heißen Pfad)', async () => {
+  const { bus, server, zaehler } = await setupPlattform();
+  try {
+    const tw = await wsConnect(`${server.getWsUrl()}&profile=tw`);
+    const std = await wsConnect(server.getWsUrl());
+    await tw.next(); await std.next();
+    const vorher = zaehler.getLayout;
+    for (let i = 0; i < 50; i++) bus.publish({ type: 'like', ts: i, text: `l${i}`, plattform: 'tiktok' });
+    server.broadcast({ kind: 'action', ruleId: 'r', action: { kind: 'fire_alert', targetId: 'l1' }, plattform: 'twitch' });
+    bus.publish({ type: 'chat', ts: 99, text: 'ENDE', plattform: 'twitch' });
+    assert.equal(texteVon(await bisMarker(std)).length, 50);
+    assert.equal(texteVon(await bisMarker(tw)).length, 0);
+    assert.equal(zaehler.getLayout, vorher, 'getLayout wurde je Ereignis aufgerufen');
+    tw.close(); std.close();
   } finally {
     await server.stop();
   }

@@ -19,6 +19,7 @@ import { TikTokAdapter, createDirectConnection, type AdapterStatusInfo, type Key
 import { EulerCloudConnection } from '../adapters/tiktok-cloud';
 import { KeyRotator } from './key-rotator';
 import { OverlayServer } from '../adapters/overlay-server';
+import { aktionsNachricht } from './aktion-nachricht';
 import {
   SettingsStore,
   redactSecretsForExport,
@@ -1122,7 +1123,7 @@ export class Studio {
       }
       // roll zentral würfeln: alle Overlay-Quellen (OBS + TTLS) zeigen denselben
       // Gewinner — sonst würfelt jede Quelle lokal ein eigenes Ergebnis.
-      this.server.broadcast({ kind: 'action', ruleId, action: { ...action, roll: Math.random() }, plattform: event.plattform });
+      this.server.broadcast(aktionsNachricht(ruleId, { ...action, roll: Math.random() }, event));
       // Stats anstoßen (gedeckelt) — auch beim Gratis-Spin, damit Overlay-Listen
       // konsistent bleiben statt einzufrieren.
       this.scheduleStatsBroadcast();
@@ -1149,7 +1150,7 @@ export class Studio {
     } else {
       // Plattform des auslösenden Ereignisses mitgeben: ein Twitch-Follow-Alarm
       // gehört nicht ins TikTok-Overlay (fehlt sie, geht die Aktion an alle).
-      this.server.broadcast({ kind: 'action', ruleId, action, plattform: event.plattform });
+      this.server.broadcast(aktionsNachricht(ruleId, action, event));
     }
   }
 

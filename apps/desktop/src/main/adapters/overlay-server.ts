@@ -16,7 +16,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import { passtZuPlattform, type OverlayLayout, type MomentPayload } from '@botexe/overlay-engine';
+import { passtZuPlattform, type OverlayLayout, type OverlayPlattform, type MomentPayload } from '@botexe/overlay-engine';
 import type { Plattform, StudioEvent, TriggerAction } from '@botexe/trigger-engine';
 import type { EventBus } from '../core/event-bus';
 import { log, darfMelden } from '../core/logger';
@@ -132,6 +132,12 @@ interface TrackedClient {
   herkunft: string;
   /** Verworfene Live-Ereignisse seit der letzten Meldung (siehe sendTo). */
   verworfen?: number;
+  /** Plattform des angezeigten Layouts (undefined = alle). Zwischengespeichert,
+   *  weil getLayout() die Layout-Datei von der Platte liest und validiert — je
+   *  Ereignis × Quelle wäre das bei einer Geschenke-Flut hunderte Lesungen pro
+   *  Sekunde. Aktualisiert bei jedem Layout-Versand an diesen Client
+   *  (Verbinden, broadcastLayout nach Save/Default-Wechsel, rebroadcastLayouts). */
+  plattform?: OverlayPlattform;
 }
 
 /** Woher kommt diese Browser-Quelle? Die Unterscheidung ist im Alltag zentral:
@@ -654,9 +660,16 @@ export class OverlayServer {
         // Twitch-Anbindung: Plattform nur mit bekanntem Wert (sonst gilt das
         // Test-Ereignis für alle Overlays), dazu Raid/Bits/Geschenk-Abos.
         ...(e.plattform === 'tiktok' || e.plattform === 'twitch' ? { plattform: e.plattform } : {}),
-        ...(e.raid ? { raid: e.raid } : {}),
-        ...(e.cheer ? { cheer: e.cheer } : {}),
-        ...(e.subGeschenk ? { subGeschenk: e.subGeschenk } : {}),
+        // Nur mit Zahl übernehmen — ein `{viewers:"x"}` käme sonst bis in die Widgets.
+        ...(typeof e.raid?.viewers === 'number' ? { raid: { viewers: e.raid.viewers } } : {}),
+        ...(typeof e.cheer?.bits === 'number' ? { cheer: { bits: e.cheer.bits } } : {}),
+        ...(typeof e.subGeschenk?.anzahl === 'number'
+          ? { subGeschenk: {
+            anzahl: e.subGeschenk.anzahl,
+            ...(typeof e.subGeschenk.tier === 'string' ? { tier: e.subGeschenk.tier } : {}),
+            ...(typeof e.subGeschenk.anonym === 'boolean' ? { anonym: e.subGeschenk.anonym } : {}),
+          } }
+          : {}),
       };
       this.bus.publish(clean);
       res.json({ ok: true });
@@ -871,6 +884,7 @@ export class OverlayServer {
       // Initial-Zustand: aktives Layout + sticky last-values, damit der
       // Overlay-Canvas nicht leer startet (Late-Joiner).
       const layout = this.options.getLayout(profileId || undefined);
+      client.plattform = layout?.plattform;
       if (layout) this.sendTo(client, { kind: 'layout', layout }, true);
       else {
         // Die Quelle bekommt KEIN Layout und bleibt für immer leer. Bisher
@@ -914,6 +928,7 @@ export class OverlayServer {
   rebroadcastLayouts(): void {
     for (const client of this.clients) {
       const layout = this.options.getLayout(client.profileId || undefined);
+      client.plattform = layout?.plattform;
       if (layout) this.sendTo(client, { kind: 'layout', layout }, true);
     }
   }
@@ -1066,13 +1081,14 @@ export class OverlayServer {
     }
   }
 
-  /** Gehört ein Ereignis dieser Plattform in die Browser-Quelle? Das Layout
-   *  wird bei JEDEM Senden frisch nachgeschlagen (nicht beim Verbinden
-   *  gemerkt) — der Streamer kann die Plattform im Editor live umstellen. */
+  /** Gehört ein Ereignis dieser Plattform in die Browser-Quelle? Liest die
+   *  zwischengespeicherte Layout-Plattform des Clients (kein Plattenzugriff im
+   *  heißen Pfad). Stellt der Streamer die Plattform im Editor um, kommt das
+   *  über broadcastLayout() hier an — dieselbe Stelle, die das Layout selbst
+   *  live aktualisiert. */
   private passtZuClient(client: TrackedClient, plattform: Plattform | undefined): boolean {
     if (plattform === undefined) return true;
-    const layout = this.options.getLayout(client.profileId || undefined);
-    return passtZuPlattform(layout?.plattform, plattform);
+    return passtZuPlattform(client.plattform, plattform);
   }
 
   /** Aktuelles Layout eines Profils an genau dessen Clients pushen (nach Save
@@ -1086,7 +1102,10 @@ export class OverlayServer {
     const defaultId = this.options.getDefaultLayoutId() ?? '';
     for (const client of this.clients) {
       const effectiveProfileId = client.profileId || defaultId;
-      if (effectiveProfileId === profileId) this.sendTo(client, { kind: 'layout', layout }, true);
+      if (effectiveProfileId === profileId) {
+        client.plattform = layout.plattform;
+        this.sendTo(client, { kind: 'layout', layout }, true);
+      }
     }
   }
 
