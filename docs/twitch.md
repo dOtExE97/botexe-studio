@@ -87,17 +87,46 @@ schreibt dein eigener Kanal. Höchstens eine Nachricht alle 1,5 Sekunden; diesel
 Nachricht innerhalb von 30 Sekunden geht nur einmal raus. Die eigenen Antworten
 lösen nie selbst wieder Befehle aus (und erscheinen nicht im Overlay-Chat).
 
-Eine fertige Befehlsliste bringt die App nicht mit — Befehle legst du im Reiter
-**Befehle** an (gilt für TikTok und Twitch gleichzeitig):
+Befehle legst du im Reiter **Befehle** an (gilt für TikTok und Twitch
+gleichzeitig). Fertige Piraten-Befehle holt der Knopf **„Piraten-Vorlagen"**
+dort mit einem Klick dazu — nur die, die noch fehlen; eigene Befehle mit
+demselben Namen bleiben unangetastet. Die App schiebt sie bewusst niemandem
+von selbst unter (kein Bot, der plötzlich ungefragt antwortet). Alle Vorlagen
+schreiben in den Chat, aus dem der Befehl kam, und haben eine Pause: höchstens
+alle 10 s, derselbe Zuschauer höchstens alle 30 s (beides je Befehl änderbar).
 
-| Befehl | Antwort (Beispiel) | Einstellung |
+| Befehl | Antwort | Hinweis |
 |---|---|---|
-| `!discord` | `Komm auf meinen Discord: discord.gg/…` | „In Chat senden" an, Vorlesen aus |
-| `!tiktok` | `Mich gibt's auch auf TikTok: tiktok.com/@…` | „In Chat senden" an |
+| `!kiste` | `@{user} Dein Piraten-Token liegt in Kiste {kiste} 🏴‍☠️` | Kiste des Fragenden („Nr. 12.345"); ohne Follow in diesem Stream: „??? (erst folgen …)" |
+| `!song`, `!musik` | `🎵 Gerade läuft: {song}` | Spotify „Titel – Interpret", sonst „Gerade läuft keine Musik" |
+| `!uptime` | `⏱️ Wir segeln schon seit {uptime}` | „2 Std 14 Min" — Twitch: seit „Du bist live" (sonst seit dem Verbinden), TikTok: seit dem Verbinden |
+| `!discord`, `!tiktok`, `!insta`, `!socials` | `🏴‍☠️ Discord: {discord}` … | Links unter Einstellungen → **Piraten-Orakel & Befehls-Links** |
+| `!lurk` | `@{user} versteckt sich im Krähennest 👀 Danke fürs Mitsegeln!` | |
+| `!ziel` | `Auf dem Weg zum Affiliate: {ziel} Follower ⚓` | „23 von 50" aus dem Twitch-Follower-Stand |
+| `!top` | `🏆 Größte Schatzbringer heute: {top}` | Twitch: Bits + Abos des Streams, TikTok: Top-Gifter |
+| `!befehle` | `📜 Befehle an Bord: {befehle}` | alle aktiven Befehle |
+| `!hug @name` | `{user} umarmt {ziel_user} 🤗` | ohne Namen: „alle" |
+| `!sr <Song>` | `🎵 @{user} {song} ist in der Warteschlange ⚓` | Song-Wunsch: sucht bei Spotify und hängt den ersten Treffer an die Warteschlange (Spotify Premium + aktives Gerät; je Zuschauer höchstens jede Minute) |
 
-`!kiste` („in welcher Kiste liegt mein Token?") geht noch nicht: Die
-Kistennummer würfelt das Piraten-Orakel im Overlay, die App selbst kennt sie
-nicht.
+Platzhalter in jeder Befehls-Antwort: `{user}` `{text}` `{args}` `{ziel_user}`
+`{song}` `{uptime}` `{kiste}` `{follower}` `{ziel}` `{top}` `{discord}`
+`{tiktok}` `{insta}` `{befehle}`.
+
+### Piraten-Orakel: die App würfelt die Kiste
+
+Bei einem **Twitch-Follow** würfelt die App die Kistennummer — einmal je
+Zuschauer und Stream (Entfolgen und neu Folgen würfelt nicht neu) — und
+schickt sie mit dem Follow an die Overlays. Alle Overlays (OBS, TTLS) zeigen
+dieselbe Zahl, und `!kiste` kennt sie. Neu gewürfelt wird nach „Session
+zurücksetzen" und wenn Twitch einen neuen Stream meldet. Chance und
+Glückstreffer-Grenze dafür stehen unter Einstellungen → **Piraten-Orakel &
+Befehls-Links** (Standard 1 : 137.500, Glück bis Kiste 1.000) — für
+Twitch-Follows gelten diese Werte, nicht die des Herz-Alarms im Overlay.
+
+- **Test-Follows** (Test-Knopf, Plattform Twitch) bekommen jedes Mal eine
+  frische Kiste und verbrauchen nichts — `!kiste` kennt sie nicht.
+- **TikTok-Follows**: unverändert, dort würfelt der Herz-Alarm selbst mit
+  seinen eigenen Einstellungen; `!kiste` auf TikTok antwortet darum „??? …".
 
 ### Raid starten (Stream Deck)
 

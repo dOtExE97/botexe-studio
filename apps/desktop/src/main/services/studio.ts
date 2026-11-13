@@ -5,7 +5,9 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { TriggerEngine, giftKey, renderSpeakTemplate, sprechbarerName, matchRedemption, matchChatCommand, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
+import { TriggerEngine, giftKey, renderSpeakTemplate, sprechbarerName, matchRedemption, matchChatCommand, braucheSong, pruefeBefehlsPause, type BefehlsWerte, type StudioEvent, type TriggerRule, type Redemption, type PanelButton, type TriggerAction, type ChatCommand } from '@botexe/trigger-engine';
+import { OrakelKisten } from './orakel-kisten';
+import { planeBefehlsAntwort, songWunsch, srOhneWunsch, SR_FEHLGESCHLAGEN } from './befehl-antwort';
 import type { StatsSnapshot } from '../core/session-stats';
 import { EventBus } from '../core/event-bus';
 import { LevelUpWaechter, erzeugeLevelUpVorfilter } from '../core/level-up-waechter';
@@ -70,7 +72,7 @@ import { resolveTuning } from './tts-tuning';
 import { log } from '../core/logger';
 import { WebSocket } from 'ws';
 import { TwitchAuth } from './twitch-auth';
-import { TwitchAdapter, type WebSocketLike } from '../adapters/twitch-adapter';
+import { TwitchAdapter, type WebSocketLike, type TwitchStatusInfo } from '../adapters/twitch-adapter';
 import { TwitchSteuerung, type TwitchUiStatus } from './twitch-steuerung';
 import { TwitchAktionen } from './twitch-aktionen';
 import { TwitchChat } from './twitch-chat';
@@ -294,6 +296,13 @@ export class Studio {
   /** redemptionId → event.ts der letzten Einlösung (globaler Cooldown). */
   private redemptionCooldowns = new Map<string, number>();
   private commandCooldowns = new Map<string, number>();
+  /** `${Befehl-ID}|${Zuschauer}` → event.ts der letzten Antwort (Pause je Zuschauer). */
+  private commandUserCooldowns = new Map<string, number>();
+  /** Piraten-Orakel: Kiste je Twitch-Follower und Stream (für Overlays + !kiste). */
+  private orakelKisten = new OrakelKisten();
+  /** Twitch-Uhr für {uptime}: seit wann live (stream.online) bzw. verbunden. */
+  private twitchLiveSeit = 0;
+  private twitchVerbundenSeit = 0;
   /** layerId → event.ts der letzten per Chat-Befehl ausgelösten Lucky-Ziehung
    *  (Stück 4, Task 3) — verhindert Spam-Überlagerung, s. maybeLuckyDrawByCommand(). */
   private luckyDrawCooldowns = new Map<string, number>();
@@ -580,7 +589,7 @@ export class Studio {
       getClientId: () => this.settings.peek().twitchClientId ?? '',
       now: () => Date.now(),
       log,
-      onStatus: (info) => this.twitch.adapterStatus(info),
+      onStatus: (info) => { this.twitchUhr(info); this.twitch.adapterStatus(info); },
       istEigeneNachricht: (id, text) => this.twitchChat.istEcho(id, text),
     });
     this.twitchAktionen = new TwitchAktionen({
@@ -616,6 +625,16 @@ export class Studio {
       // „Neue begrüßen" hätte nie wieder ausgelöst.
       // Der anonyme Twitch-Stellvertreter zählt nie als neu (istErsterAuftrittVon).
       if (e.user && istErsterAuftrittVon(e.user.id, this.points.get(e.user.id), e.type)) e.firstOfUser = true;
+
+      // 0-. Piraten-Orakel: Twitch-Follow → die App würfelt die Kiste EINMAL je
+      // Zuschauer und Stream und hängt sie an, BEVOR der Overlay-Server das
+      // Ereignis weitergibt (der hängt nach Studio am Bus, bus-reihenfolge.test.ts).
+      // So zeigt jedes Overlay dieselbe Zahl, und !kiste kennt sie.
+      if (e.type === 'follow') {
+        const einst = this.settings.peek();
+        const wurf = this.orakelKisten.fuerFollow(e, { chance: einst.orakelChance, glueck: einst.orakelGlueck });
+        if (wurf) e.orakel = wurf;
+      }
 
       // 0a. Fehlendes Geschenk-Bild ergänzen — MUSS hier ganz oben stehen, vor
       // jedem Verbraucher (Katalog, Widgets, Overlay-Broadcast).
@@ -2509,21 +2528,86 @@ export class Studio {
         + 'beschränkt, und diese Rolle ist für diesen Zuschauer nicht bekannt.');
       return;
     }
-    const now = event.ts;
-    if (cmd.cooldownMs) {
-      const last = this.commandCooldowns.get(cmd.id) ?? 0;
-      if (now - last < cmd.cooldownMs) {
-        log.gedrosselt(`befehl:pause:${cmd.id}`, 60_000, 'info', 'Befehl',
-          `${cmd.command} ignoriert — die Pause läuft noch (${Math.ceil((cmd.cooldownMs - (now - last)) / 1000)} s).`);
-        return;
-      }
-      this.commandCooldowns.set(cmd.id, now); // nur tracken, wenn es einen Cooldown gibt
+    const pause = pruefeBefehlsPause(cmd, event.user?.id, event.ts, { global: this.commandCooldowns, jeUser: this.commandUserCooldowns });
+    if (!pause.ok) {
+      const s = Math.ceil(pause.restMs / 1000);
+      log.gedrosselt(`befehl:pause:${cmd.id}:${pause.grund}`, 60_000, 'info', 'Befehl', pause.grund === 'global'
+        ? `${cmd.command} ignoriert — die Pause läuft noch (${s} s).`
+        : `${cmd.command} von ${event.user?.nickname ?? 'jemandem'} ignoriert — die Pause je Zuschauer läuft noch (${s} s).`);
+      return;
     }
+    void this.befehlAntworten(cmd, event).catch((err: unknown) => {
+      log.warn('Befehl', `${cmd.command}: Antwort fehlgeschlagen — ${(err as Error)?.message ?? 'unbekannt'}`);
+    });
+  }
 
-    const text = renderSpeakTemplate(cmd.response, event);
-    if (cmd.speak) this.speakForEvent(cmd.response, event);
-    if (cmd.sendToChat) this.chatAntwort(event, text);
+  /** Antwort eines Befehls bauen (Werte sammeln, ggf. Spotify fragen) und ausliefern. */
+  private async befehlAntworten(cmd: ChatCommand, event: StudioEvent): Promise<void> {
+    let song: BefehlsWerte['song'];
+    let antwort = cmd.response;
+    if (cmd.aktion === 'song_request') {
+      const wunsch = songWunsch(event.text);
+      if (!wunsch) {
+        antwort = srOhneWunsch(cmd.command);
+      } else {
+        const r = await this.spotifyRequest(wunsch);
+        if (r.ok) song = { title: r.title ?? wunsch, artist: r.artist ?? '' };
+        else {
+          log.info('Befehl', `${cmd.command} „${wunsch.slice(0, 40)}" — nicht in die Warteschlange gelegt `
+            + '(Spotify nicht verbunden, kein Treffer, kein Premium/aktives Gerät oder zu schnell hintereinander).');
+          antwort = SR_FEHLGESCHLAGEN;
+        }
+      }
+    } else if (braucheSong(antwort)) {
+      // Ohne Spotify-Widget pollt die App nicht — dann einmal frisch fragen,
+      // sonst nennt !song einen Titel von vor einer Stunde.
+      if (this.spotify.isConnected() && !this.spotify.isPolling()) await this.spotify.pollOnce();
+      const np = this.lastSpotify;
+      song = np && np.isPlaying ? { title: np.title, artist: np.artist } : null;
+    }
+    const plan = planeBefehlsAntwort(cmd, antwort, event, this.befehlsWerte(event, song));
+    if (plan.sprechen) this.speakForEvent(plan.vorlage, event);
+    if (plan.chat) this.chatAntwort(event, plan.chatText);
     log.info('Befehl', `${cmd.command} von ${event.user?.nickname ?? '?'}`);
+  }
+
+  /** Werte für die Befehls-Platzhalter ({kiste} {uptime} {ziel} {top} …). */
+  private befehlsWerte(event: StudioEvent, song: BefehlsWerte['song']): BefehlsWerte {
+    const einst = this.settings.peek();
+    const twitch = event.plattform === 'twitch';
+    const start = twitch
+      ? (this.twitchLiveSeit || this.twitchVerbundenSeit || this.verbundenSeit)
+      : (this.verbundenSeit || this.twitchLiveSeit || this.twitchVerbundenSeit);
+    const snap = this.stats.snapshot();
+    const top = twitch ? (snap.topTwitch ?? []).map((t) => t.nickname) : snap.topGifters.map((g) => g.nickname);
+    const befehle = [...new Set((einst.chatCommands ?? []).filter((c) => c.enabled)
+      .map((c) => `!${c.command.trim().replace(/^!*/, '')}`))];
+    return {
+      song,
+      uptimeMs: start > 0 ? Date.now() - start : null,
+      kiste: this.orakelKisten.kisteVon(event.user?.id),
+      follower: this.bus.getLastValue('follower_stand')?.followerStand?.anzahl ?? null,
+      top: top.slice(0, 3),
+      links: einst.befehlLinks,
+      befehle,
+    };
+  }
+
+  /** Twitch-Status mitschreiben: Uhr für {uptime}; ein NEUER Twitch-Stream
+   *  (stream.online nach „nicht live") würfelt die Orakel-Kisten neu. */
+  private twitchUhr(info: TwitchStatusInfo): void {
+    const jetzt = Date.now();
+    if (info.status === 'verbunden' && !this.twitchVerbundenSeit) this.twitchVerbundenSeit = jetzt;
+    if (info.status === 'aus') this.twitchVerbundenSeit = 0;
+    if (info.live === true && !this.twitchLiveSeit) {
+      this.twitchLiveSeit = jetzt;
+      if (this.orakelKisten.anzahl() > 0) {
+        log.info('Orakel', `Neuer Twitch-Stream — ${this.orakelKisten.anzahl()} Orakel-Kiste(n) vom letzten Stream verfallen, jeder Follower würfelt neu.`);
+      }
+      this.orakelKisten.reset();
+    } else if (info.live === false) {
+      this.twitchLiveSeit = 0;
+    }
   }
 
   /**
@@ -2779,6 +2863,8 @@ export class Studio {
     this.engine.resetCooldowns();
     this.redemptionCooldowns.clear();
     this.commandCooldowns.clear();
+    this.commandUserCooldowns.clear();
+    this.orakelKisten.reset();   // neuer Stream → jeder Follower würfelt neu
     this.luckyDrawCooldowns.clear();
     this.giveawayParticipants.clear();
     this.lastGiveawayWinner = '';

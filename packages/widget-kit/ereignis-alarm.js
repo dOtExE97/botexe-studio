@@ -19,6 +19,7 @@
 
 import { MOTIVE, GEBUENDELT, baueUrl, baueUserText, escapeHtml, trifftAusloeser, waehleMotiv, motivZuId, ensureStyle as ensureHerzStyle } from './herz-alarm.js';
 import { ANIMATIONEN, erzeugeRenderer, ladeSchrift } from './alarm-anim.js';
+import { wuerfleKiste, ORAKEL_CHANCE, ORAKEL_MAX } from './orakel-kiste.js';
 
 /** Je Art die Prop-Namen ihrer Einstellungen (ausgeschrieben, damit der
  *  Feld-Wächter sie findet) und die Standard-Animation. */
@@ -53,20 +54,29 @@ const SCHRIFT_WARTEN_MS = 1500;
 const BILD_DAUER_MS = 6000;
 const AUSBLENDEN_MS = 300;
 
-const ORAKEL_CHANCE = 137500;
-const ORAKEL_MAX = 99_999_999;
+// Kisten-Wurf: EINE Quelle für Overlay und App (orakel-kiste.js). Der Wurf ist
+// eine Funktion — ein Ring-Import kann ihn nicht treffen; die Konstanten sind
+// Blatt-Werte aus einem Modul ohne eigene Importe.
+export { wuerfleKiste };
 
 /**
- * Kistennummer, in der „dein" Piraten-Token liegt: Wie viele Kisten öffnest du,
- * bis bei Chance 1 : `chance` pro Kiste der erste Treffer kommt? Das ist
- * geometrisch verteilt — Mittel ≈ chance, meist ein paar Tausend bis ein paar
- * Hunderttausend, ganz selten zweistellig (Glückspilz).
+ * Kiste für einen Follow: Hat die App sie schon gewürfelt (`event.orakel`,
+ * echte Twitch-Follows — damit `!kiste` sie kennt und jedes Overlay dieselbe
+ * zeigt), gilt DIESE Zahl samt Chance und Glück-Entscheidung der App. Sonst
+ * (TikTok, alte Wege) würfelt das Widget selbst mit seinen Props — wie immer.
+ * `glueckBis` wird so gesetzt, dass `kiste <= glueckBis` genau das
+ * mitgelieferte `glueck` ergibt (danach entscheidet der Renderer).
  */
-export function wuerfleKiste(chance = ORAKEL_CHANCE, zufall = Math.random) {
-  const c = Math.max(2, Math.round(Number(chance)) || ORAKEL_CHANCE);
-  const u = Math.min(1 - 1e-12, Math.max(0, Number(zufall()) || 0));
-  const n = Math.ceil(Math.log(1 - u) / Math.log(1 - 1 / c));
-  return Math.max(1, Math.min(ORAKEL_MAX, Number.isFinite(n) ? n : 1));
+export function orakelWurf(event, c, zufall = Math.random) {
+  const o = event && typeof event === 'object' ? event.orakel : null;
+  const kiste = o && typeof o === 'object' ? Math.floor(Number(o.kiste)) : NaN;
+  if (Number.isFinite(kiste) && kiste >= 1) {
+    const k = Math.min(ORAKEL_MAX, kiste);
+    const chance = Number.isFinite(Number(o.chance)) && Number(o.chance) >= 2 ? Math.min(ORAKEL_MAX, Math.round(Number(o.chance))) : c.orakelChance;
+    const glueck = typeof o.glueck === 'boolean' ? o.glueck : k <= c.orakelGlueck;
+    return { kiste: k, chance, glueckBis: glueck ? Math.max(k, c.orakelGlueck) : Math.min(c.orakelGlueck, k - 1) };
+  }
+  return { kiste: wuerfleKiste(c.orakelChance, zufall), chance: c.orakelChance, glueckBis: c.orakelGlueck };
 }
 
 const zahl = (v, std = 0) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : std; };
@@ -526,7 +536,7 @@ export default class EreignisAlarm {
   einreihen(eintrag) {
     // Die Kiste wird beim Eintreffen gewürfelt, nicht erst beim Abspielen —
     // so steht die Zahl fest, auch wenn der Alarm in der Warteschlange wartet.
-    if (!eintrag.extra) eintrag.extra = this.extraFuer(eintrag.art);
+    if (!eintrag.extra) eintrag.extra = this.extraFuer(eintrag.art, eintrag.event);
     if (!this.aktuell) { this.starte(eintrag); return; }
     if (!this.schlange.rein(eintrag)) {
       const name = eintrag.event?.user?.nickname || 'Jemand';
@@ -535,8 +545,8 @@ export default class EreignisAlarm {
   }
 
   /** Zusatzdaten je Art: Orakel würfelt, die Twitch-Piraten bekommen Größe und Münzbild. */
-  extraFuer(art) {
-    if (art === 'follow') return this.orakelExtra();
+  extraFuer(art, event) {
+    if (art === 'follow') return this.orakelExtra(event);
     if (art === 'twitch_sub' || art === 'cheer' || art === 'raid') {
       const id = this.cfg.orakelToken;
       return { groesse: this.cfg.piratenGroesse, tokenBild: id ? baueUrl(this.ctx.baseUrl, this.ctx.token, `/media/${encodeURIComponent(id)}`) : '' };
@@ -544,12 +554,12 @@ export default class EreignisAlarm {
     return undefined;
   }
 
-  /** Gewürfelte Kiste + Orakel-Einstellungen (Bilder aus der Medien-Bibliothek). */
-  orakelExtra() {
+  /** Kiste + Orakel-Einstellungen (Bilder aus der Medien-Bibliothek). */
+  orakelExtra(event) {
     const c = this.cfg;
     const url = (id) => (id ? baueUrl(this.ctx.baseUrl, this.ctx.token, `/media/${encodeURIComponent(id)}`) : '');
     return {
-      kiste: wuerfleKiste(c.orakelChance), chance: c.orakelChance, glueckBis: c.orakelGlueck,
+      ...orakelWurf(event, c),
       groesse: c.orakelGroesse, tokenBild: url(c.orakelToken), kisteBild: url(c.orakelKiste),
     };
   }
@@ -579,7 +589,7 @@ export default class EreignisAlarm {
 
   starte(eintrag) {
     this.aktuell = eintrag;
-    if (!eintrag.extra) eintrag.extra = this.extraFuer(eintrag.art);
+    if (!eintrag.extra) eintrag.extra = this.extraFuer(eintrag.art, eintrag.event);
     try {
       eintrag.plan = this.plane(eintrag.art);
       const plan = eintrag.plan;

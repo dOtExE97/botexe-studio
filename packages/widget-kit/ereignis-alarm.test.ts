@@ -2,7 +2,8 @@
 // Doppelt-Sperren, Warteschlange und Ablauf (mit Ersatz-DOM).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alarmArt, alarmDaten, cheerText, Warteschlange, normalisiereCfg, neuerMerker, waehleAnimation, wuerfleKiste } from './ereignis-alarm.js';
+import { alarmArt, alarmDaten, cheerText, Warteschlange, normalisiereCfg, neuerMerker, waehleAnimation, wuerfleKiste, orakelWurf } from './ereignis-alarm.js';
+import { wuerfleKiste as kisteQuelle } from './orakel-kiste.js';
 import EreignisAlarm from './ereignis-alarm.js';
 import HerzAlarm from './herz-alarm.js';
 import { ANIMATIONEN } from './alarm-anim.js';
@@ -256,6 +257,44 @@ test('Follow-Ablauf: Kiste wird beim Eintreffen gewürfelt, auch in der Wartesch
   assert.equal(w.aktuell.extra.kisteBild, '');
   assert.equal(w.schlange.laenge, 1);
   assert.ok(Number.isInteger(w.schlange.liste[0].extra.kiste));
+  w.destroy();
+});
+
+test('Kisten-Wurf ist die gemeinsame Funktion aus orakel-kiste.js (die App würfelt mit derselben)', () => {
+  assert.equal(wuerfleKiste, kisteQuelle);
+  for (const u of [0, 0.1, 0.5, 0.9, 0.999999]) assert.equal(wuerfleKiste(137500, () => u), kisteQuelle(137500, () => u));
+});
+
+test('orakelWurf: mitgelieferte Kiste der App gilt — samt Chance und Glück', () => {
+  const cfg = normalisiereCfg({ orakelChance: 500, orakelGlueck: 1000 });
+  const nie = () => { throw new Error('darf nicht selbst würfeln'); };
+  const pech = orakelWurf({ type: 'follow', orakel: { kiste: 12345, glueck: false, chance: 137500 } }, cfg, nie);
+  assert.deepEqual(pech, { kiste: 12345, chance: 137500, glueckBis: 1000 });
+  assert.equal(pech.kiste <= pech.glueckBis, false);
+  // Glück laut App, obwohl die Widget-Schwelle kleiner ist → Renderer zeigt Glück.
+  const glueck = orakelWurf({ orakel: { kiste: 4000, glueck: true } }, cfg, nie);
+  assert.equal(glueck.kiste, 4000);
+  assert.equal(glueck.chance, 500, 'ohne chance → die des Widgets');
+  assert.ok(glueck.kiste <= glueck.glueckBis);
+  // Kein Glück laut App, obwohl die Kiste unter der Widget-Schwelle läge.
+  const keins = orakelWurf({ orakel: { kiste: 7, glueck: false } }, cfg, nie);
+  assert.ok(keins.kiste > keins.glueckBis);
+});
+
+test('orakelWurf: ohne (gültige) Kiste würfelt das Widget wie bisher', () => {
+  const cfg = normalisiereCfg({ orakelChance: 500 });
+  assert.deepEqual(orakelWurf({ type: 'follow' }, cfg, () => 0.5), { kiste: wuerfleKiste(500, () => 0.5), chance: 500, glueckBis: 1000 });
+  assert.equal(orakelWurf({ orakel: { kiste: 'quatsch' } }, cfg, () => 0).kiste, 1);
+  assert.equal(orakelWurf({ orakel: { kiste: 0 } }, cfg, () => 0.5).kiste, wuerfleKiste(500, () => 0.5));
+  assert.equal(orakelWurf(null, cfg, () => 0).kiste, 1);
+});
+
+test('Follow-Ablauf: Widget zeigt die Kiste aus event.orakel', () => {
+  const root = installiereFakeDom();
+  const w: any = new EreignisAlarm(root, { modus: 'ereignisse', ereignisse: ['follow'] }, { baseUrl: 'http://x/overlay', token: 'k', notify: () => {} });
+  w.onEvent({ type: 'follow', plattform: 'twitch', user: { id: 'twitch:a', nickname: 'Anna' }, orakel: { kiste: 4711, glueck: false, chance: 137500 } });
+  assert.equal(w.aktuell.extra.kiste, 4711);
+  assert.equal(w.aktuell.extra.chance, 137500);
   w.destroy();
 });
 

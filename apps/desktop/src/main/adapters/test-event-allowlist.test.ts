@@ -31,6 +31,7 @@ const BEWUSST_DRAUSSEN = new Map<string, string>([
   ['ehrengast', 'hängt an echten Beitritts-Daten'],
   ['firstFollow', 'entscheidet das Follow-Gedächtnis der App, nicht der Aufrufer'],
   ['superfanNeu', 'entscheidet die Normalisierung aus TikToks Daten'],
+  ['orakel', 'würfelt die App selbst beim Twitch-Follow (orakel-kisten.ts) — Test-Follows mit plattform twitch bekommen dort eine frische Kiste'],
 ]);
 
 test('die Test-Event-Route kennt jedes Feld eines StudioEvent', () => {

@@ -3,8 +3,8 @@
 // schreibt direkt in den Chat, aus dem der Befehl kam (TikTok oder Twitch, wenn
 // eingeloggt bzw. verbunden). Mit Cooldown + Rechten.
 import { useEffect, useState } from 'react';
-import { Terminal, Plus, Trash2, Power, Play, Mic, MessageSquare, Copy } from 'lucide-react';
-import type { ChatCommand } from '@botexe/trigger-engine';
+import { Terminal, Plus, Trash2, Power, Play, Mic, MessageSquare, Copy, Anchor, Music } from 'lucide-react';
+import { fehlendeVorlagen, type ChatCommand } from '@botexe/trigger-engine';
 import ConfirmButton from '../components/ConfirmButton';
 import { toast } from '../components/ToastHost';
 
@@ -30,6 +30,13 @@ export default function CommandsPage() {
   const save = (next: ChatCommand[]) => { setCmds(next); void window.studio.setCommands(next as unknown as unknown[]); };
   const patch = (id: string, p: Partial<ChatCommand>) => save(cmds.map((c) => (c.id === id ? { ...c, ...p } : c)));
   const duplicate = (c: ChatCommand) => save([...cmds, { ...c, id: `cmd-${Date.now().toString(36)}`, command: `${c.command}2` }]);
+  const vorlagenFehlen = fehlendeVorlagen(cmds);
+  const vorlagenHinzu = () => {
+    const neu = fehlendeVorlagen(cmds);
+    if (!neu.length) { toast('info', 'Die Piraten-Befehle sind schon alle da.'); return; }
+    save([...cmds, ...neu]);
+    toast('success', `${neu.length} Piraten-Befehl${neu.length === 1 ? '' : 'e'} hinzugefügt — Links trägst du unter Einstellungen → Piraten-Orakel ein.`);
+  };
   const test = (c: ChatCommand) => { void window.studio.sendChat(c.response).then(() => undefined); toast('info', `„${c.command}" — Antwort getestet (Senden braucht TikTok-Login).`); };
 
   if (!loaded) return <div className="p-6 text-studio-muted">Lade…</div>;
@@ -40,15 +47,29 @@ export default function CommandsPage() {
         <div>
           <h1 className="flex items-center gap-2 font-display text-xl uppercase"><Terminal size={20} className="text-studio-accent" /> Chat-Befehle</h1>
           <p className="mt-1 max-w-2xl text-xs text-studio-muted">
-            Zuschauer tippen z.B. <span className="font-mono">!discord</span> — die App antwortet per Vorlesen (TTS) und/oder schreibt direkt in den Chat. Platzhalter: <span className="font-mono">{'{user}'}</span>, <span className="font-mono">{'{text}'}</span>.
+            Zuschauer tippen z.B. <span className="font-mono">!discord</span> — die App antwortet per Vorlesen (TTS) und/oder schreibt direkt in den Chat, aus dem der Befehl kam (TikTok oder Twitch).
+          </p>
+          <p className="mt-1 max-w-2xl text-[11px] text-studio-muted">
+            Platzhalter: <span className="font-mono">{'{user} {text} {args} {ziel_user}'}</span> · <span className="font-mono">{'{song}'}</span> (Spotify) · <span className="font-mono">{'{uptime}'}</span> · <span className="font-mono">{'{kiste}'}</span> (Orakel-Kiste des Fragenden) · <span className="font-mono">{'{follower} {ziel}'}</span> (Twitch-Follower, Ziel 50) · <span className="font-mono">{'{top}'}</span> · <span className="font-mono">{'{discord} {tiktok} {insta}'}</span> · <span className="font-mono">{'{befehle}'}</span>.
           </p>
         </div>
-        <button onClick={() => save([...cmds, newCommand()])} className="bx-btn-accent"><Plus size={15} /> Neuer Befehl</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={vorlagenHinzu}
+            disabled={vorlagenFehlen.length === 0}
+            title={vorlagenFehlen.length ? `Fügt hinzu: ${vorlagenFehlen.map((v) => v.command).join(' ')}` : 'Alle Piraten-Befehle sind schon da'}
+            className="bx-pill flex items-center gap-1.5 text-[11px] hover:text-studio-accent disabled:opacity-40"
+          >
+            <Anchor size={13} /> Piraten-Vorlagen{vorlagenFehlen.length ? ` (${vorlagenFehlen.length})` : ''}
+          </button>
+          <button onClick={() => save([...cmds, newCommand()])} className="bx-btn-accent"><Plus size={15} /> Neuer Befehl</button>
+        </div>
       </div>
 
       {cmds.length === 0 && (
         <div className="rounded-xl border border-dashed border-studio-border p-10 text-center text-sm text-studio-muted">
-          Noch keine Befehle. Beispiel: <span className="font-mono">!discord</span> → „Komm auf meinen Discord!" (vorgelesen).
+          Noch keine Befehle. Beispiel: <span className="font-mono">!discord</span> → „Komm auf meinen Discord!" (vorgelesen) —
+          oder oben „Piraten-Vorlagen" für <span className="font-mono">!kiste !song !uptime !lurk !ziel !hug</span> &amp; Co.
         </div>
       )}
 
@@ -87,6 +108,15 @@ export default function CommandsPage() {
                 Höchstens alle … Sek.
                 <input type="number" min={0} value={(c.cooldownMs ?? 0) / 1000} onChange={(e) => patch(c.id, { cooldownMs: Math.max(0, Number(e.target.value)) * 1000 })} className="bx-input font-mono" style={{ width: '4.5rem' }} />
               </label>
+              <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-studio-muted" title="Derselbe Zuschauer bekommt erst nach dieser Zeit wieder eine Antwort — gegen Spam">
+                Je Zuschauer … Sek.
+                <input type="number" min={0} value={(c.userCooldownMs ?? 0) / 1000} onChange={(e) => patch(c.id, { userCooldownMs: Math.max(0, Number(e.target.value)) * 1000 })} className="bx-input font-mono" style={{ width: '4.5rem' }} />
+              </label>
+              {c.aktion === 'song_request' && (
+                <span className="flex items-center gap-1 text-[10px] text-studio-teal" title="Legt den Text nach dem Befehl per Spotify in die Warteschlange (Spotify Premium + aktives Gerät). {song} = gefundener Titel.">
+                  <Music size={12} /> Song-Wunsch per Spotify
+                </span>
+              )}
             </div>
           </div>
         ))}

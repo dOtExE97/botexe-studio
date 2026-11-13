@@ -193,6 +193,13 @@ export interface StudioSettings {
   twitchTokens?: import('./twitch-auth').TwitchTokens;
   /** Beim App-Start automatisch mit Twitch verbinden, wenn angemeldet. */
   twitchAutoConnect: boolean;
+  /** Piraten-Orakel für Twitch-Follows (die App würfelt, siehe
+   *  orakel-kisten.ts): Chance 1 : N pro Kiste … */
+  orakelChance: number;
+  /** … und bis zu welcher Kistennummer es als Glückstreffer gilt. */
+  orakelGlueck: number;
+  /** Links für die Chat-Befehle ({discord} {tiktok} {insta}). */
+  befehlLinks: { discord: string; tiktok: string; insta: string };
 }
 
 export interface ObsSettings {
@@ -298,7 +305,23 @@ const DEFAULTS: StudioSettings = {
   spotifyTokens: null,
   twitchClientId: '',
   twitchAutoConnect: true,
+  orakelChance: 137500,
+  orakelGlueck: 1000,
+  befehlLinks: { discord: '', tiktok: '', insta: '' },
 };
+
+/** Ganzzahl im Bereich [min, 99.999.999] — sonst der Standard. */
+function orakelZahl(v: unknown, min: number, std: number): number {
+  const n = Math.floor(Number(v));
+  return typeof v === 'number' && Number.isFinite(n) && n >= min ? Math.min(99_999_999, n) : std;
+}
+
+/** Links für die Chat-Befehle: nur Text, gekürzt; fehlt → leer. */
+function befehlLinksNormalisieren(v: unknown): StudioSettings['befehlLinks'] {
+  const o = (typeof v === 'object' && v !== null ? v : {}) as Record<string, unknown>;
+  const t = (x: unknown) => (typeof x === 'string' ? x.trim().slice(0, 200) : '');
+  return { discord: t(o.discord), tiktok: t(o.tiktok), insta: t(o.insta) };
+}
 
 function isValidRule(rule: unknown): rule is TriggerRule {
   if (typeof rule !== 'object' || rule === null) return false;
@@ -512,6 +535,9 @@ export class SettingsStore {
       merged.twitchClientId = typeof raw.twitchClientId === 'string' && istGueltigeTwitchClientId(raw.twitchClientId.trim())
         ? raw.twitchClientId.trim() : '';
       merged.twitchAutoConnect = typeof raw.twitchAutoConnect === 'boolean' ? raw.twitchAutoConnect : true;
+      merged.orakelChance = orakelZahl(raw.orakelChance, 2, 137500);
+      merged.orakelGlueck = orakelZahl(raw.orakelGlueck, 0, 1000);
+      merged.befehlLinks = befehlLinksNormalisieren(raw.befehlLinks);
       const gw = raw.giveaway as Record<string, unknown> | undefined;
       merged.giveaway = {
         enabled: typeof gw?.enabled === 'boolean' ? gw.enabled : false,
@@ -757,6 +783,9 @@ export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): 
     if (id === '' || istGueltigeTwitchClientId(id)) allowed.twitchClientId = id;
   }
   if (typeof p.twitchAutoConnect === 'boolean') allowed.twitchAutoConnect = p.twitchAutoConnect;
+  if (typeof p.orakelChance === 'number') allowed.orakelChance = orakelZahl(p.orakelChance, 2, 137500);
+  if (typeof p.orakelGlueck === 'number') allowed.orakelGlueck = orakelZahl(p.orakelGlueck, 0, 1000);
+  if (typeof p.befehlLinks === 'object' && p.befehlLinks !== null) allowed.befehlLinks = befehlLinksNormalisieren(p.befehlLinks);
   if (typeof p.moderation === 'object' && p.moderation !== null) {
     const m = p.moderation as Record<string, unknown>;
     if (Array.isArray(m.blockedWords)) {

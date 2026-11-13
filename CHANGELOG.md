@@ -67,6 +67,18 @@ eigenem Overlay und eigenem Chat:
   hüpft der Deckel, Licht blitzt und Münzen springen heraus. Alles gezeichnet,
   keine Bilddateien; skaliert mit der Box und dem Textgrößen-Regler.
   „Bewegung reduzieren“ (System) und der Sparmodus stellen alles still.
+- **Piraten-Chat-Befehle (Vorlagen)** — im Reiter „Befehle“ holt der Knopf
+  „Piraten-Vorlagen“ fertige Befehle dazu: `!kiste` (in welcher Orakel-Kiste
+  liegt mein Token?), `!song`/`!musik` (Spotify), `!uptime`, `!discord`,
+  `!tiktok`, `!insta`, `!socials`, `!lurk`, `!ziel` („23 von 50“ zum
+  Affiliate), `!top`, `!befehle`, `!hug @name` und `!sr <Song>` (Song-Wunsch in
+  die Spotify-Warteschlange). Antwort im Chat, aus dem der Befehl kam; neue
+  Pause je Zuschauer gegen Spam. Neue Platzhalter `{song}` `{uptime}` `{kiste}`
+  `{follower}` `{ziel}` `{top}` `{ziel_user}` `{discord}` `{tiktok}` `{insta}`
+  `{befehle}`. Damit `!kiste` funktioniert, würfelt bei **Twitch-Follows** jetzt
+  die App die Orakel-Kiste (einmal je Zuschauer und Stream, alle Overlays
+  zeigen dieselbe Zahl; Chance/Glück unter Einstellungen → „Piraten-Orakel &
+  Befehls-Links“). TikTok-Follows würfelt der Herz-Alarm wie bisher selbst.
 - **Bestenliste „Twitch-Supporter“** — das Widget „Top Gifter“ hat eine neue
   Quelle: wer auf Twitch am meisten unterstützt. 1 Bit = 1 Punkt, jeder Sub
   (auch Resub) = 500 Punkte, verschenkte Subs zählen beim Schenkenden

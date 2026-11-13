@@ -549,6 +549,12 @@ export function validateChatCommand(input: unknown): ChatCommand | null {
   const cooldownMs = nonNegInt(input['cooldownMs']);
   if (cooldownMs !== null) cmd.cooldownMs = cooldownMs;
 
+  const userCooldownMs = nonNegInt(input['userCooldownMs']);
+  if (userCooldownMs !== null) cmd.userCooldownMs = userCooldownMs;
+
+  // Unbekannte Sonderaufgabe → weglassen (der Befehl antwortet dann nur).
+  if (input['aktion'] === 'song_request') cmd.aktion = 'song_request';
+
   return cmd;
 }
 

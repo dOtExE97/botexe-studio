@@ -6,6 +6,7 @@ import ConfirmButton from '../components/ConfirmButton';
 import GreetReturningCard from '../components/GreetReturningCard';
 import ThirdPartyLicenses from '../components/ThirdPartyLicenses';
 import TwitchVerbindungCard from '../components/TwitchVerbindungCard';
+import PiratenBefehleCard from '../components/PiratenBefehleCard';
 import { toast } from '../components/ToastHost';
 import { DEFAULT_BLOCKLIST } from '../../shared/moderation';
 
@@ -784,6 +785,9 @@ export default function SettingsPage() {
 
       {/* Twitch */}
       <TwitchVerbindungCard />
+
+      {/* Piraten-Orakel (Twitch-Follows) + Links für die Chat-Befehle */}
+      <PiratenBefehleCard />
 
       {/* Sport-Liveticker */}
       <section className="mb-5 break-inside-avoid bx-card p-5">

@@ -9,6 +9,14 @@ export { sprechbar, sprechbarerName, istSprechbar } from './sprechbar';
 // Namen vorher buchstabengenau und verfehlten dadurch dasselbe Geschenk in
 // anderer Schreibweise — obwohl die Trigger-Engine daneben korrekt matchte.
 export { giftKey } from '../../widget-kit/gift-rules.js';
+// Kisten-Wurf des Piraten-Orakels — EINE Quelle für Overlay und App.
+export { wuerfleKiste, ORAKEL_CHANCE, ORAKEL_GLUECK, ORAKEL_MAX } from '../../widget-kit/orakel-kiste.js';
+export {
+  fuelleBefehlsVariablen, formatKiste, formatUptime, zielUser, braucheSong, AFFILIATE_ZIEL,
+  KEINE_KISTE_TEXT, KEINE_MUSIK_TEXT, LINK_FEHLT_TEXT, type BefehlsWerte,
+} from './befehl-variablen';
+export { pruefeBefehlsPause, type BefehlsPausen, type BefehlsPausenErgebnis } from './befehl-pause';
+export { piratenVorlagen, fehlendeVorlagen } from './befehl-vorlagen';
 // giftKey ist EINZIGE Quelle in packages/widget-kit/gift-rules.js (DOM-freies
 // reines JS, allowJs übernimmt es unverändert — s. tsconfig.json und der
 // bestehende itemsFromRules-Import in gift-mapping.ts). Vorher hatte diese
@@ -288,6 +296,11 @@ export interface StudioEvent {
    *  „Get Channel Followers" → `total`, zwischen zwei Abfragen je echtem
    *  Follow +1). */
   followerStand?: { anzahl: number };
+  /** Nur bei 'follow' (echte Twitch-Follows): die Kiste des Piraten-Orakels,
+   *  von der App EINMAL je Zuschauer und Stream gewürfelt (damit `!kiste` sie
+   *  kennt und jedes Overlay dieselbe zeigt). Fehlt → das Widget würfelt
+   *  selbst (TikTok, alte Wege). */
+  orakel?: { kiste: number; glueck: boolean; chance?: number };
   /** Nur bei 'kanalpunkte': Titel und Preis der eingelösten Belohnung, dazu
    *  der Text des Zuschauers, falls die Belohnung eine Eingabe verlangt (steht
    *  zusätzlich in `text`, damit {text} in Vorlagen greift). */
@@ -620,6 +633,11 @@ export interface ChatCommand {
   who?: 'all' | 'followers' | 'subs' | 'mods';
   /** Globaler Mindestabstand zwischen zwei Auslösungen (ms). */
   cooldownMs?: number;
+  /** Mindestabstand je Zuschauer (ms) — gegen einen, der den Befehl spammt. */
+  userCooldownMs?: number;
+  /** Sonderaufgabe statt nur Antwort: 'song_request' legt {args} per Spotify in
+   *  die Warteschlange; {song} in der Antwort ist dann der gefundene Titel. */
+  aktion?: 'song_request';
   enabled: boolean;
 }
 

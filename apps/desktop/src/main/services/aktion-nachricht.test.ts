@@ -77,7 +77,8 @@ test('studio.ts: Regel und Chat-Befehl antworten nur über chatAntwort(), und di
   const q = studioQuelle();
   // Regel-Aktion und Befehl gehen über chatAntwort(event, …) …
   assert.match(q, /action\.kind === 'send_chat'\) \{\s*this\.chatAntwort\(event, renderSpeakTemplate\(action\.template, event\)\);/);
-  assert.match(q, /if \(cmd\.sendToChat\) this\.chatAntwort\(event, text\);/);
+  // Befehl: der Plan (befehl-antwort.ts) entscheidet OB, chatAntwort WOHIN.
+  assert.match(q, /if \(plan\.chat\) this\.chatAntwort\(event, plan\.chatText\);/);
   // … und NUR chatAntwort ruft den TikTok-Versand direkt (sonst ginge eine
   // Twitch-Antwort an der Weiche vorbei in den TikTok-Chat).
   const direkt = q.split('\n').filter((z) => /void this\.sendChat\(/.test(z));
