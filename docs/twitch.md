@@ -22,8 +22,10 @@ Overlay weiß, für welche Plattform es da ist, und zeigt nur deren Chat und Ala
    die App sich ab jetzt von selbst.
 3. **Twitch-Overlay anlegen.** Overlay-Editor → oben in der Profil-Leiste
    **„Twitch-Overlay (Querformat) anlegen"**. Es entsteht ein fertiges
-   1920×1080-Overlay mit Chat rechts, Follow-Alert und Piraten-Banner oben links
-   und dem Piraten-Orakel bei jedem neuen Follower. Alles lässt sich frei
+   1920×1080-Overlay mit Chat rechts, Piraten-Banner oben links und einem
+   Herz-Alarm in der Mitte: Piraten-Orakel bei jedem neuen Follower, dazu große
+   Piraten-Animationen für Subs (auch Resubs und verschenkte Abos), Bits und
+   Raids. Alles lässt sich frei
    verschieben und umstellen; die Bildmitte bleibt fürs Spiel frei.
 4. **Link kopieren.** Am Profil-Knopf des neuen Overlays auf das
    **Ketten-Symbol** („Overlay-Link kopieren (OBS / Browser)") klicken. Der Link
@@ -60,7 +62,8 @@ ein kleines TikTok- oder Twitch-Zeichen.
   Top-Gifter) — die bleiben sauber TikTok.
 - Twitch-Zuschauer haben eigene IDs (`twitch:<nummer>`); Punkte und Spiele
   vermischen sich nicht mit TikTok-Zuschauern gleichen Namens.
-- Das Piraten-Orakel ist im TikTok-Herz-Alarm standardmäßig **aus** und nur in
-  der Twitch-Vorlage an.
+- Das Piraten-Orakel und die Twitch-Piraten (Sub, Bits, Raid) sind im
+  Herz-Alarm standardmäßig **aus** und nur in der Twitch-Vorlage an. Ein Sub
+  von TikTok (Superfan-Abo) löst nie die Twitch-Sub-Animation aus.
 - Erscheint „Bitte neu verbinden": Die Anmeldung ist abgelaufen (Twitch lässt
   sie nach etwa 30 Tagen ohne Nutzung verfallen). Einfach Schritt 2 wiederholen.

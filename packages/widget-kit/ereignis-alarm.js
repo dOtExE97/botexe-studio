@@ -33,6 +33,11 @@ const ARTEN = {
   ziel: { anim: 'anim_ziel', media: 'media_ziel', sound: 'sound_ziel', soundId: 'soundId_ziel', std: 'ziel-erreicht' },
   // Follow = Piraten-Orakel: jeder neue Follower bekommt „seine" Kistennummer.
   follow: { anim: 'anim_follow', media: 'media_follow', sound: 'sound_follow', soundId: 'soundId_follow', std: 'piraten-orakel' },
+  // Twitch: Sub (neu, Resub, verschenkt), Bits und Raid — Piraten-Animationen.
+  // `twitch_sub` nur bei plattform 'twitch': TikToks `sub` ist das Superfan-Abo.
+  twitch_sub: { anim: 'anim_twitch_sub', media: 'media_twitch_sub', sound: 'sound_twitch_sub', soundId: 'soundId_twitch_sub', std: 'piraten-sub' },
+  cheer: { anim: 'anim_cheer', media: 'media_cheer', sound: 'sound_cheer', soundId: 'soundId_cheer', std: 'piraten-bits' },
+  raid: { anim: 'anim_raid', media: 'media_raid', sound: 'sound_raid', soundId: 'soundId_raid', std: 'piraten-raid' },
 };
 
 /** Standard-Häkchen: VIP, Superfan betritt und Geschenke-Level-Up sind aus. */
@@ -92,6 +97,7 @@ export function normalisiereCfg(props) {
     orakelGroesse: Math.max(40, Math.min(100, zahl(p.orakelGroesse, 75) || 75)),
     orakelToken: typeof p.orakelToken === 'string' ? p.orakelToken : '',
     orakelKiste: typeof p.orakelKiste === 'string' ? p.orakelKiste : '',
+    piratenGroesse: Math.max(40, Math.min(100, zahl(p.piratenGroesse, 75) || 75)),
   };
 }
 
@@ -114,6 +120,8 @@ function ausduennen(map, jetzt, fenster) {
 function rohArt(e, cfg) {
   switch (e.type) {
     case 'sub':
+      // Twitch-Abo (neu, Resub oder verschenkt) — eigene Art, nie das Superfan-Abo.
+      if (e.plattform === 'twitch') return 'twitch_sub';
       // Superfan-Abo (TikToks bezahltes LIVE-Abo). superfanNeu fehlt → als neu werten.
       if (e.superfanNeu === false && !cfg.superfanVerlaengert) return null;
       return 'superfan';
@@ -138,6 +146,10 @@ function rohArt(e, cfg) {
       return e.ziel?.erreicht === true && e.ziel?.geradeErreicht === true ? 'ziel' : null;
     case 'follow':
       return 'follow';
+    case 'cheer':
+      return 'cheer';
+    case 'raid':
+      return 'raid';
     case 'gift':
       // Teamherz kommt hier NUR als Geschenk: `sub` ist im Ereignis-Modus das Superfan-Abo.
       return trifftAusloeser(e, 'teamherz', cfg.minLevel) ? 'teamherz' : null;
@@ -216,6 +228,15 @@ export function waehleAnimation(id, katalog) {
 
 const kuerze = (s, n) => { const t = String(s ?? '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
 
+/** Cheer-Nachricht für die Leinwand: Cheermotes („Cheer100", „Kappa50") und
+ *  Steuerzeichen raus, Leerraum zusammen, gekürzt. Leer, wenn nichts übrig bleibt. */
+export function cheerText(text, max = 60) {
+  const t = String(text ?? '')
+    .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069]/g, ' ')
+    .replace(/(^|\s)[A-Za-z]+\d+(?=\s|$)/g, ' ');
+  return kuerze(t, max);
+}
+
 /** Superfan-Abo-Ereignis eine Verlängerung? (sub: superfanNeu === false; superfan: abo_verlaengert) */
 function superfanVerlaengert(e) {
   return e?.type === 'sub' ? e.superfanNeu === false : e?.superfanArt === 'abo_verlaengert';
@@ -260,6 +281,18 @@ export function alarmDaten(art, e, extra = {}) {
         ...d, kiste: extra.kiste ?? 1, chance: extra.chance ?? ORAKEL_CHANCE, glueckBis: extra.glueckBis ?? 1000,
         groesse: extra.groesse ?? 75, tokenBild: extra.tokenBild || '', kisteBild: extra.kisteBild || '',
       };
+    case 'twitch_sub': {
+      const gs = e?.subGeschenk;
+      const anzahl = gs ? Math.max(1, zahl(gs.anzahl, 1)) : 0;
+      return {
+        ...d, groesse: extra.groesse ?? 75, tokenBild: extra.tokenBild || '',
+        ...(gs ? { geschenk: anzahl, ...(gs.anonym ? { name: 'Anonym' } : {}) } : { monate: Math.max(1, zahl(e?.subMonths, 1)) }),
+      };
+    }
+    case 'cheer':
+      return { ...d, groesse: extra.groesse ?? 75, tokenBild: extra.tokenBild || '', bits: Math.max(0, zahl(e?.cheer?.bits)), nachricht: cheerText(e?.text, 44) };
+    case 'raid':
+      return { ...d, groesse: extra.groesse ?? 75, zuschauer: Math.max(0, zahl(e?.raid?.viewers)) };
     default:
       return d;
   }
@@ -282,6 +315,11 @@ function leistenText(art, e, cfg, extra) {
     case 'vip': return `👑 VIP ${n} ist da`;
     case 'ziel': return `🎯 LIVE-Ziel erreicht${d.ziel ? ` (${d.fortschritt}/${d.ziel})` : ''}`;
     case 'follow': return `🏴‍☠️ ${n} · Token in Kiste Nr. ${tausender(d.kiste)}`;
+    case 'twitch_sub':
+      if (d.geschenk) return `🎁 ${n} verschenkt ${tausender(d.geschenk)} ${d.geschenk === 1 ? 'Abo' : 'Abos'}`;
+      return d.monate > 1 ? `⚓ ${n} · ${tausender(d.monate)} Monate an Bord` : `⚓ ${n} ist neu in der Crew`;
+    case 'cheer': return `💰 ${n} jubelt mit ${tausender(d.bits)} Bits`;
+    case 'raid': return `🏴‍☠️ ${n} entert mit ${tausender(d.zuschauer)} Piraten`;
     default: return n;
   }
 }
@@ -298,6 +336,9 @@ function demoEreignis(art) {
     case 'truhe': return { type: 'envelope', envelope: { coins: 500 }, user };
     case 'vip': return { type: 'vip_betritt', vip: { stufe: 25 }, user };
     case 'follow': return { type: 'follow', user };
+    case 'twitch_sub': return { type: 'sub', plattform: 'twitch', subMonths: 7, user };
+    case 'cheer': return { type: 'cheer', plattform: 'twitch', cheer: { bits: 500 }, text: 'Ahoi Käpt\'n, Rum für alle!', user };
+    case 'raid': return { type: 'raid', plattform: 'twitch', raid: { viewers: 42 }, user: { id: 'demo-kraken', nickname: 'KrakenKalle' } };
     case 'ziel': return { type: 'live_ziel', ziel: { id: 'demo', fortschritt: 12, ziel: 12, geschenk: { name: 'Rose' }, erreicht: true, geradeErreicht: true }, user };
     default: return { type: 'level_up', levelUp: { art: 'team', neu: 12 }, user };
   }
@@ -353,8 +394,9 @@ export default class EreignisAlarm {
     // Token-/Kistenbild vorladen: sonst zeigt der erste Follow ein paar Bilder
     // lang die gezeichnete Truhe, bis das Bild da ist.
     this.vorgeladen = [];
-    if (this.cfg.ereignisse.has('follow') && typeof Image !== 'undefined') {
-      for (const id of [this.cfg.orakelToken, this.cfg.orakelKiste]) {
+    const mitMuenze = ['follow', 'twitch_sub', 'cheer'].some((art) => this.cfg.ereignisse.has(art));
+    if (mitMuenze && typeof Image !== 'undefined') {
+      for (const id of [this.cfg.orakelToken, this.cfg.ereignisse.has('follow') ? this.cfg.orakelKiste : '']) {
         if (!id) continue;
         try { const i = new Image(); i.src = baueUrl(this.ctx.baseUrl, this.ctx.token, `/media/${encodeURIComponent(id)}`); this.vorgeladen.push(i); } catch { /* egal */ }
       }
@@ -484,12 +526,22 @@ export default class EreignisAlarm {
   einreihen(eintrag) {
     // Die Kiste wird beim Eintreffen gewürfelt, nicht erst beim Abspielen —
     // so steht die Zahl fest, auch wenn der Alarm in der Warteschlange wartet.
-    if (eintrag.art === 'follow' && !eintrag.extra) eintrag.extra = this.orakelExtra();
+    if (!eintrag.extra) eintrag.extra = this.extraFuer(eintrag.art);
     if (!this.aktuell) { this.starte(eintrag); return; }
     if (!this.schlange.rein(eintrag)) {
       const name = eintrag.event?.user?.nickname || 'Jemand';
       this.melde('ueberlauf', `Ereignis-Alarm: ${MAX_WARTEND} Alarme warten schon — „${eintrag.art}" von ${name} verworfen.`);
     }
+  }
+
+  /** Zusatzdaten je Art: Orakel würfelt, die Twitch-Piraten bekommen Größe und Münzbild. */
+  extraFuer(art) {
+    if (art === 'follow') return this.orakelExtra();
+    if (art === 'twitch_sub' || art === 'cheer' || art === 'raid') {
+      const id = this.cfg.orakelToken;
+      return { groesse: this.cfg.piratenGroesse, tokenBild: id ? baueUrl(this.ctx.baseUrl, this.ctx.token, `/media/${encodeURIComponent(id)}`) : '' };
+    }
+    return undefined;
   }
 
   /** Gewürfelte Kiste + Orakel-Einstellungen (Bilder aus der Medien-Bibliothek). */
@@ -527,7 +579,7 @@ export default class EreignisAlarm {
 
   starte(eintrag) {
     this.aktuell = eintrag;
-    if (eintrag.art === 'follow' && !eintrag.extra) eintrag.extra = this.orakelExtra();
+    if (!eintrag.extra) eintrag.extra = this.extraFuer(eintrag.art);
     try {
       eintrag.plan = this.plane(eintrag.art);
       const plan = eintrag.plan;

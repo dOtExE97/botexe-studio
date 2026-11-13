@@ -26,22 +26,18 @@ const PLAETZE: Platz[] = [
   // Banner oben links: „FOLLOW = KISTEN BIS ZUM TOKEN". Token-/Kistenbild
   // bleiben leer — das Banner zeichnet dann selbst eine Goldmünze.
   { id: 'twitch-piraten-banner', type: 'piraten-banner', x: 24, y: 24, w: 640, h: 120 },
-  // Kleine Einblendung direkt unter dem Banner — NUR für Subs: einen Follow
-  // feiert schon das Piraten-Orakel (sonst zwei Einblendungen je Follow).
-  // „Geteilt" gibt es auf Twitch nicht.
-  {
-    id: 'twitch-follow-alert', type: 'follow-alert', x: 24, y: 160, w: 460, h: 90,
-    props: { events: ['sub'] },
-  },
   // Chat rechts, unter der Minikarte und über der Waffenleiste.
   { id: 'twitch-chat', type: 'chat-box', x: 1500, y: 330, w: 400, h: 580 },
-  // Piraten-Orakel bei jedem Follow. Die Animation ist hochkant gezeichnet
-  // (1080×1920) und wird eingepasst — 700×1080 mittig ergibt die volle Höhe.
-  // Modus „Ereignisse" mit NUR Follow: Teamherz, Truhe & Co. gibt es auf
-  // Twitch nicht. Orakel-Bilder leer → gezeichnete Münze und Truhe.
+  // Der eine Alarm-Screen für Twitch: Piraten-Orakel bei jedem Follow, dazu
+  // Piraten-Animationen für Sub (auch Resub und Geschenk-Abos), Bits und Raid.
+  // Die Animationen sind hochkant gezeichnet (1080×1920) und werden eingepasst
+  // — 700×1080 mittig ergibt die volle Höhe. Teamherz, Truhe & Co. gibt es auf
+  // Twitch nicht. Einen eigenen Follow-/Sub-Alert gibt es bewusst NICHT mehr:
+  // er feierte jeden Sub ein zweites Mal neben der großen Animation.
+  // Orakel-Bilder leer → gezeichnete Münze und Truhe.
   {
     id: 'twitch-herz-alarm', type: 'herz-alarm', x: 610, y: 0, w: 700, h: 1080,
-    props: { modus: 'ereignisse', ereignisse: ['follow'] },
+    props: { modus: 'ereignisse', ereignisse: ['follow', 'twitch_sub', 'cheer', 'raid'] },
   },
 ];
 

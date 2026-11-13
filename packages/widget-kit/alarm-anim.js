@@ -64,6 +64,13 @@ export const ANIMATIONEN = {
   // Piraten-Orakel (Follow): Truhe springt auf, das Token steigt heraus, die Kistennummer
   // läuft über Walzen ein. daten: kiste, chance, glueckBis, tokenBild (eigenes Bild, lokal).
   'piraten-orakel': { label: 'Piraten-Orakel', fuer: ['follow'], dauer: 8.6, sound: 'botexe-truhe.wav' },
+  // Twitch-Piraten (gleiche Gold-/Braun-/Violett-Welt wie das Orakel), alle mit `groesse` (40–100 %):
+  //   piraten-sub   Anker-Medaillon schlägt ein. daten: monate (Resub) oder geschenk (Anzahl verschenkter Abos)
+  //   piraten-bits  Münzen regnen auf einen Haufen, Zähler läuft hoch. daten: bits, nachricht, tokenBild
+  //   piraten-raid  Piratenschiff segelt über Wellen herein, Kanonen feuern. daten: zuschauer
+  'piraten-sub': { label: 'Piraten-Crew (Sub)', fuer: ['twitch_sub'], dauer: 6.2, sound: 'botexe-superfan.wav' },
+  'piraten-bits': { label: 'Piraten-Schatz (Bits)', fuer: ['cheer'], dauer: 6.4, sound: 'botexe-truhe.wav' },
+  'piraten-raid': { label: 'Piraten-Entern (Raid)', fuer: ['raid'], dauer: 7.2, sound: 'botexe-boom.wav' },
 };
 
 // ---------------------------------------------------------------- Helfer ---
@@ -1371,18 +1378,26 @@ function farbenPremium(typ) {
       avatarGlow: 'rgba(255,170,40,0.9)', schild: 'rgba(34,14,4,0.82)', nameGlow: '#ff9d00',
     };
   }
+  if (typ === 'psub' || typ === 'pbits' || typ === 'praid') {
+    // Twitch-Piraten: Gold auf Braun, Violett als Twitch-Akzent im Schein.
+    return { chromGlow: '#ff8a00', textGlow: '#ff8a00', avatarGlow: 'rgba(160,80,255,0.9)', schild: 'rgba(26,8,36,0.86)', nameGlow: '#9a3dff', stein: PAL_V };
+  }
   return { chromGlow: '#ff8a00', textGlow: '#ff8a00', avatarGlow: 'rgba(255,170,40,0.9)', schild: 'rgba(34,14,4,0.82)', nameGlow: '#ff9d00', stein: PAL_V };
 }
 
 function stilPremium(typ, d, bild) {
   const ORAKEL = typ === 'orakel';
-  const SF = typ !== 'truhe' && !ORAKEL, VIP = typ === 'vip';
-  const DUR = SF ? 7.6 : ORAKEL ? 8.6 : 6.8;
+  const PSUB = typ === 'psub', PBITS = typ === 'pbits', PRAID = typ === 'praid', PIRAT = PSUB || PBITS || PRAID;
+  const SF = typ !== 'truhe' && !ORAKEL && !PIRAT, VIP = typ === 'vip';
+  const DUR = PSUB ? 6.2 : PBITS ? 6.4 : PRAID ? 7.2 : SF ? 7.6 : ORAKEL ? 8.6 : 6.8;
   const C = farbenPremium(typ);
   const CX = 540;
   const NAME = d.name;
   const KOPF = typ === 'superfan' && d.neuAbo ? 'NEUER' : '';
-  const TITEL = d.titel || (ORAKEL ? 'PIRATEN-TOKEN' : VIP ? 'VIP IST DA' : SF ? 'SUPERFAN' : 'SCHATZTRUHE!');
+  const P_TITEL = PSUB ? (d.geschenk ? `${formatDe(d.geschenk)} × CREW VERSCHENKT!` : d.monate > 1 ? `${formatDe(d.monate)} MONATE AN BORD!` : 'NEUE CREW!')
+    : PRAID ? 'ENTERN!' : 'BITS!';
+  const TITEL = PIRAT ? P_TITEL : d.titel || (ORAKEL ? 'PIRATEN-TOKEN' : VIP ? 'VIP IST DA' : SF ? 'SUPERFAN' : 'SCHATZTRUHE!');
+  const T_GROESSE = PRAID ? 230 : PSUB ? (TITEL.length > 12 ? 150 : 190) : 160;
   const vipStufe = d.stufe ?? (d.neuBekannt ? d.neu : null);
   const UNTER = d.unterzeile ? kuerze(d.unterzeile, 40)
     : VIP ? (vipStufe !== null ? `GESCHENKE-STUFE ${vipStufe}` : 'WILLKOMMEN, VIP')
@@ -1471,7 +1486,8 @@ function stilPremium(typ, d, bild) {
     }
   }
   function schritt(t, i) {
-    if (SF) stepSuperfan(t, i); else stepTruhe(t, i);
+    if (PIRAT) stepPirat(t, i);
+    else if (SF) stepSuperfan(t, i); else stepTruhe(t, i);
     if (ORAKEL) stepOrakel(t, i);
     for (const p of P) {
       p.ox = p.x; p.oy = p.y; p.ovx = p.vx; p.ovy = p.vy; p.orot = p.rot; p.oph = p.ph;
@@ -1539,7 +1555,7 @@ function stilPremium(typ, d, bild) {
     const e = { zeilen: new Map() };
     e.oc = leinwand(1080, 420);
     if (e.oc) {
-      chromeText(e.oc.x, TITEL, SF ? 200 : 160, 0, SF ? 4 : 3);
+      chromeText(e.oc.x, TITEL, PIRAT ? T_GROESSE : SF ? 200 : 160, 0, SF ? 4 : 3);
       e.titel = backe(1080 + 180, 420 + 180, (x) => { x.shadowColor = C.chromGlow; x.shadowBlur = 45; x.drawImage(e.oc.c, -540, -210); });
     }
     const m = leinwand(4, 4)?.x;
@@ -2087,10 +2103,467 @@ function stilPremium(typ, d, bild) {
     namePlate(g, 1856 + 20 * (1 - pm), pm * F);
   }
 
+  // ---- Twitch-Piraten: Sub (Anker-Medaillon), Bits (Münzregen), Raid (Schiff) ----
+  const P_MY = 640, P_MR = 220;                       // Sub: Medaillon
+  const P_SLAM = 0.62, P_TITLE = 1.05, P_OUT = PSUB ? 5.4 : PBITS ? 5.6 : 6.4;
+  // Vollflächen reichen weit über die Designfläche: im Querformat UND bei kleiner Größe
+  // (Skalierung um die Mitte) müssen sie trotzdem bis an den Rand gehen.
+  const AUSSEN = 4200;
+  const B_BASE = 1010, B_HALF = 300;                  // Bits: Haufen
+  const BITS = d.bits, B_STUFE = BITS >= 1000 ? 2 : BITS >= 100 ? 1 : 0;
+  const B_HMAX = 150 + 50 * B_STUFE;
+  const B_GIESS0 = 0.2, B_GIESS1 = 2.6, B_ZAEHL0 = 0.9, B_ZAEHL1 = 3.0;
+  const S_WL = 1010, S_FEUER = [2.45, 2.72, 2.98], S_TITLE = 3.1; // Raid: Wasserlinie, Kanonen
+  const GESCHENK = d.geschenk;
+  const muenzBild = PIRAT ? ladeBild(d.tokenBild) : null;
+  // Haufen der Bits: eigene Zufallsfolge, damit die der anderen Stile unberührt bleibt.
+  const bHaufen = [];
+  if (PBITS) {
+    const r2 = prng(777), n = 90 + 50 * B_STUFE;
+    for (let i = 0; i < n; i++) {
+      const u = r2() * 2 - 1, h = Math.pow(r2(), 0.75) * (1 - u * u);
+      bHaufen.push({ u, h, rot: (r2() - 0.5) * 0.7, gem: B_STUFE === 2 && r2() < 0.14 ? [PAL_R, PAL_E, PAL_B, PAL_V][(r2() * 4) | 0] : null });
+    }
+    bHaufen.sort((p, q) => p.h - q.h);
+  }
+  const bFuell = (t) => eOutC(seg(t, B_GIESS0 + 0.35, B_GIESS1 + 0.25));
+  const bOberkante = (x, t) => { const u = clamp((x - CX) / B_HALF, -1, 1); return B_BASE - 8 - bFuell(t) * B_HMAX * (1 - u * u); };
+  const schiffX = (t) => (t < P_OUT ? lerp(-2600, CX, eOutC(seg(t, 0, 2.4))) : CX + 900 * eInC(seg(t, P_OUT, DUR)));
+  const schiffY = (t) => S_WL + Math.sin(t * 2.2) * 9;
+  const S_SKAL = 0.92;
+  /** Welt-Position der Kanonenluke, aus der Schuss j kommt (Luken 0, 2, 4). */
+  const luke = (j, t) => { const i = j * 2, lx = -230 + i * 105, ly = -62 + Math.pow((lx - 20) / 330, 2) * 18; return [schiffX(t) + lx * S_SKAL, schiffY(t) + ly * S_SKAL]; };
+
+  function stepPirat(t, fi) {
+    const neu = (p) => { p.n = fi; P.push(p); };
+    if (PSUB) {
+      if (fi === Math.round(P_SLAM * FPS)) {
+        for (let i = 0; i < 200; i++) { const a = R(0, 6.283), sp = Math.pow(rnd(), 0.6) * 32 + 8; neu({ kind: 'spark', x: CX + Math.cos(a) * 60, y: P_MY + Math.sin(a) * 60, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.93, grav: 0.3, life: 0, max: R(35, 75), col: pick(['#ffd56b', '#fff6d0', '#ffffff', '#c77dff']), w: R(2, 6), layer: 1 }); }
+        // Geschenk-Abos: ein Schwall kleiner Münzen, mehr Abos → mehr Münzen
+        const nm = GESCHENK ? 40 + Math.min(60, GESCHENK * 4) : 14;
+        for (let i = 0; i < nm; i++) { const a = R(0, 6.283), sp = R(10, GESCHENK ? 30 : 20); neu({ kind: 'coin', x: CX + Math.cos(a) * 80, y: P_MY + Math.sin(a) * 80, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 8, drag: 0.975, grav: 0.85, ph: R(0, 6.28), vph: R(0.15, 0.45), rot: R(-0.3, 0.3), s: R(28, 48), life: 0, max: R(70, 110), layer: 1 }); }
+      }
+      if (fi === Math.round(P_TITLE * FPS)) for (let i = 0; i < 70; i++) { const a = R(0, 6.283), sp = R(8, 24); neu({ kind: 'spark', x: CX + R(-320, 320), y: 1090, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5, drag: 0.92, grav: 0.2, life: 0, max: R(25, 45), col: pick(['#ffd56b', '#fff6d0', '#ffffff']), w: R(2, 5), layer: 1 }); }
+      if (t > P_SLAM && t < P_OUT && rnd() < 0.6) { const a = R(0, 6.283); neu({ kind: 'spark', x: CX + Math.cos(a) * P_MR * 1.1, y: P_MY + Math.sin(a) * P_MR * 1.1, vx: Math.cos(a) * 1.5, vy: R(-4, -1), drag: 0.98, grav: -0.02, life: 0, max: R(25, 45), col: pick(['#ffd56b', '#fff6d0']), w: R(2, 3.5), layer: 1 }); }
+    } else if (PBITS) {
+      // Gelandete Münzen verschwinden im Haufen (mit kurzem Klirren)
+      for (let k = P.length - 1; k >= 0; k--) {
+        const p = P[k];
+        if (p.kind !== 'coin' || !p.faellt || p.y < bOberkante(p.x, t)) continue;
+        P.splice(k, 1);
+        for (let j = 0; j < 3; j++) neu({ kind: 'spark', x: p.x, y: p.y, vx: R(-5, 5), vy: R(-7, -2), drag: 0.9, grav: 0.4, life: 0, max: R(8, 16), col: pick(['#fff6d0', '#ffd56b']), w: R(1.5, 3), layer: 1 });
+      }
+      if (t >= B_GIESS0 && t < B_GIESS1) {
+        const rate = [1.2, 2.2, 3.4][B_STUFE];
+        let n = Math.floor(rate) + (rnd() < rate % 1 ? 1 : 0);
+        while (n-- > 0) neu({ kind: 'coin', faellt: true, x: CX + R(-1, 1) * R(40, B_HALF * 0.85), y: R(-260, -60), vx: R(-1.5, 1.5), vy: R(10, 20), drag: 1, grav: 1.1, ph: R(0, 6.28), vph: R(0.18, 0.45), rot: R(-0.4, 0.4), s: R(42, 70), life: 0, max: 200, layer: 1 });
+        if (B_STUFE === 2 && rnd() < 0.18) neu({ kind: 'gem', faellt: true, x: CX + R(-220, 220), y: R(-200, -60), vx: 0, vy: R(10, 18), drag: 1, grav: 1.0, rot: R(-1, 1), vr: R(-0.15, 0.15), s: R(20, 32), pal: pick([PAL_R, PAL_E, PAL_B, PAL_V]), ph: R(0, 6), life: 0, max: 120, layer: 1 });
+      }
+      if (fi === Math.round(B_ZAEHL1 * FPS)) for (let i = 0; i < (B_STUFE === 2 ? 160 : 80); i++) { const a = R(0, 6.283), sp = Math.pow(rnd(), 0.6) * 26 + 6; neu({ kind: 'spark', x: CX + R(-280, 280), y: 1195, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.92, grav: 0.3, life: 0, max: R(25, 50), col: pick(['#ffd56b', '#fff6d0', '#ffffff', '#ffb627']), w: R(2, 5), layer: 1 }); }
+      if (B_STUFE === 2 && t > B_GIESS0 + 0.6 && t < P_OUT && rnd() < 0.5) neu({ kind: 'spark', x: CX + R(-B_HALF, B_HALF), y: bOberkante(CX, t) + R(0, 120), vx: 0, vy: R(-3, -1), drag: 0.97, grav: 0, life: 0, max: R(14, 26), col: pick(['#ffffff', '#e2b8ff', '#a8f5c4']), w: R(2, 4), layer: 1 });
+    } else if (PRAID) {
+      for (const [j, tf] of S_FEUER.entries()) {
+        if (fi !== Math.round(tf * FPS)) continue;
+        const [px, py] = luke(j, tf);
+        for (let i = 0; i < 12; i++) neu({ kind: 'dust', x: px + R(-10, 20), y: py + R(-8, 8), vx: R(-5, 6), vy: R(-4, 0.5), drag: 0.95, grav: -0.05, s: R(60, 120), rgb: pick(['225,218,232', '190,180,205', '160,150,180']), life: 0, max: R(40, 65), layer: 1, fade: 0.9 });
+        for (let i = 0; i < 30; i++) { const a = R(-0.7, 0.5), sp = R(8, 26); neu({ kind: 'spark', x: px, y: py, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.9, grav: 0.25, life: 0, max: R(10, 22), col: pick(['#ffd56b', '#fff6d0', '#ff9d1a']), w: R(2, 5), layer: 1 }); }
+      }
+      // Gischt am Bug, solange das Schiff fährt
+      if (t < 2.4 || t > P_OUT) { const bx = schiffX(t) + 310; for (let i = 0; i < 2; i++) neu({ kind: 'spark', x: bx + R(-20, 20), y: schiffY(t) + R(-10, 10), vx: R(2, 8), vy: R(-9, -3), drag: 0.95, grav: 0.5, life: 0, max: R(14, 26), col: pick(['#ffffff', '#e2d8ff', '#c9b8ff']), w: R(2, 4), layer: 1 }); }
+      if (fi === Math.round(S_TITLE * FPS)) for (let i = 0; i < 110; i++) { const a = R(0, 6.283), sp = R(8, 28); neu({ kind: 'spark', x: CX + R(-330, 330), y: 1270, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5, drag: 0.92, grav: 0.2, life: 0, max: R(25, 50), col: pick(['#ffd56b', '#fff6d0', '#ffffff']), w: R(2, 5), layer: 1 }); }
+    }
+  }
+
+  /** Halbtransparenter Kinohintergrund über die GANZE Fläche (auch im Querformat). */
+  function pHintergrund(g, t, F, cy) {
+    const appear = eOutC(seg(t, 0, 0.45));
+    const gr = g.createRadialGradient(CX, cy, 100, CX, cy, 1400);
+    gr.addColorStop(0, `rgba(30,10,24,${0.82 * appear * F})`); gr.addColorStop(0.6, `rgba(22,6,34,${0.6 * appear * F})`); gr.addColorStop(1, `rgba(14,3,26,${0.32 * appear * F})`);
+    g.fillStyle = gr; g.fillRect(-AUSSEN, -AUSSEN, W + 2 * AUSSEN, H + 2 * AUSSEN);
+  }
+  function pBlitz(g, t, t0, x, y, F) {
+    const pb = seg(t, t0, t0 + 0.4); if (pb <= 0 || pb >= 1) return;
+    g.save(); g.globalCompositeOperation = 'lighter';
+    const gr = g.createRadialGradient(x, y, 0, x, y, 1100); gr.addColorStop(0, `rgba(255,240,205,${(1 - eOutC(pb)) * 0.95 * F})`); gr.addColorStop(1, 'rgba(180,100,255,0)');
+    g.fillStyle = gr; g.fillRect(-AUSSEN, -AUSSEN, W + 2 * AUSSEN, H + 2 * AUSSEN); g.restore();
+  }
+  function pWellen(g, t, x, y, t0, F) {
+    for (const [dd, k, col] of [[0, 1, '255,214,110'], [0.1, 0.7, '190,110,255'], [0.22, 0.5, '255,255,255']]) {
+      const p = seg(t, t0 + dd, t0 + dd + 1.1); if (p <= 0 || p >= 1) continue;
+      g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = `rgba(${col},${(1 - p) * 0.8 * k * F})`; g.lineWidth = 38 * (1 - p) + 2;
+      g.beginPath(); g.arc(x, y, P_MR + 1400 * eOutExpo(p), 0, 7); g.stroke(); g.restore();
+    }
+  }
+  /** Goldene Live-Zahl (für den hochlaufenden Zähler). */
+  function goldZahl(g, text, size, x, y) {
+    g.font = fnt(size); g.letterSpacing = '3px'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    g.lineWidth = size * 0.16; g.strokeStyle = '#1e0b00'; g.strokeText(text, x, y + size * 0.04);
+    let gr = g.createLinearGradient(0, y - size / 2, 0, y + size / 2); gr.addColorStop(0, '#ffe9a6'); gr.addColorStop(0.5, '#a8650f'); gr.addColorStop(1, '#4a2803');
+    g.lineWidth = size * 0.08; g.strokeStyle = gr; g.strokeText(text, x, y);
+    gr = g.createLinearGradient(0, y - size * 0.4, 0, y + size * 0.4);
+    [[0, '#fffbe8'], [0.3, '#ffe08a'], [0.48, '#d4952a'], [0.52, '#8a5310'], [0.56, '#eab84e'], [0.8, '#fff1b8'], [1, '#c98a1e']].forEach(([p, c]) => gr.addColorStop(p, c));
+    g.shadowColor = '#ff9d00'; g.shadowBlur = 22; g.fillStyle = gr; g.fillText(text, x, y); g.shadowBlur = 0;
+  }
+  /** Großes Münz-Symbol: eigenes Token-Bild (falls gesetzt), sonst gezeichnete Münze. */
+  function grossMuenze(g, s, ph) {
+    const img = muenzBild && muenzBild.bereit();
+    if (!img) { muenze(g, s, ph); return; }
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, f = s / Math.max(iw, ih);
+    g.save(); g.scale(Math.max(0.08, Math.abs(Math.cos(ph))), 1); g.drawImage(img, (-iw * f) / 2, (-ih * f) / 2, iw * f, ih * f); g.restore();
+  }
+
+  // -- Sub: Steuerrad + Anker-Medaillon --
+  function steuerrad(g, r, rot) {
+    g.save(); g.rotate(rot);
+    for (let i = 0; i < 8; i++) {
+      g.save(); g.rotate(i * Math.PI / 4);
+      const sg = g.createLinearGradient(0, -12, 0, 12); sg.addColorStop(0, '#b0702e'); sg.addColorStop(0.5, '#6a3414'); sg.addColorStop(1, '#3a1606');
+      g.fillStyle = sg; g.beginPath(); g.roundRect(r * 0.6, -11, r * 0.78, 22, 8); g.fill();
+      g.strokeStyle = 'rgba(30,10,0,0.8)'; g.lineWidth = 2.5; g.stroke();
+      // Griff
+      g.translate(r * 1.42, 0);
+      const hg = g.createLinearGradient(-30, 0, 30, 0); hg.addColorStop(0, '#5a2a0e'); hg.addColorStop(0.5, '#c4864a'); hg.addColorStop(1, '#5a2a0e');
+      g.fillStyle = hg; g.beginPath(); g.ellipse(0, 0, 36, 17, 0, 0, 7); g.fill(); g.stroke();
+      g.fillStyle = goldLin(g, -10, -10, 10, 10); g.beginPath(); g.arc(-34, 0, 9, 0, 7); g.fill();
+      g.restore();
+    }
+    // Radkranz aus Holz mit Goldbeschlag
+    g.lineWidth = 34; g.strokeStyle = '#3a1606'; g.beginPath(); g.arc(0, 0, r * 1.12, 0, 7); g.stroke();
+    g.lineWidth = 26; g.strokeStyle = '#7a3c16'; g.beginPath(); g.arc(0, 0, r * 1.12, 0, 7); g.stroke();
+    g.lineWidth = 6; g.strokeStyle = goldConic(g, 0, 0, rot); g.beginPath(); g.arc(0, 0, r * 1.12 + 14, 0, 7); g.stroke(); g.beginPath(); g.arc(0, 0, r * 1.12 - 14, 0, 7); g.stroke();
+    g.restore();
+  }
+  function anker(g, s) {
+    // Einheitsanker (Höhe ≈ s), Ursprung = Mitte
+    const pfad = () => {
+      g.beginPath();
+      g.moveTo(0, -0.34 * s); g.lineTo(0, 0.4 * s);                                   // Schaft
+      g.moveTo(-0.24 * s, -0.24 * s); g.lineTo(0.24 * s, -0.24 * s);                   // Stock
+      g.moveTo(-0.36 * s, 0.1 * s); g.quadraticCurveTo(-0.3 * s, 0.42 * s, 0, 0.44 * s); g.quadraticCurveTo(0.3 * s, 0.42 * s, 0.36 * s, 0.1 * s); // Arme
+    };
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    pfad(); g.strokeStyle = '#2a1000'; g.lineWidth = 0.13 * s; g.stroke();
+    g.beginPath(); g.arc(0, -0.42 * s, 0.085 * s, 0, 7); g.lineWidth = 0.1 * s; g.stroke();
+    const gold = goldLin(g, -0.4 * s, -0.5 * s, 0.4 * s, 0.5 * s);
+    pfad(); g.strokeStyle = gold; g.lineWidth = 0.075 * s; g.stroke();
+    g.beginPath(); g.arc(0, -0.42 * s, 0.085 * s, 0, 7); g.lineWidth = 0.05 * s; g.stroke();
+    // Flunken (Spitzen) und Kugeln am Stock
+    g.fillStyle = gold;
+    for (const sx of [-1, 1]) {
+      g.beginPath(); g.moveTo(sx * 0.42 * s, 0.02 * s); g.lineTo(sx * 0.29 * s, 0.12 * s); g.lineTo(sx * 0.4 * s, 0.17 * s); g.closePath();
+      g.strokeStyle = '#2a1000'; g.lineWidth = 0.03 * s; g.stroke(); g.fill();
+      g.beginPath(); g.arc(sx * 0.27 * s, -0.24 * s, 0.045 * s, 0, 7); g.stroke(); g.fill();
+    }
+    g.strokeStyle = 'rgba(255,250,225,0.7)'; g.lineWidth = 0.018 * s; g.beginPath(); g.moveTo(-0.012 * s, -0.3 * s); g.lineTo(-0.012 * s, 0.32 * s); g.stroke();
+  }
+  function ankerMedaillon(g, t) {
+    const R0 = P_MR;
+    g.shadowColor = 'rgba(0,0,0,0.55)'; g.shadowBlur = 34; g.shadowOffsetY = 14;
+    g.fillStyle = goldConic(g, 0, 0, t * 0.35); g.beginPath(); g.arc(0, 0, R0, 0, 7); g.fill();
+    g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetY = 0;
+    g.strokeStyle = '#4a2803'; g.lineWidth = 4; g.beginPath(); g.arc(0, 0, R0 - 2, 0, 7); g.stroke();
+    g.strokeStyle = 'rgba(255,250,225,0.8)'; g.lineWidth = 2.5; g.beginPath(); g.arc(0, 0, R0 - 7, Math.PI * 1.05, Math.PI * 1.75); g.stroke();
+    const rg = g.createRadialGradient(-2, -2, 0, 0, 0, 7); rg.addColorStop(0, '#fffbe8'); rg.addColorStop(1, '#8a5310'); g.fillStyle = rg;
+    for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2, x = Math.cos(a) * R0 * 0.89, y = Math.sin(a) * R0 * 0.89; g.translate(x, y); g.beginPath(); g.arc(0, 0, 6, 0, 7); g.fill(); g.translate(-x, -y); }
+    g.fillStyle = '#2a0f00'; g.beginPath(); g.arc(0, 0, R0 * 0.79, 0, 7); g.fill();
+    let gr = g.createRadialGradient(-R0 * 0.15, -R0 * 0.2, 0, 0, 0, R0 * 0.76); gr.addColorStop(0, '#5a2496'); gr.addColorStop(0.6, '#2a0b52'); gr.addColorStop(1, '#10031f');
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, R0 * 0.76, 0, 7); g.fill();
+    // Tauring
+    g.save(); g.lineWidth = 14; g.strokeStyle = '#8a6a3a'; g.beginPath(); g.arc(0, 0, R0 * 0.68, 0, 7); g.stroke();
+    g.strokeStyle = '#d8b878'; g.lineWidth = 4;
+    for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2, r = R0 * 0.68; g.beginPath(); g.moveTo(Math.cos(a) * (r - 6), Math.sin(a) * (r - 6)); g.lineTo(Math.cos(a + 0.09) * (r + 6), Math.sin(a + 0.09) * (r + 6)); g.stroke(); }
+    g.restore();
+    g.save(); g.beginPath(); g.arc(0, 0, R0 * 0.6, 0, 7); g.clip(); g.globalCompositeOperation = 'lighter'; g.rotate(-t * 0.5);
+    for (let i = 0; i < 12; i++) { g.rotate(Math.PI / 6); g.fillStyle = 'rgba(200,140,255,0.08)'; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, R0, -0.09, 0.09); g.closePath(); g.fill(); }
+    g.restore();
+    g.save(); g.shadowColor = 'rgba(255,190,80,0.9)'; g.shadowBlur = 30; anker(g, R0 * 0.95); g.restore();
+    gr = null;
+  }
+  function zeichnePiratSub(g, t, a, F, ziel) {
+    const [shx, shy] = shakeAt(t, [[P_SLAM, 34], [P_TITLE, 10]]);
+    g.translate(shx, shy);
+    pHintergrund(g, t, F, 900);
+    const nach = t >= P_SLAM;
+    const rI = nach ? (0.55 + 0.9 * (1 - eOutC(seg(t, P_SLAM, P_SLAM + 1.4)))) * F : 0.25 * eInC(seg(t, 0.15, P_SLAM)) * F;
+    strahlen(g, CX, P_MY, 18, 1500, t * 0.16, '255,200,110', rI, 0.06);
+    strahlen(g, CX, P_MY, 12, 1200, -t * 0.11, '180,100,255', rI * 0.7, 0.045);
+    pWellen(g, t, CX, P_MY, P_SLAM, F);
+    drawP(g, F, 0, a, ziel);
+    // Einschlag: von groß und hoch herab, kurzes Stauchen
+    const pf = seg(t, 0.12, P_SLAM);
+    const sc = nach ? (1 + 0.09 * Math.exp(-(t - P_SLAM) * 7) * Math.cos((t - P_SLAM) * 24)) * (1 + 0.015 * Math.sin((t - P_SLAM) * 2.4)) : lerp(3.0, 1, eInC(pf));
+    const out = t > P_OUT ? 1 + 0.25 * eInC(seg(t, P_OUT, DUR)) : 1;
+    if (pf > 0) {
+      g.save(); g.globalAlpha = F * clamp(pf * 4); g.translate(CX, P_MY - (nach ? 0 : 140 * (1 - eInC(pf)))); g.scale(sc * out, sc * out);
+      g.save(); g.globalCompositeOperation = 'lighter';
+      const hg = g.createRadialGradient(0, 0, P_MR * 0.4, 0, 0, P_MR * 2.1); hg.addColorStop(0, 'rgba(255,190,90,0.7)'); hg.addColorStop(0.5, 'rgba(160,70,255,0.35)'); hg.addColorStop(1, 'rgba(120,40,255,0)');
+      g.fillStyle = hg; g.beginPath(); g.arc(0, 0, P_MR * 2.1, 0, 7); g.fill(); g.restore();
+      steuerrad(g, P_MR, (nach ? 0 : -2.4 * (1 - eOutC(pf))) + t * 0.25 + (nach ? 1.2 * (1 - Math.exp(-(t - P_SLAM) * 3)) : 0));
+      ankerMedaillon(g, t);
+      g.restore();
+      for (let i = 0; i < 3; i++) {
+        const an = t * (1.5 + i * 0.4) + i * 2.1, ex = Math.cos(an) * P_MR * (1.55 + i * 0.1), ey = Math.sin(an) * P_MR * (0.45 + i * 0.1);
+        g.save(); g.translate(CX, P_MY); g.rotate(-0.35 + i * 0.35); g.globalAlpha = F * clamp((t - P_SLAM - 0.4) * 2); glint(g, ex, ey, 26, 1); g.restore();
+      }
+    }
+    drawP(g, F, 1, a, ziel);
+    pBlitz(g, t, P_SLAM, CX, P_MY, F);
+    // Texte
+    const pt = seg(t, P_TITLE, P_TITLE + 0.28);
+    if (pt > 0) {
+      const ts = (1 + 1.5 * (1 - eOutExpo(pt))) * (1 + 0.06 * eInC(seg(t, P_OUT, DUR)));
+      const sh = t < P_TITLE + 0.9 ? seg(t, P_TITLE + 0.35, P_TITLE + 0.9) : seg(t, 3.6, 4.15);
+      drawChrome(g, T_GROESSE, CX, 1085, ts, clamp(pt * 3) * F, sh, 3);
+    }
+    const UZ = GESCHENK ? `${formatDe(GESCHENK)} ${GESCHENK === 1 ? 'ABO' : 'ABOS'} FÜR DIE CREW` : d.monate > 1 ? 'TREUE CREW — DANKE!' : 'WILLKOMMEN AN BORD';
+    const ps = eOutC(seg(t, P_TITLE + 0.4, P_TITLE + 0.8));
+    spaced(g, UZ, 48, CX, 1205 + 22 * (1 - ps), ps * F, '#ffe9a8', '#9a3dff', 8);
+    const pa = eOutBack(seg(t, P_TITLE + 0.6, P_TITLE + 1.05), 2);
+    avatar(g, CX, 1400, 112, pa, clamp(pa) * F, t, (r) => { g.save(); g.translate(r * 0.74, r * 0.74); g.rotate(-0.25); anker(g, 86); g.restore(); });
+    const pm = eOutC(seg(t, P_TITLE + 0.9, P_TITLE + 1.25));
+    namePlate(g, 1595 + 24 * (1 - pm), pm * F);
+  }
+
+  // -- Bits: Münzregen, Haufen, Zähler --
+  function bitsHaufen(g, t, F) {
+    const f = bFuell(t); if (f <= 0) return;
+    g.save(); g.globalAlpha = F;
+    // Schatten + Schein unter dem Haufen
+    let gr = g.createRadialGradient(CX, B_BASE, 0, CX, B_BASE, B_HALF * 1.3); gr.addColorStop(0, 'rgba(0,0,0,0.7)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.save(); g.translate(CX, B_BASE + 6); g.scale(1, 0.16); g.translate(-CX, -B_BASE - 6); g.fillStyle = gr; g.beginPath(); g.arc(CX, B_BASE + 6, B_HALF * 1.3, 0, 7); g.fill(); g.restore();
+    g.globalCompositeOperation = 'lighter';
+    gr = g.createRadialGradient(CX, B_BASE - B_HMAX * f * 0.5, 0, CX, B_BASE - B_HMAX * f * 0.5, B_HALF * 1.2); gr.addColorStop(0, `rgba(255,200,90,${0.35 * f})`); gr.addColorStop(1, 'rgba(255,160,40,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(CX, B_BASE - B_HMAX * f * 0.5, B_HALF * 1.2, 0, 7); g.fill();
+    g.globalCompositeOperation = 'source-over';
+    const cg = g.createLinearGradient(-30, -10, 30, 10); cg.addColorStop(0, '#fff6d0'); cg.addColorStop(0.45, '#ffd56b'); cg.addColorStop(1, '#a8650f');
+    for (const hp of bHaufen) {
+      if (hp.h > f * (1 - hp.u * hp.u) + 0.001) continue;
+      const x = CX + hp.u * B_HALF * (0.35 + 0.65 * f), y = B_BASE - 10 - hp.h * B_HMAX;
+      g.save(); g.translate(x, y);
+      if (hp.gem) { g.rotate(hp.rot); gem(g, 22, hp.gem, t, hp.u * 5); }
+      else {
+        g.rotate(hp.rot * 0.4); g.fillStyle = '#7a4a08'; g.beginPath(); g.ellipse(0, 4, 30, 12, 0, 0, 7); g.fill();
+        g.fillStyle = cg; g.beginPath(); g.ellipse(0, 0, 30, 11, 0, 0, 7); g.fill();
+        g.strokeStyle = 'rgba(122,74,8,0.6)'; g.lineWidth = 2; g.beginPath(); g.ellipse(0, 0, 21, 7, 0, 0, 7); g.stroke();
+      }
+      g.restore();
+    }
+    g.restore();
+    // Funkeln auf dem Haufen
+    const nGl = B_STUFE === 2 ? 5 : B_STUFE === 1 ? 3 : 2;
+    for (let i = 0; i < nGl; i++) {
+      const u = Math.sin(i * 2.7) * 0.75, x = CX + u * B_HALF * 0.9, y = B_BASE - 20 - (1 - u * u) * B_HMAX * f * (0.4 + 0.5 * ((i * 0.37) % 1));
+      glint(g, x, y, B_STUFE === 2 ? 46 : 34, Math.pow(Math.max(0, Math.sin(t * 2.3 + i * 1.9)), 12) * F * f);
+    }
+  }
+  function zeichnePiratBits(g, t, a, F, ziel) {
+    const [shx, shy] = shakeAt(t, [[B_ZAEHL1, B_STUFE === 2 ? 18 : 10]]);
+    g.translate(shx, shy);
+    pHintergrund(g, t, F, 1000);
+    const rI = (0.3 + 0.35 * bFuell(t) + 0.6 * (1 - eOutC(seg(t, B_ZAEHL1, B_ZAEHL1 + 1.2))) * (t > B_ZAEHL1 ? 1 : 0)) * F * eOutC(seg(t, 0, 0.5));
+    strahlen(g, CX, B_BASE - 120, 16, 1300, t * 0.14, '255,200,100', rI, 0.06);
+    if (B_STUFE === 2) strahlen(g, CX, B_BASE - 120, 10, 1100, -t * 0.1, '180,100,255', rI * 0.7, 0.045);
+    // Lichtkegel von oben, aus dem die Münzen fallen
+    g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = F * eOutC(seg(t, 0, 0.6)) * (1 - 0.6 * seg(t, B_GIESS1, B_GIESS1 + 1));
+    const lg = g.createLinearGradient(0, -200, 0, B_BASE); lg.addColorStop(0, 'rgba(255,220,140,0.42)'); lg.addColorStop(1, 'rgba(255,190,80,0)');
+    g.fillStyle = lg; g.beginPath(); g.moveTo(CX - 150, -400); g.lineTo(CX + 150, -400); g.lineTo(CX + B_HALF + 60, B_BASE); g.lineTo(CX - B_HALF - 60, B_BASE); g.closePath(); g.fill(); g.restore();
+    drawP(g, F, 0, a, ziel);
+    bitsHaufen(g, t, F);
+    drawP(g, F, 1, a, ziel);
+    // Zähler-Plakette
+    const pc = eOutBack(seg(t, B_ZAEHL0 - 0.3, B_ZAEHL0 + 0.1), 2);
+    if (pc > 0) {
+      const n = Math.round(BITS * eOutC(seg(t, B_ZAEHL0, B_ZAEHL1)));
+      const fertigText = `${formatDe(BITS)} BITS`;
+      const pop = t >= B_ZAEHL1 ? 1 + (B_STUFE === 2 ? 0.16 : 0.1) * Math.exp(-(t - B_ZAEHL1) * 7) : 1;
+      const w = 820, h = 200, cy = 1195;
+      g.save(); g.globalAlpha = clamp(pc) * F * (1 - 0.0 * eInC(seg(t, P_OUT, DUR))); g.translate(CX, cy); g.scale(pc * pop, pc * pop);
+      g.shadowColor = B_STUFE === 2 ? 'rgba(190,110,255,0.85)' : 'rgba(255,150,30,0.75)'; g.shadowBlur = 44;
+      g.fillStyle = 'rgba(30,10,4,0.92)'; g.beginPath(); g.roundRect(-w / 2, -h / 2, w, h, 100); g.fill(); g.shadowBlur = 0;
+      g.strokeStyle = goldLin(g, -w / 2, -h / 2, w / 2, h / 2); g.lineWidth = 7; g.stroke();
+      g.strokeStyle = 'rgba(255,240,200,0.22)'; g.lineWidth = 2; g.beginPath(); g.roundRect(-w / 2 + 12, -h / 2 + 12, w - 24, h - 24, 88); g.stroke();
+      g.save(); g.translate(-w / 2 + 104, 0); g.shadowColor = 'rgba(255,190,80,0.8)'; g.shadowBlur = 24; grossMuenze(g, 138, Math.sin(t * 3) * 0.7); g.restore();
+      // Schriftgröße am Endstand messen — sonst springt sie beim Hochzählen
+      g.letterSpacing = '3px'; const fs = passendeGroesse(g, fertigText, 112, w - 250);
+      goldZahl(g, `${formatDe(n)} BITS`, fs, 62, 6);
+      g.restore();
+    }
+    const NACHRICHT = d.nachricht;
+    const pn = eOutC(seg(t, B_ZAEHL0 + 0.6, B_ZAEHL0 + 1.0));
+    if (NACHRICHT) spaced(g, `„${NACHRICHT}“`, 40, CX, 1350 + 18 * (1 - pn), pn * F, '#fff4d6', '#9a3dff', 2);
+    const pa = eOutBack(seg(t, B_ZAEHL0 + 0.8, B_ZAEHL0 + 1.25), 2);
+    const ay = NACHRICHT ? 1520 : 1470;
+    avatar(g, CX, ay, 100, pa, clamp(pa) * F, t, (r) => { g.save(); g.translate(r * 0.74, r * 0.74); muenze(g, 70, Math.sin(t * 2.5) * 0.5); g.restore(); });
+    const pm = eOutC(seg(t, B_ZAEHL0 + 1.1, B_ZAEHL0 + 1.45));
+    namePlate(g, ay + 190 + 22 * (1 - pm), pm * F);
+  }
+
+  // -- Raid: Nachtmeer, Schiff, Kanonen --
+  function meer(g, t, F, vorn) {
+    const lagen = vorn ? [[2, 1.0], [3, 0.9]] : [[0, 0.75], [1, 0.85]];
+    for (const [k, al] of lagen) {
+      const y0 = S_WL - 50 + k * 34, A = 22 - k * 3, sp = 1.1 + k * 0.35;
+      g.save(); g.globalAlpha = F * al * eOutC(seg(t, 0, 0.5));
+      g.beginPath(); g.moveTo(-AUSSEN, H + 200);
+      for (let x = -AUSSEN; x <= W + AUSSEN; x += 40) g.lineTo(x, y0 + A * Math.sin(x * 0.011 + t * sp + k * 1.7) + A * 0.45 * Math.sin(x * 0.029 - t * 1.6 + k));
+      g.lineTo(W + AUSSEN, H + 200); g.closePath();
+      const gr = g.createLinearGradient(0, y0 - A, 0, y0 + 420);
+      gr.addColorStop(0, ['#3a1f6e', '#2c1458', '#1f0c42', '#160830'][k]); gr.addColorStop(0.45, 'rgba(14,4,30,0.85)'); gr.addColorStop(1, 'rgba(10,2,22,0)');
+      g.fillStyle = gr; g.fill();
+      // Schaumkrone mit Mondlicht
+      g.beginPath();
+      for (let x = -AUSSEN; x <= W + AUSSEN; x += 40) { const y = y0 + A * Math.sin(x * 0.011 + t * sp + k * 1.7) + A * 0.45 * Math.sin(x * 0.029 - t * 1.6 + k); x === -AUSSEN ? g.moveTo(x, y) : g.lineTo(x, y); }
+      g.strokeStyle = k < 2 ? 'rgba(200,170,255,0.35)' : 'rgba(255,225,160,0.4)'; g.lineWidth = 3; g.stroke();
+      g.restore();
+    }
+  }
+  function segel(g, x, yTop, yBot, bOben, bUnten, bauch) {
+    g.beginPath(); g.moveTo(x - bOben / 2, yTop); g.lineTo(x + bOben / 2, yTop);
+    g.quadraticCurveTo(x + bUnten / 2 + bauch, (yTop + yBot) / 2, x + bUnten / 2, yBot);
+    g.quadraticCurveTo(x + bauch * 0.6, yBot + 22, x - bUnten / 2, yBot);
+    g.quadraticCurveTo(x - bUnten / 2 + bauch * 0.7, (yTop + yBot) / 2, x - bOben / 2, yTop); g.closePath();
+    const sg = g.createLinearGradient(x - bUnten / 2, 0, x + bUnten / 2 + bauch, 0); sg.addColorStop(0, '#8f7650'); sg.addColorStop(0.45, '#e9d6a8'); sg.addColorStop(0.8, '#f8ecc8'); sg.addColorStop(1, '#b89a64');
+    g.fillStyle = sg; g.fill(); g.strokeStyle = 'rgba(40,20,6,0.85)'; g.lineWidth = 3; g.stroke();
+    g.strokeStyle = 'rgba(90,60,30,0.35)'; g.lineWidth = 2;
+    for (let i = 1; i < 3; i++) { const yy = lerp(yTop, yBot, i / 3); g.beginPath(); g.moveTo(x - lerp(bOben, bUnten, i / 3) / 2 + 6, yy); g.quadraticCurveTo(x + bauch * 0.5, yy + 10, x + lerp(bOben, bUnten, i / 3) / 2 + bauch * 0.4, yy); g.stroke(); }
+  }
+  function flagge(g, x, y, t) {
+    g.save(); g.translate(x, y);
+    g.beginPath(); g.moveTo(0, 0);
+    for (let i = 0; i <= 8; i++) g.lineTo(i * 12, Math.sin(t * 6 - i * 0.7) * 5 * (i / 8));
+    for (let i = 8; i >= 0; i--) g.lineTo(i * 12, 62 + Math.sin(t * 6 - i * 0.7) * 5 * (i / 8));
+    g.closePath(); g.fillStyle = '#0c0410'; g.fill(); g.strokeStyle = 'rgba(255,214,110,0.6)'; g.lineWidth = 2; g.stroke();
+    // Totenkopf mit gekreuzten Knochen
+    const sx = 48, sy = 28 + Math.sin(t * 6 - 2.8) * 2;
+    g.strokeStyle = '#f3ead2'; g.lineWidth = 5; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(sx - 18, sy + 4); g.lineTo(sx + 18, sy + 26); g.moveTo(sx + 18, sy + 4); g.lineTo(sx - 18, sy + 26); g.stroke();
+    g.fillStyle = '#f3ead2'; g.beginPath(); g.arc(sx, sy, 13, 0, 7); g.fill(); g.fillRect(sx - 7, sy + 8, 14, 9);
+    g.fillStyle = '#0c0410'; g.beginPath(); g.arc(sx - 5, sy - 1, 3.6, 0, 7); g.arc(sx + 5, sy - 1, 3.6, 0, 7); g.fill();
+    g.restore();
+  }
+  function schiff(g, t) {
+    // Ursprung = Wasserlinie Mitte; Bug zeigt nach rechts
+    g.lineJoin = 'round';
+    // Bugspriet + Takelage
+    g.strokeStyle = '#2a1206'; g.lineWidth = 12; g.lineCap = 'round'; g.beginPath(); g.moveTo(290, -120); g.lineTo(470, -205); g.stroke();
+    g.strokeStyle = 'rgba(30,14,4,0.8)'; g.lineWidth = 2.5;
+    g.beginPath(); g.moveTo(470, -205); g.lineTo(150, -600); g.moveTo(470, -205); g.lineTo(150, -420); g.moveTo(-180, -680); g.lineTo(-330, -210); g.moveTo(10, -720); g.lineTo(-180, -680); g.moveTo(10, -720); g.lineTo(150, -600); g.stroke();
+    // Masten
+    const masten = [[-180, -680], [10, -730], [160, -600]];
+    for (const [mx, top] of masten) {
+      const mg = g.createLinearGradient(mx - 8, 0, mx + 8, 0); mg.addColorStop(0, '#2a1206'); mg.addColorStop(0.5, '#7a4420'); mg.addColorStop(1, '#2a1206');
+      g.fillStyle = mg; g.fillRect(mx - 8, top, 16, -110 - top);
+    }
+    // Segel (Wind von links: Bauch nach rechts)
+    const wind = 18 + 6 * Math.sin(t * 1.4);
+    segel(g, -180, -640, -470, 170, 210, wind); segel(g, -180, -455, -260, 200, 250, wind);
+    segel(g, 10, -690, -520, 190, 230, wind); segel(g, 10, -505, -290, 230, 280, wind);
+    segel(g, 160, -560, -420, 150, 180, wind); segel(g, 160, -405, -250, 180, 220, wind);
+    // Klüver (Dreieckssegel vorn)
+    g.beginPath(); g.moveTo(190, -560); g.quadraticCurveTo(330 + wind, -330, 440, -200); g.lineTo(220, -170); g.closePath();
+    const kg = g.createLinearGradient(190, 0, 440, 0); kg.addColorStop(0, '#a88c5c'); kg.addColorStop(1, '#f4e6bf'); g.fillStyle = kg; g.fill(); g.strokeStyle = 'rgba(40,20,6,0.85)'; g.lineWidth = 3; g.stroke();
+    flagge(g, 10 + 8, -730 - 66, t);
+    // Rumpf
+    const rumpf = () => {
+      g.beginPath(); g.moveTo(-330, -210); g.lineTo(-180, -200); g.quadraticCurveTo(0, -112, 250, -118); g.lineTo(330, -150);
+      g.quadraticCurveTo(320, -20, 210, 40); g.lineTo(-250, 40); g.quadraticCurveTo(-320, 10, -345, -120); g.closePath();
+    };
+    rumpf();
+    let hg = g.createLinearGradient(0, -210, 0, 40); hg.addColorStop(0, '#8a4a22'); hg.addColorStop(0.35, '#5a2a10'); hg.addColorStop(1, '#1e0904');
+    g.fillStyle = hg; g.fill(); g.strokeStyle = '#140600'; g.lineWidth = 4; g.stroke();
+    g.save(); rumpf(); g.clip();
+    g.strokeStyle = 'rgba(20,6,0,0.55)'; g.lineWidth = 2;
+    for (let y = -170; y < 40; y += 22) { g.beginPath(); g.moveTo(-360, y); g.quadraticCurveTo(0, y + 50, 360, y - 10); g.stroke(); }
+    // Mondlicht-Kante oben
+    hg = g.createLinearGradient(0, -220, 0, -120); hg.addColorStop(0, 'rgba(255,220,150,0.35)'); hg.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = hg; g.fillRect(-360, -230, 720, 120);
+    g.restore();
+    // Goldene Reling + Zierleiste
+    g.strokeStyle = goldLin(g, -330, -220, 330, -100); g.lineWidth = 7;
+    g.beginPath(); g.moveTo(-330, -212); g.lineTo(-180, -202); g.quadraticCurveTo(0, -114, 250, -120); g.lineTo(330, -152); g.stroke();
+    g.lineWidth = 4; g.beginPath(); g.moveTo(-320, -95); g.quadraticCurveTo(0, -20, 300, -70); g.stroke();
+    // Heckkastell mit beleuchteten Fenstern
+    g.fillStyle = '#3a1808'; g.beginPath(); g.moveTo(-345, -210); g.lineTo(-345, -275); g.lineTo(-205, -265); g.lineTo(-180, -202); g.closePath(); g.fill(); g.strokeStyle = goldLin(g, -345, -280, -180, -200); g.lineWidth = 4; g.stroke();
+    for (let i = 0; i < 3; i++) {
+      const wx = -322 + i * 42;
+      g.fillStyle = '#ffcf6a'; g.beginPath(); g.roundRect(wx, -255, 26, 32, 6); g.fill();
+      g.save(); g.globalCompositeOperation = 'lighter'; const lg = g.createRadialGradient(wx + 13, -239, 0, wx + 13, -239, 60); lg.addColorStop(0, 'rgba(255,200,100,0.5)'); lg.addColorStop(1, 'rgba(255,160,40,0)'); g.fillStyle = lg; g.beginPath(); g.arc(wx + 13, -239, 60, 0, 7); g.fill(); g.restore();
+    }
+    // Kanonenluken
+    for (let i = 0; i < 5; i++) {
+      const px = -230 + i * 105, py = -62 + Math.pow((px - 20) / 330, 2) * 18;
+      g.fillStyle = goldLin(g, px - 20, py - 18, px + 20, py + 18); g.beginPath(); g.roundRect(px - 22, py - 18, 44, 36, 5); g.fill();
+      g.fillStyle = '#0a0300'; g.beginPath(); g.roundRect(px - 15, py - 12, 30, 24, 4); g.fill();
+      g.fillStyle = '#1c1c22'; g.beginPath(); g.arc(px, py, 8, 0, 7); g.fill();
+    }
+    // Hecklaterne
+    g.save(); g.globalCompositeOperation = 'lighter'; const lt = g.createRadialGradient(-350, -290, 0, -350, -290, 90); lt.addColorStop(0, `rgba(255,210,120,${0.7 + 0.2 * Math.sin(t * 9)})`); lt.addColorStop(1, 'rgba(255,160,40,0)'); g.fillStyle = lt; g.beginPath(); g.arc(-350, -290, 90, 0, 7); g.fill(); g.restore();
+  }
+  function zeichnePiratRaid(g, t, a, F, ziel) {
+    const [shx, shy] = shakeAt(t, [...S_FEUER.map((tf) => [tf, 16]), [S_TITLE, 26]]);
+    g.translate(shx, shy);
+    const appear = eOutC(seg(t, 0, 0.5));
+    // Nachthimmel (halbtransparent, ganze Fläche)
+    let gr = g.createLinearGradient(0, -400, 0, S_WL + 300);
+    gr.addColorStop(0, `rgba(8,2,22,${0.45 * appear * F})`); gr.addColorStop(0.6, `rgba(30,10,52,${0.7 * appear * F})`); gr.addColorStop(1, `rgba(20,6,36,${0.72 * appear * F})`);
+    g.fillStyle = gr; g.fillRect(-AUSSEN, -AUSSEN, W + 2 * AUSSEN, H + 2 * AUSSEN);
+    // Mond
+    g.save(); g.globalAlpha = F * appear;
+    g.globalCompositeOperation = 'lighter';
+    gr = g.createRadialGradient(780, 330, 0, 780, 330, 420); gr.addColorStop(0, 'rgba(230,210,255,0.5)'); gr.addColorStop(1, 'rgba(150,90,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(780, 330, 420, 0, 7); g.fill();
+    g.globalCompositeOperation = 'source-over';
+    gr = g.createRadialGradient(760, 310, 10, 780, 330, 110); gr.addColorStop(0, '#fffaf0'); gr.addColorStop(1, '#d9c9f0'); g.fillStyle = gr; g.beginPath(); g.arc(780, 330, 105, 0, 7); g.fill();
+    g.fillStyle = 'rgba(150,130,190,0.35)';
+    for (const [kx, ky, kr] of [[750, 300, 20], [815, 360, 14], [800, 288, 9], [735, 365, 11]]) { g.beginPath(); g.arc(kx, ky, kr, 0, 7); g.fill(); }
+    g.restore();
+    // Strahlen nach dem Entern
+    const rI = t < S_TITLE ? 0 : (0.4 + 0.8 * (1 - eOutC(seg(t, S_TITLE, S_TITLE + 1.4)))) * F;
+    strahlen(g, CX, 1260, 16, 1400, t * 0.15, '255,200,100', rI, 0.06);
+    meer(g, t, F, false);
+    drawP(g, F, 0, a, ziel);
+    // Schiff
+    const sx = schiffX(t), sy = schiffY(t), rot = Math.sin(t * 1.8) * 0.03 + (t < 2.3 ? -0.03 * (1 - seg(t, 1.2, 2.3)) : 0);
+    let rueck = 0; for (const tf of S_FEUER) if (t > tf) rueck += Math.exp(-(t - tf) * 9) * 14;
+    g.save(); g.globalAlpha = F * appear; g.translate(sx - rueck, sy); g.rotate(rot); g.scale(S_SKAL, S_SKAL);
+    schiff(g, t);
+    g.restore();
+    // Mündungsfeuer
+    for (const [j, tf] of S_FEUER.entries()) {
+      const p = seg(t, tf, tf + 0.22); if (p <= 0 || p >= 1) continue;
+      const [px, py] = luke(j, t);
+      g.save(); g.globalCompositeOperation = 'lighter';
+      gr = g.createRadialGradient(px, py, 0, px, py, 160); gr.addColorStop(0, `rgba(255,240,200,${(1 - p) * F})`); gr.addColorStop(0.4, `rgba(255,160,40,${0.6 * (1 - p) * F})`); gr.addColorStop(1, 'rgba(255,120,0,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(px, py, 160, 0, 7); g.fill(); g.restore();
+    }
+    meer(g, t, F, true);
+    drawP(g, F, 1, a, ziel);
+    pBlitz(g, t, S_TITLE, CX, 1260, F * 0.8);
+    // Texte
+    const pt = seg(t, S_TITLE, S_TITLE + 0.28);
+    if (pt > 0) {
+      const ts = (1 + 1.6 * (1 - eOutExpo(pt))) * (1 + 0.06 * eInC(seg(t, P_OUT, DUR)));
+      const sh = t < S_TITLE + 0.9 ? seg(t, S_TITLE + 0.35, S_TITLE + 0.9) : seg(t, 5.2, 5.75);
+      g.save(); g.translate(CX, 1255); g.rotate(-0.035); g.translate(-CX, -1255);
+      drawChrome(g, T_GROESSE, CX, 1255, ts, clamp(pt * 3) * F, sh, 6);
+      g.restore();
+    }
+    const z = d.zuschauer;
+    const zeile = z > 0 ? `${formatDe(z)} ${z === 1 ? 'PIRAT' : 'PIRATEN'} VON ${(NAME || 'JEMAND').toLocaleUpperCase('de-DE')}` : `RAID VON ${(NAME || 'JEMAND').toLocaleUpperCase('de-DE')}`;
+    const ps = eOutC(seg(t, S_TITLE + 0.4, S_TITLE + 0.8));
+    spaced(g, zeile, 52, CX, 1400 + 22 * (1 - ps), ps * F, '#ffe9a8', '#9a3dff', 6);
+    const pa = eOutBack(seg(t, S_TITLE + 0.6, S_TITLE + 1.05), 2);
+    avatar(g, CX, 1575, 104, pa, clamp(pa) * F, t, null);
+  }
+  function zeichnePirat(g, t, a, F, ziel) {
+    if (PSUB) zeichnePiratSub(g, t, a, F, ziel);
+    else if (PBITS) zeichnePiratBits(g, t, a, F, ziel);
+    else zeichnePiratRaid(g, t, a, F, ziel);
+  }
+
   function zeichne(g, t, a, rf, ziel) {
     if (!ebenen) ebenen = baueEbenen();
-    // Orakel: ganze Szene um ihre Mitte verkleinern (Größe in %, Standard 75)
-    if (ORAKEL && d.groesse < 100) { const k = d.groesse / 100; g.translate(CX, 1000); g.scale(k, k); g.translate(-CX, -1000); }
+    // Orakel und Twitch-Piraten: ganze Szene um ihre Mitte verkleinern (Größe in %, Standard 75)
+    if ((ORAKEL || PIRAT) && d.groesse < 100) { const k = d.groesse / 100; g.translate(CX, 1000); g.scale(k, k); g.translate(-CX, -1000); }
+    if (PIRAT) { zeichnePirat(g, t, a, 1 - eInC(seg(t, P_OUT, DUR)), ziel); return; }
     if (SF) zeichneSuperfan(g, t, a, rf, ziel); else zeichneTruhe(g, t, a, rf, ziel);
   }
   return { dauer: DUR, zuruecksetzen, schritt, zeichne, vergissText: () => { freigeben(ebenen); ebenen = null; } };
@@ -2108,12 +2581,16 @@ const STILE = {
   'vip-gold': (d, _S, b) => stilPremium('vip', d, b),
   'truhe-premium': (d, _S, b) => stilPremium('truhe', d, b),
   'piraten-orakel': (d, _S, b) => stilPremium('orakel', d, b),
+  'piraten-sub': (d, _S, b) => stilPremium('psub', d, b),
+  'piraten-bits': (d, _S, b) => stilPremium('pbits', d, b),
+  'piraten-raid': (d, _S, b) => stilPremium('praid', d, b),
   'ziel-erreicht': (d, S, b) => stilTikTok(true, d, S, b, 'ziel'),
 };
 
 /** 84213 → „84.213". */
 export function formatDe(n) { return String(Math.max(0, Math.round(Number(n) || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
 const ganz = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.max(0, Math.min(9999, Math.round(n))) : null; };
+const grosseZahl = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.max(0, Math.min(99999999, Math.round(n))) : 0; };
 
 /** Ereignis-Daten auf sichere Werte bringen (TikTok lässt Felder weg). */
 function normalisiere(daten) {
@@ -2140,6 +2617,12 @@ function normalisiere(daten) {
     tokenBild: typeof dd.tokenBild === 'string' ? dd.tokenBild : '',
     kisteBild: typeof dd.kisteBild === 'string' ? dd.kisteBild : '',
     groesse: Math.max(40, Math.min(100, Math.round(Number(dd.groesse ?? 75)) || 75)),
+    // Twitch-Piraten (fehlt → 0 bzw. leer)
+    monate: ganz(dd.monate) ?? 0,
+    geschenk: ganz(dd.geschenk) ?? 0,
+    bits: grosseZahl(dd.bits),
+    zuschauer: grosseZahl(dd.zuschauer),
+    nachricht: typeof dd.nachricht === 'string' ? kuerze(dd.nachricht.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim(), 44) : '',
   };
 }
 

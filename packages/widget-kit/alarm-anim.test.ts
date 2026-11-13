@@ -393,3 +393,89 @@ test('Schrift kommt nach dem ersten Bild → Textebenen werden mit BxInter neu g
     delete g.FontFace;
   }
 });
+
+// ---- Twitch-Piraten: Sub, Bits, Raid ----
+const PIRATEN_IDS = ['piraten-sub', 'piraten-bits', 'piraten-raid'];
+
+test('Katalog: Twitch-Piraten mit Dauer, Sound und Ereignis', () => {
+  const erwartet: Record<string, [number, string, string]> = {
+    'piraten-sub': [6.2, 'botexe-superfan.wav', 'twitch_sub'],
+    'piraten-bits': [6.4, 'botexe-truhe.wav', 'cheer'],
+    'piraten-raid': [7.2, 'botexe-boom.wav', 'raid'],
+  };
+  for (const [id, [dauer, sound, art]] of Object.entries(erwartet)) {
+    const a = ANIMATIONEN[id];
+    assert.ok(a, `${id} fehlt im Katalog`);
+    assert.equal(a.dauer, dauer);
+    assert.equal(a.sound, sound);
+    assert.deepEqual([...a.fuer], [art]);
+    assert.equal(erzeugeRenderer(id, {}).dauer, dauer);
+  }
+});
+
+for (const id of PIRATEN_IDS) {
+  test(`${id}: rendert den ganzen Ablauf ohne NaN — auch lückenhaft, im Querformat und klein`, () => {
+    for (const daten of [
+      { name: 'KäptnMia', monate: 7, bits: 1500, nachricht: 'Ahoi!', zuschauer: 42, groesse: 75 },
+      {},
+      { geschenk: 'x', bits: null, zuschauer: -5, nachricht: 42, groesse: 'quatsch' },
+      { name: '🖤'.repeat(60), geschenk: 9999, bits: 99999999, zuschauer: 99999999, nachricht: 'X'.repeat(300), groesse: 40 },
+    ]) {
+      const r = erzeugeRenderer(id, daten as any);
+      for (let t = 0; t <= r.dauer + 1e-9; t += 0.2) {
+        for (const [w, h] of [[1080, 1920], [1920, 1080]]) {
+          const z: Zaehler = { aufrufe: 0, nan: 0, log: [] };
+          r.zeichne(fakeKontext(z), t, w, h);
+          assert.equal(z.nan, 0, `${id} ${JSON.stringify(daten)} t=${t.toFixed(1)} ${w}×${h}`);
+          assert.ok(z.aufrufe > 0);
+        }
+      }
+      const z0: Zaehler = { aufrufe: 0, nan: 0, log: [] };
+      r.zeichne(fakeKontext(z0), 3, 0, 0);
+      assert.equal(z0.aufrufe, 0, `${id}: ohne Fläche gezeichnet`);
+      r.destroy();
+    }
+  });
+}
+
+test('Piraten-Sub: Titel je Fall — neu, Resub, verschenkt', () => {
+  assert.ok(texteVon('piraten-sub', { name: 'Mia' }).some((t) => t.includes('NEUE CREW!')));
+  assert.ok(texteVon('piraten-sub', { name: 'Mia', monate: 1 }).some((t) => t.includes('NEUE CREW!')), '1 Monat = neu');
+  const resub = texteVon('piraten-sub', { name: 'Mia', monate: 14 });
+  assert.ok(resub.some((t) => t.includes('14 MONATE AN BORD!')));
+  assert.ok(!resub.some((t) => t.includes('NEUE CREW')));
+  const gift = texteVon('piraten-sub', { name: 'Mia', geschenk: 1500, monate: 3 });
+  assert.ok(gift.some((t) => t.includes('1.500 × CREW VERSCHENKT!')), 'Geschenk geht vor Monaten');
+  assert.ok(gift.some((t) => t.includes('1.500 ABOS FÜR DIE CREW')));
+  assert.ok(texteVon('piraten-sub', { geschenk: 1 }).some((t) => t.includes('1 ABO FÜR DIE CREW')));
+});
+
+test('Piraten-Bits: Zähler endet auf dem Betrag, Nachricht bereinigt und gekürzt', () => {
+  const texte = texteVon('piraten-bits', { name: 'Ben', bits: 1500, nachricht: 'Ahoi\u0007 Käpt‮n,\n  Rum!' });
+  assert.ok(texte.some((t) => t === '1.500 BITS'), 'Endstand');
+  assert.ok(texte.some((t) => t === '0 BITS'), 'zählt von 0 hoch');
+  const n = texte.find((t) => t.startsWith('„'));
+  assert.ok(n, 'Nachricht fehlt');
+  assert.ok(!/[\u0000-\u001f‮]/.test(n!), 'Steuerzeichen in der Nachricht');
+  const lang = texteVon('piraten-bits', { bits: 5, nachricht: 'Y'.repeat(300) }).find((t) => t.startsWith('„'))!;
+  assert.ok(Array.from(lang).length <= 48, `zu lang: ${lang.length}`);
+  assert.ok(!texteVon('piraten-bits', { bits: 5 }).some((t) => t.startsWith('„')), 'ohne Nachricht keine Zeile');
+});
+
+test('Piraten-Raid: ENTERN! und „{n} PIRATEN VON {name}" (1 → PIRAT, 0 → RAID VON)', () => {
+  const texte = texteVon('piraten-raid', { name: 'KrakenKalle', zuschauer: 1234 });
+  assert.ok(texte.some((t) => t.includes('ENTERN!')));
+  assert.ok(texte.some((t) => t === '1.234 PIRATEN VON KRAKENKALLE'));
+  assert.ok(texteVon('piraten-raid', { name: 'Solo', zuschauer: 1 }).some((t) => t === '1 PIRAT VON SOLO'));
+  assert.ok(texteVon('piraten-raid', { name: 'Leer' }).some((t) => t === 'RAID VON LEER'));
+});
+
+test('Twitch-Piraten: deterministisch (Sprung = durchgespielt)', () => {
+  for (const id of PIRATEN_IDS) {
+    const bild = (r: any, t: number) => { const z: Zaehler = { aufrufe: 0, nan: 0, log: [] }; r.zeichne(fakeKontext(z, true), t, 1080, 1920); return z.log.join('\n'); };
+    const d = { name: 'Mia', bits: 2000, zuschauer: 5, geschenk: 5 };
+    const a = erzeugeRenderer(id, d), b = erzeugeRenderer(id, d);
+    for (let t = 0; t < 3.2; t += 1 / 60) a.zeichne(fakeKontext({ aufrufe: 0, nan: 0, log: [] }), t, 1080, 1920);
+    assert.equal(bild(a, 3.2), bild(b, 3.2), `${id}: Sprung ≠ durchgespielt`);
+  }
+});

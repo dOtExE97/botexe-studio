@@ -16,6 +16,9 @@
 //     --aus <ordner>        Zielordner (Standard .tmp/alarm-vorschau)
 //     --daten '{json}'      weitere daten-Felder, z. B. '{"neuAbo":true,"coins":500}'
 //     --datei <name>        Dateiname ohne .mp4 (Standard: <id>[-gifter][-60fps])
+//     --leinwand BxH        Fläche (Standard 1080x1920; z. B. 1920x1080 prüft das Querformat)
+//     --standbilder t,t,…   statt MP4 nur diese Zeitpunkte (Sekunden) als PNG in --aus
+//                           (<datei>-<t>s.png, auf dem Untergrund; braucht kein ffmpeg)
 //
 // Braucht google-chrome (oder CHROME=/pfad) und ffmpeg im PATH.
 // Headless-Fallen (AGENTS.md): kein --disable-gpu, kein requestAnimationFrame —
@@ -45,6 +48,8 @@ const kisteDatei = opt('kiste', ''); // piraten-orakel: eigenes Kistenbild (nur 
 const hintergrund = opt('hintergrund', '2a2a2a');
 const mitTon = !args.includes('--ohne-ton');
 const ausOrdner = path.resolve(opt('aus', path.join(ROOT, '.tmp', 'alarm-vorschau')));
+const [LW, LH] = opt('leinwand', '1080x1920').split('x').map((v) => Math.max(16, Math.round(Number(v)) || 0));
+const standbilder = opt('standbilder', '').split(',').map(Number).filter((v) => Number.isFinite(v) && v >= 0);
 const daten = {
   name: opt('name', 'Schwester Mary'), alt: Number(opt('alt', '11')), neu: Number(opt('neu', '12')), art, bild: bildDatei ? '/bild' : '', tokenBild: tokenDatei ? '/token' : '', kisteBild: kisteDatei ? '/kiste' : '',
   ...JSON.parse(opt('daten', '{}')),
@@ -61,7 +66,7 @@ fs.mkdirSync(ausOrdner, { recursive: true });
 
 const SEITE = `<!doctype html><html><head><meta charset="utf-8">
 <style>html,body{margin:0;background:transparent}</style></head><body>
-<canvas id="c" width="1080" height="1920"></canvas>
+<canvas id="c" width="${LW}" height="${LH}"></canvas>
 <script type="module">
 import { erzeugeRenderer, ladeSchrift } from '/widgets/alarm-anim.js';
 const melde = (t) => fetch('/log?' + encodeURIComponent(t));
@@ -72,9 +77,15 @@ try {
   await new Promise((ok) => setTimeout(ok, 400)); // Profilbild laden lassen
   const c = document.getElementById('c'), g = c.getContext('2d');
   const n = Math.round(r.dauer * ${fps});
+  const nur = ${JSON.stringify(standbilder)};
+  const ziele = nur.length ? new Set(nur.map((s) => Math.round(s * ${fps}))) : null;
   for (let i = 0; i <= n; i++) {
+    // Auch bei Standbildern jedes Bild zeichnen: die Partikel laufen über die Zeit.
     r.zeichne(g, i / ${fps}, c.width, c.height);
-    const blob = await new Promise((ok) => c.toBlob(ok, 'image/png'));
+    if (ziele && !ziele.has(i)) continue;
+    const z = document.createElement('canvas'); z.width = c.width; z.height = c.height;
+    const zg = z.getContext('2d'); zg.fillStyle = '#${hintergrund}'; zg.fillRect(0, 0, z.width, z.height); zg.drawImage(c, 0, 0);
+    const blob = await new Promise((ok) => (ziele ? z : c).toBlob(ok, 'image/png'));
     await fetch('/bild-ein?i=' + i, { method: 'POST', body: blob });
   }
   r.destroy();
@@ -110,16 +121,27 @@ const fertig = new Promise((aufloesen) => {
     const bin = process.env.CHROME || ['google-chrome', 'chromium', 'chromium-browser'].find((b) => spawnSync('which', [b]).status === 0);
     if (!bin) { console.error('Kein Chrome gefunden (CHROME=/pfad setzen).'); process.exit(1); }
     chrome = spawn(bin, ['--headless=new', '--enable-unsafe-swiftshader', '--no-first-run', '--no-default-browser-check',
-      `--user-data-dir=${path.join(tmp, 'chrome')}`, '--window-size=1080,1920', `http://127.0.0.1:${port}/`], { stdio: 'ignore' });
+      `--user-data-dir=${path.join(tmp, 'chrome')}`, `--window-size=${LW},${LH}`, `http://127.0.0.1:${port}/`], { stdio: 'ignore' });
     setTimeout(() => { console.error('Zeitüberschreitung'); chrome.kill(); process.exit(1); }, 600000).unref();
   });
 });
 await fertig;
 if (fehler || anzahl === 0) { console.error(`Abbruch: ${anzahl} Bilder, Fehler in der Seite.`); process.exit(1); }
 
+if (standbilder.length) {
+  const name = opt('datei', id);
+  for (const f of fs.readdirSync(bilder).sort()) {
+    const i = Number(f.slice(1, 5));
+    const ziel = path.join(ausOrdner, `${name}-${(i / fps).toFixed(1)}s.png`);
+    fs.copyFileSync(path.join(bilder, f), ziel);
+    console.log(`standbild: ${ziel}`);
+  }
+  fs.rmSync(tmp, { recursive: true, force: true });
+  process.exit(0);
+}
 const ziel = path.join(ausOrdner, `${opt('datei', `${id}${art === 'gifter' ? '-gifter' : ''}${fps !== 30 ? `-${fps}fps` : ''}`)}.mp4`);
 const ton = path.join(KIT, 'sounds', eintrag.sound);
-const ff = ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', `color=c=0x${hintergrund}:s=1080x1920:r=${fps}`,
+const ff = ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', `color=c=0x${hintergrund}:s=${LW}x${LH}:r=${fps}`,
   '-framerate', String(fps), '-i', path.join(bilder, 'f%04d.png')];
 if (mitTon && fs.existsSync(ton)) ff.push('-i', ton);
 ff.push('-filter_complex', '[0][1]overlay=shortest=1,format=yuv420p', '-c:v', 'libx264', '-crf', '18');

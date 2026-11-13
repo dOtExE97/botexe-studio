@@ -19,9 +19,22 @@ eigenem Overlay und eigenem Chat:
   keine Twitch-Nachrichten und keine Twitch-Alarme, und umgekehrt. Bestehende
   Overlays stehen auf „Alle" und verhalten sich genau wie vorher.
 - **Twitch-Overlay (Querformat) anlegen**: ein Knopf, und es steht ein fertiges
-  1920×1080-Overlay nur für Twitch da — Chat rechts, Follow-Alert und
-  Piraten-Banner oben links, das Piraten-Orakel bei jedem Follow. Die Bildmitte
-  bleibt fürs Spiel frei.
+  1920×1080-Overlay nur für Twitch da — Chat rechts, Piraten-Banner oben links,
+  in der Mitte der Herz-Alarm mit Piraten-Orakel bei jedem Follow und den
+  Piraten-Animationen für Sub, Bits und Raid. Die Bildmitte bleibt fürs Spiel
+  frei. (Ein eigener Sub-Alert ist nicht mehr dabei — er hätte jeden Sub ein
+  zweites Mal gefeiert.)
+- **Piraten-Animationen für Sub, Bits und Raid** im Herz-Alarm (Modus
+  „Ereignisse", drei neue Häkchen, standardmäßig aus): **Sub** — ein goldenes
+  Anker-Medaillon mit Steuerrad schlägt ein, „NEUE CREW!", bei Resubs
+  „14 MONATE AN BORD!", bei verschenkten Abos „25 × CREW VERSCHENKT!" mit
+  Münzschwall. **Bits** — Münzen regnen auf einen Schatzhaufen, ein goldener
+  Zähler läuft bis „1.500 BITS" hoch, die Jubel-Nachricht steht darunter (ohne
+  Cheermotes, gekürzt); ab 100 Bits mehr Münzen, ab 1.000 funkeln Edelsteine.
+  **Raid** — ein Piratenschiff segelt im Mondlicht herein, feuert drei Kanonen,
+  „ENTERN!" und „42 PIRATEN VON …". Größe einstellbar (40–100 %, Standard 75 %),
+  läuft auch im Querformat randlos. Ein TikTok-Sub (Superfan-Abo) löst die
+  Twitch-Sub-Animation nie aus.
 - **Chat-Box**: neuer Schalter „Plattform-Zeichen vor dem Namen" (Standard aus)
   zeigt ein kleines TikTok- oder Twitch-Zeichen vor jedem Namen — für Overlays,
   die beide Chats gemischt zeigen.

@@ -1,5 +1,6 @@
 // Twitch-Vorlage: gültiges Layout, richtige Plattform, alles im Bild, und der
-// Herz-Alarm spielt wirklich das Piraten-Orakel bei einem Follow.
+// Herz-Alarm spielt wirklich das Piraten-Orakel bei einem Follow und die
+// Twitch-Piraten bei Sub, Bits und Raid — jedes Ereignis genau einmal.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateLayout } from '@botexe/overlay-engine';
@@ -32,9 +33,9 @@ test('Twitch-Vorlage: Plattform twitch, Querformat 1920×1080, Name und ID wie �
   assert.equal(erzeugeTwitchVorlage('x').name, 'Twitch (Querformat)');
 });
 
-test('Twitch-Vorlage: alle vier Ebenen da und vollständig innerhalb des Bildes', () => {
+test('Twitch-Vorlage: alle drei Ebenen da und vollständig innerhalb des Bildes', () => {
   const l = erzeugeTwitchVorlage('x');
-  assert.deepEqual(l.layers.map((e) => e.widgetType).sort(), ['chat-box', 'follow-alert', 'herz-alarm', 'piraten-banner']);
+  assert.deepEqual(l.layers.map((e) => e.widgetType).sort(), ['chat-box', 'herz-alarm', 'piraten-banner']);
   for (const e of l.layers) {
     assert.ok(e.x >= 0 && e.y >= 0 && e.w > 0 && e.h > 0, e.id);
     assert.ok(e.x + e.w <= 1920 && e.y + e.h <= 1080, `${e.id} ragt aus dem Bild`);
@@ -56,29 +57,38 @@ test('Twitch-Vorlage: Props sind die Standardwerte des Katalogs (nichts erfunden
     }
   }
   // Keine geteilten Arrays mit dem Katalog — sonst ändert der Editor den Standard mit.
-  const fa = l.layers.find((e) => e.widgetType === 'follow-alert')!;
-  assert.notEqual(fa.props!.events, WIDGET_TYPES.find((w) => w.type === 'follow-alert')!.props.events);
+  const ha = l.layers.find((e) => e.widgetType === 'herz-alarm')!;
+  assert.notEqual(ha.props!.ereignisse, WIDGET_TYPES.find((w) => w.type === 'herz-alarm')!.props.ereignisse);
 });
 
-test('Twitch-Vorlage: Follow-Alert feuert NICHT beim Follow (das macht das Orakel), aber bei Subs', () => {
-  const fa = erzeugeTwitchVorlage('x').layers.find((e) => e.widgetType === 'follow-alert')!;
-  // follow-alert.js blendet genau die Arten aus props.events ein (onEvent: events.includes(type)).
-  const events = fa.props!.events as string[];
-  assert.equal(events.includes('follow'), false, 'sonst zwei Einblendungen je Follow (Alert + Orakel)');
-  assert.ok(events.includes('sub'), 'Subs blendet der Alert weiter ein');
-  // Nur Werte, die das Feld im Editor auch anbietet.
-  const feld = WIDGET_TYPES.find((w) => w.type === 'follow-alert')!.fields!.find((f) => f.key === 'events') as { options?: { value: string }[] };
-  for (const e of events) assert.ok(feld.options?.some((o) => o.value === e), e);
+test('Twitch-Vorlage: kein zweiter Alert neben dem Herz-Alarm (sonst zwei Einblendungen je Sub/Follow)', () => {
+  const l = erzeugeTwitchVorlage('x');
+  for (const typ of ['follow-alert', 'gift-alert']) {
+    assert.equal(l.layers.some((e) => e.widgetType === typ), false, typ);
+  }
+  assert.equal(l.layers.filter((e) => e.widgetType === 'herz-alarm').length, 1);
 });
 
-test('Twitch-Vorlage: Herz-Alarm spielt beim Twitch-Follow das Piraten-Orakel, sonst nichts', async () => {
+test('Twitch-Vorlage: Herz-Alarm spielt Orakel bei Follow und Piraten bei Sub, Bits und Raid', async () => {
   const { normalisiereCfg, alarmArt, neuerMerker } = await ladeEreignisAlarm();
   const alarm = erzeugeTwitchVorlage('x').layers.find((e) => e.widgetType === 'herz-alarm')!;
   const cfg = normalisiereCfg(alarm.props);
-  assert.deepEqual([...cfg.ereignisse], ['follow']);
+  assert.deepEqual([...cfg.ereignisse], ['follow', 'twitch_sub', 'cheer', 'raid']);
+  // Nur Werte, die das Häkchen-Feld im Editor auch anbietet.
+  const feld = WIDGET_TYPES.find((w) => w.type === 'herz-alarm')!.fields!.find((f) => f.key === 'ereignisse') as { options?: { value: string }[] };
+  for (const a of cfg.ereignisse) assert.ok(feld.options?.some((o) => o.value === a), a);
   assert.equal(cfg.anim.follow, 'piraten-orakel');
-  assert.equal(alarmArt({ type: 'follow', plattform: 'twitch', user: { id: 'twitch:123', nickname: 'Pirat' } }, cfg, neuerMerker()), 'follow');
-  assert.equal(alarmArt({ type: 'sub', plattform: 'twitch', user: { id: 'twitch:123' } }, cfg, neuerMerker()), null);
+  assert.equal(cfg.anim.twitch_sub, 'piraten-sub');
+  assert.equal(cfg.anim.cheer, 'piraten-bits');
+  assert.equal(cfg.anim.raid, 'piraten-raid');
+  const u = { id: 'twitch:123', nickname: 'Pirat' };
+  assert.equal(alarmArt({ type: 'follow', plattform: 'twitch', user: u }, cfg, neuerMerker()), 'follow');
+  assert.equal(alarmArt({ type: 'sub', plattform: 'twitch', subMonths: 3, user: u }, cfg, neuerMerker()), 'twitch_sub');
+  assert.equal(alarmArt({ type: 'sub', plattform: 'twitch', subGeschenk: { anzahl: 5 }, user: u }, cfg, neuerMerker()), 'twitch_sub');
+  assert.equal(alarmArt({ type: 'cheer', plattform: 'twitch', cheer: { bits: 100 }, user: u }, cfg, neuerMerker()), 'cheer');
+  assert.equal(alarmArt({ type: 'raid', plattform: 'twitch', raid: { viewers: 7 }, user: u }, cfg, neuerMerker()), 'raid');
+  // Ein Sub ohne Twitch-Herkunft wäre das TikTok-Superfan-Abo — das ist hier aus.
+  assert.equal(alarmArt({ type: 'sub', user: u }, cfg, neuerMerker()), null);
   // Orakel-Bilder bleiben leer → Widget zeichnet Münze und Truhe selbst.
   assert.equal(alarm.props!.orakelToken, '');
   assert.equal(alarm.props!.orakelKiste, '');
