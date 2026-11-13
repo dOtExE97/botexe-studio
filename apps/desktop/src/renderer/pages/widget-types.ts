@@ -779,6 +779,19 @@ export const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'piraten-zaehler', label: 'Piraten-Zähler (Fortnite)', desc: 'Deine Victory Royales und Kills als zwei Piraten-Tafeln mit Messingrahmen: Krone und gekreuzte Säbel im Goldmedaillon, die Zahl als Klappziffer, die bei jeder Änderung umschlägt. Ein Victory Royale lässt die Krone strahlen, Münzen und Konfetti fliegen und „VICTORY ROYALE!" einschlagen. Hochzählen per Stream Deck, Hotkey oder Chat-Befehl — der Stand übersteht ein Neuladen.',
+    w: 360, h: 110, props: { labelSiege: 'Victory Royales', labelKills: 'Kills', standardZaehler: 'kills', zuruecksetzen: true, fontFamily: '', fontScale: 1, textColor: '' },
+    fields: [
+      { key: 'labelSiege', label: 'Beschriftung links', type: 'text', hint: 'Steht auf der Plakette über der Krone, z.B. „Victory Royales" oder „Siege".' },
+      { key: 'labelKills', label: 'Beschriftung rechts', type: 'text', hint: 'Steht auf der Plakette über den Säbeln, z.B. „Kills".' },
+      { key: 'standardZaehler', label: 'Zähler-Knopf zählt', type: 'select', hint: 'Welche Tafel ein Panel-Knopf „Counter ±" oder eine Regel mit der Aktion „Zähler" ändert. „Overlay-Alert" auf dieses Widget zählt immer einen Victory Royale. Per Stream Deck geht beides direkt: POST /api/zaehler?zaehler=kills (oder vr)&aktion=plus|minus|reset (siehe docs/api.md).', options: [
+        { value: 'kills', label: '⚔️ Kills' }, { value: 'siege', label: '👑 Victory Royales' },
+      ] },
+      { key: 'zuruecksetzen', label: 'Bei neuem Stream auf 0', type: 'boolean', hint: 'Startet jeden Stream wieder bei 0 : 0. Aus = der Stand läuft über mehrere Streams weiter.' },
+      ...STYLE_FIELDS,
+    ],
+  },
+  {
     type: 'activity-feed', label: 'Activity-Feed', desc: 'Alle Events gemischt (Follow, Sub, Share, Gift) als Live-Ticker.',
     w: 420, h: 320, props: { style: 'glas', max: 6, ttlMs: 60000, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [

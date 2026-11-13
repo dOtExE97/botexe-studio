@@ -11,7 +11,7 @@ Synthwave …), die das Aussehen komplett verändern. Hier ist jeweils nur die G
 
 Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 
-> Stand: 49 der 52 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
+> Stand: 50 der 53 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
 > Herz-Alarm, Gambling-Automat, Piraten-Banner — in der App ganz normal vorhanden (Overlay → Widget hinzufügen).
 
 ## Alerts
@@ -68,8 +68,8 @@ Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 | --- | --- | --- |
 | **Subathon-Timer** | **Countdown** | **Counter** |
 | ![Subathon-Timer](screenshots/subathon.png) | ![Countdown](screenshots/countdown.png) | ![Counter](screenshots/counter.png) |
-| **Piraten-Infoleiste (Letzter …)** | **Live-Zähler** |  |
-| ![Piraten-Infoleiste (Letzter …)](screenshots/piraten-infoleiste.png) | ![Live-Zähler](screenshots/stat-chips.png) |  |
+| **Piraten-Zähler (Fortnite)** | **Piraten-Infoleiste (Letzter …)** | **Live-Zähler** |
+| ![Piraten-Zähler (Fortnite)](screenshots/piraten-zaehler.png) | ![Piraten-Infoleiste (Letzter …)](screenshots/piraten-infoleiste.png) | ![Live-Zähler](screenshots/stat-chips.png) |
 
 ## Ambient & Deko
 

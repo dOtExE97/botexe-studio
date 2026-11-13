@@ -26,6 +26,7 @@ import {
   istWerbeLaenge, istChatModus, WERBE_LAENGEN, CHAT_MODI,
   type TwitchAktionAnfrage, type TwitchAktionErgebnis,
 } from '../services/twitch-aktionen';
+import { zaehlerAnfrage } from '../services/zaehler-anfrage';
 
 export type OverlayMessage =
   | { kind: 'hello'; version: string; seed: string } // App-Version (Reload-Handshake) + Session-Seed für deterministische Spiele
@@ -496,6 +497,7 @@ export class OverlayServer {
 
     this.setupTestEventRoute(auth);
     this.setupTwitchAktionRoutes(auth);
+    this.setupZaehlerRoute(auth);
 
     this.expressApp.get('/tts/:filename', auth, (req, res) => {
       const dir = this.options.ttsDir;
@@ -628,6 +630,50 @@ export class OverlayServer {
    *  Antwort: das Ergebnis als JSON — 200 bei Erfolg, 409 wenn Twitch/der
    *  Zustand nicht mitspielt (nicht live, Abklingzeit, Rechte fehlen), 400 bei
    *  falschen Parametern. Geloggt wird das Ergebnis im Dienst (einmal). */
+  /** POST /api/zaehler — Piraten-Zähler (Victory Royales / Kills) fernsteuern,
+   *  z.B. per Stream Deck: ?zaehler=siege|kills&aktion=plus|minus|reset|setzen
+   *  [&anzahl=1][&auf=N]. Jede verbundene Quelle bekommt je Widget
+   *  „piraten-zaehler" IHRES Layouts eine fire_alert-Aktion mit params — ein
+   *  festes Ziel braucht der Aufrufer also nicht zu kennen. Antwort: wie viele
+   *  Zähler erreicht wurden; 409, wenn keiner im Overlay liegt (sonst drückt
+   *  der Streamer und es passiert lautlos nichts). */
+  private setupZaehlerRoute(auth: (req: Request, res: Response, next: NextFunction) => void): void {
+    this.expressApp.post('/api/zaehler', auth, (req, res) => {
+      const lies = (name: string): string | undefined => {
+        const q = req.query[name];
+        if (typeof q === 'string') return q;
+        const b = (req.body as Record<string, unknown> | undefined)?.[name];
+        if (typeof b === 'string') return b;
+        if (typeof b === 'number' && Number.isFinite(b)) return String(b);
+        return undefined;
+      };
+      const a = zaehlerAnfrage(lies);
+      if ('fehler' in a) {
+        log.gedrosselt('overlay:zaehler-param', 30_000, 'warn', 'Overlay', `Fernsteuerung Zähler: ${a.fehler}`);
+        res.status(400).json({ ok: false, fehler: a.fehler });
+        return;
+      }
+      let ziele = 0;
+      for (const client of this.clients) {
+        const layout = this.options.getLayout(client.profileId || undefined);
+        for (const layer of layout?.layers ?? []) {
+          if (layer.widgetType !== 'piraten-zaehler') continue;
+          this.sendTo(client, { kind: 'action', ruleId: 'api-zaehler', action: { kind: 'fire_alert', targetId: layer.id, params: { ...a } } });
+          ziele++;
+        }
+      }
+      if (ziele === 0) {
+        const fehler = this.clients.size === 0
+          ? 'Kein Overlay verbunden — Browserquelle in OBS prüfen.'
+          : 'Im angezeigten Overlay liegt kein Piraten-Zähler — Widget „Piraten-Zähler (Fortnite)" hinzufügen.';
+        log.gedrosselt('overlay:zaehler-ohne-ziel', 60_000, 'warn', 'Overlay', `Fernsteuerung Zähler: ${fehler}`);
+        res.status(409).json({ ok: false, fehler });
+        return;
+      }
+      res.json({ ok: true, ziele });
+    });
+  }
+
   private setupTwitchAktionRoutes(auth: (req: Request, res: Response, next: NextFunction) => void): void {
     const wert = (req: Request, name: string): string | undefined => {
       const q = req.query[name];

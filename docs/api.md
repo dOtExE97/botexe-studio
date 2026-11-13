@@ -72,6 +72,35 @@ Antwort: `{ "ok": true }` oder `{ "ok": false, "error": "…" }`.
 
 ---
 
+## Piraten-Zähler (Fortnite: Victory Royales / Kills)
+
+Steuert jedes Widget **„Piraten-Zähler (Fortnite)"** im gerade angezeigten Overlay —
+ein Ziel (Layer-ID) braucht der Aufrufer nicht. Werte als Query-Parameter oder JSON-Body:
+
+```bash
+curl -X POST "http://127.0.0.1:27415/api/zaehler?zaehler=kills&token=DEIN_TOKEN"              # Kill +1
+curl -X POST "http://127.0.0.1:27415/api/zaehler?zaehler=vr&token=DEIN_TOKEN"                 # Victory Royale +1 (mit Feier)
+curl -X POST "http://127.0.0.1:27415/api/zaehler?zaehler=kills&aktion=minus&token=DEIN_TOKEN" # vertippt: -1
+curl -X POST "http://127.0.0.1:27415/api/zaehler?zaehler=kills&aktion=reset&token=DEIN_TOKEN" # auf 0
+curl -X POST "http://127.0.0.1:27415/api/zaehler?zaehler=siege&aktion=setzen&auf=12&token=DEIN_TOKEN"
+```
+
+| Parameter | Werte |
+|---|---|
+| `zaehler` | `siege` (auch `vr`, `wins`, `win`, `sieg`, `victory`) oder `kills` (auch `kill`) |
+| `aktion` | `plus` (Standard), `minus`, `reset`, `setzen` |
+| `anzahl` | Schritt für plus/minus, 1–100 (Standard 1) |
+| `auf` | Zielwert für `setzen`, 0–99999 |
+
+Antwort: `{ "ok": true, "ziele": 1 }` (so viele Zähler wurden erreicht), HTTP 400 bei
+falschen Parametern, HTTP 409 `{ "ok": false, "fehler": "…" }`, wenn kein Overlay
+verbunden ist oder darin kein Piraten-Zähler liegt. Der Stand steckt im Overlay selbst
+(übersteht ein Neuladen der Browserquelle, startet beim neuen Stream bei 0 — abschaltbar).
+Ohne API geht es auch: Panel-Knopf/Regel „Counter ±" auf das Widget zählt Kills
+(einstellbar), „Overlay-Alert" zählt einen Victory Royale.
+
+---
+
 ## Twitch-Streamer-Aktionen (Stream Deck)
 
 Brauchen eine Twitch-Anmeldung (Einstellungen → Twitch). Alle per **POST**, Werte als

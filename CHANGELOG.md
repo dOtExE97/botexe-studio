@@ -114,6 +114,17 @@ eigenem Overlay und eigenem Chat:
   sofort wieder da (ohne Feier). Ziel, Titel und Einheit sind frei; der Stil
   geht auch mit Coins, Likes oder dem TikTok-LIVE-Ziel. Bestehende Goal-Bars
   bleiben unverändert.
+- **Neues Widget „Piraten-Zähler (Fortnite)“** (Stats & Zähler, 360×110) —
+  Victory Royales und Kills als zwei Holztafeln mit Messingrahmen, gravierter
+  Goldplakette, Krone bzw. gekreuzten Säbeln im Goldmedaillon und einer
+  Klappziffer, die bei jeder Änderung umschlägt. Ein Victory Royale: die Krone
+  springt und strahlt, Münzen und Konfetti fliegen, „VICTORY ROYALE!“ schlägt
+  als Band ein. Steuern per Stream Deck über die lokale Schnittstelle
+  (`POST /api/zaehler?zaehler=kills|vr&aktion=plus|minus|reset|setzen`, siehe
+  `docs/api.md`) oder ohne API: Panel-Knopf/Regel „Counter ±“ zählt Kills,
+  „Overlay-Alert“ einen Victory Royale (z.B. Chat-Befehl „!vr“ für Mods). Der
+  Stand übersteht ein Neuladen der Browserquelle und startet bei einem neuen
+  Stream wieder bei 0 (abschaltbar).
 
 Einrichten in drei Zeilen: Client-ID auf dev.twitch.tv/console holen (Kategorie
 Application Integration, Client-Typ Öffentlich) → in der App verbinden →

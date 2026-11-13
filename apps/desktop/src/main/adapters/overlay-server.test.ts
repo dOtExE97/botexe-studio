@@ -208,6 +208,47 @@ test('http: /api/twitch/* — Token Pflicht (falsch → 403, nichts ausgeführt)
   }
 });
 
+test('http: /api/zaehler — Token Pflicht, schickt fire_alert an JEDEN Piraten-Zähler des Overlays, 409 ohne Zähler', async () => {
+  const { server, layout } = await setup(0);
+  try {
+    const base = `http://127.0.0.1:${server.getPort()}`;
+    const token = server.getToken();
+    const post = (pfad: string, body?: unknown) => fetch(`${base}${pfad}`, {
+      method: 'POST',
+      ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
+    });
+    assert.equal((await post('/api/zaehler?zaehler=kills')).status, 403, 'ohne Token');
+    assert.equal((await post('/api/zaehler?zaehler=kills&token=falsch')).status, 403, 'falscher Token');
+    assert.equal((await post(`/api/zaehler?zaehler=tore&token=${token}`)).status, 400, 'unbekannter Zähler');
+
+    // Ohne Overlay bzw. ohne Zähler im Overlay: ehrlich 409 statt stillem Nichts.
+    const ohneClient = await post(`/api/zaehler?zaehler=kills&token=${token}`);
+    assert.equal(ohneClient.status, 409);
+    const client = await wsConnect(server.getWsUrl());
+    await client.next(); // layout
+    const ohneZaehler = await post(`/api/zaehler?zaehler=kills&token=${token}`);
+    assert.equal(ohneZaehler.status, 409);
+    assert.match(((await ohneZaehler.json()) as { fehler: string }).fehler, /Piraten-Zähler/);
+
+    const ebene = (id: string) => ({ id, widgetType: 'piraten-zaehler', name: 'Zähler', x: 0, y: 0, w: 360, h: 110, z: 1, visible: true });
+    layout.layers.push(ebene('pz-1'), ebene('pz-2'));
+    const vr = await post(`/api/zaehler?zaehler=vr&aktion=plus&token=${token}`);
+    assert.equal(vr.status, 200);
+    assert.deepEqual(await vr.json(), { ok: true, ziele: 2 });
+    const a = await client.next();
+    const b = await client.next();
+    assert.deepEqual(a, { kind: 'action', ruleId: 'api-zaehler', action: { kind: 'fire_alert', targetId: 'pz-1', params: { zaehler: 'siege', delta: 1 } } });
+    assert.equal((b.action as { targetId: string }).targetId, 'pz-2');
+
+    assert.equal((await post(`/api/zaehler?token=${token}`, { zaehler: 'kills', aktion: 'setzen', auf: 7 })).status, 200);
+    assert.deepEqual(((await client.next()).action as { params: unknown }).params, { zaehler: 'kills', wert: 7 });
+    await client.next();
+    client.close();
+  } finally {
+    await server.stop();
+  }
+});
+
 test('http: /api/twitch/* ohne verdrahtete Aktion → 501', async () => {
   const { server } = await setup(0);
   try {

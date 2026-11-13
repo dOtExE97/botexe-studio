@@ -47,6 +47,8 @@ export const CATEGORY_OF: Record<string, string> = {
   // Zeigt Stände an (wer zuletzt gefolgt, abonniert, gejubelt hat) — Info wie
   // die Stat-Chips, kein Alert und keine Deko.
   'piraten-infoleiste': 'stats',
+  // Fortnite-Zähler (Siege/Kills) — ein Zähler wie „counter", nur zu zweit und im Piraten-Look.
+  'piraten-zaehler': 'stats',
   // Konfetti bei erreichtem Meilenstein ist ein Auftritt, kein Ziel-Widget —
   // es zeigt keinen Stand an, es feiert einen Moment. Also zu den Alerts.
   'milestone-confetti': 'alerts',
