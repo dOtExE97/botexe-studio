@@ -79,6 +79,9 @@ export interface StudioUser {
   isSub?: boolean;
   /** Moderator dieses Streams. */
   isMod?: boolean;
+  /** Der Streamer selbst schreibt (Twitch: Chatter-ID = Kanal-ID). Zählt
+   *  zusätzlich als Mod (`isMod`), damit bestehende Mod-Filter ihn mitnehmen. */
+  isBroadcaster?: boolean;
   /** Folgt dem Streamer. */
   isFollower?: boolean;
   /** Ihr folgt euch GEGENSEITIG — mehr als ein Follower, und für einen kleinen

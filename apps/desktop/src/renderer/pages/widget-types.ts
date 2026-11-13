@@ -1283,6 +1283,7 @@ export const WIDGET_TYPES: {
         { value: 'glas', label: 'Glas-Bubbles (Standard)' },
         { value: 'clean', label: 'Clean (nur Text, Gamer-Look)' },
         { value: 'sticker', label: 'Sticker (helle Comic-Bubbles)' },
+        { value: 'piraten', label: 'Piraten (Gold & Lila)' },
       ]),
       { key: 'max', label: 'Max. Nachrichten', type: 'number', hint: 'So viele Chat-Zeilen bleiben gleichzeitig sichtbar.' },
       { key: 'hideAfterMs', label: 'Ausblenden nach', type: 'seconds', hint: 'Einzelne Nachrichten verschwinden danach. 0 = bleiben.' },

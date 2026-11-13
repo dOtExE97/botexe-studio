@@ -27,8 +27,9 @@ Diese Datei listet die Bibliotheken, die in bOtExE Studio genutzt und mit ausgel
 | Datei | Lizenz | Autor/Projekt |
 |---|---|---|
 | `packages/widget-kit/inter-black.woff2` (Subset von Inter Black) | SIL Open Font License 1.1 | Copyright (c) 2016 The Inter Project Authors, [rsms/inter](https://github.com/rsms/inter) |
+| `packages/widget-kit/saira-semicond-600.woff2` (Latin-Subset von Saira Semi Condensed SemiBold, über Google Fonts) | SIL Open Font License 1.1 | Copyright 2016 The Saira Project Authors, [Omnibus-Type/Saira](https://github.com/Omnibus-Type/Saira) |
 
-Die Schrift ist unter der SIL Open Font License 1.1 lizenziert (Lizenztext unten, aus dem Inter-Repository übernommen). Sie darf frei verwendet, gebündelt und weitergegeben werden.
+Beide Schriften sind unter der SIL Open Font License 1.1 lizenziert (Lizenztext unten, aus dem Inter-Repository übernommen; für Saira gilt derselbe Text mit dem Copyright-Vermerk aus der Tabelle). Sie dürfen frei verwendet, gebündelt und weitergegeben werden.
 
 Die Standard-Sounds `packages/widget-kit/sounds/botexe-levelup-*.wav`, `botexe-superfan.wav`, `botexe-truhe.wav` und `botexe-einblender.wav` stammen aus dem Projekt selbst (eigene Proben, Konvertierung aus OGG nach WAV).
 

@@ -56,11 +56,13 @@ test('Chat ohne Badges: weder Mod noch Sub; der Kanal selbst zählt als Mod', ()
   }, NOW)[0]!;
   assert.equal(zuschauer.user?.isMod, undefined);
   assert.equal(zuschauer.user?.isSub, undefined);
+  assert.equal(zuschauer.user?.isBroadcaster, undefined);
   const kanal = normalizeTwitch('channel.chat.message', {
     broadcaster_user_id: '1', chatter_user_id: '1', chatter_user_login: 'ich', chatter_user_name: 'Ich',
     message: { text: 'moin', fragments: [{ type: 'text', text: 'moin' }] }, badges: [],
   }, NOW)[0]!;
   assert.equal(kanal.user?.isMod, true);
+  assert.equal(kanal.user?.isBroadcaster, true);
 });
 
 test('Chat mit 2 Emotes und Text dazwischen → Sticker an der richtigen Stelle, Kürzel nicht im Text', () => {

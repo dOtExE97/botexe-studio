@@ -122,6 +122,7 @@ function chat(e: Roh, now: number, bild?: (userId: string) => string | undefined
     // nicht an einem Badge-Namen, den die Belege nicht nennen.
     const istKanal = str(e.chatter_user_id) !== undefined && e.chatter_user_id === e.broadcaster_user_id;
     if (sets.has('moderator') || istKanal) user.isMod = true;
+    if (istKanal) user.isBroadcaster = true;
     if (sets.has('subscriber')) user.isSub = true;
   }
   const { text, sticker } = chatInhalt(obj(e.message));

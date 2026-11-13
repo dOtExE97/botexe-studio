@@ -10,7 +10,11 @@ import { textMitStickern, hatInhalt } from './sticker-text.js';
 const STYLE_ID = 'bx-cb-style';
 const CSS = `
 .bx-cb { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: clamp(3px,1.4cqh,12px);
-  overflow: hidden; font-family: var(--bx-font-body); container-type: size;
+  overflow: hidden; container-type: size;
+  /* Emoji-Schriften ausdrücklich ans Ende: OBS (CEF unter Windows) setzte
+     ZWJ-Folgen wie die Piratenflagge sonst aus Einzelteilen zusammen. Greift
+     nur für Zeichen, die die eigentliche Schrift nicht hat. */
+  font-family: var(--bx-font-body), 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%); mask-image: linear-gradient(to bottom, transparent, #000 14%); }
 .bx-cb-msg { display: flex; align-items: flex-start; gap: clamp(5px,1.8cqi,16px); padding: clamp(3px,1.3cqh,12px) clamp(7px,2.6cqi,22px) clamp(4px,1.5cqh,13px) clamp(4px,1.4cqi,14px); border-radius: 14px;
   background: var(--bx-glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
@@ -26,7 +30,7 @@ const CSS = `
    würde sonst herauslaufen — die Textgrößen-Einstellung wirkt auf echte Texte. */
 .bx-cb-pic::after { font-size: 52cqmin; }
 .bx-cb-body { min-width: 0; }
-.bx-cb-name { font-family: var(--bx-font-display); font-size: calc((clamp(9px,min(3.4cqi,4.2cqh),22px)) * var(--bx-fs, 1)); text-transform: uppercase; letter-spacing: .03em;
+.bx-cb-name { font-family: var(--bx-font-display), 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif; font-size: calc((clamp(9px,min(3.4cqi,4.2cqh),22px)) * var(--bx-fs, 1)); text-transform: uppercase; letter-spacing: .03em;
   text-shadow: 0 1px 3px rgba(0,0,0,.8); }
 .bx-cb-text { font-size: calc((clamp(11px,min(4.4cqi,5.4cqh),28px)) * var(--bx-fs, 1)); line-height: 1.28; color: var(--bx-text,#f2f3f8); text-shadow: 0 1px 2px rgba(0,0,0,.6);
   word-break: break-word; overflow-wrap: anywhere; }
@@ -60,6 +64,76 @@ const CSS = `
 .bx-cb-sticker .bx-cb-text { color: #14161f; text-shadow: none; font-weight: 600; }
 .bx-cb-sticker .bx-cb-name { text-shadow: none; }
 
+/* ── Stil „Piraten" (Gold & Lila) — Nachtmeer-Thema: jede Nachricht eine
+   kompakte Karte aus violettem Glas mit goldener Lichtkante, Profilbild im
+   Goldring, Name in Lilita One, Text in Saira. Neue Karten gleiten von links
+   herein, ein Goldschimmer läuft einmal darüber; ältere treten leicht zurück.
+   Die Schriften setzt das JS nur, wenn der Nutzer keine eigene gewählt hat. */
+.bx-cb-piraten { gap: clamp(4px,1.5cqh,12px); padding: 0 clamp(2px,1cqi,8px) clamp(2px,.8cqh,6px) clamp(1px,.6cqi,5px); box-sizing: border-box;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 10%); mask-image: linear-gradient(to bottom, transparent, #000 10%); }
+.bx-cb-piraten .bx-cb-msg { position: relative; overflow: hidden; isolation: isolate; align-items: flex-start; flex: none;
+  gap: clamp(6px,2.2cqi,16px); border-radius: clamp(8px,2.6cqi,16px);
+  padding: clamp(5px,1.6cqh,13px) clamp(9px,3cqi,22px) clamp(6px,1.9cqh,15px) clamp(6px,2cqi,15px);
+  background:
+    radial-gradient(130% 160% at 0% 0%, rgba(145,70,255,.34), transparent 58%),
+    linear-gradient(165deg, rgba(40,21,78,.93), rgba(18,10,36,.95) 70%);
+  -webkit-backdrop-filter: blur(10px) saturate(1.25); backdrop-filter: blur(10px) saturate(1.25);
+  box-shadow: inset 0 1px 0 rgba(255,222,140,.42), inset 0 0 0 1px rgba(184,129,31,.30),
+    0 10px 22px -12px rgba(0,0,0,.85), 0 0 22px -10px rgba(145,70,255,.7);
+  transform: none; opacity: 1; transform-origin: left center;
+  animation: bx-cb-pt-in 520ms cubic-bezier(.16,1.12,.3,1) backwards;
+  transition: opacity 600ms ease, scale 600ms ease, filter 600ms ease; }
+/* Goldene Lichtkante oben: in der Mitte am hellsten, zu den Seiten hin weg. */
+.bx-cb-piraten .bx-cb-msg::before { content: ''; position: absolute; left: 6%; right: 6%; top: 0; height: 1.5px; z-index: 1; pointer-events: none;
+  background: linear-gradient(90deg, transparent, #b8811f 18%, #f5c451 42%, #fff1c2 55%, #f5c451 70%, #b8811f 86%, transparent);
+  box-shadow: 0 0 8px rgba(245,196,81,.55); }
+/* Goldschimmer: läuft beim Eintreffen genau einmal über die Karte. */
+.bx-cb-piraten .bx-cb-msg::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(255,214,120,.14) 42%, rgba(255,238,190,.55) 50%, rgba(255,214,120,.14) 58%, transparent 70%);
+  transform: translateX(-120%); animation: bx-cb-pt-glanz 1300ms 140ms cubic-bezier(.3,.6,.3,1) forwards; }
+/* Ältere Nachrichten treten zurück — die neueste bleibt der Blickfang. */
+.bx-cb-piraten .bx-cb-msg:nth-last-child(n+3) { scale: .985; filter: brightness(.93); }
+.bx-cb-piraten .bx-cb-msg:nth-last-child(n+5) { opacity: .9; scale: .97; filter: brightness(.84) saturate(.9); }
+.bx-cb-piraten .bx-cb-msg:nth-last-child(n+7) { opacity: .8; scale: .955; filter: brightness(.74) saturate(.8); }
+.bx-cb-piraten .bx-cb-msg.fade { animation: bx-cb-pt-out 440ms ease-in forwards; }
+.bx-cb-piraten .bx-cb-pic { width: clamp(20px,min(8.4cqi,9.6cqh),54px); margin-top: .15em;
+  box-shadow: 0 0 0 2px #f5c451, 0 0 0 3.5px rgba(18,10,36,.95), 0 0 0 4.5px rgba(184,129,31,.55), 0 0 12px 2px rgba(245,196,81,.35); }
+.bx-cb-piraten .bx-cb-body { flex: 1 1 auto; min-width: 0; }
+.bx-cb-piraten .bx-cb-name { display: flex; align-items: center; gap: .3em; min-width: 0;
+  font-size: calc((clamp(11px,min(4cqi,4.8cqh),26px)) * var(--bx-fs, 1)); line-height: 1.15;
+  text-transform: none; letter-spacing: .015em; margin-bottom: .12em;
+  text-shadow: 0 2px 0 rgba(10,4,24,.75), 0 0 .6em rgba(0,0,0,.45); }
+.bx-cb-nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bx-cb-piraten .bx-cb-pf { flex: none; margin-right: 0; }
+.bx-cb-bdg { display: inline-flex; gap: .18em; flex: none; }
+.bx-cb-b { display: inline-grid; place-items: center; width: 1.12em; height: 1.12em; border-radius: .3em; flex: none;
+  box-shadow: 0 1px 0 rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.28); }
+.bx-cb-b svg { width: 78%; height: 78%; display: block; overflow: visible; }
+.bx-cb-b-host { background: linear-gradient(180deg, #ff5a4f, #b3121b); }
+.bx-cb-b-mod { background: linear-gradient(180deg, #33d77f, #0d8445); }
+.bx-cb-b-sub { background: linear-gradient(180deg, #a874ff, #6a2ce0); }
+.bx-cb-piraten .bx-cb-text { font-family: var(--bx-font-body), 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  font-weight: 600; color: var(--bx-text,#f7f2ff); letter-spacing: .005em;
+  font-size: calc((clamp(12px,min(4.9cqi,5.8cqh),30px)) * var(--bx-fs, 1)); line-height: 1.24;
+  text-shadow: 0 1px 2px rgba(6,2,16,.85); }
+.bx-cb-piraten .bx-cb-emote { height: 1.32em; vertical-align: -0.3em; border-radius: 4px; }
+.bx-cb-piraten .bx-cb-emote-leer { width: 1.32em; }
+@keyframes bx-cb-pt-in {
+  0% { opacity: 0; transform: translateX(-34px) scale(.96); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: none; } }
+@keyframes bx-cb-pt-glanz { to { transform: translateX(120%); } }
+@keyframes bx-cb-pt-out { to { opacity: 0; transform: translateX(-18px); } }
+@keyframes bx-cb-pt-ein { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .bx-cb-piraten .bx-cb-msg { animation: bx-cb-pt-ein 300ms ease-out backwards; transition: none; }
+  .bx-cb-piraten .bx-cb-msg::after { display: none; }
+  .bx-cb-piraten .bx-cb-msg.fade { animation: bx-cb-out 420ms ease-in forwards; } }
+html.bx-perf .bx-cb-piraten .bx-cb-msg::after { display: none; }
+/* Rahmen ausblenden: Karte und Lichtkante weg, Goldring und Abzeichen bleiben. */
+html .bx-frameless .bx-cb-piraten .bx-cb-msg { background: none; }
+html .bx-frameless .bx-cb-piraten .bx-cb-msg::before, html .bx-frameless .bx-cb-piraten .bx-cb-msg::after { display: none; }
+
 /* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
    dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
    darum Kontur. Der Bubble-Schatten war ohne Panel ein grauer Klecks.
@@ -89,8 +163,20 @@ html .bx-frameless .bx-cb:not(.bx-cb-sticker) .bx-cb-text { -webkit-text-stroke:
    gesetzt, damit die Hierarchie Name → Text klarer liest. Keine Maßänderung. */
 .bx-premium .bx-cb-name { letter-spacing: .06em; text-shadow: 0 .04em .1em rgba(0,0,0,.9), 0 0 .5em rgba(0,0,0,.5); }
 .bx-premium .bx-cb-sticker .bx-cb-name { text-shadow: none; }
+/* Piraten: eigener Einflug statt des Glas-Einflugs, Ausblender gewinnt weiter. */
+.bx-premium .bx-cb-piraten .bx-cb-msg.bx-hit {
+  animation: bx-cb-pt-in 520ms cubic-bezier(.16,1.12,.3,1) backwards,
+    bx-premium-ring 900ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+.bx-premium .bx-cb-piraten .bx-cb-msg.fade, .bx-premium .bx-cb-piraten .bx-cb-msg.fade.bx-hit { animation: bx-cb-pt-out 440ms ease-in forwards; }
+.bx-premium .bx-cb-piraten .bx-cb-name { letter-spacing: .02em; text-shadow: 0 2px 0 rgba(10,4,24,.8), 0 0 .6em rgba(0,0,0,.5); }
+@media (prefers-reduced-motion: reduce) {
+  .bx-premium .bx-cb-piraten .bx-cb-msg.bx-hit { animation: bx-cb-pt-ein 300ms ease-out backwards; } }
 `;
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s); } }
+/** Piraten-Namensfarben: warm und hell, alle lesbar auf dunklem Violett.
+ *  Lavendel und Himmelblau halten den Twitch-Ton, der Rest ist Laternenlicht. */
+const PIRATEN_FARBEN = ['#ffc94d', '#ff8f5e', '#ff74ad', '#7fdcff', '#a6f58a', '#ffe28f', '#c7a2ff', '#5ef0c6', '#ffb36b', '#ff9fd8', '#bf94ff', '#f7d774'];
+function piratenFarbe(name) { let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0; return PIRATEN_FARBEN[Math.abs(h) % PIRATEN_FARBEN.length]; }
 function nameColor(name) { let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0; return `hsl(${Math.abs(h) % 360} 88% 70%)`; }
 
 /** URL sicher in CSS url("…") einbetten — NUR Quotes escapen, nie
@@ -133,6 +219,32 @@ function plattformZeichen(plattform) {
   return el;
 }
 
+/** Abzeichen vor dem Namen (nur Stil „Piraten"): Krone = Streamer,
+ *  gekreuzte Säbel = Mod, Stern = Abo. Feste SVG-Zeichenketten aus dieser
+ *  Datei — nie Daten aus dem Ereignis —, darum ist innerHTML hier unbedenklich. */
+const ABZEICHEN = {
+  host: { klasse: 'bx-cb-b bx-cb-b-host', titel: 'Streamer', svg: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#ffd45e" stroke="#7a3e00" stroke-width="1.2" stroke-linejoin="round" d="M3 8.5l4.5 3.8L12 5l4.5 7.3L21 8.5 19.2 18H4.8z"/><rect x="4.8" y="18.6" width="14.4" height="2.4" rx="1" fill="#ffd45e"/></svg>' },
+  mod: { klasse: 'bx-cb-b bx-cb-b-mod', titel: 'Moderator', svg: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round"><path d="M5 4l11.5 11.5M19 4L7.5 15.5" stroke="#fff" stroke-width="2.6"/><path d="M13.6 18.4l4.8-4.8M5.6 13.6l4.8 4.8" stroke="#ffd45e" stroke-width="2.4"/><path d="M17.6 17.6l2.2 2.2M6.4 17.6l-2.2 2.2" stroke="#ffd45e" stroke-width="2.6"/></svg>' },
+  sub: { klasse: 'bx-cb-b bx-cb-b-sub', titel: 'Abo', svg: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#ffd45e" stroke="#7a3e00" stroke-width="1" stroke-linejoin="round" d="M12 2.6l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg>' },
+};
+function abzeichen(user) {
+  const arten = [];
+  if (user?.isBroadcaster) arten.push('host');
+  else if (user?.isMod) arten.push('mod');
+  if (user?.isSub) arten.push('sub');
+  if (!arten.length) return null;
+  const box = document.createElement('span');
+  box.className = 'bx-cb-bdg';
+  for (const art of arten) {
+    const b = document.createElement('span');
+    b.className = ABZEICHEN[art].klasse;
+    b.title = ABZEICHEN[art].titel;
+    b.innerHTML = ABZEICHEN[art].svg;
+    box.appendChild(b);
+  }
+  return box;
+}
+
 /** Demo-Nachrichten für die Editor-Vorschau — sonst bleibt die Box dort leer. */
 const DEMO = [
   ['Mia', 'Das Overlay ist mega 🔥'],
@@ -143,6 +255,17 @@ const DEMO = [
   ['Kaan', 'W stream'],
   ['Pia', 'erster'],
   ['ExE', 'Kommt gleich noch eine Runde?'],
+];
+/** Vorschau im Piraten-Stil: zeigt gleich, wie Abzeichen und Emojis aussehen. */
+const DEMO_PIRATEN = [
+  ['Seemann42', 'Ahoi Käpt’n! 🏴‍☠️', {}],
+  ['Goldzahn', 'Wo liegt heute der Schatz? 💰', { isSub: true }],
+  ['KäptnBlaubär', 'Ich sag nur: Loot-Insel, jetzt!', { isMod: true }],
+  ['Nebelkrähe', 'gg, der Sieg war sauber', {}],
+  ['Muschelmia', 'Bin neu an Bord — cooler Stream!', { isSub: true }],
+  ['Klabauter', 'Noch eine Runde, bitte 🙏', {}],
+  ['dOtExE_97', 'Willkommen an Bord, ihr Landratten!', { isBroadcaster: true, isMod: true }],
+  ['Rumfass', 'Hoch die Segel! ⚓', {}],
 ];
 /** Text und Sticker in das Textfeld schreiben.
  *
@@ -175,11 +298,17 @@ export default class ChatBox {
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
     this.max = Math.min(30, Math.max(3, Number(props.max ?? 8)));
     this.hideAfterMs = Number(props.hideAfterMs ?? 0);
-    this.style = ['glas', 'clean', 'sticker'].includes(props.style) ? props.style : 'glas';
+    this.style = ['glas', 'clean', 'sticker', 'piraten'].includes(props.style) ? props.style : 'glas';
     // Standard AUS: bestehende Chat-Boxen sehen exakt aus wie vorher.
     this.plattformZeichen = props.plattformZeichen === true;
     this.el = document.createElement('div');
     this.el.className = `bx-cb${this.style !== 'glas' ? ` bx-cb-${this.style}` : ''}`;
+    // Piraten bringt eigene Schriften mit — aber nur, solange der Nutzer keine
+    // eigene gewählt hat (die setzt die Runtime auf der Box, siehe FONT_STACKS).
+    if (this.style === 'piraten' && !props.fontFamily) {
+      this.el.style.setProperty('--bx-font-display', "'Lilita One', 'Arial Black'");
+      this.el.style.setProperty('--bx-font-body', "'Saira Semi Condensed', 'Arial Narrow'");
+    }
     root.appendChild(this.el);
     this.timers = new Set();
     // Zieht der Nutzer die Box kleiner, passen die eingestellten Nachrichten
@@ -188,10 +317,17 @@ export default class ChatBox {
     this.ro.observe(this.el);
     if (ctx?.preview) {
       // Mit Plattform-Zeichen abwechselnd TikTok/Twitch, damit man sieht, was der Schalter tut.
-      DEMO.slice(-this.max).forEach(([nick, text], i) => {
-        const plattform = this.plattformZeichen ? (i % 2 ? 'twitch' : 'tiktok') : undefined;
-        this.onEvent({ type: 'chat', ts: Date.now(), user: { id: nick, nickname: nick }, text, ...(plattform ? { plattform } : {}) });
-      });
+      if (this.style === 'piraten') {
+        DEMO_PIRATEN.slice(-this.max).forEach(([nick, text, rollen], i) => {
+          const plattform = this.plattformZeichen ? (i % 2 ? 'twitch' : 'tiktok') : undefined;
+          this.onEvent({ type: 'chat', ts: Date.now(), user: { id: nick, nickname: nick, ...rollen }, text, ...(plattform ? { plattform } : {}) });
+        });
+      } else {
+        DEMO.slice(-this.max).forEach(([nick, text], i) => {
+          const plattform = this.plattformZeichen ? (i % 2 ? 'twitch' : 'tiktok') : undefined;
+          this.onEvent({ type: 'chat', ts: Date.now(), user: { id: nick, nickname: nick }, text, ...(plattform ? { plattform } : {}) });
+        });
+      }
     }
   }
   /** Sichtbare Zeilenzahl aus der Boxhöhe ableiten: von unten nach oben zählen,
@@ -226,13 +362,25 @@ export default class ChatBox {
     msg.innerHTML = `<div class="bx-cb-pic"></div><div class="bx-cb-body"><div class="bx-cb-name"></div><div class="bx-cb-text"></div></div>`;
     const name = event.user?.nickname || 'Anonym';
     const nameEl = msg.querySelector('.bx-cb-name');
-    nameEl.textContent = name;
+    if (this.style === 'piraten') {
+      // Eigener Namens-Span, damit ein langer Name mit „…" endet statt die
+      // Abzeichen aus der Zeile zu schieben.
+      const nm = document.createElement('span');
+      nm.className = 'bx-cb-nm';
+      nm.textContent = name;
+      const bdg = abzeichen(event.user);
+      if (bdg) nameEl.appendChild(bdg);
+      nameEl.appendChild(nm);
+    } else {
+      nameEl.textContent = name;
+    }
     if (this.plattformZeichen) {
       const zeichen = plattformZeichen(event.plattform);
       if (zeichen) nameEl.insertBefore(zeichen, nameEl.firstChild);
     }
     // Sticker-Stil hat helle Bubbles → dunklere Namensfarbe, sonst unlesbar.
-    nameEl.style.color = this.style === 'sticker' ? nameColor(name).replace('88% 70%', '80% 34%') : nameColor(name);
+    nameEl.style.color = this.style === 'piraten' ? piratenFarbe(name)
+      : this.style === 'sticker' ? nameColor(name).replace('88% 70%', '80% 34%') : nameColor(name);
     fuelleText(msg.querySelector('.bx-cb-text'), event.text, stickerListe);
     avSet(msg.querySelector('.bx-cb-pic'), name, event.user?.profilePic);
     this.el.appendChild(msg);
