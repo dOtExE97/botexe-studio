@@ -9,7 +9,10 @@ import {
   redactSecretsForExport,
   stripSecretFieldsForImport,
   sanitizeSettingsPatch,
+  einstellungenFuerRenderer,
 } from './settings-store';
+import type { Krypto } from './secret-box';
+import type { TwitchTokens } from './twitch-auth';
 
 function tmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'settings-'));
@@ -293,4 +296,115 @@ test('sanitizeSettingsPatch: gültige triggerRules/chatCommands werden durchgere
   const rules = [{ id: 'r1', name: 'x', event: 'gift', actions: [], enabled: true }];
   const patch = sanitizeSettingsPatch({ triggerRules: rules }, current);
   assert.deepEqual(patch.triggerRules, rules);
+});
+
+// ── Twitch ──────────────────────────────────────────────────────────────────
+
+const xorKrypto: Krypto = {
+  isEncryptionAvailable: () => true,
+  encryptString: (t) => Buffer.from([...Buffer.from(t, 'utf-8')].map((b) => b ^ 0x5a)),
+  decryptString: (b) => Buffer.from([...b].map((x) => x ^ 0x5a)).toString('utf-8'),
+};
+
+const twitchTokens: TwitchTokens = {
+  accessToken: 'twitch-access-geheim',
+  refreshToken: 'twitch-refresh-geheim',
+  expiresAt: 123,
+  scopes: ['user:read:chat'],
+  userId: '42',
+  login: 'alex',
+};
+
+test('Twitch: Standardwerte — keine Client-ID, keine Tokens, Auto-Verbinden an', () => {
+  const s = new SettingsStore(tmpDir()).get();
+  assert.equal(s.twitchClientId, '');
+  assert.equal(s.twitchTokens, undefined);
+  assert.equal(s.twitchAutoConnect, true);
+});
+
+test('Twitch: Tokens liegen verschlüsselt in settings.json und kommen beim Neustart zurück', () => {
+  const dir = tmpDir();
+  new SettingsStore(dir, xorKrypto).update({ twitchTokens, twitchClientId: 'abc123' });
+  const datei = fs.readFileSync(path.join(dir, 'settings.json'), 'utf-8');
+  assert.ok(!datei.includes('twitch-access-geheim'), 'Access-Token steht im Klartext in der Datei');
+  assert.ok(!datei.includes('twitch-refresh-geheim'), 'Refresh-Token steht im Klartext in der Datei');
+  assert.ok(datei.includes('abc123'), 'die Client-ID ist öffentlich und bleibt lesbar');
+  const neu = new SettingsStore(dir, xorKrypto).get();
+  assert.deepEqual(neu.twitchTokens, twitchTokens);
+});
+
+test('Twitch: Abmelden (Tokens undefined) entfernt sie aus der Datei', () => {
+  const dir = tmpDir();
+  const store = new SettingsStore(dir, xorKrypto);
+  store.update({ twitchTokens });
+  store.update({ twitchTokens: undefined });
+  assert.equal(new SettingsStore(dir, xorKrypto).get().twitchTokens, undefined);
+});
+
+test('Twitch: Backup-Export/-Import trägt keine Tokens', () => {
+  const s = { ...new SettingsStore(tmpDir()).get(), twitchTokens };
+  assert.equal(redactSecretsForExport(s).twitchTokens, undefined);
+  assert.equal(stripSecretFieldsForImport({ twitchTokens, twitchClientId: 'abc' }).twitchTokens, undefined);
+});
+
+test('sanitizeSettingsPatch: Renderer darf Client-ID und Auto-Verbinden setzen, aber NIE Tokens', () => {
+  const current = new SettingsStore(tmpDir()).get();
+  const patch = sanitizeSettingsPatch({ twitchClientId: '  AbC123  ', twitchAutoConnect: false, twitchTokens }, current);
+  assert.equal(patch.twitchClientId, 'AbC123');
+  assert.equal(patch.twitchAutoConnect, false);
+  assert.equal('twitchTokens' in patch, false);
+});
+
+test('sanitizeSettingsPatch: Twitch-Client-ID mit fremden Zeichen wird verworfen, leer = löschen', () => {
+  const current = new SettingsStore(tmpDir()).get();
+  assert.equal('twitchClientId' in sanitizeSettingsPatch({ twitchClientId: 'abc&scopes=chat:edit' }, current), false);
+  assert.equal('twitchClientId' in sanitizeSettingsPatch({ twitchClientId: 'a'.repeat(65) }, current), false);
+  assert.equal('twitchClientId' in sanitizeSettingsPatch({ twitchClientId: 42 }, current), false);
+  assert.equal('twitchAutoConnect' in sanitizeSettingsPatch({ twitchAutoConnect: 'ja' }, current), false);
+  assert.equal(sanitizeSettingsPatch({ twitchClientId: '   ' }, current).twitchClientId, '');
+});
+
+test('Laden: kaputte Twitch-Felder fallen auf Standard zurück', () => {
+  const dir = tmpDir();
+  writeSettings(dir, { schemaVersion: SETTINGS_SCHEMA_VERSION, twitchClientId: 7, twitchAutoConnect: 'ja' });
+  const s = new SettingsStore(dir).get();
+  assert.equal(s.twitchClientId, '');
+  assert.equal(s.twitchAutoConnect, true);
+});
+
+test('einstellungenFuerRenderer (SETTINGS_GET): kein Twitch-Token, aber twitchConnected', () => {
+  const basis = new SettingsStore(tmpDir()).get();
+  const mit = einstellungenFuerRenderer({ ...basis, twitchTokens, twitchClientId: 'abc123' });
+  assert.equal(mit.twitchTokens, undefined);
+  assert.equal(mit.twitchConnected, true);
+  assert.equal(mit.twitchClientId, 'abc123');
+  assert.ok(!JSON.stringify(mit).includes('twitch-access-geheim'));
+  assert.ok(!JSON.stringify(mit).includes('twitch-refresh-geheim'));
+  const ohne = einstellungenFuerRenderer(basis);
+  assert.equal(ohne.twitchConnected, false);
+});
+
+test('einstellungenFuerRenderer (SETTINGS_GET): die übrigen Geheimnisse bleiben draußen (Umzug aus main.ts)', () => {
+  const basis = new SettingsStore(tmpDir()).get();
+  const s = {
+    ...basis,
+    tiktokSessionId: 'g-sess', tiktokTargetIdc: 'g-idc', tiktokSignApiKey: 'g-sign', tiktokSignApiKeys: ['g-a', 'g-b'],
+    sportApiKey: 'g-sport', aiApiKey: 'g-ai', controlToken: 'g-ctl',
+    spotifyTokens: { accessToken: 'g-sp-at', refreshToken: 'g-sp-rt', expiresAt: 1 },
+    obs: { enabled: true, url: 'ws://x', password: 'g-obs-pw' },
+  };
+  const r = einstellungenFuerRenderer(s);
+  const json = JSON.stringify(r);
+  for (const geheim of ['g-sess', 'g-idc', 'g-sign', 'g-a', 'g-b', 'g-sport', 'g-ai', 'g-ctl', 'g-sp-at', 'g-sp-rt', 'g-obs-pw']) {
+    assert.ok(!json.includes(geheim), `${geheim} geht an den Renderer`);
+  }
+  assert.equal(r.ttsCredentials, undefined);
+  assert.equal(r.tiktokLoggedIn, true);
+  assert.equal(r.tiktokSignKeySet, true);
+  assert.equal(r.tiktokSignKeyCount, 2);
+  assert.equal(r.sportKeySet, true);
+  assert.equal(r.aiKeySet, true);
+  assert.equal(r.spotifyConnected, true);
+  assert.equal(r.obsPasswordSet, true);
+  assert.equal((r.obs as Record<string, unknown>).url, 'ws://x');
 });

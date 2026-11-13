@@ -11,6 +11,7 @@ import { DEFAULT_MIXER, normalizeMixer, type MixerSettings } from '../../shared/
 import { log } from '../core/logger';
 import { schreibeAtomar } from '../core/atomar-schreiben';
 import { packe, entpacke, type Krypto } from './secret-box';
+import { istGueltigeTwitchClientId } from './twitch-auth';
 
 export const SETTINGS_SCHEMA_VERSION = 7;
 
@@ -184,6 +185,14 @@ export interface StudioSettings {
   spotifyClientId: string;
   /** Spotify OAuth-Tokens (sensibel, lokal — nie an den Renderer). */
   spotifyTokens: import('./spotify-service').SpotifyTokens | null;
+  /** Twitch: vom Nutzer registrierte App-Client-ID (öffentlicher Client,
+   *  Gerätecode-Login — kein Secret). Nur Buchstaben/Ziffern. */
+  twitchClientId: string;
+  /** Twitch OAuth-Tokens (sensibel, verschlüsselt — nie an den Renderer,
+   *  nie per SETTINGS_UPDATE setzbar). Fehlt = nicht verbunden. */
+  twitchTokens?: import('./twitch-auth').TwitchTokens;
+  /** Beim App-Start automatisch mit Twitch verbinden, wenn angemeldet. */
+  twitchAutoConnect: boolean;
 }
 
 export interface ObsSettings {
@@ -287,6 +296,8 @@ const DEFAULTS: StudioSettings = {
   streamerbot: { enabled: false, url: 'ws://127.0.0.1:8080/' },
   spotifyClientId: '',
   spotifyTokens: null,
+  twitchClientId: '',
+  twitchAutoConnect: true,
 };
 
 function isValidRule(rule: unknown): rule is TriggerRule {
@@ -496,6 +507,11 @@ export class SettingsStore {
         model: aiModel,
       };
       merged.aiApiKey = typeof raw.aiApiKey === 'string' ? raw.aiApiKey : '';
+      // Twitch (additiv): handbearbeitete/kaputte Werte → Standard. Die Tokens
+      // prüft TwitchAuth selbst auf Vollständigkeit.
+      merged.twitchClientId = typeof raw.twitchClientId === 'string' && istGueltigeTwitchClientId(raw.twitchClientId.trim())
+        ? raw.twitchClientId.trim() : '';
+      merged.twitchAutoConnect = typeof raw.twitchAutoConnect === 'boolean' ? raw.twitchAutoConnect : true;
       const gw = raw.giveaway as Record<string, unknown> | undefined;
       merged.giveaway = {
         enabled: typeof gw?.enabled === 'boolean' ? gw.enabled : false,
@@ -721,6 +737,15 @@ export function sanitizeSettingsPatch(patch: unknown, current: StudioSettings): 
   }
   if (typeof p.mixer === 'object' && p.mixer !== null) allowed.mixer = normalizeMixer(p.mixer);
   if (typeof p.spotifyClientId === 'string') allowed.spotifyClientId = p.spotifyClientId.trim().slice(0, 100);
+  // Twitch: nur Client-ID und Auto-Verbinden. Die Tokens (twitchTokens) setzt
+  // ausschließlich TwitchAuth im Main-Prozess — wie spotifyTokens stehen sie
+  // absichtlich NICHT in dieser Liste. Leere ID = löschen; eine ID mit fremden
+  // Zeichen wird verworfen (sie landet später in Formular-Bodies).
+  if (typeof p.twitchClientId === 'string') {
+    const id = p.twitchClientId.trim();
+    if (id === '' || istGueltigeTwitchClientId(id)) allowed.twitchClientId = id;
+  }
+  if (typeof p.twitchAutoConnect === 'boolean') allowed.twitchAutoConnect = p.twitchAutoConnect;
   if (typeof p.moderation === 'object' && p.moderation !== null) {
     const m = p.moderation as Record<string, unknown>;
     if (Array.isArray(m.blockedWords)) {
@@ -806,7 +831,47 @@ export const SECRET_TOP_LEVEL_FIELDS = [
   'sportApiKey',
   'aiApiKey', // KI-Key nie ins Backup / nie aus Backup übernehmen
   'spotifyTokens', // OAuth-Tokens nie ins Backup / nie aus Backup übernehmen
+  'twitchTokens', // dito — und verschlüsselt auf der Platte (secret-box)
 ] as const;
+
+/** Einstellungen, wie der Renderer sie per `IPC.SETTINGS_GET` bekommt: ohne
+ *  Geheimnisse, stattdessen nur „ist gesetzt"-Flags (sonst landen Keys und
+ *  Tokens in Screenshots/Crash-Dumps). Deny-List — lag früher inline in
+ *  main.ts und ist hierher gezogen, damit sie testbar ist.
+ *  Mutiert `settings` NICHT (arbeitet auf einer tiefen Kopie). */
+export function einstellungenFuerRenderer(settings: StudioSettings): Record<string, unknown> {
+  const safe = structuredClone(settings) as unknown as Record<string, unknown>;
+  // BYOK-Keys NIE an den Renderer — der nutzt dafür ttsCredentialStatus().
+  delete safe.ttsCredentials;
+  // Sensible Account-/Sign-Tokens nicht roh ausliefern — nur ein Boolean-Status.
+  safe.tiktokLoggedIn =
+    typeof safe.tiktokSessionId === 'string' && safe.tiktokSessionId.length > 0 &&
+    typeof safe.tiktokTargetIdc === 'string' && safe.tiktokTargetIdc.length > 0;
+  safe.tiktokSignKeySet = typeof safe.tiktokSignApiKey === 'string' && safe.tiktokSignApiKey.length > 0;
+  // Ausweich-Keys nie roh — nur die ANZAHL, damit die UI „N hinterlegt" zeigen kann.
+  safe.tiktokSignKeyCount = Array.isArray(safe.tiktokSignApiKeys) ? safe.tiktokSignApiKeys.length : 0;
+  delete safe.tiktokSessionId;
+  delete safe.tiktokTargetIdc;
+  delete safe.tiktokSignApiKey;
+  delete safe.tiktokSignApiKeys;
+  // Weitere Geheimnisse nie roh an den Renderer — stattdessen nur ein
+  // „ist gesetzt"-Flag, damit die UI „gesetzt" anzeigen kann.
+  safe.sportKeySet = typeof safe.sportApiKey === 'string' && safe.sportApiKey.length > 0;
+  delete safe.sportApiKey;       // football-data.org-Key
+  safe.aiKeySet = typeof safe.aiApiKey === 'string' && safe.aiApiKey.length > 0;
+  delete safe.aiApiKey;          // Gemini-Key
+  delete safe.controlToken;      // Steuer-/Overlay-Token (Renderer braucht ihn nie)
+  safe.spotifyConnected = !!(safe.spotifyTokens && typeof safe.spotifyTokens === 'object');
+  delete safe.spotifyTokens;     // OAuth-Tokens nie an den Renderer
+  safe.twitchConnected = !!(safe.twitchTokens && typeof safe.twitchTokens === 'object');
+  delete safe.twitchTokens;      // OAuth-Tokens nie an den Renderer
+  if (safe.obs && typeof safe.obs === 'object') {
+    const obs = safe.obs as Record<string, unknown>;
+    safe.obsPasswordSet = typeof obs.password === 'string' && (obs.password as string).length > 0;
+    delete obs.password;         // OBS-WebSocket-Passwort
+  }
+  return safe;
+}
 
 function stripSecretFields(copy: Record<string, unknown>): Record<string, unknown> {
   for (const k of SECRET_TOP_LEVEL_FIELDS) delete copy[k];

@@ -115,3 +115,13 @@ test('jedes von der TTS-Seite gesendete tts-Unterfeld steht im p.tts-Block der A
       + 'In main.ts (SETTINGS_UPDATE, p.tts-Block) freischalten — sonst ist die Einstellung nach dem Neustart weg.',
   );
 });
+
+test('OAuth-Tokens stehen NIE in der SETTINGS_UPDATE-Allowlist', () => {
+  // Tokens setzt nur der Main-Prozess (Spotify-/Twitch-Dienst). Ließe die
+  // Allowlist sie durch, könnte ein manipulierter Renderer oder ein Backup
+  // fremde Tokens einschleusen.
+  const allowed = fieldsAllowedByHandler();
+  for (const feld of ['spotifyTokens', 'twitchTokens']) {
+    assert.equal(allowed.has(feld), false, `${feld} darf nicht per updateSettings setzbar sein`);
+  }
+});

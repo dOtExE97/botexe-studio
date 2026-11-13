@@ -8,7 +8,7 @@ import { validateTriggerRules, validateChatCommands, validateRedemptions, valida
 import { IPC } from './shared/constants';
 import { parseChangelog } from './shared/changelog';
 import { Studio } from './main/services/studio';
-import { sanitizeSettingsPatch } from './main/services/settings-store';
+import { sanitizeSettingsPatch, einstellungenFuerRenderer } from './main/services/settings-store';
 import { searchMyInstants, downloadMyInstants } from './main/services/myinstants';
 import { BYOK_PROVIDERS } from './main/services/tts-byok';
 import { TUNING_SPECS } from './main/services/tts-tuning';
@@ -1124,39 +1124,10 @@ function registerIpc(): void {
   });
 
   // Settings
-  ipcMain.handle(IPC.SETTINGS_GET, () => {
-    // BYOK-Keys NIE an den Renderer — Status reicht (sonst landen Keys in
-    // Screenshots/Crash-Dumps). Der Renderer nutzt dafür ttsCredentialStatus().
-    // get() liefert eine tiefe Kopie, das delete trifft also nur die Antwort.
-    const safe = isStudio().settings.get() as unknown as Record<string, unknown>;
-    delete safe.ttsCredentials;
-    // Sensible Account-/Sign-Tokens nicht roh ausliefern — nur ein Boolean-Status.
-    safe.tiktokLoggedIn =
-      typeof safe.tiktokSessionId === 'string' && safe.tiktokSessionId.length > 0 &&
-      typeof safe.tiktokTargetIdc === 'string' && safe.tiktokTargetIdc.length > 0;
-    safe.tiktokSignKeySet = typeof safe.tiktokSignApiKey === 'string' && safe.tiktokSignApiKey.length > 0;
-    // Ausweich-Keys nie roh — nur die ANZAHL, damit die UI „N hinterlegt" zeigen kann.
-    safe.tiktokSignKeyCount = Array.isArray(safe.tiktokSignApiKeys) ? safe.tiktokSignApiKeys.length : 0;
-    delete safe.tiktokSessionId;
-    delete safe.tiktokTargetIdc;
-    delete safe.tiktokSignApiKey;
-    delete safe.tiktokSignApiKeys;
-    // Weitere Geheimnisse nie roh an den Renderer (Screenshots/Crash-Dumps) —
-    // stattdessen nur ein „ist gesetzt"-Flag, damit die UI „gesetzt" anzeigen kann.
-    safe.sportKeySet = typeof safe.sportApiKey === 'string' && safe.sportApiKey.length > 0;
-    delete safe.sportApiKey;       // football-data.org-Key
-    safe.aiKeySet = typeof safe.aiApiKey === 'string' && safe.aiApiKey.length > 0;
-    delete safe.aiApiKey;          // Gemini-Key
-    delete safe.controlToken;      // Steuer-/Overlay-Token (Renderer braucht ihn nie)
-    safe.spotifyConnected = !!(safe.spotifyTokens && typeof safe.spotifyTokens === 'object');
-    delete safe.spotifyTokens;     // OAuth-Tokens nie an den Renderer
-    if (safe.obs && typeof safe.obs === 'object') {
-      const obs = safe.obs as Record<string, unknown>;
-      safe.obsPasswordSet = typeof obs.password === 'string' && (obs.password as string).length > 0;
-      delete obs.password;         // OBS-WebSocket-Passwort
-    }
-    return safe;
-  });
+  ipcMain.handle(IPC.SETTINGS_GET, () =>
+    // Geheimnisse (Keys, Tokens, Passwörter) NIE an den Renderer — nur
+    // „ist gesetzt"-Flags. Die Deny-List liegt testbar in settings-store.ts.
+    einstellungenFuerRenderer(isStudio().settings.get()));
   ipcMain.handle(IPC.SETTINGS_UPDATE, (_e, patch: unknown) => {
     if (typeof patch !== 'object' || patch === null) return { ok: false };
     // Feld-für-Feld-Allowlist mit Typ-Checks/Clamping — jetzt zentral in
