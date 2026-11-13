@@ -60,6 +60,13 @@ ein kleines TikTok- oder Twitch-Zeichen.
 
 - Twitch-Zahlen fließen **nicht** in die TikTok-Statistiken (Coins, Likes,
   Top-Gifter) — die bleiben sauber TikTok.
+- Eine **eigene Twitch-Bestenliste** gibt es trotzdem: Widget „Top Gifter",
+  Quelle **„Twitch-Supporter"**. Gezählt wird je Zuschauer: 1 Bit = 1 Punkt,
+  1 Sub (auch Resub) = 500 Punkte, verschenkte Subs zählen beim Schenkenden
+  (Anzahl × 500). Anonyme Cheers/Geschenke landen nie in der Liste. Angezeigt
+  wird, was jemand gegeben hat („2 Subs + 300 Bits"), sortiert nach Punkten.
+  Passender Look: Stil **„Schatz"** („TOP PIRATEN", Krone, Silber- und
+  Bronzemünze). Die Liste gilt pro Stream wie die übrige Statistik.
 - Twitch-Zuschauer haben eigene IDs (`twitch:<nummer>`); Punkte und Spiele
   vermischen sich nicht mit TikTok-Zuschauern gleichen Namens.
 - Das Piraten-Orakel und die Twitch-Piraten (Sub, Bits, Raid) sind im

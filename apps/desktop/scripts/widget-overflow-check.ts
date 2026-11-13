@@ -199,7 +199,8 @@ const voll={totals:{viewers:342,likes:1240,follows:12,coins:680,gifts:37,shares:
  topGifters:[{id:'1',nickname:'BigBen',coins:8400},{id:'2',nickname:'Mia',coins:5200},{id:'3',nickname:'LeonGG',coins:3100},{id:'4',nickname:'Nova',coins:1800}],
  topLikers:[{id:'1',nickname:'Mia',likes:320},{id:'2',nickname:'Nova',likes:145}],
  topPoints:[{id:'1',nickname:'Mia',points:1250},{id:'2',nickname:'Nova',points:840}],
- topWinners:[{id:'1',nickname:'Mia',wins:4}]};
+ topWinners:[{id:'1',nickname:'Mia',wins:4}],
+ topTwitch:[{id:'1',nickname:'Goldzahn',punkte:4300,bits:1300,subs:6},{id:'2',nickname:'Mia',punkte:1500,bits:1500,subs:0}]};
 // Karg = frisch gestarteter Stream: je EIN Eintrag. Siehe Kommentar an baueSeite().
 const karg={...voll,
  topGifters:[{id:'1',nickname:'BigBen',coins:8400}],

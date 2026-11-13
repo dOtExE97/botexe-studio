@@ -680,7 +680,9 @@ export class Studio {
         // Test-Events dürfen die Zähler bewusst bewegen (sonst könnte man
         // Widgets nicht testen) — aber sie machen aus einer Testrunde keinen
         // Stream: nur echte Ereignisse berechtigen zum Historie-Eintrag.
-        if (!e.synthetic) {
+        // Twitch-Cheers/-Abos bewegen nur die Twitch-Bestenliste — die
+        // Historie ist (wie bisher) die TikTok-Historie.
+        if (!e.synthetic && e.plattform !== 'twitch') {
           const jetzt = Date.now();
           if (this.erstesEchtesEventAt === 0) this.erstesEchtesEventAt = jetzt;
           this.letztesEchtesEventAt = jetzt;

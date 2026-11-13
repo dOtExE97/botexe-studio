@@ -1,5 +1,5 @@
 // leaderboard.js — Top-Liste (Gifter/Liker) mit 3 Stilen.
-// props: { source?, limit?, title?, accent?, style?: 'glas'|'neon'|'bars' }
+// props: { source?: 'gifts'|'likes'|'twitch', limit?, title?, accent?, style? }
 const STYLE_ID = 'bx-lb-style';
 const CSS = `
 .bx-lb { position: absolute; inset: 0; display: flex; flex-direction: column; font-family: var(--bx-font-body);
@@ -177,6 +177,48 @@ const CSS = `
 .bx-st-nummern .bx-lb-name { font-weight: 800; }
 .bx-st-nummern .bx-lb-val { font-family: var(--bx-font-num, var(--bx-font-display)); font-weight: 800; }
 
+/* ── Stil „Schatz" (Gold & Lila, Piraten) — Samtpanel mit Goldrahmen, oben eine
+   Goldplakette als Titel, Platz 1 trägt die Krone, 2 und 3 eine Silber- bzw.
+   Bronzemünze, ab 4 lila Münzen. Profilbilder im Goldring. Rahmen nur als
+   inset-Schatten (bleibt in der Box), Konturen nie über border. */
+.bx-st-schatz { background: radial-gradient(120% 90% at 18% 0%, #2c1658, #1a0c36 55%, #0d0620); border-radius: clamp(10px,3.2cqmin,22px);
+  box-shadow: inset 0 0 0 2px #1d0c03, inset 0 0 0 4px #d49a2e, inset 0 0 0 5.5px #1d0c03, inset 0 2px 18px rgba(0,0,0,.6); }
+.bx-st-schatz::before { display: none; }
+.bx-st-schatz .bx-lb-title { align-self: center; max-width: 88%; box-sizing: border-box; white-space: nowrap; text-overflow: ellipsis;
+  border: none; margin: 0 0 clamp(4px,4cqh,14px); padding: .26em 1.1em .3em; border-radius: .5em;
+  letter-spacing: .1em; color: #5a2f03; text-shadow: 0 .07em 0 rgba(255,246,214,.85), 0 -.04em 0 rgba(60,28,0,.4);
+  background: linear-gradient(180deg, rgba(255,255,255,.55) 0 8%, rgba(255,255,255,.15) 46%, transparent 50%),
+    linear-gradient(180deg, #fff4c8, #f5c451 35%, #d49a2e 62%, #a8701a 92%);
+  box-shadow: 0 0 0 2px #1d0c03, inset 0 2px 0 rgba(255,255,255,.7), inset 0 -3px 0 rgba(107,63,8,.55), 0 3px 0 #1d0c03, 0 0 18px rgba(255,214,110,.35); }
+.bx-st-schatz .bx-lb-title::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent); }
+.bx-st-schatz .bx-lb-row::after { display: none; }
+.bx-st-schatz .bx-lb-row::before { content: ''; position: absolute; inset: 7% 0; z-index: 0; border-radius: clamp(6px,24cqh,14px);
+  background: linear-gradient(90deg, rgba(145,70,255,.24), rgba(31,17,64,.6) 70%);
+  box-shadow: inset 0 1px 0 rgba(255,222,140,.3), inset 0 0 0 1px rgba(184,129,31,.28), 0 4px 10px -6px rgba(0,0,0,.8); }
+.bx-st-schatz .bx-lb-row[data-rank="1"]::before { background: linear-gradient(90deg, rgba(245,196,81,.38), rgba(122,74,12,.25) 40%, rgba(31,17,64,.6) 80%);
+  box-shadow: inset 0 1px 0 rgba(255,236,170,.6), inset 0 0 0 1px rgba(245,196,81,.6), 0 0 14px -4px rgba(245,196,81,.6); }
+.bx-st-schatz .bx-lb-row > * { position: relative; z-index: 1; }
+.bx-st-schatz .bx-lb-rank { height: 66%; border-radius: 50%; color: #fff; font-size: calc((clamp(9px,32cqh,26px)) * var(--bx-fs, 1));
+  text-shadow: 0 1px 0 rgba(0,0,0,.5);
+  background: radial-gradient(circle at 35% 30%, #e2d2ff, #9a6ae6 45%, #4b2391);
+  box-shadow: 0 0 0 2px #1d0c03, inset 0 0 0 2px rgba(255,255,255,.28), inset 0 -2px 0 rgba(0,0,0,.35); }
+.bx-st-schatz .bx-lb-row[data-rank="1"] .bx-lb-rank { height: 84%; aspect-ratio: 40 / 34; border-radius: 0; color: transparent; text-shadow: none;
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 34'%3E %3Cdefs%3E%3ClinearGradient id='k' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff4c8'/%3E%3Cstop offset='.4' stop-color='%23f5c451'/%3E%3Cstop offset='1' stop-color='%23a8701a'/%3E%3C/linearGradient%3E%3C/defs%3E %3Cpath d='M4 11 L12 18 L20 5 L28 18 L36 11 L33 27 L7 27 Z' fill='url(%23k)' stroke='%231d0c03' stroke-width='2.6' stroke-linejoin='round'/%3E %3Crect x='6.5' y='26' width='27' height='5.5' rx='1.6' fill='url(%23k)' stroke='%231d0c03' stroke-width='2.4'/%3E %3Ccircle cx='4' cy='10' r='2.6' fill='%23fff4c8' stroke='%231d0c03' stroke-width='1.8'/%3E%3Ccircle cx='20' cy='4' r='2.8' fill='%23fff4c8' stroke='%231d0c03' stroke-width='1.8'/%3E%3Ccircle cx='36' cy='10' r='2.6' fill='%23fff4c8' stroke='%231d0c03' stroke-width='1.8'/%3E %3Cpath d='M20 15 l3 4 -3 4 -3 -4z' fill='%23e2304a' stroke='%231d0c03' stroke-width='1.2'/%3E%3Ccircle cx='12' cy='22' r='1.6' fill='%2321c7b4'/%3E%3Ccircle cx='28' cy='22' r='1.6' fill='%2321c7b4'/%3E %3Cpath d='M9 13.5 L12.5 16.6' stroke='%23fffbe6' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; box-shadow: none; filter: drop-shadow(0 0 6px rgba(255,214,110,.75)); }
+.bx-st-schatz .bx-lb-row[data-rank="2"] .bx-lb-rank { color: #2a2f3d; text-shadow: 0 1px 0 rgba(255,255,255,.6);
+  background: radial-gradient(circle at 35% 30%, #ffffff, #dfe5f1 40%, #8d97ad); }
+.bx-st-schatz .bx-lb-row[data-rank="3"] .bx-lb-rank { color: #3a1a04; text-shadow: 0 1px 0 rgba(255,220,180,.6);
+  background: radial-gradient(circle at 35% 30%, #ffd9b0, #d08440 48%, #7a3e12); }
+.bx-st-schatz .bx-lb-pic { height: 70%; box-shadow: 0 0 0 2px #f5c451, 0 0 0 3.5px #1d0c03, 0 0 10px rgba(245,196,81,.4); }
+.bx-st-schatz .bx-lb-name { text-transform: none; color: #f7f2ff; letter-spacing: .01em; text-shadow: 0 2px 0 rgba(10,4,24,.75); }
+.bx-st-schatz .bx-lb-row[data-rank="1"] .bx-lb-name { color: #ffd968; }
+.bx-st-schatz .bx-lb-val { font-family: var(--bx-font-display); font-weight: 400; color: #f5c451; white-space: nowrap;
+  text-shadow: 0 2px 0 rgba(10,4,24,.8), 0 0 .5em rgba(245,196,81,.35); padding-right: .2em; }
+.bx-st-schatz.bx-lb-likes .bx-lb-val { color: #ff9fd8; }
+html .bx-frameless .bx-st-schatz { background: none; box-shadow: none; }
+/* Twitch-Quelle: Werte in Twitch-Lila (Standard-Stile), außer beim Schatz-Gold. */
+.bx-lb-twitch:not(.bx-st-schatz):not(.bx-st-pills):not(.bx-st-treppe) .bx-lb-val { color: #bf94ff; text-shadow: 0 0 10px rgba(145,70,255,.45); }
+.bx-lb-twitch:not(.bx-st-schatz) .bx-lb-title { color: #bf94ff; border-bottom-color: rgba(145,70,255,.45); }
+
 /* ── „Rahmen ausblenden" (.bx-frameless): ohne Panel steht der Text direkt auf
    dem Videobild. Auf hellen Szenen war heller Text dort praktisch unsichtbar —
    darum Kontur — außer bei den Stilen mit dunkler Schrift auf heller Pille.
@@ -231,7 +273,23 @@ function setzeText(el, wert) {
 
 function ensureStyle() { if (!document.getElementById(STYLE_ID)) { const s=document.createElement('style'); s.id=STYLE_ID; s.textContent=CSS; document.head.appendChild(s); } }
 const fmt = (n) => (n >= 1000 ? `${(n/1000).toFixed(n>=10000?0:1)}K` : String(n));
-const STYLES = new Set(['glas', 'neon', 'bars', 'arcade', 'podium', 'pills', 'royal', 'treppe', 'nummern']);
+const STYLES = new Set(['glas', 'neon', 'bars', 'arcade', 'podium', 'pills', 'royal', 'treppe', 'nummern', 'schatz']);
+const deZahl = (n) => Math.round(Number(n) || 0).toLocaleString('de-DE');
+/** Wert einer Twitch-Zeile in Worten: was die Person gegeben hat, nicht die
+ *  Punktzahl (die nur die Reihenfolge bestimmt: 1 Bit = 1, 1 Abo = 500).
+ *  „1.500 Bits", „3 Subs", „2 Subs + 300 Bits". */
+export function twitchWert(e) {
+  const bits = Math.max(0, Math.round(Number(e?.bits) || 0));
+  const subs = Math.max(0, Math.round(Number(e?.subs) || 0));
+  const s = subs > 0 ? `${deZahl(subs)} ${subs === 1 ? 'Sub' : 'Subs'}` : '';
+  const b = bits > 0 ? `${deZahl(bits)} Bits` : '';
+  return s && b ? `${s} + ${b}` : s || b || '0';
+}
+const QUELLEN = {
+  gifts: { liste: (st) => st?.topGifters, wert: (g) => g.coins, leer: 'Noch keine Gifts', titel: 'Top Gifter', klasse: '' },
+  likes: { liste: (st) => st?.topLikers, wert: (g) => g.likes, leer: 'Noch keine Likes', titel: 'Top Likes', klasse: ' bx-lb-likes' },
+  twitch: { liste: (st) => st?.topTwitch, wert: (g) => g.punkte, leer: 'Noch keine Bits oder Subs', titel: 'Top Supporter', klasse: ' bx-lb-twitch' },
+};
 
 /** URL sicher in CSS url("…") einbetten — NUR Quotes escapen, nie
  *  (nach-)encodieren: data-URIs und vor-encodierte CDN-URLs blieben sonst kaputt. */
@@ -261,21 +319,29 @@ function avSet(el, name, url) {
 /** Demo-Daten für die Editor-Vorschau — sonst steht dort nur „Noch keine Gifts". */
 const DEMO = {
   topGifters: [{ id: 'd1', nickname: 'BigBen', coins: 8400 }, { id: 'd2', nickname: 'Mia', coins: 5200 }, { id: 'd3', nickname: 'LeonGG', coins: 3100 }, { id: 'd4', nickname: 'Nova', coins: 1800 }, { id: 'd5', nickname: 'Sara_99', coins: 940 }, { id: 'd6', nickname: 'ExE', coins: 610 }, { id: 'd7', nickname: 'Kaan', coins: 320 }, { id: 'd8', nickname: 'Pia', coins: 150 }, { id: 'd9', nickname: 'Tom', coins: 90 }, { id: 'd10', nickname: 'Lu', coins: 40 }],
+  topTwitch: [{ id: 'd1', nickname: 'Goldzahn', punkte: 4300, bits: 1300, subs: 6 }, { id: 'd2', nickname: 'KäptnBlaubär', punkte: 2500, bits: 0, subs: 5 }, { id: 'd3', nickname: 'Muschelmia', punkte: 1500, bits: 1500, subs: 0 }, { id: 'd4', nickname: 'Nebelkrähe', punkte: 1000, bits: 0, subs: 2 }, { id: 'd5', nickname: 'Klabauter', punkte: 600, bits: 100, subs: 1 }, { id: 'd6', nickname: 'Rumfass', punkte: 500, bits: 0, subs: 1 }, { id: 'd7', nickname: 'Seemann42', punkte: 350, bits: 350, subs: 0 }, { id: 'd8', nickname: 'Möwe', punkte: 200, bits: 200, subs: 0 }, { id: 'd9', nickname: 'Kombüse', punkte: 100, bits: 100, subs: 0 }, { id: 'd10', nickname: 'Planke', punkte: 50, bits: 50, subs: 0 }],
   topLikers: [{ id: 'd1', nickname: 'Mia', likes: 3200 }, { id: 'd2', nickname: 'Nova', likes: 1450 }, { id: 'd3', nickname: 'LeonGG', likes: 900 }, { id: 'd4', nickname: 'BigBen', likes: 420 }, { id: 'd5', nickname: 'Sara_99', likes: 260 }, { id: 'd6', nickname: 'ExE', likes: 180 }, { id: 'd7', nickname: 'Kaan', likes: 95 }, { id: 'd8', nickname: 'Pia', likes: 60 }, { id: 'd9', nickname: 'Tom', likes: 30 }, { id: 'd10', nickname: 'Lu', likes: 12 }],
 };
 export default class Leaderboard {
   constructor(root, props, ctx) {
     ensureStyle();
     if (props.accent) root.style.setProperty('--bx-accent', props.accent);
-    this.source = props.source === 'likes' ? 'likes' : 'gifts';
+    this.source = props.source === 'likes' || props.source === 'twitch' ? props.source : 'gifts';
+    this.q = QUELLEN[this.source];
     this.style = STYLES.has(props.style) ? props.style : 'glas';
     this.limit = Math.min(10, Math.max(1, Number(props.limit ?? 5)));
     this.showPic = props.showPic !== false;
     this.el = document.createElement('div');
-    this.el.className = `bx-lb bx-st-${this.style}${this.source === 'likes' ? ' bx-lb-likes' : ''}`;
-    const empty = this.source === 'likes' ? 'Noch keine Likes' : 'Noch keine Gifts';
-    this.el.innerHTML = `<div class="bx-lb-title"></div><div class="bx-lb-list"><div class="bx-lb-empty">${empty}</div></div>`;
-    this.el.querySelector('.bx-lb-title').textContent = props.title || (this.source === 'likes' ? 'Top Likes' : 'Top Gifter');
+    this.el.className = `bx-lb bx-st-${this.style}${this.q.klasse}`;
+    this.el.innerHTML = `<div class="bx-lb-title"></div><div class="bx-lb-list"><div class="bx-lb-empty">${this.q.leer}</div></div>`;
+    // Schatz-Stil: eigener Titel auf der Plakette und eigene Schriften — beides
+    // nur, solange der Nutzer nichts Eigenes gesetzt hat.
+    const schatz = this.style === 'schatz';
+    this.el.querySelector('.bx-lb-title').textContent = props.title || (schatz ? 'Top Piraten' : this.q.titel);
+    if (schatz && !props.fontFamily) {
+      this.el.style.setProperty('--bx-font-display', "'Lilita One', 'Arial Black'");
+      this.el.style.setProperty('--bx-font-body', "'Saira Semi Condensed', 'Arial Narrow'");
+    }
     root.appendChild(this.el);
     this.rows = new Map();
     // Letzter bekannter Platz je Zuschauer — daraus leitet sich ab, ob jemand
@@ -307,12 +373,12 @@ export default class Leaderboard {
     this.timers.add(t);
   }
   onStats(stats) {
-    const src = this.source === 'likes' ? stats?.topLikers : stats?.topGifters;
-    const items = (src ?? []).slice(0, this.limit);
+    const src = this.q.liste(stats);
+    const items = (Array.isArray(src) ? src : []).slice(0, this.limit);
     const list = this.el.querySelector('.bx-lb-list');
     const empty = list.querySelector('.bx-lb-empty');
     if (empty && items.length > 0) empty.remove();
-    const maxVal = Math.max(1, ...items.map((g) => (this.source === 'likes' ? g.likes : g.coins)));
+    const maxVal = Math.max(1, ...items.map((g) => Number(this.q.wert(g)) || 0));
     // Zeilenhöhe aus der tatsächlichen Box ableiten (statt fix 48px) → beim
     // Verkleinern werden die Zeilen enger statt unten abgeschnitten.
     // arcade + podium layouten per Flexbox (height:auto) — Fixhöhe würde die
@@ -333,7 +399,7 @@ export default class Leaderboard {
         list.appendChild(row); this.rows.set(g.id, row);
         requestAnimationFrame(() => { row.style.opacity = '1'; });
       }
-      const val = this.source === 'likes' ? g.likes : g.coins;
+      const val = Number(this.q.wert(g)) || 0;
       // Bemerkenswerter Moment: neu in der Liste oder nach oben geklettert.
       const prevRank = this.ranks.get(g.id);
       if (fresh || (prevRank != null && i + 1 < prevRank)) this.hit(row);
@@ -367,7 +433,9 @@ export default class Leaderboard {
       setzeText(row.querySelector('.bx-lb-rank'), rang);
       setzeText(row.querySelector('.bx-lb-name'), g.nickname);
       const valEl = row.querySelector('.bx-lb-val');
-      if (this.style === 'arcade') {
+      if (this.source === 'twitch') {
+        setzeText(valEl, twitchWert(g));
+      } else if (this.style === 'arcade') {
         valEl.innerHTML = `<span class="arr">▲</span> ${fmt(val)}${this.source === 'likes' ? ' ❤' : ''}`;
       } else {
         setzeText(valEl, this.source === 'likes' ? `${fmt(val)} ❤` : fmt(val));
@@ -380,7 +448,7 @@ export default class Leaderboard {
     if (items.length === 0 && !list.querySelector('.bx-lb-empty')) {
       const ph = document.createElement('div');
       ph.className = 'bx-lb-empty';
-      ph.textContent = this.source === 'likes' ? 'Noch keine Likes' : 'Noch keine Gifts';
+      ph.textContent = this.q.leer;
       list.appendChild(ph);
     }
     if (this.style === 'arcade') {

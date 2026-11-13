@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { StudioEvent } from '@botexe/trigger-engine';
-import { SessionStats } from './session-stats';
+import { SessionStats, twitchPunkte, TWITCH_PUNKTE_JE_ABO } from './session-stats';
+import { TWITCH_ANONYM_ID } from '../adapters/twitch-normalize';
 
 const gift = (id: string, coins: number, count = 1, ts = 1): StudioEvent => ({
   type: 'gift',
@@ -267,4 +268,72 @@ test('Statistik zählt nur Ereignisse ohne Plattform oder von TikTok', () => {
   assert.equal(s.apply({ ...gift('ben', 20), plattform: 'tiktok' }), true);
   assert.equal(s.apply(gift('cara', 5)), true);
   assert.equal(s.snapshot().totals.coins, 25);
+});
+
+// ── Twitch-Bestenliste (Bits + Abos) ─────────────────────────────────────────
+
+const tw = (id: string, extra: Partial<StudioEvent>): StudioEvent => ({
+  type: 'cheer', ts: 1, plattform: 'twitch', user: { id, nickname: id.replace('twitch:', '').toUpperCase() }, ...extra,
+} as StudioEvent);
+
+test('Twitch-Punkte: 1 Bit = 1 Punkt, Abo = 500, Geschenk-Abos zählen beim Schenkenden × Anzahl, Resub = 500', () => {
+  assert.equal(TWITCH_PUNKTE_JE_ABO, 500);
+  assert.deepEqual(twitchPunkte(tw('twitch:1', { cheer: { bits: 1500 } })), { bits: 1500, subs: 0, punkte: 1500 });
+  assert.deepEqual(twitchPunkte(tw('twitch:1', { type: 'sub', subMonths: 1 })), { bits: 0, subs: 1, punkte: 500 });
+  assert.deepEqual(twitchPunkte(tw('twitch:1', { type: 'sub', subMonths: 14 })), { bits: 0, subs: 1, punkte: 500 }, 'Resub');
+  assert.deepEqual(twitchPunkte(tw('twitch:1', { type: 'sub', subGeschenk: { anzahl: 5, tier: '1000', anonym: false } })), { bits: 0, subs: 5, punkte: 2500 });
+  // Zählt nicht: 0 Bits, Follow, Chat, TikTok, ohne Plattform, anonym.
+  assert.equal(twitchPunkte(tw('twitch:1', { cheer: { bits: 0 } })), null);
+  assert.equal(twitchPunkte(tw('twitch:1', { type: 'follow' })), null);
+  assert.equal(twitchPunkte(tw('twitch:1', { type: 'chat', text: 'hi' })), null);
+  assert.equal(twitchPunkte({ ...tw('7', { cheer: { bits: 100 } }), plattform: 'tiktok' }), null);
+  assert.equal(twitchPunkte({ type: 'cheer', ts: 1, user: { id: 'x', nickname: 'X' }, cheer: { bits: 100 } }), null);
+  assert.equal(twitchPunkte(tw(TWITCH_ANONYM_ID, { cheer: { bits: 5000 } })), null);
+  assert.equal(twitchPunkte(tw(TWITCH_ANONYM_ID, { type: 'sub', subGeschenk: { anzahl: 50, anonym: true } })), null);
+});
+
+test('Twitch-Bestenliste: Rangfolge nach Punkten, anonym rankt nie, TikTok-Zahlen bleiben unberührt', () => {
+  const s = new SessionStats();
+  assert.equal(s.snapshot().topTwitch, undefined, 'ohne Twitch-Unterstützung fehlt die Liste');
+  assert.equal(s.apply(tw('twitch:a', { cheer: { bits: 1300 } })), true);
+  assert.equal(s.apply(tw('twitch:b', { type: 'sub', subGeschenk: { anzahl: 3, anonym: false } })), true);
+  assert.equal(s.apply(tw('twitch:a', { type: 'sub', subMonths: 7 })), true);
+  assert.equal(s.apply(tw('twitch:c', { cheer: { bits: 900 } })), true);
+  assert.equal(s.apply(tw(TWITCH_ANONYM_ID, { cheer: { bits: 99999 } })), false);
+  assert.equal(s.apply(tw(TWITCH_ANONYM_ID, { type: 'sub', subGeschenk: { anzahl: 100, anonym: true } })), false);
+  // Ein Twitch-Chat / -Follow bewegt die Liste nicht.
+  assert.equal(s.apply(tw('twitch:d', { type: 'chat', text: 'moin' })), false);
+  const top = s.snapshot().topTwitch!;
+  assert.deepEqual(top.map((t) => [t.id, t.punkte, t.bits, t.subs]), [
+    ['twitch:a', 1800, 1300, 1],
+    ['twitch:b', 1500, 0, 3],
+    ['twitch:c', 900, 900, 0],
+  ]);
+  const t = s.snapshot().totals;
+  assert.equal(t.coins, 0); assert.equal(t.gifts, 0); assert.equal(t.subs, 0); assert.equal(t.uniqueViewers, 0); assert.equal(t.chats, 0);
+});
+
+test('TikTok-Geschenke ändern die Twitch-Bestenliste nicht', () => {
+  const s = new SessionStats();
+  s.apply(tw('twitch:a', { cheer: { bits: 100 } }));
+  const vorher = s.snapshot().topTwitch;
+  s.apply({ ...gift('anna', 5000), plattform: 'tiktok' });
+  s.apply(gift('ben', 300));
+  // Ein Gift-Ereignis, das (fälschlich) von Twitch käme, zählt auch nicht.
+  assert.equal(s.apply({ ...gift('twitch:a', 9999), plattform: 'twitch' }), false);
+  assert.deepEqual(s.snapshot().topTwitch, vorher);
+  assert.equal(s.snapshot().topGifters.length, 2);
+});
+
+test('Twitch-Bestenliste überlebt toJSON/fromJSON und verschwindet beim Reset', () => {
+  const s = new SessionStats();
+  s.apply(tw('twitch:a', { cheer: { bits: 250 } }));
+  s.apply(tw('twitch:b', { type: 'sub', subMonths: 1 }));
+  const wieder = SessionStats.fromJSON(s.toJSON());
+  assert.deepEqual(wieder?.snapshot().topTwitch, s.snapshot().topTwitch);
+  // Alte Sicherung ohne Twitch-Feld bleibt lesbar.
+  const alt = JSON.parse(s.toJSON()); delete alt.twitch;
+  assert.equal(SessionStats.fromJSON(JSON.stringify(alt))?.snapshot().topTwitch, undefined);
+  s.reset();
+  assert.equal(s.snapshot().topTwitch, undefined);
 });

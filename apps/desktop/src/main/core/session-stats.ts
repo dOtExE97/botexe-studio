@@ -2,6 +2,7 @@
 // Totals (Coins, Gifts, Follows, Likes, …) + Top-Gifter-Leaderboard.
 // Pure Logik; Persistenz (Crash-Recovery) und Broadcast macht der Service.
 import type { StudioEvent, RaumPlatz } from '@botexe/trigger-engine';
+import { TWITCH_ANONYM_ID } from '../adapters/twitch-normalize';
 
 export const STATS_SCHEMA_VERSION = 1;
 const TOP_GIFTERS_LIMIT = 10;
@@ -45,6 +46,46 @@ export interface LikerEntry {
   nickname: string;
   profilePic?: string;
   likes: number;
+}
+
+/** Twitch-Bestenliste: Bits und Abos in EINER Punktzahl.
+ *  1 Bit = 1 Punkt, 1 Abo = 500 Punkte (verschenkte Abos zählen beim
+ *  Schenkenden: Anzahl × 500; eine Verlängerung ist ein Abo). 500 ist
+ *  ungefähr der Gegenwert eines Tier-1-Abos in Bits (4,99 $ ≈ 500 Bits). */
+export const TWITCH_PUNKTE_JE_ABO = 500;
+
+export interface TwitchSupporterEntry {
+  id: string;
+  nickname: string;
+  profilePic?: string;
+  punkte: number;
+  bits: number;
+  subs: number;
+}
+
+/**
+ * Punkte, die EIN Twitch-Ereignis einem Zuschauer bringt — oder null, wenn es
+ * nicht zählt. Reine Funktion, damit die Rechnung ohne Statistik prüfbar ist.
+ * Zählt nur Twitch (plattform:'twitch'), nur Cheers und Abos, nie den
+ * Stellvertreter für anonyme Geschenke/Cheers.
+ */
+export function twitchPunkte(event: StudioEvent): { bits: number; subs: number; punkte: number } | null {
+  if (event.plattform !== 'twitch') return null;
+  const id = event.user?.id;
+  if (!id || id === TWITCH_ANONYM_ID) return null;
+  let bits = 0;
+  let subs = 0;
+  if (event.type === 'cheer') {
+    bits = Math.max(0, Math.floor(Number(event.cheer?.bits) || 0));
+  } else if (event.type === 'sub') {
+    subs = event.subGeschenk
+      ? Math.max(1, Math.floor(Number(event.subGeschenk.anzahl) || 1))
+      : 1;
+  } else {
+    return null;
+  }
+  if (bits === 0 && subs === 0) return null;
+  return { bits, subs, punkte: bits + subs * TWITCH_PUNKTE_JE_ABO };
 }
 
 export interface StatsTotals {
@@ -143,6 +184,9 @@ export interface StatsSnapshot {
   totals: StatsTotals;
   topGifters: GifterEntry[];
   topLikers: LikerEntry[];
+  /** Twitch-Bestenliste (Bits + Abos als Punkte, siehe twitchPunkte). Fehlt,
+   *  solange niemand auf Twitch gecheert oder abonniert hat. */
+  topTwitch?: TwitchSupporterEntry[];
   /** Wertvollstes Einzel-Gift der Session (nach Coins). */
   topGift?: GiftHighlight;
   /** Höchste Combo der Session (nach count). */
@@ -160,6 +204,8 @@ interface SerializedStats {
   totals: StatsTotals;
   gifters: GifterEntry[];
   likers?: LikerEntry[];
+  /** Twitch-Bestenliste (optional → alte Backups bleiben lesbar). */
+  twitch?: TwitchSupporterEntry[];
   topGift?: GiftHighlight;
   topStreak?: GiftHighlight;
   /** Alle gesehenen Zuschauer-IDs — damit uniqueViewers nach Neustart korrekt
@@ -189,6 +235,7 @@ export class SessionStats {
   private totals = emptyTotals();
   private gifters = new Map<string, GifterEntry>();
   private likers = new Map<string, LikerEntry>();
+  private twitch = new Map<string, TwitchSupporterEntry>();
   /** TikToks eigene Raum-Bestenliste, zuletzt gemeldeter Stand (siehe apply). */
   private raumBeste: RaumPlatz[] = [];
   /** Verlauf des Abends. Wird von außen getaktet (siehe messeVerlauf) — die
@@ -259,6 +306,9 @@ export class SessionStats {
     // Die Statistik ist die TikTok-Statistik: Twitch-Ereignisse (Chat, Subs,
     // Bits …) würden Zuschauer- und Geschenkzahlen verfälschen. Ereignisse
     // ohne Plattform (Test-Knopf, Replay, Timer) zählen weiter wie bisher.
+    // Einzige Ausnahme: die eigene Twitch-Bestenliste (Bits + Abos) — sie
+    // berührt keine einzige TikTok-Zahl.
+    if (event.plattform === 'twitch') return this.applyTwitch(event);
     if (event.plattform !== undefined && event.plattform !== 'tiktok') return false;
     const userNew = this.trackViewer(event.user?.id);
     // Herkunft nur bei NEUEN Zuschauern: `seenUsers` ist dafür schon da und
@@ -271,6 +321,22 @@ export class SessionStats {
     const changed = this.applyInner(event) || userNew;
     if (changed) this.dirty = true;
     return changed;
+  }
+
+  /** Cheers und Abos von Twitch in die Twitch-Bestenliste. */
+  private applyTwitch(event: StudioEvent): boolean {
+    const p = twitchPunkte(event);
+    const user = event.user;
+    if (!p || !user) return false;
+    const entry = this.twitch.get(user.id) ?? { id: user.id, nickname: user.nickname, punkte: 0, bits: 0, subs: 0 };
+    entry.punkte += p.punkte;
+    entry.bits += p.bits;
+    entry.subs += p.subs;
+    entry.nickname = user.nickname;
+    if (user.profilePic) entry.profilePic = user.profilePic;
+    this.twitch.set(user.id, entry);
+    this.dirty = true;
+    return true;
   }
 
   /** Eine Zuschauer-ID erstmals erfassen → uniqueViewers. true, wenn neu. */
@@ -411,10 +477,15 @@ export class SessionStats {
       .sort((a, b) => b.likes - a.likes)
       .slice(0, TOP_GIFTERS_LIMIT)
       .map((l) => ({ ...l }));
+    const topTwitch = Array.from(this.twitch.values())
+      .sort((a, b) => b.punkte - a.punkte || b.subs - a.subs || b.bits - a.bits)
+      .slice(0, TOP_GIFTERS_LIMIT)
+      .map((t) => ({ ...t }));
     this.cached = {
       totals: { ...this.totals },
       topGifters,
       topLikers,
+      ...(topTwitch.length > 0 ? { topTwitch } : {}),
       ...(this.raumBeste.length > 0 ? { raumBeste: this.raumBeste.map((p) => ({ ...p })) } : {}),
       ...(this.verlauf.length > 1 ? { verlauf: this.verlauf.map((p) => ({ ...p })) } : {}),
       ...(this.topGift ? { topGift: cleanHighlight(this.topGift) } : {}),
@@ -428,6 +499,7 @@ export class SessionStats {
     this.totals = emptyTotals();
     this.gifters.clear();
     this.likers.clear();
+    this.twitch.clear();
     this.seenUsers.clear();
     this.neueSuperfans.clear();
     this.topGift = undefined;
@@ -447,6 +519,7 @@ export class SessionStats {
       totals: { ...this.totals },
       gifters: Array.from(this.gifters.values()),
       likers: Array.from(this.likers.values()),
+      ...(this.twitch.size > 0 ? { twitch: Array.from(this.twitch.values()) } : {}),
       topGift: this.topGift,
       topStreak: this.topStreak,
       seenUsers: Array.from(this.seenUsers),
@@ -463,6 +536,7 @@ export class SessionStats {
       stats.totals = { ...emptyTotals(), ...data.totals };
       for (const g of data.gifters) stats.gifters.set(g.id, { ...g });
       for (const l of data.likers ?? []) stats.likers.set(l.id, { ...l });
+      for (const t of data.twitch ?? []) if (t && typeof t.id === 'string') stats.twitch.set(t.id, { ...t });
       for (const id of data.seenUsers ?? []) stats.seenUsers.add(id);
       // uniqueViewers konsistent zum wiederhergestellten Set halten.
       stats.totals.uniqueViewers = stats.seenUsers.size || stats.totals.uniqueViewers;

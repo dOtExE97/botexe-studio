@@ -67,6 +67,16 @@ eigenem Overlay und eigenem Chat:
   hüpft der Deckel, Licht blitzt und Münzen springen heraus. Alles gezeichnet,
   keine Bilddateien; skaliert mit der Box und dem Textgrößen-Regler.
   „Bewegung reduzieren“ (System) und der Sparmodus stellen alles still.
+- **Bestenliste „Twitch-Supporter“** — das Widget „Top Gifter“ hat eine neue
+  Quelle: wer auf Twitch am meisten unterstützt. 1 Bit = 1 Punkt, jeder Sub
+  (auch Resub) = 500 Punkte, verschenkte Subs zählen beim Schenkenden
+  (Anzahl × 500); anonyme Cheers und Geschenke zählen nicht. Die Zeile zeigt,
+  was jemand gegeben hat („1.500 Bits“, „3 Subs“, „2 Subs + 300 Bits“). Die
+  Liste übersteht wie die übrige Statistik einen Neustart der App; TikTok-
+  Zahlen und die Stream-Historie bleiben davon unberührt.
+- **Bestenliste: neuer Stil „Schatz“** — lila Samtpanel mit Goldrahmen,
+  Goldplakette „TOP PIRATEN“, Platz 1 mit Krone, 2 und 3 mit Silber- und
+  Bronzemünze, Profilbilder im Goldring. Passt zu jeder Quelle.
 
 Einrichten in drei Zeilen: Client-ID auf dev.twitch.tv/console holen (Kategorie
 Application Integration, Client-Typ Öffentlich) → in der App verbinden →

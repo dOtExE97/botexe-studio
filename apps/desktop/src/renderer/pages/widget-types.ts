@@ -588,8 +588,8 @@ export const WIDGET_TYPES: {
     type: 'leaderboard', label: 'Top Gifter', desc: 'Die größten Gift-Supporter — mit Avataren + Kronen oder Box.',
     w: 760, h: 180, props: { source: 'gifts', limit: 5, title: '', style: 'arcade', showPic: true, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
-      { key: 'source', label: 'Quelle', type: 'select', hint: 'Wonach die Liste sortiert: „Gifts" nach ausgegebenen Coins, „Likes" nach gedrückten Herzen. Zwei verschiedene Bestenlisten — leg dir ruhig beide nebeneinander.', options: [
-        { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
+      { key: 'source', label: 'Quelle', type: 'select', hint: 'Wonach die Liste sortiert: „Gifts" nach ausgegebenen Coins, „Likes" nach gedrückten Herzen, „Twitch-Supporter" nach Bits und Subs auf Twitch (1 Bit = 1 Punkt, 1 Sub = 500 Punkte, verschenkte Subs zählen beim Schenkenden). Verschiedene Bestenlisten — leg dir ruhig mehrere nebeneinander.', options: [
+        { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' }, { value: 'twitch', label: 'Twitch-Supporter (Bits + Subs)' },
       ] },
       styleField([
         { value: 'arcade', label: 'Arcade (Avatare + Kronen)' },
@@ -601,9 +601,10 @@ export const WIDGET_TYPES: {
         { value: 'royal', label: 'Royal (Gold & Samt, edel)' },
         { value: 'treppe', label: 'Treppe (Staffelung nach Rang)' },
         { value: 'nummern', label: 'Nummern (groß, typografisch)' },
+        { value: 'schatz', label: 'Schatz (Gold & Lila, Piraten)' },
       ]),
       { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Zuschauer angezeigt werden (1–10).' },
-      { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Gifter").' },
+      { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Gifter", „Top Likes", „Top Supporter"; beim Stil Schatz „Top Piraten").' },
       { key: 'showPic', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Avatare der Zuschauer anzeigen.' },
       ACCENT_FIELD,
       ...STYLE_FIELDS,
@@ -613,8 +614,8 @@ export const WIDGET_TYPES: {
     type: 'leaderboard', label: 'Like-Liste', desc: 'Wer am fleißigsten liked — mit Avataren + Kronen oder Box.',
     w: 760, h: 180, props: { source: 'likes', limit: 5, title: '', style: 'arcade', showPic: true, fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
-      { key: 'source', label: 'Quelle', type: 'select', hint: 'Wonach die Liste sortiert: „Gifts" nach ausgegebenen Coins, „Likes" nach gedrückten Herzen. Zwei verschiedene Bestenlisten — leg dir ruhig beide nebeneinander.', options: [
-        { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' },
+      { key: 'source', label: 'Quelle', type: 'select', hint: 'Wonach die Liste sortiert: „Gifts" nach ausgegebenen Coins, „Likes" nach gedrückten Herzen, „Twitch-Supporter" nach Bits und Subs auf Twitch (1 Bit = 1 Punkt, 1 Sub = 500 Punkte, verschenkte Subs zählen beim Schenkenden). Verschiedene Bestenlisten — leg dir ruhig mehrere nebeneinander.', options: [
+        { value: 'gifts', label: 'Gifts (Coins)' }, { value: 'likes', label: 'Likes' }, { value: 'twitch', label: 'Twitch-Supporter (Bits + Subs)' },
       ] },
       styleField([
         { value: 'arcade', label: 'Arcade (Avatare + Kronen)' },
@@ -626,9 +627,10 @@ export const WIDGET_TYPES: {
         { value: 'royal', label: 'Royal (Gold & Samt, edel)' },
         { value: 'treppe', label: 'Treppe (Staffelung nach Rang)' },
         { value: 'nummern', label: 'Nummern (groß, typografisch)' },
+        { value: 'schatz', label: 'Schatz (Gold & Lila, Piraten)' },
       ]),
       { key: 'limit', label: 'Plätze', type: 'number', hint: 'Wie viele Zuschauer angezeigt werden (1–10).' },
-      { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Likes").' },
+      { key: 'title', label: 'Titel', type: 'text', hint: 'Leer = automatisch („Top Likes", „Top Gifter", „Top Supporter"; beim Stil Schatz „Top Piraten").' },
       { key: 'showPic', label: 'Profilbilder zeigen', type: 'boolean', hint: 'Avatare der Zuschauer anzeigen.' },
       ACCENT_FIELD,
       ...STYLE_FIELDS,

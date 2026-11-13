@@ -758,9 +758,16 @@ function seedDemoStats() {
     id: u.id, nickname: u.nickname, profilePic: u.profilePic,
     points: (5 - i) * 800 + 150,
   }));
+  // Twitch-Bestenliste (Bits + Abos): gemischt, damit alle drei Wert-Formen
+  // („2 Subs + 300 Bits", „3 Subs", „1.500 Bits") in der Demo vorkommen.
+  const topTwitch = DEMO_USERS.slice(0, 5).map((u, i) => {
+    const subs = [2, 3, 0, 1, 0][i];
+    const bits = [300, 0, 1500, 0, 250][i];
+    return { id: u.id, nickname: u.nickname, profilePic: u.profilePic, bits, subs, punkte: bits + subs * 500 };
+  }).sort((a, b) => b.punkte - a.punkte);
   demoStats = {
     totals: { coins: 8400, gifts: 42, follows: 17, likes: 12900, shares: 9, chats: 230, viewers: 342, peakViewers: 410 },
-    topGifters, topLikers, topPoints, currencyName: 'Punkte',
+    topGifters, topLikers, topPoints, topTwitch, currencyName: 'Punkte',
   };
   dispatchStats(demoStats);
 }
