@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { StudioEvent } from '@botexe/trigger-engine';
-import { TwitchAdapter, TWITCH_EVENTSUB_URL, TWITCH_SUBSCRIPTIONS_URL, TWITCH_USERS_URL, type WebSocketLike, type TwitchStatusInfo, type TwitchLog } from './twitch-adapter';
+import { TwitchAdapter, rateLimitEnde, TWITCH_EVENTSUB_URL, TWITCH_SUBSCRIPTIONS_URL, TWITCH_USERS_URL, type WebSocketLike, type TwitchStatusInfo, type TwitchLog } from './twitch-adapter';
 import { TwitchReloginNoetig, type TwitchTokens } from '../services/twitch-auth';
 
 // ── Fälschungen ─────────────────────────────────────────────────────────────
@@ -58,8 +58,13 @@ async function warte(): Promise<void> {
   for (let i = 0; i < 30; i++) await new Promise((r) => setImmediate(r));
 }
 
-function antwort(status: number, body: unknown = {}): Response {
-  return new Response(status === 204 ? null : JSON.stringify(body), { status });
+function antwort(status: number, body: unknown = {}, headers?: Record<string, string>): Response {
+  return new Response(status === 204 ? null : JSON.stringify(body), { status, ...(headers ? { headers } : {}) });
+}
+
+function wechselAuf(s: FakeSocket, url: string): void {
+  s.send({ metadata: { message_id: `r-${url}`, message_type: 'session_reconnect' },
+    payload: { session: { id: 'S1', status: 'reconnecting', keepalive_timeout_seconds: null, reconnect_url: url } } });
 }
 
 interface Aufbau {
@@ -236,6 +241,7 @@ test('session_reconnect → neue Leitung an reconnect_url, alte erst nach Welcom
   // Lange genug für den Keepalive-Wächter der alten — darf nicht zuschlagen.
   a.uhr.vor(20_000);
   assert.equal(a.sockets.length, 2);
+  assert.equal(a.adapter.getStatus().status, 'verbunden', 'Wächter der alten Leitung ruht während des Wechsels');
   s2.welcome('S2');
   await warte();
   assert.equal(s1.closed, true);
@@ -462,4 +468,110 @@ test('stop() räumt alle Timer und Leitungen ab, Status aus', async () => {
   // Späte Nachrichten der alten Leitung werden ignoriert.
   s.notify('f2', 'channel.follow', FOLLOW);
   assert.equal(a.events.length, 1);
+});
+
+test('Notification setzt den Keepalive-Wächter zurück (Twitch schickt bei laufendem Chat keine Keepalives)', async () => {
+  const a = aufbau();
+  const s = await verbunden(a); // Frist 10 s + 5 s Puffer
+  for (let i = 0; i < 5; i++) {
+    a.uhr.vor(12_000);
+    s.notify(`n${i}`, 'channel.follow', FOLLOW);
+  }
+  a.uhr.vor(12_000);
+  assert.equal(s.closed, false);
+  assert.equal(a.sockets.length, 1);
+  assert.equal(a.adapter.getStatus().status, 'verbunden');
+  a.adapter.stop();
+});
+
+test('Nach dem Leitungswechsel bewacht der Wächter die NEUE Leitung', async () => {
+  const a = aufbau();
+  const s1 = await verbunden(a);
+  wechselAuf(s1, 'wss://eventsub.wss.twitch.tv?neu=1');
+  const s2 = a.sockets[1]!;
+  s2.welcome('S2', 10);
+  await warte();
+  assert.equal(s1.closed, true);
+  a.uhr.vor(14_000);
+  assert.equal(s2.closed, false);
+  a.uhr.vor(1_500); // 15,5 s Stille auf der neuen
+  assert.equal(s2.closed, true);
+  assert.equal(a.adapter.getStatus().status, 'getrennt');
+  a.uhr.vor(1_000); await warte();
+  assert.equal(a.sockets.length, 3);
+  assert.equal(a.sockets[2]!.url, TWITCH_EVENTSUB_URL);
+  a.adapter.stop();
+});
+
+test('Nachzügler der alten Leitung nach dem Welcome der neuen werden angenommen, Doppelte verworfen', async () => {
+  const a = aufbau();
+  const s1 = await verbunden(a);
+  wechselAuf(s1, 'wss://eventsub.wss.twitch.tv?neu=1');
+  const s2 = a.sockets[1]!;
+  s2.welcome('S2');
+  await warte();
+  assert.equal(s1.closed, true);
+  s1.notify('nur-alt', 'channel.follow', FOLLOW); // kurz vor dem Umschalten abgeschickt
+  assert.equal(a.events.length, 1, 'Nachzügler der alten geht nicht verloren');
+  s1.notify('beide', 'channel.follow', FOLLOW);
+  s2.notify('beide', 'channel.follow', FOLLOW); // dieselbe über die neue
+  assert.equal(a.events.length, 2);
+  // Steuer-Nachrichten der alten zählen nicht mehr.
+  wechselAuf(s1, 'wss://eventsub.wss.twitch.tv?nochmal=1');
+  assert.equal(a.sockets.length, 2);
+  s1.emit('close', 1000);
+  s1.notify('noch-spaeter', 'channel.follow', FOLLOW);
+  assert.equal(a.events.length, 2, 'nach dem Close der alten ist Schluss');
+  assert.equal(a.adapter.getStatus().status, 'verbunden');
+  a.adapter.stop();
+});
+
+test('Stündliche Prüfung läuft auch, wenn der erste Token-Abruf beim Start vorübergehend scheitert', async () => {
+  let n = 0;
+  const a = aufbau({ getValidToken: async () => { n++; if (n === 1) throw new Error('Netz weg'); return TOKENS; } });
+  await a.adapter.start();
+  assert.equal(a.sockets.length, 0);
+  a.uhr.vor(1_000); await warte(); // Wiederholung klappt
+  assert.equal(a.sockets.length, 1);
+  a.sockets[0]!.welcome('S1'); await warte();
+  assert.equal(a.validateAufrufe(), 1);
+  a.uhr.vor(60 * 60_000); await warte();
+  assert.equal(a.validateAufrufe(), 2);
+  a.adapter.stop();
+});
+
+test('rateLimitEnde: Ratelimit-Reset (Unix-Sekunden) nur, wenn plausibel', () => {
+  assert.equal(rateLimitEnde('1120', 1_000_000), 1_120_000);
+  assert.equal(rateLimitEnde(null, 1_000_000), undefined);
+  assert.equal(rateLimitEnde('quatsch', 1_000_000), undefined);
+  assert.equal(rateLimitEnde('999', 1_000_000), undefined, 'Vergangenheit');
+  assert.equal(rateLimitEnde('99999999', 1_000_000), undefined, 'zu weit weg');
+});
+
+test('Profilbilder: 429 wartet bis Ratelimit-Reset statt pauschal 60 s', async () => {
+  let gesperrt = true;
+  const a = aufbau({
+    users: () => (gesperrt ? antwort(429, {}, { 'Ratelimit-Reset': '1120' }) : antwort(200, { data: [] })), // jetzt = 1 000 s
+  });
+  const s = await verbunden(a);
+  assert.equal(a.uhr.jetzt, 1_000_000);
+  // Uhr vorspulen, Leitung dabei mit Keepalives am Leben halten.
+  const spule = (ms: number) => { for (let t = 0; t < ms; t += 10_000) { a.uhr.vor(Math.min(10_000, ms - t)); s.keepalive(`k${a.uhr.jetzt}`); } };
+  s.notify('f1', 'channel.follow', { user_id: '1', user_login: 'a', user_name: 'A' });
+  a.uhr.vor(300); await warte();
+  gesperrt = false;
+  const gets = () => a.fetches.filter((f) => f.url.startsWith(TWITCH_USERS_URL)).length;
+  assert.equal(gets(), 1);
+  // Nach 61 s wäre die pauschale Pause vorbei — der Reset-Zeitpunkt (120 s) aber nicht.
+  spule(61_000);
+  s.notify('f2', 'channel.follow', { user_id: '2', user_login: 'b', user_name: 'B' });
+  a.uhr.vor(300); await warte();
+  assert.equal(gets(), 1);
+  spule(60_000); // jetzt > 1 120 s
+  s.notify('f3', 'channel.follow', { user_id: '3', user_login: 'c', user_name: 'C' });
+  a.uhr.vor(300); await warte();
+  assert.equal(gets(), 2);
+  assert.equal(a.events.length, 3, 'Leitung lebte die ganze Zeit');
+  assert.equal(a.adapter.getStatus().status, 'verbunden');
+  a.adapter.stop();
 });

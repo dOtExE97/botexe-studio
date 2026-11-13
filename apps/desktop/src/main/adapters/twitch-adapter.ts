@@ -144,6 +144,16 @@ function alsText(data: unknown): string {
   return '';
 }
 
+/** Belege 9: bei 429 bis `Ratelimit-Reset` (Unix-Sekunden) warten. Fehlt der
+ *  Kopf oder ist er unplausibel (Vergangenheit, > 10 min), `undefined` → die
+ *  pauschale Pause greift. */
+export function rateLimitEnde(kopf: string | null, jetzt: number): number | undefined {
+  const s = kopf !== null && /^\d+$/.test(kopf.trim()) ? Number(kopf.trim()) : NaN;
+  if (!Number.isFinite(s)) return undefined;
+  const ms = s * 1000;
+  return ms > jetzt && ms - jetzt <= 10 * 60_000 ? ms : undefined;
+}
+
 function fehlerText(err: unknown): string {
   return err instanceof Error ? err.message.slice(0, 160) : 'unbekannter Fehler';
 }
@@ -161,6 +171,11 @@ export class TwitchAdapter {
   private aktiv: Leitung | null = null;
   /** Neue Leitung während eines `session_reconnect`, bis ihr Welcome kommt. */
   private neu: Leitung | null = null;
+  /** Alte Leitungen nach dem Wechsel: von uns geschlossen, aber bis zu ihrem
+   *  Close können noch Benachrichtigungen ankommen, die Twitch kurz vor dem
+   *  Umschalten abschickte. Die werden angenommen — die message_id-Prüfung
+   *  verwirft, was über beide Leitungen kam. */
+  private readonly auslaufend = new Set<Leitung>();
   private versuche = 0;
   private wiederTimer: TimerHandle | null = null;
   private validateTimer: TimerHandle | null = null;
@@ -207,6 +222,10 @@ export class TwitchAdapter {
     const epoch = ++this.epoch;
     this.versuche = 0;
     this.setStatus({ status: 'verbinde' });
+    // Den Stunden-Takt UNABHÄNGIG vom ersten Verbindungsversuch starten:
+    // Scheitert der erste Token-Abruf vorübergehend, liefen alle weiteren
+    // Versuche sonst ohne stündliche Prüfung (Twitch-Pflicht, Belege 1.8).
+    this.starteValidateTakt(epoch);
     await this.verbinde(epoch, true);
   }
 
@@ -224,6 +243,8 @@ export class TwitchAdapter {
     if (this.validateTimer !== null) { this.clearT(this.validateTimer); this.validateTimer = null; }
     if (this.bildTimer !== null) { this.clearT(this.bildTimer); this.bildTimer = null; }
     this.bildWartend.clear();
+    for (const l of this.auslaufend) this.schliesse(l);
+    this.auslaufend.clear();
     this.schliesse(this.aktiv);
     this.schliesse(this.neu);
     this.aktiv = null;
@@ -275,7 +296,6 @@ export class TwitchAdapter {
     if (epoch !== this.epoch) return;
     this.userId = tokens.userId;
     this.status = { ...this.status, login: tokens.login };
-    if (mitPruefung) this.starteValidateTakt(epoch);
     this.oeffne(epoch, TWITCH_EVENTSUB_URL, false);
   }
 
@@ -299,7 +319,7 @@ export class TwitchAdapter {
     } else {
       this.aktiv = l;
     }
-    const meins = () => epoch === this.epoch && (this.aktiv === l || this.neu === l);
+    const meins = () => epoch === this.epoch && (this.aktiv === l || this.neu === l || this.auslaufend.has(l));
     ws.on('open', () => { if (meins()) this.deps.log.debug('Twitch', 'EventSub-Leitung offen, warte auf Begrüßung.'); });
     ws.on('message', (data) => {
       if (!meins()) return;
@@ -316,6 +336,7 @@ export class TwitchAdapter {
     });
     ws.on('close', (code) => {
       if (!meins()) return;
+      if (this.auslaufend.delete(l)) return; // alte Leitung nach dem Wechsel — erwartet
       const grund = CLOSE_GRUENDE[code] ?? `Code ${code}`;
       if (this.neu === l) {
         this.neu = null;
@@ -404,6 +425,8 @@ export class TwitchAdapter {
     const meta = obj(m?.metadata);
     const payload = obj(m?.payload);
     const art = meta?.message_type;
+    // Eine auslaufende Leitung liefert nur noch Nachzügler-Ereignisse.
+    if (this.auslaufend.has(l) && art !== 'notification') return;
     switch (art) {
       case 'session_welcome': this.begruessung(epoch, l, obj(payload?.session)); return;
       case 'session_keepalive': if (this.aktiv === l && !this.neu) this.bewache(epoch, l, this.keepaliveMs); return;
@@ -433,7 +456,7 @@ export class TwitchAdapter {
       const alt = this.aktiv;
       this.aktiv = l;
       this.neu = null;
-      this.schliesse(alt);
+      if (alt) { this.auslaufend.add(alt); this.schliesse(alt); }
       this.bewache(epoch, l, this.keepaliveMs);
       this.deps.log.info('Twitch', 'Twitch hat die Leitung gewechselt — die Abos laufen weiter.');
       return;
@@ -634,6 +657,7 @@ export class TwitchAdapter {
     for (const id of ids) this.bildWartend.delete(id);
     if (ids.length === 0) return;
     this.bildLaeuft = true;
+    let pauseBis: number | undefined;
     try {
       const tokens = await this.deps.auth.getValidToken();
       const clientId = this.deps.getClientId().trim();
@@ -646,6 +670,7 @@ export class TwitchAdapter {
       if (!res.ok) {
         // 401: beim nächsten Mal mit erneuertem Token (einmal anstoßen).
         if (res.status === 401) void this.deps.auth.getValidToken({ abgelehntesToken: tokens.accessToken }).catch(() => undefined);
+        if (res.status === 429) pauseBis = rateLimitEnde(res.headers.get('Ratelimit-Reset'), this.deps.now());
         throw new Error(`HTTP ${res.status}`);
       }
       const j = obj(await res.json().catch(() => undefined));
@@ -661,7 +686,12 @@ export class TwitchAdapter {
       }
       for (const id of ids) if (!gefunden.has(id)) this.merkeBild(id, null);
     } catch (err) {
-      this.bildPauseBis = this.deps.now() + BILD_PAUSE_MS;
+      if (err instanceof TwitchReloginNoetig) {
+        this.bildLaeuft = false;
+        if (epoch === this.epoch) this.neuAnmelden(err.message);
+        return;
+      }
+      this.bildPauseBis = pauseBis ?? this.deps.now() + BILD_PAUSE_MS;
       this.bildWartend.clear();
       this.deps.log.einmal('twitch:profilbild', 'info', 'Twitch',
         `Twitch-Profilbilder gerade nicht abrufbar (${fehlerText(err)}) — der Chat läuft ohne Bilder weiter.`);
