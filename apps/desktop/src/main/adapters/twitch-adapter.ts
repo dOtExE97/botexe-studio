@@ -24,7 +24,7 @@ import type { StudioEvent } from '@botexe/trigger-engine';
 import type { log as appLog } from '../core/logger';
 import type { TwitchAuth, TwitchTokens } from '../services/twitch-auth';
 import { TwitchReloginNoetig, TWITCH_ANFRAGE_TIMEOUT_MS } from '../services/twitch-auth';
-import { normalizeTwitch, istGeschenkAbo, TWITCH_ID_PRAEFIX } from './twitch-normalize';
+import { normalizeTwitch, istGeschenkAbo, TWITCH_ID_PRAEFIX, type FremdEmoteFinder } from './twitch-normalize';
 
 /** Belege 3.1. 30 s statt der Vorgabe 10 s: weniger Fehlalarme bei kurzem
  *  Netz-Schluckauf, der Wächter erkennt eine tote Leitung trotzdem zügig. */
@@ -136,6 +136,8 @@ export interface TwitchAdapterDeps {
    *  Antwort)? Dann wird sie verworfen — sonst könnte eine Antwort, die mit
    *  „!" beginnt, ihren eigenen Befehl erneut auslösen (Endlosschleife). */
   istEigeneNachricht?: (messageId: string | undefined, text: string) => boolean;
+  /** 7TV/BTTV/FFZ-Emotes: beim Verbinden laden, im Chat nachschlagen. */
+  fremdEmotes?: { laden(twitchUserId: string): Promise<void>; finde: FremdEmoteFinder };
 }
 
 interface Leitung {
@@ -324,6 +326,7 @@ export class TwitchAdapter {
     if (epoch !== this.epoch) return;
     this.userId = tokens.userId;
     this.status = { ...this.status, login: tokens.login };
+    void this.deps.fremdEmotes?.laden(tokens.userId).catch(() => { /* meldet der Dienst selbst */ });
     this.oeffne(epoch, TWITCH_EVENTSUB_URL, false);
   }
 
@@ -637,11 +640,15 @@ export class TwitchAdapter {
         'Die eigenen Chat-Antworten der App kommen von Twitch zurück — sie lösen keine Befehle oder Regeln aus (und erscheinen nicht im Overlay-Chat).');
       return;
     }
-    const ereignisse = normalizeTwitch(typ, event, this.deps.now(), (id) => this.bilder.get(id) ?? undefined);
+    const fremd = this.deps.fremdEmotes;
+    const ereignisse = normalizeTwitch(typ, event, this.deps.now(), (id) => this.bilder.get(id) ?? undefined, fremd ? (w) => fremd.finde(w) : undefined);
     if (ereignisse.length === 0) {
       this.deps.log.einmal(`twitch:leer:${typ}`, 'info', 'Twitch', `Twitch-Ereignis „${typ.slice(0, 60)}" wird (noch) nicht ausgewertet.`);
       return;
     }
+    // Follows mitschreiben: Am 13.11. kam ein Follow (11 → 12) nicht als
+    // Ereignis an. Mit dieser Zeile sieht man im Log, ob Twitch ihn schickt.
+    if (typ === 'channel.follow') this.deps.log.info('Twitch', `Follow erhalten: ${ereignisse[0]?.user?.nickname ?? '?'}`);
     for (const e of ereignisse) {
       this.deps.bus.publish(e);
       this.merkeFuerBild(epoch, e);

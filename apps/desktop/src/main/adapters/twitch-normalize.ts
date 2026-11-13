@@ -39,10 +39,13 @@ function zahl(v: unknown): number | undefined {
  *  Bildes (`sticker-<id>.<ext>`). Ein Doppelpunkt wäre unter Windows kein
  *  gültiger Dateiname — deshalb hier Bindestrich-Präfix und nur sichere
  *  Zeichen. Das Präfix hält Twitch-Emotes von TikTok-Stickern getrennt. */
-function stickerId(art: 'emote' | 'gif', id: string): string {
+function stickerId(art: 'emote' | 'gif' | '7tv' | 'bttv' | 'ffz', id: string): string {
   const sicher = id.replace(/[^A-Za-z0-9_-]/g, '_');
-  return art === 'emote' ? `twitch-${sicher}` : `twitch-gif-${sicher}`;
+  return art === 'emote' ? `twitch-${sicher}` : `twitch-${art}-${sicher}`;
 }
+
+/** Emote eines Fremddienstes (7TV/BTTV/FFZ) zu einem Wort — siehe fremd-emotes.ts. */
+export type FremdEmoteFinder = (wort: string) => { quelle: '7tv' | 'bttv' | 'ffz'; id: string; bild: string; animiert: boolean } | undefined;
 
 /** Bild-Adresse eines Emotes aus der Vorlage (Belege 6). `animated` nur, wenn
  *  das Fragment das Format ausdrücklich anbietet — ein rein statisches Emote
@@ -85,7 +88,7 @@ function basis(type: StudioEvent['type'], now: number, user: StudioUser | undefi
  *  Kürzel (z. B. „Kappa") kommt NICHT in den Text, sonst stünde es doppelt da
  *  und die Sprachausgabe läse es vor. Text, Erwähnungen und Cheermotes
  *  bleiben Text. */
-function chatInhalt(message: Roh | undefined): { text: string; sticker: StudioSticker[] } {
+function chatInhalt(message: Roh | undefined, fremd?: FremdEmoteFinder): { text: string; sticker: StudioSticker[] } {
   const fragmente = message?.fragments;
   if (!Array.isArray(fragmente)) return { text: str(message?.text) ?? '', sticker: [] };
   let text = '';
@@ -108,12 +111,23 @@ function chatInhalt(message: Roh | undefined): { text: string; sticker: StudioSt
       sticker.push({ id: stickerId('gif', str(gif?.id) ?? String(sticker.length)), bild: gifUrl, index: text.length, animiert: true });
       continue;
     }
-    if (typeof f.text === 'string') text += f.text;
+    if (typeof f.text !== 'string') continue;
+    // 7TV/BTTV/FFZ: Für Twitch nur Text. Ganze Wörter, die ein bekanntes
+    // Emote sind, werden zum Bild (Kürzel nicht in den Text, wie bei Twitch-Emotes).
+    if (fremd && f.type === 'text') {
+      for (const teil of f.text.split(/(\s+)/)) {
+        const e = teil && !/^\s+$/.test(teil) ? fremd(teil) : undefined;
+        if (e) sticker.push({ id: stickerId(e.quelle, e.id), bild: e.bild, index: text.length, animiert: e.animiert });
+        else text += teil;
+      }
+      continue;
+    }
+    text += f.text;
   }
   return { text, sticker };
 }
 
-function chat(e: Roh, now: number, bild?: (userId: string) => string | undefined): StudioEvent[] {
+function chat(e: Roh, now: number, bild?: (userId: string) => string | undefined, fremd?: FremdEmoteFinder): StudioEvent[] {
   const user = nutzer(e.chatter_user_id, e.chatter_user_login, e.chatter_user_name, bild);
   if (user) {
     const badges = Array.isArray(e.badges) ? e.badges.map(obj) : [];
@@ -125,7 +139,7 @@ function chat(e: Roh, now: number, bild?: (userId: string) => string | undefined
     if (istKanal) user.isBroadcaster = true;
     if (sets.has('subscriber')) user.isSub = true;
   }
-  const { text, sticker } = chatInhalt(obj(e.message));
+  const { text, sticker } = chatInhalt(obj(e.message), fremd);
   const nachricht: StudioEvent = { ...basis('chat', now, user), text, ...(sticker.length ? { sticker } : {}) };
   // Wie beim TikTok-Adapter: je Sticker ein 'emote' mit GENAU EINEM Sticker,
   // damit Sticker-Regeln greifen und bei zwei Emotes nicht doppelt feuern.
@@ -154,6 +168,7 @@ export function normalizeTwitch(
   event: unknown,
   now: number,
   bild?: (userId: string) => string | undefined,
+  fremd?: FremdEmoteFinder,
 ): StudioEvent[] {
   const e = obj(event);
   if (!e) return [];
@@ -162,7 +177,7 @@ export function normalizeTwitch(
       return [basis('follow', now, nutzer(e.user_id, e.user_login, e.user_name, bild))];
 
     case 'channel.chat.message':
-      return chat(e, now, bild);
+      return chat(e, now, bild, fremd);
 
     case 'channel.subscribe':
       if (istGeschenkAbo(subscriptionType, e)) return [];

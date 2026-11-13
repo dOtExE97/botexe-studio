@@ -40,6 +40,9 @@ const CSS = `
 .bx-cb-emote { height: 1.5em; width: auto; vertical-align: -0.35em; border-radius: 5px; object-fit: contain; }
 /* Bild nicht ladbar → farbiges Kaestchen statt kaputtem Bildsymbol. */
 .bx-cb-emote-leer { width: 1.5em; opacity: .55; border-radius: 5px; }
+/* Twitch-GIFs (Giphy im Chat) sind Bilder, keine Emotes: eigene Zeile, sichtbar gross.
+   Drei Klassen tief, damit kein Stil (piraten, schatzkiste ...) sie auf Emote-Hoehe drueckt. */
+.bx-cb .bx-cb-emote.bx-cb-gif { display: block; height: auto; width: auto; max-width: 100%; max-height: 5.5em; margin: .3em 0 .1em; border-radius: 8px; vertical-align: 0; }
 /* Plattform-Zeichen vor dem Namen (nur mit props.plattformZeichen, Standard aus).
    Groesse in em, damit es mit der Namensschrift (und --bx-fs) mitwaechst. */
 .bx-cb-pf { display: inline-block; width: 1.05em; height: 1.05em; margin-right: .32em; vertical-align: -0.16em; }
@@ -594,7 +597,7 @@ function fuelleText(el, text, sticker, emojiBilder) {
       continue;
     }
     const img = document.createElement('img');
-    img.className = 'bx-cb-emote';
+    img.className = /^twitch-gif-/.test(String(teil.wert.id)) ? 'bx-cb-emote bx-cb-gif' : 'bx-cb-emote';
     img.alt = '';
     // avgColor als Grundton, solange das Bild laedt — sonst blitzt ein Loch auf.
     if (teil.wert.farbe) img.style.background = teil.wert.farbe;

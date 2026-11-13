@@ -74,6 +74,7 @@ import { log } from '../core/logger';
 import { WebSocket } from 'ws';
 import { TwitchAuth } from './twitch-auth';
 import { TwitchAdapter, type WebSocketLike, type TwitchStatusInfo } from '../adapters/twitch-adapter';
+import { FremdEmotes } from './fremd-emotes';
 import { TwitchSteuerung, type TwitchUiStatus } from './twitch-steuerung';
 import { TwitchAktionen } from './twitch-aktionen';
 import { TwitchChat } from './twitch-chat';
@@ -593,6 +594,7 @@ export class Studio {
       log,
       onStatus: (info) => { this.twitchUhr(info); this.twitch.adapterStatus(info); },
       istEigeneNachricht: (id, text) => this.twitchChat.istEcho(id, text),
+      fremdEmotes: new FremdEmotes({ fetch: (input, init) => fetch(input, init), now: () => Date.now(), log: (stufe, text) => log[stufe]('Twitch', text) }),
     });
     this.twitchAktionen = new TwitchAktionen({
       auth: twitchAuth,
