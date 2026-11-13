@@ -159,6 +159,49 @@ test('Emoji-Bilder: Piraten von sich aus an, alte Stile aus — Schalter überst
   assert.equal(zaehle({ style: 'clean', emojiBilder: true }).bilder, 3);
 });
 
+test('Chat-Box Stil „schatzkiste“: Szene mit Kiste, Titel und Piraten-Karten in der Mulde', () => {
+  const root = installiereFakeDom();
+  const w: any = new ChatBox(root, { style: 'schatzkiste' }, {});
+  const szene = root.children[0]!;
+  assert.equal(szene.className, 'bx-ck');
+  // Ohne eigene Schriftwahl: Lilita One + Saira an der Szene (auch für die Plakette).
+  assert.match(szene.style.getPropertyValue('--bx-font-display'), /Lilita One/);
+  for (const teil of ['bx-ck-deckel', 'bx-ck-korpus', 'bx-ck-schild', 'bx-ck-insel', 'bx-ck-innen']) {
+    assert.equal(mitKlasse(szene, teil).length, 1, teil);
+  }
+  assert.equal(mitKlasse(szene, 'bx-ck-titel')[0]!.textContent, 'CHAT AN DECK');
+  // Die Nachrichtenliste steckt IN der Mulde und trägt die Piraten-Karten.
+  const liste = mitKlasse(szene, 'bx-cb')[0]!;
+  assert.equal(liste.parent, mitKlasse(szene, 'bx-ck-innen')[0]);
+  assert.ok(liste.classList.contains('bx-cb-piraten') && liste.classList.contains('bx-cb-schatzkiste'));
+  w.onEvent({ type: 'chat', ts: 1, plattform: 'twitch', user: { id: 't:2', nickname: 'Goldzahn', isSub: true }, text: 'Schatz! 💰' });
+  assert.equal(mitKlasse(liste, 'bx-cb-msg').length, 1);
+  assert.deepEqual(mitKlasse(liste, 'bx-cb-b').map((b) => b.className), ['bx-cb-b bx-cb-b-sub']);
+  assert.equal(alle(liste).filter((k) => k.tagName === 'IMG' && k.className === 'emoji').length, 1, 'Emoji-Bilder von sich aus an');
+  // Neue Nachricht: Deckel hüpft (Klasse), Münzen springen — gedrosselt:
+  // fünf Nachrichten in Folge bringen nur EINMAL Münzen ins DOM.
+  assert.ok(szene.classList.contains('bx-ck-bump'));
+  for (let i = 0; i < 4; i++) w.onEvent({ type: 'chat', ts: 2 + i, user: { id: `t:${i}`, nickname: 'X' }, text: 'hi' });
+  assert.equal(mitKlasse(szene, 'bx-ck-muenze').length, 3);
+  // Nacktes Ereignis (nur Art + Zeit) wirft nicht.
+  w.onEvent({ type: 'chat', ts: 9 });
+  w.destroy();
+  assert.equal(root.children.length, 0, 'destroy räumt die ganze Szene weg');
+  w.onEvent({ type: 'chat', ts: 10, user: { id: 'z', nickname: 'Z' }, text: 'nach destroy' });
+  // Eigener Titel (über textContent, nie als HTML); leer → Standard.
+  const zwei = installiereFakeDom();
+  const v: any = new ChatBox(zwei, { style: 'schatzkiste', kistenTitel: '<b>Beute</b>' }, {});
+  assert.equal(mitKlasse(zwei, 'bx-ck-titel')[0]!.textContent, '<b>Beute</b>');
+  v.destroy();
+  const drei = installiereFakeDom();
+  const x: any = new ChatBox(drei, { style: 'schatzkiste', kistenTitel: '   ' }, { preview: true });
+  assert.equal(mitKlasse(drei, 'bx-ck-titel')[0]!.textContent, 'CHAT AN DECK');
+  assert.ok(mitKlasse(drei, 'bx-cb-msg').length > 0, 'Vorschau zeigt Demo-Nachrichten');
+  assert.equal(mitKlasse(drei, 'bx-ck-muenze').length, 0, 'Befüllen der Vorschau lässt keine Münzen springen');
+  assert.ok(!drei.children[0]!.classList.contains('bx-ck-bump'));
+  x.destroy();
+});
+
 test('Follow-Alert zeigt einen Twitch-Follow (Twitch-ID, ohne Profilbild)', () => {
   const root = installiereFakeDom();
   const w: any = new FollowAlert(root, { durationMs: 3600 }, {});

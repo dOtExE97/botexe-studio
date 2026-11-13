@@ -55,6 +55,18 @@ eigenem Overlay und eigenem Chat:
   (Automatisch / An / Aus): „Automatisch" schaltet sie beim Piraten- und
   Schatzkisten-Stil ein — bestehende Chat-Boxen in den alten Stilen sehen
   genau aus wie vorher.
+- **Chat-Box: neuer Stil „Schatzkiste (Fortnite-Insel)“** — der ganze Chat ist
+  eine Schatzkiste im Fortnite-Look: gemaserte Holzkiste mit Messingbändern,
+  Eckkappen und Nieten, gewölbter Deckel einen Spalt offen (Goldlicht und
+  Münzen quellen heraus), Schloss und glänzende Plakette mit gravierter
+  Schrift „CHAT AN DECK“ (Text frei wählbar: „Titel auf der Kiste“). Die
+  Nachrichten liegen als Piraten-Karten in einer Samtmulde, unten eine Insel
+  mit Dünen, Palmen, Krebs und Brandung. Die Kiste lebt: Licht pulsiert aus
+  dem Spalt, Goldstaub steigt auf, Glanz wischt über Messing und Plakette,
+  Palmen wiegen sich, Wellen und Lichtnetz laufen. Bei jeder neuen Nachricht
+  hüpft der Deckel, Licht blitzt und Münzen springen heraus. Alles gezeichnet,
+  keine Bilddateien; skaliert mit der Box und dem Textgrößen-Regler.
+  „Bewegung reduzieren“ (System) und der Sparmodus stellen alles still.
 
 Einrichten in drei Zeilen: Client-ID auf dev.twitch.tv/console holen (Kategorie
 Application Integration, Client-Typ Öffentlich) → in der App verbinden →
