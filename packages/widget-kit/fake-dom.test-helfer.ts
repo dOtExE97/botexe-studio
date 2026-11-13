@@ -38,6 +38,7 @@ export class FakeElement {
   children: FakeElement[] = [];
   parent: FakeElement | null = null;
   attrs: Record<string, string> = {};
+  dataset: Record<string, string> = {};
   hoerer: Record<string, ((...a: unknown[]) => void)[]> = {};
   style: any;
   classList: FakeClassList;
@@ -78,6 +79,20 @@ export class FakeElement {
     }
   }
   appendChild(k: FakeElement) { k.parent = this; this.children.push(k); return k; }
+  insertBefore(k: FakeElement, vor: FakeElement | null) {
+    k.parent = this;
+    const i = vor ? this.children.indexOf(vor) : -1;
+    if (i < 0) this.children.push(k); else this.children.splice(i, 0, k);
+    return k;
+  }
+  get firstChild() { return this.children[0] ?? null; }
+  get firstElementChild() { return this.children[0] ?? null; }
+  get isConnected() { return this.parent !== null; }
+  closest(sel: string): FakeElement | null {
+    const klasse = sel.startsWith('.') ? sel.slice(1) : null;
+    for (let e: FakeElement | null = this; e; e = e.parent) if (klasse && e.classList.contains(klasse)) return e;
+    return null;
+  }
   remove() { if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this); this.parent = null; }
   querySelector(sel: string): FakeElement | null {
     const klasse = sel.startsWith('.') ? sel.slice(1) : null;
@@ -87,6 +102,15 @@ export class FakeElement {
       if (tief) return tief;
     }
     return null;
+  }
+  querySelectorAll(sel: string): FakeElement[] {
+    const klasse = sel.startsWith('.') ? sel.slice(1) : null;
+    const raus: FakeElement[] = [];
+    for (const c of this.children) {
+      if (klasse ? c.classList.contains(klasse) : c.tagName === sel.toUpperCase()) raus.push(c);
+      raus.push(...c.querySelectorAll(sel));
+    }
+    return raus;
   }
   setAttribute(k: string, v: string) { this.attrs[k] = v; }
   removeAttribute(k: string) { delete this.attrs[k]; if (k === 'src') this.src = ''; }
@@ -110,6 +134,7 @@ export function installiereFakeDom(): FakeElement {
   g.document = {
     head,
     createElement: (t: string) => new FakeElement(t),
+    createTextNode: (t: string) => { const n = new FakeElement('#text'); n.textContent = t; return n; },
     getElementById: (id: string) => ids.get(id) ?? null,
   };
   const speicher = new Map<string, string>();

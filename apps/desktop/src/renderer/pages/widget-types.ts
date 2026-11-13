@@ -1268,7 +1268,7 @@ export const WIDGET_TYPES: {
   },
   {
     type: 'chat-box', label: 'Chat-Box', desc: 'Der Live-Chat direkt im Overlay.',
-    w: 420, h: 360, props: { style: 'glas', max: 8, hideAfterMs: 0, accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
+    w: 420, h: 360, props: { style: 'glas', max: 8, hideAfterMs: 0, plattformZeichen: false, accent: '#ff5436', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
       styleField([
         { value: 'glas', label: 'Glas-Bubbles (Standard)' },
@@ -1277,6 +1277,7 @@ export const WIDGET_TYPES: {
       ]),
       { key: 'max', label: 'Max. Nachrichten', type: 'number', hint: 'So viele Chat-Zeilen bleiben gleichzeitig sichtbar.' },
       { key: 'hideAfterMs', label: 'Ausblenden nach', type: 'seconds', hint: 'Einzelne Nachrichten verschwinden danach. 0 = bleiben.' },
+      { key: 'plattformZeichen', label: 'Plattform-Zeichen vor dem Namen', type: 'boolean', uncheckedDefault: false, hint: 'Zeigt vor jedem Namen ein kleines Zeichen, ob die Nachricht von TikTok oder Twitch kommt. Praktisch, wenn ein Overlay beide Chats gemischt zeigt.' },
       ACCENT_FIELD,
       ...STYLE_FIELDS,
     ],

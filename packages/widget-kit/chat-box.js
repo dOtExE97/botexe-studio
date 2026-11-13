@@ -1,6 +1,6 @@
 // chat-box.js — Premium Live-Chat im Overlay (NEU ggü. Alt-App).
 // Glas-Bubbles, Avatar-Glow, hash-stabile Nickname-Farben, Mask-Fade.
-// textContent-only (kein HTML-Inject). props: { max?, hideAfterMs? }
+// textContent-only (kein HTML-Inject). props: { max?, hideAfterMs?, plattformZeichen? }
 //
 // ACHTUNG Namen: Der Optik-Stil 'sticker' (Klasse .bx-cb-sticker) ist der helle
 // Bubble-Look und hat NICHTS mit TikTok-Stickern zu tun. Die Bilder aus dem
@@ -35,6 +35,10 @@ const CSS = `
 .bx-cb-emote { height: 1.5em; width: auto; vertical-align: -0.35em; border-radius: 5px; object-fit: contain; }
 /* Bild nicht ladbar → farbiges Kaestchen statt kaputtem Bildsymbol. */
 .bx-cb-emote-leer { width: 1.5em; opacity: .55; border-radius: 5px; }
+/* Plattform-Zeichen vor dem Namen (nur mit props.plattformZeichen, Standard aus).
+   Groesse in em, damit es mit der Namensschrift (und --bx-fs) mitwaechst. */
+.bx-cb-pf { display: inline-block; width: 1.05em; height: 1.05em; margin-right: .32em; vertical-align: -0.16em; }
+.bx-cb-pf svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 1px 1px rgba(0,0,0,.7)); }
 @keyframes bx-cb-in { to { transform: translateY(0); opacity: 1; } }
 @keyframes bx-cb-out { to { opacity: 0; } }
 
@@ -108,6 +112,27 @@ function avSet(el, name, url) {
   img.onload = () => { if (el.isConnected) { el.style.backgroundImage = `url("${cssUrl(url)}")`; el.classList.add('bx-av-img'); } };
   img.src = url;
 }
+/** Plattform-Zeichen: bewusst einfache, selbst gezeichnete Inline-SVGs (keine
+ *  Marken-Bilddateien). Feste Zeichenketten aus dieser Datei — nie Daten aus
+ *  dem Ereignis —, darum ist innerHTML hier unbedenklich. */
+const NOTE = 'M14 3h3a4 4 0 0 0 4 4v3a7 7 0 0 1-4-1.3V15a6 6 0 1 1-6-6v3.2a2.8 2.8 0 1 0 3 2.8z';
+const PLATTFORM_ZEICHEN = {
+  twitch: { klasse: 'bx-cb-pf bx-cb-pf-twitch', titel: 'Twitch',
+    svg: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#9146ff" d="M4.5 2 2.5 6.5V20h5v3h3l3-3h4l4-4.5V2z"/><path fill="#fff" d="M11 6.5h2v6h-2zm5 0h2v6h-2z"/></svg>' },
+  tiktok: { klasse: 'bx-cb-pf bx-cb-pf-tiktok', titel: 'TikTok',
+    svg: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#25f4ee" transform="translate(-1 -1)" d="${NOTE}"/><path fill="#fe2c55" transform="translate(1 1)" d="${NOTE}"/><path fill="#fff" d="${NOTE}"/></svg>` },
+};
+/** Zeichen-Element für ein Ereignis — oder null (keine/unbekannte Plattform). */
+function plattformZeichen(plattform) {
+  const z = Object.prototype.hasOwnProperty.call(PLATTFORM_ZEICHEN, plattform) ? PLATTFORM_ZEICHEN[plattform] : null;
+  if (!z) return null;
+  const el = document.createElement('span');
+  el.className = z.klasse;
+  el.title = z.titel;
+  el.innerHTML = z.svg;
+  return el;
+}
+
 /** Demo-Nachrichten für die Editor-Vorschau — sonst bleibt die Box dort leer. */
 const DEMO = [
   ['Mia', 'Das Overlay ist mega 🔥'],
@@ -151,6 +176,8 @@ export default class ChatBox {
     this.max = Math.min(30, Math.max(3, Number(props.max ?? 8)));
     this.hideAfterMs = Number(props.hideAfterMs ?? 0);
     this.style = ['glas', 'clean', 'sticker'].includes(props.style) ? props.style : 'glas';
+    // Standard AUS: bestehende Chat-Boxen sehen exakt aus wie vorher.
+    this.plattformZeichen = props.plattformZeichen === true;
     this.el = document.createElement('div');
     this.el.className = `bx-cb${this.style !== 'glas' ? ` bx-cb-${this.style}` : ''}`;
     root.appendChild(this.el);
@@ -160,9 +187,11 @@ export default class ChatBox {
     this.ro = new ResizeObserver(() => this.fit());
     this.ro.observe(this.el);
     if (ctx?.preview) {
-      for (const [nick, text] of DEMO.slice(-this.max)) {
-        this.onEvent({ type: 'chat', ts: Date.now(), user: { id: nick, nickname: nick }, text });
-      }
+      // Mit Plattform-Zeichen abwechselnd TikTok/Twitch, damit man sieht, was der Schalter tut.
+      DEMO.slice(-this.max).forEach(([nick, text], i) => {
+        const plattform = this.plattformZeichen ? (i % 2 ? 'twitch' : 'tiktok') : undefined;
+        this.onEvent({ type: 'chat', ts: Date.now(), user: { id: nick, nickname: nick }, text, ...(plattform ? { plattform } : {}) });
+      });
     }
   }
   /** Sichtbare Zeilenzahl aus der Boxhöhe ableiten: von unten nach oben zählen,
@@ -198,6 +227,10 @@ export default class ChatBox {
     const name = event.user?.nickname || 'Anonym';
     const nameEl = msg.querySelector('.bx-cb-name');
     nameEl.textContent = name;
+    if (this.plattformZeichen) {
+      const zeichen = plattformZeichen(event.plattform);
+      if (zeichen) nameEl.insertBefore(zeichen, nameEl.firstChild);
+    }
     // Sticker-Stil hat helle Bubbles → dunklere Namensfarbe, sonst unlesbar.
     nameEl.style.color = this.style === 'sticker' ? nameColor(name).replace('88% 70%', '80% 34%') : nameColor(name);
     fuelleText(msg.querySelector('.bx-cb-text'), event.text, stickerListe);

@@ -46,7 +46,9 @@ import {
   type CanvasPreset,
   type OverlayLayout,
   type OverlayLayer,
+  type OverlayPlattform,
 } from '@botexe/overlay-engine';
+import { erzeugeTwitchVorlage } from './twitch-vorlage';
 import ConfirmButton from '../components/ConfirmButton';
 import GiftListEditor from '../components/GiftListEditor';
 import GiftCommandListEditor from '../components/GiftCommandListEditor';
@@ -131,13 +133,32 @@ function newLayerId(): string {
   return `layer-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
 }
 
+function newLayoutId(): string {
+  return `layout-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
+}
+
+/** Plattform-Auswahl je Overlay. „Alle" wird NICHT gespeichert (Feld fällt
+ *  weg) — so bleiben alte Layout-Dateien byte-gleich, und „kein Feld" heißt
+ *  ohnehin „alle" (passtZuPlattform in @botexe/overlay-engine). */
+const PLATTFORM_OPTIONEN: { value: OverlayPlattform; label: string }[] = [
+  { value: 'alle', label: 'Alle Plattformen' },
+  { value: 'tiktok', label: 'Nur TikTok' },
+  { value: 'twitch', label: 'Nur Twitch' },
+];
+
+function mitPlattform(layout: OverlayLayout, plattform: OverlayPlattform): OverlayLayout {
+  const { plattform: _alt, ...rest } = layout;
+  void _alt;
+  return plattform === 'alle' ? rest : { ...rest, plattform };
+}
+
 function freshLayout(name: string, preset: CanvasPreset): OverlayLayout {
   // NUR width/height/background ins Canvas — CANVAS_PRESETS enthält auch `label`,
   // das Canvas-Schema ist aber strikt (additionalProperties:false).
   const { width, height } = CANVAS_PRESETS[preset];
   return {
     schemaVersion: 1,
-    id: `layout-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`,
+    id: newLayoutId(),
     name,
     canvas: { width, height, background: 'transparent' },
     layers: [],
@@ -364,6 +385,23 @@ export default function OverlayPage() {
     await refreshProfiles();
     setLayout(fresh);
     setSelectedId(null);
+  };
+
+  /** „Twitch-Mode": fertiges Querformat-Overlay nur für Twitch (Chat, Follow-
+   *  Alert, Piraten-Banner, Piraten-Orakel bei Follow). */
+  const createTwitchProfile = async () => {
+    const fresh = erzeugeTwitchVorlage(newLayoutId());
+    await window.studio.saveLayout(fresh);
+    await refreshProfiles();
+    setLayout(fresh);
+    setSelectedId(null);
+    toast('success', 'Twitch-Overlay angelegt — Link kopieren (🔗 am Profil) und in OBS als Browserquelle 1920×1080 einfügen.');
+  };
+
+  const setPlattform = async (plattform: OverlayPlattform) => {
+    if (!layout) return;
+    await persist(mitPlattform(layout, plattform));
+    await refreshProfiles();
   };
 
   const renameProfile = async (name: string) => {
@@ -940,6 +978,8 @@ export default function OverlayPage() {
                   <span className="rounded bg-black/30 px-1 py-0.5 font-mono text-[9px] tabular-nums text-studio-muted" title="Browserquellen-Größe in TTLS/OBS auf diesen Wert stellen">
                     {p.canvas.width}×{p.canvas.height}
                   </span>
+                  {p.plattform === 'twitch' && <span className="rounded bg-[#9146ff]/30 px-1 py-0.5 text-[9px] font-bold text-studio-text" title="Bekommt nur Twitch-Ereignisse">Twitch</span>}
+                  {p.plattform === 'tiktok' && <span className="rounded bg-black/30 px-1 py-0.5 text-[9px] font-bold text-studio-text" title="Bekommt nur TikTok-Ereignisse">TikTok</span>}
                   {p.id === activeId && <Star size={11} className="text-studio-teal" fill="currentColor" aria-label="Standard-Link" />}
                 </button>
                 <button
@@ -965,6 +1005,13 @@ export default function OverlayPage() {
           <button onClick={() => void createProfile('landscape')} className="clip-slant flex items-center gap-1 border border-studio-border bg-studio-raised px-2.5 py-1.5 text-xs text-studio-muted hover:text-studio-accent" title="Neues Querformat-Profil">
             <Plus size={12} /> <Monitor size={13} />
           </button>
+          <button
+            onClick={() => void createTwitchProfile()}
+            className="clip-slant flex items-center gap-1.5 border border-[#9146ff]/60 bg-[#9146ff]/15 px-2.5 py-1.5 text-xs text-studio-text hover:bg-[#9146ff]/30"
+            title="Legt ein fertiges Querformat-Overlay nur für Twitch an: Chat rechts, Follow-Alert, Piraten-Banner und das Piraten-Orakel bei jedem Follow."
+          >
+            <Plus size={12} /> Twitch-Overlay (Querformat) anlegen
+          </button>
           <div className="flex-1" />
           {layout && (
             <>
@@ -976,6 +1023,15 @@ export default function OverlayPage() {
                 style={{ padding: '6px 10px', fontSize: '12px' }}
                 title="Profil umbenennen"
               />
+              <select
+                value={layout.plattform ?? 'alle'}
+                onChange={(e) => void setPlattform(e.target.value as OverlayPlattform)}
+                className="bx-input"
+                style={{ padding: '6px 10px', fontSize: '12px' }}
+                title="Für welche Plattform ist dieses Overlay? „Nur TikTok“ zeigt nur TikTok-Ereignisse und -Chat, „Nur Twitch“ nur Twitch. „Alle Plattformen“ bekommt beides (wie bisher)."
+              >
+                {PLATTFORM_OPTIONEN.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
               <button onClick={() => void duplicateProfile()} className="flex items-center gap-1 text-[11px] text-studio-muted hover:text-studio-text" title="Profil duplizieren"><Copy size={12} /> Kopie</button>
               {layout.id !== activeId && (
                 <button onClick={() => void makeDefault()} className="flex items-center gap-1 text-[11px] text-studio-teal hover:text-studio-text" title="Als Standard-Link setzen"><Star size={12} /> Standard</button>

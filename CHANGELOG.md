@@ -5,6 +5,32 @@ Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## Unveröffentlicht
 
+### Neu: Twitch
+
+Die App spricht jetzt auch mit **Twitch** — getrennt von TikTok, jeder Kanal mit
+eigenem Overlay und eigenem Chat:
+
+- **Twitch verbinden** (Einstellungen → Twitch): eigene Client-ID eintragen,
+  „Mit Twitch verbinden", Code im Browser bestätigen. Danach verbindet die App
+  beim Start von allein. Follows, Chat (mit Emotes), Subs, Bits und Raids
+  kommen als ganz normale Ereignisse an — deine Regeln greifen auch für Twitch.
+- **Plattform je Overlay**: Im Overlay-Editor steht neben dem Profilnamen jetzt
+  „Alle Plattformen / Nur TikTok / Nur Twitch". Ein Overlay „Nur TikTok" zeigt
+  keine Twitch-Nachrichten und keine Twitch-Alarme, und umgekehrt. Bestehende
+  Overlays stehen auf „Alle" und verhalten sich genau wie vorher.
+- **Twitch-Overlay (Querformat) anlegen**: ein Knopf, und es steht ein fertiges
+  1920×1080-Overlay nur für Twitch da — Chat rechts, Follow-Alert und
+  Piraten-Banner oben links, das Piraten-Orakel bei jedem Follow. Die Bildmitte
+  bleibt fürs Spiel frei.
+- **Chat-Box**: neuer Schalter „Plattform-Zeichen vor dem Namen" (Standard aus)
+  zeigt ein kleines TikTok- oder Twitch-Zeichen vor jedem Namen — für Overlays,
+  die beide Chats gemischt zeigen.
+
+Einrichten in drei Zeilen: Client-ID auf dev.twitch.tv/console holen (Kategorie
+Application Integration, Client-Typ Öffentlich) → in der App verbinden →
+„Twitch-Overlay (Querformat) anlegen" und den Link in OBS als Browserquelle
+einfügen. Die ausführliche Anleitung steht in `docs/twitch.md`.
+
 ### Neu: Piraten-Orakel und Piraten-Banner (Follow-Gag)
 
 Für den Gag „Follow = Kisten bis zum Token" (Fortnite-Piraten-Token, Chance
