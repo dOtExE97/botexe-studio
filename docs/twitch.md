@@ -67,6 +67,10 @@ ein kleines TikTok- oder Twitch-Zeichen.
   wird, was jemand gegeben hat („2 Subs + 300 Bits"), sortiert nach Punkten.
   Passender Look: Stil **„Schatz"** („TOP PIRATEN", Krone, Silber- und
   Bronzemünze). Die Liste gilt pro Stream wie die übrige Statistik.
+- Für die Leiste unten im Bild („Letzter Follower / Abo / Cheer / Raid") gibt
+  es das Widget **„Piraten-Infoleiste (Letzter …)"** (Reiter Stats & Zähler,
+  1600×84). Abos zählen dort nur von Twitch; nach einem Neuladen der
+  Browserquelle stehen die letzten Namen sofort wieder da.
 - Twitch-Zuschauer haben eigene IDs (`twitch:<nummer>`); Punkte und Spiele
   vermischen sich nicht mit TikTok-Zuschauern gleichen Namens.
 - Das Piraten-Orakel und die Twitch-Piraten (Sub, Bits, Raid) sind im

@@ -44,6 +44,9 @@ export const CATEGORY_OF: Record<string, string> = {
   // weil er in der Palette als dessen Variante daruntersteht: Anfuehrer und
   // Variante in verschiedenen Reitern waere schlicht verwirrend.
   'stat-chips': 'stats', counter: 'stats', countdown: 'stats', subathon: 'stats',
+  // Zeigt Stände an (wer zuletzt gefolgt, abonniert, gejubelt hat) — Info wie
+  // die Stat-Chips, kein Alert und keine Deko.
+  'piraten-infoleiste': 'stats',
   // Konfetti bei erreichtem Meilenstein ist ein Auftritt, kein Ziel-Widget —
   // es zeigt keinen Stand an, es feiert einen Moment. Also zu den Alerts.
   'milestone-confetti': 'alerts',

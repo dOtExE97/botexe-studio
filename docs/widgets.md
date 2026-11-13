@@ -11,7 +11,7 @@ Synthwave …), die das Aussehen komplett verändern. Hier ist jeweils nur die G
 
 Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 
-> Stand: 46 der 49 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
+> Stand: 48 der 51 Einträge sind hier abgebildet. Es fehlt noch ein Bild von:
 > Herz-Alarm, Gambling-Automat, Piraten-Banner — in der App ganz normal vorhanden (Overlay → Widget hinzufügen).
 
 ## Alerts
@@ -53,12 +53,12 @@ Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 
 |   |   |   |
 | --- | --- | --- |
-| **Top Gifter** | **Like-Liste** | **Bestenliste (Wechsel)** |
-| ![Top Gifter](screenshots/leaderboard.png) | ![Like-Liste](screenshots/leaderboard.png) | ![Bestenliste (Wechsel)](screenshots/top-rotator.png) |
-| **Punkte-Bestenliste** | **Activity-Feed** | **Sport-Liveticker** |
-| ![Punkte-Bestenliste](screenshots/points-board.png) | ![Activity-Feed](screenshots/activity-feed.png) | ![Sport-Liveticker](screenshots/sport-ticker.png) |
-| **Gift-Feed** | **Chat-Box** |  |
-| ![Gift-Feed](screenshots/gift-feed.png) | ![Chat-Box](screenshots/chat-box.png) |  |
+| **Top Gifter** | **Like-Liste** | **Top Piraten (Twitch)** |
+| ![Top Gifter](screenshots/leaderboard.png) | ![Like-Liste](screenshots/leaderboard.png) | ![Top Piraten (Twitch)](screenshots/leaderboard.png) |
+| **Bestenliste (Wechsel)** | **Punkte-Bestenliste** | **Activity-Feed** |
+| ![Bestenliste (Wechsel)](screenshots/top-rotator.png) | ![Punkte-Bestenliste](screenshots/points-board.png) | ![Activity-Feed](screenshots/activity-feed.png) |
+| **Sport-Liveticker** | **Gift-Feed** | **Chat-Box** |
+| ![Sport-Liveticker](screenshots/sport-ticker.png) | ![Gift-Feed](screenshots/gift-feed.png) | ![Chat-Box](screenshots/chat-box.png) |
 
 ## Stats & Zähler
 
@@ -66,8 +66,8 @@ Die Überschriften sind dieselben Reiter wie in der App (Overlay → Widgets).
 | --- | --- | --- |
 | **Subathon-Timer** | **Countdown** | **Counter** |
 | ![Subathon-Timer](screenshots/subathon.png) | ![Countdown](screenshots/countdown.png) | ![Counter](screenshots/counter.png) |
-| **Live-Zähler** |  |  |
-| ![Live-Zähler](screenshots/stat-chips.png) |  |  |
+| **Piraten-Infoleiste (Letzter …)** | **Live-Zähler** |  |
+| ![Piraten-Infoleiste (Letzter …)](screenshots/piraten-infoleiste.png) | ![Live-Zähler](screenshots/stat-chips.png) |  |
 
 ## Ambient & Deko
 

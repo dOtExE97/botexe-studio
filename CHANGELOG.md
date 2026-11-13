@@ -84,6 +84,22 @@ eigenem Overlay und eigenem Chat:
   „Noch keine Schätze – sei der Erste!“. Mit „Rahmen ausblenden“ bleibt nur
   das Podest. Neu in der Palette: **„Top Piraten (Twitch)“** — fertig
   eingestellt (Twitch-Supporter, Stil Schatz, 420×190).
+- **Neues Widget „Piraten-Infoleiste (Letzter …)“** (Stats & Zähler) — die
+  Leiste unten im Bild wie bei großen Twitch-Streamern, als Reihe einzelner
+  Piraten-Schilder: Letzter Follower, letztes Abo (auch verschenkte: „Planke ·
+  5 verschenkt“), letzter Cheer („· 500 Bits“), letzter Raid („· 42 Piraten“),
+  auf Wunsch das letzte TikTok-Geschenk („· 1.000 Coins“). Jedes Schild ist ein
+  gemasertes Holzbrett mit Messingrahmen und Nieten, hängt an zwei Tauen und
+  trägt links ein Goldmedaillon mit Anker, Stern, Münzen, Schiff oder Geschenk.
+  Bei einem neuen Eintrag schwingt das Schild wie im Wind, Goldblitz, Münzen
+  springen, der Name gleitet herein und ein rotes „NEU“-Band hängt 4 Sekunden
+  an der Ecke. In Ruhe läuft ein Glanz Schild für Schild durch, die Medaillons
+  wippen, die Taue pendeln. Leere Schilder zeigen „Noch keiner – sei der
+  Erste!“. Nach einem Neuladen der Browserquelle stehen die letzten Namen sofort
+  wieder da (ohne Feier). Einstellbar: welche Schilder in welcher Reihenfolge,
+  Plattform (Alle / Nur Twitch / Nur TikTok), Reihe oder Stapel, Einschweben
+  beim Laden. Standardgröße 1600×84; „Bewegung reduzieren“ und Sparmodus
+  stellen alles still.
 
 Einrichten in drei Zeilen: Client-ID auf dev.twitch.tv/console holen (Kategorie
 Application Integration, Client-Typ Öffentlich) → in der App verbinden →

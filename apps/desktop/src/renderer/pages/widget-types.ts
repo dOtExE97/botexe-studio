@@ -1001,6 +1001,26 @@ export const WIDGET_TYPES: {
     ],
   },
   {
+    type: 'piraten-infoleiste', label: 'Piraten-Infoleiste (Letzter …)', desc: 'Die Leiste unten im Bild wie bei den großen Twitch-Streamern — nur als Piraten-Schilder: Letzter Follower, letztes Abo, letzter Cheer, letzter Raid (und auf Wunsch das letzte TikTok-Geschenk). Jedes Schild hängt an Tauen, trägt ein Goldmedaillon und schwingt bei einem neuen Eintrag wie im Wind, mit Goldblitz, Münzen und „NEU"-Band. Nach einem Neuladen stehen die letzten Namen sofort wieder da.',
+    w: 1600, h: 84, props: { slots: ['follow', 'sub', 'cheer', 'raid'], plattform: 'alle', anordnung: 'reihe', einblenden: true, fontFamily: '', fontScale: 1, textColor: '' },
+    fields: [
+      { key: 'slots', label: 'Schilder', type: 'checkboxes', hint: 'Welche Schilder in der Leiste hängen. Sie stehen in der Reihenfolge, in der du sie anhakst — zum Umsortieren abhaken und neu anhaken.', options: [
+        { value: 'follow', label: '⚓ Letzter Follower' },
+        { value: 'sub', label: '⭐ Letztes Abo (Twitch, auch verschenkte)' },
+        { value: 'cheer', label: '🪙 Letzter Cheer (Bits)' },
+        { value: 'raid', label: '⛵ Letzter Raid (Zuschauer)' },
+        { value: 'gift', label: '🎁 Letztes Geschenk (TikTok, Coins)' },
+      ] },
+      { key: 'plattform', label: 'Plattform', type: 'select', hint: 'Von wo die Namen kommen. Test-Knöpfe zählen immer. Das Overlay selbst kann zusätzlich auf eine Plattform gestellt sein — dann gilt das ohnehin.', options: [
+        { value: 'alle', label: 'Alle Plattformen' }, { value: 'twitch', label: 'Nur Twitch' }, { value: 'tiktok', label: 'Nur TikTok' },
+      ] },
+      { key: 'anordnung', label: 'Anordnung', type: 'select', hint: '„Reihe" = nebeneinander als Leiste (z.B. 1600×84 unten im Bild). „Stapel" = untereinander, z.B. 360×300 am Rand.', options: [
+        { value: 'reihe', label: 'Reihe (nebeneinander)' }, { value: 'stapel', label: 'Stapel (untereinander)' },
+      ] },
+      { key: 'einblenden', label: 'Beim Laden einschweben', type: 'boolean', hint: 'Wenn das Overlay lädt, schweben die Schilder eins nach dem anderen von unten herein.' },
+    ],
+  },
+  {
     type: 'text-ticker', label: 'Lauftext-Banner', desc: 'Scrollender Streifen für Socials/Ansagen — dünn, deckt kaum zu. 3 Stile.',
     w: 760, h: 56, props: { messages: 'Folge mir! | Discord in der Bio | Danke fürs Zuschauen ❤️', speed: 18, style: 'glas', fontFamily: '', fontScale: 1, textColor: '' },
     fields: [
