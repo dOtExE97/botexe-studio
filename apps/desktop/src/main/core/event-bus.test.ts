@@ -113,3 +113,13 @@ test('Sticky: clearLastValues leert auch die Plattform-Werte', () => {
   assert.deepEqual(bus.getAllLastValues(), []);
   assert.equal(bus.getLastValue('chat'), undefined);
 });
+
+
+test('follower_stand ist sticky: nur der jüngste Twitch-Stand wird nachgeliefert', () => {
+  const bus = new EventBus();
+  bus.publish({ type: 'follower_stand', ts: 1, plattform: 'twitch', followerStand: { anzahl: 10 } });
+  bus.publish({ type: 'follower_stand', ts: 2, plattform: 'twitch', followerStand: { anzahl: 11 } });
+  const nach = bus.getAllLastValues().filter((e) => e.type === 'follower_stand');
+  assert.equal(nach.length, 1);
+  assert.equal(nach[0]?.followerStand?.anzahl, 11);
+});

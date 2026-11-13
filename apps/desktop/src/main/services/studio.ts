@@ -187,6 +187,8 @@ export class Studio {
   /** Streamer-Aktionen (Clip, Marker, Werbung, Shoutout, Chat-Modi) über die
    *  lokale API (/api/twitch/…, Stream Deck). Merkt sich den letzten Raider. */
   private readonly twitchAktionen: TwitchAktionen;
+  /** Für „Follower-Stand nach Session-Reset erneut melden". */
+  private readonly twitchAdapter: TwitchAdapter;
   /** Letzter Now-Playing-Stand (für Late-Joiner + Renderer). */
   private lastSpotify: NowPlaying | null = null;
   readonly statsHistory: StatsHistory;
@@ -557,7 +559,7 @@ export class Studio {
       saveTokens: (t) => { this.settings.update({ twitchTokens: t }); },
       log: (stufe, text) => log[stufe]('Twitch', text),
     });
-    const twitchAdapter = new TwitchAdapter({
+    const twitchAdapter = this.twitchAdapter = new TwitchAdapter({
       auth: twitchAuth,
       bus: this.bus,
       fetch: (input, init) => fetch(input, init),
@@ -2796,6 +2798,9 @@ export class Studio {
     this.server.broadcastReset();
     this.scheduleStatsBroadcast();
     this.server.rebroadcastLayouts();
+    // Die Follower-Zahl ist kein Stream-Wert — sie gilt weiter (Ziel-Balken).
+    // NACH dem Reset-Signal, sonst setzte das Widget sie gleich wieder auf 0.
+    this.twitchAdapter.followerStandErneutMelden();
     log.info('Studio', 'Session zurückgesetzt (Stats, Cooldowns, Overlay-Inhalte)');
   }
 

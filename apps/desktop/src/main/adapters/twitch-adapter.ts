@@ -31,6 +31,10 @@ import { normalizeTwitch, istGeschenkAbo, TWITCH_ID_PRAEFIX } from './twitch-nor
 export const TWITCH_EVENTSUB_URL = 'wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=30';
 export const TWITCH_SUBSCRIPTIONS_URL = 'https://api.twitch.tv/helix/eventsub/subscriptions';
 export const TWITCH_USERS_URL = 'https://api.twitch.tv/helix/users';
+/** Belege 11.1: Get Channel Followers — die App liest nur `total`. */
+export const TWITCH_FOLLOWERS_URL = 'https://api.twitch.tv/helix/channels/followers';
+/** So oft wird die Follower-Zahl bei Twitch abgeglichen (dazwischen +1 je Follow). */
+export const FOLLOWER_TAKT_MS = 10 * 60_000;
 
 /** Puffer auf die Keepalive-Frist, bevor die Leitung als tot gilt. */
 const KEEPALIVE_PUFFER_MS = 5_000;
@@ -190,6 +194,12 @@ export class TwitchAdapter {
   private bildLaeuft = false;
   private bildPauseBis = 0;
 
+  /** Letzte bekannte Follower-Zahl (null = noch nie erfolgreich abgefragt —
+   *  dann wird bei einem Follow auch nicht hochgezählt). */
+  private followerStand: number | null = null;
+  private followerTimer: TimerHandle | null = null;
+  private followerLaeuft = false;
+
   constructor(deps: TwitchAdapterDeps) {
     this.deps = deps;
     this.setT = deps.setTimeout ?? ((fn, ms) => setTimeout(fn, ms));
@@ -221,6 +231,7 @@ export class TwitchAdapter {
     this.laeuft = true;
     const epoch = ++this.epoch;
     this.versuche = 0;
+    this.followerStand = null; // evtl. anderer Kanal — frisch abfragen
     this.setStatus({ status: 'verbinde' });
     // Den Stunden-Takt UNABHÄNGIG vom ersten Verbindungsversuch starten:
     // Scheitert der erste Token-Abruf vorübergehend, liefen alle weiteren
@@ -242,6 +253,7 @@ export class TwitchAdapter {
     if (this.wiederTimer !== null) { this.clearT(this.wiederTimer); this.wiederTimer = null; }
     if (this.validateTimer !== null) { this.clearT(this.validateTimer); this.validateTimer = null; }
     if (this.bildTimer !== null) { this.clearT(this.bildTimer); this.bildTimer = null; }
+    if (this.followerTimer !== null) { this.clearT(this.followerTimer); this.followerTimer = null; }
     this.bildWartend.clear();
     for (const l of this.auslaufend) this.schliesse(l);
     this.auslaufend.clear();
@@ -521,6 +533,8 @@ export class TwitchAdapter {
     this.versuche = 0;
     this.deps.log.info('Twitch', `Mit Twitch verbunden${this.status.login ? ` als „${this.status.login}"` : ''} — ${ok} von ${abos.length} Ereignisarten aktiv.`);
     this.statusMit('verbunden');
+    // Follower-Zahl gleich holen und danach alle 10 Minuten abgleichen.
+    void this.ladeFollowerStand(epoch);
   }
 
   private async legeAboAn(
@@ -599,6 +613,11 @@ export class TwitchAdapter {
       this.deps.bus.publish(e);
       this.merkeFuerBild(epoch, e);
     }
+    // Ein echter Follow zählt sofort +1 — bis zum nächsten Abgleich.
+    if (typ === 'channel.follow' && this.followerStand !== null) {
+      this.followerStand++;
+      this.meldeFollowerStand();
+    }
   }
 
   private wechsel(epoch: number, l: Leitung, session: Record<string, unknown> | undefined): void {
@@ -627,6 +646,71 @@ export class TwitchAdapter {
     }
     this.deps.log.warn('Twitch', `Twitch hat das Abo „${typ}" beendet (Grund: ${grund}) — diese Ereignisart kommt nicht mehr an.`);
     this.statusMit(this.status.status, `Abo „${typ}" von Twitch beendet (${grund})`);
+  }
+
+  // ── Follower-Zahl ─────────────────────────────────────────────────────────
+
+  /** Nach „Session zurücksetzen" sind die Sticky-Werte weg — den bekannten
+   *  Stand erneut melden, damit ein Ziel-Balken nach dem Neuladen nicht leer
+   *  bleibt. Ohne bekannten Stand: nichts. */
+  followerStandErneutMelden(): void {
+    if (this.laeuft && this.followerStand !== null) this.meldeFollowerStand();
+  }
+
+  private meldeFollowerStand(): void {
+    if (this.followerStand === null) return;
+    this.deps.bus.publish({
+      type: 'follower_stand', ts: this.deps.now(), plattform: 'twitch',
+      followerStand: { anzahl: this.followerStand },
+    });
+  }
+
+  private planeFollowerStand(epoch: number): void {
+    if (this.followerTimer !== null) this.clearT(this.followerTimer);
+    this.followerTimer = this.setT(() => {
+      this.followerTimer = null;
+      if (epoch !== this.epoch || !this.laeuft) return;
+      void this.ladeFollowerStand(epoch);
+    }, FOLLOWER_TAKT_MS);
+  }
+
+  /** Belege 11.1: GET /helix/channels/followers?broadcaster_id=…&first=1 →
+   *  `total`. Ein Fehlschlag kostet nichts außer einer Log-Zeile; der nächste
+   *  Versuch kommt mit dem Takt. */
+  private async ladeFollowerStand(epoch: number): Promise<void> {
+    if (this.followerLaeuft) return;
+    this.followerLaeuft = true;
+    try {
+      const tokens = await this.deps.auth.getValidToken();
+      if (epoch !== this.epoch) return;
+      const clientId = this.deps.getClientId().trim();
+      const id = tokens.userId || this.userId;
+      const res = await this.deps.fetch(`${TWITCH_FOLLOWERS_URL}?broadcaster_id=${encodeURIComponent(id)}&first=1`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${tokens.accessToken}`, 'Client-Id': clientId },
+        signal: AbortSignal.timeout(TWITCH_ANFRAGE_TIMEOUT_MS),
+      });
+      if (epoch !== this.epoch) return;
+      if (!res.ok) {
+        if (res.status === 401) void this.deps.auth.getValidToken({ abgelehntesToken: tokens.accessToken }).catch(() => undefined);
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const j = obj(await res.json().catch(() => undefined));
+      const total = j?.total;
+      if (typeof total !== 'number' || !Number.isFinite(total) || total < 0) throw new Error('Antwort ohne Follower-Zahl');
+      const neu = Math.floor(total);
+      if (this.followerStand === null) this.deps.log.info('Twitch', `Twitch-Follower: ${neu} — wird alle 10 Minuten abgeglichen.`);
+      this.followerStand = neu;
+      this.meldeFollowerStand();
+    } catch (err) {
+      if (epoch !== this.epoch) return;
+      if (err instanceof TwitchReloginNoetig) { this.followerLaeuft = false; this.neuAnmelden(err.message); return; }
+      this.deps.log.einmal('twitch:follower-stand', 'info', 'Twitch',
+        `Twitch-Follower-Zahl gerade nicht abrufbar (${fehlerText(err)}) — nächster Versuch in 10 Minuten.`);
+    } finally {
+      this.followerLaeuft = false;
+      if (epoch === this.epoch && this.laeuft) this.planeFollowerStand(epoch);
+    }
   }
 
   // ── Profilbilder ──────────────────────────────────────────────────────────

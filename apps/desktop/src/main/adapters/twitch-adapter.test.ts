@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { StudioEvent } from '@botexe/trigger-engine';
-import { TwitchAdapter, rateLimitEnde, TWITCH_EVENTSUB_URL, TWITCH_SUBSCRIPTIONS_URL, TWITCH_USERS_URL, type WebSocketLike, type TwitchStatusInfo, type TwitchLog } from './twitch-adapter';
+import { TwitchAdapter, rateLimitEnde, TWITCH_EVENTSUB_URL, TWITCH_SUBSCRIPTIONS_URL, TWITCH_USERS_URL, TWITCH_FOLLOWERS_URL, FOLLOWER_TAKT_MS, type WebSocketLike, type TwitchStatusInfo, type TwitchLog } from './twitch-adapter';
 import { TwitchReloginNoetig, type TwitchTokens } from '../services/twitch-auth';
 
 // ── Fälschungen ─────────────────────────────────────────────────────────────
@@ -82,6 +82,7 @@ interface Aufbau {
 function aufbau(opts: {
   abo?: (body: { type: string }, auth: string) => number;
   users?: (url: string) => Response | Promise<Response>;
+  followers?: (url: string) => Response | Promise<Response>;
   getValidToken?: (o?: { abgelehntesToken?: string }) => Promise<TwitchTokens>;
   validate?: () => Promise<boolean>;
 } = {}): Aufbau {
@@ -108,6 +109,7 @@ function aufbau(opts: {
       return antwort(opts.abo?.(body, auth) ?? 202, { data: [{ id: 'x', status: 'enabled', type: body.type }] });
     }
     if (url.startsWith(TWITCH_USERS_URL)) return opts.users ? opts.users(url) : antwort(200, { data: [] });
+    if (url.startsWith(TWITCH_FOLLOWERS_URL) && opts.followers) return opts.followers(url);
     return antwort(404);
   }) as typeof fetch;
   const adapter = new TwitchAdapter({
@@ -574,4 +576,75 @@ test('Profilbilder: 429 wartet bis Ratelimit-Reset statt pauschal 60 s', async (
   assert.equal(a.events.length, 3, 'Leitung lebte die ganze Zeit');
   assert.equal(a.adapter.getStatus().status, 'verbunden');
   a.adapter.stop();
+});
+
+
+// ── Follower-Zahl (Belege 11.1) ─────────────────────────────────────────────
+
+const stand = (a: Aufbau) => a.events.filter((e) => e.type === 'follower_stand').map((e) => e.followerStand?.anzahl);
+
+test('Follower-Zahl: nach dem Verbinden GET followers (first=1) → follower_stand mit total, Plattform twitch', async () => {
+  const a = aufbau({ followers: () => antwort(200, { data: [{ user_id: '9' }], total: 1234, pagination: {} }) });
+  await verbunden(a);
+  const abfragen = a.fetches.filter((f) => f.url.startsWith(TWITCH_FOLLOWERS_URL));
+  assert.equal(abfragen.length, 1);
+  assert.equal(abfragen[0]!.url, `${TWITCH_FOLLOWERS_URL}?broadcaster_id=1337&first=1`);
+  assert.equal(abfragen[0]!.init.method, 'GET');
+  assert.equal((abfragen[0]!.init.headers as Record<string, string>).Authorization, 'Bearer tok-1');
+  assert.equal((abfragen[0]!.init.headers as Record<string, string>)['Client-Id'], 'abc123');
+  const e = a.events.find((x) => x.type === 'follower_stand');
+  assert.deepEqual(e, { type: 'follower_stand', ts: a.uhr.jetzt, plattform: 'twitch', followerStand: { anzahl: 1234 } });
+  a.adapter.stop();
+});
+
+test('Follower-Zahl: jeder echte Follow +1, doppelte message_id nicht; ohne bekannten Stand kein Hochzählen', async () => {
+  const a = aufbau({ followers: () => antwort(200, { data: [], total: 10 }) });
+  const s = await verbunden(a);
+  s.notify('f1', 'channel.follow', FOLLOW);
+  s.notify('f1', 'channel.follow', FOLLOW);
+  s.notify('f2', 'channel.follow', FOLLOW);
+  assert.deepEqual(stand(a), [10, 11, 12]);
+  a.adapter.stop();
+
+  const b = aufbau({ followers: () => antwort(500) });
+  const t = await verbunden(b);
+  t.notify('f1', 'channel.follow', FOLLOW);
+  assert.deepEqual(stand(b), [], 'kein Stand → nichts erfunden');
+  assert.ok(b.einmal.includes('twitch:follower-stand'), 'Fehlschlag steht einmal im Log');
+  assert.equal(b.events.filter((e) => e.type === 'follow').length, 1, 'der Follow selbst kommt trotzdem an');
+  b.adapter.stop();
+});
+
+test('Follower-Zahl: Abgleich alle 10 Minuten; nach stop() keine Abfrage mehr', async () => {
+  let total = 50;
+  const a = aufbau({ followers: () => antwort(200, { data: [], total }) });
+  await verbunden(a);
+  const zahl = () => a.fetches.filter((f) => f.url.startsWith(TWITCH_FOLLOWERS_URL)).length;
+  assert.equal(zahl(), 1);
+  total = 48; // Unfollows — der Abgleich korrigiert
+  a.uhr.vor(FOLLOWER_TAKT_MS);
+  await warte();
+  assert.equal(zahl(), 2);
+  assert.deepEqual(stand(a), [50, 48]);
+  a.adapter.stop();
+  a.uhr.vor(FOLLOWER_TAKT_MS * 3);
+  await warte();
+  assert.equal(zahl(), 2, 'gestoppt → kein Takt mehr');
+});
+
+test('Follower-Zahl: Antwort ohne total wird nicht als 0 gemeldet', async () => {
+  const a = aufbau({ followers: () => antwort(200, { data: [] }) });
+  await verbunden(a);
+  assert.deepEqual(stand(a), []);
+  a.adapter.stop();
+});
+
+test('followerStandErneutMelden: meldet den bekannten Stand nach einem Session-Reset noch einmal', async () => {
+  const a = aufbau({ followers: () => antwort(200, { data: [], total: 7 }) });
+  await verbunden(a);
+  a.adapter.followerStandErneutMelden();
+  assert.deepEqual(stand(a), [7, 7]);
+  a.adapter.stop();
+  a.adapter.followerStandErneutMelden();
+  assert.deepEqual(stand(a), [7, 7], 'gestoppt → nichts');
 });

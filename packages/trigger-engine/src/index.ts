@@ -52,6 +52,10 @@ export type StudioEventType =
   | 'raid'
   /** Twitch-Bits („Cheer"): Zuschauer jubelt mit Bits (siehe `cheer`). */
   | 'cheer'
+  /** Stand der Twitch-Follower-Zahl (siehe `followerStand`) — kein Zuschauer-
+   *  Ereignis, sondern ein Zahlen-Stand für Ziel-Balken. Sticky: ein neu
+   *  geladenes Overlay bekommt sofort den letzten Wert. */
+  | 'follower_stand'
   /** Periodischer Tick — Timer-Regeln (z.B. alle 10 Min. Socials einblenden). */
   | 'timer';
 
@@ -277,6 +281,10 @@ export interface StudioEvent {
   /** Nur bei 'sub' (Twitch): verschenkte Abos — Anzahl, Stufe und ob der
    *  Schenkende anonym bleiben will. */
   subGeschenk?: { anzahl: number; tier?: string; anonym?: boolean };
+  /** Nur bei 'follower_stand': Gesamtzahl der Follower des Kanals (Twitch
+   *  „Get Channel Followers" → `total`, zwischen zwei Abfragen je echtem
+   *  Follow +1). */
+  followerStand?: { anzahl: number };
 }
 
 export type TriggerCondition =

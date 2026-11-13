@@ -740,6 +740,9 @@ export class OverlayServer {
             ...(typeof e.subGeschenk.anonym === 'boolean' ? { anonym: e.subGeschenk.anonym } : {}),
           } }
           : {}),
+        // Follower-Ziel ohne echten Stream ausprobieren (nur mit Zahl).
+        ...(typeof e.followerStand?.anzahl === 'number' && Number.isFinite(e.followerStand.anzahl)
+          ? { followerStand: { anzahl: e.followerStand.anzahl } } : {}),
       };
       this.bus.publish(clean);
       res.json({ ok: true });
