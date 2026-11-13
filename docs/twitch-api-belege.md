@@ -938,3 +938,11 @@ Quelle: [GUIDE] (https://dev.twitch.tv/docs/api/guide#twitch-rate-limits).
 13. Hinweis zur Quelle: Die Seiten wurden als HTML abgerufen und zu Text reduziert. Feldnamen,
     Typen und Beispiele sind direkt uebernommen; Fliesstext ist teils gekuerzt oder
     paraphrasiert.
+
+### Live-Gegenprobe 13.11.2026 (eigene Client-ID, öffentlich)
+
+- `POST /oauth2/device` und `POST /oauth2/token` (Device-Polling) mit `application/x-www-form-urlencoded` funktionieren:
+  Device-Start → HTTP 200 mit `device_code, expires_in (1800), interval (5), user_code, verification_uri`;
+  Polling mit echtem, noch nicht bestätigtem Code → `{"status":400,"message":"authorization_pending"}`;
+  Polling mit erfundenem Code → `{"status":400,"message":"invalid device code"}`.
+  Damit ist Offener Punkt 4 (Content-Type) für diese beiden Endpunkte belegt.
