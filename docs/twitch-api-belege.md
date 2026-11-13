@@ -946,3 +946,133 @@ Quelle: [GUIDE] (https://dev.twitch.tv/docs/api/guide#twitch-rate-limits).
   Polling mit echtem, noch nicht bestätigtem Code → `{"status":400,"message":"authorization_pending"}`;
   Polling mit erfundenem Code → `{"status":400,"message":"invalid device code"}`.
   Damit ist Offener Punkt 4 (Content-Type) für diese beiden Endpunkte belegt.
+
+---
+
+## 10. Streamer-Aktionen (Clip, Marker, Werbung, Shoutout, Chat-Modi)
+
+Stand der Recherche: 2026-11-13. Quellen (Basis `https://dev.twitch.tv/docs/`):
+[API-CLIPS] `api/reference/clips`, [API-STREAMS] `api/reference/streams`,
+[API-ADS] `api/reference/ads`, [API-CHAT] `api/reference/chat`, [API-USERS] `api/reference/users`.
+Alle Aufrufe: Header `Authorization: Bearer <User-Token>` und `Client-Id`. Bei jedem Endpunkt
+nennen die Docs 401 u. a. für „fehlender Scope", „Token ungültig" und „Client-Id passt nicht zum
+Token".
+
+### 10.1 Create Clip
+
+Quelle: [API-CLIPS] (`#create-clip`).
+
+- `POST https://api.twitch.tv/helix/clips`
+- Scope: `clips:edit` (User-Token).
+- Query: `broadcaster_id` (Pflicht), `title` (optional), `duration` (optional, Float, 5–60 s,
+  Genauigkeit 0.1, Standard 30). Ein Parameter `has_delay` steht NICHT (mehr) auf der Seite.
+- Erfolg: **202 Accepted** („Successfully started the clip process"). Body `data[]` mit
+  `id` und `edit_url` („A URL for editing the clip's title, choosing the part of the clip to
+  publish, and publishing it").
+- Fehler: `400` (broadcaster_id fehlt, Kategorie nicht clipbar, Titel von AutoMod abgelehnt),
+  `401` (u. a. Scope `clips:edit` fehlt), `403` (Clips auf Follower/Subs beschränkt, Clips im Kanal
+  aus, Nutzer gebannt/Timeout), `404` („The broadcaster in the broadcaster_id query parameter must
+  be broadcasting live" — auch bei unbekannter ID; oder Broadcaster gebannt).
+- Hinweise: Erstellen ist asynchron; bestätigen über Get Clips mit der ID, nach 60 s ohne Treffer
+  als gescheitert ansehen. `edit_url` gilt bis zu 24 h oder bis zur Veröffentlichung. Es werden bis
+  zu 90 s um den Aufrufzeitpunkt erfasst.
+- Rate-Limit speziell für Create Clip: unbelegt (nur das allgemeine aus Abschnitt 9).
+
+### 10.2 Create Stream Marker
+
+Quelle: [API-STREAMS] (`#create-stream-marker`).
+
+- `POST https://api.twitch.tv/helix/streams/markers`
+- Scope: `channel:manage:broadcast` ODER `user:edit:broadcast`.
+- Body (JSON): `user_id` (Pflicht; Broadcaster, muss der Token-Nutzer oder dessen Editor sein),
+  `description` (optional, max. 140 Zeichen).
+- Erfolg: **200 OK**, `data[]` mit `id`, `created_at` (RFC3339), `position_seconds`,
+  `description`.
+- Fehler: `400` (user_id fehlt, Beschreibung > 140 Zeichen, Rerun oder Premiere), `401`, `403`
+  (kein Recht für diesen Kanal), `404` (nicht live, ID ungültig, VOD nicht aktiviert ODER der Stream
+  läuft erst wenige Sekunden — die Docs raten: ein paar Sekunden warten und erneut versuchen).
+- Voraussetzungen: live, VOD aktiv, kein Rerun/Premiere. Höchstzahl Marker je Stream: unbelegt.
+
+### 10.3 Start Commercial
+
+Quelle: [API-ADS] (`#start-commercial`).
+
+- `POST https://api.twitch.tv/helix/channels/commercial`
+- Scope: `channel:edit:commercial`.
+- Body (JSON): `broadcaster_id` (Pflicht, muss der Token-Nutzer sein), `length` (Integer, Pflicht,
+  Sekunden). Twitch versucht diese Länge, kann aber kürzer/länger liefern; über dem Kanal-Maximum
+  gilt das Maximum, „for most channels" 180 s. Eine Liste erlaubter Werte (30/60/90/120/150/180)
+  steht NICHT auf der Seite — **unbelegt**; die App bietet nur diese sechs an und bleibt damit
+  ≤ 180.
+- Erfolg: **200 OK**, `data[]` mit `length` (tatsächliche Länge), `message` (ob eine Werbung
+  ausgespielt werden konnte), `retry_after` (Sekunden bis zur nächsten Werbung).
+- Fehler: `400` (Feld fehlt, ID ungültig, **nicht live**), `401` (u. a. Scope fehlt, ID ≠
+  Token-Nutzer), `404` (ID nicht gefunden), `429` (Abklingzeit noch nicht um, oder eine andere
+  Werbe-/Snooze-Anfrage läuft — „Retry shortly").
+- Nur Partner/Affiliates, nur live, nur der Broadcaster selbst (keine Editoren/Mods). Ob die
+  429-Antwort ein `retry_after` enthält: unbelegt — die App merkt sich `retry_after` aus der
+  letzten Erfolgsantwort.
+
+### 10.4 Send a Shoutout
+
+Quelle: [API-CHAT] (`#send-a-shoutout`).
+
+- `POST https://api.twitch.tv/helix/chat/shoutouts`
+- Scope: `moderator:manage:shoutouts` (User-Token).
+- Query (alle Pflicht): `from_broadcaster_id` (sendender Kanal), `to_broadcaster_id` (Ziel),
+  `moderator_id` (Broadcaster oder Mod; „must match the user ID in the access token"). Kein Body.
+- Erfolg: **204 No Content** (kein Body).
+- Fehler: `400` (IDs fehlen/ungültig, Shoutout an sich selbst, „The broadcaster is not streaming
+  live"), `401`, `403` (kein Mod, oder Shoutout an dieses Ziel nicht erlaubt), `429` (allgemeines
+  Shoutout-Limit ODER Limit für denselben Zielkanal überschritten).
+- Abklingzeiten: höchstens **ein Shoutout alle 2 Minuten**, an **denselben Kanal höchstens alle
+  60 Minuten**; der sendende Kanal muss live sein. Ob die 429-Antwort die Restzeit nennt:
+  unbelegt — die App rechnet aus den belegten 2/60 Minuten selbst.
+
+### 10.5 Get / Update Chat Settings
+
+Quelle: [API-CHAT] (`#get-chat-settings`, `#update-chat-settings`).
+
+- `GET https://api.twitch.tv/helix/chat/settings` — kein Scope nötig. Query `broadcaster_id`
+  (Pflicht), `moderator_id` (optional, nur für die Chat-Verzögerungs-Felder).
+  Antwort **200**, `data[0]`: `broadcaster_id`, `emote_mode`, `follower_mode`,
+  `follower_mode_duration` (Minuten, null wenn aus), `slow_mode`, `slow_mode_wait_time` (Sekunden,
+  null wenn aus), `subscriber_mode`, `unique_chat_mode`, ggf. `moderator_id`,
+  `non_moderator_chat_delay`, `non_moderator_chat_delay_duration`. Fehler `400`, `401`.
+- `PATCH https://api.twitch.tv/helix/chat/settings` — Scope `moderator:manage:chat_settings`.
+  Query `broadcaster_id` und `moderator_id` (beide Pflicht, `moderator_id` = Token-Nutzer).
+  Body (JSON, kein Feld als Pflicht markiert): `emote_mode`, `slow_mode` +
+  `slow_mode_wait_time` (3–120 s, Standard 30, nur setzen wenn `slow_mode` true),
+  `follower_mode` + `follower_mode_duration` (0–129600 Minuten, Standard 0, nur setzen wenn
+  `follower_mode` true), `subscriber_mode`, `unique_chat_mode`, `non_moderator_chat_delay(_duration)`.
+  Antwort **200** mit denselben Feldern wie GET. Fehler `400` (IDs, Bereich verletzt,
+  Dauer-Feld ohne passendes Boolean), `401`, `403` (kein Mod).
+- Teil-Update (nicht gesendete Felder bleiben unverändert): nicht ausdrücklich belegt, aber das
+  Doc-Beispiel schickt nur `{"follower_mode": false}`. Die App schickt je Umschalten nur das eine
+  Boolean (beim Einschalten ohne Dauer → Standardwert 30 s bzw. 0 Minuten).
+
+### 10.6 Get Users per Login (Shoutout-Ziel)
+
+Siehe Abschnitt 7: `GET https://api.twitch.tv/helix/users?login=<name>`, kein Scope. Ein
+unbekannter Login: die Docs nennen keinen eigenen Fehlercode; gelöschte/gesperrte Konten „fehlen in
+der Liste" → leere `data`-Liste = „gibt es nicht" (Annahme, Fehlerfall `400` bei ungültigem Format).
+
+### 10.7 Scopes für die Streamer-Aktionen
+
+| Aktion | Scope |
+|---|---|
+| Clip | `clips:edit` |
+| Marker | `channel:manage:broadcast` (Alternative `user:edit:broadcast`, nicht genutzt) |
+| Werbung | `channel:edit:commercial` |
+| Shoutout | `moderator:manage:shoutouts` |
+| Chat-Modi umschalten | `moderator:manage:chat_settings` (Lesen braucht keinen) |
+| Get Users | keiner |
+
+### 10.8 Unbelegt für die Streamer-Aktionen
+
+- Genaues Fehler-Body-Format von Helix (`{error, status, message}`) steht auf diesen Seiten nicht;
+  die Live-Gegenprobe (OAuth) zeigte `{status, message}`. Die App liest `message`, falls vorhanden.
+- Ob Twitch bei einem fehlenden Scope immer 401 schickt und den Text „Missing scope" verwendet:
+  401 ist belegt, der Text nicht.
+- Erlaubte Werbe-Längen außer „max. meist 180": unbelegt (s. 10.3).
+- Restzeit in 429-Antworten von Werbung und Shoutout: unbelegt.

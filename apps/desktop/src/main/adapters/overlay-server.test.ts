@@ -139,6 +139,76 @@ test('http: /api/panel listet Knöpfe + /api/panel/fire löst per ID aus (token-
   }
 });
 
+test('http: /api/twitch/* — Token Pflicht (falsch → 403, nichts ausgeführt), Parameter geprüft, Ergebnis als JSON', async () => {
+  const anfragen: unknown[] = [];
+  const { server } = await setup(0, {
+    twitchAktion: async (a: { art: string }) => {
+      anfragen.push(a);
+      return a.art === 'werbung'
+        ? { ok: false, fehler: 'Werbung geht erst wieder in 42 Sekunden.' }
+        : { ok: true, info: `${a.art} ok`, ...(a.art === 'clip' ? { url: 'https://clips.twitch.tv/X/edit' } : {}) };
+    },
+  });
+  try {
+    const base = `http://127.0.0.1:${server.getPort()}`;
+    const token = server.getToken();
+    const post = (pfad: string, body?: unknown) => fetch(`${base}${pfad}`, {
+      method: 'POST',
+      ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
+    });
+
+    for (const pfad of ['clip', 'marker', 'werbung?sekunden=60', 'shoutout', 'chat-modus?modus=emote']) {
+      const ohne = await post(`/api/twitch/${pfad}`);
+      assert.equal(ohne.status, 403, `${pfad} ohne Token`);
+      const sep = pfad.includes('?') ? '&' : '?';
+      const falsch = await post(`/api/twitch/${pfad}${sep}token=falsch`);
+      assert.equal(falsch.status, 403, `${pfad} mit falschem Token`);
+    }
+    assert.equal(anfragen.length, 0, 'ohne gültigen Token wird nichts ausgeführt');
+
+    const clip = await post(`/api/twitch/clip?token=${token}`);
+    assert.equal(clip.status, 200);
+    assert.deepEqual(await clip.json(), { ok: true, info: 'clip ok', url: 'https://clips.twitch.tv/X/edit' });
+
+    const werbung = await post(`/api/twitch/werbung?sekunden=60&token=${token}`);
+    assert.equal(werbung.status, 409);
+    assert.deepEqual(await werbung.json(), { ok: false, fehler: 'Werbung geht erst wieder in 42 Sekunden.' });
+
+    const falscheLaenge = await post(`/api/twitch/werbung?sekunden=45&token=${token}`);
+    assert.equal(falscheLaenge.status, 400);
+    const falscherModus = await post(`/api/twitch/chat-modus?modus=sub&token=${token}`);
+    assert.equal(falscherModus.status, 400);
+
+    assert.equal((await post(`/api/twitch/shoutout?login=kumpel&token=${token}`)).status, 200);
+    assert.equal((await post(`/api/twitch/shoutout?token=${token}`)).status, 200);
+    assert.equal((await post(`/api/twitch/chat-modus?modus=langsam&token=${token}`)).status, 200);
+    assert.equal((await post(`/api/twitch/marker?token=${token}`, { beschreibung: 'Highlight' })).status, 200);
+    assert.equal((await post(`/api/twitch/werbung?token=${token}`, { sekunden: 180 })).status, 409);
+
+    assert.deepEqual(anfragen, [
+      { art: 'clip' },
+      { art: 'werbung', sekunden: 60 },
+      { art: 'shoutout', login: 'kumpel' },
+      { art: 'shoutout' },
+      { art: 'chat-modus', modus: 'langsam' },
+      { art: 'marker', beschreibung: 'Highlight' },
+      { art: 'werbung', sekunden: 180 },
+    ]);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('http: /api/twitch/* ohne verdrahtete Aktion → 501', async () => {
+  const { server } = await setup(0);
+  try {
+    const res = await fetch(`http://127.0.0.1:${server.getPort()}/api/twitch/clip?token=${server.getToken()}`, { method: 'POST' });
+    assert.equal(res.status, 501);
+  } finally {
+    await server.stop();
+  }
+});
+
 test('ws: gamewin wird pro winId genau EINMAL gezählt (Dedup über mehrere Clients)', async () => {
   const wins: Array<{ winId: string; user: { id: string } }> = [];
   const { server } = await setup(0, { onGameWin: (winId: string, user: { id: string }) => wins.push({ winId, user }) });

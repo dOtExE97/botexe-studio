@@ -72,6 +72,28 @@ Antwort: `{ "ok": true }` oder `{ "ok": false, "error": "…" }`.
 
 ---
 
+## Twitch-Streamer-Aktionen (Stream Deck)
+
+Brauchen eine Twitch-Anmeldung (Einstellungen → Twitch). Alle per **POST**, Werte als
+Query-Parameter (oder gleichnamig im JSON-Body):
+
+| Adresse | Wirkung |
+|---|---|
+| `POST /api/twitch/clip?token=…` | Clip erstellen — Antwort enthält `url` (Bearbeiten-Link, 24 h gültig) |
+| `POST /api/twitch/marker?token=…[&beschreibung=…]` | Stream-Marker setzen (Beschreibung max. 140 Zeichen) |
+| `POST /api/twitch/werbung?sekunden=60&token=…` | Werbung starten (`30`, `60`, `90`, `120`, `150`, `180`) |
+| `POST /api/twitch/shoutout?token=…[&login=name]` | Shoutout — ohne `login` an den letzten Raider dieser Sitzung |
+| `POST /api/twitch/chat-modus?modus=emote&token=…` | Chat-Modus umschalten: `emote`, `langsam` (30 s), `follower` |
+
+Antwort: `{ "ok": true, "info": "…" }` (HTTP 200) oder `{ "ok": false, "fehler": "…" }`
+(HTTP 409, z. B. nicht live, Abklingzeit mit Sekunden, „Bitte Twitch neu verbinden";
+HTTP 400 bei falschen Parametern). Jedes Ergebnis steht auch im Log unter `[Twitch]`.
+Twitch-Regeln (Belege: `docs/twitch-api-belege.md`, Abschnitt 10): Clip/Marker/Werbung/Shoutout
+nur live; Werbung nur als Partner/Affiliate; Shoutout höchstens alle 2 Minuten, an denselben
+Kanal alle 60 Minuten.
+
+---
+
 ## Weitere (bereits vorhandene) Endpunkte
 - `GET /api/panel` — Panel-Knöpfe auflisten · `POST /api/panel/fire` `{id}` — Knopf auslösen
 - `POST /api/test-event` — ein TikTok-Event simulieren (`{type, user, gift, …}`) — läuft durch die komplette Kette (Trigger/Stats/Overlay/Sounds). Wie der Test-Knopf in der App: **simuliert**, also ohne Punkte-Gutschrift, ohne Eintrag im Geschenk-Katalog und ohne Einfluss auf eine laufende Aufnahme.

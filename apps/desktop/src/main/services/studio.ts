@@ -72,6 +72,7 @@ import { WebSocket } from 'ws';
 import { TwitchAuth } from './twitch-auth';
 import { TwitchAdapter, type WebSocketLike } from '../adapters/twitch-adapter';
 import { TwitchSteuerung, type TwitchUiStatus } from './twitch-steuerung';
+import { TwitchAktionen } from './twitch-aktionen';
 
 export interface SoundCommand {
   soundId: string;
@@ -183,6 +184,9 @@ export class Studio {
   /** Twitch: Login (Gerätecode) + EventSub-Leitung, zusammengehalten von der
    *  Steuerung (twitch-steuerung.ts). Ereignisse landen auf demselben Bus. */
   private readonly twitch: TwitchSteuerung;
+  /** Streamer-Aktionen (Clip, Marker, Werbung, Shoutout, Chat-Modi) über die
+   *  lokale API (/api/twitch/…, Stream Deck). Merkt sich den letzten Raider. */
+  private readonly twitchAktionen: TwitchAktionen;
   /** Letzter Now-Playing-Stand (für Late-Joiner + Renderer). */
   private lastSpotify: NowPlaying | null = null;
   readonly statsHistory: StatsHistory;
@@ -373,6 +377,7 @@ export class Studio {
       firePanelButton: (id) => this.firePanelById(id),
       getApiStatus: () => this.getApiStatus(),
       runApiAction: (action) => this.runApiAction(action),
+      twitchAktion: (a) => this.twitchAktionen.ausfuehren(a),
     });
     this.games = new GameService((msg) => this.server.broadcast(msg), (user) => this.recordGameWin(user));
 
@@ -564,6 +569,14 @@ export class Studio {
       now: () => Date.now(),
       log,
       onStatus: (info) => this.twitch.adapterStatus(info),
+    });
+    this.twitchAktionen = new TwitchAktionen({
+      auth: twitchAuth,
+      bus: this.bus,
+      fetch: (input, init) => fetch(input, init),
+      now: () => Date.now(),
+      getClientId: () => this.settings.peek().twitchClientId ?? '',
+      log: (stufe, text) => log[stufe]('Twitch', text),
     });
     this.twitch = new TwitchSteuerung({
       auth: twitchAuth,

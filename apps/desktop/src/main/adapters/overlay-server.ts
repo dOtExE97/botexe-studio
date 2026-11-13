@@ -22,6 +22,10 @@ import type { EventBus } from '../core/event-bus';
 import { log, darfMelden } from '../core/logger';
 import { TTLS_HOST } from '../services/ttls-link';
 import { isAllowedMyInstantsMp3, MAX_DOWNLOAD_BYTES } from '../services/myinstants';
+import {
+  istWerbeLaenge, istChatModus, WERBE_LAENGEN, CHAT_MODI,
+  type TwitchAktionAnfrage, type TwitchAktionErgebnis,
+} from '../services/twitch-aktionen';
 
 export type OverlayMessage =
   | { kind: 'hello'; version: string; seed: string } // App-Version (Reload-Handshake) + Session-Seed für deterministische Spiele
@@ -118,6 +122,9 @@ export interface OverlayServerOptions {
   /** KI-/Steuer-API: aggregierter Zustand lesen + validierte Aktion ausführen. */
   getApiStatus?: () => Record<string, unknown>;
   runApiAction?: (action: unknown) => { ok: boolean; error?: string };
+  /** Twitch-Streamer-Aktionen (Clip, Marker, Werbung, Shoutout, Chat-Modi)
+   *  für Stream Deck & Co. — Werte sind schon geprüft (twitch-aktionen.ts). */
+  twitchAktion?: (a: TwitchAktionAnfrage) => Promise<TwitchAktionErgebnis>;
 }
 
 const FILE_NAME_RE = /^[a-zA-Z0-9_.-]+\.(js|css|html|woff2?)$/;
@@ -488,6 +495,7 @@ export class OverlayServer {
     });
 
     this.setupTestEventRoute(auth);
+    this.setupTwitchAktionRoutes(auth);
 
     this.expressApp.get('/tts/:filename', auth, (req, res) => {
       const dir = this.options.ttsDir;
@@ -609,6 +617,66 @@ export class OverlayServer {
       }
       res.setHeader('Content-Length', size);
       fs.createReadStream(target).pipe(res);
+    });
+  }
+
+  /** Twitch-Streamer-Aktionen für Stream Deck & Co. (POST, token-geschützt):
+   *  /api/twitch/clip, /marker[?beschreibung=], /werbung?sekunden=30…180,
+   *  /shoutout[?login=], /chat-modus?modus=emote|langsam|follower.
+   *  Werte kommen aus der Query (Stream-Deck-tauglich) oder dem JSON-Body.
+   *  Antwort: das Ergebnis als JSON — 200 bei Erfolg, 409 wenn Twitch/der
+   *  Zustand nicht mitspielt (nicht live, Abklingzeit, Rechte fehlen), 400 bei
+   *  falschen Parametern. Geloggt wird das Ergebnis im Dienst (einmal). */
+  private setupTwitchAktionRoutes(auth: (req: Request, res: Response, next: NextFunction) => void): void {
+    const wert = (req: Request, name: string): string | undefined => {
+      const q = req.query[name];
+      if (typeof q === 'string') return q;
+      const b = (req.body as Record<string, unknown> | undefined)?.[name];
+      if (typeof b === 'string') return b;
+      if (typeof b === 'number' && Number.isFinite(b)) return String(b);
+      return undefined;
+    };
+    const route = (pfad: string, anfrage: (req: Request) => TwitchAktionAnfrage | { fehler: string }): void => {
+      this.expressApp.post(`/api/twitch/${pfad}`, auth, (req, res) => {
+        const ausfuehren = this.options.twitchAktion;
+        if (!ausfuehren) { res.status(501).json({ ok: false, fehler: 'Twitch-Aktionen sind nicht verfügbar.' }); return; }
+        const a = anfrage(req);
+        if ('fehler' in a) {
+          log.gedrosselt(`overlay:twitch-param:${pfad}`, 30_000, 'warn', 'Twitch', `Fernsteuerung ${pfad}: ${a.fehler}`);
+          res.status(400).json({ ok: false, fehler: a.fehler });
+          return;
+        }
+        ausfuehren(a).then(
+          (e) => { res.status(e.ok ? 200 : 409).json(e); },
+          (err: unknown) => {
+            const fehler = `Twitch-Aktion fehlgeschlagen: ${(err as Error)?.message ?? String(err)}`;
+            log.warn('Twitch', fehler);
+            res.status(500).json({ ok: false, fehler });
+          },
+        );
+      });
+    };
+    route('clip', () => ({ art: 'clip' }));
+    route('marker', (req) => {
+      const beschreibung = wert(req, 'beschreibung');
+      return beschreibung ? { art: 'marker', beschreibung } : { art: 'marker' };
+    });
+    route('werbung', (req) => {
+      const roh = wert(req, 'sekunden') ?? '';
+      const n = /^\d{1,4}$/.test(roh) ? Number(roh) : NaN;
+      return istWerbeLaenge(n)
+        ? { art: 'werbung', sekunden: n }
+        : { fehler: `Parameter „sekunden" fehlt oder ist ungültig — erlaubt: ${WERBE_LAENGEN.join(', ')}.` };
+    });
+    route('shoutout', (req) => {
+      const login = wert(req, 'login')?.trim();
+      return login ? { art: 'shoutout', login } : { art: 'shoutout' };
+    });
+    route('chat-modus', (req) => {
+      const modus = wert(req, 'modus') ?? '';
+      return istChatModus(modus)
+        ? { art: 'chat-modus', modus }
+        : { fehler: `Parameter „modus" fehlt oder ist ungültig — erlaubt: ${CHAT_MODI.join(', ')}.` };
     });
   }
 

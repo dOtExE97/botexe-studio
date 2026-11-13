@@ -23,15 +23,33 @@ export const TWITCH_REVOKE_URL = 'https://id.twitch.tv/oauth2/revoke';
 /** Belegt (1.4): grant_type beim Abholen der Tokens per Gerätecode. */
 const DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code';
 
-/** Die Rechte, um die v1 bittet — nur LESEN (Belege 5.10):
- *  Chat lesen, Follows, Subs/Resubs/Geschenke, Cheers. Raid und
- *  stream.online/offline brauchen keinen Scope. Kommt später ein Scope dazu,
- *  müssen sich alle Streamer neu anmelden (validate() merkt das). */
-export const TWITCH_SCOPES: readonly string[] = Object.freeze([
+/** Lese-Rechte für die Ereignisse (Belege 5.10): Chat lesen, Follows,
+ *  Subs/Resubs/Geschenke, Cheers. Raid und stream.online/offline brauchen
+ *  keinen Scope. */
+export const TWITCH_LESE_SCOPES: readonly string[] = Object.freeze([
   'user:read:chat',
   'moderator:read:followers',
   'channel:read:subscriptions',
   'bits:read',
+]);
+
+/** Schreib-Rechte für die Streamer-Aktionen (Belege 10.7) — je Aktion genau
+ *  der eine Scope, den die Docs verlangen. Get Chat Settings und Get Users
+ *  brauchen keinen. */
+export const TWITCH_AKTIONS_SCOPES = Object.freeze({
+  clip: 'clips:edit',
+  marker: 'channel:manage:broadcast',
+  werbung: 'channel:edit:commercial',
+  shoutout: 'moderator:manage:shoutouts',
+  chatModus: 'moderator:manage:chat_settings',
+} as const);
+
+/** Alle Rechte, um die die App bittet. Kommt ein Scope dazu, müssen sich alle
+ *  Streamer neu anmelden: validate() (beim Start und stündlich) merkt die
+ *  fehlenden Rechte und meldet „neu-anmelden". */
+export const TWITCH_SCOPES: readonly string[] = Object.freeze([
+  ...TWITCH_LESE_SCOPES,
+  ...Object.values(TWITCH_AKTIONS_SCOPES),
 ]);
 
 /** So früh vor Ablauf wird das Access-Token erneuert. */

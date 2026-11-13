@@ -120,10 +120,23 @@ function gueltigeTokens(extra: Partial<TwitchTokens> = {}): TwitchTokens {
   };
 }
 
-test('TWITCH_SCOPES: genau die vier Lese-Scopes aus den Belegen, keine Schreibrechte', () => {
+test('TWITCH_SCOPES: die vier Lese-Scopes + genau die fünf Aktions-Scopes aus den Belegen (10.7)', () => {
   assert.deepEqual([...TWITCH_SCOPES].sort(), [
-    'bits:read', 'channel:read:subscriptions', 'moderator:read:followers', 'user:read:chat',
+    'bits:read', 'channel:edit:commercial', 'channel:manage:broadcast', 'channel:read:subscriptions',
+    'clips:edit', 'moderator:manage:chat_settings', 'moderator:manage:shoutouts',
+    'moderator:read:followers', 'user:read:chat',
   ]);
+});
+
+test('validate: alte Anmeldung (nur die vier Lese-Scopes von vor den Streamer-Aktionen) → TwitchReloginNoetig', async () => {
+  const alt = ['user:read:chat', 'moderator:read:followers', 'channel:read:subscriptions', 'bits:read'];
+  const w = aufbau({
+    tokens: gueltigeTokens({ scopes: alt }),
+    antworter: () => ({ status: 200, body: { ...VALIDATE_OK, scopes: alt } }),
+  });
+  await assert.rejects(() => w.auth.validate(), (err: unknown) =>
+    err instanceof TwitchReloginNoetig && /clips:edit/.test(err.message) && /neu verbinden/.test(err.message));
+  assert.equal(w.tokens(), undefined);
 });
 
 test('Client-ID: nur Buchstaben/Ziffern, 1..64 Zeichen', () => {
