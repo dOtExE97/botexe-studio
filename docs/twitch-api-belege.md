@@ -1076,3 +1076,96 @@ der Liste" → leere `data`-Liste = „gibt es nicht" (Annahme, Fehlerfall `400`
   401 ist belegt, der Text nicht.
 - Erlaubte Werbe-Längen außer „max. meist 180": unbelegt (s. 10.3).
 - Restzeit in 429-Antworten von Werbung und Shoutout: unbelegt.
+
+---
+
+## 11. Follower-Zahl, Kanalpunkte, Chat senden, Raid (Recherche 13.11.2026)
+
+Quellen (Basis `https://dev.twitch.tv/docs/`): [API-CHANNELS] `api/reference/channels`,
+[API-RAIDS] `api/reference/raids`, [API-POINTS] `api/reference/channel-points`,
+[ES-POINTS] `eventsub/reference/channel-points`, [API-CHAT] `api/reference/chat`,
+[CHAT] `chat/` (Abschnitt „Rate limits"). Seiten als HTML gelesen, Feldnamen/Codes wörtlich.
+
+### 11.1 Get Channel Followers (nur `total`)
+
+Quelle: [API-CHANNELS] (`#get-channel-followers`).
+
+- `GET https://api.twitch.tv/helix/channels/followers`
+- Auth: User-Token mit `moderator:read:followers`; Token-Nutzer = `broadcaster_id` oder Mod.
+- Query: `broadcaster_id` (Pflicht), `user_id` (optional), `first` (1–100, Standard 20),
+  `after` (Cursor).
+- Antwort 200: `data[]` (`followed_at`, `user_id`, `user_login`, `user_name`, neueste zuerst),
+  `pagination.cursor`, **`total`** (Integer, „The total number of users that follow this
+  broadcaster"). Ohne Scope/Mod-Recht kommt laut Docs **nur `total`** (data leer).
+- Fehler: `400` (broadcaster_id fehlt, `first` außerhalb, Cursor ungültig), `401` (Token/Client-Id).
+- Die App fragt `first=1` (kleinste Seite) und liest nur `total`. Wie oft sich `total` bei Twitch
+  aktualisiert (sofort nach einem Follow oder verzögert): **unbelegt** — deshalb zählt die App
+  zwischen zwei Abfragen jeden echten `channel.follow` mit +1 und gleicht alle 10 Minuten ab.
+
+### 11.2 `channel.channel_points_custom_reward_redemption.add` — Ergänzung zu 5.9
+
+Quelle: [ES-POINTS]. Version `1`, Scope `channel:read:redemptions` oder
+`channel:manage:redemptions`, Condition `broadcaster_user_id` (Pflicht), `reward_id` (optional).
+Event-Felder wie in 5.9 (`reward.title`, `reward.cost`, `user_input` — leerer String ohne
+Eingabe, `status`). Die Seite nennt **keine** Affiliate-/Partner-Voraussetzung.
+
+[API-POINTS] nennt bei den Helix-Endpunkten der Kanalpunkte (Get/Create/Update/Delete Custom
+Reward, Get Redemption, Update Redemption Status) ausdrücklich `403 Forbidden`: „The broadcaster is
+not a partner or affiliate."
+
+**Unbelegt:** Welchen Code das Anlegen des EventSub-Abos für einen Kanal ohne Affiliate/Partner
+liefert. Abschnitt 4 nennt `403` für „Token erfüllt die Anforderungen nicht". Die App behandelt
+ein `403` bei genau diesem Abo als „kein Affiliate" (eine freundliche Zeile, alles andere läuft
+weiter) — Live-Probe mit einem Nicht-Affiliate-Kanal steht aus.
+
+### 11.3 Send Chat Message — Ergänzung zu 8
+
+Quelle: [API-CHAT] (`#send-chat-message`).
+
+- User-Token mit `user:write:chat` genügt. `user:bot`/`channel:bot` gelten nur für App-Tokens;
+  laut 401-Beschreibung entfällt `channel:bot`, wenn der Absender Broadcaster oder Mod ist.
+- Body: `broadcaster_id`, `sender_id` (= Token-Nutzer), `message` (max. 500 Zeichen). Mit
+  User-Token **kein** `for_source_only` (sonst 400).
+- 200 heißt nicht „angekommen": `data[0].is_sent` prüfen, sonst `drop_reason.code/message`.
+- Fehler: `400`, `401`, `403` („sender isn't allowed to chat"), `422` (zu groß), `429`.
+- Ob die eigene, per API gesendete Nachricht über `channel.chat.message` zurückkommt: auf der
+  Seite **unbelegt**. Die App nimmt es an (der Absender ist ja ein Chatter wie jeder andere) und
+  verwirft solche Echos — sonst könnte eine Antwort, die mit „!" beginnt, sich selbst auslösen.
+
+### 11.4 Chat-Rate-Limits
+
+Quelle: [CHAT] („Rate limits"): je Nutzer 20 Nachrichten / 30 s; ist der Nutzer Broadcaster, Mod
+oder VIP: 100 / 30 s. Ob diese Tabelle auch für die Helix-API (Send Chat Message) gilt, sagt die
+Seite **nicht** ausdrücklich. Die App sendet höchstens eine Nachricht je 1,5 s (≤ 20 / 30 s) und
+liegt damit unter beiden Grenzen.
+
+### 11.5 Start a raid / Cancel a raid
+
+Quelle: [API-RAIDS].
+
+- Start: `POST https://api.twitch.tv/helix/raids?from_broadcaster_id=<eigene ID>&to_broadcaster_id=<Ziel>`
+  (beide Query, Pflicht; `from_…` = Token-Nutzer). Scope `channel:manage:raids`. Kein Body.
+  - 200: `data[0].created_at`, `data[0].is_mature` (veraltet, immer false). „To confirm the raid
+    happened, subscribe to the Channel Raid EventSub event."
+  - `400`: Ziel blockiert dich / nimmt von dir keine Raids an / Raid-Gruppe zu groß / beide IDs
+    gleich / ID ungültig. `401`: Scope fehlt, Token ungültig, Client-Id falsch, `from` ≠ Token.
+    `404`: Zielkanal existiert nicht. `409`: du raidest schon einen anderen Kanal. `429`: Limit.
+  - Ablauf: Raid startet, wenn der Streamer „Jetzt raiden" klickt oder der **90-Sekunden**-
+    Countdown endet.
+- Abbrechen: `DELETE https://api.twitch.tv/helix/raids?broadcaster_id=<eigene ID>`, gleicher Scope.
+  - `204` (abgebrochen), `400` (ID fehlt), `401` wie oben, `404` (kein laufender Raid), `429`.
+- Rate-Limit beider Endpunkte: **10 Anfragen in 10 Minuten**.
+- **Unbelegt:** Ob man live sein muss — die Seite sagt dazu nichts. Twitchs eigene `message` wird
+  an den deutschen Fehlertext gehängt.
+
+### 11.6 Neue Scopes
+
+| Zweck | Scope |
+|---|---|
+| Kanalpunkte-Einlösungen lesen | `channel:read:redemptions` |
+| Chat senden (Bot-Antworten) | `user:write:chat` |
+| Raid starten/abbrechen | `channel:manage:raids` |
+| Follower-Zahl | `moderator:read:followers` (schon vorhanden) |
+
+Jede Scope-Erweiterung erzwingt eine neue Anmeldung (validate meldet fehlende Rechte → „neu
+verbinden").
