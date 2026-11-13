@@ -49,7 +49,7 @@ const hintergrund = opt('hintergrund', '2a2a2a');
 const mitTon = !args.includes('--ohne-ton');
 const ausOrdner = path.resolve(opt('aus', path.join(ROOT, '.tmp', 'alarm-vorschau')));
 const [LW, LH] = opt('leinwand', '1080x1920').split('x').map((v) => Math.max(16, Math.round(Number(v)) || 0));
-const standbilder = opt('standbilder', '').split(',').map(Number).filter((v) => Number.isFinite(v) && v >= 0);
+const standbilder = opt('standbilder', '').split(',').filter((s) => s.trim() !== '').map(Number).filter((v) => Number.isFinite(v) && v >= 0);
 const daten = {
   name: opt('name', 'Schwester Mary'), alt: Number(opt('alt', '11')), neu: Number(opt('neu', '12')), art, bild: bildDatei ? '/bild' : '', tokenBild: tokenDatei ? '/token' : '', kisteBild: kisteDatei ? '/kiste' : '',
   ...JSON.parse(opt('daten', '{}')),

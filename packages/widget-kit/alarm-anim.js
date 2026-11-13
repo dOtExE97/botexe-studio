@@ -68,9 +68,9 @@ export const ANIMATIONEN = {
   //   piraten-sub   Anker-Medaillon schlägt ein. daten: monate (Resub) oder geschenk (Anzahl verschenkter Abos)
   //   piraten-bits  Münzen regnen auf einen Haufen, Zähler läuft hoch. daten: bits, nachricht, tokenBild
   //   piraten-raid  Piratenschiff segelt über Wellen herein, Kanonen feuern. daten: zuschauer
-  'piraten-sub': { label: 'Piraten-Crew (Sub)', fuer: ['twitch_sub'], dauer: 6.2, sound: 'botexe-superfan.wav' },
-  'piraten-bits': { label: 'Piraten-Schatz (Bits)', fuer: ['cheer'], dauer: 6.4, sound: 'botexe-truhe.wav' },
-  'piraten-raid': { label: 'Piraten-Entern (Raid)', fuer: ['raid'], dauer: 7.2, sound: 'botexe-boom.wav' },
+  'piraten-sub': { label: 'Piraten-Crew (Sub)', fuer: ['twitch_sub'], dauer: 6.2, sound: 'botexe-piraten-sub.wav' },
+  'piraten-bits': { label: 'Piraten-Schatz (Bits)', fuer: ['cheer'], dauer: 6.4, sound: 'botexe-piraten-bits.wav' },
+  'piraten-raid': { label: 'Piraten-Entern (Raid)', fuer: ['raid'], dauer: 7.2, sound: 'botexe-piraten-raid.wav' },
 };
 
 // ---------------------------------------------------------------- Helfer ---
