@@ -2096,7 +2096,7 @@ function stilPremium(typ, d, bild) {
     if (GLUECK) {
       const pg = eOutBack(seg(t, R_ENDE + 0.1, R_ENDE + 0.5), 2.2);
       if (pg > 0) { g.save(); g.translate(CX, 1610); g.scale(pg, pg); g.rotate(-0.04); spaced(g, 'GLÜCKSPILZ!', 84, 0, 0, clamp(pg) * F, '#fff6d0', '#ffb627', 6); g.restore(); }
-    } else spaced(g, `CHANCE 1 : ${formatDe(d.chance)} PRO KISTE`, 34, CX, 1606 + 14 * (1 - pz), pz * F * 0.9, '#e9c77a', '#000000', 5);
+    } else spaced(g, 'DAS ORAKEL HAT GESPROCHEN', 40, CX, 1606 + 14 * (1 - pz), pz * F * 0.9, '#e9c77a', '#000000', 5); // bewusst ohne Quote/„Chance“ (Plattformen werten das als Glücksspiel)
     const pa = eOutBack(seg(t, R_ENDE + 0.3, R_ENDE + 0.7), 2);
     avatar(g, CX, 1740, 78, pa, clamp(pa) * F, t, null);
     const pm = eOutC(seg(t, R_ENDE + 0.5, R_ENDE + 0.85));
